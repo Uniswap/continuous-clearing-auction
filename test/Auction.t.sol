@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import {Test} from 'forge-std/Test.sol';
 import {Auction, AuctionParameters} from '../src/Auction.sol';
 import {IAuction} from '../src/interfaces/IAuction.sol';
 
@@ -8,7 +9,6 @@ import {IAuction} from '../src/interfaces/IAuction.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
-import {Test} from 'forge-std/Test.sol';
 
 contract AuctionTest is TokenHandler, Test {
     using AuctionParamsBuilder for AuctionParameters;
@@ -51,18 +51,21 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectEmit(true, true, true, true);
         emit IAuction.AuctionStepRecorded(1, block.number, block.number + 50);
         auction.recordStep();
+        vm.snapshotGasLastCall('recordStep');
     }
 
     function test_submitBid_exactIn_atFloorPrice_succeeds() public {
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(1, FLOOR_PRICE, true, 100e18);
         auction.submitBid(FLOOR_PRICE, true, 100e18, alice, 0);
+        vm.snapshotGasLastCall('submitBid_exactIn_floorPrice');
     }
 
     function test_submitBid_exactOut_atFloorPrice_succeeds() public {
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(1, FLOOR_PRICE, false, 100e18);
         auction.submitBid(FLOOR_PRICE, false, 100e18, alice, 0);
+        vm.snapshotGasLastCall('submitBid_exactOut_floorPrice');
     }
 
     function test_submitBid_exactIn_initializesTickAndUpdatesClearingPrice_succeeds() public {
@@ -73,6 +76,7 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(2, 2e18, true, 100e18);
         auction.submitBid(2e18, true, 100e18, alice, 1);
+        vm.snapshotGasLastCall('submitBid_exactIn_initializesTickAndUpdatesClearingPrice');
     }
 
     function test_submitBid_exactOut_initializesTickAndUpdatesClearingPrice_succeeds() public {
@@ -83,5 +87,6 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(2, 2e18, false, 100e18);
         auction.submitBid(2e18, false, 100e18, alice, 1);
+        vm.snapshotGasLastCall('submitBid_exactOut_initializesTickAndUpdatesClearingPrice');
     }
 }

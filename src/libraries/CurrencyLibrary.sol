@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 import {IERC20Minimal} from '../interfaces/external/IERC20Minimal.sol';
+import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 type Currency is address;
 

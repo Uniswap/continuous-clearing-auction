@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {ITickStorage} from './ITickStorage.sol';
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
+import {ITickStorage} from './ITickStorage.sol';
 
 /// @notice Interface for the Auction contract
 interface IAuction is ITickStorage, IAuctionStepStorage {
@@ -44,5 +44,7 @@ interface IAuction is ITickStorage, IAuctionStepStorage {
     /// @param amount The amount of the bid
     /// @param owner The owner of the bid
     /// @param prevHintId The id of the previous tick hint
-    function submitBid(uint128 maxPrice, bool exactIn, uint128 amount, address owner, uint128 prevHintId) external payable;
+    function submitBid(uint128 maxPrice, bool exactIn, uint128 amount, address owner, uint128 prevHintId)
+        external
+        payable;
 }

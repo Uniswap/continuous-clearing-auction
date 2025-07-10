@@ -6,8 +6,8 @@ struct Bid {
     uint128 amount; // User's demand
     uint128 maxPrice; // Max clearing price
     address owner; // Who is allowed to withdraw the bid
-    uint256 startStepId; // Auction step id which the bid was first made in
-    uint256 withdrawnStepId; // Auction step id when the bid was withdrawn
+    uint256 startBlock; // Block number when the bid was first made in
+    uint256 withdrawnBlock; // Block number when the bid was withdrawn
 }
 
 library BidLib {

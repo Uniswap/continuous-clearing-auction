@@ -18,11 +18,7 @@ struct AuctionParameters {
 }
 
 struct AuctionStep {
-    uint256 id; // Incrementing unique id
     uint16 bps; // Basis points to sell per block in the step
-    uint256 clearingPrice; // Clearing price at end of step
-    uint256 amountCleared; // Amount of tokens sold in the step
     uint256 startBlock; // Start block of the step (inclusive)
     uint256 endBlock; // Ending block of the step (exclusive)
-    uint256 next;
 }

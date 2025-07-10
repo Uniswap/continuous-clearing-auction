@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {Test} from 'forge-std/Test.sol';
 import {Auction, AuctionParameters} from '../src/Auction.sol';
 import {IAuction} from '../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
+import {Test} from 'forge-std/Test.sol';
 
 contract AuctionTest is TokenHandler, Test {
     using AuctionParamsBuilder for AuctionParameters;

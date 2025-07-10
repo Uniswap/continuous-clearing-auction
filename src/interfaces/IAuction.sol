@@ -2,15 +2,14 @@
 pragma solidity ^0.8.0;
 
 import {ITickStorage} from './ITickStorage.sol';
+import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
 
 /// @notice Interface for the Auction contract
-interface IAuction is ITickStorage {
+interface IAuction is ITickStorage, IAuctionStepStorage {
     /// @notice Error thrown when the auction is not started
     error AuctionNotStarted();
     /// @notice Error thrown when the current step is not complete
     error AuctionStepNotOver();
-    /// @notice Error thrown when the auction is over
-    error AuctionIsOver();
     /// @notice Error thrown when the total supply is zero
     error TotalSupplyIsZero();
     /// @notice Error thrown when the floor price is zero
@@ -28,11 +27,6 @@ interface IAuction is ITickStorage {
     /// @notice Error thrown when the funds recipient is the zero address
     error FundsRecipientIsZero();
 
-    /// @notice Emitted when an auction step is recorded
-    /// @param id The id of the auction step
-    /// @param startBlock The start block of the auction step
-    /// @param endBlock The end block of the auction step
-    event AuctionStepRecorded(uint256 indexed id, uint256 startBlock, uint256 endBlock);
     /// @notice Emitted when a bid is submitted
     /// @param id The id of the tick
     /// @param price The price of the bid

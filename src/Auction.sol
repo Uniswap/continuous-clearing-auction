@@ -3,16 +3,16 @@ pragma solidity ^0.8.23;
 
 import {AuctionParameters, AuctionStep} from './Base.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
+import {AuctionStepStorage} from './AuctionStepStorage.sol';
 import {IAuction} from './interfaces/IAuction.sol';
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
-
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Currency} from './libraries/CurrencyLibrary.sol';
 
 /// @title Auction
-contract Auction is IAuction, TickStorage {
+contract Auction is IAuction, TickStorage, AuctionStepStorage {
     using BidLib for Bid;
     using AuctionStepLib for bytes;
     using AuctionStepLib for AuctionStep;
@@ -39,17 +39,6 @@ contract Auction is IAuction, TickStorage {
     IValidationHook public immutable validationHook;
     /// @notice The starting price of the auction
     uint256 public immutable floorPrice;
-
-    /// @notice The auction steps data from contructor parameters
-    bytes public auctionStepsData;
-    /// @notice The current step data
-    AuctionStep public step;
-    /// @notice Singly linked list of auction steps
-    mapping(uint256 id => AuctionStep) public steps;
-    /// @notice The id of the first step
-    uint256 public headId;
-    /// @notice The word offset of the last read step in `auctionStepsData` bytes
-    uint256 public offset;
 
     /// @notice The cumulative amount of tokens cleared
     uint256 public totalCleared;
@@ -101,12 +90,11 @@ contract Auction is IAuction, TickStorage {
     /// @dev This function is called on every new bid if the current step is complete
     function _recordStep() internal {
         if (block.number < startBlock) revert AuctionNotStarted();
-        if (block.number < step.endBlock) revert AuctionStepNotOver();
+        if (block.number < step().endBlock) revert AuctionStepNotOver();
 
-        AuctionStep memory currentStep = step;
-
-        // Write current data to step
+        AuctionStep storage currentStep = steps[headId];
         currentStep.clearingPrice = clearingPrice;
+
         if (currentStep.bps > 0) {
             if (clearingPrice > floorPrice) {
                 currentStep.amountCleared = currentStep.resolvedSupply(totalSupply, totalCleared, sumBps);
@@ -116,38 +104,16 @@ contract Auction is IAuction, TickStorage {
             }
             // Update global state
             totalCleared += currentStep.amountCleared;
-            sumBps += currentStep.bps;
+            sumBps += currentStep.bps * (currentStep.endBlock - currentStep.startBlock);
         }
 
-        uint256 _id = currentStep.id;
-        offset = _id * 8; // offset is the pointer to the next step in the auctionStepsData. Each step is a uint64 (8 bytes)
-        uint256 _offset = offset;
-
-        bytes memory _auctionStepsData = auctionStepsData;
-        if (_offset >= _auctionStepsData.length) revert AuctionIsOver();
-        (uint16 bps, uint48 blockDelta) = _auctionStepsData.get(_offset);
-
-        _id++;
-        uint256 _startBlock = block.number;
-        uint256 _endBlock = _startBlock + blockDelta;
-
-        currentStep.id = _id;
-        currentStep.bps = bps;
-        currentStep.startBlock = _startBlock;
-        currentStep.endBlock = _endBlock;
-        currentStep.next = steps[headId].next;
-        steps[headId].next = _id;
-        headId = _id;
-
-        step = currentStep;
-
-        emit AuctionStepRecorded(_id, _startBlock, _endBlock);
+        _advanceStep();
     }
 
     /// @notice Update the clearing price
     /// @dev This function is called every time a new bid is submitted above the current clearing price
     function _updateClearingPrice() internal {
-        uint256 resolvedSupply = step.resolvedSupply(totalSupply, totalCleared, sumBps);
+        uint256 resolvedSupply = step().resolvedSupply(totalSupply, totalCleared, sumBps);
         uint256 _aggregateDemand = _resolvedTokenDemandTickUpper();
 
         Tick memory tickUpper = ticks[tickUpperId];
@@ -178,14 +144,13 @@ contract Auction is IAuction, TickStorage {
         }
     }
 
-    /// @inheritdoc IAuction
-    function submitBid(uint128 maxPrice, bool exactIn, uint128 amount, address owner, uint128 prevHintId) external payable {
+    function _submitBid(uint128 maxPrice, bool exactIn, uint128 amount, address owner, uint128 prevHintId) internal {
         Bid memory bid = Bid({
             maxPrice: maxPrice,
             exactIn: exactIn,
             amount: amount,
             owner: owner,
-            startStepId: step.id,
+            startStepId: headId,
             withdrawnStepId: 0
         });
         bid.validate(floorPrice, tickSpacing);
@@ -193,9 +158,6 @@ contract Auction is IAuction, TickStorage {
         if (address(validationHook) != address(0)) {
             validationHook.validate(block.number);
         }
-
-        if (block.number >= step.endBlock) _recordStep();
-
         uint128 id = _initializeTickIfNeeded(prevHintId, bid.maxPrice);
         _updateTick(id, bid);
 
@@ -210,5 +172,10 @@ contract Auction is IAuction, TickStorage {
         }
 
         emit BidSubmitted(id, bid.maxPrice, bid.exactIn, bid.amount);
+    }
+
+    /// @inheritdoc IAuction
+    function submitBid(uint128 maxPrice, bool exactIn, uint128 amount, address owner, uint128 prevHintId) external payable {
+        _submitBid(maxPrice, exactIn, amount, owner, prevHintId);
     }
 }

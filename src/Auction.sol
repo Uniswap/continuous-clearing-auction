@@ -179,7 +179,7 @@ contract Auction is IAuction, TickStorage {
     }
 
     /// @inheritdoc IAuction
-    function submitBid(uint128 maxPrice, bool exactIn, uint128 amount, address owner, uint128 prevHintId) external {
+    function submitBid(uint128 maxPrice, bool exactIn, uint128 amount, address owner, uint128 prevHintId) external payable {
         Bid memory bid = Bid({
             maxPrice: maxPrice,
             exactIn: exactIn,
@@ -189,7 +189,7 @@ contract Auction is IAuction, TickStorage {
             withdrawnStepId: 0
         });
         bid.validate(floorPrice, tickSpacing);
-
+        
         if (address(validationHook) != address(0)) {
             validationHook.validate(block.number);
         }

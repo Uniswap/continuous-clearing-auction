@@ -50,5 +50,5 @@ interface IAuction is ITickStorage {
     /// @param amount The amount of the bid
     /// @param owner The owner of the bid
     /// @param prevHintId The id of the previous tick hint
-    function submitBid(uint128 maxPrice, bool exactIn, uint128 amount, address owner, uint128 prevHintId) external;
+    function submitBid(uint128 maxPrice, bool exactIn, uint128 amount, address owner, uint128 prevHintId) external payable;
 }

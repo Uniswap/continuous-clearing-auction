@@ -4,8 +4,7 @@ pragma solidity ^0.8.23;
 import {Test} from 'forge-std/Test.sol';
 import {Auction, AuctionParameters} from '../src/Auction.sol';
 import {IAuction} from '../src/interfaces/IAuction.sol';
-
-import {IAuction} from '../src/interfaces/IAuction.sol';
+import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
@@ -49,7 +48,7 @@ contract AuctionTest is TokenHandler, Test {
 
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
-        emit IAuction.TickInitialized(1, _tickPriceAt(1));
+        emit ITickStorage.TickInitialized(1, _tickPriceAt(1));
         auction = new Auction(params);
     }
 
@@ -95,12 +94,12 @@ contract AuctionTest is TokenHandler, Test {
 
     function test_submitBid_multipleTicks_succeeds() public {
         vm.expectEmit(true, true, true, true);
-        emit IAuction.TickInitialized(2, _tickPriceAt(2));
+        emit ITickStorage.TickInitialized(2, _tickPriceAt(2));
         auction.submitBid(_tickPriceAt(2), true, 500e18, alice, 1);
         vm.snapshotGasLastCall('submitBid_recordStep_initializeTick');
-        
+
         vm.expectEmit(true, true, true, true);
-        emit IAuction.TickInitialized(3, _tickPriceAt(3));
+        emit ITickStorage.TickInitialized(3, _tickPriceAt(3));
         auction.submitBid(_tickPriceAt(3), true, 500e18, alice, 2);
         vm.snapshotGasLastCall('submitBid_initializeTick');
     }

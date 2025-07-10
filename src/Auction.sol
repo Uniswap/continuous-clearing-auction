@@ -132,40 +132,29 @@ contract Auction is IAuction {
     }
 
     /// @notice Initialize a tick at with `price`
+    /// @dev if the tick already exists, return the existing tick id
     function _initializeTickIfNeeded(uint128 prev, uint256 price) internal returns (uint128 id) {
         uint128 next;
         id = nextTickId == 0 ? 1 : nextTickId;
 
+        // Inserting at the beginning of the list
         if (prev == 0) {
-            // Inserting at the beginning of the list
             next = headTickId;
-            // Check if there's already a head tick and validate price ordering
             if (next != 0 && ticks[next].price < price) {
                 revert TickPriceNotIncreasing();
             }
-            // Check for duplicate price at head
-            if (next != 0 && ticks[next].price == price) {
-                return next;
-            }
-
-            tickUpperId = id;
         } else {
-            // Inserting after prev
             next = ticks[prev].next;
-            // Check if a tick already exists at this exact price
-            if (next != 0 && ticks[next].price == price) {
-                return next;
-            }
-            // Validate price ordering
-            if (ticks[prev].price >= price) {
-                revert TickPriceNotIncreasing();
-            }
-            if (next != 0 && ticks[next].price < price) {
+            if (ticks[prev].price >= price || (next != 0 && ticks[next].price < price)) {
                 revert TickPriceNotIncreasing();
             }
         }
+
+        // Hot path if the tick already exists
+        if (next != 0 && ticks[next].price == price) {
+            return next;
+        }
         
-        // Initialize the new tick
         Tick storage newTick = ticks[id];
         newTick.id = id;
         newTick.prev = prev;
@@ -174,9 +163,10 @@ contract Auction is IAuction {
         newTick.sumCurrencyDemand = 0;
         newTick.sumTokenDemand = 0;
         
-        // Update linked list pointers
+        // Update pointers
         if (prev == 0) {
-            // This is the new head of the list
+            // Base case for the first tick, set the tickUpperId
+            tickUpperId = id;
             headTickId = id;
         } else {
             ticks[prev].next = id;

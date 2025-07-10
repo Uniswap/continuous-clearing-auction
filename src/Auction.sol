@@ -5,10 +5,11 @@ import {AuctionParameters, AuctionStep} from './Base.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
 import {IAuction} from './interfaces/IAuction.sol';
 import {IValidationHook} from './interfaces/IValidationHook.sol';
-import {IERC20} from './interfaces/external/IERC20.sol';
+import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
+import {Currency} from './libraries/CurrencyLibrary.sol';
 
 /// @title Auction
 contract Auction is IAuction, TickStorage {
@@ -17,9 +18,9 @@ contract Auction is IAuction, TickStorage {
     using AuctionStepLib for AuctionStep;
 
     /// @notice The currency of the auction
-    address public immutable currency;
+    Currency public immutable currency;
     /// @notice The token of the auction
-    IERC20 public immutable token;
+    IERC20Minimal public immutable token;
     /// @notice The total supply of token to sell
     uint256 public immutable totalSupply;
     /// @notice The recipient of any unsold tokens
@@ -63,8 +64,8 @@ contract Auction is IAuction, TickStorage {
     uint256 public sumTokenDemandAtTickUpper;
 
     constructor(AuctionParameters memory _parameters) {
-        currency = _parameters.currency;
-        token = IERC20(_parameters.token);
+        currency = Currency.wrap(_parameters.currency);
+        token = IERC20Minimal(_parameters.token);
         totalSupply = _parameters.totalSupply;
         tokensRecipient = _parameters.tokensRecipient;
         fundsRecipient = _parameters.fundsRecipient;

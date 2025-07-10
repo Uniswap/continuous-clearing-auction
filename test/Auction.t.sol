@@ -3,6 +3,7 @@ pragma solidity ^0.8.23;
 
 import {Test} from 'forge-std/Test.sol';
 import {Auction, AuctionParameters} from '../src/Auction.sol';
+import {AuctionStep} from '../src/Base.sol';
 import {IAuction} from '../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
@@ -29,6 +30,19 @@ contract AuctionTest is TokenHandler, Test {
         return uint128(FLOOR_PRICE + (id - 1) * TICK_SPACING);
     }
 
+    function _getStep() internal view returns (AuctionStep memory step) {
+        (uint256 id, uint16 bps, uint256 clearingPrice, uint256 amountCleared, uint256 startBlock, uint256 endBlock, uint256 next) = auction.step();
+        return AuctionStep({
+            id: id,
+            bps: bps,
+            clearingPrice: clearingPrice,
+            amountCleared: amountCleared,
+            startBlock: startBlock,
+            endBlock: endBlock,
+            next: next
+        });
+    }
+
     function setUp() public {
         setUpTokens();
 
@@ -52,11 +66,43 @@ contract AuctionTest is TokenHandler, Test {
         auction = new Auction(params);
     }
 
+    function test_submitBid_recordStep_succeeds() public {
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.BidSubmitted(1, _tickPriceAt(1), true, 100e18);
+        auction.submitBid(_tickPriceAt(1), true, 100e18, alice, 0);
+
+        AuctionStep memory step = _getStep();
+        assertEq(step.id, 1);
+        assertEq(step.bps, 100);
+        assertEq(step.clearingPrice, 0);
+        assertEq(step.amountCleared, 0);
+        assertEq(step.startBlock, block.number);
+        assertEq(step.endBlock, block.number + 50);
+        assertEq(step.next, 0);
+
+        uint256 _clearingPrice = auction.clearingPrice();
+        assertEq(_clearingPrice, _tickPriceAt(1));
+
+        vm.roll(step.endBlock);
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.AuctionStepRecorded(2, block.number, block.number + 50);
+        auction.submitBid(_tickPriceAt(1), true, 100e18, alice, 0);
+
+        step = _getStep();
+        assertEq(step.id, 2);
+        assertEq(step.bps, 100);
+        assertEq(step.clearingPrice, _clearingPrice);
+        assertEq(step.amountCleared, 0);
+        assertEq(step.startBlock, block.number);
+        assertEq(step.endBlock, block.number + 50);
+        assertEq(step.next, 0);
+    }
+
     function test_submitBid_exactIn_atFloorPrice_succeeds() public {
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(1, _tickPriceAt(1), true, 100e18);
         auction.submitBid(_tickPriceAt(1), true, 100e18, alice, 0);
-        vm.snapshotGasLastCall('submitBid_recordStep');
+        vm.snapshotGasLastCall('submitBid_recordStep_updateClearingPrice');
 
         auction.submitBid(_tickPriceAt(1), true, 100e18, alice, 0);
         vm.snapshotGasLastCall('submitBid');

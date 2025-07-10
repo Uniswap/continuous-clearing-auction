@@ -100,7 +100,6 @@ contract Auction is IAuction, TickStorage {
     /// @dev This function is called on every new bid if the current step is complete
     function _recordStep() internal {
         if (block.number < startBlock) revert AuctionNotStarted();
-        if (block.number < step.endBlock) revert AuctionStepNotOver();
 
         AuctionStep memory currentStep = step;
 
@@ -132,6 +131,8 @@ contract Auction is IAuction, TickStorage {
 
         currentStep.id = _id;
         currentStep.bps = bps;
+        currentStep.clearingPrice = clearingPrice;
+        currentStep.amountCleared = 0;
         currentStep.startBlock = _startBlock;
         currentStep.endBlock = _endBlock;
         currentStep.next = steps[headId].next;

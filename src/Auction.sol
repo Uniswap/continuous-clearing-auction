@@ -52,7 +52,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
     /// @notice Sum of all demand at or above tickUpper for `token` (exactOut)
     uint256 public sumTokenDemandAtTickUpper;
 
-    constructor(AuctionParameters memory _parameters) {
+    constructor(AuctionParameters memory _parameters) AuctionStepStorage(_parameters.auctionStepsData) {
         currency = Currency.wrap(_parameters.currency);
         token = IERC20Minimal(_parameters.token);
         totalSupply = _parameters.totalSupply;
@@ -64,7 +64,6 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         tickSpacing = _parameters.tickSpacing;
         validationHook = IValidationHook(_parameters.validationHook);
         floorPrice = _parameters.floorPrice;
-        auctionStepsData = _parameters.auctionStepsData;
 
         // Initialize a tick for the floor price
         _initializeTickIfNeeded(0, floorPrice);

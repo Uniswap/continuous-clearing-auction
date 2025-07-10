@@ -19,7 +19,6 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
 
     constructor(bytes memory _auctionStepsData) {
         auctionStepsData = _auctionStepsData;
-
     }
 
     /// @notice Get the current auction step

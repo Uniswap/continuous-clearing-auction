@@ -18,7 +18,6 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
     /// @notice The word offset of the last read step in `auctionStepsData` bytes
     uint256 public offset;
     uint256 public constant UINT64_SIZE = 8;
-    uint256 public constant BPS = 10_000;
 
     uint256 private immutable _length;
 
@@ -46,7 +45,7 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
             (uint16 bps, uint48 blockDelta) = _auctionStepsData.get(i);
             sumBps += bps * blockDelta;
         }
-        if (sumBps != BPS) revert InvalidBps();
+        if (sumBps != AuctionStepLib.BPS) revert InvalidBps();
     }
 
     /// @notice Advance the current auction step

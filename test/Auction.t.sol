@@ -36,8 +36,7 @@ contract AuctionTest is TokenHandler, Test {
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 
-        // 100 bps each block, 50 blocks each, so 5_000 bps per "step"
-        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100, 50).addStep(100, 50);
+        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100, 100);
         AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(address(currency)).withToken(
             address(token)
         ).withTotalSupply(TOTAL_SUPPLY).withFloorPrice(FLOOR_PRICE).withTickSpacing(TICK_SPACING).withValidationHook(
@@ -74,8 +73,9 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(2), expectedTotalCleared, expectedCumulativeBps);
         vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(2, _tickPriceAt(2), true, 100e18);
-        auction.submitBid(_tickPriceAt(2), true, 100e18, alice, 1);
+        emit IAuction.BidSubmitted(2, _tickPriceAt(2), true, 1000e18);
+        // Oversubscribe the auction to increase the clearing price
+        auction.submitBid(_tickPriceAt(2), true, 1000e18, alice, 1);
         vm.snapshotGasLastCall('submitBid_recordStep_initializeTick_updateClearingPrice');
     }
 
@@ -85,8 +85,9 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(2), expectedTotalCleared, expectedCumulativeBps);
         vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(2, _tickPriceAt(2), false, 10e18);
-        auction.submitBid(_tickPriceAt(2), false, 10e18, alice, 1);
+        emit IAuction.BidSubmitted(2, _tickPriceAt(2), false, 1000e18);
+        // Oversubscribe the auction to increase the clearing price
+        auction.submitBid(_tickPriceAt(2), false, 1000e18, alice, 1);
     }
 
     function test_submitBid_updatesClearingPrice_succeeds() public {

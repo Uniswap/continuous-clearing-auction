@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import {console2} from 'forge-std/console2.sol';
 import {AuctionStep} from './Base.sol';
 import {IAuctionStepStorage} from './interfaces/IAuctionStepStorage.sol';
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
@@ -51,8 +52,7 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
     /// @notice Advance the current auction step
     /// @dev This function is called on every new bid if the current step is complete
     function _advanceStep() internal {
-        offset += UINT64_SIZE;
-        if (offset >= _length) revert AuctionIsOver();
+        if (offset > _length) revert AuctionIsOver();
 
         bytes memory _auctionStep = pointer.read(offset, offset + UINT64_SIZE);
         (uint16 bps, uint48 blockDelta) = _auctionStep.get(0);
@@ -63,6 +63,8 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
         step.bps = bps;
         step.startBlock = _startBlock;
         step.endBlock = _endBlock;
+
+        offset += UINT64_SIZE;
 
         emit AuctionStepRecorded(bps, _startBlock, _endBlock);
     }

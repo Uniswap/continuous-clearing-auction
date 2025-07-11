@@ -119,7 +119,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         uint256 _aggregateDemand = _resolvedTokenDemandTickUpper();
 
         Tick memory tickUpper = ticks[tickUpperId];
-        while (_aggregateDemand >= resolvedSupply && tickUpper.next != 0) {
+        while (_aggregateDemand > resolvedSupply && tickUpper.next != 0) {
             // Subtract the demand at the old tickUpper as it has been outbid
             sumCurrencyDemandAtTickUpper -= tickUpper.sumCurrencyDemand;
             sumTokenDemandAtTickUpper -= tickUpper.sumTokenDemand;

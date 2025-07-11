@@ -69,8 +69,10 @@ contract AuctionTest is TokenHandler, Test {
     }
 
     function test_submitBid_exactIn_initializesTickAndUpdatesClearingPrice_succeeds() public {
+        uint256 expectedTotalCleared = 10e18; // 100 bps * total supply (1000e18)
+        uint16 expectedCumulativeBps = 100; // 100 bps * 1 block
         vm.expectEmit(true, true, true, true);
-        emit IAuction.ClearingPriceUpdated(0, _tickPriceAt(2));
+        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(2), expectedTotalCleared, expectedCumulativeBps);
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(2, _tickPriceAt(2), true, 100e18);
         auction.submitBid(_tickPriceAt(2), true, 100e18, alice, 1);
@@ -78,16 +80,20 @@ contract AuctionTest is TokenHandler, Test {
     }
 
     function test_submitBid_exactOut_initializesTickAndUpdatesClearingPrice_succeeds() public {
+        uint256 expectedTotalCleared = 10e18; // 100 bps * total supply (1000e18)
+        uint16 expectedCumulativeBps = 100; // 100 bps * 1 block
         vm.expectEmit(true, true, true, true);
-        emit IAuction.ClearingPriceUpdated(0, _tickPriceAt(2));
+        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(2), expectedTotalCleared, expectedCumulativeBps);
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(2, _tickPriceAt(2), false, 10e18);
         auction.submitBid(_tickPriceAt(2), false, 10e18, alice, 1);
     }
 
     function test_submitBid_updatesClearingPrice_succeeds() public {
+        uint256 expectedTotalCleared = 10e18; // 100 bps * total supply (1000e18)
+        uint16 expectedCumulativeBps = 100; // 100 bps * 1 block
         vm.expectEmit(true, true, true, true);
-        emit IAuction.ClearingPriceUpdated(0, _tickPriceAt(2));
+        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(2), expectedTotalCleared, expectedCumulativeBps);
         // Bid enough to update the clearing price
         auction.submitBid(_tickPriceAt(2), true, 500e18, alice, 1);
     }

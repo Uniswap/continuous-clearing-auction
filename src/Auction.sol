@@ -10,6 +10,7 @@ import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Currency} from './libraries/CurrencyLibrary.sol';
+import {console2} from 'forge-std/console2.sol';
 
 /// @title Auction
 contract Auction is IAuction, TickStorage, AuctionStepStorage {
@@ -99,14 +100,16 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         Checkpoint memory _checkpoint = checkpoints[lastCheckpointedBlock];
         // Advance the current step until the current block is within the step
         uint16 sumBps = 0;
-        uint256 start = lastCheckpointedBlock;
-        uint256 end = step.endBlock;
-        while (block.number >= end) {
-            // Number of blocks in the old step from the last checkpointed block to the end
-            sumBps += uint16(step.bps * (end - start));
-            start = end;
-            _advanceStep();
-            end = step.endBlock;
+        {
+            uint256 start = lastCheckpointedBlock;
+            uint256 end = step.endBlock;
+            while (block.number >= end) {
+                // Number of blocks in the old step from the last checkpointed block to the end
+                sumBps += uint16(step.bps * (end - start));
+                start = end;
+                _advanceStep();
+                end = step.endBlock;
+            }
         }
         // Now current step is the step that contains the current block
         uint256 _totalCleared = _checkpoint.totalCleared;
@@ -142,12 +145,26 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         } else {
             _totalCleared += resolvedSupply;
         }
-        // TODO: check this
-        _cumulativeBps += uint16(sumBps + step.bps * (block.number - step.startBlock));
+
+        // Add sumBps, the number of bps between the last checkpointed block and the current step's start block
+        // Add one because we want to include the current block
+        if (step.startBlock > lastCheckpointedBlock) {
+            // lastCheckpointedBlock --- | step.startBlock --- | block.number
+            //                     ^     ^
+            //           cumulativeBps   sumBps
+            _cumulativeBps += sumBps + uint16(step.bps * (block.number + 1 - step.startBlock));
+        } else {
+            // step.startBlock --- | lastCheckpointedBlock --- | block.number
+            //                     ^     ^
+            //           sumBps (0)   cumulativeBps
+            _cumulativeBps += sumBps + uint16(step.bps * (block.number + 1 - lastCheckpointedBlock));
+        }
 
         checkpoints[block.number] =
             Checkpoint({clearingPrice: _newClearingPrice, totalCleared: _totalCleared, cumulativeBps: _cumulativeBps});
         lastCheckpointedBlock = block.number;
+
+        emit CheckpointUpdated(block.number, _newClearingPrice, _totalCleared, _cumulativeBps);
     }
 
     function _submitBid(uint128 maxPrice, bool exactIn, uint128 amount, address owner, uint128 prevHintId) internal {

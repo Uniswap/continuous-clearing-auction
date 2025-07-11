@@ -33,10 +33,15 @@ interface IAuction is ITickStorage, IAuctionStepStorage {
     /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
     event BidSubmitted(uint128 indexed id, uint256 price, bool exactIn, uint256 amount);
-    /// @notice Emitted when the clearing price is updateds
-    /// @param oldPrice The old clearing price
-    /// @param newPrice The new clearing price
-    event ClearingPriceUpdated(uint256 oldPrice, uint256 newPrice);
+
+    /// @notice Emitted when a new checkpoint is created
+    /// @param blockNumber The block number of the checkpoint
+    /// @param clearingPrice The clearing price of the checkpoint
+    /// @param totalCleared The total amount of tokens cleared
+    /// @param cumulativeBps The cumulative basis points of past auction steps
+    event CheckpointUpdated(
+        uint256 indexed blockNumber, uint256 clearingPrice, uint256 totalCleared, uint16 cumulativeBps
+    );
 
     /// @notice Submit a new bid
     /// @param maxPrice The maximum price the bidder is willing to pay

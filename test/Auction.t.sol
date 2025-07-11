@@ -107,7 +107,7 @@ contract AuctionTest is TokenHandler, Test {
         // Expect the checkpoint to be made for the previous block
         emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(1), 0, 0);
         auction.submitBid{value: 1000e18}(_tickPriceAt(2), true, 1000e18, alice, 1);
-        
+
         vm.roll(block.number + 1);
         uint256 expectedTotalCleared = 10e18; // 100 bps * total supply (1000e18)
         vm.expectEmit(true, true, true, true);
@@ -136,9 +136,7 @@ contract AuctionTest is TokenHandler, Test {
         vm.roll(block.number + 1);
         // New block, expect the clearing price to be updated and one block's worth of bps to be sold
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(
-            block.number, _tickPriceAt(2), expectedTotalCleared * 2, expectedCumulativeBps
-        );
+        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(2), expectedTotalCleared * 2, expectedCumulativeBps);
         auction.submitBid{value: 1}(_tickPriceAt(3), true, 1, alice, 2);
         assertEq(auction.clearingPrice(), _tickPriceAt(2));
     }

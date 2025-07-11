@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.23;
 
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 import {AuctionStepStorage} from './AuctionStepStorage.sol';
 import {AuctionParameters, AuctionStep} from './Base.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
@@ -9,11 +11,12 @@ import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
-import {Currency} from './libraries/CurrencyLibrary.sol';
-import {console2} from 'forge-std/console2.sol';
+import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 
 /// @title Auction
 contract Auction is IAuction, TickStorage, AuctionStepStorage {
+    using FixedPointMathLib for uint128;
+    using CurrencyLibrary for Currency;
     using BidLib for Bid;
     using AuctionStepLib for bytes;
     using AuctionStepLib for AuctionStep;
@@ -176,8 +179,9 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
             startBlock: block.number,
             withdrawnBlock: 0
         });
-        bid.validate(floorPrice, tickSpacing);
 
+        bid.validate(floorPrice, tickSpacing);
+        
         if (address(validationHook) != address(0)) {
             validationHook.validate(block.number);
         }
@@ -202,6 +206,12 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         external
         payable
     {
+        uint256 resolvedAmount = exactIn ? amount : amount.fullMulDivUp(maxPrice, tickSpacing);
+        if (currency.isAddressZero()) {
+            if (msg.value != resolvedAmount) revert InvalidAmount();
+        } else {
+            SafeTransferLib.permit2TransferFrom(Currency.unwrap(currency), owner, address(this), resolvedAmount);
+        }
         _submitBid(maxPrice, exactIn, amount, owner, prevHintId);
     }
 }

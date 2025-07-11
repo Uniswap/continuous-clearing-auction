@@ -37,7 +37,7 @@ contract AuctionTest is TokenHandler, Test {
         fundsRecipient = makeAddr('fundsRecipient');
 
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100, 100);
-        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(address(currency)).withToken(
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withToken(
             address(token)
         ).withTotalSupply(TOTAL_SUPPLY).withFloorPrice(FLOOR_PRICE).withTickSpacing(TICK_SPACING).withValidationHook(
             address(0)
@@ -54,17 +54,17 @@ contract AuctionTest is TokenHandler, Test {
     function test_submitBid_exactIn_atFloorPrice_succeeds() public {
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(1, _tickPriceAt(1), true, 100e18);
-        auction.submitBid(_tickPriceAt(1), true, 100e18, alice, 0);
+        auction.submitBid{value: 100e18}(_tickPriceAt(1), true, 100e18, alice, 0);
         vm.snapshotGasLastCall('submitBid_recordStep');
 
-        auction.submitBid(_tickPriceAt(1), true, 100e18, alice, 0);
+        auction.submitBid{value: 100e18}(_tickPriceAt(1), true, 100e18, alice, 0);
         vm.snapshotGasLastCall('submitBid');
     }
 
     function test_submitBid_exactOut_atFloorPrice_succeeds() public {
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(1, _tickPriceAt(1), false, 10e18);
-        auction.submitBid(_tickPriceAt(1), false, 10e18, alice, 0);
+        auction.submitBid{value: 10e18}(_tickPriceAt(1), false, 10e18, alice, 0);
     }
 
     function test_submitBid_exactIn_initializesTickAndUpdatesClearingPrice_succeeds() public {
@@ -75,7 +75,7 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(2, _tickPriceAt(2), true, 1000e18);
         // Oversubscribe the auction to increase the clearing price
-        auction.submitBid(_tickPriceAt(2), true, 1000e18, alice, 1);
+        auction.submitBid{value: 1000e18}(_tickPriceAt(2), true, 1000e18, alice, 1);
         vm.snapshotGasLastCall('submitBid_recordStep_initializeTick_updateClearingPrice');
     }
 
@@ -87,7 +87,7 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(2, _tickPriceAt(2), false, 1000e18);
         // Oversubscribe the auction to increase the clearing price
-        auction.submitBid(_tickPriceAt(2), false, 1000e18, alice, 1);
+        auction.submitBid{value: 1000e18 * 2}(_tickPriceAt(2), false, 1000e18, alice, 1);
     }
 
     function test_submitBid_updatesClearingPrice_succeeds() public {
@@ -96,18 +96,18 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(2), expectedTotalCleared, expectedCumulativeBps);
         // Bid enough to update the clearing price
-        auction.submitBid(_tickPriceAt(2), true, 500e18, alice, 1);
+        auction.submitBid{value: 500e18}(_tickPriceAt(2), true, 500e18, alice, 1);
     }
 
     function test_submitBid_multipleTicks_succeeds() public {
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(2, _tickPriceAt(2));
-        auction.submitBid(_tickPriceAt(2), true, 500e18, alice, 1);
+        auction.submitBid{value: 500e18}(_tickPriceAt(2), true, 500e18, alice, 1);
         vm.snapshotGasLastCall('submitBid_recordStep_initializeTick');
 
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(3, _tickPriceAt(3));
-        auction.submitBid(_tickPriceAt(3), true, 500e18, alice, 2);
+        auction.submitBid{value: 500e18}(_tickPriceAt(3), true, 500e18, alice, 2);
         vm.snapshotGasLastCall('submitBid_initializeTick');
     }
 }

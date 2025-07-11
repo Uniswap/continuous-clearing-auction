@@ -6,6 +6,8 @@ import {ITickStorage} from './ITickStorage.sol';
 
 /// @notice Interface for the Auction contract
 interface IAuction is ITickStorage, IAuctionStepStorage {
+    /// @notice Error thrown when not enough amount is deposited
+    error InvalidAmount();
     /// @notice Error thrown when the auction is not started
     error AuctionNotStarted();
     /// @notice Error thrown when the current step is not complete

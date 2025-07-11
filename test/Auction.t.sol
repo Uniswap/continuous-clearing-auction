@@ -57,6 +57,10 @@ contract AuctionTest is TokenHandler, Test {
         auction.submitBid{value: 100e18}(_tickPriceAt(1), true, 100e18, alice, 0);
         vm.snapshotGasLastCall('submitBid_recordStep_updateCheckpoint');
 
+        vm.roll(block.number + 1);
+        auction.submitBid{value: 100e18}(_tickPriceAt(1), true, 100e18, alice, 0);
+        vm.snapshotGasLastCall('submitBid_updateCheckpoint');
+
         auction.submitBid{value: 100e18}(_tickPriceAt(1), true, 100e18, alice, 0);
         vm.snapshotGasLastCall('submitBid');
     }

@@ -28,6 +28,18 @@ interface IAuction is ITickStorage, IAuctionStepStorage {
     error TokenRecipientIsZero();
     /// @notice Error thrown when the funds recipient is the zero address
     error FundsRecipientIsZero();
+    /// @notice Error thrown when the bid is not owned by the caller
+    error NotBidOwner();
+    /// @notice Error thrown when the bid has already been withdrawn
+    error BidAlreadyWithdrawn();
+    /// @notice Error thrown when the bid is higher than the clearing price
+    error CannotWithdrawBid();
+    /// @notice Error thrown when the checkpoint hint is invalid
+    error InvalidCheckpointHint();
+    /// @notice Error thrown when the bid is not claimable
+    error NotClaimable();
+    /// @notice Error thrown when the bid has not been withdrawn
+    error BidNotWithdrawn();
 
     /// @notice Emitted when a bid is submitted
     /// @param id The id of the tick
@@ -44,6 +56,16 @@ interface IAuction is ITickStorage, IAuctionStepStorage {
     event CheckpointUpdated(
         uint256 indexed blockNumber, uint256 clearingPrice, uint256 totalCleared, uint16 cumulativeBps
     );
+
+    /// @notice Emitted when a bid is withdrawn
+    /// @param tickId The id of the tick
+    /// @param owner The owner of the bid
+    event BidWithdrawn(uint128 indexed tickId, address indexed owner);
+
+    /// @notice Emitted when a bid is claimed
+    /// @param owner The owner of the bid
+    /// @param tokensFilled The amount of tokens claimed
+    event TokensClaimed(address indexed owner, uint256 tokensFilled);
 
     /// @notice Submit a new bid
     /// @param maxPrice The maximum price the bidder is willing to pay

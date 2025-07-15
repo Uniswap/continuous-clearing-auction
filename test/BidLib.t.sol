@@ -11,7 +11,9 @@ contract BidLibTest is Test {
     MockBidLib mockBidLib;
     using FixedPointMathLib for uint256;
 
+    uint256 public constant BPS = 10_000;
     uint256 public constant TICK_SPACING = 100;
+    uint256 public constant PRECISION = 1e18;
     uint256 public constant ETH_AMOUNT = 10 ether;
     uint128 public constant MAX_PRICE = 5000;
     uint256 public constant TOKEN_AMOUNT = 1000;
@@ -59,8 +61,7 @@ contract BidLibTest is Test {
         mockBidLib.resolve(bid, cumulativeBpsPerPriceDelta, cumulativeBpsDelta);
     }
     
-    function test_resolve_exactIn_iterativeVerification() public {
-        // Setup: Configure auction parameters
+    function test_resolve_exactIn() public {
         uint256[] memory bpsArray = new uint256[](3);
         uint256[] memory pricesArray = new uint256[](3);
         
@@ -84,13 +85,8 @@ contract BidLibTest is Test {
             _tokensFilled += tokensFilledInBlock;
             _ethSpent += ethSpentInBlock;
 
-            console2.log('ethSpentInBlock', ethSpentInBlock);
-            console2.log('tokensFilledInBlock', tokensFilledInBlock);
-            console2.log('_tokensFilled', _tokensFilled);
-            console2.log('_ethSpent', _ethSpent);
-
             _totalBps += bpsArray[i];
-            _cumulativeBpsPerPrice += bpsArray[i] * TICK_SPACING.fullMulDiv(1e18, pricesArray[i]);
+            _cumulativeBpsPerPrice += bpsArray[i] * TICK_SPACING.fullMulDiv(PRECISION, pricesArray[i]);
         }
 
         Bid memory bid = Bid({
@@ -102,9 +98,6 @@ contract BidLibTest is Test {
             startBlock: 100,
             withdrawnBlock: 0
         });
-
-        console2.log('cumulativeBpsPerPrice', _cumulativeBpsPerPrice);
-        console2.log('totalBps', _totalBps);
         
         (uint256 tokensFilled, uint256 refund) = mockBidLib.resolve(bid, _cumulativeBpsPerPrice, uint16(_totalBps));
         
@@ -112,13 +105,19 @@ contract BidLibTest is Test {
         // 10 ether * 50 / 10_000 = 0.05 ether / 1e18 = 0.00005 tokens
         // 10 ether * 30 / 10_000 = 0.03 ether / 2e18 = 0.000015 tokens
         // 10 ether * 20 / 10_000 = 0.02 ether / 3e18 = 0.000006666666666 tokens
-        assertEq(tokensFilled, 0.000071666666666 ether);  // 0.00005 + 0.000015 + 0.000006666666666 = 0.000071666666666
+        assertEq(tokensFilled, 0.071666666666666666 ether);
         // Manual refund calculation:
         // 10 ether - 0.05 ether - 0.03 ether - 0.02 ether = 0.9 ether
         assertEq(refund, ETH_AMOUNT - _ethSpent);
     }
     
-    function test_resolve_exactIn_allBpsAtFloorPrice_fullExecution() public {
+    function test_resolve_exactIn_maxPrice() public {
+        uint256[] memory bpsArray = new uint256[](1);
+        uint256[] memory pricesArray = new uint256[](1);
+        
+        bpsArray[0] = 10_000;
+        pricesArray[0] = MAX_PRICE;
+
         // Setup: Large ETH bid
         uint256 largeAmount = 100 ether;
         Bid memory bid = Bid({
@@ -131,16 +130,14 @@ contract BidLibTest is Test {
             withdrawnBlock: 0
         });
 
-        // Execute: All 10,000 bps at price 1000
-        // cumulativeBpsPerPrice = 10,000 / 1000 = 10
-        uint16 cumulativeBpsPerPriceDelta = 10;
+        uint256 cumulativeBpsPerPriceDelta = bpsArray[0] * TICK_SPACING.fullMulDiv(PRECISION, pricesArray[0]);
         uint16 cumulativeBpsDelta = 10_000;
+        uint256 ethSpent = largeAmount * cumulativeBpsDelta / BPS;
+        uint256 expectedTokensFilled = ethSpent / MAX_PRICE;
 
         (uint256 tokensFilled, uint256 refund) = mockBidLib.resolve(bid, cumulativeBpsPerPriceDelta, cumulativeBpsDelta);
 
-        // Assert: Current impl: 100 ether * 10 / 10_000 = 0.1 ether (incorrect)
-        assertEq(tokensFilled, 0.1 ether);
-        // All ETH used since all bps executed
+        assertEq(tokensFilled, expectedTokensFilled);
         assertEq(refund, 0);
     }
     

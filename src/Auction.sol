@@ -155,6 +155,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
             // Round clearingPrice down to the nearest tickSpacing
             _newClearingPrice -= (_newClearingPrice % tickSpacing);
         } else {
+            // TODO: this might be wrong since tickUpper will be the tick above what we wanted to clear at here
             _newClearingPrice = tickUpper.price;
         }
 
@@ -165,7 +166,6 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         }
 
         // We already accounted for the bps between the last checkpointed block and the current step's start block
-        // Add one because we want to include the current block in the sum
         uint16 bpsSinceLastCheckpoint;
         if (step.startBlock > lastCheckpointedBlock) {
             // lastCheckpointedBlock --- | step.startBlock --- | block.number
@@ -182,7 +182,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
 
         // Add to cumulative tracking
         uint256 newCumulativeBpsPerPrice = _cumulativeBpsPerPrice + 
-            (bpsSinceLastCheckpoint * tickSpacing.fullMulDiv(1e18, _newClearingPrice));
+            (bpsSinceLastCheckpoint * tickSpacing.fullMulDiv(BidLib.PRECISION, _newClearingPrice));
 
         checkpoints[block.number] = Checkpoint({
             clearingPrice: _newClearingPrice,

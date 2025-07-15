@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {AuctionStepLib} from './AuctionStepLib.sol';
 
 struct Bid {
@@ -15,8 +16,11 @@ struct Bid {
 
 library BidLib {
     using AuctionStepLib for uint256;
+    using FixedPointMathLib for uint256;
 
     error InvalidBidPrice();
+
+    uint256 public constant PRECISION = 1e18;
 
     /// @notice Validate a bid
     /// @param bid The bid to validate
@@ -31,9 +35,9 @@ library BidLib {
     }
 
     /// @notice Resolve a bid
-    function resolve(Bid memory bid, uint16 cumulativeBpsPerPriceDelta, uint16 cumulativeBpsDelta) internal pure returns (uint256 tokensFilled, uint256 refund) {
+    function resolve(Bid memory bid, uint256 cumulativeBpsPerPriceDelta, uint16 cumulativeBpsDelta) internal pure returns (uint256 tokensFilled, uint256 refund) {
         if (bid.exactIn) {
-            tokensFilled = bid.amount.applyBps(cumulativeBpsPerPriceDelta);
+            tokensFilled = bid.amount.fullMulDiv(cumulativeBpsPerPriceDelta, PRECISION * AuctionStepLib.BPS);
             refund = bid.amount - bid.amount.applyBps(cumulativeBpsDelta);
         } else {
             tokensFilled = bid.amount.applyBps(cumulativeBpsDelta);

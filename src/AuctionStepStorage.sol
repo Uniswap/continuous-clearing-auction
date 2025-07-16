@@ -4,7 +4,6 @@ pragma solidity ^0.8.23;
 import {AuctionStep} from './Base.sol';
 import {IAuctionStepStorage} from './interfaces/IAuctionStepStorage.sol';
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
-import {console2} from 'forge-std/console2.sol';
 import {SSTORE2} from 'solady/utils/SSTORE2.sol';
 
 abstract contract AuctionStepStorage is IAuctionStepStorage {
@@ -56,8 +55,8 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
         bytes memory _auctionStep = pointer.read(offset, offset + UINT64_SIZE);
         (uint16 bps, uint48 blockDelta) = _auctionStep.get(0);
 
-        uint256 _startBlock = block.number;
-        uint256 _endBlock = _startBlock + blockDelta;
+        uint64 _startBlock = uint64(block.number);
+        uint64 _endBlock = _startBlock + uint64(blockDelta);
 
         step.bps = bps;
         step.startBlock = _startBlock;

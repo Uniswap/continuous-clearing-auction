@@ -33,11 +33,11 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
     /// @notice The recipient of the funds from the auction
     address public immutable fundsRecipient;
     /// @notice The block at which the auction starts
-    uint256 public immutable startBlock;
+    uint64 public immutable startBlock;
     /// @notice The block at which the auction ends
-    uint256 public immutable endBlock;
+    uint64 public immutable endBlock;
     /// @notice The block at which purchased tokens can be claimed
-    uint256 public immutable claimBlock;
+    uint64 public immutable claimBlock;
     /// @notice The tick spacing enforced for bid prices
     uint256 public immutable tickSpacing;
     /// @notice An optional hook to be called before a bid is registered
@@ -79,7 +79,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         if (totalSupply == 0) revert TotalSupplyIsZero();
         if (floorPrice == 0) revert FloorPriceIsZero();
         if (tickSpacing == 0) revert TickSpacingIsZero();
-        if (endBlock <= startBlock) revert EndBlockIsBeforeStartBlock();
+        if (endBlock < startBlock) revert EndBlockIsBeforeStartBlock();
         if (endBlock > type(uint256).max) revert EndBlockIsTooLarge();
         if (claimBlock < endBlock) revert ClaimBlockIsBeforeEndBlock();
         if (tokensRecipient == address(0)) revert TokenRecipientIsZero();

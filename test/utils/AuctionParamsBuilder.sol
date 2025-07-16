@@ -93,7 +93,7 @@ library AuctionParamsBuilder {
         return params;
     }
 
-    function withStartBlock(AuctionParameters memory params, uint256 startBlock)
+    function withStartBlock(AuctionParameters memory params, uint64 startBlock)
         internal
         pure
         returns (AuctionParameters memory)
@@ -102,7 +102,18 @@ library AuctionParamsBuilder {
         return params;
     }
 
-    function withEndBlock(AuctionParameters memory params, uint256 endBlock)
+    /// @dev Helper function which converts a uint256 to a uint64
+    function withStartBlock(AuctionParameters memory params, uint256 startBlock)
+        internal
+        pure
+        returns (AuctionParameters memory)
+    {
+        require(startBlock <= type(uint64).max, "startBlock too large");
+        params.startBlock = uint64(startBlock);
+        return params;
+    }
+
+    function withEndBlock(AuctionParameters memory params, uint64 endBlock)
         internal
         pure
         returns (AuctionParameters memory)
@@ -111,12 +122,34 @@ library AuctionParamsBuilder {
         return params;
     }
 
-    function withClaimBlock(AuctionParameters memory params, uint256 claimBlock)
+    /// @dev Helper function which converts a uint256 to a uint64
+    function withEndBlock(AuctionParameters memory params, uint256 endBlock)
+        internal
+        pure
+        returns (AuctionParameters memory)
+    {
+        require(endBlock <= type(uint64).max, "endBlock too large");
+        params.endBlock = uint64(endBlock);
+        return params;
+    }
+
+    function withClaimBlock(AuctionParameters memory params, uint64 claimBlock)
         internal
         pure
         returns (AuctionParameters memory)
     {
         params.claimBlock = claimBlock;
+        return params;
+    }
+
+    /// @dev Helper function which converts a uint256 to a uint64
+    function withClaimBlock(AuctionParameters memory params, uint256 claimBlock)
+        internal
+        pure
+        returns (AuctionParameters memory)
+    {
+        require(claimBlock <= type(uint64).max, "claimBlock too large");
+        params.claimBlock = uint64(claimBlock);
         return params;
     }
 

@@ -7,9 +7,9 @@ struct AuctionParameters {
     uint256 totalSupply; // amount of tokens to sell
     address tokensRecipient; // address to receive leftover tokens
     address fundsRecipient; // address to receive all raised funds
-    uint256 startBlock; // Block which the first step starts
-    uint256 endBlock; // When the auction finishes
-    uint256 claimBlock; // Block when the auction can claimed
+    uint64 startBlock; // Block which the first step starts
+    uint64 endBlock; // When the auction finishes
+    uint64 claimBlock; // Block when the auction can claimed
     uint256 tickSpacing; // Fixed granularity for prices
     address validationHook; // Optional hook called before a bid
     uint256 floorPrice; // Starting floor price for the auction
@@ -19,6 +19,6 @@ struct AuctionParameters {
 
 struct AuctionStep {
     uint16 bps; // Basis points to sell per block in the step
-    uint256 startBlock; // Start block of the step (inclusive)
-    uint256 endBlock; // Ending block of the step (exclusive)
+    uint64 startBlock; // Start block of the step (inclusive)
+    uint64 endBlock; // Ending block of the step (exclusive)
 }

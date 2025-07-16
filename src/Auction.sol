@@ -50,7 +50,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         uint256 blockCleared;
         uint256 totalCleared;
         uint16 cumulativeBps;
-        uint256 cumulativeBpsPerPrice; 
+        uint256 cumulativeBpsPerPrice;
         uint256 prev;
     }
 
@@ -99,7 +99,10 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         return (sumCurrencyDemandAtTickUpper * tickSpacing / ticks[tickUpperId].price) + sumTokenDemandAtTickUpper;
     }
 
-    function _advanceToCurrentStep() internal returns (uint256 _totalCleared, uint16 _cumulativeBps, uint256 _cumulativeBpsPerPrice) {
+    function _advanceToCurrentStep()
+        internal
+        returns (uint256 _totalCleared, uint16 _cumulativeBps, uint256 _cumulativeBpsPerPrice)
+    {
         // Advance the current step until the current block is within the step
         Checkpoint memory _checkpoint = checkpoints[lastCheckpointedBlock];
         uint256 start = lastCheckpointedBlock;
@@ -180,9 +183,9 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         }
         _cumulativeBps += bpsSinceLastCheckpoint;
 
-        // Add to cumulative tracking
-        uint256 newCumulativeBpsPerPrice = _cumulativeBpsPerPrice + 
-            (bpsSinceLastCheckpoint * tickSpacing.fullMulDiv(BidLib.PRECISION, _newClearingPrice));
+        // Add to cumulative trackings
+        uint256 newCumulativeBpsPerPrice =
+            _cumulativeBpsPerPrice + (uint256(bpsSinceLastCheckpoint).fullMulDiv(BidLib.PRECISION, _newClearingPrice));
 
         checkpoints[block.number] = Checkpoint({
             clearingPrice: _newClearingPrice,
@@ -256,7 +259,10 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
 
         // Require that the upperCheckpoint is the checkpoint immediately after the last active checkpoint for the bid
         Checkpoint memory upperCheckpoint = checkpoints[upperCheckpointId];
-        if (upperCheckpoint.clearingPrice < bid.maxPrice && checkpoints[upperCheckpoint.prev].clearingPrice >= bid.maxPrice) {
+        if (
+            upperCheckpoint.clearingPrice < bid.maxPrice
+                && checkpoints[upperCheckpoint.prev].clearingPrice >= bid.maxPrice
+        ) {
             revert InvalidCheckpointHint();
         }
 
@@ -269,7 +275,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
             lastValidCheckpoint.cumulativeBpsPerPrice - startCheckpoint.cumulativeBpsPerPrice,
             lastValidCheckpoint.cumulativeBps - startCheckpoint.cumulativeBps
         );
-        
+
         currency.transfer(bid.owner, refund);
 
         bid.tokensFilled = tokensFilled;

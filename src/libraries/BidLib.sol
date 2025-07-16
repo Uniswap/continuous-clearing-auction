@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {AuctionStepLib} from './AuctionStepLib.sol';
+import {console2} from 'forge-std/console2.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 struct Bid {
     bool exactIn; // If amount below is denoted in currency or tokens
@@ -35,7 +36,11 @@ library BidLib {
     }
 
     /// @notice Resolve a bid
-    function resolve(Bid memory bid, uint256 cumulativeBpsPerPriceDelta, uint16 cumulativeBpsDelta) internal pure returns (uint256 tokensFilled, uint256 refund) {
+    function resolve(Bid memory bid, uint256 cumulativeBpsPerPriceDelta, uint16 cumulativeBpsDelta)
+        internal
+        pure
+        returns (uint256 tokensFilled, uint256 refund)
+    {
         if (bid.exactIn) {
             tokensFilled = bid.amount.fullMulDiv(cumulativeBpsPerPriceDelta, PRECISION * AuctionStepLib.BPS);
             refund = bid.amount - bid.amount.applyBps(cumulativeBpsDelta);

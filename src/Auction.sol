@@ -196,8 +196,8 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         // First bid in a block updates the clearing price
         checkpoint();
 
-        uint128 id = _initializeTickIfNeeded(prevHintId, bid.maxPrice);
-        _updateTick(id, bid);
+        uint128 tickId = _initializeTickIfNeeded(prevHintId, bid.maxPrice);
+        _updateTick(tickId, bid);
 
         // Only bids higher than the clearing price can change the clearing price
         if (bid.maxPrice >= ticks[tickUpperId].price) {
@@ -208,7 +208,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
             }
         }
 
-        emit BidSubmitted(id, bid.maxPrice, bid.exactIn, bid.amount);
+        emit BidSubmitted(tickId, bid.maxPrice, bid.exactIn, bid.amount);
     }
 
     /// @inheritdoc IAuction

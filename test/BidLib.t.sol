@@ -4,7 +4,6 @@ pragma solidity ^0.8.23;
 import {Bid} from '../src/libraries/BidLib.sol';
 import {MockBidLib} from './utils/MockBidLib.sol';
 import {Test} from 'forge-std/Test.sol';
-import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract BidLibTest is Test {
@@ -24,12 +23,14 @@ contract BidLibTest is Test {
     }
 
     function test_resolve_exactOut_partialFill_succeeds() public view {
-        // Setup: User wants to buy exactly 1000 tokens at max price 2000 per token
+        // Buy exactly 1000 tokens at max price 2000 per token
+        uint256 exactOutAmount = 1000e18;
+        uint256 totalEth = 2000 * exactOutAmount;
         Bid memory bid = Bid({
             exactIn: false,
             maxPrice: 2000,
             owner: address(this),
-            amount: TOKEN_AMOUNT,
+            amount: exactOutAmount,
             tokensFilled: 0,
             startBlock: 100,
             withdrawnBlock: 0
@@ -37,14 +38,13 @@ contract BidLibTest is Test {
 
         // Execute: 30% of auction executed (3000 bps)
         uint16 cumulativeBpsDelta = 3000;
-        uint16 cumulativeBpsPerPriceDelta = 0; // Not used for exactOut
+        uint256 cumulativeBpsPerPriceDelta = uint256(cumulativeBpsDelta).fullMulDiv(PRECISION, 2000);
 
         (uint256 tokensFilled, uint256 refund) = mockBidLib.resolve(bid, cumulativeBpsPerPriceDelta, cumulativeBpsDelta);
 
-        // Assert: 30% of 1000 tokens = 300 tokens filled
-        assertEq(tokensFilled, 300);
-        // Refund: maxPrice * (tokens not filled) = 2000 * (1000 - 300) = 1,400,000
-        assertEq(refund, 1_400_000);
+        // 30% of 1000e18 tokens = 300e18 tokens filled
+        assertEq(tokensFilled, 300e18);
+        assertEq(refund, totalEth - totalEth * cumulativeBpsDelta / BPS);
     }
 
     function test_resolve_exactIn_fuzz_succeeds(uint256 cumulativeBpsPerPriceDelta, uint16 cumulativeBpsDelta)

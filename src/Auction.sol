@@ -56,7 +56,9 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
     /// @notice Sum of all demand at or above tickUpper for `token` (exactOut)
     uint256 public sumTokenDemandAtTickUpper;
 
-    constructor(AuctionParameters memory _parameters) AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock) {
+    constructor(AuctionParameters memory _parameters)
+        AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
+    {
         currency = Currency.wrap(_parameters.currency);
         token = IERC20Minimal(_parameters.token);
         totalSupply = _parameters.totalSupply;
@@ -178,16 +180,10 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
     }
 
     function _submitBid(uint128 maxPrice, bool exactIn, uint256 amount, address owner, uint128 prevHintId) internal {
-        Bid memory bid = Bid({
-            maxPrice: maxPrice,
-            exactIn: exactIn,
-            amount: amount,
-            owner: owner,
-            startBlock: block.number,
-            withdrawnBlock: 0
-        });
+        Bid memory bid =
+            Bid({exactIn: exactIn, amount: amount, owner: owner, startBlock: uint64(block.number), withdrawnBlock: 0});
 
-        bid.validate(floorPrice, tickSpacing);
+        BidLib.validate(maxPrice, floorPrice, tickSpacing);
 
         if (address(validationHook) != address(0)) {
             validationHook.validate(bid);
@@ -196,11 +192,11 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         // First bid in a block updates the clearing price
         checkpoint();
 
-        uint128 tickId = _initializeTickIfNeeded(prevHintId, bid.maxPrice);
+        uint128 tickId = _initializeTickIfNeeded(prevHintId, maxPrice);
         _updateTick(tickId, bid);
 
         // Only bids higher than the clearing price can change the clearing price
-        if (bid.maxPrice >= ticks[tickUpperId].price) {
+        if (maxPrice >= ticks[tickUpperId].price) {
             if (bid.exactIn) {
                 sumCurrencyDemandAtTickUpper += bid.amount;
             } else {
@@ -208,7 +204,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
             }
         }
 
-        emit BidSubmitted(tickId, bid.maxPrice, bid.exactIn, bid.amount);
+        emit BidSubmitted(tickId, maxPrice, bid.exactIn, bid.amount);
     }
 
     /// @inheritdoc IAuction

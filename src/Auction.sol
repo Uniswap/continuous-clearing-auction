@@ -32,10 +32,6 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
     address public immutable tokensRecipient;
     /// @notice The recipient of the funds from the auction
     address public immutable fundsRecipient;
-    /// @notice The block at which the auction starts
-    uint64 public immutable startBlock;
-    /// @notice The block at which the auction ends
-    uint64 public immutable endBlock;
     /// @notice The block at which purchased tokens can be claimed
     uint64 public immutable claimBlock;
     /// @notice The tick spacing enforced for bid prices
@@ -60,14 +56,12 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
     /// @notice Sum of all demand at or above tickUpper for `token` (exactOut)
     uint256 public sumTokenDemandAtTickUpper;
 
-    constructor(AuctionParameters memory _parameters) AuctionStepStorage(_parameters.auctionStepsData) {
+    constructor(AuctionParameters memory _parameters) AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock) {
         currency = Currency.wrap(_parameters.currency);
         token = IERC20Minimal(_parameters.token);
         totalSupply = _parameters.totalSupply;
         tokensRecipient = _parameters.tokensRecipient;
         fundsRecipient = _parameters.fundsRecipient;
-        startBlock = _parameters.startBlock;
-        endBlock = _parameters.endBlock;
         claimBlock = _parameters.claimBlock;
         tickSpacing = _parameters.tickSpacing;
         validationHook = IValidationHook(_parameters.validationHook);
@@ -82,7 +76,6 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         if (endBlock < startBlock) revert EndBlockIsBeforeStartBlock();
         if (endBlock > type(uint256).max) revert EndBlockIsTooLarge();
         if (claimBlock < endBlock) revert ClaimBlockIsBeforeEndBlock();
-        if (tokensRecipient == address(0)) revert TokenRecipientIsZero();
         if (fundsRecipient == address(0)) revert FundsRecipientIsZero();
     }
 
@@ -197,7 +190,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         bid.validate(floorPrice, tickSpacing);
 
         if (address(validationHook) != address(0)) {
-            validationHook.validate(block.number);
+            validationHook.validate(bid);
         }
 
         // First bid in a block updates the clearing price

@@ -20,7 +20,7 @@ library BidLib {
     /// @dev The bid must be greater than or equal to the floor price, less than or equal to the maximum price,
     /// and divisible by the tick spacing
     function validate(Bid memory bid, uint256 floorPrice, uint256 tickSpacing) internal pure {
-        if (bid.maxPrice < floorPrice || bid.maxPrice > type(uint128).max || bid.maxPrice % tickSpacing != 0) {
+        if (bid.maxPrice < floorPrice || bid.maxPrice % tickSpacing != 0) {
             revert InvalidBidPrice();
         }
     }

@@ -110,12 +110,17 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         _totalCleared = _checkpoint.totalCleared;
         _cumulativeBps = _checkpoint.cumulativeBps;
         _cumulativeBpsPerPrice = _checkpoint.cumulativeBpsPerPrice;
+
         while (block.number >= end) {
-            uint256 deltaBps = end - start;
+            uint256 delta = end - start;
             // All are constant since no change in clearing price
-            _cumulativeBps += uint16(step.bps * deltaBps);
-            _totalCleared += _checkpoint.blockCleared * deltaBps;
-            _cumulativeBpsPerPrice += _checkpoint.cumulativeBpsPerPrice * deltaBps;
+            // If no tokens have been cleared yet, we don't need to update the cumulative values
+            if (_checkpoint.clearingPrice > 0) {
+                uint16 deltaBps = uint16(step.bps * delta);
+                _cumulativeBps += deltaBps;
+                _totalCleared += _checkpoint.blockCleared * delta;
+                _cumulativeBpsPerPrice += uint256(deltaBps).fullMulDiv(BidLib.PRECISION, _checkpoint.clearingPrice);
+            }
             start = end;
             _advanceStep();
             end = step.endBlock;
@@ -163,6 +168,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         }
 
         if (_newClearingPrice <= floorPrice) {
+            _newClearingPrice = floorPrice;
             _totalCleared += aggregateDemand;
         } else {
             _totalCleared += resolvedSupply;

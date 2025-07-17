@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IAllowanceTransfer, IPermit2Forwarder} from '../interfaces/IPermit2Forwarder.sol';
+import {IAllowanceTransfer, IPermit2Forwarder} from './interfaces/IPermit2Forwarder.sol';
 
 /// @notice Permit2Forwarder allows permitting this contract as a spender on permit2
 /// @dev This contract does not enforce the spender to be this contract, but that is the intended use case

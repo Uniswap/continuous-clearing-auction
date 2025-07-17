@@ -24,8 +24,6 @@ contract AuctionFactory is IDistributionStrategy {
         if (parameters.totalSupply != amount) revert InvalidAmount();
 
         bytes32 salt = keccak256(configData);
-        distributionContract = IDistributionContract(
-            address(new Auction{salt: salt}(parameters))
-        );
+        distributionContract = IDistributionContract(address(new Auction{salt: salt}(parameters)));
     }
 }

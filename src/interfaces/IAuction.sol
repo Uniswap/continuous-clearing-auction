@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IDistributionContract} from './external/IDistributionContract.sol';
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
+import {IDistributionContract} from './external/IDistributionContract.sol';
 
 /// @notice Interface for the Auction contract
 interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {

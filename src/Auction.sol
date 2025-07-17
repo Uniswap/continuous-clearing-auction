@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {AuctionStepStorage} from './AuctionStepStorage.sol';
-import {AuctionParameters, AuctionStep} from './Base.sol';
+import {AuctionParameters} from './Base.sol';
 import {Multicall} from './Multicall.sol';
 import {Permit2Forwarder} from './Permit2Forwarder.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
@@ -11,7 +11,7 @@ import {IAuction} from './interfaces/IAuction.sol';
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
-import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
+import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 

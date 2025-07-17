@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {AuctionStep} from '../Base.sol';
+struct AuctionStep {
+    uint16 bps; // Basis points to sell per block in the step
+    uint64 startBlock; // Start block of the step (inclusive)
+    uint64 endBlock; // Ending block of the step (exclusive)
+}
 
 library AuctionStepLib {
     uint16 public constant BPS = 10_000;

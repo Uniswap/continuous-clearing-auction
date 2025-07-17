@@ -16,9 +16,3 @@ struct AuctionParameters {
     // Packed bytes describing token issuance schedule
     bytes auctionStepsData;
 }
-
-struct AuctionStep {
-    uint16 bps; // Basis points to sell per block in the step
-    uint64 startBlock; // Start block of the step (inclusive)
-    uint64 endBlock; // Ending block of the step (exclusive)
-}

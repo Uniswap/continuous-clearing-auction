@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {AuctionStep} from './Base.sol';
 import {IAuctionStepStorage} from './interfaces/IAuctionStepStorage.sol';
-import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
+import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {SSTORE2} from 'solady/utils/SSTORE2.sol';
 
 abstract contract AuctionStepStorage is IAuctionStepStorage {

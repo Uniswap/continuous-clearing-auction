@@ -32,12 +32,8 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
     address public immutable tokensRecipient;
     /// @notice The recipient of the funds from the auction
     address public immutable fundsRecipient;
-    /// @notice The block at which the auction starts
-    uint256 public immutable startBlock;
-    /// @notice The block at which the auction ends
-    uint256 public immutable endBlock;
     /// @notice The block at which purchased tokens can be claimed
-    uint256 public immutable claimBlock;
+    uint64 public immutable claimBlock;
     /// @notice The tick spacing enforced for bid prices
     uint256 public immutable tickSpacing;
     /// @notice An optional hook to be called before a bid is registered
@@ -60,14 +56,14 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
     /// @notice Sum of all demand at or above tickUpper for `token` (exactOut)
     uint256 public sumTokenDemandAtTickUpper;
 
-    constructor(AuctionParameters memory _parameters) AuctionStepStorage(_parameters.auctionStepsData) {
+    constructor(AuctionParameters memory _parameters)
+        AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
+    {
         currency = Currency.wrap(_parameters.currency);
         token = IERC20Minimal(_parameters.token);
         totalSupply = _parameters.totalSupply;
         tokensRecipient = _parameters.tokensRecipient;
         fundsRecipient = _parameters.fundsRecipient;
-        startBlock = _parameters.startBlock;
-        endBlock = _parameters.endBlock;
         claimBlock = _parameters.claimBlock;
         tickSpacing = _parameters.tickSpacing;
         validationHook = IValidationHook(_parameters.validationHook);
@@ -79,10 +75,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         if (totalSupply == 0) revert TotalSupplyIsZero();
         if (floorPrice == 0) revert FloorPriceIsZero();
         if (tickSpacing == 0) revert TickSpacingIsZero();
-        if (endBlock <= startBlock) revert EndBlockIsBeforeStartBlock();
-        if (endBlock > type(uint256).max) revert EndBlockIsTooLarge();
         if (claimBlock < endBlock) revert ClaimBlockIsBeforeEndBlock();
-        if (tokensRecipient == address(0)) revert TokenRecipientIsZero();
         if (fundsRecipient == address(0)) revert FundsRecipientIsZero();
     }
 
@@ -185,29 +178,23 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
     }
 
     function _submitBid(uint128 maxPrice, bool exactIn, uint256 amount, address owner, uint128 prevHintId) internal {
-        Bid memory bid = Bid({
-            maxPrice: maxPrice,
-            exactIn: exactIn,
-            amount: amount,
-            owner: owner,
-            startBlock: block.number,
-            withdrawnBlock: 0
-        });
+        Bid memory bid =
+            Bid({exactIn: exactIn, amount: amount, owner: owner, startBlock: uint64(block.number), withdrawnBlock: 0});
 
-        bid.validate(floorPrice, tickSpacing);
+        BidLib.validate(maxPrice, floorPrice, tickSpacing);
 
         if (address(validationHook) != address(0)) {
-            validationHook.validate(block.number);
+            validationHook.validate(bid);
         }
 
         // First bid in a block updates the clearing price
         checkpoint();
 
-        uint128 id = _initializeTickIfNeeded(prevHintId, bid.maxPrice);
-        _updateTick(id, bid);
+        uint128 tickId = _initializeTickIfNeeded(prevHintId, maxPrice);
+        _updateTick(tickId, bid);
 
         // Only bids higher than the clearing price can change the clearing price
-        if (bid.maxPrice >= ticks[tickUpperId].price) {
+        if (maxPrice >= ticks[tickUpperId].price) {
             if (bid.exactIn) {
                 sumCurrencyDemandAtTickUpper += bid.amount;
             } else {
@@ -215,7 +202,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
             }
         }
 
-        emit BidSubmitted(id, bid.maxPrice, bid.exactIn, bid.amount);
+        emit BidSubmitted(tickId, maxPrice, bid.exactIn, bid.amount);
     }
 
     /// @inheritdoc IAuction

@@ -5,13 +5,13 @@ import {AuctionStepStorage} from './AuctionStepStorage.sol';
 import {AuctionParameters, AuctionStep} from './Base.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
 import {IAuction} from './interfaces/IAuction.sol';
+import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 
-import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
@@ -77,6 +77,12 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         if (tickSpacing == 0) revert TickSpacingIsZero();
         if (claimBlock < endBlock) revert ClaimBlockIsBeforeEndBlock();
         if (fundsRecipient == address(0)) revert FundsRecipientIsZero();
+    }
+
+    /// @inheritdoc IDistributionContract
+    function onTokensReceived(address _token, uint256 _amount) external view {
+        if (_token != address(token)) revert IDistributionContract__InvalidToken();
+        if (_amount != totalSupply) revert IDistributionContract__InvalidAmount();
     }
 
     function clearingPrice() public view returns (uint256) {

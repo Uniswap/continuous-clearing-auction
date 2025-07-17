@@ -7,7 +7,7 @@ import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {SSTORE2} from 'solady/utils/SSTORE2.sol';
 
 abstract contract AuctionStepStorage is IAuctionStepStorage {
-    using AuctionStepLib for bytes;
+    using AuctionStepLib for *;
     using SSTORE2 for *;
 
     error InvalidAuctionDataLength();
@@ -64,10 +64,11 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
     function _advanceStep() internal {
         if (offset > _length) revert AuctionIsOver();
 
-        bytes memory _auctionStep = pointer.read(offset, offset + UINT64_SIZE);
-        (uint16 bps, uint48 blockDelta) = _auctionStep.get(0);
+        bytes8 _auctionStep = bytes8(pointer.read(offset, offset + UINT64_SIZE));
+        (uint16 bps, uint48 blockDelta) = _auctionStep.parse();
 
-        uint64 _startBlock = uint64(block.number);
+        uint64 _startBlock = step.endBlock;
+        if (_startBlock == 0) _startBlock = startBlock;
         uint64 _endBlock = _startBlock + uint64(blockDelta);
 
         step.bps = bps;

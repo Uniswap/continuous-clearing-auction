@@ -7,9 +7,15 @@ library AuctionStepLib {
     uint16 public constant BPS = 10_000;
 
     /// @notice Unpack the bps and block delta from the auction steps data
-    function get(bytes memory auctionStepsData, uint256 offset) internal pure returns (uint16 bps, uint48 blockDelta) {
+    function parse(bytes8 data) internal pure returns (uint16 bps, uint48 blockDelta) {
+        bps = uint16(bytes2(data));
+        blockDelta = uint48(uint64(data));
+    }
+
+    /// @notice Load a word at `offset` from data and parse it into bps and blockDelta
+    function get(bytes memory data, uint256 offset) internal pure returns (uint16 bps, uint48 blockDelta) {
         assembly {
-            let packedValue := mload(add(add(auctionStepsData, 0x20), offset))
+            let packedValue := mload(add(add(data, 0x20), offset))
             packedValue := shr(192, packedValue)
             bps := shr(48, packedValue)
             blockDelta := and(packedValue, 0xFFFFFFFFFFFF)

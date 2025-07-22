@@ -40,7 +40,8 @@ contract BidLibTest is Test {
         uint16 cumulativeBpsDelta = 3000;
         uint256 cumulativeBpsPerPriceDelta = uint256(cumulativeBpsDelta).fullMulDiv(PRECISION, maxPrice);
 
-        (uint256 tokensFilled, uint256 refund) = mockBidLib.resolve(bid, maxPrice, cumulativeBpsPerPriceDelta, cumulativeBpsDelta);
+        (uint256 tokensFilled, uint256 refund) =
+            mockBidLib.resolve(bid, maxPrice, cumulativeBpsPerPriceDelta, cumulativeBpsDelta);
 
         // 30% of 1000e18 tokens = 300e18 tokens filled
         assertEq(tokensFilled, 300e18);
@@ -107,7 +108,8 @@ contract BidLibTest is Test {
         // 20 * 1e18 / 200 = 0.1 * 1e18
         // 0.5 + 0.15 + 0.1 = 0.75 * 1e18
         assertEq(_cumulativeBpsPerPrice, 0.75 ether);
-        (uint256 tokensFilled, uint256 refund) = mockBidLib.resolve(bid, MAX_PRICE, _cumulativeBpsPerPrice, uint16(_totalBps));
+        (uint256 tokensFilled, uint256 refund) =
+            mockBidLib.resolve(bid, MAX_PRICE, _cumulativeBpsPerPrice, uint16(_totalBps));
 
         // Manual tokensFilled calculation:
         // 10 * 1e18 * 0.75 * 1e18 / 1e18 * 1e4 = 7.5 * 1e18 / 1e4 = 7.5e14
@@ -142,7 +144,8 @@ contract BidLibTest is Test {
 
         uint256 expectedTokensFilled = ethSpent / MAX_PRICE;
 
-        (uint256 tokensFilled, uint256 refund) = mockBidLib.resolve(bid, MAX_PRICE, cumulativeBpsPerPriceDelta, cumulativeBpsDelta);
+        (uint256 tokensFilled, uint256 refund) =
+            mockBidLib.resolve(bid, MAX_PRICE, cumulativeBpsPerPriceDelta, cumulativeBpsDelta);
 
         assertEq(tokensFilled, expectedTokensFilled);
         assertEq(refund, 0);

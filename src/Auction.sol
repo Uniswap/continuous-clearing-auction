@@ -257,10 +257,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
 
         // Require that the upperCheckpoint is the checkpoint immediately after the last active checkpoint for the bid
         Checkpoint memory upperCheckpoint = checkpoints[upperCheckpointId];
-        if (
-            upperCheckpoint.clearingPrice < maxPrice
-                && checkpoints[upperCheckpoint.prev].clearingPrice >= maxPrice
-        ) {
+        if (upperCheckpoint.clearingPrice < maxPrice && checkpoints[upperCheckpoint.prev].clearingPrice >= maxPrice) {
             revert InvalidCheckpointHint();
         }
 

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Bid} from '../src/libraries/BidLib.sol';
 import {MockBidLib} from './utils/MockBidLib.sol';
 import {Test} from 'forge-std/Test.sol';
@@ -10,6 +11,7 @@ contract BidLibTest is Test {
     MockBidLib mockBidLib;
 
     using FixedPointMathLib for uint256;
+    using AuctionStepLib for uint256;
 
     uint256 public constant BPS = 10_000;
     uint256 public constant TICK_SPACING = 100;
@@ -64,6 +66,31 @@ contract BidLibTest is Test {
         });
 
         mockBidLib.resolve(bid, MAX_PRICE, cumulativeBpsPerPriceDelta, cumulativeBpsDelta);
+    }
+
+    function test_resolve_exactOut_fuzz_succeeds(uint256 cumulativeBpsPerPriceDelta, uint16 cumulativeBpsDelta)
+        public
+        view
+    {
+        vm.assume(cumulativeBpsDelta <= BPS);
+        // Setup: User commits to buy 1000 tokens at max price 2000 per token
+        Bid memory bid = Bid({
+            exactIn: false,
+            owner: address(this),
+            amount: TOKEN_AMOUNT,
+            tokensFilled: 0,
+            startBlock: 100,
+            withdrawnBlock: 0
+        });
+
+        uint256 maxPrice = 2000;
+        uint256 _expectedTokensFilled = TOKEN_AMOUNT.applyBps(cumulativeBpsDelta);
+
+        (uint256 tokensFilled, uint256 refund) =
+            mockBidLib.resolve(bid, maxPrice, cumulativeBpsPerPriceDelta, cumulativeBpsDelta);
+
+        assertEq(tokensFilled, _expectedTokensFilled);
+        assertEq(refund, maxPrice * (TOKEN_AMOUNT - _expectedTokensFilled));
     }
 
     function test_resolve_exactIn() public view {

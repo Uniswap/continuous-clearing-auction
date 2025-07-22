@@ -26,9 +26,9 @@ contract BidLibTest is Test {
         // Buy exactly 1000 tokens at max price 2000 per token
         uint256 exactOutAmount = 1000e18;
         uint256 totalEth = 2000 * exactOutAmount;
+        uint256 maxPrice = 2000;
         Bid memory bid = Bid({
             exactIn: false,
-            maxPrice: 2000,
             owner: address(this),
             amount: exactOutAmount,
             tokensFilled: 0,
@@ -38,9 +38,9 @@ contract BidLibTest is Test {
 
         // Execute: 30% of auction executed (3000 bps)
         uint16 cumulativeBpsDelta = 3000;
-        uint256 cumulativeBpsPerPriceDelta = uint256(cumulativeBpsDelta).fullMulDiv(PRECISION, 2000);
+        uint256 cumulativeBpsPerPriceDelta = uint256(cumulativeBpsDelta).fullMulDiv(PRECISION, maxPrice);
 
-        (uint256 tokensFilled, uint256 refund) = mockBidLib.resolve(bid, cumulativeBpsPerPriceDelta, cumulativeBpsDelta);
+        (uint256 tokensFilled, uint256 refund) = mockBidLib.resolve(bid, maxPrice, cumulativeBpsPerPriceDelta, cumulativeBpsDelta);
 
         // 30% of 1000e18 tokens = 300e18 tokens filled
         assertEq(tokensFilled, 300e18);
@@ -55,7 +55,6 @@ contract BidLibTest is Test {
         // Setup: User commits 10 ETH to buy tokens
         Bid memory bid = Bid({
             exactIn: true,
-            maxPrice: MAX_PRICE,
             owner: address(this),
             amount: ETH_AMOUNT,
             tokensFilled: 0,
@@ -63,7 +62,7 @@ contract BidLibTest is Test {
             withdrawnBlock: 0
         });
 
-        mockBidLib.resolve(bid, cumulativeBpsPerPriceDelta, cumulativeBpsDelta);
+        mockBidLib.resolve(bid, MAX_PRICE, cumulativeBpsPerPriceDelta, cumulativeBpsDelta);
     }
 
     function test_resolve_exactIn() public view {
@@ -96,7 +95,6 @@ contract BidLibTest is Test {
 
         Bid memory bid = Bid({
             exactIn: true,
-            maxPrice: MAX_PRICE,
             owner: address(this),
             amount: ETH_AMOUNT,
             tokensFilled: 0,
@@ -109,7 +107,7 @@ contract BidLibTest is Test {
         // 20 * 1e18 / 200 = 0.1 * 1e18
         // 0.5 + 0.15 + 0.1 = 0.75 * 1e18
         assertEq(_cumulativeBpsPerPrice, 0.75 ether);
-        (uint256 tokensFilled, uint256 refund) = mockBidLib.resolve(bid, _cumulativeBpsPerPrice, uint16(_totalBps));
+        (uint256 tokensFilled, uint256 refund) = mockBidLib.resolve(bid, MAX_PRICE, _cumulativeBpsPerPrice, uint16(_totalBps));
 
         // Manual tokensFilled calculation:
         // 10 * 1e18 * 0.75 * 1e18 / 1e18 * 1e4 = 7.5 * 1e18 / 1e4 = 7.5e14
@@ -129,7 +127,6 @@ contract BidLibTest is Test {
         uint256 largeAmount = 100 ether;
         Bid memory bid = Bid({
             exactIn: true,
-            maxPrice: MAX_PRICE,
             owner: address(this),
             amount: largeAmount,
             tokensFilled: 0,
@@ -145,7 +142,7 @@ contract BidLibTest is Test {
 
         uint256 expectedTokensFilled = ethSpent / MAX_PRICE;
 
-        (uint256 tokensFilled, uint256 refund) = mockBidLib.resolve(bid, cumulativeBpsPerPriceDelta, cumulativeBpsDelta);
+        (uint256 tokensFilled, uint256 refund) = mockBidLib.resolve(bid, MAX_PRICE, cumulativeBpsPerPriceDelta, cumulativeBpsDelta);
 
         assertEq(tokensFilled, expectedTokensFilled);
         assertEq(refund, 0);

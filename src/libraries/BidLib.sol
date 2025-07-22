@@ -34,7 +34,7 @@ library BidLib {
     }
 
     /// @notice Resolve a bid
-    function resolve(Bid memory bid, uint256 cumulativeBpsPerPriceDelta, uint16 cumulativeBpsDelta)
+    function resolve(Bid memory bid, uint256 maxPrice, uint256 cumulativeBpsPerPriceDelta, uint16 cumulativeBpsDelta)
         internal
         pure
         returns (uint256 tokensFilled, uint256 refund)
@@ -44,7 +44,7 @@ library BidLib {
             refund = bid.amount - bid.amount.applyBps(cumulativeBpsDelta);
         } else {
             tokensFilled = bid.amount.applyBps(cumulativeBpsDelta);
-            refund = bid.maxPrice * (bid.amount - tokensFilled);
+            refund = maxPrice * (bid.amount - tokensFilled);
         }
     }
 }

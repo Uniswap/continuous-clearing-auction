@@ -201,7 +201,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
     function _submitBid(uint128 maxPrice, bool exactIn, uint256 amount, address owner, uint128 prevHintId) internal {
         Bid memory bid = Bid({
             exactIn: exactIn,
-            startBlock: block.number,
+            startBlock: uint64(block.number),
             withdrawnBlock: 0,
             owner: owner,
             amount: amount,
@@ -248,17 +248,18 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
 
     function withdrawBid(uint128 tickId, uint256 index, uint256 upperCheckpointId) external {
         Bid memory bid = ticks[tickId].bids[index];
+        uint256 maxPrice = ticks[tickId].price;
         if (bid.owner != msg.sender) revert NotBidOwner();
         if (bid.withdrawnBlock != 0) revert BidAlreadyWithdrawn();
 
         // Can only withdraw if the bid is below the clearing price
-        if (bid.maxPrice >= clearingPrice()) revert CannotWithdrawBid();
+        if (maxPrice >= clearingPrice()) revert CannotWithdrawBid();
 
         // Require that the upperCheckpoint is the checkpoint immediately after the last active checkpoint for the bid
         Checkpoint memory upperCheckpoint = checkpoints[upperCheckpointId];
         if (
-            upperCheckpoint.clearingPrice < bid.maxPrice
-                && checkpoints[upperCheckpoint.prev].clearingPrice >= bid.maxPrice
+            upperCheckpoint.clearingPrice < maxPrice
+                && checkpoints[upperCheckpoint.prev].clearingPrice >= maxPrice
         ) {
             revert InvalidCheckpointHint();
         }
@@ -269,6 +270,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         Checkpoint memory startCheckpoint = checkpoints[bid.startBlock];
 
         (uint256 tokensFilled, uint256 refund) = bid.resolve(
+            maxPrice,
             lastValidCheckpoint.cumulativeBpsPerPrice - startCheckpoint.cumulativeBpsPerPrice,
             lastValidCheckpoint.cumulativeBps - startCheckpoint.cumulativeBps
         );
@@ -276,7 +278,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         currency.transfer(bid.owner, refund);
 
         bid.tokensFilled = tokensFilled;
-        bid.withdrawnBlock = block.number;
+        bid.withdrawnBlock = uint64(block.number);
         // Set the bid in storage to the new values
         ticks[tickId].bids[index] = bid;
         emit BidWithdrawn(tickId, msg.sender);

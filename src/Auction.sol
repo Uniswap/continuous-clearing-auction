@@ -122,7 +122,8 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
     /// @notice Register a new checkpoint
     /// @dev This function is called every time a new bid is submitted above the current clearing price
     function checkpoint() public {
-        if (lastCheckpointedBlock == block.number) return;
+        uint256 _lastCheckpointedBlock = lastCheckpointedBlock;
+        if (_lastCheckpointedBlock == block.number) return;
         if (block.number < startBlock) revert AuctionNotStarted();
 
         // Advance to the current step if needed, summing up the results since the last checkpointed block
@@ -158,16 +159,18 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
             _newClearingPrice = tickUpper.price;
         }
 
+        // If the clearing price is below the floorPrice, set it to the floorPrice
         if (_newClearingPrice <= floorPrice) {
             _newClearingPrice = floorPrice;
+            // We can only clear the current demand at the floor price
             _totalCleared += aggregateDemand;
         } else {
+            // Otherwise, we can clear the entire supply being sold in the block
             _totalCleared += resolvedSupply;
         }
 
-        // We already accounted for the bps between the last checkpointed block and the current step's start block
         uint16 bpsSinceLastCheckpoint;
-        if (step.startBlock > lastCheckpointedBlock) {
+        if (step.startBlock > _lastCheckpointedBlock) {
             // lastCheckpointedBlock --- | step.startBlock --- | block.number
             //                     ^     ^
             //           cumulativeBps   sumBps
@@ -176,11 +179,10 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
             // step.startBlock --------- | lastCheckpointedBlock --- | block.number
             //                ^          ^
             //           sumBps (0)   cumulativeBps
-            bpsSinceLastCheckpoint = uint16(step.bps * (block.number - lastCheckpointedBlock));
+            bpsSinceLastCheckpoint = uint16(step.bps * (block.number - _lastCheckpointedBlock));
         }
         _cumulativeBps += bpsSinceLastCheckpoint;
 
-        // Add to cumulative trackings
         uint256 newCumulativeBpsPerPrice =
             _cumulativeBpsPerPrice + (uint256(bpsSinceLastCheckpoint).fullMulDiv(BidLib.PRECISION, _newClearingPrice));
 

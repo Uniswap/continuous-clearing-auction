@@ -90,8 +90,6 @@ abstract contract TickStorage is ITickStorage {
     function _updateTick(uint128 id, Bid memory bid) internal {
         Tick storage tick = ticks[id];
 
-        if (tick.price != bid.maxPrice) revert InvalidTickForPrice();
-
         if (bid.exactIn) {
             tick.sumCurrencyDemand += bid.amount;
         } else {

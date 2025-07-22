@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {Bid} from '../libraries/BidLib.sol';
+
 interface IValidationHook {
-    function validate(uint256 blockNumber, uint256 amount, address bidder) external view;
+    /// @notice Validate a bid
+    /// @dev MUST revert if the bid is invalid
+    function validate(Bid calldata bid) external view;
 }

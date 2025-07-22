@@ -4,8 +4,6 @@ pragma solidity ^0.8.20;
 /// @title ITickStorage
 /// @notice Interface for the TickStorage contract
 interface ITickStorage {
-    /// @notice Error thrown when the tick price is invalid for the given price
-    error InvalidTickForPrice();
     /// @notice Error thrown when the tick price is not increasing
     error TickPriceNotIncreasing();
     /// @notice Emitted when a tick is initialized

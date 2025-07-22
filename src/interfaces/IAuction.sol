@@ -24,8 +24,6 @@ interface IAuction is ITickStorage, IAuctionStepStorage {
     error EndBlockIsTooLarge();
     /// @notice Error thrown when the claim block is before the end block
     error ClaimBlockIsBeforeEndBlock();
-    /// @notice Error thrown when the token recipient is the zero address
-    error TokenRecipientIsZero();
     /// @notice Error thrown when the funds recipient is the zero address
     error FundsRecipientIsZero();
     /// @notice Error thrown when the bid is not owned by the caller

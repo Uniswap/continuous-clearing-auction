@@ -74,4 +74,17 @@ interface IAuction is ITickStorage, IAuctionStepStorage {
     function submitBid(uint128 maxPrice, bool exactIn, uint256 amount, address owner, uint128 prevHintId)
         external
         payable;
+
+    /// @notice Withdraw a bid
+    /// @dev A bid can only be withdrawn if the maxPrice is below the current clearing price
+    /// @param tickId The id of the tick
+    /// @param index The index of the bid
+    /// @param upperCheckpointId The id of the checkpoint immediately after the last "active" checkpoint for the bid
+    function withdrawBid(uint128 tickId, uint256 index, uint256 upperCheckpointId) external;
+
+    /// @notice Claim tokens after the auction's claim block
+    /// @dev The bid must be withdrawn before claiming tokens
+    /// @param tickId The id of the tick
+    /// @param index The index of the bid
+    function claimTokens(uint128 tickId, uint256 index) external;
 }

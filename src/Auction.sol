@@ -155,7 +155,6 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
             // Round clearingPrice down to the nearest tickSpacing
             _newClearingPrice -= (_newClearingPrice % tickSpacing);
         } else {
-            // TODO: this might be wrong since tickUpper will be the tick above what we wanted to clear at here
             _newClearingPrice = tickUpper.price;
         }
 
@@ -246,6 +245,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         _submitBid(maxPrice, exactIn, amount, owner, prevHintId);
     }
 
+    /// @inheritdoc IAuction
     function withdrawBid(uint128 tickId, uint256 index, uint256 upperCheckpointId) external {
         Bid memory bid = ticks[tickId].bids[index];
         uint256 maxPrice = ticks[tickId].price;
@@ -257,13 +257,13 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
 
         // Require that the upperCheckpoint is the checkpoint immediately after the last active checkpoint for the bid
         Checkpoint memory upperCheckpoint = checkpoints[upperCheckpointId];
-        if (upperCheckpoint.clearingPrice < maxPrice && checkpoints[upperCheckpoint.prev].clearingPrice >= maxPrice) {
+        Checkpoint memory lastValidCheckpoint = checkpoints[upperCheckpoint.prev];
+
+        if (upperCheckpoint.clearingPrice < maxPrice && lastValidCheckpoint.clearingPrice >= maxPrice) {
             revert InvalidCheckpointHint();
         }
 
-        // The last valid checkpoint is upperCheckpoint.prev
-        Checkpoint memory lastValidCheckpoint = checkpoints[upperCheckpoint.prev];
-        // Must exist because we always checkpoint on bid submission
+        // Starting checkpoint must exist because we checkpoint on bid submission
         Checkpoint memory startCheckpoint = checkpoints[bid.startBlock];
 
         (uint256 tokensFilled, uint256 refund) = bid.resolve(
@@ -281,6 +281,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         emit BidWithdrawn(tickId, msg.sender);
     }
 
+    /// @inheritdoc IAuction
     function claimTokens(uint128 tickId, uint256 index) external {
         Bid memory bid = ticks[tickId].bids[index];
         if (bid.owner != msg.sender) revert NotBidOwner();

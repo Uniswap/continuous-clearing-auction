@@ -2,20 +2,25 @@
 pragma solidity ^0.8.23;
 
 import {AuctionStepStorage} from './AuctionStepStorage.sol';
-import {AuctionParameters, AuctionStep} from './Base.sol';
+import {AuctionParameters} from './Base.sol';
+import {Multicall} from './Multicall.sol';
+import {Permit2Forwarder} from './Permit2Forwarder.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
 import {IAuction} from './interfaces/IAuction.sol';
+
 import {IValidationHook} from './interfaces/IValidationHook.sol';
+import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
-import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
+import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 
+import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 /// @title Auction
-contract Auction is IAuction, TickStorage, AuctionStepStorage {
+contract Auction is Multicall, Permit2Forwarder, IAuction, TickStorage, AuctionStepStorage {
     using FixedPointMathLib for uint256;
     using CurrencyLibrary for Currency;
     using BidLib for Bid;
@@ -57,8 +62,11 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
     /// @notice Sum of all demand at or above tickUpper for `token` (exactOut)
     uint256 public sumTokenDemandAtTickUpper;
 
+    address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+
     constructor(AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
+        Permit2Forwarder(IAllowanceTransfer(PERMIT2))
     {
         currency = Currency.wrap(_parameters.currency);
         token = IERC20Minimal(_parameters.token);
@@ -78,6 +86,12 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         if (tickSpacing == 0) revert TickSpacingIsZero();
         if (claimBlock < endBlock) revert ClaimBlockIsBeforeEndBlock();
         if (fundsRecipient == address(0)) revert FundsRecipientIsZero();
+    }
+
+    /// @inheritdoc IDistributionContract
+    function onTokensReceived(address _token, uint256 _amount) external view {
+        if (_token != address(token)) revert IDistributionContract__InvalidToken();
+        if (_amount != totalSupply) revert IDistributionContract__InvalidAmount();
     }
 
     function clearingPrice() public view returns (uint256) {
@@ -242,7 +256,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         if (currency.isAddressZero()) {
             if (msg.value != resolvedAmount) revert InvalidAmount();
         } else {
-            SafeTransferLib.permit2TransferFrom(Currency.unwrap(currency), owner, address(this), resolvedAmount);
+            SafeTransferLib.permit2TransferFrom(Currency.unwrap(currency), msg.sender, address(this), resolvedAmount);
         }
         _submitBid(maxPrice, exactIn, amount, owner, prevHintId);
     }

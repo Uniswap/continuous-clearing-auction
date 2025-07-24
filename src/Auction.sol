@@ -3,7 +3,6 @@ pragma solidity ^0.8.23;
 
 import {AuctionStepStorage} from './AuctionStepStorage.sol';
 import {AuctionParameters} from './Base.sol';
-import {Multicall} from './Multicall.sol';
 import {Permit2Forwarder} from './Permit2Forwarder.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
 import {IAuction} from './interfaces/IAuction.sol';
@@ -20,7 +19,7 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 /// @title Auction
-contract Auction is Multicall, Permit2Forwarder, IAuction, TickStorage, AuctionStepStorage {
+contract Auction is Permit2Forwarder, IAuction, TickStorage, AuctionStepStorage {
     using FixedPointMathLib for uint256;
     using CurrencyLibrary for Currency;
     using BidLib for Bid;

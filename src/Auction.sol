@@ -237,4 +237,6 @@ contract Auction is IAuction, TickStorage, BidStorage, AuctionStepStorage {
         }
         _submitBid(maxPrice, exactIn, amount, owner, prevHintId, hookData);
     }
+
+    receive() external payable {}
 }

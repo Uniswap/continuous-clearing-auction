@@ -145,6 +145,41 @@ contract BidLibTest is Test {
         assertEq(refund, ETH_AMOUNT - _ethSpent);
     }
 
+    function test_resolve_exactOut() public view {
+        uint256[] memory bpsArray = new uint256[](3);
+        uint256[] memory pricesArray = new uint256[](3);
+
+        bpsArray[0] = 50;
+        pricesArray[0] = 100;
+
+        bpsArray[1] = 30;
+        pricesArray[1] = 200;
+
+        bpsArray[2] = 20;
+        pricesArray[2] = MAX_PRICE;
+
+        uint256 _totalBps;
+
+        for (uint256 i = 0; i < 3; i++) {
+            _totalBps += bpsArray[i];
+        }
+
+        Bid memory bid = Bid({
+            exactIn: false,
+            owner: address(this),
+            amount: TOKEN_AMOUNT,
+            tokensFilled: 0,
+            startBlock: 100,
+            withdrawnBlock: 0
+        });
+
+        // Bid is fully filled since max price is always higher than all prices
+        (uint256 tokensFilled, uint256 refund) = mockBidLib.resolve(bid, MAX_PRICE, 0, uint16(_totalBps));
+
+        assertEq(tokensFilled, TOKEN_AMOUNT.applyBps(uint16(_totalBps)));
+        assertEq(refund, MAX_PRICE * (TOKEN_AMOUNT - tokensFilled));
+    }
+
     function test_resolve_exactIn_maxPrice() public view {
         uint16[] memory bpsArray = new uint16[](1);
         uint256[] memory pricesArray = new uint256[](1);

@@ -178,7 +178,14 @@ contract Auction is IAuction, TickStorage, BidStorage, AuctionStepStorage {
         emit CheckpointUpdated(block.number, _newClearingPrice, _totalCleared, _cumulativeBps);
     }
 
-    function _submitBid(uint128 maxPrice, bool exactIn, uint256 amount, address owner, uint128 prevHintId, bytes calldata hookData) internal {
+    function _submitBid(
+        uint128 maxPrice,
+        bool exactIn,
+        uint256 amount,
+        address owner,
+        uint128 prevHintId,
+        bytes calldata hookData
+    ) internal {
         // First bid in a block updates the clearing price
         checkpoint();
 
@@ -214,10 +221,14 @@ contract Auction is IAuction, TickStorage, BidStorage, AuctionStepStorage {
     }
 
     /// @inheritdoc IAuction
-    function submitBid(uint128 maxPrice, bool exactIn, uint256 amount, address owner, uint128 prevHintId, bytes calldata hookData)
-        external
-        payable
-    {
+    function submitBid(
+        uint128 maxPrice,
+        bool exactIn,
+        uint256 amount,
+        address owner,
+        uint128 prevHintId,
+        bytes calldata hookData
+    ) external payable {
         uint256 resolvedAmount = exactIn ? amount : amount.fullMulDivUp(maxPrice, tickSpacing);
         if (currency.isAddressZero()) {
             if (msg.value != resolvedAmount) revert InvalidAmount();

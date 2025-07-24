@@ -3,6 +3,8 @@ pragma solidity ^0.8.23;
 
 import {AuctionStepStorage} from './AuctionStepStorage.sol';
 import {AuctionParameters, AuctionStep} from './Base.sol';
+
+import {BidStorage} from './BidStorage.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
 import {IAuction} from './interfaces/IAuction.sol';
 import {IValidationHook} from './interfaces/IValidationHook.sol';
@@ -11,12 +13,11 @@ import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 
-import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 /// @title Auction
-contract Auction is IAuction, TickStorage, AuctionStepStorage {
+contract Auction is IAuction, TickStorage, BidStorage, AuctionStepStorage {
     using FixedPointMathLib for uint256;
     using CurrencyLibrary for Currency;
     using BidLib for Bid;
@@ -177,7 +178,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         emit CheckpointUpdated(block.number, _newClearingPrice, _totalCleared, _cumulativeBps);
     }
 
-    function _submitBid(uint128 maxPrice, bool exactIn, uint256 amount, address owner, uint128 prevHintId) internal {
+    function _submitBid(uint128 maxPrice, bool exactIn, uint256 amount, address owner, uint128 prevHintId, bytes calldata hookData) internal {
         // First bid in a block updates the clearing price
         checkpoint();
 
@@ -193,12 +194,12 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         });
 
         if (address(validationHook) != address(0)) {
-            validationHook.validate(bid);
+            validationHook.validate(bid, hookData);
         }
 
         BidLib.validate(maxPrice, floorPrice, tickSpacing);
-
-        uint256 bidId = _updateTick(tickId, bid);
+        _updateTick(tickId, bid);
+        uint256 bidId = _createBid(bid);
 
         // Only bids higher than the clearing price can change the clearing price
         if (maxPrice >= ticks[tickUpperId].price) {
@@ -213,7 +214,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
     }
 
     /// @inheritdoc IAuction
-    function submitBid(uint128 maxPrice, bool exactIn, uint256 amount, address owner, uint128 prevHintId)
+    function submitBid(uint128 maxPrice, bool exactIn, uint256 amount, address owner, uint128 prevHintId, bytes calldata hookData)
         external
         payable
     {
@@ -223,6 +224,6 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
         } else {
             SafeTransferLib.permit2TransferFrom(Currency.unwrap(currency), owner, address(this), resolvedAmount);
         }
-        _submitBid(maxPrice, exactIn, amount, owner, prevHintId);
+        _submitBid(maxPrice, exactIn, amount, owner, prevHintId, hookData);
     }
 }

@@ -49,7 +49,8 @@ interface IAuction is ITickStorage, IAuctionStepStorage {
     /// @param amount The amount of the bid
     /// @param owner The owner of the bid
     /// @param prevHintId The id of the previous tick hint
-    function submitBid(uint128 maxPrice, bool exactIn, uint256 amount, address owner, uint128 prevHintId)
+    /// @param hookData Additional data to pass to the hook required for validation
+    function submitBid(uint128 maxPrice, bool exactIn, uint256 amount, address owner, uint128 prevHintId, bytes calldata hookData)
         external
         payable;
 }

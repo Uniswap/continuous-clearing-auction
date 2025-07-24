@@ -227,7 +227,7 @@ contract Auction is Multicall, Permit2Forwarder, IAuction, TickStorage, AuctionS
         if (currency.isAddressZero()) {
             if (msg.value != resolvedAmount) revert InvalidAmount();
         } else {
-            SafeTransferLib.permit2TransferFrom(Currency.unwrap(currency), owner, address(this), resolvedAmount);
+            SafeTransferLib.permit2TransferFrom(Currency.unwrap(currency), msg.sender, address(this), resolvedAmount);
         }
         _submitBid(maxPrice, exactIn, amount, owner, prevHintId);
     }

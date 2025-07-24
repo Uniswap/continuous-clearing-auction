@@ -178,20 +178,27 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
     }
 
     function _submitBid(uint128 maxPrice, bool exactIn, uint256 amount, address owner, uint128 prevHintId) internal {
-        Bid memory bid =
-            Bid({exactIn: exactIn, amount: amount, owner: owner, startBlock: uint64(block.number), withdrawnBlock: 0});
+        // First bid in a block updates the clearing price
+        checkpoint();
 
-        BidLib.validate(maxPrice, floorPrice, tickSpacing);
+        uint128 tickId = _initializeTickIfNeeded(prevHintId, maxPrice);
+
+        Bid memory bid = Bid({
+            exactIn: exactIn,
+            startBlock: uint64(block.number),
+            withdrawnBlock: 0,
+            tickId: tickId,
+            amount: amount,
+            owner: owner
+        });
 
         if (address(validationHook) != address(0)) {
             validationHook.validate(bid);
         }
 
-        // First bid in a block updates the clearing price
-        checkpoint();
+        BidLib.validate(maxPrice, floorPrice, tickSpacing);
 
-        uint128 tickId = _initializeTickIfNeeded(prevHintId, maxPrice);
-        _updateTick(tickId, bid);
+        uint256 bidId = _updateTick(tickId, bid);
 
         // Only bids higher than the clearing price can change the clearing price
         if (maxPrice >= ticks[tickUpperId].price) {
@@ -202,7 +209,7 @@ contract Auction is IAuction, TickStorage, AuctionStepStorage {
             }
         }
 
-        emit BidSubmitted(tickId, maxPrice, bid.exactIn, bid.amount);
+        emit BidSubmitted(bidId, maxPrice, bid.exactIn, bid.amount);
     }
 
     /// @inheritdoc IAuction

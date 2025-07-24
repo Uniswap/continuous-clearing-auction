@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import {BidStorage} from './BidStorage.sol';
 import {ITickStorage} from './interfaces/ITickStorage.sol';
 import {Bid} from './libraries/BidLib.sol';
 
@@ -11,12 +12,11 @@ struct Tick {
     uint256 price;
     uint256 sumCurrencyDemand; // Sum of demand in the `currency` (exactIn)
     uint256 sumTokenDemand; // Sum of demand in the `token` (exactOut)
-    Bid[] bids;
 }
 
 /// @title TickStorage
 /// @notice Abstract contract for handling tick storage
-abstract contract TickStorage is ITickStorage {
+abstract contract TickStorage is ITickStorage, BidStorage {
     /// @notice Doubly linked list of ticks, sorted ascending by price
     mapping(uint128 id => Tick) public ticks;
     /// @notice The id of the next tick to be initialized
@@ -87,7 +87,7 @@ abstract contract TickStorage is ITickStorage {
     /// @dev Requires the tick to be initialized
     /// @param id The id of the tick
     /// @param bid The bid to add
-    function _updateTick(uint128 id, Bid memory bid) internal {
+    function _updateTick(uint128 id, Bid memory bid) internal returns (uint256 bidId) {
         Tick storage tick = ticks[id];
 
         if (bid.exactIn) {
@@ -96,6 +96,7 @@ abstract contract TickStorage is ITickStorage {
             tick.sumTokenDemand += bid.amount;
         }
 
-        tick.bids.push(bid); // use dynamic buffer here
+        bid.tickId = id;
+        bidId = _createBid(bid);
     }
 }

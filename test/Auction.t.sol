@@ -53,7 +53,7 @@ contract AuctionTest is TokenHandler, Test {
 
     function test_submitBid_exactIn_atFloorPrice_succeeds_gas() public {
         vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(1, _tickPriceAt(1), true, 100e18);
+        emit IAuction.BidSubmitted(0, _tickPriceAt(1), true, 100e18);
         auction.submitBid{value: 100e18}(_tickPriceAt(1), true, 100e18, alice, 0);
         vm.snapshotGasLastCall('submitBid_recordStep_updateCheckpoint');
 
@@ -67,14 +67,14 @@ contract AuctionTest is TokenHandler, Test {
 
     function test_submitBid_exactOut_atFloorPrice_succeeds() public {
         vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(1, _tickPriceAt(1), false, 10e18);
+        emit IAuction.BidSubmitted(0, _tickPriceAt(1), false, 10e18);
         auction.submitBid{value: 10e18}(_tickPriceAt(1), false, 10e18, alice, 0);
     }
 
     function test_submitBid_exactIn_initializesTickAndUpdatesClearingPrice_succeeds_gas() public {
         uint256 amount = TOTAL_SUPPLY;
         vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(2, _tickPriceAt(2), true, amount);
+        emit IAuction.BidSubmitted(0, _tickPriceAt(2), true, amount);
         auction.submitBid{value: amount}(_tickPriceAt(2), true, amount, alice, 1);
         vm.snapshotGasLastCall('submitBid_recordStep_updateCheckpoint_initializeTick');
 
@@ -90,7 +90,7 @@ contract AuctionTest is TokenHandler, Test {
 
     function test_submitBid_exactOut_initializesTickAndUpdatesClearingPrice_succeeds() public {
         vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(2, _tickPriceAt(2), false, 1000e18);
+        emit IAuction.BidSubmitted(0, _tickPriceAt(2), false, 1000e18);
         // Oversubscribe the auction to increase the clearing price
         auction.submitBid{value: 1000e18 * 2}(_tickPriceAt(2), false, 1000e18, alice, 1);
 

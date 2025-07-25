@@ -48,7 +48,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         uint256 clearingPrice;
         uint256 blockCleared;
         uint256 totalCleared;
-        uint16 cumulativeBps;
+        uint24 cumulativeMps;
     }
 
     mapping(uint256 blockNumber => Checkpoint) public checkpoints;
@@ -103,15 +103,15 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         return (sumCurrencyDemandAtTickUpper * tickSpacing / ticks[tickUpperId].price) + sumTokenDemandAtTickUpper;
     }
 
-    function _advanceToCurrentStep() internal returns (uint256 _totalCleared, uint16 _cumulativeBps) {
+    function _advanceToCurrentStep() internal returns (uint256 _totalCleared, uint24 _cumulativeMps) {
         // Advance the current step until the current block is within the step
         Checkpoint memory _checkpoint = checkpoints[lastCheckpointedBlock];
         uint256 start = lastCheckpointedBlock;
         uint256 end = step.endBlock;
         _totalCleared = _checkpoint.totalCleared;
-        _cumulativeBps = _checkpoint.cumulativeBps;
+        _cumulativeMps = _checkpoint.cumulativeMps;
         while (block.number >= end) {
-            _cumulativeBps += uint16(step.bps * (end - start));
+            _cumulativeMps += uint24(step.mps * (end - start));
             // Number of tokens cleared in the old step (constant because no change in clearing price)
             _totalCleared += _checkpoint.blockCleared * (end - start);
             start = end;
@@ -127,10 +127,10 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         if (block.number < startBlock) revert AuctionNotStarted();
 
         // Advance to the current step if needed, summing up the results since the last checkpointed block
-        (uint256 _totalCleared, uint16 _cumulativeBps) = _advanceToCurrentStep();
+        (uint256 _totalCleared, uint24 _cumulativeMps) = _advanceToCurrentStep();
 
-        uint256 resolvedSupply = step.resolvedSupply(totalSupply, _totalCleared, _cumulativeBps);
-        uint256 aggregateDemand = _resolvedTokenDemandTickUpper().applyBps(step.bps);
+        uint256 resolvedSupply = step.resolvedSupply(totalSupply, _totalCleared, _cumulativeMps);
+        uint256 aggregateDemand = _resolvedTokenDemandTickUpper().applyMps(step.mps);
 
         Tick memory tickUpper = ticks[tickUpperId];
         while (aggregateDemand >= resolvedSupply && tickUpper.next != 0) {
@@ -140,7 +140,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
             // Advance to the next discovered tick
             tickUpper = ticks[tickUpper.next];
-            aggregateDemand = _resolvedTokenDemandTickUpper().applyBps(step.bps);
+            aggregateDemand = _resolvedTokenDemandTickUpper().applyMps(step.mps);
         }
         tickUpperId = tickUpper.id;
 
@@ -149,8 +149,8 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         if (aggregateDemand < resolvedSupply && aggregateDemand > 0) {
             // Find the clearing price between the tickLower and tickUpper
             _newClearingPrice = (
-                (resolvedSupply - sumTokenDemandAtTickUpper.applyBps(step.bps)).fullMulDiv(
-                    tickSpacing, sumCurrencyDemandAtTickUpper.applyBps(step.bps)
+                (resolvedSupply - sumTokenDemandAtTickUpper.applyMps(step.mps)).fullMulDiv(
+                    tickSpacing, sumCurrencyDemandAtTickUpper.applyMps(step.mps)
                 )
             );
             // Round clearingPrice down to the nearest tickSpacing
@@ -165,29 +165,29 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             _totalCleared += resolvedSupply;
         }
 
-        // We already accounted for the bps between the last checkpointed block and the current step's start block
+        // We already accounted for the mps between the last checkpointed block and the current step's start block
         // Add one because we want to include the current block in the sum
         if (step.startBlock > lastCheckpointedBlock) {
             // lastCheckpointedBlock --- | step.startBlock --- | block.number
             //                     ^     ^
-            //           cumulativeBps   sumBps
-            _cumulativeBps += uint16(step.bps * (block.number - step.startBlock));
+            //           cumulativeMps   sumMps
+            _cumulativeMps += uint24(step.mps * (block.number - step.startBlock));
         } else {
             // step.startBlock --------- | lastCheckpointedBlock --- | block.number
             //                ^          ^
-            //           sumBps (0)   cumulativeBps
-            _cumulativeBps += uint16(step.bps * (block.number - lastCheckpointedBlock));
+            //           sumMps (0)   cumulativeMps
+            _cumulativeMps += uint24(step.mps * (block.number - lastCheckpointedBlock));
         }
 
         checkpoints[block.number] = Checkpoint({
             clearingPrice: _newClearingPrice,
             blockCleared: _newClearingPrice < floorPrice ? aggregateDemand : resolvedSupply,
             totalCleared: _totalCleared,
-            cumulativeBps: _cumulativeBps
+            cumulativeMps: _cumulativeMps
         });
         lastCheckpointedBlock = block.number;
 
-        emit CheckpointUpdated(block.number, _newClearingPrice, _totalCleared, _cumulativeBps);
+        emit CheckpointUpdated(block.number, _newClearingPrice, _totalCleared, _cumulativeMps);
     }
 
     function _submitBid(uint128 maxPrice, bool exactIn, uint256 amount, address owner, uint128 prevHintId) internal {

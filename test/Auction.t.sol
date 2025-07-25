@@ -4,6 +4,8 @@ pragma solidity ^0.8.23;
 import {Auction, AuctionParameters} from '../src/Auction.sol';
 import {IAuction} from '../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
+
+import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
@@ -36,7 +38,7 @@ contract AuctionTest is TokenHandler, Test {
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 
-        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100, 100);
+        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
         AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
             FLOOR_PRICE
         ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
@@ -77,10 +79,10 @@ contract AuctionTest is TokenHandler, Test {
         vm.snapshotGasLastCall('submitBid_recordStep_updateCheckpoint_initializeTick');
 
         vm.roll(block.number + 1);
-        uint256 expectedTotalCleared = 10e18; // 100 bps * total supply (1000e18)
-        uint16 expectedCumulativeBps = 100; // 100 bps * 1 block
+        uint256 expectedTotalCleared = 10e18; // 100e3 mps * total supply (1000e18)
+        uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(2), expectedTotalCleared, expectedCumulativeBps);
+        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(2), expectedTotalCleared, expectedCumulativeMps);
         auction.checkpoint();
 
         assertEq(auction.clearingPrice(), _tickPriceAt(2));
@@ -93,10 +95,10 @@ contract AuctionTest is TokenHandler, Test {
         auction.submitBid{value: 1000e18 * 2}(_tickPriceAt(2), false, 1000e18, alice, 1);
 
         vm.roll(block.number + 1);
-        uint256 expectedTotalCleared = 10e18; // 100 bps * total supply (1000e18)
-        uint16 expectedCumulativeBps = 100; // 100 bps * 1 block
+        uint256 expectedTotalCleared = 10e18; // 100e3 mps * total supply (1000e18)
+        uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(2), expectedTotalCleared, expectedCumulativeBps);
+        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(2), expectedTotalCleared, expectedCumulativeMps);
         auction.checkpoint();
 
         assertEq(auction.clearingPrice(), _tickPriceAt(2));
@@ -104,23 +106,23 @@ contract AuctionTest is TokenHandler, Test {
 
     function test_submitBid_updatesClearingPrice_succeeds() public {
         // Oversubscribe the auction to increase the clearing price
-        uint16 expectedCumulativeBps = 100; // 100 bps * 1 block
+        uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
         vm.expectEmit(true, true, true, true);
         // Expect the checkpoint to be made for the previous block
         emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(1), 0, 0);
         auction.submitBid{value: 1000e18}(_tickPriceAt(2), true, 1000e18, alice, 1);
 
         vm.roll(block.number + 1);
-        uint256 expectedTotalCleared = 10e18; // 100 bps * total supply (1000e18)
+        uint256 expectedTotalCleared = 10e18; // 100 mps * total supply (1000e18)
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(2), expectedTotalCleared, expectedCumulativeBps);
+        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(2), expectedTotalCleared, expectedCumulativeMps);
         auction.checkpoint();
     }
 
     function test_submitBid_multipleTicks_succeeds() public {
         uint256 amount = 500e18; // half of supply
-        uint256 expectedTotalCleared = 100 * amount / 10_000;
-        uint16 expectedCumulativeBps = 100; // 100 bps * 1 block
+        uint256 expectedTotalCleared = 100e3 * amount / AuctionStepLib.MPS;
+        uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
 
         vm.expectEmit(true, true, true, true);
         // First checkpoint is blank
@@ -136,9 +138,9 @@ contract AuctionTest is TokenHandler, Test {
         auction.submitBid{value: amount}(_tickPriceAt(3), true, amount, alice, 2);
 
         vm.roll(block.number + 1);
-        // New block, expect the clearing price to be updated and one block's worth of bps to be sold
+        // New block, expect the clearing price to be updated and one block's worth of mps to be sold
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(2), expectedTotalCleared * 2, expectedCumulativeBps);
+        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(2), expectedTotalCleared * 2, expectedCumulativeMps);
         auction.submitBid{value: 1}(_tickPriceAt(3), true, 1, alice, 2);
         assertEq(auction.clearingPrice(), _tickPriceAt(2));
     }

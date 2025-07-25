@@ -3,6 +3,7 @@ pragma solidity ^0.8.23;
 
 import {IAuctionStepStorage} from './interfaces/IAuctionStepStorage.sol';
 import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
+import {console2} from 'forge-std/console2.sol';
 import {SSTORE2} from 'solady/utils/SSTORE2.sol';
 
 /// @title AuctionStepStorage

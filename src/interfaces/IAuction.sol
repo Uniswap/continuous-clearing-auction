@@ -46,7 +46,7 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     /// @param blockNumber The block number of the checkpoint
     /// @param clearingPrice The clearing price of the checkpoint
     /// @param totalCleared The total amount of tokens cleared
-    /// @param cumulativeMps The cumulative basis points of past auction steps
+    /// @param cumulativeMps The cumulative percentage of total tokens allocated across all previous steps, represented in ten-millionths of the total supply (1e7 = 100%)
     event CheckpointUpdated(
         uint256 indexed blockNumber, uint256 clearingPrice, uint256 totalCleared, uint24 cumulativeMps
     );

@@ -14,7 +14,7 @@ interface IAuctionStepStorage {
     error InvalidEndBlock();
 
     /// @notice Emitted when an auction step is recorded
-    /// @param mps The basis points of the auction step
+    /// @param mps The percentage of total tokens to sell per block during this auction step, represented in ten-millionths of the total supply (1e7 = 100%)
     /// @param startBlock The start block of the auction step
     /// @param endBlock The end block of the auction step
     event AuctionStepRecorded(uint24 mps, uint256 startBlock, uint256 endBlock);

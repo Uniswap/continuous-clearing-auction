@@ -1,46 +1,141 @@
-## Template Repo (Foundry)
+# TWAP Auction
 
-[![CI Status](../../actions/workflows/test.yaml/badge.svg)](../../actions)
+This repository contains the smart contracts for a TWAP (Time-Weighted Average Price) auction mechanism.
 
-This template repo is a quick and easy way to get started with a new Solidity project. It comes with a number of features that are useful for developing and deploying smart contracts. Such as:
+## Installation
 
-- Pre-commit hooks for formatting, auto generated documentation, and more
-- Various libraries with useful contracts (OpenZeppelin, Solady) and libraries (Deployment log generation, storage checks, deployer templates)
-
-#### Table of Contents
-
-- [Setup](#setup)
-- [Deployment](#deployment)
-- [Docs](#docs)
-- [Contributing](#contributing)
-
-## Setup
-
-Follow these steps to set up your local environment:
-
-- [Install foundry](https://book.getfoundry.sh/getting-started/installation)
-- Install dependencies: `forge install`
-- Build contracts: `forge build`
-- Test contracts: `forge test`
-
-If you intend to develop on this repo, follow the steps outlined in [CONTRIBUTING.md](CONTRIBUTING.md#install).
-
-## Deployment
-
-This repo utilizes versioned deployments. For more information on how to use forge scripts within the repo, check [here](CONTRIBUTING.md#deployment).
-
-Smart contracts are deployed or upgraded using the following command:
-
-```shell
-forge script script/Deploy.s.sol --broadcast --rpc-url <rpc_url> --verify
+```bash
+forge install
 ```
 
-## Docs
+## Testing
 
-The documentation and architecture diagrams for the contracts within this repo can be found [here](docs/).
-Detailed documentation generated from the NatSpec documentation of the contracts can be found [here](docs/autogen/src/src/).
-When exploring the contracts within this repository, it is recommended to start with the interfaces first and then move on to the implementation as outlined [here](CONTRIBUTING.md#natspec--comments)
+```bash
+forge test
+```
 
-## Contributing
+### Architecture
 
-If you want to contribute to this project, please check [CONTRIBUTING.md](CONTRIBUTING.md) first.
+```mermaid
+graph TD;
+    subgraph Contracts
+        AuctionFactory;
+        Auction;
+        AuctionStepStorage;
+        TickStorage;
+        PermitSingleForwarder;
+    end
+
+    subgraph Libraries
+        AuctionStepLib;
+        BidLib;
+        CurrencyLibrary;
+        SSTORE2[solady/utils/SSTORE2];
+        FixedPointMathLib[solady/utils/FixedPointMathLib];
+        SafeTransferLib[solady/utils/SafeTransferLib];
+    end
+
+    subgraph Interfaces
+        IAuction;
+        IAuctionStepStorage;
+        ITickStorage;
+        IPermitSingleForwarder;
+        IValidationHook;
+        IDistributionContract;
+        IDistributionStrategy;
+        IERC20Minimal;
+        IAllowanceTransfer[permit2/IAllowanceTransfer];
+    end
+
+    AuctionFactory -- creates --> Auction;
+    AuctionFactory -- implements --> IDistributionStrategy;
+
+    Auction -- inherits from --> PermitSingleForwarder;
+    Auction -- inherits from --> TickStorage;
+    Auction -- inherits from --> AuctionStepStorage;
+    Auction -- implements --> IAuction;
+
+    Auction -- uses --> AuctionStepLib;
+    Auction -- uses --> BidLib;
+    Auction -- uses --> CurrencyLibrary;
+    Auction -- uses --> FixedPointMathLib;
+    Auction -- uses --> SafeTransferLib;
+
+    Auction -- interacts with --> IValidationHook;
+    Auction -- interacts with --> IDistributionContract;
+    Auction -- interacts with --> IERC20Minimal;
+    Auction -- interacts with --> IAllowanceTransfer;
+
+    AuctionStepStorage -- uses --> AuctionStepLib;
+    AuctionStepStorage -- uses --> SSTORE2;
+    AuctionStepStorage -- implements --> IAuctionStepStorage;
+
+    TickStorage -- uses --> BidLib;
+    TickStorage -- implements --> ITickStorage;
+
+    PermitSingleForwarder -- implements --> IPermitSingleForwarder;
+    PermitSingleForwarder -- interacts with --> IAllowanceTransfer;
+```
+
+### Contract Inheritance for Auction.sol
+
+```mermaid
+classDiagram
+    class PermitSingleForwarder
+    class TickStorage
+    class AuctionStepStorage
+    class IAuction
+    Auction --|> PermitSingleForwarder
+    Auction --|> TickStorage
+    Auction --|> AuctionStepStorage
+    Auction --|> IAuction
+    class Auction
+```
+
+### Auction Construction Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant AuctionFactory
+    participant Auction
+    participant AuctionParameters
+
+    User->>AuctionFactory: initializeDistribution(token, amount, configData)
+    AuctionFactory->>AuctionParameters: abi.decode(configData)
+    AuctionFactory->>Auction: new Auction(token, amount, parameters)
+    create participant NewAuction
+    Auction->>NewAuction: constructor()
+    NewAuction-->>Auction: address
+    Auction-->>AuctionFactory: auctionContractAddress
+    AuctionFactory-->>User: auctionContractAddress
+```
+
+### Bid Submission Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Auction
+    participant PermitSingleForwarder
+    participant IAllowanceTransfer
+    participant TickStorage
+    participant AuctionStepStorage
+    participant IValidationHook
+
+    User->>Auction: submitBid(maxPrice, exactIn, amount, owner, prevHintId)
+    alt ERC20 Token
+        Auction->>IAllowanceTransfer: permit2TransferFrom(...)
+    else ETH
+        User-->>Auction: sends ETH with call
+    end
+    Auction->>PermitSingleForwarder: _submitBid(...)
+    PermitSingleForwarder->>IValidationHook: validate(bid)
+    PermitSingleForwarder->>AuctionStepStorage: checkpoint()
+    AuctionStepStorage->>AuctionStepStorage: _advanceToCurrentStep()
+    PermitSingleForwarder->>TickStorage: _initializeTickIfNeeded(...)
+    PermitSingleForwarder->>TickStorage: _updateTick(...)
+    TickStorage-->>PermitSingleForwarder:
+    PermitSingleForwarder-->>Auction:
+    Auction-->>User:
+```

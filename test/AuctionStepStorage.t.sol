@@ -7,7 +7,6 @@ import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {MockAuctionStepStorage} from './utils/MockAuctionStepStorage.sol';
 import {Test} from 'forge-std/Test.sol';
-import {console2} from 'forge-std/console2.sol';
 
 contract AuctionStepStorageTest is Test {
     using AuctionStepsBuilder for bytes;

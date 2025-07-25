@@ -3,9 +3,17 @@ pragma solidity ^0.8.0;
 
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
+import {IDistributionContract} from './external/IDistributionContract.sol';
 
 /// @notice Interface for the Auction contract
-interface IAuction is ITickStorage, IAuctionStepStorage {
+interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
+    /// @notice Error thrown when the token is invalid
+    error IDistributionContract__InvalidToken();
+    /// @notice Error thrown when the amount is invalid
+    error IDistributionContract__InvalidAmount();
+    /// @notice Error thrown when the amount received is invalid
+    error IDistributionContract__InvalidAmountReceived();
+
     /// @notice Error thrown when not enough amount is deposited
     error InvalidAmount();
     /// @notice Error thrown when the auction is not started

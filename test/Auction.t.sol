@@ -37,18 +37,16 @@ contract AuctionTest is TokenHandler, Test {
         fundsRecipient = makeAddr('fundsRecipient');
 
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100, 100);
-        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withToken(
-            address(token)
-        ).withTotalSupply(TOTAL_SUPPLY).withFloorPrice(FLOOR_PRICE).withTickSpacing(TICK_SPACING).withValidationHook(
-            address(0)
-        ).withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient).withStartBlock(block.number)
-            .withEndBlock(block.number + AUCTION_DURATION).withClaimBlock(block.number + AUCTION_DURATION)
-            .withAuctionStepsData(auctionStepsData);
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            FLOOR_PRICE
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
 
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(1, _tickPriceAt(1));
-        auction = new Auction(params);
+        auction = new Auction(address(token), TOTAL_SUPPLY, params);
     }
 
     function test_submitBid_exactIn_atFloorPrice_succeeds_gas() public {

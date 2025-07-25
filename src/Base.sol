@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+/// @notice Parameters for the auction
+/// @dev token and totalSupply are passed as constructor arguments
 struct AuctionParameters {
     address currency; // token to raise funds in. Use address(0) for ETH
-    address token; // token held by the auction contract to sell
-    uint256 totalSupply; // amount of tokens to sell
     address tokensRecipient; // address to receive leftover tokens
     address fundsRecipient; // address to receive all raised funds
     uint64 startBlock; // Block which the first step starts
@@ -15,10 +15,4 @@ struct AuctionParameters {
     uint256 floorPrice; // Starting floor price for the auction
     // Packed bytes describing token issuance schedule
     bytes auctionStepsData;
-}
-
-struct AuctionStep {
-    uint16 bps; // Basis points to sell per block in the step
-    uint64 startBlock; // Start block of the step (inclusive)
-    uint64 endBlock; // Ending block of the step (exclusive)
 }

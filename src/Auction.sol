@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import {AuctionStepStorage} from './AuctionStepStorage.sol';
 import {AuctionParameters} from './Base.sol';
-import {Permit2Forwarder} from './Permit2Forwarder.sol';
+import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
 import {IAuction} from './interfaces/IAuction.sol';
 
@@ -19,7 +19,7 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 /// @title Auction
-contract Auction is Permit2Forwarder, IAuction, TickStorage, AuctionStepStorage {
+contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepStorage {
     using FixedPointMathLib for uint256;
     using CurrencyLibrary for Currency;
     using BidLib for Bid;
@@ -63,7 +63,7 @@ contract Auction is Permit2Forwarder, IAuction, TickStorage, AuctionStepStorage 
 
     constructor(AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
-        Permit2Forwarder(IAllowanceTransfer(PERMIT2))
+        PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
     {
         currency = Currency.wrap(_parameters.currency);
         token = IERC20Minimal(_parameters.token);
@@ -89,6 +89,7 @@ contract Auction is Permit2Forwarder, IAuction, TickStorage, AuctionStepStorage 
     function onTokensReceived(address _token, uint256 _amount) external view {
         if (_token != address(token)) revert IDistributionContract__InvalidToken();
         if (_amount != totalSupply) revert IDistributionContract__InvalidAmount();
+        if (token.balanceOf(address(this)) != _amount) revert IDistributionContract__InvalidAmountReceived();
     }
 
     function clearingPrice() public view returns (uint256) {

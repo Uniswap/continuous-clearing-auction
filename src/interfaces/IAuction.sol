@@ -11,6 +11,8 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     error IDistributionContract__InvalidToken();
     /// @notice Error thrown when the amount is invalid
     error IDistributionContract__InvalidAmount();
+    /// @notice Error thrown when the amount received is invalid
+    error IDistributionContract__InvalidAmountReceived();
 
     /// @notice Error thrown when not enough amount is deposited
     error InvalidAmount();

@@ -40,7 +40,7 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     /// @param price The price of the bid
     /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
-    event BidSubmitted(uint256 indexed id, uint256 price, bool exactIn, uint256 amount);
+    event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, bool exactIn, uint256 amount);
 
     /// @notice Emitted when a new checkpoint is created
     /// @param blockNumber The block number of the checkpoint

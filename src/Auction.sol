@@ -230,7 +230,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, BidStorage, Au
             }
         }
 
-        emit BidSubmitted(bidId, maxPrice, bid.exactIn, bid.amount);
+        emit BidSubmitted(bidId, owner, maxPrice, bid.exactIn, bid.amount);
     }
 
     /// @inheritdoc IAuction

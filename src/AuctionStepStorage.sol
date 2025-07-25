@@ -79,6 +79,6 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
 
         offset += UINT64_SIZE;
 
-        emit AuctionStepRecorded(mps, _startBlock, _endBlock);
+        emit AuctionStepRecorded(_startBlock, _endBlock, mps);
     }
 }

@@ -61,13 +61,13 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
     address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
-    constructor(AuctionParameters memory _parameters)
+    constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
         PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
     {
         currency = Currency.wrap(_parameters.currency);
-        token = IERC20Minimal(_parameters.token);
-        totalSupply = _parameters.totalSupply;
+        token = IERC20Minimal(_token);
+        totalSupply = _totalSupply;
         tokensRecipient = _parameters.tokensRecipient;
         fundsRecipient = _parameters.fundsRecipient;
         claimBlock = _parameters.claimBlock;

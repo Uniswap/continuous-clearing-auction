@@ -7,8 +7,6 @@ library AuctionParamsBuilder {
     function init() internal pure returns (AuctionParameters memory) {
         return AuctionParameters({
             currency: address(0),
-            token: address(0),
-            totalSupply: 0,
             floorPrice: 0,
             tickSpacing: 0,
             validationHook: address(0),
@@ -27,24 +25,6 @@ library AuctionParamsBuilder {
         returns (AuctionParameters memory)
     {
         params.currency = currency;
-        return params;
-    }
-
-    function withToken(AuctionParameters memory params, address token)
-        internal
-        pure
-        returns (AuctionParameters memory)
-    {
-        params.token = token;
-        return params;
-    }
-
-    function withTotalSupply(AuctionParameters memory params, uint256 totalSupply)
-        internal
-        pure
-        returns (AuctionParameters memory)
-    {
-        params.totalSupply = totalSupply;
         return params;
     }
 

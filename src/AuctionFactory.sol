@@ -8,11 +8,6 @@ import {IDistributionStrategy} from './interfaces/external/IDistributionStrategy
 
 /// @title AuctionFactory
 contract AuctionFactory is IDistributionStrategy {
-    /// @notice Thrown when the token is invalid
-    error InvalidToken();
-    /// @notice Thrown when the amount is invalid
-    error InvalidAmount();
-
     /// @inheritdoc IDistributionStrategy
     function initializeDistribution(address token, uint256 amount, bytes calldata configData)
         external
@@ -20,10 +15,7 @@ contract AuctionFactory is IDistributionStrategy {
     {
         AuctionParameters memory parameters = abi.decode(configData, (AuctionParameters));
 
-        if (parameters.token != token) revert InvalidToken();
-        if (parameters.totalSupply != amount) revert InvalidAmount();
-
-        bytes32 salt = keccak256(configData);
-        distributionContract = IDistributionContract(address(new Auction{salt: salt}(parameters)));
+        bytes32 salt = keccak256(abi.encode(token, amount, parameters));
+        distributionContract = IDistributionContract(address(new Auction{salt: salt}(token, amount, parameters)));
     }
 }

@@ -35,7 +35,8 @@ contract BidLibTest is Test {
             amount: exactOutAmount,
             tokensFilled: 0,
             startBlock: 100,
-            withdrawnBlock: 0
+            withdrawnBlock: 0,
+            tickId: 0 // doesn't matter for this test
         });
 
         // Execute: 30% of auction executed (3000 mps)
@@ -62,7 +63,8 @@ contract BidLibTest is Test {
             amount: ETH_AMOUNT,
             tokensFilled: 0,
             startBlock: 100,
-            withdrawnBlock: 0
+            withdrawnBlock: 0,
+            tickId: 0 // doesn't matter for this test
         });
 
         mockBidLib.resolve(bid, MAX_PRICE, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
@@ -80,7 +82,8 @@ contract BidLibTest is Test {
             amount: TOKEN_AMOUNT,
             tokensFilled: 0,
             startBlock: 100,
-            withdrawnBlock: 0
+            withdrawnBlock: 0,
+            tickId: 0 // doesn't matter for this test
         });
 
         uint256 maxPrice = 2000;
@@ -127,7 +130,8 @@ contract BidLibTest is Test {
             amount: ETH_AMOUNT,
             tokensFilled: 0,
             startBlock: 100,
-            withdrawnBlock: 0
+            withdrawnBlock: 0,
+            tickId: 0 // doesn't matter for this test
         });
 
         // 50e3 * 1e18 / 100 = 0.5 * 1e18
@@ -170,7 +174,8 @@ contract BidLibTest is Test {
             amount: TOKEN_AMOUNT,
             tokensFilled: 0,
             startBlock: 100,
-            withdrawnBlock: 0
+            withdrawnBlock: 0,
+            tickId: 0 // doesn't matter for this test
         });
 
         // Bid is fully filled since max price is always higher than all prices
@@ -195,7 +200,8 @@ contract BidLibTest is Test {
             amount: largeAmount,
             tokensFilled: 0,
             startBlock: 100,
-            withdrawnBlock: 0
+            withdrawnBlock: 0,
+            tickId: 0 // doesn't matter for this test
         });
 
         uint256 cumulativeMpsPerPriceDelta = uint256(mpsArray[0]).fullMulDiv(PRECISION, pricesArray[0]);

@@ -39,7 +39,7 @@ contract BidLibTest is Test {
         });
 
         // Execute: 30% of auction executed (3000 mps)
-        uint24 cumulativeMpsDelta = 3000;
+        uint24 cumulativeMpsDelta = 3000e3;
         uint256 cumulativeMpsPerPriceDelta = uint256(cumulativeMpsDelta).fullMulDiv(PRECISION, maxPrice);
 
         (uint256 tokensFilled, uint256 refund) =

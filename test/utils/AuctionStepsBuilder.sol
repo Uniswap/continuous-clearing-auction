@@ -6,7 +6,7 @@ library AuctionStepsBuilder {
         return new bytes(0);
     }
 
-    function addStep(bytes memory steps, uint16 bps, uint48 blockDelta) internal pure returns (bytes memory) {
-        return abi.encodePacked(steps, abi.encodePacked(bps, blockDelta));
+    function addStep(bytes memory steps, uint24 mps, uint40 blockDelta) internal pure returns (bytes memory) {
+        return abi.encodePacked(steps, abi.encodePacked(mps, blockDelta));
     }
 }

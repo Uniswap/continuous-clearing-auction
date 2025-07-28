@@ -8,14 +8,14 @@ interface IAuctionStepStorage {
     error AuctionIsOver();
     /// @notice Error thrown when the auction data length is invalid
     error InvalidAuctionDataLength();
-    /// @notice Error thrown when the bps is invalid
-    error InvalidBps();
+    /// @notice Error thrown when the mps is invalid
+    error InvalidMps();
     /// @notice Error thrown when the end block is invalid
     error InvalidEndBlock();
 
     /// @notice Emitted when an auction step is recorded
-    /// @param bps The basis points of the auction step
     /// @param startBlock The start block of the auction step
     /// @param endBlock The end block of the auction step
-    event AuctionStepRecorded(uint16 bps, uint256 startBlock, uint256 endBlock);
+    /// @param mps The percentage of total tokens to sell per block during this auction step, represented in ten-millionths of the total supply (1e7 = 100%)
+    event AuctionStepRecorded(uint256 indexed startBlock, uint256 indexed endBlock, uint24 mps);
 }

@@ -253,7 +253,7 @@ sequenceDiagram
     Auction-->>User: 
 ```
 
-### Price Discovery Flow
+### Clearing price update flow
 
 ```mermaid
 sequenceDiagram

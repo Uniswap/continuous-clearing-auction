@@ -106,9 +106,60 @@ interface IAuctionFactory {
         bytes calldata configData
     ) external returns (address);
 }
+
+/// @notice Parameters for the auction
+/// @dev token and totalSupply are passed as constructor arguments
+struct AuctionParameters {
+    address currency; // token to raise funds in. Use address(0) for ETH
+    address tokensRecipient; // address to receive leftover tokens
+    address fundsRecipient; // address to receive all raised funds
+    uint64 startBlock; // Block which the first step starts
+    uint64 endBlock; // When the auction finishes
+    uint64 claimBlock; // Block when the auction can claimed
+    uint256 tickSpacing; // Fixed granularity for prices
+    address validationHook; // Optional hook called before a bid
+    uint256 floorPrice; // Starting floor price for the auction
+    // Packed bytes describing token issuance schedule
+    bytes auctionStepsData;
+}
+
+constructor(
+    address _token,
+    uint256 _totalSupply,
+    AuctionParameters memory _parameters
+) {}
 ```
 
 **Implementation**: The factory decodes `configData` into `AuctionParameters` containing the step function data (MPS schedule), price parameters, and timing configuration. The step function defines how many tokens are released per block over time.
+
+### Auction steps (supply issuance schedule)
+
+The auction steps define the supply issuance schedule. The auction steps are packed into a bytes array and passed to the constructor along with the other parameters. Each step is a packed `uint64` with the first 24 bits being the per-block issuance rate in MPS (milli-bips), and the last 40 bits being the number of blocks to sell over.
+
+```solidity
+/// AuctionStepLib.sol
+
+function parse(bytes8 data) internal pure returns (uint24 mps, uint40 blockDelta) {
+    mps = uint24(bytes3(data));
+    blockDelta = uint40(uint64(data));
+}
+```
+
+For example, to sell 1 basis point of supply per block for 100 blocks, then 2 basis points for the next 100 blocks, the packed `uint64` would be:
+
+```solidity
+uint24 mps = 1000; // 1000 mps = 1 basis point
+uint40 blockDelta = 100; // 100 blocks
+bytes8 packed1 = uint64(mps) | (uint64(blockDelta) << 24);
+
+mps = 2000; // 2000 mps = 2 basis points
+blockDelta = 100; // 100 blocks
+bytes8 packed2 = uint64(mps) | (uint64(blockDelta) << 24);
+
+bytes packed = abi.encodePacked(packed1, packed2);
+```
+
+**Implementation**: The data is deployed to an external SSTORE2 contract for cheaper reads over the lifetime of the auction.
 
 ### Validation Hooks
 
@@ -124,7 +175,7 @@ interface IValidationHook {
 
 ### Bid Submission
 
-Users can submit bids specifying either exact currency input or exact token output desired. The bid id is returned to the user and can be used to claim tokens or withdraw the bid. The `prevHintId` parameter is used to determine the location of the tick to insert the bid into.
+Users can submit bids specifying either exact currency input or exact token output desired. The bid id is returned to the user and can be used to claim tokens or withdraw the bid. The `prevHintId` parameter is used to determine the location of the tick to insert the bid into. The `maxPrice` is the maximum price the user is willing to pay. The `exactIn` parameter indicates whether the user is bidding in the currency or the token. The `amount` is the amount of currency or token the user is bidding. The `owner` is the address of the user who can claim tokens or withdraw the bid.
 
 ```solidity
 interface IAuction {
@@ -144,23 +195,47 @@ event TickInitialized(uint128 id, uint256 price);
 
 **Implementation**: Bids are validated, funds transferred via Permit2 (or ETH), ticks initialized if needed, and demand aggregated.
 
-### Clearing price
+### Checkpointing
 
-The clearing price represents the current marginal price at which tokens are being sold. The clearing price is updated when a new bid is submitted that would change the clearing price. An event is emitted when the clearing price is updated.
+The auction is checkpointed once every block with a new bid. The checkpoint is a snapshot of the auction state up to (NOT including) that block. Checkpoints are used to determine the token allocation for each bid. Checkpoints are created automatically when a new bid is submitted, but they can be manually created by calling the `checkpoint` function.
 
 ```solidity
 interface IAuction {
-    function clearingPrice() external view returns (uint256);
+    function checkpoint() external;
 }
 
 event CheckpointUpdated(uint256 blockNumber, uint256 clearingPrice, uint256 totalCleared, uint256 cumulativeMps);
 ```
 
+### Clearing price
+
+The clearing price represents the current marginal price at which tokens are being sold. The clearing price is updated when a new bid is submitted that would change the price. An event is emitted when the clearing price is updated. The clearing price never decreases.
+
+```solidity
+interface IAuction {
+    function clearingPrice() external view returns (uint256);
+}
+```
+
 **Implementation**: Returns the clearing price from the most recent checkpoint.
+
+### Bid withdrawal
+
+Users can withdraw their bid if their max price is below the clearing price. Withdrawing a bid is a one-time operation and cannot be undone.
+
+```solidity
+interface IAuction {
+    function withdrawBid(uint256 bidId) external;
+}
+
+event BidWithdrawn(uint256 bidId, uint256 amount);
+```
+
+**Implementation**: The bid is removed from the auction and the user is refunded the amount which was not sold.
 
 ### Claiming tokens
 
-Users can determine their token allocation by providing a bid id along with checkpoint information.
+Users can determine their token allocation by providing a bid id along with checkpoint information. The bid must be withdrawn before claiming tokens, this is a safeguard to ensure that users do not forget to claim their refunded bid amount.
 
 ```solidity
 interface IAuction {
@@ -172,20 +247,6 @@ event TokensClaimed(uint256 bidId, uint256 amount);
 
 **Implementation**: Bids above the clearing price receive tokens proportional to time elapsed and MPS rate.
 
-
-### Bid withdrawal
-
-Users can withdraw their bid if their max price is below the clearing price.
-
-```solidity
-interface IAuction {
-    function withdrawBid(uint256 bidId) external;
-}
-
-event BidWithdrawn(uint256 bidId, uint256 amount);
-```
-
-**Implementation**: The bid is removed from the auction and the user is refunded the amount which was not sold.
 
 ### Auction information
 

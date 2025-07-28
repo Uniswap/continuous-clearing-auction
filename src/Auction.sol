@@ -197,8 +197,8 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         }
         _cumulativeMps += mpsSinceLastCheckpoint;
 
-        uint256 newCumulativeBpsPerPrice =
-            _cumulativeBpsPerPrice + (uint256(bpsSinceLastCheckpoint).fullMulDiv(BidLib.PRECISION, _newClearingPrice));
+        uint256 newCumulativeMpsPerPrice =
+            _cumulativeMpsPerPrice + (uint256(mpsSinceLastCheckpoint).fullMulDiv(BidLib.PRECISION, _newClearingPrice));
 
         checkpoints[block.number] = Checkpoint({
             clearingPrice: _newClearingPrice,
@@ -284,8 +284,8 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
         (uint256 tokensFilled, uint256 refund) = bid.resolve(
             maxPrice,
-            lastValidCheckpoint.cumulativeBpsPerPrice - startCheckpoint.cumulativeBpsPerPrice,
-            lastValidCheckpoint.cumulativeBps - startCheckpoint.cumulativeBps
+            lastValidCheckpoint.cumulativeMpsPerPrice - startCheckpoint.cumulativeMpsPerPrice,
+            lastValidCheckpoint.cumulativeMps - startCheckpoint.cumulativeMps
         );
 
         currency.transfer(bid.owner, refund);

@@ -13,7 +13,7 @@ contract BidLibTest is Test {
     using FixedPointMathLib for uint256;
     using AuctionStepLib for uint256;
 
-    uint256 public constant BPS = 10_000;
+    uint24 public constant MPS = 1e7;
     uint256 public constant TICK_SPACING = 100;
     uint256 public constant PRECISION = 1e18;
     uint256 public constant ETH_AMOUNT = 10 ether;
@@ -38,23 +38,23 @@ contract BidLibTest is Test {
             withdrawnBlock: 0
         });
 
-        // Execute: 30% of auction executed (3000 bps)
-        uint16 cumulativeBpsDelta = 3000;
-        uint256 cumulativeBpsPerPriceDelta = uint256(cumulativeBpsDelta).fullMulDiv(PRECISION, maxPrice);
+        // Execute: 30% of auction executed (3000 mps)
+        uint24 cumulativeMpsDelta = 3000;
+        uint256 cumulativeMpsPerPriceDelta = uint256(cumulativeMpsDelta).fullMulDiv(PRECISION, maxPrice);
 
         (uint256 tokensFilled, uint256 refund) =
-            mockBidLib.resolve(bid, maxPrice, cumulativeBpsPerPriceDelta, cumulativeBpsDelta);
+            mockBidLib.resolve(bid, maxPrice, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
 
         // 30% of 1000e18 tokens = 300e18 tokens filled
         assertEq(tokensFilled, 300e18);
-        assertEq(refund, totalEth - totalEth * cumulativeBpsDelta / BPS);
+        assertEq(refund, totalEth - totalEth * cumulativeMpsDelta / MPS);
     }
 
-    function test_resolve_exactIn_fuzz_succeeds(uint256 cumulativeBpsPerPriceDelta, uint16 cumulativeBpsDelta)
+    function test_resolve_exactIn_fuzz_succeeds(uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
         public
         view
     {
-        vm.assume(cumulativeBpsDelta <= BPS);
+        vm.assume(cumulativeMpsDelta <= MPS);
         // Setup: User commits 10 ETH to buy tokens
         Bid memory bid = Bid({
             exactIn: true,
@@ -65,14 +65,14 @@ contract BidLibTest is Test {
             withdrawnBlock: 0
         });
 
-        mockBidLib.resolve(bid, MAX_PRICE, cumulativeBpsPerPriceDelta, cumulativeBpsDelta);
+        mockBidLib.resolve(bid, MAX_PRICE, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
     }
 
-    function test_resolve_exactOut_fuzz_succeeds(uint256 cumulativeBpsPerPriceDelta, uint16 cumulativeBpsDelta)
+    function test_resolve_exactOut_fuzz_succeeds(uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
         public
         view
     {
-        vm.assume(cumulativeBpsDelta <= BPS);
+        vm.assume(cumulativeMpsDelta <= MPS);
         // Setup: User commits to buy 1000 tokens at max price 2000 per token
         Bid memory bid = Bid({
             exactIn: false,
@@ -84,41 +84,41 @@ contract BidLibTest is Test {
         });
 
         uint256 maxPrice = 2000;
-        uint256 _expectedTokensFilled = TOKEN_AMOUNT.applyBps(cumulativeBpsDelta);
+        uint256 _expectedTokensFilled = TOKEN_AMOUNT.applyMps(cumulativeMpsDelta);
 
         (uint256 tokensFilled, uint256 refund) =
-            mockBidLib.resolve(bid, maxPrice, cumulativeBpsPerPriceDelta, cumulativeBpsDelta);
+            mockBidLib.resolve(bid, maxPrice, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
 
         assertEq(tokensFilled, _expectedTokensFilled);
         assertEq(refund, maxPrice * (TOKEN_AMOUNT - _expectedTokensFilled));
     }
 
     function test_resolve_exactIn() public view {
-        uint256[] memory bpsArray = new uint256[](3);
+        uint24[] memory mpsArray = new uint24[](3);
         uint256[] memory pricesArray = new uint256[](3);
 
-        bpsArray[0] = 50;
+        mpsArray[0] = 50e3;
         pricesArray[0] = 100;
 
-        bpsArray[1] = 30;
+        mpsArray[1] = 30e3;
         pricesArray[1] = 200;
 
-        bpsArray[2] = 20;
+        mpsArray[2] = 20e3;
         pricesArray[2] = 200;
 
         uint256 _tokensFilled;
         uint256 _ethSpent;
-        uint256 _totalBps;
-        uint256 _cumulativeBpsPerPrice;
+        uint256 _totalMps;
+        uint256 _cumulativeMpsPerPrice;
 
         for (uint256 i = 0; i < 3; i++) {
-            uint256 ethSpentInBlock = ETH_AMOUNT * bpsArray[i] / BPS;
+            uint256 ethSpentInBlock = ETH_AMOUNT * mpsArray[i] / MPS;
             uint256 tokensFilledInBlock = ethSpentInBlock / pricesArray[i];
             _tokensFilled += tokensFilledInBlock;
             _ethSpent += ethSpentInBlock;
 
-            _totalBps += bpsArray[i];
-            _cumulativeBpsPerPrice += uint256(bpsArray[i]).fullMulDiv(PRECISION, pricesArray[i]);
+            _totalMps += mpsArray[i];
+            _cumulativeMpsPerPrice += uint256(mpsArray[i]).fullMulDiv(PRECISION, pricesArray[i]);
         }
 
         Bid memory bid = Bid({
@@ -130,13 +130,13 @@ contract BidLibTest is Test {
             withdrawnBlock: 0
         });
 
-        // 50 * 1e18 / 100 = 0.5 * 1e18
-        // 30 * 1e18 / 200 = 0.15 * 1e18
-        // 20 * 1e18 / 200 = 0.1 * 1e18
-        // 0.5 + 0.15 + 0.1 = 0.75 * 1e18
-        assertEq(_cumulativeBpsPerPrice, 0.75 ether);
+        // 50e3 * 1e18 / 100 = 0.5 * 1e18
+        // 30e3 * 1e18 / 200 = 0.15 * 1e18
+        // 20e3 * 1e18 / 200 = 0.1 * 1e18
+        // 0.5 + 0.15 + 0.1 = 0.75 * 1e18 * 1e3 (for mps)
+        assertEq(_cumulativeMpsPerPrice, 0.75 ether * 1e3);
         (uint256 tokensFilled, uint256 refund) =
-            mockBidLib.resolve(bid, MAX_PRICE, _cumulativeBpsPerPrice, uint16(_totalBps));
+            mockBidLib.resolve(bid, MAX_PRICE, _cumulativeMpsPerPrice, uint24(_totalMps));
 
         // Manual tokensFilled calculation:
         // 10 * 1e18 * 0.75 * 1e18 / 1e18 * 1e4 = 7.5 * 1e18 / 1e4 = 7.5e14
@@ -146,22 +146,22 @@ contract BidLibTest is Test {
     }
 
     function test_resolve_exactOut() public view {
-        uint256[] memory bpsArray = new uint256[](3);
+        uint256[] memory mpsArray = new uint256[](3);
         uint256[] memory pricesArray = new uint256[](3);
 
-        bpsArray[0] = 50;
+        mpsArray[0] = 50;
         pricesArray[0] = 100;
 
-        bpsArray[1] = 30;
+        mpsArray[1] = 30;
         pricesArray[1] = 200;
 
-        bpsArray[2] = 20;
+        mpsArray[2] = 20;
         pricesArray[2] = MAX_PRICE;
 
-        uint256 _totalBps;
+        uint256 _totalMps;
 
         for (uint256 i = 0; i < 3; i++) {
-            _totalBps += bpsArray[i];
+            _totalMps += mpsArray[i];
         }
 
         Bid memory bid = Bid({
@@ -174,17 +174,17 @@ contract BidLibTest is Test {
         });
 
         // Bid is fully filled since max price is always higher than all prices
-        (uint256 tokensFilled, uint256 refund) = mockBidLib.resolve(bid, MAX_PRICE, 0, uint16(_totalBps));
+        (uint256 tokensFilled, uint256 refund) = mockBidLib.resolve(bid, MAX_PRICE, 0, uint24(_totalMps));
 
-        assertEq(tokensFilled, TOKEN_AMOUNT.applyBps(uint16(_totalBps)));
+        assertEq(tokensFilled, TOKEN_AMOUNT.applyMps(uint24(_totalMps)));
         assertEq(refund, MAX_PRICE * (TOKEN_AMOUNT - tokensFilled));
     }
 
     function test_resolve_exactIn_maxPrice() public view {
-        uint16[] memory bpsArray = new uint16[](1);
+        uint24[] memory mpsArray = new uint24[](1);
         uint256[] memory pricesArray = new uint256[](1);
 
-        bpsArray[0] = 10_000;
+        mpsArray[0] = MPS;
         pricesArray[0] = MAX_PRICE;
 
         // Setup: Large ETH bid
@@ -198,16 +198,16 @@ contract BidLibTest is Test {
             withdrawnBlock: 0
         });
 
-        uint256 cumulativeBpsPerPriceDelta = uint256(bpsArray[0]).fullMulDiv(PRECISION, pricesArray[0]);
-        uint16 cumulativeBpsDelta = 10_000;
-        uint256 ethSpent = largeAmount * cumulativeBpsDelta / BPS;
+        uint256 cumulativeMpsPerPriceDelta = uint256(mpsArray[0]).fullMulDiv(PRECISION, pricesArray[0]);
+        uint24 cumulativeMpsDelta = MPS;
+        uint256 ethSpent = largeAmount * cumulativeMpsDelta / MPS;
 
         assertEq(ethSpent, largeAmount);
 
         uint256 expectedTokensFilled = ethSpent / MAX_PRICE;
 
         (uint256 tokensFilled, uint256 refund) =
-            mockBidLib.resolve(bid, MAX_PRICE, cumulativeBpsPerPriceDelta, cumulativeBpsDelta);
+            mockBidLib.resolve(bid, MAX_PRICE, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
 
         assertEq(tokensFilled, expectedTokensFilled);
         assertEq(refund, 0);

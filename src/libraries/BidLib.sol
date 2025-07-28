@@ -34,16 +34,16 @@ library BidLib {
     }
 
     /// @notice Resolve a bid
-    function resolve(Bid memory bid, uint256 maxPrice, uint256 cumulativeBpsPerPriceDelta, uint16 cumulativeBpsDelta)
+    function resolve(Bid memory bid, uint256 maxPrice, uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
         internal
         pure
         returns (uint256 tokensFilled, uint256 refund)
     {
         if (bid.exactIn) {
-            tokensFilled = bid.amount.fullMulDiv(cumulativeBpsPerPriceDelta, PRECISION * AuctionStepLib.BPS);
-            refund = bid.amount - bid.amount.applyBps(cumulativeBpsDelta);
+            tokensFilled = bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, PRECISION * AuctionStepLib.MPS);
+            refund = bid.amount - bid.amount.applyMps(cumulativeMpsDelta);
         } else {
-            tokensFilled = bid.amount.applyBps(cumulativeBpsDelta);
+            tokensFilled = bid.amount.applyMps(cumulativeMpsDelta);
             refund = maxPrice * (bid.amount - tokensFilled);
         }
     }

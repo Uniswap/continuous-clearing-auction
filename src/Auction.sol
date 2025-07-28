@@ -4,6 +4,7 @@ pragma solidity ^0.8.23;
 import {AuctionStepStorage} from './AuctionStepStorage.sol';
 import {AuctionParameters} from './Base.sol';
 import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
+import {BidStorage} from './BidStorage.sol';
 import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
 import {IAuction} from './interfaces/IAuction.sol';
@@ -11,7 +12,7 @@ import {IAuction} from './interfaces/IAuction.sol';
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
-import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
+import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 
@@ -20,7 +21,7 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 /// @title Auction
-contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepStorage, CheckpointStorage {
+contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepStorage, BidStorage, CheckpointStorage {
     using FixedPointMathLib for uint256;
     using CurrencyLibrary for Currency;
     using BidLib for Bid;
@@ -203,27 +204,36 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         emit CheckpointUpdated(block.number, _newClearingPrice, _totalCleared, _cumulativeMps);
     }
 
-    function _submitBid(uint128 maxPrice, bool exactIn, uint256 amount, address owner, uint128 prevHintId) internal {
-        Bid memory bid = Bid({
-            exactIn: exactIn,
-            startBlock: uint64(block.number),
-            withdrawnBlock: 0,
-            owner: owner,
-            amount: amount,
-            tokensFilled: 0
-        });
-
-        BidLib.validate(maxPrice, floorPrice, tickSpacing);
-
-        if (address(validationHook) != address(0)) {
-            validationHook.validate(bid);
-        }
-
+    function _submitBid(
+        uint128 maxPrice,
+        bool exactIn,
+        uint256 amount,
+        address owner,
+        uint128 prevHintId,
+        bytes calldata hookData
+    ) internal {
         // First bid in a block updates the clearing price
         checkpoint();
 
         uint128 tickId = _initializeTickIfNeeded(prevHintId, maxPrice);
+
+        Bid memory bid = Bid({
+            exactIn: exactIn,
+            startBlock: uint64(block.number),
+            withdrawnBlock: 0,
+            tickId: tickId,
+            amount: amount,
+            owner: owner,
+            tokensFilled: 0
+        });
+
+        if (address(validationHook) != address(0)) {
+            validationHook.validate(bid, hookData);
+        }
+
+        BidLib.validate(maxPrice, floorPrice, tickSpacing);
         _updateTick(tickId, bid);
+        uint256 bidId = _createBid(bid);
 
         // Only bids higher than the clearing price can change the clearing price
         if (maxPrice >= ticks[tickUpperId].price) {
@@ -234,27 +244,31 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             }
         }
 
-        emit BidSubmitted(tickId, maxPrice, bid.exactIn, bid.amount);
+        emit BidSubmitted(bidId, owner, maxPrice, bid.exactIn, bid.amount);
     }
 
     /// @inheritdoc IAuction
-    function submitBid(uint128 maxPrice, bool exactIn, uint256 amount, address owner, uint128 prevHintId)
-        external
-        payable
-    {
+    function submitBid(
+        uint128 maxPrice,
+        bool exactIn,
+        uint256 amount,
+        address owner,
+        uint128 prevHintId,
+        bytes calldata hookData
+    ) external payable {
         uint256 resolvedAmount = exactIn ? amount : amount.fullMulDivUp(maxPrice, tickSpacing);
         if (currency.isAddressZero()) {
             if (msg.value != resolvedAmount) revert InvalidAmount();
         } else {
             SafeTransferLib.permit2TransferFrom(Currency.unwrap(currency), msg.sender, address(this), resolvedAmount);
         }
-        _submitBid(maxPrice, exactIn, amount, owner, prevHintId);
+        _submitBid(maxPrice, exactIn, amount, owner, prevHintId, hookData);
     }
 
     /// @inheritdoc IAuction
-    function withdrawBid(uint128 tickId, uint256 index, uint256 upperCheckpointBlock) external {
-        Bid memory bid = ticks[tickId].bids[index];
-        uint256 maxPrice = ticks[tickId].price;
+    function withdrawBid(uint256 bidId, uint256 upperCheckpointBlock) external {
+        Bid memory bid = _getBid(bidId);
+        uint256 maxPrice = ticks[bid.tickId].price;
         if (bid.owner != msg.sender) revert NotBidOwner();
         if (bid.withdrawnBlock != 0) revert BidAlreadyWithdrawn();
 
@@ -282,18 +296,26 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
         bid.tokensFilled = tokensFilled;
         bid.withdrawnBlock = uint64(block.number);
-        // Set the bid in storage to the new values
-        ticks[tickId].bids[index] = bid;
-        emit BidWithdrawn(tickId, msg.sender);
+
+        _updateBid(bidId, bid);
+
+        emit BidWithdrawn(bidId, msg.sender);
     }
 
     /// @inheritdoc IAuction
-    function claimTokens(uint128 tickId, uint256 index) external {
-        Bid memory bid = ticks[tickId].bids[index];
+    function claimTokens(uint256 bidId) external {
+        Bid memory bid = _getBid(bidId);
         if (bid.withdrawnBlock == 0) revert BidNotWithdrawn();
         if (block.number < claimBlock) revert NotClaimable();
 
-        token.transfer(bid.owner, bid.tokensFilled);
-        emit TokensClaimed(bid.owner, bid.tokensFilled);
+        uint256 tokensFilled = bid.tokensFilled;
+        bid.tokensFilled = 0;
+        _updateBid(bidId, bid);
+
+        token.transfer(bid.owner, tokensFilled);
+
+        emit TokensClaimed(bid.owner, tokensFilled);
     }
+    
+    receive() external payable {}
 }

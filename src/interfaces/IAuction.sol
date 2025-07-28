@@ -48,11 +48,11 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     error BidNotWithdrawn();
 
     /// @notice Emitted when a bid is submitted
-    /// @param id The id of the tick
+    /// @param id The id of the bid
     /// @param price The price of the bid
     /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
-    event BidSubmitted(uint128 indexed id, uint256 price, bool exactIn, uint256 amount);
+    event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, bool exactIn, uint256 amount);
 
     /// @notice Emitted when a new checkpoint is created
     /// @param blockNumber The block number of the checkpoint
@@ -64,9 +64,9 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     );
 
     /// @notice Emitted when a bid is withdrawn
-    /// @param tickId The id of the tick
+    /// @param bidId The id of the bid
     /// @param owner The owner of the bid
-    event BidWithdrawn(uint128 indexed tickId, address indexed owner);
+    event BidWithdrawn(uint256 indexed bidId, address indexed owner);
 
     /// @notice Emitted when a bid is claimed
     /// @param owner The owner of the bid
@@ -79,21 +79,20 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     /// @param amount The amount of the bid
     /// @param owner The owner of the bid
     /// @param prevHintId The id of the previous tick hint
-    function submitBid(uint128 maxPrice, bool exactIn, uint256 amount, address owner, uint128 prevHintId)
+    /// @param hookData Additional data to pass to the hook required for validation
+    function submitBid(uint128 maxPrice, bool exactIn, uint256 amount, address owner, uint128 prevHintId, bytes calldata hookData)
         external
         payable;
 
     /// @notice Withdraw a bid
     /// @dev A bid can only be withdrawn if the maxPrice is below the current clearing price
-    /// @param tickId The id of the tick
-    /// @param index The index of the bid
+    /// @param bidId The id of the bid
     /// @param upperCheckpointId The id of the checkpoint immediately after the last "active" checkpoint for the bid
-    function withdrawBid(uint128 tickId, uint256 index, uint256 upperCheckpointId) external;
+    function withdrawBid(uint256 bidId, uint256 upperCheckpointId) external;
 
     /// @notice Claim tokens after the auction's claim block
     /// @notice The bid must be withdrawn before claiming tokens
     /// @dev Anyone can claim tokens for any bid, the tokens are transferred to the bid owner
-    /// @param tickId The id of the tick
-    /// @param index The index of the bid
-    function claimTokens(uint128 tickId, uint256 index) external;
+    /// @param bidId The id of the bid
+    function claimTokens(uint256 bidId) external;
 }

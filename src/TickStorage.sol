@@ -11,7 +11,6 @@ struct Tick {
     uint256 price;
     uint256 sumCurrencyDemand; // Sum of demand in the `currency` (exactIn)
     uint256 sumTokenDemand; // Sum of demand in the `token` (exactOut)
-    Bid[] bids;
 }
 
 /// @title TickStorage
@@ -95,7 +94,5 @@ abstract contract TickStorage is ITickStorage {
         } else {
             tick.sumTokenDemand += bid.amount;
         }
-
-        tick.bids.push(bid); // use dynamic buffer here
     }
 }

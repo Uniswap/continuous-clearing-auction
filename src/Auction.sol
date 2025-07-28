@@ -3,6 +3,7 @@ pragma solidity ^0.8.23;
 
 import {AuctionStepStorage} from './AuctionStepStorage.sol';
 import {AuctionParameters} from './Base.sol';
+import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
 import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
 import {IAuction} from './interfaces/IAuction.sol';
@@ -19,7 +20,7 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 /// @title Auction
-contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepStorage {
+contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepStorage, CheckpointStorage {
     using FixedPointMathLib for uint256;
     using CurrencyLibrary for Currency;
     using BidLib for Bid;
@@ -43,18 +44,6 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
     IValidationHook public immutable validationHook;
     /// @notice The starting price of the auction
     uint256 public immutable floorPrice;
-
-    struct Checkpoint {
-        uint256 clearingPrice;
-        uint256 blockCleared;
-        uint256 totalCleared;
-        uint24 cumulativeMps;
-        uint256 cumulativeMpsPerPrice;
-        uint256 prev;
-    }
-
-    mapping(uint256 blockNumber => Checkpoint) public checkpoints;
-    uint256 public lastCheckpointedBlock;
 
     /// @notice Sum of all demand at or above tickUpper for `currency` (exactIn)
     uint256 public sumCurrencyDemandAtTickUpper;
@@ -95,7 +84,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
     }
 
     function clearingPrice() public view returns (uint256) {
-        return checkpoints[lastCheckpointedBlock].clearingPrice;
+        return latestCheckpoint().clearingPrice;
     }
 
     /// @notice Resolve the token demand at `tickUpper`
@@ -110,7 +99,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         returns (uint256 _totalCleared, uint24 _cumulativeMps, uint256 _cumulativeMpsPerPrice)
     {
         // Advance the current step until the current block is within the step
-        Checkpoint memory _checkpoint = checkpoints[lastCheckpointedBlock];
+        Checkpoint memory _checkpoint = latestCheckpoint();
         uint256 start = lastCheckpointedBlock;
         uint256 end = step.endBlock;
         _totalCleared = _checkpoint.totalCleared;
@@ -200,15 +189,16 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         uint256 newCumulativeMpsPerPrice =
             _cumulativeMpsPerPrice + (uint256(mpsSinceLastCheckpoint).fullMulDiv(BidLib.PRECISION, _newClearingPrice));
 
-        checkpoints[block.number] = Checkpoint({
-            clearingPrice: _newClearingPrice,
-            blockCleared: _newClearingPrice < floorPrice ? aggregateDemand : resolvedSupply,
-            totalCleared: _totalCleared,
-            cumulativeMps: _cumulativeMps,
-            cumulativeMpsPerPrice: newCumulativeMpsPerPrice,
-            prev: lastCheckpointedBlock
-        });
-        lastCheckpointedBlock = block.number;
+        _insertCheckpoint(
+            Checkpoint({
+                clearingPrice: _newClearingPrice,
+                blockCleared: _newClearingPrice < floorPrice ? aggregateDemand : resolvedSupply,
+                totalCleared: _totalCleared,
+                cumulativeMps: _cumulativeMps,
+                cumulativeMpsPerPrice: newCumulativeMpsPerPrice,
+                prev: _lastCheckpointedBlock
+            })
+        );
 
         emit CheckpointUpdated(block.number, _newClearingPrice, _totalCleared, _cumulativeMps);
     }
@@ -229,7 +219,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             validationHook.validate(bid);
         }
 
-        // First bid in a block spdates the clearing price
+        // First bid in a block updates the clearing price
         checkpoint();
 
         uint128 tickId = _initializeTickIfNeeded(prevHintId, maxPrice);
@@ -262,7 +252,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
     }
 
     /// @inheritdoc IAuction
-    function withdrawBid(uint128 tickId, uint256 index, uint256 upperCheckpointId) external {
+    function withdrawBid(uint128 tickId, uint256 index, uint256 upperCheckpointBlock) external {
         Bid memory bid = ticks[tickId].bids[index];
         uint256 maxPrice = ticks[tickId].price;
         if (bid.owner != msg.sender) revert NotBidOwner();
@@ -272,15 +262,15 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         if (maxPrice >= clearingPrice()) revert CannotWithdrawBid();
 
         // Require that the upperCheckpoint is the checkpoint immediately after the last active checkpoint for the bid
-        Checkpoint memory upperCheckpoint = checkpoints[upperCheckpointId];
-        Checkpoint memory lastValidCheckpoint = checkpoints[upperCheckpoint.prev];
+        Checkpoint memory upperCheckpoint = _getCheckpoint(upperCheckpointBlock);
+        Checkpoint memory lastValidCheckpoint = _getCheckpoint(upperCheckpoint.prev);
 
-        if (upperCheckpoint.clearingPrice < maxPrice && lastValidCheckpoint.clearingPrice >= maxPrice) {
+        if (upperCheckpoint.clearingPrice < maxPrice || lastValidCheckpoint.clearingPrice >= maxPrice) {
             revert InvalidCheckpointHint();
         }
 
         // Starting checkpoint must exist because we checkpoint on bid submission
-        Checkpoint memory startCheckpoint = checkpoints[bid.startBlock];
+        Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
 
         (uint256 tokensFilled, uint256 refund) = bid.resolve(
             maxPrice,
@@ -300,11 +290,10 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
     /// @inheritdoc IAuction
     function claimTokens(uint128 tickId, uint256 index) external {
         Bid memory bid = ticks[tickId].bids[index];
-        if (bid.owner != msg.sender) revert NotBidOwner();
         if (bid.withdrawnBlock == 0) revert BidNotWithdrawn();
         if (block.number < claimBlock) revert NotClaimable();
 
         token.transfer(bid.owner, bid.tokensFilled);
-        emit TokensClaimed(msg.sender, bid.tokensFilled);
+        emit TokensClaimed(bid.owner, bid.tokensFilled);
     }
 }

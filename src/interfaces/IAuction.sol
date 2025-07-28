@@ -91,7 +91,8 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     function withdrawBid(uint128 tickId, uint256 index, uint256 upperCheckpointId) external;
 
     /// @notice Claim tokens after the auction's claim block
-    /// @dev The bid must be withdrawn before claiming tokens
+    /// @notice The bid must be withdrawn before claiming tokens
+    /// @dev Anyone can claim tokens for any bid, the tokens are transferred to the bid owner
     /// @param tickId The id of the tick
     /// @param index The index of the bid
     function claimTokens(uint128 tickId, uint256 index) external;

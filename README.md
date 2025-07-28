@@ -92,9 +92,9 @@ classDiagram
     class Auction
 ```
 
-## Smart Contract Functions Documentation
+## Auction Functions
 
-### Auction Setup and Supply Curves
+### Setup and Configuration
 
 The auction and its supply curve are configured through the AuctionFactory which deploys individual Auction contracts with configurable parameters.
 
@@ -124,7 +124,7 @@ interface IValidationHook {
 
 ### Bid Submission
 
-Users can submit bids specifying either exact currency input or exact token output desired.
+Users can submit bids specifying either exact currency input or exact token output desired. The bid id is returned to the user and can be used to claim tokens or withdraw the bid. The `prevHintId` parameter is used to determine the location of the tick to insert the bid into.
 
 ```solidity
 interface IAuction {
@@ -136,23 +136,29 @@ interface IAuction {
         uint128 prevHintId
     ) external payable;
 }
+
+event BidSubmitted(uint256 bidId, address owner, uint256 maxPrice, bool exactIn, uint256 amount);
+
+event TickInitialized(uint128 id, uint256 price);
 ```
 
-**Implementation**: Bids are validated, funds transferred via Permit2 (or ETH), ticks initialized if needed, and demand aggregated. Higher bids can increase the clearing price through supply-demand dynamics.
+**Implementation**: Bids are validated, funds transferred via Permit2 (or ETH), ticks initialized if needed, and demand aggregated.
 
-### Get current clearing price
+### Clearing price
 
-The clearing price represents the current marginal price at which tokens are being sold.
+The clearing price represents the current marginal price at which tokens are being sold. The clearing price is updated when a new bid is submitted that would change the clearing price. An event is emitted when the clearing price is updated.
 
 ```solidity
 interface IAuction {
     function clearingPrice() external view returns (uint256);
 }
+
+event CheckpointUpdated(uint256 blockNumber, uint256 clearingPrice, uint256 totalCleared, uint256 cumulativeMps);
 ```
 
 **Implementation**: Returns the clearing price from the most recent checkpoint.
 
-### Determine user allocation
+### Claiming tokens
 
 Users can determine their token allocation by providing a bid id along with checkpoint information.
 
@@ -160,11 +166,28 @@ Users can determine their token allocation by providing a bid id along with chec
 interface IAuction {
     function claimTokens(uint256 bidId) external;
 }
+
+event TokensClaimed(uint256 bidId, uint256 amount);
 ```
 
 **Implementation**: Bids above the clearing price receive tokens proportional to time elapsed and MPS rate.
 
-### Get auction timing and supply information
+
+### Bid withdrawal
+
+Users can withdraw their bid if their max price is below the clearing price.
+
+```solidity
+interface IAuction {
+    function withdrawBid(uint256 bidId) external;
+}
+
+event BidWithdrawn(uint256 bidId, uint256 amount);
+```
+
+**Implementation**: The bid is removed from the auction and the user is refunded the amount which was not sold.
+
+### Auction information
 
 ```solidity
 interface IAuctionStepStorage {
@@ -253,13 +276,3 @@ sequenceDiagram
     Checkpoint-->>Auction: new clearing price
     Auction->>Auction: emit CheckpointUpdated(...)
 ```
-
-## Key Concepts
-
-**MPS**: Represents the percentage of supply released per block, expressed in ten-millionths (1e7 = 100%).
-
-**Tick-based Price Discovery**: Bids are organized by price levels (ticks) with enforced spacing. Clearing price moves between ticks.
-
-**Exact-In vs Exact-Out**: Bidders can specify either exact currency input (exact-in) or exact token output desired (exact-out), with different settlement calculations.
-
-**Checkpoints**: Snapshots of auction state (clearing price, cumulative cleared tokens, cumulative MPS) created when new bids potentially change the clearing price.

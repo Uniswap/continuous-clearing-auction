@@ -80,6 +80,7 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     /// @param owner The owner of the bid
     /// @param prevHintId The id of the previous tick hint
     /// @param hookData Additional data to pass to the hook required for validation
+    /// @return bidId The id of the bid
     function submitBid(
         uint128 maxPrice,
         bool exactIn,
@@ -87,7 +88,7 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
         address owner,
         uint128 prevHintId,
         bytes calldata hookData
-    ) external payable;
+    ) external payable returns (uint256 bidId);
 
     /// @notice Withdraw a bid
     /// @dev A bid can only be withdrawn if the maxPrice is below the current clearing price

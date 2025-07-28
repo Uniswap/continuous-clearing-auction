@@ -212,7 +212,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         address owner,
         uint128 prevHintId,
         bytes calldata hookData
-    ) internal {
+    ) internal returns (uint256 bidId) {
         // First bid in a block updates the clearing price
         checkpoint();
 
@@ -234,7 +234,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
         BidLib.validate(maxPrice, floorPrice, tickSpacing);
         _updateTick(tickId, bid);
-        uint256 bidId = _createBid(bid);
+        bidId = _createBid(bid);
 
         // Only bids higher than the clearing price can change the clearing price
         if (maxPrice >= ticks[tickUpperId].price) {
@@ -256,14 +256,14 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         address owner,
         uint128 prevHintId,
         bytes calldata hookData
-    ) external payable {
+    ) external payable returns (uint256) {
         uint256 resolvedAmount = exactIn ? amount : amount.fullMulDivUp(maxPrice, tickSpacing);
         if (currency.isAddressZero()) {
             if (msg.value != resolvedAmount) revert InvalidAmount();
         } else {
             SafeTransferLib.permit2TransferFrom(Currency.unwrap(currency), msg.sender, address(this), resolvedAmount);
         }
-        _submitBid(maxPrice, exactIn, amount, owner, prevHintId, hookData);
+        return _submitBid(maxPrice, exactIn, amount, owner, prevHintId, hookData);
     }
 
     /// @inheritdoc IAuction

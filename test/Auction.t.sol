@@ -149,13 +149,13 @@ contract AuctionTest is TokenHandler, Test {
         uint256 smallAmount = 100e18;
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(0, alice, _tickPriceAt(1), true, smallAmount);
-        auction.submitBid{value: smallAmount}(_tickPriceAt(1), true, smallAmount, alice, 0, bytes(''));
+        uint256 bidId1 = auction.submitBid{value: smallAmount}(_tickPriceAt(1), true, smallAmount, alice, 0, bytes(''));
 
         // Bid enough to move the clearing price to 3
         uint256 largeAmount = 1000e18;
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(1, alice, _tickPriceAt(3), true, largeAmount);
-        auction.submitBid{value: largeAmount}(_tickPriceAt(3), true, largeAmount, alice, 1, bytes(''));
+        uint256 bidId2 = auction.submitBid{value: largeAmount}(_tickPriceAt(3), true, largeAmount, alice, 1, bytes(''));
         uint256 expectedTotalCleared = 100e3 * largeAmount / AuctionStepLib.MPS;
 
         vm.roll(block.number + 1);
@@ -168,7 +168,7 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidWithdrawn(0, alice);
         vm.prank(alice);
-        auction.withdrawBid(0, 1);
+        auction.withdrawBid(bidId1, 1);
         vm.snapshotGasLastCall('withdrawBid');
         // Expect that alice is refunded the full amount of the first bid
         uint256 aliceBalanceAfter = address(alice).balance;
@@ -177,6 +177,26 @@ contract AuctionTest is TokenHandler, Test {
         // Expect that the second bid cannot be withdrawn, since the clearing price is below its max price
         vm.expectRevert(IAuction.CannotWithdrawBid.selector);
         vm.prank(alice);
-        auction.withdrawBid(1, 1);
+        auction.withdrawBid(bidId2, 1);
+    }
+
+    function test_withdrawBid_nonExistentBid_reverts_withNotBidOwner() public {
+        vm.expectRevert(IAuction.NotBidOwner.selector);
+        auction.withdrawBid(12_345, 1);
+    }
+
+    function test_withdrawBid_reverts_withNotBidOwner() public {
+        uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(3), true, 1000e18, alice, 1, bytes(''));
+        vm.expectRevert(IAuction.NotBidOwner.selector);
+        vm.prank(address(0xdead));
+        auction.withdrawBid(bidId, 1);
+    }
+
+    function test_withdrawBid_reverts_withCannotWithdrawBid() public {
+        uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(3), true, 1000e18, alice, 1, bytes(''));
+        // Expect revert because the bid is not below the clearing price
+        vm.expectRevert(IAuction.CannotWithdrawBid.selector);
+        vm.prank(alice);
+        auction.withdrawBid(bidId, 1);
     }
 }

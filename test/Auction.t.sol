@@ -144,4 +144,39 @@ contract AuctionTest is TokenHandler, Test {
         auction.submitBid{value: 1}(_tickPriceAt(3), true, 1, alice, 2, bytes(''));
         assertEq(auction.clearingPrice(), _tickPriceAt(2));
     }
+
+    function test_withdrawBid_succeeds_gas() public {
+        uint256 smallAmount = 100e18;
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.BidSubmitted(0, alice, _tickPriceAt(1), true, smallAmount);
+        auction.submitBid{value: smallAmount}(_tickPriceAt(1), true, smallAmount, alice, 0, bytes(''));
+
+        // Bid enough to move the clearing price to 3
+        uint256 largeAmount = 1000e18;
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.BidSubmitted(1, alice, _tickPriceAt(3), true, largeAmount);
+        auction.submitBid{value: largeAmount}(_tickPriceAt(3), true, largeAmount, alice, 1, bytes(''));
+        uint256 expectedTotalCleared = 100e3 * largeAmount / AuctionStepLib.MPS;
+
+        vm.roll(block.number + 1);
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(3), expectedTotalCleared, 100e3);
+        auction.checkpoint();
+
+        uint256 aliceBalanceBefore = address(alice).balance;
+        // Expect that the first bid can be withdrawn, since the clearing price is now above its max price
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.BidWithdrawn(0, alice);
+        vm.prank(alice);
+        auction.withdrawBid(0, 1);
+        vm.snapshotGasLastCall('withdrawBid');
+        // Expect that alice is refunded the full amount of the first bid
+        uint256 aliceBalanceAfter = address(alice).balance;
+        assertEq(aliceBalanceAfter - aliceBalanceBefore, smallAmount);
+
+        // Expect that the second bid cannot be withdrawn, since the clearing price is below its max price
+        vm.expectRevert(IAuction.CannotWithdrawBid.selector);
+        vm.prank(alice);
+        auction.withdrawBid(1, 1);
+    }
 }

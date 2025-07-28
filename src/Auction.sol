@@ -3,8 +3,9 @@ pragma solidity ^0.8.23;
 
 import {AuctionStepStorage} from './AuctionStepStorage.sol';
 import {AuctionParameters} from './Base.sol';
-import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
+
 import {BidStorage} from './BidStorage.sol';
+import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
 import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
 import {IAuction} from './interfaces/IAuction.sol';
@@ -316,6 +317,6 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
         emit TokensClaimed(bid.owner, tokensFilled);
     }
-    
+
     receive() external payable {}
 }

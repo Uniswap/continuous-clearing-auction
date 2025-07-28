@@ -41,7 +41,7 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
     }
 
     /// @notice Validate the data provided in the constructor
-    /// @dev Checks that the contract was correctly deployed by SSTORE2 and that the total bps and blocks are valid
+    /// @dev Checks that the contract was correctly deployed by SSTORE2 and that the total mps and blocks are valid
     function _validate(address _pointer) private view {
         bytes memory _auctionStepsData = _pointer.read();
         if (
@@ -49,15 +49,15 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
                 || _auctionStepsData.length != _length
         ) revert InvalidAuctionDataLength();
 
-        // Loop through the auction steps data and check if the bps is valid
-        uint256 sumBps;
+        // Loop through the auction steps data and check if the mps is valid
+        uint256 sumMps;
         uint64 sumBlockDelta;
         for (uint256 i = 0; i < _length; i += UINT64_SIZE) {
-            (uint16 bps, uint48 blockDelta) = _auctionStepsData.get(i);
-            sumBps += bps * blockDelta;
+            (uint24 mps, uint40 blockDelta) = _auctionStepsData.get(i);
+            sumMps += mps * blockDelta;
             sumBlockDelta += blockDelta;
         }
-        if (sumBps != AuctionStepLib.BPS) revert InvalidBps();
+        if (sumMps != AuctionStepLib.MPS) revert InvalidMps();
         if (sumBlockDelta + startBlock != endBlock) revert InvalidEndBlock();
     }
 
@@ -67,18 +67,18 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
         if (offset > _length) revert AuctionIsOver();
 
         bytes8 _auctionStep = bytes8(pointer.read(offset, offset + UINT64_SIZE));
-        (uint16 bps, uint48 blockDelta) = _auctionStep.parse();
+        (uint24 mps, uint40 blockDelta) = _auctionStep.parse();
 
         uint64 _startBlock = step.endBlock;
         if (_startBlock == 0) _startBlock = startBlock;
         uint64 _endBlock = _startBlock + uint64(blockDelta);
 
-        step.bps = bps;
+        step.mps = mps;
         step.startBlock = _startBlock;
         step.endBlock = _endBlock;
 
         offset += UINT64_SIZE;
 
-        emit AuctionStepRecorded(bps, _startBlock, _endBlock);
+        emit AuctionStepRecorded(_startBlock, _endBlock, mps);
     }
 }

@@ -3,11 +3,13 @@ pragma solidity ^0.8.23;
 
 import {Auction} from './Auction.sol';
 import {AuctionParameters} from './Base.sol';
+
+import {IAuctionFactory} from './interfaces/IAuctionFactory.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from './interfaces/external/IDistributionStrategy.sol';
 
 /// @title AuctionFactory
-contract AuctionFactory is IDistributionStrategy {
+contract AuctionFactory is IAuctionFactory {
     /// @inheritdoc IDistributionStrategy
     function initializeDistribution(address token, uint256 amount, bytes calldata configData)
         external
@@ -17,5 +19,7 @@ contract AuctionFactory is IDistributionStrategy {
 
         bytes32 salt = keccak256(abi.encode(token, amount, parameters));
         distributionContract = IDistributionContract(address(new Auction{salt: salt}(token, amount, parameters)));
+
+        emit AuctionCreated(address(distributionContract), token, amount, configData);
     }
 }

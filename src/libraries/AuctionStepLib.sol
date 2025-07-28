@@ -2,42 +2,43 @@
 pragma solidity ^0.8.23;
 
 struct AuctionStep {
-    uint16 bps; // Basis points to sell per block in the step
+    uint24 mps; // Mps to sell per block in the step
     uint64 startBlock; // Start block of the step (inclusive)
     uint64 endBlock; // Ending block of the step (exclusive)
 }
 
 library AuctionStepLib {
-    uint16 public constant BPS = 10_000;
+    /// @notice we use milli-bips, or one thousandth of a basis point
+    uint24 public constant MPS = 1e7;
 
-    /// @notice Unpack the bps and block delta from the auction steps data
-    function parse(bytes8 data) internal pure returns (uint16 bps, uint48 blockDelta) {
-        bps = uint16(bytes2(data));
-        blockDelta = uint48(uint64(data));
+    /// @notice Unpack the mps and block delta from the auction steps data
+    function parse(bytes8 data) internal pure returns (uint24 mps, uint40 blockDelta) {
+        mps = uint24(bytes3(data));
+        blockDelta = uint40(uint64(data));
     }
 
-    /// @notice Load a word at `offset` from data and parse it into bps and blockDelta
-    function get(bytes memory data, uint256 offset) internal pure returns (uint16 bps, uint48 blockDelta) {
+    /// @notice Load a word at `offset` from data and parse it into mps and blockDelta
+    function get(bytes memory data, uint256 offset) internal pure returns (uint24 mps, uint40 blockDelta) {
         assembly {
             let packedValue := mload(add(add(data, 0x20), offset))
             packedValue := shr(192, packedValue)
-            bps := shr(48, packedValue)
-            blockDelta := and(packedValue, 0xFFFFFFFFFFFF)
+            mps := shr(40, packedValue)
+            blockDelta := and(packedValue, 0xFFFFFFFFFF)
         }
     }
 
     /// @notice Resolve the supply per block within a given step
-    function resolvedSupply(AuctionStep memory step, uint256 totalSupply, uint256 totalCleared, uint256 sumBps)
+    function resolvedSupply(AuctionStep memory step, uint256 totalSupply, uint256 totalCleared, uint256 sumMps)
         internal
         pure
         returns (uint256)
     {
-        return (totalSupply - totalCleared) * step.bps / (BPS - sumBps);
+        return (totalSupply - totalCleared) * step.mps / (MPS - sumMps);
     }
 
-    /// @notice Apply the bps to a value
-    /// @dev Requires that value is > BPS to avoid loss of precision
-    function applyBps(uint256 value, uint16 bps) internal pure returns (uint256) {
-        return bps * value / BPS;
+    /// @notice Apply the mps to a value
+    /// @dev Requires that value is > MPS to avoid loss of precision
+    function applyMps(uint256 value, uint24 mps) internal pure returns (uint256) {
+        return mps * value / MPS;
     }
 }

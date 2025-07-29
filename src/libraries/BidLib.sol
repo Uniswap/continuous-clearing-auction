@@ -8,7 +8,7 @@ struct Bid {
     bool exactIn; // If amount below is denoted in currency or tokens
     uint64 startBlock; // Block number when the bid was first made in
     uint64 withdrawnBlock; // Block number when the bid was withdrawn
-    uint128 tickId; // The tick id of the bid
+    int24 tick;
     address owner; // Who is allowed to withdraw the bid
     uint256 amount; // User's demand
     uint256 tokensFilled; // Amount of tokens filled

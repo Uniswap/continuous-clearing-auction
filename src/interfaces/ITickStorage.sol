@@ -4,11 +4,10 @@ pragma solidity ^0.8.20;
 /// @title ITickStorage
 /// @notice Interface for the TickStorage contract
 interface ITickStorage {
-    /// @notice Error thrown when the tick price is not increasing
-    error TickPriceNotIncreasing();
+    /// @notice Error thrown when the tick spacing is zero
+    error TickSpacingIsZero();
     /// @notice Emitted when a tick is initialized
-    /// @param id The id of the tick
-    /// @param price The price of the tick
-
-    event TickInitialized(uint128 id, uint256 price);
+    /// @param tick The tick
+    /// @param sqrtPriceX96 The sqrt price of the tick
+    event TickInitialized(int24 tick, uint160 sqrtPriceX96);
 }

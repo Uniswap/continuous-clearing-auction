@@ -17,7 +17,8 @@ remappings = [
   "forge-std=lib/forge-std/src",
   "@openzeppelin/contracts=lib/openzeppelin-contracts/contracts",
   "@openzeppelin/contracts-upgradeable=lib/openzeppelin-contracts-upgradeable/contracts",
-  "solady=lib/solady/src"
+  "solady=lib/solady/src",
+  "v4-core=lib/v4-core/src"
 ]
 
 additional_compiler_profiles = [

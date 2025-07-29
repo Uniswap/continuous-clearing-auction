@@ -10,9 +10,9 @@ struct AuctionParameters {
     uint64 startBlock; // Block which the first step starts
     uint64 endBlock; // When the auction finishes
     uint64 claimBlock; // Block when the auction can claimed
-    uint256 tickSpacing; // Fixed granularity for prices
+    int24 tickSpacing;
     address validationHook; // Optional hook called before a bid
-    uint256 floorPrice; // Starting floor price for the auction
+    uint160 floorPriceX96; // Starting floor price for the auction
     // Packed bytes describing token issuance schedule
     bytes auctionStepsData;
 }

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 struct Checkpoint {
-    uint256 clearingPrice;
+    uint160 clearingPriceX96;
     uint256 blockCleared;
     uint256 totalCleared;
     uint24 cumulativeMps;

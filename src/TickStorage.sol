@@ -17,8 +17,10 @@ abstract contract TickStorage is ITickStorage {
     using TickBitmap for mapping(int16 => uint256);
 
     mapping(int24 tick => TickInfo) ticks;
+    mapping(int16 wordPos => uint256) tickBitmap;
 
-    int16 public currentTick;
+    int24 public currentTick;
+    int24 public nextInitializedTick;
     int24 immutable tickSpacing;
 
     constructor(int24 _tickSpacing) {
@@ -29,9 +31,7 @@ abstract contract TickStorage is ITickStorage {
 
     function _initializeTick(uint160 sqrtPriceX96) internal returns (int24 tick) {
         tick = TickMath.getTickAtSqrtPrice(sqrtPriceX96);
-
-        ticks.flipTick(tick, tickSpacing);
-
+        tickBitmap.flipTick(tick, tickSpacing);
         currentTick = tick;
 
         emit TickInitialized(tick, sqrtPriceX96);
@@ -40,7 +40,7 @@ abstract contract TickStorage is ITickStorage {
     /// @notice Internal function to add a bid to a tick and update its values
     /// @dev Requires the tick to be initialized
     /// @param bid The bid to add
-    function _updateTick(int24 tick, Bid memory bid) internal {
+    function _updateTickInfo(int24 tick, Bid memory bid) internal {
         TickInfo storage tickInfo = ticks[tick];
 
         if (bid.exactIn) {
@@ -54,10 +54,13 @@ abstract contract TickStorage is ITickStorage {
         return ticks[tick];
     }
 
-    function nextGreaterInitializedTick(int24 tick) internal view returns (int24 next, bool initialized) {
+    function _nextGreaterInitializedTick(int24 tick) internal view returns (int24 next, bool initialized) {
         while (!initialized) {
             // False because always one for zero
-            (next, initialized) = ticks.nextInitializedTickWithinOneWord(tick, tickSpacing, false);
+            (next, initialized) = tickBitmap.nextInitializedTickWithinOneWord(tick, tickSpacing, false);
+            // Bitmap is not aware of min/max ticks
+            if (next < TickMath.MIN_TICK) next = TickMath.MIN_TICK;
+            if (next > TickMath.MAX_TICK) next = TickMath.MAX_TICK;
             // Move forward
             tick = next;
         }

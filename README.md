@@ -134,7 +134,7 @@ sequenceDiagram
     PermitSingleForwarder->>AuctionStepStorage: checkpoint()
     AuctionStepStorage->>AuctionStepStorage: _advanceToCurrentStep()
     PermitSingleForwarder->>TickStorage: _initializeTickIfNeeded(...)
-    PermitSingleForwarder->>TickStorage: _updateTick(...)
+    PermitSingleForwarder->>TickStorage: _updateTickInfo(...)
     TickStorage-->>PermitSingleForwarder:
     PermitSingleForwarder-->>Auction:
     Auction-->>User:

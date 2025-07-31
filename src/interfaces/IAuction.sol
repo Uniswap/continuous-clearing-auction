@@ -24,8 +24,6 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     error TotalSupplyIsZero();
     /// @notice Error thrown when the floor price is zero
     error FloorPriceIsZero();
-    /// @notice Error thrown when the tick spacing is zero
-    error TickSpacingIsZero();
     /// @notice Error thrown when the end block is before the start block
     error EndBlockIsBeforeStartBlock();
     /// @notice Error thrown when the end block is too large
@@ -74,13 +72,13 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     event TokensClaimed(address indexed owner, uint256 tokensFilled);
 
     /// @notice Submit a new bid
-    /// @param maxPrice The maximum price the bidder is willing to pay
+    /// @param maxSqrtPrice The maximum sqrt price the bidder is willing to pay
     /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
     /// @param owner The owner of the bid
     /// @param prevHintId The id of the previous tick hint
     /// @param hookData Additional data to pass to the hook required for validation
-    function submitBid(uint128 maxPrice, bool exactIn, uint256 amount, address owner, uint128 prevHintId, bytes calldata hookData)
+    function submitBid(uint160 maxSqrtPrice, bool exactIn, uint256 amount, address owner, uint128 prevHintId, bytes calldata hookData)
         external
         payable;
 

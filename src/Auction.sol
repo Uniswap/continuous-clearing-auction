@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.23;
 
+import {TickMath} from 'v4-core/libraries/TickMath.sol';
 import {AuctionStepStorage} from './AuctionStepStorage.sol';
 import {AuctionParameters} from './Base.sol';
 import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
 import {BidStorage} from './BidStorage.sol';
 import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
-import {Tick, TickStorage, TickInfo} from './TickStorage.sol';
+import {TickStorage, TickInfo} from './TickStorage.sol';
 import {IAuction} from './interfaces/IAuction.sol';
 
 import {IValidationHook} from './interfaces/IValidationHook.sol';
@@ -44,10 +45,10 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
     /// @notice The starting price of the auction
     uint160 public immutable floorPriceX96;
 
-    /// @notice Sum of all demand at or above tickUpper for `currency` (exactIn)
-    uint256 public sumCurrencyDemandAtTickUpper;
-    /// @notice Sum of all demand at or above tickUpper for `token` (exactOut)
-    uint256 public sumTokenDemandAtTickUpper;
+    /// @notice Sum of all demand at or above nextInitializedTick for `currency` (exactIn)
+    uint256 public sumCurrencyDemandAtNextInitializedTick;
+    /// @notice Sum of all demand at or above nextInitializedTick for `token` (exactOut)
+    uint256 public sumTokenDemandAtNextInitializedTick;
 
     address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
@@ -65,7 +66,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         validationHook = IValidationHook(_parameters.validationHook);
         floorPriceX96 = _parameters.floorPriceX96;
         // Initialize a tick for the floor price
-        _initializeTick(TickMath.getTickAtSqrtPrice(floorPriceX96));
+        _initializeTick(floorPriceX96);
 
         if (totalSupply == 0) revert TotalSupplyIsZero();
         if (floorPriceX96 == 0) revert FloorPriceIsZero();
@@ -84,11 +85,11 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         return latestCheckpoint().clearingPriceX96;
     }
 
-    /// @notice Resolve the token demand at `tickUpper`
-    /// @dev This function sums demands from both exactIn and exactOut bids by resolving the exactIn demand at the `tickUpper` price
-    ///      and adding all exactOut demand at or above `tickUpper`.
-    function _resolvedTokenDemandTickUpper() internal view returns (uint256) {
-        return (sumCurrencyDemandAtTickUpper * tickSpacing / ticks[tickUpperId].price) + sumTokenDemandAtTickUpper;
+    /// @notice Resolve the token demand at `nextInitializedTick`
+    /// @dev This function sums demands from both exactIn and exactOut bids by resolving the exactIn demand at the `nextInitializedTick` price
+    ///      and adding all exactOut demand at or above `nextInitializedTick`.
+    function _resolvedTokenDemandNextInitializedTick() internal view returns (uint256) {
+        return (sumCurrencyDemandAtNextInitializedTick * tickSpacing / TickMath.getSqrtPriceAtTick(nextInitializedTick)) + sumTokenDemandAtNextInitializedTick;
     }
 
     function _advanceToCurrentStep()
@@ -130,33 +131,36 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         (uint256 _totalCleared, uint24 _cumulativeMps, uint256 _cumulativeMpsPerPrice) = _advanceToCurrentStep();
 
         uint256 resolvedSupply = step.resolvedSupply(totalSupply, _totalCleared, _cumulativeMps);
-        uint256 aggregateDemand = _resolvedTokenDemandTickUpper().applyMps(step.mps);
+        uint256 aggregateDemand = _resolvedTokenDemandNextInitializedTick().applyMps(step.mps);
 
-        int24 i = currentTick;
+        int24 i = nextInitializedTick;
+        uint256 deltaX;
+        uint256 deltaY;
         while (aggregateDemand >= resolvedSupply) {
-            (int24 next, bool initialized) = nextGreaterInitializedTick(i);
+            (int24 next, bool initialized) = _nextGreaterInitializedTick(i);
             require(initialized, "DEBUG: No initialized tick found");
 
-            // Subtract the demand at the old tickUpper as it has been outbid
+            // Subtract the demand at the old nextInitializedTick as it has been outbid
             TickInfo memory tickInfo = _getTickInfo(i);
-            sumCurrencyDemandAtTickUpper -= tickInfo.sumCurrencyDemand;
-            sumTokenDemandAtTickUpper -= tickInfo.sumTokenDemand;
+            deltaX += tickInfo.sumCurrencyDemand;
+            deltaY += tickInfo.sumTokenDemand;
 
-            aggregateDemand = _resolvedTokenDemandTickUpper().applyMps(step.mps);
+            sumCurrencyDemandAtNextInitializedTick -= tickInfo.sumCurrencyDemand;
+            sumTokenDemandAtNextInitializedTick -= tickInfo.sumTokenDemand;
+
+            aggregateDemand = _resolvedTokenDemandNextInitializedTick().applyMps(step.mps);
 
             // Advance to the next discovered tick
             i = next;
         }
+        // Update the next initialized tick
+        nextInitializedTick = i;
 
         uint160 _newClearingPriceX96;
-        // Not enough demand to clear at tickUpper, must be between tickUpper and the tick below it
+        // Not enough demand to clear at nextInitializedTick, must be between nextInitializedTick and the tick below it
         if (aggregateDemand < resolvedSupply && aggregateDemand > 0) {
-            // Find the clearing price between the tickLower and tickUpper
-            _newClearingPriceX96 = (
-                (resolvedSupply - sumTokenDemandAtTickUpper.applyMps(step.mps)).fullMulDiv(
-                    tickSpacing, sumCurrencyDemandAtTickUpper.applyMps(step.mps)
-                )
-            );
+            // Find the clearing price between the tickLower and nextInitializedTick
+            _newClearingPriceX96 = (resolvedSupply - sumTokenDemandAtNextInitializedTick.applyMps(step.mps)) / (sumCurrencyDemandAtNextInitializedTick.applyMps(step.mps));
             // Round clearingPrice down to the nearest tickSpacing
             _newClearingPriceX96 -= (_newClearingPriceX96 % tickSpacing);
         } else {
@@ -205,7 +209,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
     }
 
     function _submitBid(
-        uint160 maxPriceX96,
+        uint160 maxSqrtPriceX96,
         bool exactIn,
         uint256 amount,
         address owner,
@@ -214,7 +218,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         // First bid in a block updates the clearing price
         checkpoint();
 
-        int24 tick = _initializeTick(maxPriceX96);
+        int24 tick = _initializeTick(maxSqrtPriceX96);
 
         Bid memory bid = Bid({
             exactIn: exactIn,
@@ -230,51 +234,53 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             validationHook.validate(bid, hookData);
         }
 
-        BidLib.validate(maxPriceX96, floorPriceX96, tickSpacing);
-        _updateTick(tick, bid);
+        BidLib.validate(maxSqrtPriceX96, floorPriceX96, tickSpacing);
+        _updateTickInfo(tick, bid);
         uint256 bidId = _createBid(bid);
 
         if (bid.exactIn) {
-            sumCurrencyDemandAtTickUpper += bid.amount;
+            sumCurrencyDemandAtNextInitializedTick += bid.amount;
         } else {
-            sumTokenDemandAtTickUpper += bid.amount;
+            sumTokenDemandAtNextInitializedTick += bid.amount;
         }
 
-        emit BidSubmitted(bidId, owner, maxPriceX96, bid.exactIn, bid.amount);
+        emit BidSubmitted(bidId, owner, maxSqrtPriceX96, bid.exactIn, bid.amount);
     }
 
     /// @inheritdoc IAuction
     function submitBid(
-        uint160 maxPriceX96,
+        uint160 maxSqrtPriceX96,
         bool exactIn,
         uint256 amount,
         address owner,
         bytes calldata hookData
     ) external payable {
-        uint256 resolvedAmount = exactIn ? amount : amount.fullMulDivUp(maxPriceX96, tickSpacing);
+        // sqrt(price) = sqrt(y/x)
+        // (sqrt(price) * sqrt(price)) / x = y
+        uint256 resolvedAmount = exactIn ? amount : uint256(maxSqrtPriceX96).fullMulDivUp(uint256(maxSqrtPriceX96), amount);
         if (currency.isAddressZero()) {
             if (msg.value != resolvedAmount) revert InvalidAmount();
         } else {
             SafeTransferLib.permit2TransferFrom(Currency.unwrap(currency), msg.sender, address(this), resolvedAmount);
         }
-        _submitBid(maxPriceX96, exactIn, amount, owner, hookData);
+        _submitBid(maxSqrtPriceX96, exactIn, amount, owner, hookData);
     }
 
     /// @inheritdoc IAuction
     function withdrawBid(uint256 bidId, uint256 upperCheckpointBlock) external {
         Bid memory bid = _getBid(bidId);
-        uint160 maxPriceX96 = TickMath.getSqrtPriceAtTick(bid.tick);
+        uint160 maxSqrtPriceX96 = TickMath.getSqrtPriceAtTick(bid.tick);
         if (bid.owner != msg.sender) revert NotBidOwner();
         if (bid.withdrawnBlock != 0) revert BidAlreadyWithdrawn();
 
         // Can only withdraw if the bid is below the clearing price
-        if (maxPriceX96 >= clearingPrice()) revert CannotWithdrawBid();
+        if (maxSqrtPriceX96 >= clearingPrice()) revert CannotWithdrawBid();
 
         // Require that the upperCheckpoint is the checkpoint immediately after the last active checkpoint for the bid
         Checkpoint memory upperCheckpoint = _getCheckpoint(upperCheckpointBlock);
         Checkpoint memory lastValidCheckpoint = _getCheckpoint(upperCheckpoint.prev);
 
-        if (upperCheckpoint.clearingPriceX96 < maxPriceX96 || lastValidCheckpoint.clearingPriceX96 >= maxPriceX96) {
+        if (upperCheckpoint.clearingPriceX96 < maxSqrtPriceX96 || lastValidCheckpoint.clearingPriceX96 >= maxSqrtPriceX96) {
             revert InvalidCheckpointHint();
         }
 
@@ -282,7 +288,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
 
         (uint256 tokensFilled, uint256 refund) = bid.resolve(
-            maxPriceX96,
+            maxSqrtPriceX96,
             lastValidCheckpoint.cumulativeMpsPerPrice - startCheckpoint.cumulativeMpsPerPrice,
             lastValidCheckpoint.cumulativeMps - startCheckpoint.cumulativeMps
         );

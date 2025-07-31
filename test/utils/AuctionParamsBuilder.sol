@@ -7,7 +7,7 @@ library AuctionParamsBuilder {
     function init() internal pure returns (AuctionParameters memory) {
         return AuctionParameters({
             currency: address(0),
-            floorPrice: 0,
+            floorPriceX96: 0,
             tickSpacing: 0,
             validationHook: address(0),
             tokensRecipient: address(0),
@@ -28,16 +28,16 @@ library AuctionParamsBuilder {
         return params;
     }
 
-    function withFloorPrice(AuctionParameters memory params, uint256 floorPrice)
+    function withFloorPrice(AuctionParameters memory params, uint160 floorPriceX96)
         internal
         pure
         returns (AuctionParameters memory)
     {
-        params.floorPrice = floorPrice;
+        params.floorPriceX96 = floorPriceX96;
         return params;
     }
 
-    function withTickSpacing(AuctionParameters memory params, uint256 tickSpacing)
+    function withTickSpacing(AuctionParameters memory params, int24 tickSpacing)
         internal
         pure
         returns (AuctionParameters memory)

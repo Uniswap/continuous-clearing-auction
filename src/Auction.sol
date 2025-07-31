@@ -2,12 +2,11 @@
 pragma solidity ^0.8.23;
 
 import {AuctionStepStorage} from './AuctionStepStorage.sol';
-import {AuctionParameters} from './Base.sol';
-import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
 import {BidStorage} from './BidStorage.sol';
+import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
 import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
-import {IAuction} from './interfaces/IAuction.sol';
+import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
 
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
@@ -108,10 +107,10 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         _cumulativeMpsPerPrice = _checkpoint.cumulativeMpsPerPrice;
 
         while (block.number >= end) {
-            uint256 delta = end - start;
             // All are constant since no change in clearing price
             // If no tokens have been cleared yet, we don't need to update the cumulative values
             if (_checkpoint.clearingPrice > 0) {
+                uint256 delta = end - start;
                 uint24 deltaMps = uint24(step.mps * delta);
                 _cumulativeMps += deltaMps;
                 _totalCleared += _checkpoint.blockCleared * delta;
@@ -217,34 +216,26 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
         uint128 tickId = _initializeTickIfNeeded(prevHintId, maxPrice);
 
-        Bid memory bid = Bid({
-            exactIn: exactIn,
-            startBlock: uint64(block.number),
-            withdrawnBlock: 0,
-            tickId: tickId,
-            amount: amount,
-            owner: owner,
-            tokensFilled: 0
-        });
-
         if (address(validationHook) != address(0)) {
-            validationHook.validate(bid, hookData);
+            validationHook.validate(maxPrice, exactIn, amount, owner, msg.sender, hookData);
         }
 
         BidLib.validate(maxPrice, floorPrice, tickSpacing);
-        _updateTick(tickId, bid);
-        uint256 bidId = _createBid(bid);
+
+        _updateTick(tickId, exactIn, amount);
+
+        uint256 bidId = _createBid(exactIn, amount, owner, tickId);
 
         // Only bids higher than the clearing price can change the clearing price
         if (maxPrice >= ticks[tickUpperId].price) {
-            if (bid.exactIn) {
-                sumCurrencyDemandAtTickUpper += bid.amount;
+            if (exactIn) {
+                sumCurrencyDemandAtTickUpper += amount;
             } else {
-                sumTokenDemandAtTickUpper += bid.amount;
+                sumTokenDemandAtTickUpper += amount;
             }
         }
 
-        emit BidSubmitted(bidId, owner, maxPrice, bid.exactIn, bid.amount);
+        emit BidSubmitted(bidId, owner, maxPrice, exactIn, amount);
     }
 
     /// @inheritdoc IAuction
@@ -268,9 +259,9 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
     /// @inheritdoc IAuction
     function withdrawBid(uint256 bidId, uint256 upperCheckpointBlock) external {
         Bid memory bid = _getBid(bidId);
-        uint256 maxPrice = ticks[bid.tickId].price;
-        if (bid.owner != msg.sender) revert NotBidOwner();
         if (bid.withdrawnBlock != 0) revert BidAlreadyWithdrawn();
+
+        uint256 maxPrice = ticks[bid.tickId].price;
 
         // Can only withdraw if the bid is below the clearing price
         if (maxPrice >= clearingPrice()) revert CannotWithdrawBid();
@@ -299,7 +290,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
         _updateBid(bidId, bid);
 
-        emit BidWithdrawn(bidId, msg.sender);
+        emit BidWithdrawn(bidId, bid.owner);
     }
 
     /// @inheritdoc IAuction
@@ -316,6 +307,6 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
         emit TokensClaimed(bid.owner, tokensFilled);
     }
-    
+
     receive() external payable {}
 }

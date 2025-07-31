@@ -2,8 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {Auction} from './Auction.sol';
-import {AuctionParameters} from './Base.sol';
-
+import {AuctionParameters} from './interfaces/IAuction.sol';
 import {IAuctionFactory} from './interfaces/IAuctionFactory.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from './interfaces/external/IDistributionStrategy.sol';

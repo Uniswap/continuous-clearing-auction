@@ -17,9 +17,22 @@ abstract contract BidStorage {
     }
 
     /// @notice Create a new bid
-    /// @param bid The bid to create
+    /// @param exactIn Whether the bid is exact in
+    /// @param amount The amount of the bid
+    /// @param owner The owner of the bid
+    /// @param tickId The id of the tick the bid is on
     /// @return bidId The id of the created bid
-    function _createBid(Bid memory bid) internal returns (uint256 bidId) {
+    function _createBid(bool exactIn, uint256 amount, address owner, uint128 tickId) internal returns (uint256 bidId) {
+        Bid memory bid = Bid({
+            exactIn: exactIn,
+            startBlock: uint64(block.number),
+            withdrawnBlock: 0,
+            tickId: tickId,
+            amount: amount,
+            owner: owner,
+            tokensFilled: 0
+        });
+
         bidId = nextBidId;
         bids[bidId] = bid;
         nextBidId++;

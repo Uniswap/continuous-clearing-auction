@@ -94,6 +94,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         return (sumCurrencyDemandAtTickUpper * tickSpacing / ticks[tickUpperId].price) + sumTokenDemandAtTickUpper;
     }
 
+    /// @notice Advance the current step until the current block is within the step
     function _advanceToCurrentStep()
         internal
         returns (uint256 _totalCleared, uint24 _cumulativeMps, uint256 _cumulativeMpsPerPrice)
@@ -107,8 +108,6 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         _cumulativeMpsPerPrice = _checkpoint.cumulativeMpsPerPrice;
 
         while (block.number >= end) {
-            // All are constant since no change in clearing price
-            // If no tokens have been cleared yet, we don't need to update the cumulative values
             if (_checkpoint.clearingPrice > 0) {
                 uint256 delta = end - start;
                 uint24 deltaMps = uint24(step.mps * delta);

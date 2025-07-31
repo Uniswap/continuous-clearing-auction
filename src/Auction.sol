@@ -263,8 +263,8 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
         uint256 maxPrice = ticks[bid.tickId].price;
 
-        // Can only withdraw if the bid is below the clearing price
-        if (maxPrice >= clearingPrice()) revert CannotWithdrawBid();
+        // Can only withdraw if the bid is below the clearing price or if the auction is over
+        if (maxPrice >= clearingPrice() && block.number < endBlock) revert CannotWithdrawBid();
 
         // Require that the upperCheckpoint is the checkpoint immediately after the last active checkpoint for the bid
         Checkpoint memory upperCheckpoint = _getCheckpoint(upperCheckpointBlock);

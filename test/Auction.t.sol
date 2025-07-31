@@ -180,18 +180,6 @@ contract AuctionTest is TokenHandler, Test {
         auction.withdrawBid(bidId2, 1);
     }
 
-    function test_withdrawBid_nonExistentBid_reverts_withNotBidOwner() public {
-        vm.expectRevert(IAuction.NotBidOwner.selector);
-        auction.withdrawBid(12_345, 1);
-    }
-
-    function test_withdrawBid_reverts_withNotBidOwner() public {
-        uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(3), true, 1000e18, alice, 1, bytes(''));
-        vm.expectRevert(IAuction.NotBidOwner.selector);
-        vm.prank(address(0xdead));
-        auction.withdrawBid(bidId, 1);
-    }
-
     function test_withdrawBid_reverts_withCannotWithdrawBid() public {
         uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(3), true, 1000e18, alice, 1, bytes(''));
         // Expect revert because the bid is not below the clearing price

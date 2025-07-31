@@ -224,7 +224,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
         _updateTick(tickId, exactIn, amount);
 
-        uint256 bidId = _createBid(exactIn, amount, owner, tickId);
+        bidId = _createBid(exactIn, amount, owner, tickId);
 
         // Only bids higher than the clearing price can change the clearing price
         if (maxPrice >= ticks[tickUpperId].price) {

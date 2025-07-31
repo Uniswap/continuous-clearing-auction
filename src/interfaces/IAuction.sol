@@ -5,6 +5,22 @@ import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
 import {IDistributionContract} from './external/IDistributionContract.sol';
 
+/// @notice Parameters for the auction
+/// @dev token and totalSupply are passed as constructor arguments
+struct AuctionParameters {
+    address currency; // token to raise funds in. Use address(0) for ETH
+    address tokensRecipient; // address to receive leftover tokens
+    address fundsRecipient; // address to receive all raised funds
+    uint64 startBlock; // Block which the first step starts
+    uint64 endBlock; // When the auction finishes
+    uint64 claimBlock; // Block when the auction can claimed
+    uint256 tickSpacing; // Fixed granularity for prices
+    address validationHook; // Optional hook called before a bid
+    uint256 floorPrice; // Starting floor price for the auction
+    // Packed bytes describing token issuance schedule
+    bytes auctionStepsData;
+}
+
 /// @notice Interface for the Auction contract
 interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     /// @notice Error thrown when the token is invalid
@@ -34,8 +50,6 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     error ClaimBlockIsBeforeEndBlock();
     /// @notice Error thrown when the funds recipient is the zero address
     error FundsRecipientIsZero();
-    /// @notice Error thrown when the bid is not owned by the caller
-    error NotBidOwner();
     /// @notice Error thrown when the bid has already been withdrawn
     error BidAlreadyWithdrawn();
     /// @notice Error thrown when the bid is higher than the clearing price

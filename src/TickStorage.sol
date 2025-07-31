@@ -85,14 +85,15 @@ abstract contract TickStorage is ITickStorage {
     /// @notice Internal function to add a bid to a tick and update its values
     /// @dev Requires the tick to be initialized
     /// @param id The id of the tick
-    /// @param bid The bid to add
-    function _updateTick(uint128 id, Bid memory bid) internal {
+    /// @param exactIn Whether the bid is exact in
+    /// @param amount The amount of the bid
+    function _updateTick(uint128 id, bool exactIn, uint256 amount) internal {
         Tick storage tick = ticks[id];
 
-        if (bid.exactIn) {
-            tick.sumCurrencyDemand += bid.amount;
+        if (exactIn) {
+            tick.sumCurrencyDemand += amount;
         } else {
-            tick.sumTokenDemand += bid.amount;
+            tick.sumTokenDemand += amount;
         }
     }
 }

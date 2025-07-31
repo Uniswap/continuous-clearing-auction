@@ -112,6 +112,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
                 uint256 delta = end - start;
                 uint24 deltaMps = uint24(step.mps * delta);
                 _cumulativeMps += deltaMps;
+                // blockCleared is just checkpoint[blockNumber].totalCleare - checkpoint[blockNumber - 1].totalCleared
                 _totalCleared += _checkpoint.blockCleared * delta;
                 _cumulativeMpsPerPrice += uint256(deltaMps).fullMulDiv(BidLib.PRECISION, _checkpoint.clearingPrice);
             }
@@ -284,10 +285,13 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
         currency.transfer(bid.owner, refund);
 
-        bid.tokensFilled = tokensFilled;
-        bid.withdrawnBlock = uint64(block.number);
-
-        _updateBid(bidId, bid);
+        if (tokensFilled == 0) {
+            _deleteBid(bidId);
+        } else {
+            bid.tokensFilled = tokensFilled;
+            bid.withdrawnBlock = uint64(block.number);
+            _updateBid(bidId, bid);
+        }
 
         emit BidWithdrawn(bidId, bid.owner);
     }

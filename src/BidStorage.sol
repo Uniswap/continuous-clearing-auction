@@ -44,4 +44,10 @@ abstract contract BidStorage {
     function _updateBid(uint256 bidId, Bid memory bid) internal {
         bids[bidId] = bid;
     }
+
+    /// @notice Delete a bid from storage
+    /// @param bidId The id of the bid to delete
+    function _deleteBid(uint256 bidId) internal {
+        delete bids[bidId];
+    }
 }

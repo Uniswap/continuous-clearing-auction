@@ -24,7 +24,7 @@ contract BidLibTest is Test {
         mockBidLib = new MockBidLib();
     }
 
-    function test_resolve_exactOut_partialFill_succeeds() public view {
+    function test_resolve_exactOut_succeeds() public view {
         // Buy exactly 1000 tokens at max price 2000 per token
         uint256 exactOutAmount = 1000e18;
         uint256 totalEth = 2000 * exactOutAmount;

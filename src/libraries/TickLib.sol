@@ -9,13 +9,3 @@ struct Tick {
     uint256 sumCurrencyDemand; // Sum of demand in the `currency` (exactIn)
     uint256 sumTokenDemand; // Sum of demand in the `token` (exactOut)
 }
-
-library TickLib {
-    function demandAtPrice(uint256 price, uint256 tickSpacing, uint256 sumCurrencyDemand, uint256 sumTokenDemand)
-        internal
-        pure
-        returns (uint256)
-    {
-        return (sumCurrencyDemand * tickSpacing / price) + sumTokenDemand;
-    }
-}

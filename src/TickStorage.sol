@@ -2,16 +2,9 @@
 pragma solidity ^0.8.23;
 
 import {ITickStorage} from './interfaces/ITickStorage.sol';
-import {Bid} from './libraries/BidLib.sol';
 
-struct Tick {
-    uint128 id;
-    uint128 prev;
-    uint128 next;
-    uint256 price;
-    uint256 sumCurrencyDemand; // Sum of demand in the `currency` (exactIn)
-    uint256 sumTokenDemand; // Sum of demand in the `token` (exactOut)
-}
+import {Bid} from './libraries/BidLib.sol';
+import {Tick} from './libraries/TickLib.sol';
 
 /// @title TickStorage
 /// @notice Abstract contract for handling tick storage

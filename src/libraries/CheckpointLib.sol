@@ -27,6 +27,7 @@ library CheckpointLib {
         pure
         returns (Checkpoint memory)
     {
+        // This is an unsafe cast, but we ensure in the construtor that the max blockDelta (end - start) * mps is always less than 1e7 (100%)
         uint24 deltaMps = uint24(mps * blockDelta);
         return Checkpoint({
             clearingPrice: checkpoint.clearingPrice,

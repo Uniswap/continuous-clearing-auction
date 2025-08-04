@@ -48,4 +48,12 @@ library BidLib {
             refund = maxPrice * (bid.amount - tokensFilled);
         }
     }
+
+    function currencyDemand(Bid memory bid) internal pure returns (uint256) {
+        return bid.exactIn ? bid.amount : 0;
+    }
+
+    function tokenDemand(Bid memory bid) internal pure returns (uint256) {
+        return bid.exactIn ? 0 : bid.amount;
+    }
 }

@@ -262,29 +262,66 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         uint256 tokensFilled;
         uint256 refund;
         uint256 _clearingPrice = clearingPrice();
+        /// @dev Bid was fully filled the checkpoint under UpperCheckpoint
         if (tick.price < _clearingPrice) {
             Checkpoint memory upperCheckpoint = _getCheckpoint(upperCheckpointBlock);
             Checkpoint memory lastValidCheckpoint = _getCheckpoint(upperCheckpoint.prev);
             if (upperCheckpoint.clearingPrice < tick.price || lastValidCheckpoint.clearingPrice >= tick.price) {
                 revert InvalidCheckpointHint();
             }
-            // Bid is below clearing price OR tick is above but auction is over, can withdraw whenever
             (tokensFilled, refund) = bid.resolve(
                 tick.price,
                 lastValidCheckpoint.cumulativeMpsPerPrice - startCheckpoint.cumulativeMpsPerPrice,
                 lastValidCheckpoint.cumulativeMps - startCheckpoint.cumulativeMps
             );
-        } else if (tick.price > _clearingPrice && block.number > endBlock) {
-            // Tick is above the final clearing price but auction is over
+        }
+        /// @dev Bid was fully filled and the auction is now over
+        else if (tick.price > _clearingPrice && block.number > endBlock) {
+            Checkpoint memory finalCheckpoint = latestCheckpoint().transform(endBlock - lastCheckpointedBlock, step.mps);
             (tokensFilled, refund) = bid.resolve(
                 tick.price,
-                latestCheckpoint().cumulativeMpsPerPrice - startCheckpoint.cumulativeMpsPerPrice,
-                latestCheckpoint().cumulativeMps - startCheckpoint.cumulativeMps
+                finalCheckpoint.cumulativeMpsPerPrice - startCheckpoint.cumulativeMpsPerPrice,
+                finalCheckpoint.cumulativeMps - startCheckpoint.cumulativeMps
             );
-        }
-        // Bids at the clearing price can only be withdrawn after the auction is over
-        else if (tick.price == _clearingPrice && block.number > endBlock) {
-            // TODO
+        } else if (tick.price == _clearingPrice && block.number > endBlock) {
+            // lastFullyFilledCheckpoint --- ... | latestCheckpoint
+            // price < clearingPrice             | clearingPrice == price
+            Checkpoint memory _checkpoint = latestCheckpoint();
+            while (_checkpoint.clearingPrice == _clearingPrice) {
+                _checkpoint = _getCheckpoint(_checkpoint.prev);
+            }
+            // Account the fully filled checkpoints
+            (tokensFilled, refund) = bid.resolve(
+                _checkpoint.clearingPrice,
+                _checkpoint.cumulativeMpsPerPrice - startCheckpoint.cumulativeMpsPerPrice,
+                _checkpoint.cumulativeMps - startCheckpoint.cumulativeMps
+            );
+            // Get the proportion of the bid's demand of the resolved demand at the tick
+            uint256 resolvedDemandAtTick = TickLib.demandAtPrice(
+                _checkpoint.clearingPrice, tickSpacing, tick.sumCurrencyDemand, tick.sumTokenDemand
+            );
+            // Find the final checkpoint and calculate the tokens filled and refund since the latest checkpoint
+            Checkpoint memory finalCheckpoint = latestCheckpoint().transform(endBlock - lastCheckpointedBlock, step.mps);
+            (uint256 partialTokensFilled, uint256 partialRefund) = bid.resolve(
+                tick.price,
+                finalCheckpoint.cumulativeMpsPerPrice - _checkpoint.cumulativeMpsPerPrice,
+                finalCheckpoint.cumulativeMps - _checkpoint.cumulativeMps
+            );
+            // The bid is only filled for its proportion of the demand at the tick
+            partialTokensFilled = partialTokensFilled.fullMulDiv(
+                TickLib.demandAtPrice(
+                    tick.price, tickSpacing, bid.exactIn ? bid.amount : 0, bid.exactIn ? 0 : bid.amount
+                ),
+                resolvedDemandAtTick
+            );
+            partialRefund = partialRefund.fullMulDiv(
+                TickLib.demandAtPrice(
+                    tick.price, tickSpacing, bid.exactIn ? bid.amount : 0, bid.exactIn ? 0 : bid.amount
+                ),
+                resolvedDemandAtTick
+            );
+            tokensFilled += partialTokensFilled;
+            refund += partialRefund;
         } else {
             revert CannotWithdrawBid();
         }

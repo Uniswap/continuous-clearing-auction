@@ -11,10 +11,6 @@ struct Tick {
 }
 
 library TickLib {
-    function demand(Tick memory tick, uint256 tickSpacing) internal pure returns (uint256) {
-        return demandAtPrice(tick.price, tickSpacing, tick.sumCurrencyDemand, tick.sumTokenDemand);
-    }
-
     function demandAtPrice(uint256 price, uint256 tickSpacing, uint256 sumCurrencyDemand, uint256 sumTokenDemand)
         internal
         pure

@@ -44,7 +44,7 @@ contract BidLibTest is Test {
         uint256 cumulativeMpsPerPriceDelta = uint256(cumulativeMpsDelta).fullMulDiv(PRECISION, maxPrice);
 
         (uint256 tokensFilled, uint256 refund) =
-            mockBidLib.resolve(bid, maxPrice, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
+            mockBidLib.calculateFill(bid, maxPrice, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
 
         // 30% of 1000e18 tokens = 300e18 tokens filled
         assertEq(tokensFilled, 300e18);
@@ -67,7 +67,7 @@ contract BidLibTest is Test {
             tickId: 0 // doesn't matter for this test
         });
 
-        mockBidLib.resolve(bid, MAX_PRICE, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
+        mockBidLib.calculateFill(bid, MAX_PRICE, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
     }
 
     function test_resolve_exactOut_fuzz_succeeds(uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
@@ -90,7 +90,7 @@ contract BidLibTest is Test {
         uint256 _expectedTokensFilled = TOKEN_AMOUNT.applyMps(cumulativeMpsDelta);
 
         (uint256 tokensFilled, uint256 refund) =
-            mockBidLib.resolve(bid, maxPrice, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
+            mockBidLib.calculateFill(bid, maxPrice, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
 
         assertEq(tokensFilled, _expectedTokensFilled);
         assertEq(refund, maxPrice * (TOKEN_AMOUNT - _expectedTokensFilled));
@@ -140,7 +140,7 @@ contract BidLibTest is Test {
         // 0.5 + 0.15 + 0.1 = 0.75 * 1e18 * 1e3 (for mps)
         assertEq(_cumulativeMpsPerPrice, 0.75 ether * 1e3);
         (uint256 tokensFilled, uint256 refund) =
-            mockBidLib.resolve(bid, MAX_PRICE, _cumulativeMpsPerPrice, uint24(_totalMps));
+            mockBidLib.calculateFill(bid, MAX_PRICE, _cumulativeMpsPerPrice, uint24(_totalMps));
 
         // Manual tokensFilled calculation:
         // 10 * 1e18 * 0.75 * 1e18 / 1e18 * 1e4 = 7.5 * 1e18 / 1e4 = 7.5e14
@@ -179,7 +179,7 @@ contract BidLibTest is Test {
         });
 
         // Bid is fully filled since max price is always higher than all prices
-        (uint256 tokensFilled, uint256 refund) = mockBidLib.resolve(bid, MAX_PRICE, 0, uint24(_totalMps));
+        (uint256 tokensFilled, uint256 refund) = mockBidLib.calculateFill(bid, MAX_PRICE, 0, uint24(_totalMps));
 
         assertEq(tokensFilled, TOKEN_AMOUNT.applyMps(uint24(_totalMps)));
         assertEq(refund, MAX_PRICE * (TOKEN_AMOUNT - tokensFilled));
@@ -213,7 +213,7 @@ contract BidLibTest is Test {
         uint256 expectedTokensFilled = ethSpent / MAX_PRICE;
 
         (uint256 tokensFilled, uint256 refund) =
-            mockBidLib.resolve(bid, MAX_PRICE, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
+            mockBidLib.calculateFill(bid, MAX_PRICE, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
 
         assertEq(tokensFilled, expectedTokensFilled);
         assertEq(refund, 0);

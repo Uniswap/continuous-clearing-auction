@@ -269,7 +269,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         uint256 _clearingPrice = clearingPrice();
         /// @dev Bid was fully filled the checkpoint under UpperCheckpoint
         if (tick.price < _clearingPrice) {
-            (tokensFilled, refund) = bid.resolve(
+            (tokensFilled, refund) = bid.calculateFill(
                 tick.price,
                 lastValidCheckpoint.cumulativeMpsPerPrice - startCheckpoint.cumulativeMpsPerPrice,
                 lastValidCheckpoint.cumulativeMps - startCheckpoint.cumulativeMps
@@ -279,7 +279,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         else if (tick.price > _clearingPrice && block.number > endBlock) {
             Checkpoint memory finalCheckpoint =
                 latestCheckpoint().transform(endBlock - _lastCheckpointedBlock, step.mps);
-            (tokensFilled, refund) = bid.resolve(
+            (tokensFilled, refund) = bid.calculateFill(
                 tick.price,
                 finalCheckpoint.cumulativeMpsPerPrice - startCheckpoint.cumulativeMpsPerPrice,
                 finalCheckpoint.cumulativeMps - startCheckpoint.cumulativeMps
@@ -289,7 +289,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             // price < clearingPrice       | clearingPrice == price -------------------------->
 
             // Account the fully filled checkpoints
-            (tokensFilled, refund) = bid.resolve(
+            (tokensFilled, refund) = bid.calculateFill(
                 tick.price,
                 lastValidCheckpoint.cumulativeMpsPerPrice - startCheckpoint.cumulativeMpsPerPrice,
                 lastValidCheckpoint.cumulativeMps - startCheckpoint.cumulativeMps
@@ -312,22 +312,21 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
              *
              * D_active can change over time so we must iterate over the checkpoints to calculate the partial fill
              */
-            uint256 partialTokensFilled;
             Checkpoint memory _iter = latestCheckpoint();
-            partialTokensFilled += BidLib.partialFill(
+            tokensFilled += BidLib.partialFill(
                 bid.demand(tick.price, tickSpacing),
                 (endBlock - _lastCheckpointedBlock) * _iter.blockCleared,
                 _iter.resolvedActiveDemand
             );
             while (_iter.prev != upperCheckpointBlock && _iter.prev != 0) {
-                partialTokensFilled += BidLib.partialFill(
+                tokensFilled += BidLib.partialFill(
                     bid.demand(tick.price, tickSpacing),
                     _iter.totalCleared - _getCheckpoint(_iter.prev).totalCleared,
                     _iter.resolvedActiveDemand
                 );
                 _iter = _getCheckpoint(_iter.prev);
             }
-            tokensFilled += partialTokensFilled;
+            // TODO: calculate refund
         } else {
             revert CannotWithdrawBid();
         }

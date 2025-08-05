@@ -6,7 +6,6 @@ import {BidStorage} from './BidStorage.sol';
 import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
 import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
 import {TickStorage} from './TickStorage.sol';
-import {console2} from 'forge-std/console2.sol';
 
 import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
 import {Tick, TickLib} from './libraries/TickLib.sol';

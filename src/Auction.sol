@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.23;
 
+import {console2} from 'forge-std/console2.sol';
 import {AuctionStepStorage} from './AuctionStepStorage.sol';
 import {BidStorage} from './BidStorage.sol';
 import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
@@ -8,7 +9,7 @@ import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
 import {TickStorage} from './TickStorage.sol';
 
 import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
-import {Tick} from './libraries/TickLib.sol';
+import {Tick, TickLib} from './libraries/TickLib.sol';
 
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
@@ -18,7 +19,7 @@ import {Bid, BidLib} from './libraries/BidLib.sol';
 
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
-import {DemandLib} from './libraries/DemandLib.sol';
+import {Demand, DemandLib} from './libraries/DemandLib.sol';
 
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -28,10 +29,11 @@ import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepStorage, BidStorage, CheckpointStorage {
     using FixedPointMathLib for uint256;
     using CurrencyLibrary for Currency;
+    using TickLib for Tick;
     using BidLib for Bid;
     using AuctionStepLib for *;
-    using DemandLib for *;
     using CheckpointLib for Checkpoint;
+    using DemandLib for Demand;
 
     /// @notice The currency of the auction
     Currency public immutable currency;
@@ -52,10 +54,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
     /// @notice The starting price of the auction
     uint256 public immutable floorPrice;
 
-    /// @notice Sum of all demand at or above tickUpper for `currency` (exactIn)
-    uint256 public sumCurrencyDemandAtTickUpper;
-    /// @notice Sum of all demand at or above tickUpper for `token` (exactOut)
-    uint256 public sumTokenDemandAtTickUpper;
+    Demand public sumDemandTickUpper;
 
     address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
@@ -121,28 +120,21 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         // Advance to the current step if needed, summing up the results since the last checkpointed block
         _checkpoint = _advanceToCurrentStep();
 
-        uint256 _sumCurrencyDemandAtTickUpper = sumCurrencyDemandAtTickUpper;
-        uint256 _sumTokenDemandAtTickUpper = sumTokenDemandAtTickUpper;
-
-        Tick memory tickUpper = ticks[tickUpperId];
+        Demand memory _sumDemandTickUpper = sumDemandTickUpper;
+        Tick memory _tickUpper = ticks[tickUpperId];
 
         uint256 blockTokenSupply = step.resolvedSupply(totalSupply, _checkpoint.totalCleared, _checkpoint.cumulativeMps);
-        uint256 blockAggregateDemand = tickUpper.price.demand(
-            tickSpacing, _sumCurrencyDemandAtTickUpper, _sumTokenDemandAtTickUpper
-        ).applyMps(step.mps);
+        uint256 blockAggregateDemand = _sumDemandTickUpper.resolve(_tickUpper.price, tickSpacing).applyMps(step.mps);
 
-        while (blockAggregateDemand >= blockTokenSupply && tickUpper.next != 0) {
+        while (blockAggregateDemand >= blockTokenSupply && _tickUpper.next != 0) {
             // Subtract the demand at the old tickUpper as it has been outbid
-            _sumCurrencyDemandAtTickUpper -= tickUpper.sumCurrencyDemand;
-            _sumTokenDemandAtTickUpper -= tickUpper.sumTokenDemand;
+            _sumDemandTickUpper = _sumDemandTickUpper.sub(_tickUpper.demand);
 
             // Advance to the next discovered tick
-            tickUpper = ticks[tickUpper.next];
-            blockAggregateDemand = tickUpper.price.demand(
-                tickSpacing, _sumCurrencyDemandAtTickUpper, _sumTokenDemandAtTickUpper
-            ).applyMps(step.mps);
+            _tickUpper = ticks[_tickUpper.next];
+            blockAggregateDemand = _sumDemandTickUpper.resolve(_tickUpper.price, tickSpacing).applyMps(step.mps);
         }
-        tickUpperId = tickUpper.id;
+        tickUpperId = _tickUpper.id;
 
         uint256 _newClearingPrice;
         // Not enough demand to clear at tickUpper, must be between tickUpper and the tick below it
@@ -150,15 +142,19 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         if (blockAggregateDemand < blockTokenSupply && blockAggregateDemand > 0) {
             // Find the clearing price between the tickLower and tickUpper
             _newClearingPrice = (
-                (blockTokenSupply - _sumTokenDemandAtTickUpper.applyMps(step.mps)).fullMulDiv(
-                    tickSpacing, _sumCurrencyDemandAtTickUpper.applyMps(step.mps)
+                (blockTokenSupply - _sumDemandTickUpper.tokenDemand.applyMps(step.mps)).fullMulDiv(
+                    tickSpacing, _sumDemandTickUpper.currencyDemand.applyMps(step.mps)
                 )
             );
             // Round clearingPrice down to the nearest tickSpacing
             _newClearingPrice -= (_newClearingPrice % tickSpacing);
         } else if (blockAggregateDemand == blockTokenSupply) {
-            _newClearingPrice = tickUpper.price;
+            _newClearingPrice = _tickUpper.price;
         }
+
+        console2.log('blockAggregateDemand', blockAggregateDemand);
+        console2.log('blockTokenSupply', blockTokenSupply);
+        console2.log('newClearingPrice', _newClearingPrice);
 
         // If the clearing price is below the floorPrice, set it to the floorPrice
         if (_newClearingPrice < floorPrice) {
@@ -171,6 +167,9 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             _checkpoint.clearingPrice = _newClearingPrice;
             _checkpoint.totalCleared += blockTokenSupply;
         }
+
+        console2.log('clearingPrice', _checkpoint.clearingPrice);
+        console2.log('totalCleared', _checkpoint.totalCleared);
 
         uint24 mpsSinceLastCheckpoint;
         if (step.startBlock > _lastCheckpointedBlock) {
@@ -188,14 +187,12 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         _checkpoint.cumulativeMps += mpsSinceLastCheckpoint;
         _checkpoint.cumulativeMpsPerPrice +=
             uint256(mpsSinceLastCheckpoint).fullMulDiv(BidLib.PRECISION, _checkpoint.clearingPrice);
-        _checkpoint.aggregateActiveDemand = tickUpper.price.demand(
-            tickSpacing, _sumCurrencyDemandAtTickUpper, _sumTokenDemandAtTickUpper
-        ) + ticks[tickUpper.prev].demand(tickSpacing);
+        _checkpoint.aggregateActiveDemand = _sumDemandTickUpper.resolve(_tickUpper.price, tickSpacing)
+            + _sumDemandTickUpper.resolve(ticks[_tickUpper.prev].price, tickSpacing);
 
         _insertCheckpoint(_checkpoint);
 
-        sumCurrencyDemandAtTickUpper = _sumCurrencyDemandAtTickUpper;
-        sumTokenDemandAtTickUpper = _sumTokenDemandAtTickUpper;
+        sumDemandTickUpper = _sumDemandTickUpper;
 
         emit CheckpointUpdated(
             block.number, _checkpoint.clearingPrice, _checkpoint.totalCleared, _checkpoint.cumulativeMps
@@ -228,9 +225,9 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         // Only bids higher than the clearing price can change the clearing price
         if (maxPrice >= ticks[tickUpperId].price) {
             if (exactIn) {
-                sumCurrencyDemandAtTickUpper += amount;
+                sumDemandTickUpper = sumDemandTickUpper.addCurrencyAmount(amount);
             } else {
-                sumTokenDemandAtTickUpper += amount;
+                sumDemandTickUpper = sumDemandTickUpper.addTokenAmount(amount);
             }
         }
 
@@ -317,8 +314,8 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
              *
              * D_upper and D_tick can change over time
              */
-            uint256 d_tick = tick.demand(tickSpacing);
-            uint256 d_upper = tick.price.demand(tickSpacing, sumCurrencyDemandAtTickUpper, sumTokenDemandAtTickUpper);
+            uint256 d_tick = tick.resolveDemand(tickSpacing);
+            uint256 d_upper = sumDemandTickUpper.resolve(tick.price, tickSpacing);
 
             Checkpoint memory finalCheckpoint = upperCheckpoint.transform(endBlock - upperCheckpointBlock, step.mps);
             (uint256 partialTokensFilled, uint256 partialRefund) =

@@ -4,12 +4,15 @@ pragma solidity ^0.8.23;
 import {ITickStorage} from './interfaces/ITickStorage.sol';
 
 import {Bid} from './libraries/BidLib.sol';
+import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {Tick} from './libraries/TickLib.sol';
 
 /// @title TickStorage
 /// @notice Abstract contract for handling tick storage
 abstract contract TickStorage is ITickStorage {
+    using DemandLib for Demand;
     /// @notice Doubly linked list of ticks, sorted ascending by price
+
     mapping(uint128 id => Tick) public ticks;
     /// @notice The id of the next tick to be initialized
     uint128 public nextTickId;
@@ -56,8 +59,6 @@ abstract contract TickStorage is ITickStorage {
         newTick.prev = prev;
         newTick.next = next;
         newTick.price = price;
-        newTick.sumCurrencyDemand = 0;
-        newTick.sumTokenDemand = 0;
 
         if (prev == 0) {
             // Base case: first tick becomes both head and tickUpper
@@ -84,9 +85,9 @@ abstract contract TickStorage is ITickStorage {
         Tick storage tick = ticks[id];
 
         if (exactIn) {
-            tick.sumCurrencyDemand += amount;
+            tick.demand = tick.demand.addCurrencyAmount(amount);
         } else {
-            tick.sumTokenDemand += amount;
+            tick.demand = tick.demand.addTokenAmount(amount);
         }
     }
 }

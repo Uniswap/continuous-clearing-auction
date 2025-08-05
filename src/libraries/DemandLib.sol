@@ -1,18 +1,35 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {Tick} from './TickLib.sol';
+struct Demand {
+    uint256 currencyDemand;
+    uint256 tokenDemand;
+}
 
 library DemandLib {
-    function demand(Tick memory tick, uint256 tickSpacing) internal pure returns (uint256) {
-        return demand(tick.price, tickSpacing, tick.sumCurrencyDemand, tick.sumTokenDemand);
+    function resolve(Demand memory _demand, uint256 price, uint256 tickSpacing) internal pure returns (uint256) {
+        return price == 0 ? 0 : (_demand.currencyDemand * tickSpacing / price) + _demand.tokenDemand;
     }
 
-    function demand(uint256 price, uint256 tickSpacing, uint256 sumCurrencyDemand, uint256 sumTokenDemand)
-        internal
-        pure
-        returns (uint256)
-    {
-        return (sumCurrencyDemand * tickSpacing / price) + sumTokenDemand;
+    function sub(Demand memory _demand, Demand memory _other) internal pure returns (Demand memory) {
+        return Demand({
+            currencyDemand: _demand.currencyDemand - _other.currencyDemand,
+            tokenDemand: _demand.tokenDemand - _other.tokenDemand
+        });
+    }
+
+    function add(Demand memory _demand, Demand memory _other) internal pure returns (Demand memory) {
+        return Demand({
+            currencyDemand: _demand.currencyDemand + _other.currencyDemand,
+            tokenDemand: _demand.tokenDemand + _other.tokenDemand
+        });
+    }
+
+    function addCurrencyAmount(Demand memory _demand, uint256 _amount) internal pure returns (Demand memory) {
+        return Demand({currencyDemand: _demand.currencyDemand + _amount, tokenDemand: _demand.tokenDemand});
+    }
+
+    function addTokenAmount(Demand memory _demand, uint256 _amount) internal pure returns (Demand memory) {
+        return Demand({currencyDemand: _demand.currencyDemand, tokenDemand: _demand.tokenDemand + _amount});
     }
 }

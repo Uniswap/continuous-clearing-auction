@@ -10,7 +10,7 @@ struct Checkpoint {
     uint256 totalCleared;
     uint24 cumulativeMps;
     uint256 cumulativeMpsPerPrice;
-    uint256 aggregateActiveDemand;
+    uint256 resolvedActiveDemand;
     uint256 prev;
 }
 
@@ -37,7 +37,7 @@ library CheckpointLib {
             cumulativeMps: checkpoint.cumulativeMps + deltaMps,
             cumulativeMpsPerPrice: checkpoint.cumulativeMpsPerPrice
                 + uint256(deltaMps).fullMulDiv(BidLib.PRECISION, checkpoint.clearingPrice),
-            aggregateActiveDemand: checkpoint.aggregateActiveDemand,
+            resolvedActiveDemand: checkpoint.resolvedActiveDemand,
             prev: checkpoint.prev
         });
     }

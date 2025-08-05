@@ -2,6 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {AuctionStepLib} from './AuctionStepLib.sol';
+import {DemandLib} from './DemandLib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 struct Bid {
@@ -17,6 +18,8 @@ struct Bid {
 library BidLib {
     using AuctionStepLib for uint256;
     using FixedPointMathLib for uint256;
+    using DemandLib for uint256;
+    using BidLib for Bid;
 
     error InvalidBidPrice();
 
@@ -49,11 +52,25 @@ library BidLib {
         }
     }
 
-    function currencyDemand(Bid memory bid) internal pure returns (uint256) {
-        return bid.exactIn ? bid.amount : 0;
+    /// @notice Resolve the demand of a bid
+    /// @param bid The bid
+    /// @param price The price of the bid
+    /// @param tickSpacing The tick spacing of the auction
+    /// @return The demand of the bid
+    function demand(Bid memory bid, uint256 price, uint256 tickSpacing) internal pure returns (uint256) {
+        return bid.exactIn ? bid.amount.resolveCurrencyDemand(price, tickSpacing) : bid.amount;
     }
 
-    function tokenDemand(Bid memory bid) internal pure returns (uint256) {
-        return bid.exactIn ? 0 : bid.amount;
+    /// @notice Calculate the partial fill of a bid
+    /// @param bidDemand The demand of the bid
+    /// @param supply The supply of the auction
+    /// @param activeDemand The active demand of the auction
+    /// @return The partial fill of the bid
+    function partialFill(uint256 bidDemand, uint256 supply, uint256 activeDemand)
+        internal
+        pure
+        returns (uint256)
+    {
+        return supply.fullMulDiv(bidDemand, activeDemand);
     }
 }

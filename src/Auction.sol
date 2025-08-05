@@ -117,6 +117,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         returns (uint256 newClearingPrice)
     {
         if (_blockDemand < _blockTokenSupply && _blockDemand > 0) {
+            // If there is no tick below tickUpper, the demand will resolve to 0 and clearingPrice will be 0
             Demand memory sumDemandTickLower = sumDemandTickUpper.add(ticks[tickUpper.prev].demand);
             newClearingPrice = sumDemandTickLower.currencyDemand.applyMps(step.mps).fullMulDiv(
                 tickSpacing, (_blockTokenSupply - sumDemandTickLower.tokenDemand.applyMps(step.mps))

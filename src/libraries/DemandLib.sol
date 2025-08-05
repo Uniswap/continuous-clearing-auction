@@ -11,6 +11,18 @@ library DemandLib {
         return price == 0 ? 0 : (_demand.currencyDemand * tickSpacing / price) + _demand.tokenDemand;
     }
 
+    function resolveCurrencyDemand(Demand memory _demand, uint256 price, uint256 tickSpacing)
+        internal
+        pure
+        returns (uint256)
+    {
+        return price == 0 ? 0 : _demand.currencyDemand * tickSpacing / price;
+    }
+
+    function resolveTokenDemand(Demand memory _demand) internal pure returns (uint256) {
+        return _demand.tokenDemand;
+    }
+
     function sub(Demand memory _demand, Demand memory _other) internal pure returns (Demand memory) {
         return Demand({
             currencyDemand: _demand.currencyDemand - _other.currencyDemand,

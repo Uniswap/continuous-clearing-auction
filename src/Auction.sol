@@ -54,8 +54,8 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
     /// @notice The starting price of the auction
     uint256 public immutable floorPrice;
 
-    /// @notice The sum of demand that is currently at or above tickUpper
-    Demand public activeDemandAtOrAboveTickUpper;
+    /// @notice The sum of demand in ticks at or above tickUpper
+    Demand public sumDemandTickUpper;
 
     address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
@@ -122,46 +122,44 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         _checkpoint = _advanceToCurrentStep();
 
         // All active demand at or above clearing price
-        Demand memory _activeDemandAtOrAboveTickUpper = activeDemandAtOrAboveTickUpper;
+        Demand memory _sumDemandTickUpper = sumDemandTickUpper;
 
         uint256 blockTokenSupply = step.resolvedSupply(totalSupply, _checkpoint.totalCleared, _checkpoint.cumulativeMps);
 
         Tick memory _tickUpper = ticks[tickUpperId];
-        // If tick upper does not have enough demand to clear the supply, price must be below it, so break
-        while (_activeDemandAtOrAboveTickUpper.resolve(_tickUpper.price, tickSpacing).applyMps(step.mps) > blockTokenSupply && _tickUpper.next != 0) {
-            // Subtract the demand at the current tickUpper to advance to the next tick
-            _activeDemandAtOrAboveTickUpper = _activeDemandAtOrAboveTickUpper.sub(_tickUpper.demand);
-            // Advance to the next discovered tick
+        // Find the next tick where the demand at or above it is strictly less than the supply
+        while (
+            _sumDemandTickUpper.resolve(_tickUpper.price, tickSpacing).applyMps(step.mps) >= blockTokenSupply
+                && _tickUpper.next != 0
+        ) {
+            // Subtract the demand at the current tickUpper before advancing to the next tick
+            _sumDemandTickUpper = _sumDemandTickUpper.sub(_tickUpper.demand);
             _tickUpper = ticks[_tickUpper.next];
             tickUpperId = _tickUpper.id;
         }
-        uint256 blockDemandAtOrAboveTickUpper = _activeDemandAtOrAboveTickUpper.resolve(_tickUpper.price, tickSpacing).applyMps(step.mps);
-        console2.log('tickUpper.next', _tickUpper.next);
-        console2.log('tickUpper.price', _tickUpper.price);
-        console2.log('blockDemandAtOrAboveTickUpper', blockDemandAtOrAboveTickUpper);
-        console2.log('blockTokenSupply', blockTokenSupply);
+        uint256 blockDemandAtOrAboveTickUpper =
+            _sumDemandTickUpper.resolve(_tickUpper.price, tickSpacing).applyMps(step.mps);
 
         uint256 _newClearingPrice;
         // Not enough demand to clear at tickUpper, must be between tickUpper and the tick below it
         if (blockDemandAtOrAboveTickUpper < blockTokenSupply && blockDemandAtOrAboveTickUpper > 0) {
-            // Find the clearing price
+            // Find the clearing price using tick lower
+            Demand memory _sumDemandTickLower =
+                _sumDemandTickUpper.add(ticks[_tickUpper.prev].demand);
             _newClearingPrice = (
-                _activeDemandAtOrAboveTickUpper.currencyDemand.applyMps(step.mps).fullMulDiv(
-                    tickSpacing, (blockTokenSupply - _activeDemandAtOrAboveTickUpper.tokenDemand.applyMps(step.mps))
+                _sumDemandTickLower.currencyDemand.applyMps(step.mps).fullMulDiv(
+                    tickSpacing, (blockTokenSupply - _sumDemandTickLower.tokenDemand.applyMps(step.mps))
                 )
             );
-            console2.log('activeDemandAtOrAboveTickUpper.currencyDemand.applyMps(step.mps)', _activeDemandAtOrAboveTickUpper.currencyDemand.applyMps(step.mps));
-            console2.log('blockTokenSupply', blockTokenSupply);
-            console2.log('newClearingPrice', _newClearingPrice);
             // Round clearingPrice down to the nearest tickSpacing
             _newClearingPrice -= (_newClearingPrice % tickSpacing);
-        } 
+        }
         // In the case where the demand is still greater than the supply, we have a partial fill at tickUpper
         else if (blockDemandAtOrAboveTickUpper >= blockTokenSupply) {
             _newClearingPrice = _tickUpper.price;
         }
 
-        // If the clearing price is below the floorPrice, set it to the floorPrice
+        // Set the clearing price to the floorPrice if it is lower
         if (_newClearingPrice < floorPrice) {
             _checkpoint.clearingPrice = floorPrice;
             // We can only clear the current demand at the floor price
@@ -189,12 +187,12 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         _checkpoint.cumulativeMps += mpsSinceLastCheckpoint;
         _checkpoint.cumulativeMpsPerPrice +=
             uint256(mpsSinceLastCheckpoint).fullMulDiv(BidLib.PRECISION, _checkpoint.clearingPrice);
-        // _checkpoint.aggregateActiveDemand = _activeDemandAtOrAboveTickUpper.resolve(_tickUpper.price, tickSpacing)
-        //     + _activeDemandAtOrAboveTickUpper.resolve(ticks[_tickUpper.prev].price, tickSpacing);
+        // _checkpoint.aggregateActiveDemand = _sumDemandTickUpper.resolve(_tickUpper.price, tickSpacing)
+        //     + _sumDemandTickUpper.resolve(ticks[_tickUpper.prev].price, tickSpacing);
 
         _insertCheckpoint(_checkpoint);
 
-        activeDemandAtOrAboveTickUpper = _activeDemandAtOrAboveTickUpper;
+        sumDemandTickUpper = _sumDemandTickUpper;
 
         emit CheckpointUpdated(
             block.number, _checkpoint.clearingPrice, _checkpoint.totalCleared, _checkpoint.cumulativeMps
@@ -226,9 +224,9 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
         if (maxPrice >= ticks[tickUpperId].price) {
             if (exactIn) {
-                activeDemandAtOrAboveTickUpper = activeDemandAtOrAboveTickUpper.addCurrencyAmount(amount);
+                sumDemandTickUpper = sumDemandTickUpper.addCurrencyAmount(amount);
             } else {
-                activeDemandAtOrAboveTickUpper = activeDemandAtOrAboveTickUpper.addTokenAmount(amount);
+                sumDemandTickUpper = sumDemandTickUpper.addTokenAmount(amount);
             }
         }
 
@@ -316,7 +314,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
              * D_upper and D_tick can change over time
              */
             uint256 d_tick = tick.resolveDemand(tickSpacing);
-            uint256 d_upper = activeDemandAtOrAboveTickUpper.resolve(tick.price, tickSpacing);
+            uint256 d_upper = sumDemandTickUpper.resolve(tick.price, tickSpacing);
 
             Checkpoint memory finalCheckpoint = upperCheckpoint.transform(endBlock - upperCheckpointBlock, step.mps);
             (uint256 partialTokensFilled, uint256 partialRefund) =

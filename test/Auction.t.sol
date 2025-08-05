@@ -72,10 +72,9 @@ contract AuctionTest is TokenHandler, Test {
     }
 
     function test_submitBid_exactIn_initializesTickAndUpdatesClearingPrice_succeeds_gas() public {
-        uint256 amount = TOTAL_SUPPLY;
         vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(0, alice, _tickPriceAt(2), true, amount);
-        auction.submitBid{value: amount}(_tickPriceAt(2), true, amount, alice, 1, bytes(''));
+        emit IAuction.BidSubmitted(0, alice, _tickPriceAt(2), true, TOTAL_SUPPLY * 2);
+        auction.submitBid{value: TOTAL_SUPPLY * 2}(_tickPriceAt(2), true, TOTAL_SUPPLY * 2, alice, 1, bytes(''));
         vm.snapshotGasLastCall('submitBid_recordStep_updateCheckpoint_initializeTick');
 
         vm.roll(block.number + 1);

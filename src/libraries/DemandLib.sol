@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+
 struct Demand {
     uint256 currencyDemand;
     uint256 tokenDemand;
 }
 
 library DemandLib {
+    using FixedPointMathLib for uint256;
+
     function resolve(Demand memory _demand, uint256 price, uint256 tickSpacing) internal pure returns (uint256) {
-        return price == 0 ? 0 : (_demand.currencyDemand * tickSpacing / price) + _demand.tokenDemand;
+        return price == 0 ? 0 : (_demand.currencyDemand.fullMulDiv(tickSpacing, price)) + _demand.tokenDemand;
     }
 
     function resolveCurrencyDemand(uint256 amount, uint256 price, uint256 tickSpacing)
@@ -16,7 +20,7 @@ library DemandLib {
         pure
         returns (uint256)
     {
-        return price == 0 ? 0 : amount * tickSpacing / price;
+        return price == 0 ? 0 : amount.fullMulDiv(tickSpacing, price);
     }
 
     function resolveTokenDemand(uint256 amount) internal pure returns (uint256) {

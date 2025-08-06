@@ -179,7 +179,8 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
         // All active demand at or above clearing price
         Demand memory _sumDemandTickUpper = sumDemandTickUpper;
-        uint256 blockTokenSupply = step.resolvedSupply(totalSupply, _checkpoint.totalCleared, _checkpoint.cumulativeMps);
+        uint256 blockTokenSupply =
+            (totalSupply - _checkpoint.totalCleared).fullMulDiv(step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps);
 
         Tick memory _tickUpper = ticks[tickUpperId];
         // Find the next tick where the demand at or above it is strictly less than the supply
@@ -296,7 +297,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             (tokensFilled,) = _accountFullyFilledCheckpoints(finalCheckpoint, startCheckpoint, bid);
             refund = bid.calculateRefund(tick.price, tokensFilled, AuctionStepLib.MPS);
         }
-        /// @dev Bid is partially filled at the end of the auction 
+        /// @dev Bid is partially filled at the end of the auction
         else if (tick.price == _clearingPrice && block.number > endBlock) {
             // Setup:
             // lastValidCheckpoint --- ... | upperCheckpoint --- ... | latestCheckpoint ... | endBlock
@@ -319,9 +320,9 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             bid.withdrawnBlock = uint64(block.number);
             _updateBid(bidId, bid);
         }
-        
+
         currency.transfer(bid.owner, refund);
-        
+
         emit BidWithdrawn(bidId, bid.owner);
     }
 

@@ -51,6 +51,8 @@ contract AuctionTest is TokenHandler, Test {
         auction = new Auction(address(token), TOTAL_SUPPLY, params);
     }
 
+    /// forge-config: default.isolate = true
+    /// forge-config: ci.isolate = true
     function test_submitBid_exactIn_atFloorPrice_succeeds_gas() public {
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(0, alice, _tickPriceAt(1), true, 100e18);
@@ -71,6 +73,8 @@ contract AuctionTest is TokenHandler, Test {
         auction.submitBid{value: 10e18}(_tickPriceAt(1), false, 10e18, alice, 0, bytes(''));
     }
 
+    /// forge-config: default.isolate = true
+    /// forge-config: ci.isolate = true
     function test_submitBid_exactIn_initializesTickAndUpdatesClearingPrice_succeeds_gas() public {
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(0, alice, _tickPriceAt(2), true, TOTAL_SUPPLY * 2);

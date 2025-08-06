@@ -1,14 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-struct Checkpoint {
-    uint256 clearingPrice;
-    uint256 blockCleared;
-    uint256 totalCleared;
-    uint24 cumulativeMps;
-    uint256 cumulativeMpsPerPrice;
-    uint256 prev;
-}
+import {Checkpoint} from './libraries/CheckpointLib.sol';
 
 abstract contract CheckpointStorage {
     mapping(uint256 blockNumber => Checkpoint) private checkpoints;

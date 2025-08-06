@@ -4,11 +4,19 @@ pragma solidity ^0.8.23;
 import {Bid, BidLib} from '../../src/libraries/BidLib.sol';
 
 contract MockBidLib {
-    function resolve(Bid memory bid, uint256 maxPrice, uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
+    function calculateFill(Bid memory bid, uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
         external
         pure
-        returns (uint256 tokensFilled, uint256 refund)
+        returns (uint256 tokensFilled)
     {
-        return BidLib.resolve(bid, maxPrice, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
+        return BidLib.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
+    }
+
+    function calculateRefund(Bid memory bid, uint256 maxPrice, uint256 tokensFilled, uint24 cumulativeMpsDelta)
+        external
+        pure
+        returns (uint256 refund)
+    {
+        return BidLib.calculateRefund(bid, maxPrice, tokensFilled, cumulativeMpsDelta);
     }
 }

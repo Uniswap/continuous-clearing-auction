@@ -173,8 +173,6 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
     /// @notice Register a new checkpoint
     /// @dev This function is called every time a new bid is submitted above the current clearing price
     function checkpoint() public returns (Checkpoint memory _checkpoint) {
-        uint256 _lastCheckpointedBlock = lastCheckpointedBlock;
-        if (_lastCheckpointedBlock == block.number) return latestCheckpoint();
         if (block.number < startBlock) revert AuctionNotStarted();
 
         // Advance to the current step if needed, summing up the results since the last checkpointed block
@@ -200,13 +198,12 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
         uint256 blockDemand = _sumDemandTickUpper.resolve(_tickUpper.price, tickSpacing).applyMps(step.mps);
 
-        // If there is no tick below tickUpper, tick lower demand will resolve to 0 and clearingPrice will be 0
-        Demand memory _sumDemandTickLower = _sumDemandTickUpper.add(ticks[_tickUpper.prev].demand);
-        uint256 _newClearingPrice =
-            _calculateNewClearingPrice(_tickUpper, _sumDemandTickLower, blockDemand, blockTokenSupply);
+        uint256 newClearingPrice = _calculateNewClearingPrice(
+            _tickUpper, _sumDemandTickUpper.add(ticks[_tickUpper.prev].demand), blockDemand, blockTokenSupply
+        );
 
         _checkpoint =
-            _updateCheckpoint(_checkpoint, _sumDemandTickUpper, _newClearingPrice, blockDemand, blockTokenSupply);
+            _updateCheckpoint(_checkpoint, _sumDemandTickUpper, newClearingPrice, blockDemand, blockTokenSupply);
         _insertCheckpoint(_checkpoint);
 
         sumDemandTickUpper = _sumDemandTickUpper;
@@ -225,7 +222,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         bytes calldata hookData
     ) internal {
         // First bid in a block updates the clearing price
-        checkpoint();
+        if (lastCheckpointedBlock != block.number) checkpoint();
 
         uint128 tickId = _initializeTickIfNeeded(prevHintId, maxPrice);
 

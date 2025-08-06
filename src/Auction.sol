@@ -142,7 +142,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         uint256 _clearingPrice,
         uint256 _blockDemand,
         uint256 _blockTokenSupply
-    ) internal returns (Checkpoint memory) {
+    ) internal view returns (Checkpoint memory) {
         // Set the clearing price to the floorPrice if it is lower
         if (_clearingPrice < floorPrice) {
             _checkpoint.clearingPrice = floorPrice;
@@ -284,31 +284,21 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         uint256 _clearingPrice = clearingPrice();
         /// @dev Bid was fully filled the checkpoint under UpperCheckpoint
         if (tick.price < _clearingPrice) {
-            (tokensFilled, refund) = bid.calculateFill(
-                tick.price,
-                lastValidCheckpoint.cumulativeMpsPerPrice - startCheckpoint.cumulativeMpsPerPrice,
-                lastValidCheckpoint.cumulativeMps - startCheckpoint.cumulativeMps
-            );
+            (tokensFilled, refund) =
+                _accountFullyFilledCheckpoints(lastValidCheckpoint, startCheckpoint, bid, tick.price);
         }
         /// @dev Bid was fully filled and the auction is now over
         else if (tick.price > _clearingPrice && block.number > endBlock) {
             Checkpoint memory finalCheckpoint =
                 latestCheckpoint().transform(endBlock - _lastCheckpointedBlock, step.mps);
-            (tokensFilled, refund) = bid.calculateFill(
-                tick.price,
-                finalCheckpoint.cumulativeMpsPerPrice - startCheckpoint.cumulativeMpsPerPrice,
-                finalCheckpoint.cumulativeMps - startCheckpoint.cumulativeMps
-            );
+            (tokensFilled, refund) = _accountFullyFilledCheckpoints(finalCheckpoint, startCheckpoint, bid, tick.price);
         } else if (tick.price == _clearingPrice && block.number > endBlock) {
             // lastValidCheckpoint --- ... | upperCheckpoint --- ... | latestCheckpoint ... | endBlock
             // price < clearingPrice       | clearingPrice == price -------------------------->
 
             // Account the fully filled checkpoints
-            (tokensFilled, refund) = bid.calculateFill(
-                tick.price,
-                lastValidCheckpoint.cumulativeMpsPerPrice - startCheckpoint.cumulativeMpsPerPrice,
-                lastValidCheckpoint.cumulativeMps - startCheckpoint.cumulativeMps
-            );
+            (tokensFilled, refund) =
+                _accountFullyFilledCheckpoints(lastValidCheckpoint, startCheckpoint, bid, tick.price);
 
             /**
              * The tokens sold to bidders of a price (p) is equal to the supply sold
@@ -327,21 +317,20 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
              *
              * D_active can change over time so we must iterate over the checkpoints to calculate the partial fill
              */
-            Checkpoint memory _iter = latestCheckpoint();
-            tokensFilled += BidLib.partialFill(
-                bid.demand(tick.price, tickSpacing),
-                (endBlock - _lastCheckpointedBlock) * _iter.blockCleared,
-                _iter.resolvedActiveDemand
+
+            // Account for the remaining supply sold between latest checkpoint and endBlock
+
+            Checkpoint memory _latestCheckpoint = latestCheckpoint();
+            (uint256 partialTokensFilled, uint24 partialCumulativeMpsDelta) =
+                _accountPartiallyFilledCheckpoints(_latestCheckpoint, upperCheckpointBlock, bid, tick.price);
+            tokensFilled += partialTokensFilled;
+
+            tokensFilled += ((endBlock - _lastCheckpointedBlock) * _latestCheckpoint.blockCleared).fullMulDiv(
+                bid.demand(tick.price, tickSpacing), _latestCheckpoint.resolvedActiveDemand
             );
-            while (_iter.prev != upperCheckpointBlock && _iter.prev != 0) {
-                tokensFilled += BidLib.partialFill(
-                    bid.demand(tick.price, tickSpacing),
-                    _iter.totalCleared - _getCheckpoint(_iter.prev).totalCleared,
-                    _iter.resolvedActiveDemand
-                );
-                _iter = _getCheckpoint(_iter.prev);
-            }
-            // TODO: calculate refund
+            partialCumulativeMpsDelta += uint24(endBlock - _lastCheckpointedBlock) * step.mps;
+
+            refund += bid.calculateRefund(tick.price, tokensFilled, partialCumulativeMpsDelta);
         } else {
             revert CannotWithdrawBid();
         }
@@ -372,6 +361,37 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         token.transfer(bid.owner, tokensFilled);
 
         emit TokensClaimed(bid.owner, tokensFilled);
+    }
+
+    function _accountFullyFilledCheckpoints(
+        Checkpoint memory upper,
+        Checkpoint memory lower,
+        Bid memory bid,
+        uint256 maxPrice
+    ) internal pure returns (uint256 tokensFilled, uint256 refund) {
+        uint24 cumulativeMpsDelta = upper.cumulativeMps - lower.cumulativeMps;
+        tokensFilled = bid.calculateFill(upper.cumulativeMpsPerPrice - lower.cumulativeMpsPerPrice, cumulativeMpsDelta);
+        refund = bid.calculateRefund(maxPrice, tokensFilled, cumulativeMpsDelta);
+    }
+
+    function _accountPartiallyFilledCheckpoints(
+        Checkpoint memory upper,
+        uint256 _endBlock,
+        Bid memory bid,
+        uint256 maxPrice
+    ) internal view returns (uint256 tokensFilled, uint24 cumulativeMpsDelta) {
+        while (upper.prev != _endBlock && upper.prev != 0) {
+            uint256 bidDemand = bid.demand(maxPrice, tickSpacing);
+            uint256 supply = upper.totalCleared - _getCheckpoint(upper.prev).totalCleared;
+            tokensFilled += supply.fullMulDiv(bidDemand, upper.resolvedActiveDemand);
+
+            uint24 _upperCumulativeMps = upper.cumulativeMps;
+            upper = _getCheckpoint(upper.prev);
+            uint24 _mpsDelta = _upperCumulativeMps - upper.cumulativeMps;
+
+            // TODO: unsafe cast
+            cumulativeMpsDelta += uint24(uint256(_mpsDelta).fullMulDiv(bidDemand, upper.resolvedActiveDemand));
+        }
     }
 
     receive() external payable {}

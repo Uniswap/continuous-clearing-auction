@@ -48,32 +48,33 @@ library BidLib {
 
     /// @notice Calculate the tokens filled and refund of a bid which has been fully filled
     /// @param bid bid
-    /// @param maxPrice The max price of the bid
     /// @param cumulativeMpsPerPriceDelta The cumulative mps per price delta
     /// @param cumulativeMpsDelta The cumulative mps delta
     /// @return tokensFilled The amount of tokens filled
-    /// @return refund The amount of currency refunded
-    function calculateFill(
-        Bid memory bid,
-        uint256 maxPrice,
-        uint256 cumulativeMpsPerPriceDelta,
-        uint24 cumulativeMpsDelta
-    ) internal pure returns (uint256 tokensFilled, uint256 refund) {
+    function calculateFill(Bid memory bid, uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
+        internal
+        pure
+        returns (uint256 tokensFilled)
+    {
         if (bid.exactIn) {
             tokensFilled = bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, PRECISION * AuctionStepLib.MPS);
-            refund = bid.amount - bid.amount.applyMps(cumulativeMpsDelta);
         } else {
             tokensFilled = bid.amount.applyMps(cumulativeMpsDelta);
-            refund = maxPrice * (bid.amount - tokensFilled);
         }
     }
 
-    /// @notice Calculate the partial fill of a bid given its demand, the supply being sold, and the total active demand
-    /// @param bidDemand The demand of the bid
-    /// @param supply The supply of the auction
-    /// @param activeDemand The active demand of the auction
-    /// @return The partial fill of the bid
-    function partialFill(uint256 bidDemand, uint256 supply, uint256 activeDemand) internal pure returns (uint256) {
-        return supply.fullMulDiv(bidDemand, activeDemand);
+    /// @notice Calculate the refund of a bid
+    /// @param bid The bid
+    /// @param maxPrice The max price of the bid
+    /// @param tokensFilled The amount of tokens filled
+    /// @param cumulativeMpsDelta The cumulative mps delta
+    /// @return refund The amount of currency refunded
+    function calculateRefund(Bid memory bid, uint256 maxPrice, uint256 tokensFilled, uint24 cumulativeMpsDelta)
+        internal
+        pure
+        returns (uint256 refund)
+    {
+        return
+            bid.exactIn ? bid.amount - bid.amount.applyMps(cumulativeMpsDelta) : maxPrice * (bid.amount - tokensFilled);
     }
 }

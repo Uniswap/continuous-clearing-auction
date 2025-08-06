@@ -6,6 +6,7 @@ import {BidStorage} from './BidStorage.sol';
 import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
 import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
 import {TickStorage} from './TickStorage.sol';
+import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
 import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
 import {Tick, TickLib} from './libraries/TickLib.sol';
@@ -33,6 +34,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
     using AuctionStepLib for *;
     using CheckpointLib for Checkpoint;
     using DemandLib for Demand;
+    using SafeCastLib for uint256;
 
     /// @notice The currency of the auction
     Currency public immutable currency;
@@ -155,10 +157,11 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             _checkpoint.totalCleared += _blockTokenSupply;
         }
 
-        uint24 mpsSinceLastCheckpoint = uint24(
+        uint24 mpsSinceLastCheckpoint = (
             step.mps
                 * (block.number - (step.startBlock > lastCheckpointedBlock ? step.startBlock : lastCheckpointedBlock))
-        );
+        ).toUint24();
+
         _checkpoint.cumulativeMps += mpsSinceLastCheckpoint;
         _checkpoint.cumulativeMpsPerPrice +=
             uint256(mpsSinceLastCheckpoint).fullMulDiv(BidLib.PRECISION, _checkpoint.clearingPrice);
@@ -390,8 +393,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
             uint24 mpsDelta = upper.cumulativeMps - _next.cumulativeMps;
 
-            // TODO: unsafe cast
-            cumulativeMpsDelta += uint24(uint256(mpsDelta).fullMulDiv(bidDemand, upper.resolvedActiveDemand));
+            cumulativeMpsDelta += (uint256(mpsDelta).fullMulDiv(bidDemand, upper.resolvedActiveDemand)).toUint24();
             upper = _next;
         }
     }
@@ -414,7 +416,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
                 bidDemand,
                 _latestCheckpoint.resolvedActiveDemand
             );
-        cumulativeMpsDelta += partialCumulativeMpsDelta + uint24(endBlock - lastCheckpointedBlock) * step.mps;
+        cumulativeMpsDelta += partialCumulativeMpsDelta + ((endBlock - lastCheckpointedBlock) * step.mps).toUint24();
     }
 
     function _partialFill(uint256 supply, uint256 bidDemand, uint256 resolvedActiveDemand)

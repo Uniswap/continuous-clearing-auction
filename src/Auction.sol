@@ -319,10 +319,10 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             bid.tokensFilled = tokensFilled;
             bid.withdrawnBlock = uint64(block.number);
             _updateBid(bidId, bid);
-
-            currency.transfer(bid.owner, refund);
         }
-
+        
+        currency.transfer(bid.owner, refund);
+        
         emit BidWithdrawn(bidId, bid.owner);
     }
 

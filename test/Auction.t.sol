@@ -176,7 +176,7 @@ contract AuctionTest is TokenHandler, Test {
         // Expect that the second bid cannot be withdrawn, since the clearing price is below its max price
         vm.expectRevert(IAuction.CannotWithdrawBid.selector);
         vm.prank(alice);
-        auction.withdrawBid(bidId2, 1);
+        auction.withdrawBid(bidId2, 2);
     }
 
     function test_withdrawBid_reverts_withCannotWithdrawBid() public {

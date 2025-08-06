@@ -145,17 +145,17 @@ contract AuctionTest is TokenHandler, Test {
     }
 
     function test_withdrawBid_succeeds_gas() public {
-        uint256 smallAmount = 100e18;
+        uint256 smallAmount = 500e18;
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(0, alice, _tickPriceAt(1), true, smallAmount);
         uint256 bidId1 = auction.submitBid{value: smallAmount}(_tickPriceAt(1), true, smallAmount, alice, 0, bytes(''));
 
         // Bid enough to move the clearing price to 3
-        uint256 largeAmount = 1000e18;
+        uint256 largeAmount = 3000e18;
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(1, alice, _tickPriceAt(3), true, largeAmount);
         uint256 bidId2 = auction.submitBid{value: largeAmount}(_tickPriceAt(3), true, largeAmount, alice, 1, bytes(''));
-        uint256 expectedTotalCleared = 100e3 * largeAmount / AuctionStepLib.MPS;
+        uint256 expectedTotalCleared = TOTAL_SUPPLY * 100e3 / AuctionStepLib.MPS;
 
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
@@ -167,7 +167,7 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidWithdrawn(0, alice);
         vm.prank(alice);
-        auction.withdrawBid(bidId1, 1);
+        auction.withdrawBid(bidId1, 2);
         vm.snapshotGasLastCall('withdrawBid');
         // Expect that alice is refunded the full amount of the first bid
         uint256 aliceBalanceAfter = address(alice).balance;

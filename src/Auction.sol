@@ -20,6 +20,7 @@ import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 
+import {console2} from 'forge-std/console2.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
@@ -296,7 +297,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             (tokensFilled,) = _accountFullyFilledCheckpoints(finalCheckpoint, startCheckpoint, bid);
             refund = bid.calculateRefund(tick.price, tokensFilled, AuctionStepLib.MPS);
         }
-        /// @dev Bid is partially filled at the end of the auction 
+        /// @dev Bid is partially filled at the end of the auction
         else if (tick.price == _clearingPrice && block.number > endBlock) {
             // Setup:
             // lastValidCheckpoint --- ... | upperCheckpoint --- ... | latestCheckpoint ... | endBlock
@@ -318,10 +319,10 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             bid.tokensFilled = tokensFilled;
             bid.withdrawnBlock = uint64(block.number);
             _updateBid(bidId, bid);
-            
+
             currency.transfer(bid.owner, refund);
         }
-        
+
         emit BidWithdrawn(bidId, bid.owner);
     }
 

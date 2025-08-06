@@ -111,16 +111,14 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
     }
 
     /// @notice Calculate the new clearing price
-    function _calculateNewClearingPrice(Tick memory tickUpper, uint256 _blockDemand, uint256 _blockTokenSupply)
+    function _calculateNewClearingPrice(Tick memory tickUpper, Demand memory _sumDemandTickLower, uint256 _blockDemand, uint256 _blockTokenSupply)
         internal
         view
         returns (uint256 newClearingPrice)
     {
         if (_blockDemand < _blockTokenSupply && _blockDemand > 0) {
-            // If there is no tick below tickUpper, the demand will resolve to 0 and clearingPrice will be 0
-            Demand memory sumDemandTickLower = sumDemandTickUpper.add(ticks[tickUpper.prev].demand);
-            newClearingPrice = sumDemandTickLower.currencyDemand.applyMps(step.mps).fullMulDiv(
-                tickSpacing, (_blockTokenSupply - sumDemandTickLower.tokenDemand.applyMps(step.mps))
+            newClearingPrice = _sumDemandTickLower.currencyDemand.applyMps(step.mps).fullMulDiv(
+                tickSpacing, (_blockTokenSupply - _sumDemandTickLower.tokenDemand.applyMps(step.mps))
             );
             newClearingPrice -= (newClearingPrice % tickSpacing);
         } else if (_blockDemand >= _blockTokenSupply) {
@@ -131,14 +129,15 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         }
     }
 
-    /// @notice Update the checkpoint and insert it into storage
+    /// @notice Update the checkpoint
     /// @param _checkpoint The checkpoint to update
     /// @param _clearingPrice The new clearing price
     /// @param _blockDemand The demand at or above tickUpper in the block
     /// @param _blockTokenSupply The token supply at or above tickUpper in the block
     /// @return The updated checkpoint
-    function _updateAndInsertCheckpoint(
+    function _updateCheckpoint(
         Checkpoint memory _checkpoint,
+        Demand memory _activeDemand,
         uint256 _clearingPrice,
         uint256 _blockDemand,
         uint256 _blockTokenSupply
@@ -162,9 +161,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         _checkpoint.cumulativeMps += mpsSinceLastCheckpoint;
         _checkpoint.cumulativeMpsPerPrice +=
             uint256(mpsSinceLastCheckpoint).fullMulDiv(BidLib.PRECISION, _checkpoint.clearingPrice);
-        _checkpoint.resolvedActiveDemand = sumDemandTickUpper.resolve(_checkpoint.clearingPrice, tickSpacing);
-
-        _insertCheckpoint(_checkpoint);
+        _checkpoint.resolvedActiveDemand = _activeDemand.resolve(_checkpoint.clearingPrice, tickSpacing);
 
         return _checkpoint;
     }
@@ -194,13 +191,17 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             _tickUpper = ticks[_tickUpper.next];
             tickUpperId = _tickUpper.id;
         }
-        sumDemandTickUpper = _sumDemandTickUpper;
 
         uint256 blockDemand = _sumDemandTickUpper.resolve(_tickUpper.price, tickSpacing).applyMps(step.mps);
 
-        uint256 _newClearingPrice = _calculateNewClearingPrice(_tickUpper, blockDemand, blockTokenSupply);
+        // If there is no tick below tickUpper, tick lower demand will resolve to 0 and clearingPrice will be 0
+        Demand memory _sumDemandTickLower = _sumDemandTickUpper.add(ticks[_tickUpper.prev].demand);
+        uint256 _newClearingPrice = _calculateNewClearingPrice(_tickUpper, _sumDemandTickLower, blockDemand, blockTokenSupply);
 
-        _checkpoint = _updateAndInsertCheckpoint(_checkpoint, _newClearingPrice, blockDemand, blockTokenSupply);
+        _checkpoint = _updateCheckpoint(_checkpoint, _sumDemandTickUpper, _newClearingPrice, blockDemand, blockTokenSupply);
+        _insertCheckpoint(_checkpoint);
+        
+        sumDemandTickUpper = _sumDemandTickUpper;
 
         emit CheckpointUpdated(
             block.number, _checkpoint.clearingPrice, _checkpoint.totalCleared, _checkpoint.cumulativeMps

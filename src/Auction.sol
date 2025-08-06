@@ -179,8 +179,9 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
         // All active demand at or above clearing price
         Demand memory _sumDemandTickUpper = sumDemandTickUpper;
-        uint256 blockTokenSupply =
-            (totalSupply - _checkpoint.totalCleared).fullMulDiv(step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps);
+        uint256 blockTokenSupply = (totalSupply - _checkpoint.totalCleared).fullMulDiv(
+            step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
+        );
 
         Tick memory _tickUpper = ticks[tickUpperId];
         // Find the next tick where the demand at or above it is strictly less than the supply

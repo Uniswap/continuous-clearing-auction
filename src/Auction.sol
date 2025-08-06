@@ -293,10 +293,12 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         else if (tick.price > _clearingPrice && block.number > endBlock) {
             Checkpoint memory finalCheckpoint =
                 latestCheckpoint().transform(endBlock - _lastCheckpointedBlock, step.mps);
-            // TODO: might not work, should be 100% MPS
-            (tokensFilled, cumulativeMpsDelta) = _accountFullyFilledCheckpoints(finalCheckpoint, startCheckpoint, bid);
-            refund = bid.calculateRefund(tick.price, tokensFilled, cumulativeMpsDelta);
-        } else if (tick.price == _clearingPrice && block.number > endBlock) {
+            (tokensFilled,) = _accountFullyFilledCheckpoints(finalCheckpoint, startCheckpoint, bid);
+            refund = bid.calculateRefund(tick.price, tokensFilled, AuctionStepLib.MPS);
+        }
+        /// @dev Bid is partially filled at the end of the auction 
+        else if (tick.price == _clearingPrice && block.number > endBlock) {
+            // Setup:
             // lastValidCheckpoint --- ... | upperCheckpoint --- ... | latestCheckpoint ... | endBlock
             // price < clearingPrice       | clearingPrice == price -------------------------->
             (tokensFilled, cumulativeMpsDelta) =
@@ -310,8 +312,6 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             revert CannotWithdrawBid();
         }
 
-        currency.transfer(bid.owner, refund);
-
         if (tokensFilled == 0) {
             _deleteBid(bidId);
         } else {
@@ -319,6 +319,8 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             bid.withdrawnBlock = uint64(block.number);
             _updateBid(bidId, bid);
         }
+
+        currency.transfer(bid.owner, refund);
 
         emit BidWithdrawn(bidId, bid.owner);
     }

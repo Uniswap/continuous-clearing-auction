@@ -27,16 +27,7 @@ library AuctionStepLib {
         }
     }
 
-    /// @notice Resolve the supply per block within a given step
-    function resolvedSupply(AuctionStep memory step, uint256 totalSupply, uint256 totalCleared, uint256 sumMps)
-        internal
-        pure
-        returns (uint256)
-    {
-        return (totalSupply - totalCleared) * step.mps / (MPS - sumMps);
-    }
-
-    /// @notice Apply the mps to a value
+    /// @notice Apply mps to a value
     /// @dev Requires that value is > MPS to avoid loss of precision
     function applyMps(uint256 value, uint24 mps) internal pure returns (uint256) {
         return mps * value / MPS;

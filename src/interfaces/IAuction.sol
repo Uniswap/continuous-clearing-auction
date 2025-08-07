@@ -107,7 +107,7 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     /// @notice Withdraw a bid
     /// @dev A bid can only be withdrawn if the maxPrice is below the current clearing price
     /// @param bidId The id of the bid
-    /// @param upperCheckpointId The id of the checkpoint immediately after the last "active" checkpoint for the bid
+    /// @param upperCheckpointId The id of the first checkpoint where the clearing price is equal to the bid max price
     function withdrawBid(uint256 bidId, uint256 upperCheckpointId) external;
 
     /// @notice Claim tokens after the auction's claim block

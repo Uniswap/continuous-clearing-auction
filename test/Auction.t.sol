@@ -6,6 +6,7 @@ import {IAuction} from '../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
+import {BidLib} from '../src/libraries/BidLib.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
@@ -51,26 +52,24 @@ contract AuctionTest is TokenHandler, Test {
         auction = new Auction(address(token), TOTAL_SUPPLY, params);
     }
 
-    function test_submitBid_exactIn_atFloorPrice_succeeds_gas() public {
+    /// forge-config: default.isolate = true
+    /// forge-config: ci.isolate = true
+    function test_submitBid_exactIn_succeeds_gas() public {
         vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(0, alice, _tickPriceAt(1), true, 100e18);
-        auction.submitBid{value: 100e18}(_tickPriceAt(1), true, 100e18, alice, 0, bytes(''));
+        emit IAuction.BidSubmitted(0, alice, _tickPriceAt(2), true, 100e18);
+        auction.submitBid{value: 100e18}(_tickPriceAt(2), true, 100e18, alice, 1, bytes(''));
         vm.snapshotGasLastCall('submitBid_recordStep_updateCheckpoint');
 
         vm.roll(block.number + 1);
-        auction.submitBid{value: 100e18}(_tickPriceAt(1), true, 100e18, alice, 0, bytes(''));
+        auction.submitBid{value: 100e18}(_tickPriceAt(2), true, 100e18, alice, 1, bytes(''));
         vm.snapshotGasLastCall('submitBid_updateCheckpoint');
 
-        auction.submitBid{value: 100e18}(_tickPriceAt(1), true, 100e18, alice, 0, bytes(''));
+        auction.submitBid{value: 100e18}(_tickPriceAt(2), true, 100e18, alice, 1, bytes(''));
         vm.snapshotGasLastCall('submitBid');
     }
 
-    function test_submitBid_exactOut_atFloorPrice_succeeds() public {
-        vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(0, alice, _tickPriceAt(1), false, 10e18);
-        auction.submitBid{value: 10e18}(_tickPriceAt(1), false, 10e18, alice, 0, bytes(''));
-    }
-
+    /// forge-config: default.isolate = true
+    /// forge-config: ci.isolate = true
     function test_submitBid_exactIn_initializesTickAndUpdatesClearingPrice_succeeds_gas() public {
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(0, alice, _tickPriceAt(2), true, TOTAL_SUPPLY * 2);
@@ -185,5 +184,15 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectRevert(IAuction.CannotWithdrawBid.selector);
         vm.prank(alice);
         auction.withdrawBid(bidId, 1);
+    }
+    
+    function test_submitBid_exactIn_atFloorPrice_reverts() public {
+        vm.expectRevert(BidLib.InvalidBidPrice.selector);
+        auction.submitBid{value: 10e18}(_tickPriceAt(1), true, 10e18, alice, 0, bytes(''));
+    }
+
+    function test_submitBid_exactOut_atFloorPrice_reverts() public {
+        vm.expectRevert(BidLib.InvalidBidPrice.selector);
+        auction.submitBid{value: 10e18}(_tickPriceAt(1), false, 10e18, alice, 0, bytes(''));
     }
 }

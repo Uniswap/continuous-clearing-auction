@@ -185,7 +185,7 @@ contract AuctionTest is TokenHandler, Test {
         vm.prank(alice);
         auction.withdrawBid(bidId, 1);
     }
-    
+
     function test_submitBid_exactIn_atFloorPrice_reverts() public {
         vm.expectRevert(BidLib.InvalidBidPrice.selector);
         auction.submitBid{value: 10e18}(_tickPriceAt(1), true, 10e18, alice, 0, bytes(''));

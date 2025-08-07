@@ -21,7 +21,6 @@ import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 
-import {console2} from 'forge-std/console2.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
@@ -286,7 +285,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         uint256 _clearingPrice = clearingPrice();
         /// @dev Bid has been outbid
         if (tick.price < _clearingPrice) {
-            if(lastValidCheckpoint.clearingPrice > tick.price) revert InvalidCheckpointHint();
+            if (lastValidCheckpoint.clearingPrice > tick.price) revert InvalidCheckpointHint();
 
             uint256 nextCheckpointBlock;
             (tokensFilled, cumulativeMpsDelta, nextCheckpointBlock) =
@@ -297,7 +296,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             tokensFilled += _tokensFilled;
             cumulativeMpsDelta += _cumulativeMpsDelta;
         } else if (block.number > endBlock) {
-            if(upperCheckpoint.clearingPrice < tick.price) revert InvalidCheckpointHint();
+            if (upperCheckpoint.clearingPrice < tick.price) revert InvalidCheckpointHint();
 
             Checkpoint memory finalCheckpoint =
                 latestCheckpoint().transform(endBlock - _lastCheckpointedBlock, step.mps);

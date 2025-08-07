@@ -280,15 +280,14 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         Checkpoint memory upperCheckpoint = _getCheckpoint(upperCheckpointBlock);
         // Last valid checkpoint is the last checkpoint where the clearing price is <= tick.price
         Checkpoint memory lastValidCheckpoint = _getCheckpoint(upperCheckpoint.prev);
-        if (upperCheckpoint.clearingPrice < tick.price || lastValidCheckpoint.clearingPrice > tick.price) {
-            revert InvalidCheckpointHint();
-        }
 
         uint256 tokensFilled;
         uint24 cumulativeMpsDelta;
         uint256 _clearingPrice = clearingPrice();
         /// @dev Bid has been outbid
         if (tick.price < _clearingPrice) {
+            if(lastValidCheckpoint.clearingPrice > tick.price) revert InvalidCheckpointHint();
+
             uint256 nextCheckpointBlock;
             (tokensFilled, cumulativeMpsDelta, nextCheckpointBlock) =
                 _accountPartiallyFilledCheckpoints(lastValidCheckpoint, tick, bid);
@@ -298,6 +297,8 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             tokensFilled += _tokensFilled;
             cumulativeMpsDelta += _cumulativeMpsDelta;
         } else if (block.number > endBlock) {
+            if(upperCheckpoint.clearingPrice < tick.price) revert InvalidCheckpointHint();
+
             Checkpoint memory finalCheckpoint =
                 latestCheckpoint().transform(endBlock - _lastCheckpointedBlock, step.mps);
             /// @dev Bid was fully filled and the auction is now over

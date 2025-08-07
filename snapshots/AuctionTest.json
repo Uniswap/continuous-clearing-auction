@@ -2,5 +2,6 @@
   "submitBid": "161916",
   "submitBid_recordStep_updateCheckpoint": "381746",
   "submitBid_recordStep_updateCheckpoint_initializeTick": "381746",
-  "submitBid_updateCheckpoint": "324558"
+  "submitBid_updateCheckpoint": "324558",
+  "withdrawBid": "97275"
 }

@@ -146,14 +146,14 @@ contract AuctionTest is TokenHandler, Test {
     function test_withdrawBid_succeeds_gas() public {
         uint256 smallAmount = 500e18;
         vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(0, alice, _tickPriceAt(1), true, smallAmount);
-        uint256 bidId1 = auction.submitBid{value: smallAmount}(_tickPriceAt(1), true, smallAmount, alice, 0, bytes(''));
+        emit IAuction.BidSubmitted(0, alice, _tickPriceAt(2), true, smallAmount);
+        uint256 bidId1 = auction.submitBid{value: smallAmount}(_tickPriceAt(2), true, smallAmount, alice, 1, bytes(''));
 
         // Bid enough to move the clearing price to 3
         uint256 largeAmount = 3000e18;
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(1, alice, _tickPriceAt(3), true, largeAmount);
-        uint256 bidId2 = auction.submitBid{value: largeAmount}(_tickPriceAt(3), true, largeAmount, alice, 1, bytes(''));
+        uint256 bidId2 = auction.submitBid{value: largeAmount}(_tickPriceAt(3), true, largeAmount, alice, 2, bytes(''));
         uint256 expectedTotalCleared = TOTAL_SUPPLY * 100e3 / AuctionStepLib.MPS;
 
         vm.roll(block.number + 1);

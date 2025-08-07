@@ -294,20 +294,32 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         }
         /// @dev Bid was fully filled and the auction is now over
         else if (tick.price > _clearingPrice && block.number > endBlock) {
-            Checkpoint memory finalCheckpoint =
-                latestCheckpoint().transform(endBlock - _lastCheckpointedBlock, step.mps);
-            (tokensFilled,) = _accountFullyFilledCheckpoints(finalCheckpoint, startCheckpoint, bid);
+            (tokensFilled,) = _accountFullyFilledCheckpoints(
+                // Create final checkpoint checkpoint
+                latestCheckpoint().transform(endBlock - _lastCheckpointedBlock, step.mps),
+                startCheckpoint,
+                bid
+            );
             refund = bid.calculateRefund(tick.price, tokensFilled, AuctionStepLib.MPS);
         }
         /// @dev Bid is partially filled at the end of the auction
         else if (tick.price == _clearingPrice && block.number > endBlock) {
+            // Calculate the tokens sold and proportion of input used to bidders of a price (p)
+            // The tokens sold to bidders of a price (p) is equal to the supply sold `S` as a
+            // proportion of the demand at `p` of the total demand at or above the clearing price.
+            //
             // Setup:
             // lastValidCheckpoint --- ... | upperCheckpoint --- ... | latestCheckpoint ... | endBlock
             // price < clearingPrice       | clearingPrice == price -------------------------->
+            //
+            // We can calculate the tokens sold and proportion of input used to bidders of a price (p)
+            // by using the fully filled checkpoints and then applying the proportion of the bid demand at the price level to the values
+
             (tokensFilled, cumulativeMpsDelta) =
                 _accountFullyFilledCheckpoints(lastValidCheckpoint, startCheckpoint, bid);
-            (uint256 partialTokensFilled, uint24 partialCumulativeMpsDelta) =
-                _handlePartialWithdraw(upperCheckpointBlock, bid, tick.price);
+            (uint256 partialTokensFilled, uint24 partialCumulativeMpsDelta) = _accountPartiallyFilledCheckpoints(
+                latestCheckpoint().transform(endBlock - _lastCheckpointedBlock, step.mps), upperCheckpoint, bid
+            );
             tokensFilled += partialTokensFilled;
             cumulativeMpsDelta += partialCumulativeMpsDelta;
             refund += bid.calculateRefund(tick.price, tokensFilled, cumulativeMpsDelta);
@@ -360,61 +372,15 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         tokensFilled = bid.calculateFill(upper.cumulativeMpsPerPrice - lower.cumulativeMpsPerPrice, cumulativeMpsDelta);
     }
 
-    /**
-     * @notice Calculate the tokens sold and proportion of input used to bidders of a price (p)
-     * @notice This function is only meant to be used for scenarios where the user partially fills at a price
-     *         for fully filled checkpoints use _accountFullyFilledCheckpoints() which is more efficient
-     * @dev The tokens sold to bidders of a price (p) is equal to the supply sold `S` as a
-     *      proportion of the demand at `p` of the total demand at or above the clearing price.
-     *
-     *      S_p = S * D_tick / D_active
-     *
-     *      Furthermore, the tokens sold to a bidder at price `p` is proportional to their demand of the demand at `p`.
-     *
-     *      S_b = S_p * D_bid / D_tick
-     *
-     *      Simplifying:
-     *      S_b = (S * D_tick / D_active) * D_bid / D_tick
-     *      S_b = S * D_bid / D_active
-     *
-     *      D_active changes over time so you must iterate over checkpoints to calculate partial fills
-     */
-    function _accountPartiallyFilledCheckpoints(Checkpoint memory upper, uint256 _endBlock, uint256 bidDemand)
+    function _accountPartiallyFilledCheckpoints(Checkpoint memory upper, Checkpoint memory lower, Bid memory bid)
         internal
         view
         returns (uint256 tokensFilled, uint24 cumulativeMpsDelta)
     {
-        while (upper.prev != _endBlock && upper.prev != 0) {
-            Checkpoint memory _next = _getCheckpoint(upper.prev);
-            uint256 supply = upper.totalCleared - _next.totalCleared;
-            tokensFilled += _partialFill(supply, bidDemand, upper.resolvedActiveDemand);
-
-            uint24 mpsDelta = upper.cumulativeMps - _next.cumulativeMps;
-
-            cumulativeMpsDelta += (uint256(mpsDelta).fullMulDiv(bidDemand, upper.resolvedActiveDemand)).toUint24();
-            upper = _next;
-        }
-    }
-
-    function _handlePartialWithdraw(uint256 upperCheckpointBlock, Bid memory bid, uint256 maxPrice)
-        internal
-        view
-        returns (uint256 tokensFilled, uint24 cumulativeMpsDelta)
-    {
-        // Account for the partially filled checkpoints between the latest checkpoint and the upperCheckpointBlock
-        Checkpoint memory _latestCheckpoint = latestCheckpoint();
-        uint256 bidDemand = bid.demand(maxPrice, tickSpacing);
-        (uint256 partialTokensFilled, uint24 partialCumulativeMpsDelta) =
-            _accountPartiallyFilledCheckpoints(_latestCheckpoint, upperCheckpointBlock, bidDemand);
-        // Finally, calculate the tokens sold between the latest checkpoint and endBlock
-        // We can do this in constant time because the active demand cannot change after the latest checkpoint
-        tokensFilled += partialTokensFilled
-            + _partialFill(
-                (endBlock - lastCheckpointedBlock) * _latestCheckpoint.blockCleared,
-                bidDemand,
-                _latestCheckpoint.resolvedActiveDemand
-            );
-        cumulativeMpsDelta += partialCumulativeMpsDelta + ((endBlock - lastCheckpointedBlock) * step.mps).toUint24();
+        (tokensFilled, cumulativeMpsDelta) = _accountFullyFilledCheckpoints(upper, lower, bid);
+        uint256 bidDemand = bid.demand(upper.clearingPrice, tickSpacing);
+        tokensFilled = tokensFilled.fullMulDiv(bidDemand, upper.resolvedActiveDemand);
+        cumulativeMpsDelta = (uint256(cumulativeMpsDelta).fullMulDiv(bidDemand, upper.resolvedActiveDemand)).toUint24();
     }
 
     function _partialFill(uint256 supply, uint256 bidDemand, uint256 resolvedActiveDemand)

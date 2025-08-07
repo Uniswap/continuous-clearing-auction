@@ -230,15 +230,15 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         if (address(validationHook) != address(0)) {
             validationHook.validate(maxPrice, exactIn, amount, owner, msg.sender, hookData);
         }
-
+        uint256 _clearingPrice = clearingPrice();
         // ClearingPrice will be set to floor price in checkpoint() if not set already
-        BidLib.validate(maxPrice, clearingPrice(), tickSpacing);
+        BidLib.validate(maxPrice, _clearingPrice, tickSpacing);
 
         _updateTick(tickId, exactIn, amount);
 
         uint256 bidId = _createBid(exactIn, amount, owner, tickId);
 
-        if (maxPrice >= ticks[tickUpperId].price) {
+        if (maxPrice > _clearingPrice) {
             if (exactIn) {
                 sumDemandTickUpper = sumDemandTickUpper.addCurrencyAmount(amount);
             } else {
@@ -308,9 +308,17 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         }
         /// @dev Bid is partially filled at the end of the auction
         else if (tick.price == _clearingPrice && block.number > endBlock) {
+            // Calculate the tokens sold and proportion of input used to bidders of a price (p)
+            // The tokens sold to bidders of a price (p) is equal to the supply sold `S` as a
+            // proportion of the demand at `p` of the total demand at or above the clearing price.
+            //
             // Setup:
             // lastValidCheckpoint --- ... | upperCheckpoint --- ... | latestCheckpoint ... | endBlock
             // price < clearingPrice       | clearingPrice == price -------------------------->
+            //
+            // We can calculate the tokens sold and proportion of input used to bidders of a price (p)
+            // by using the fully filled checkpoints and then applying the proportion of the bid demand at the price level to the values
+
             (tokensFilled, cumulativeMpsDelta) =
                 _accountFullyFilledCheckpoints(lastValidCheckpoint, startCheckpoint, bid);
             (uint256 partialTokensFilled, uint24 partialCumulativeMpsDelta,) = _accountPartiallyFilledCheckpoints(
@@ -368,13 +376,6 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         tokensFilled = bid.calculateFill(upper.cumulativeMpsPerPrice - lower.cumulativeMpsPerPrice, cumulativeMpsDelta);
     }
 
-    /**
-     * @notice Calculate the tokens sold and proportion of input used to bidders of a price (p)
-     * @notice This function is only meant to be used for scenarios where the user partially fills at a price
-     *         for fully filled checkpoints use _accountFullyFilledCheckpoints() which is more efficient
-     * @dev The tokens sold to bidders of a price (p) is equal to the supply sold `S` as a
-     *      proportion of the demand at `p` of the total demand at or above the clearing price.
-     */
     function _accountPartiallyFilledCheckpoints(Checkpoint memory upper, Tick memory tick, Bid memory bid)
         internal
         view

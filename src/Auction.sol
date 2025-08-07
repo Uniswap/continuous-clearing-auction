@@ -296,11 +296,10 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
                 _accountFullyFilledCheckpoints(_getCheckpoint(nextCheckpointBlock), startCheckpoint, bid);
             tokensFilled += _tokensFilled;
             cumulativeMpsDelta += _cumulativeMpsDelta;
-        }
-        /// @dev Bid was fully filled and the auction is now over
-        else if (block.number > endBlock) {
+        } else if (block.number > endBlock) {
             Checkpoint memory finalCheckpoint =
                 latestCheckpoint().transform(endBlock - _lastCheckpointedBlock, step.mps);
+            /// @dev Bid was fully filled and the auction is now over
             if (tick.price > _clearingPrice) {
                 cumulativeMpsDelta = AuctionStepLib.MPS;
                 (tokensFilled,) = _accountFullyFilledCheckpoints(finalCheckpoint, startCheckpoint, bid);
@@ -329,6 +328,9 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             revert CannotWithdrawBid();
         }
 
+        uint256 refund = bid.calculateRefund(tick.price, tokensFilled, cumulativeMpsDelta);
+        address _owner = bid.owner;
+
         if (tokensFilled == 0) {
             _deleteBid(bidId);
         } else {
@@ -337,10 +339,9 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             _updateBid(bidId, bid);
         }
 
-        uint256 refund = bid.calculateRefund(tick.price, tokensFilled, cumulativeMpsDelta);
-        currency.transfer(bid.owner, refund);
+        currency.transfer(_owner, refund);
 
-        emit BidWithdrawn(bidId, bid.owner);
+        emit BidWithdrawn(bidId, _owner);
     }
 
     /// @inheritdoc IAuction

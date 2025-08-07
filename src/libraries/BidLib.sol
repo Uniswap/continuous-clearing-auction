@@ -27,12 +27,12 @@ library BidLib {
 
     /// @notice Validate a bid
     /// @param maxPrice The max price of the bid
-    /// @param floorPrice The floor price of the auction
+    /// @param clearingPrice The clearing price of the auction
     /// @param tickSpacing The tick spacing of the auction
     /// @dev The bid must be greater than or equal to the floor price, less than or equal to the maximum price,
     /// and divisible by the tick spacing
-    function validate(uint256 maxPrice, uint256 floorPrice, uint256 tickSpacing) internal pure {
-        if (maxPrice < floorPrice || maxPrice % tickSpacing != 0) {
+    function validate(uint256 maxPrice, uint256 clearingPrice, uint256 tickSpacing) internal pure {
+        if (maxPrice < clearingPrice || maxPrice % tickSpacing != 0) {
             revert InvalidBidPrice();
         }
     }

@@ -230,7 +230,8 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             validationHook.validate(maxPrice, exactIn, amount, owner, msg.sender, hookData);
         }
 
-        BidLib.validate(maxPrice, floorPrice, tickSpacing);
+        // ClearingPrice will be set to floor price in checkpoint() if not set already
+        BidLib.validate(maxPrice, clearingPrice(), tickSpacing);
 
         _updateTick(tickId, exactIn, amount);
 

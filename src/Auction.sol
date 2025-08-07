@@ -238,12 +238,10 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
         uint256 bidId = _createBid(exactIn, amount, owner, tickId);
 
-        if (maxPrice > _clearingPrice) {
-            if (exactIn) {
-                sumDemandTickUpper = sumDemandTickUpper.addCurrencyAmount(amount);
-            } else {
-                sumDemandTickUpper = sumDemandTickUpper.addTokenAmount(amount);
-            }
+        if (exactIn) {
+            sumDemandTickUpper = sumDemandTickUpper.addCurrencyAmount(amount);
+        } else {
+            sumDemandTickUpper = sumDemandTickUpper.addTokenAmount(amount);
         }
 
         emit BidSubmitted(bidId, owner, maxPrice, exactIn, amount);

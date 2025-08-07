@@ -150,11 +150,13 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             _checkpoint.clearingPrice = floorPrice;
             // We can only clear the current demand at the floor price
             _checkpoint.totalCleared += _blockDemand;
+            _checkpoint.blockCleared = _blockDemand;
         }
         // Otherwise, we can clear the entire supply being sold in the block
         else if (_clearingPrice >= _checkpoint.clearingPrice) {
             _checkpoint.clearingPrice = _clearingPrice;
             _checkpoint.totalCleared += _blockTokenSupply;
+            _checkpoint.blockCleared = _blockTokenSupply;
         }
 
         uint24 mpsSinceLastCheckpoint = (
@@ -166,7 +168,6 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         _checkpoint.cumulativeMpsPerPrice +=
             uint256(mpsSinceLastCheckpoint).fullMulDiv(BidLib.PRECISION, _checkpoint.clearingPrice);
         _checkpoint.resolvedActiveDemand = _activeDemand.resolve(_checkpoint.clearingPrice, tickSpacing);
-        _checkpoint.blockCleared = _blockTokenSupply;
 
         return _checkpoint;
     }

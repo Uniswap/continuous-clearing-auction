@@ -238,7 +238,7 @@ contract AuctionTest is TokenHandler, Test {
         auction.withdrawBid(bidId);
     }
 
-    function test_withdrawBid_beforeEndBlock_revertsWithCannotWithdrawBid() public {
+    function test_withdrawBid_aboveClearingBeforeEndBlock_revertsWithCannotWithdrawBid() public {
         uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(3), true, 1000e18, alice, 1, bytes(''));
         // Expect revert because the bid is not below the clearing price
         vm.expectRevert(IAuction.CannotWithdrawBid.selector);
@@ -268,5 +268,21 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectRevert(IAuction.CannotWithdrawBid.selector);
         vm.prank(alice);
         auction.withdrawBid(bidId);
+    }
+
+    function test_withdrawPartiallyFilledBid_atClearingPrice_succeeds() public {
+        uint256 bidId = auction.submitBid{value: 2000e18}(_tickPriceAt(2), true, 2000e18, alice, 1, bytes(''));
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+        assertEq(auction.clearingPrice(), _tickPriceAt(2));
+
+        vm.roll(auction.endBlock());
+        vm.expectRevert(IAuction.CannotWithdrawBid.selector);
+        vm.prank(alice);
+        auction.withdrawPartiallyFilledBid(bidId, 2);
+
+        vm.roll(auction.endBlock() + 1);
+        vm.prank(alice);
+        auction.withdrawPartiallyFilledBid(bidId, 2);
     }
 }

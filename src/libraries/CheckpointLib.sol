@@ -20,10 +20,11 @@ library CheckpointLib {
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by a number of blocks
     /// @param checkpoint The checkpoint to transform
+    /// @param checkpointBlock The block number of the checkpoint
     /// @param blockDelta The number of blocks to advance
     /// @param mps The number of mps to add
     /// @return The transformed checkpoint
-    function transform(Checkpoint memory checkpoint, uint256 blockDelta, uint24 mps)
+    function transform(Checkpoint memory checkpoint, uint256 checkpointBlock, uint256 blockDelta, uint24 mps)
         internal
         pure
         returns (Checkpoint memory)
@@ -38,7 +39,7 @@ library CheckpointLib {
             cumulativeMpsPerPrice: checkpoint.cumulativeMpsPerPrice
                 + uint256(deltaMps).fullMulDiv(BidLib.PRECISION, checkpoint.clearingPrice),
             resolvedActiveDemand: checkpoint.resolvedActiveDemand,
-            prev: checkpoint.prev
+            prev: checkpointBlock
         });
     }
 }

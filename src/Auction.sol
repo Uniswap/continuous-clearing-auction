@@ -257,6 +257,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         bytes calldata hookData
     ) external payable returns (uint256) {
         uint256 resolvedAmount = exactIn ? amount : amount.fullMulDivUp(maxPrice, tickSpacing);
+        if (resolvedAmount == 0) revert InvalidAmount();
         if (currency.isAddressZero()) {
             if (msg.value != resolvedAmount) revert InvalidAmount();
         } else {

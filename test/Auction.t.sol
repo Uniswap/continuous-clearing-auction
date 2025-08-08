@@ -143,6 +143,43 @@ contract AuctionTest is TokenHandler, Test {
         auction.checkpoint();
     }
 
+    function test_submitBid_exactIn_atFloorPrice_reverts() public {
+        vm.expectRevert(BidLib.InvalidBidPrice.selector);
+        auction.submitBid{value: 10e18}(_tickPriceAt(1), true, 10e18, alice, 0, bytes(''));
+    }
+
+    function test_submitBid_exactOut_atFloorPrice_reverts() public {
+        vm.expectRevert(BidLib.InvalidBidPrice.selector);
+        auction.submitBid{value: 10e18}(_tickPriceAt(1), false, 10e18, alice, 0, bytes(''));
+    }
+
+    function test_submitBid_exactInMsgValue_revertsWithInvalidAmount() public {
+        vm.expectRevert(IAuction.InvalidAmount.selector);
+        // msg.value should be 1000e18
+        auction.submitBid{value: 2000e18}(_tickPriceAt(2), true, 1000e18, alice, 1, bytes(''));
+    }
+
+    function test_submitBid_exactInZeroMsgValue_revertsWithInvalidAmount() public {
+        vm.expectRevert(IAuction.InvalidAmount.selector);
+        auction.submitBid{value: 0}(_tickPriceAt(2), true, 1000e18, alice, 1, bytes(''));
+    }
+
+    function test_submitBid_exactOutMsgValue_revertsWithInvalidAmount() public {
+        vm.expectRevert(IAuction.InvalidAmount.selector);
+        // msg.value should be 2 * 1000e18
+        auction.submitBid{value: 1000e18}(_tickPriceAt(2), false, 1000e18, alice, 1, bytes(''));
+    }
+
+    function test_submitBid_exactInZeroAmount_revertsWithInvalidAmount() public {
+        vm.expectRevert(IAuction.InvalidAmount.selector);
+        auction.submitBid{value: 1000e18}(_tickPriceAt(2), true, 0, alice, 1, bytes(''));
+    }
+
+    function test_submitBid_exactOutZeroAmount_revertsWithInvalidAmount() public {
+        vm.expectRevert(IAuction.InvalidAmount.selector);
+        auction.submitBid{value: 1000e18}(_tickPriceAt(2), false, 0, alice, 1, bytes(''));
+    }
+
     /// forge-config: default.isolate = true
     function test_withdrawBid_succeeds_gas() public {
         uint256 smallAmount = 500e18;
@@ -231,15 +268,5 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectRevert(IAuction.CannotWithdrawBid.selector);
         vm.prank(alice);
         auction.withdrawBid(bidId);
-    }
-
-    function test_submitBid_exactIn_atFloorPrice_reverts() public {
-        vm.expectRevert(BidLib.InvalidBidPrice.selector);
-        auction.submitBid{value: 10e18}(_tickPriceAt(1), true, 10e18, alice, 0, bytes(''));
-    }
-
-    function test_submitBid_exactOut_atFloorPrice_reverts() public {
-        vm.expectRevert(BidLib.InvalidBidPrice.selector);
-        auction.submitBid{value: 10e18}(_tickPriceAt(1), false, 10e18, alice, 0, bytes(''));
     }
 }

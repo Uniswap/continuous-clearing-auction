@@ -143,6 +143,7 @@ contract AuctionTest is TokenHandler, Test {
         auction.checkpoint();
     }
 
+    /// forge-config: default.isolate = true
     function test_withdrawBid_succeeds_gas() public {
         uint256 smallAmount = 500e18;
         vm.expectEmit(true, true, true, true);
@@ -166,7 +167,7 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidWithdrawn(0, alice);
         vm.prank(alice);
-        auction.withdrawBid(bidId1, 2);
+        auction.withdrawPartiallyFilledBid(bidId1, 2);
         vm.snapshotGasLastCall('withdrawBid');
         // Expect that alice is refunded the full amount of the first bid
         uint256 aliceBalanceAfter = address(alice).balance;
@@ -175,7 +176,29 @@ contract AuctionTest is TokenHandler, Test {
         // Expect that the second bid cannot be withdrawn, since the clearing price is below its max price
         vm.expectRevert(IAuction.CannotWithdrawBid.selector);
         vm.prank(alice);
-        auction.withdrawBid(bidId2, 2);
+        auction.withdrawBid(bidId2);
+    }
+
+    function test_withdrawBid_aboveClearingAfterEndBlock_succeeds() public {
+        uint128 bidMaxPrice = _tickPriceAt(3);
+        uint256 bidId = auction.submitBid{value: 1000e18}(bidMaxPrice, true, 1000e18, alice, 1, bytes(''));
+
+        vm.roll(block.number + 1);
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(1), TOTAL_SUPPLY * 100e3 / AuctionStepLib.MPS, 100e3);
+        auction.checkpoint();
+
+        assertGt(bidMaxPrice, auction.clearingPrice());
+        // Before the auction ends, the bid should not be withdrawable since it is above the clearing price
+        vm.roll(auction.endBlock());
+        vm.expectRevert(IAuction.CannotWithdrawBid.selector);
+        vm.prank(alice);
+        auction.withdrawBid(bidId);
+
+        // Now that the auction has ended, the bid should be withdrawable
+        vm.roll(auction.endBlock() + 1);
+        vm.prank(alice);
+        auction.withdrawBid(bidId);
     }
 
     function test_withdrawBid_reverts_withCannotWithdrawBid() public {
@@ -183,7 +206,7 @@ contract AuctionTest is TokenHandler, Test {
         // Expect revert because the bid is not below the clearing price
         vm.expectRevert(IAuction.CannotWithdrawBid.selector);
         vm.prank(alice);
-        auction.withdrawBid(bidId, 1);
+        auction.withdrawBid(bidId);
     }
 
     function test_submitBid_exactIn_atFloorPrice_reverts() public {

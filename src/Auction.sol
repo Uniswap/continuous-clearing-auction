@@ -265,15 +265,49 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         return _submitBid(maxPrice, exactIn, amount, owner, prevHintId, hookData);
     }
 
+    /// @notice Given a bid, tokens filled and refund, process the transfers and refund
+    function _processBidWithdraw(uint256 bidId, Bid memory bid, uint256 tokensFilled, uint256 refund) internal {
+        address _owner = bid.owner;
+
+        if (tokensFilled == 0) {
+            _deleteBid(bidId);
+        } else {
+            bid.tokensFilled = tokensFilled;
+            bid.withdrawnBlock = uint64(block.number);
+            _updateBid(bidId, bid);
+        }
+
+        currency.transfer(_owner, refund);
+
+        emit BidWithdrawn(bidId, _owner);
+    }
+
     /// @inheritdoc IAuction
-    function withdrawBid(uint256 bidId, uint256 upperCheckpointBlock) external {
+    function withdrawBid(uint256 bidId) external {
+        Bid memory bid = _getBid(bidId);
+        if (bid.withdrawnBlock != 0) revert BidAlreadyWithdrawn();
+        Tick memory tick = ticks[bid.tickId];
+        if (block.number <= endBlock || tick.price <= clearingPrice()) revert CannotWithdrawBid();
+
+        /// @dev Bid was fully filled and the auction is now over
+        (uint256 tokensFilled,) = _accountFullyFilledCheckpoints(
+            latestCheckpoint().transform(endBlock - lastCheckpointedBlock, step.mps),
+            _getCheckpoint(bid.startBlock),
+            bid
+        );
+        uint256 refund = bid.calculateRefund(tick.price, tokensFilled, AuctionStepLib.MPS);
+
+        _processBidWithdraw(bidId, bid, tokensFilled, refund);
+    }
+
+    /// @inheritdoc IAuction
+    function withdrawPartiallyFilledBid(uint256 bidId, uint256 upperCheckpointBlock) external {
         Bid memory bid = _getBid(bidId);
         if (bid.withdrawnBlock != 0) revert BidAlreadyWithdrawn();
 
         Tick memory tick = ticks[bid.tickId];
 
         // Starting checkpoint must exist because we checkpoint on bid submission
-        uint256 _lastCheckpointedBlock = lastCheckpointedBlock;
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
         // Upper checkpoint is the first checkpoint where the clearing price is strictly > tick.price
         Checkpoint memory upperCheckpoint = _getCheckpoint(upperCheckpointBlock);
@@ -295,54 +329,37 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
                 _accountFullyFilledCheckpoints(_getCheckpoint(nextCheckpointBlock), startCheckpoint, bid);
             tokensFilled += _tokensFilled;
             cumulativeMpsDelta += _cumulativeMpsDelta;
-        } else if (block.number > endBlock) {
-            if (upperCheckpoint.clearingPrice < tick.price) revert InvalidCheckpointHint();
-
-            Checkpoint memory finalCheckpoint =
-                latestCheckpoint().transform(endBlock - _lastCheckpointedBlock, step.mps);
-            /// @dev Bid was fully filled and the auction is now over
-            if (tick.price > _clearingPrice) {
-                cumulativeMpsDelta = AuctionStepLib.MPS;
-                (tokensFilled,) = _accountFullyFilledCheckpoints(finalCheckpoint, startCheckpoint, bid);
-            }
+        } else if (block.number > endBlock && tick.price == _clearingPrice) {
             /// @dev Bid is partially filled at the end of the auction, tick.price must be equal to the clearing price
-            else {
-                // Calculate the tokens sold and proportion of input used to bidders of a price (p)
-                // The tokens sold to bidders of a price (p) is equal to the supply sold `S` as a
-                // proportion of the demand at `p` of the total demand at or above the clearing price.
-                //
-                // Setup:
-                // lastValidCheckpoint --- ... | upperCheckpoint --- ... | latestCheckpoint ... | endBlock
-                // price < clearingPrice       | clearingPrice == price -------------------------->
-                //
-                // We can calculate the tokens sold and proportion of input used to bidders of a price (p)
-                // by using the fully filled checkpoints and then applying the proportion of the bid demand at the price level to the values
-
-                (tokensFilled, cumulativeMpsDelta) =
-                    _accountFullyFilledCheckpoints(lastValidCheckpoint, startCheckpoint, bid);
-                (uint256 partialTokensFilled, uint24 partialCumulativeMpsDelta,) =
-                    _accountPartiallyFilledCheckpoints(finalCheckpoint, tick, bid);
-                tokensFilled += partialTokensFilled;
-                cumulativeMpsDelta += partialCumulativeMpsDelta;
+            if (upperCheckpoint.clearingPrice < tick.price || lastValidCheckpoint.clearingPrice > tick.price) {
+                revert InvalidCheckpointHint();
             }
+
+            // Calculate the tokens sold and proportion of input used to bidders of a price (p)
+            // The tokens sold to bidders of a price (p) is equal to the supply sold `S` as a
+            // proportion of the demand at `p` of the total demand at or above the clearing price.
+            //
+            // Setup:
+            // lastValidCheckpoint --- ... | upperCheckpoint --- ... | latestCheckpoint ... | endBlock
+            // price < clearingPrice       | clearingPrice == price -------------------------->
+            //
+            // We can calculate the tokens sold and proportion of input used to bidders of a price (p)
+            // by using the fully filled checkpoints and then applying the proportion of the bid demand at the price level to the values
+
+            (tokensFilled, cumulativeMpsDelta) =
+                _accountFullyFilledCheckpoints(lastValidCheckpoint, startCheckpoint, bid);
+            (uint256 partialTokensFilled, uint24 partialCumulativeMpsDelta,) = _accountPartiallyFilledCheckpoints(
+                latestCheckpoint().transform(endBlock - lastCheckpointedBlock, step.mps), tick, bid
+            );
+            tokensFilled += partialTokensFilled;
+            cumulativeMpsDelta += partialCumulativeMpsDelta;
         } else {
             revert CannotWithdrawBid();
         }
 
         uint256 refund = bid.calculateRefund(tick.price, tokensFilled, cumulativeMpsDelta);
-        address _owner = bid.owner;
 
-        if (tokensFilled == 0) {
-            _deleteBid(bidId);
-        } else {
-            bid.tokensFilled = tokensFilled;
-            bid.withdrawnBlock = uint64(block.number);
-            _updateBid(bidId, bid);
-        }
-
-        currency.transfer(_owner, refund);
-
-        emit BidWithdrawn(bidId, _owner);
+        _processBidWithdraw(bidId, bid, tokensFilled, refund);
     }
 
     /// @inheritdoc IAuction

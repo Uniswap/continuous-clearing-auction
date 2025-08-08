@@ -105,10 +105,15 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     ) external payable returns (uint256 bidId);
 
     /// @notice Withdraw a bid
-    /// @dev A bid can only be withdrawn if the maxPrice is below the current clearing price
+    /// @dev This function can only be used for bids where the max price is above the final clearing price after the auction has ended
+    /// @param bidId The id of the bid
+    function withdrawBid(uint256 bidId) external;
+
+    /// @notice Withdraw a bid which has been partially filled
+    /// @dev This function can only be used for bids where the max price is below the final clearing price
     /// @param bidId The id of the bid
     /// @param upperCheckpointId The id of the first checkpoint where the clearing price is equal to the bid max price
-    function withdrawBid(uint256 bidId, uint256 upperCheckpointId) external;
+    function withdrawPartiallyFilledBid(uint256 bidId, uint256 upperCheckpointId) external;
 
     /// @notice Claim tokens after the auction's claim block
     /// @notice The bid must be withdrawn before claiming tokens

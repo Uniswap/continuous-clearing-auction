@@ -50,6 +50,8 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(1, _tickPriceAt(1));
         auction = new Auction(address(token), TOTAL_SUPPLY, params);
+
+        token.mint(address(auction), TOTAL_SUPPLY);
     }
 
     /// forge-config: default.isolate = true
@@ -270,6 +272,7 @@ contract AuctionTest is TokenHandler, Test {
         auction.withdrawBid(bidId);
     }
 
+    /// Simple test for a bid that partiall fills at the clearing price but is the only bid at that price, functionally fully filled
     function test_withdrawPartiallyFilledBid_atClearingPrice_succeeds() public {
         uint256 bidId = auction.submitBid{value: 2000e18}(_tickPriceAt(2), true, 2000e18, alice, 1, bytes(''));
         vm.roll(block.number + 1);
@@ -288,5 +291,32 @@ contract AuctionTest is TokenHandler, Test {
 
         // Expect no refund
         assertEq(address(alice).balance, aliceBalanceBefore);
+    }
+
+    function test_withdrawPartiallyFilledBid_succeeds_gas() public {
+        address bob = makeAddr('bob');
+        uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(2), true, 1000e18, alice, 1, bytes(''));
+        uint256 bidId2 = auction.submitBid{value: 1000e18}(_tickPriceAt(2), true, 1000e18, bob, 1, bytes(''));
+
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+
+        uint256 aliceBalanceBefore = address(alice).balance;
+        uint256 bobBalanceBefore = address(bob).balance;
+        uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
+        uint256 bobTokenBalanceBefore = token.balanceOf(address(bob));
+
+        vm.roll(auction.endBlock() + 1);
+        vm.prank(alice);
+        auction.withdrawPartiallyFilledBid(bidId, 2);
+        // Alice should have gotten filled for half of their bid
+        assertEq(address(alice).balance, aliceBalanceBefore + 500e18);
+        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 500e18);
+
+        vm.prank(bob);
+        auction.withdrawPartiallyFilledBid(bidId2, 2);
+        // Bob should have gotten filled for half of their bid
+        assertEq(address(bob).balance, bobBalanceBefore + 500e18);
+        assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + 500e18);
     }
 }

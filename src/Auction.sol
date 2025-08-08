@@ -6,6 +6,8 @@ import {BidStorage} from './BidStorage.sol';
 import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
 import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
 import {TickStorage} from './TickStorage.sol';
+
+import {console2} from 'forge-std/console2.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
 import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
@@ -165,6 +167,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             uint256(mpsSinceLastCheckpoint).fullMulDiv(BidLib.PRECISION, _checkpoint.clearingPrice);
         _checkpoint.resolvedActiveDemand = sumDemandTickUpper.resolve(_checkpoint.clearingPrice, tickSpacing);
         _checkpoint.blockCleared = _blockTokenSupply;
+        _checkpoint.mps = step.mps;
         _checkpoint.prev = lastCheckpointedBlock;
 
         return _checkpoint;
@@ -399,26 +402,45 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         uint256 tickDemand = tick.resolveDemand(tickSpacing);
         while (upper.prev != 0) {
             Checkpoint memory _next = _getCheckpoint(upper.prev);
-            // Stop when the next checkpoint is no longer at the tick price
+            // Stop when the next checkpoint is less than the tick price
             if (_next.clearingPrice < tick.price) {
+                // Account for tokens sold in the upperCheckpoint block, since checkpoint ranges are not inclusive [start,end)
+                (uint256 _upperCheckpointTokensFilled, uint24 _upperCheckpointSupplyMps) = _partialFill(
+                    upper.blockCleared, upper.resolvedActiveDemand - tickDemand, upper.mps, bidDemand, tickDemand
+                );
+                tokensFilled += _upperCheckpointTokensFilled;
+                cumulativeMpsDelta += _upperCheckpointSupplyMps;
                 break;
             }
-            uint256 supply = upper.totalCleared - _next.totalCleared;
-            // tickDemand is already included in the resolvedActiveDemand
-            uint256 demandAboveClearingPrice = upper.resolvedActiveDemand - tickDemand;
-            uint256 matchingDemand = supply - demandAboveClearingPrice;
-            tokensFilled += _partialFill(matchingDemand, bidDemand, tickDemand);
-
-            uint24 supplyMpsDelta = upper.cumulativeMps - _next.cumulativeMps;
-            uint24 matchingDemandMpsDelta = uint256(supplyMpsDelta).fullMulDiv(matchingDemand, supply).toUint24();
-            cumulativeMpsDelta += (uint256(matchingDemandMpsDelta).fullMulDiv(bidDemand, tickDemand)).toUint24();
+            (uint256 _tokensFilled, uint24 _actualSupplyMps) = _partialFill(
+                upper.totalCleared - _next.totalCleared,
+                upper.resolvedActiveDemand - tickDemand,
+                upper.cumulativeMps - _next.cumulativeMps,
+                bidDemand,
+                tickDemand
+            );
+            tokensFilled += _tokensFilled;
+            cumulativeMpsDelta += _actualSupplyMps;
             upper = _next;
         }
         return (tokensFilled, cumulativeMpsDelta, upper.prev);
     }
 
-    function _partialFill(uint256 supply, uint256 bidDemand, uint256 tickDemand) internal pure returns (uint256) {
-        return supply.fullMulDiv(bidDemand, tickDemand);
+    function _partialFill(
+        uint256 supply,
+        uint256 demandAboveTick,
+        uint24 supplySoldMps,
+        uint256 bidDemand,
+        uint256 tickDemand
+    ) internal pure returns (uint256 tokensFilled, uint24 cumulativeMpsDelta) {
+        uint256 matchingDemand = supply - demandAboveTick;
+
+        tokensFilled = matchingDemand.fullMulDiv(bidDemand, tickDemand);
+        cumulativeMpsDelta = (
+            uint256(uint256(supplySoldMps).fullMulDiv(matchingDemand, supply).toUint24()).fullMulDiv(
+                bidDemand, tickDemand
+            )
+        ).toUint24();
     }
 
     receive() external payable {}

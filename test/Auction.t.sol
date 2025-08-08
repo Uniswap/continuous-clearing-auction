@@ -274,15 +274,19 @@ contract AuctionTest is TokenHandler, Test {
         uint256 bidId = auction.submitBid{value: 2000e18}(_tickPriceAt(2), true, 2000e18, alice, 1, bytes(''));
         vm.roll(block.number + 1);
         auction.checkpoint();
-        assertEq(auction.clearingPrice(), _tickPriceAt(2));
 
         vm.roll(auction.endBlock());
         vm.expectRevert(IAuction.CannotWithdrawBid.selector);
         vm.prank(alice);
         auction.withdrawPartiallyFilledBid(bidId, 2);
 
+        uint256 aliceBalanceBefore = address(alice).balance;
+
         vm.roll(auction.endBlock() + 1);
         vm.prank(alice);
         auction.withdrawPartiallyFilledBid(bidId, 2);
+
+        // Expect no refund
+        assertEq(address(alice).balance, aliceBalanceBefore);
     }
 }

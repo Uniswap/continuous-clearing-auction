@@ -201,9 +201,33 @@ contract AuctionTest is TokenHandler, Test {
         auction.withdrawBid(bidId);
     }
 
-    function test_withdrawBid_reverts_withCannotWithdrawBid() public {
+    function test_withdrawBid_beforeEndBlock_revertsWithCannotWithdrawBid() public {
         uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(3), true, 1000e18, alice, 1, bytes(''));
         // Expect revert because the bid is not below the clearing price
+        vm.expectRevert(IAuction.CannotWithdrawBid.selector);
+        vm.prank(alice);
+        auction.withdrawBid(bidId);
+    }
+
+    function test_withdrawBid_alreadyWithdrawn_revertsWithBidAlreadyWithdrawn() public {
+        uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(3), true, 1000e18, alice, 1, bytes(''));
+        vm.roll(auction.endBlock() + 1);
+
+        vm.startPrank(alice);
+        auction.withdrawBid(bidId);
+        vm.expectRevert(IAuction.BidAlreadyWithdrawn.selector);
+        auction.withdrawBid(bidId);
+        vm.stopPrank();
+    }
+
+    function test_withdrawBid_maxPriceAtClearingPrice_revertsWithCannotWithdrawBid() public {
+        uint256 bidId = auction.submitBid{value: 2000e18}(_tickPriceAt(2), true, 2000e18, alice, 1, bytes(''));
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+        assertEq(auction.clearingPrice(), _tickPriceAt(2));
+
+        // Auction has ended, but the bid is not withdrawable through this function because the max price is at the clearing price
+        vm.roll(auction.endBlock() + 1);
         vm.expectRevert(IAuction.CannotWithdrawBid.selector);
         vm.prank(alice);
         auction.withdrawBid(bidId);

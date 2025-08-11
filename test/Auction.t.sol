@@ -19,8 +19,8 @@ contract AuctionTest is TokenHandler, Test {
     Auction auction;
 
     uint256 public constant AUCTION_DURATION = 100;
-    uint256 public constant TICK_SPACING = 1e18;
-    uint128 public constant FLOOR_PRICE = 1e18;
+    uint256 public constant TICK_SPACING = 1e6;
+    uint128 public constant FLOOR_PRICE = 1e6;
     uint256 public constant TOTAL_SUPPLY = 1000e18;
 
     address public alice;
@@ -310,16 +310,26 @@ contract AuctionTest is TokenHandler, Test {
         vm.roll(auction.endBlock() + 1);
         vm.startPrank(alice);
         auction.withdrawPartiallyFilledBid(bidId, 2);
+        vm.snapshotGasLastCall('withdrawPartiallyFilledBid');
         // At a clearing price of 2,
-        // Alice is purchasing 1000e18 / 2 = 500e18 tokens
-        // Bob is purchasing 1500e18 / 2 = 750e18 tokens
+        // Alice is purchasing 1000e18 / 2e6 = 500e12 tokens
+        // Bob is purchasing 1500e18 / 2e6 = 750e12 tokens
         // Since the supply is only 1000e18, that means that bob should fully fill for 750e18 tokens, and
         // Alice should partially fill for 250e18 tokens, spending 500e18 ETH
         // Meaning she should be refunded 500e18 ETH
         assertEq(address(alice).balance, aliceBalanceBefore + 500e18);
-
         auction.claimTokens(bidId);
-        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 250e18);
+        vm.snapshotGasLastCall('claimTokens');
+        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 250e18 / TICK_SPACING);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        auction.withdrawBid(bidId2);
+        vm.snapshotGasLastCall('withdrawBid');
+        // Bob purchased 750e18 tokens for a price of 2, so they should have spent all of their ETH.
+        assertEq(address(bob).balance, bobBalanceBefore + 0);
+        auction.claimTokens(bidId2);
+        assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + 750e18 / TICK_SPACING);
         vm.stopPrank();
     }
 }

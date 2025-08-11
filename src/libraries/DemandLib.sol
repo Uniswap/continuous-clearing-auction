@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import {AuctionStepLib} from './AuctionStepLib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 struct Demand {
@@ -10,6 +11,7 @@ struct Demand {
 
 library DemandLib {
     using FixedPointMathLib for uint256;
+    using AuctionStepLib for uint256;
 
     function resolve(Demand memory _demand, uint256 price, uint256 tickSpacing) internal pure returns (uint256) {
         return price == 0 ? 0 : (_demand.currencyDemand.fullMulDiv(tickSpacing, price)) + _demand.tokenDemand;
@@ -38,6 +40,17 @@ library DemandLib {
         return Demand({
             currencyDemand: _demand.currencyDemand + _other.currencyDemand,
             tokenDemand: _demand.tokenDemand + _other.tokenDemand
+        });
+    }
+
+    function applyMpsDenominator(Demand memory _demand, uint24 mps, uint24 mpsDenominator)
+        internal
+        pure
+        returns (Demand memory)
+    {
+        return Demand({
+            currencyDemand: _demand.currencyDemand.applyMpsDenominator(mps, mpsDenominator),
+            tokenDemand: _demand.tokenDemand.applyMpsDenominator(mps, mpsDenominator)
         });
     }
 

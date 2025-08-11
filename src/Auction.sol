@@ -115,25 +115,29 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
     }
 
     /// @notice Calculate the new clearing price
-    function _calculateNewClearingPrice(Tick memory tickUpper, Tick memory tickLower, uint256 blockTokenSupply)
-        internal
-        view
-        returns (uint256 newClearingPrice)
-    {
-        Demand memory _sumDemandAboveClearing = sumDemandAboveClearing;
-        uint256 blockDemandAboveClearing =
-            _sumDemandAboveClearing.resolve(tickUpper.price, tickSpacing).applyMps(step.mps);
+    function _calculateNewClearingPrice(
+        Tick memory tickUpper,
+        Tick memory tickLower,
+        uint256 blockTokenSupply,
+        uint24 cumulativeMps
+    ) internal view returns (uint256 newClearingPrice) {
+        uint256 resolvedBlockDemandAboveClearing = sumDemandAboveClearing.resolve(tickUpper.price, tickSpacing)
+            .applyMpsDenominator(step.mps, AuctionStepLib.MPS - cumulativeMps);
         // If there is no demand above the clearing price or the demand is equal to the block supply, the clearing price is tickUpper
         // This can happen in a few scenarios:
         // 1. The auction just started and the tickUpper represents the floor price and should be returned
         // 2. There is fully matching demand at tickUpper, so it should be new clearing price
         // 3. There is no demand above the current clearing price, so TickUpper is the highest tick in the book and should be new clearing price
-        if (blockDemandAboveClearing == 0 || blockDemandAboveClearing == blockTokenSupply) return tickUpper.price;
+        if (resolvedBlockDemandAboveClearing == 0 || resolvedBlockDemandAboveClearing == blockTokenSupply) {
+            return tickUpper.price;
+        }
 
         // blockDemandAboveClearing must be < blockTokenSupply here
-        Demand memory sumDemandTickLower = _sumDemandAboveClearing.add(tickLower.demand);
-        newClearingPrice = sumDemandTickLower.currencyDemand.applyMps(step.mps).fullMulDiv(
-            tickSpacing, (blockTokenSupply - sumDemandTickLower.tokenDemand.applyMps(step.mps))
+        Demand memory blockSumDemandTickLower = sumDemandAboveClearing.add(tickLower.demand).applyMpsDenominator(
+            step.mps, AuctionStepLib.MPS - cumulativeMps
+        );
+        newClearingPrice = blockSumDemandTickLower.currencyDemand.fullMulDiv(
+            tickSpacing, (blockTokenSupply - blockSumDemandTickLower.tokenDemand)
         );
         newClearingPrice -= (newClearingPrice % tickSpacing);
     }
@@ -141,25 +145,23 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
     /// @notice Update the checkpoint
     /// @param _checkpoint The checkpoint to update
     /// @param _clearingPrice The new clearing price
-    /// @param _blockTokenSupply The token supply at or above tickUpper in the block
     /// @return The updated checkpoint
-    function _updateCheckpoint(Checkpoint memory _checkpoint, uint256 _clearingPrice, uint256 _blockTokenSupply)
+    function _updateCheckpoint(Checkpoint memory _checkpoint, uint256 _clearingPrice)
         internal
         view
         returns (Checkpoint memory)
     {
         // Set the clearing price to the floorPrice if it is lower
-        uint256 _blockDemand = sumDemandAboveClearing.resolve(_clearingPrice, tickSpacing).applyMps(step.mps);
         if (_clearingPrice <= floorPrice) {
             _checkpoint.clearingPrice = floorPrice;
             // We can only clear the current demand at the floor price
-            _checkpoint.totalCleared += _blockDemand;
+            _checkpoint.blockCleared = sumDemandAboveClearing.resolve(_clearingPrice, tickSpacing).applyMpsDenominator(
+                step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
+            );
         }
         // Otherwise, we can clear the entire supply being sold in the block
         else {
             _checkpoint.clearingPrice = _clearingPrice;
-            _checkpoint.totalCleared += _blockTokenSupply;
-            _checkpoint.blockCleared = _blockTokenSupply;
         }
 
         uint24 mpsSinceLastCheckpoint = (
@@ -167,6 +169,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
                 * (block.number - (step.startBlock > lastCheckpointedBlock ? step.startBlock : lastCheckpointedBlock))
         ).toUint24();
 
+        _checkpoint.totalCleared += _checkpoint.blockCleared;
         _checkpoint.cumulativeMps += mpsSinceLastCheckpoint;
         _checkpoint.cumulativeMpsPerPrice +=
             uint256(mpsSinceLastCheckpoint).fullMulDiv(BidLib.PRECISION, _checkpoint.clearingPrice);
@@ -196,7 +199,11 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         Tick memory _tickUpper = ticks[tickUpperId];
         // Resolve the demand at the next initialized tick
         // Find the tick which does not fully match the supply, or the highest tick in the book
-        while (_sumDemandAboveClearing.resolve(_tickUpper.price, tickSpacing).applyMps(step.mps) >= blockTokenSupply) {
+        while (
+            _sumDemandAboveClearing.resolve(_tickUpper.price, tickSpacing).applyMpsDenominator(
+                step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
+            ) >= blockTokenSupply
+        ) {
             // Subtract the demand at the current tickUpper before advancing to the next tick
             _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_tickUpper.demand);
             // If there is no future tick, break to avoid ending up in a bad state
@@ -209,8 +216,12 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
         sumDemandAboveClearing = _sumDemandAboveClearing;
 
-        uint256 newClearingPrice = _calculateNewClearingPrice(_tickUpper, ticks[_tickUpper.prev], blockTokenSupply);
-        _checkpoint = _updateCheckpoint(_checkpoint, newClearingPrice, blockTokenSupply);
+        uint256 newClearingPrice =
+            _calculateNewClearingPrice(_tickUpper, ticks[_tickUpper.prev], blockTokenSupply, _checkpoint.cumulativeMps);
+        // Optimistically set the blockCleared to the blockTokenSupply for the majority of cases
+        // This is updated to blockDemand in `_updateCheckpoint` if the clearing price is under the floor price
+        _checkpoint.blockCleared = blockTokenSupply;
+        _checkpoint = _updateCheckpoint(_checkpoint, newClearingPrice);
         _insertCheckpoint(_checkpoint);
 
         emit CheckpointUpdated(

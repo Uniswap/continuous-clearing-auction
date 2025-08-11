@@ -57,7 +57,7 @@ library BidLib {
         uint24 mpsDenominator
     ) internal pure returns (uint256 tokensFilled) {
         if (bid.exactIn) {
-            tokensFilled = bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, PRECISION * AuctionStepLib.MPS);
+            tokensFilled = bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, PRECISION * mpsDenominator);
         } else {
             tokensFilled = bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
         }

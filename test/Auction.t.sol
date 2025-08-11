@@ -183,6 +183,7 @@ contract AuctionTest is TokenHandler, Test {
     }
 
     /// forge-config: default.isolate = true
+    /// forge-config: ci.isolate = true
     function test_withdrawBid_succeeds_gas() public {
         uint256 smallAmount = 500e18;
         vm.expectEmit(true, true, true, true);
@@ -218,7 +219,7 @@ contract AuctionTest is TokenHandler, Test {
         auction.withdrawBid(bidId2);
     }
 
-    function test_withdrawBid_aboveClearingAfterEndBlock_succeeds() public {
+    function test_withdrawBid_afterEndBlock_succeeds() public {
         uint128 bidMaxPrice = _tickPriceAt(3);
         uint256 bidId = auction.submitBid{value: 1000e18}(bidMaxPrice, true, 1000e18, alice, 1, bytes(''));
 
@@ -229,18 +230,42 @@ contract AuctionTest is TokenHandler, Test {
 
         assertGt(bidMaxPrice, auction.clearingPrice());
         // Before the auction ends, the bid should not be withdrawable since it is above the clearing price
+        vm.startPrank(alice);
         vm.roll(auction.endBlock());
         vm.expectRevert(IAuction.CannotWithdrawBid.selector);
-        vm.prank(alice);
         auction.withdrawBid(bidId);
+
+        uint256 aliceBalanceBefore = address(alice).balance;
 
         // Now that the auction has ended, the bid should be withdrawable
         vm.roll(auction.endBlock() + 1);
-        vm.prank(alice);
         auction.withdrawBid(bidId);
+        // Expect no refund
+        assertEq(address(alice).balance, aliceBalanceBefore);
+        auction.claimTokens(bidId);
+        // Expect purchased 1000e18 / 1 = 1000 tokens
+        assertEq(token.balanceOf(address(alice)), 1000e18 / TICK_SPACING);
+        vm.stopPrank();
     }
 
-    function test_withdrawBid_aboveClearingBeforeEndBlock_revertsWithCannotWithdrawBid() public {
+    function test_withdrawBid_joinedLate_succeeds() public {
+        vm.roll(auction.endBlock() - 2);
+        uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(2), true, 1000e18, alice, 1, bytes(''));
+
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+
+        uint256 aliceBalanceBefore = address(alice).balance;
+        uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
+        vm.roll(auction.endBlock() + 1);
+        auction.withdrawBid(bidId);
+        // Expect no refund since the bid was fully filled
+        assertEq(address(alice).balance, aliceBalanceBefore);
+        auction.claimTokens(bidId);
+        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18 / TICK_SPACING);
+    }
+
+    function test_withdrawBid_beforeEndBlock_revertsWithCannotWithdrawBid() public {
         uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(3), true, 1000e18, alice, 1, bytes(''));
         // Expect revert because the bid is not below the clearing price
         vm.expectRevert(IAuction.CannotWithdrawBid.selector);

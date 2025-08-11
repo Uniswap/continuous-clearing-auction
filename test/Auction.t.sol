@@ -334,4 +334,53 @@ contract AuctionTest is TokenHandler, Test {
         assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + 750e18 / TICK_SPACING);
         vm.stopPrank();
     }
+
+    function test_withdrawPartiallyFilledBid_multipleBidders_succeeds() public {
+        address bob = makeAddr('bob');
+        address charlie = makeAddr('charlie');
+        uint256 bidId1 = auction.submitBid{value: 400e18}(_tickPriceAt(2), true, 400e18, alice, 1, bytes('')); // Wanting 200 at 2
+        uint256 bidId2 = auction.submitBid{value: 600e18}(_tickPriceAt(2), true, 600e18, bob, 1, bytes('')); // Wanting 300 at 2
+        uint256 bidId3 = auction.submitBid{value: 1500e18}(_tickPriceAt(3), true, 1500e18, charlie, 2, bytes(''));
+
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+
+        uint256 aliceBalanceBefore = address(alice).balance;
+        uint256 bobBalanceBefore = address(bob).balance;
+        uint256 charlieBalanceBefore = address(charlie).balance;
+        uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
+        uint256 bobTokenBalanceBefore = token.balanceOf(address(bob));
+        uint256 charlieTokenBalanceBefore = token.balanceOf(address(charlie));
+
+        // Clearing price is at 2
+        // Alice is purchasing 400e18 / 2e6 = 200e12 tokens
+        // Bob is purchasing 600e18 / 2e6 = 300e12 tokens
+        // Charlie is purchasing 1500e18 / 2e6 = 750e12 tokens
+        // Since the supply is only 1000e18, that means that charlie should fully fill for 750e18 tokens
+        // So 250e18 tokens left over
+        // Alice should partially fill for 400/1000 * 250e18 = 100e18 tokens
+        // - And spent 100e18 * 2 = 200 ETH. She should be refunded 200 ETH
+        // Bob should partially fill for 600/1000 * 250e18 = 150e18 tokens
+        // - And spent 150e18 * 2 = 300 ETH. He should be refunded 300 ETH
+        vm.roll(auction.endBlock() + 1);
+        vm.startPrank(alice);
+        auction.withdrawPartiallyFilledBid(bidId1, 2);
+        assertEq(address(alice).balance, aliceBalanceBefore + 200e18);
+        auction.claimTokens(bidId1);
+        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 100e18 / TICK_SPACING);
+
+        vm.startPrank(bob);
+        auction.withdrawPartiallyFilledBid(bidId2, 2);
+        assertEq(address(bob).balance, bobBalanceBefore + 300e18);
+        auction.claimTokens(bidId2);
+        assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + 150e18 / TICK_SPACING);
+        vm.stopPrank();
+
+        vm.startPrank(charlie);
+        auction.withdrawBid(bidId3);
+        assertEq(address(charlie).balance, charlieBalanceBefore + 0);
+        auction.claimTokens(bidId3);
+        assertEq(token.balanceOf(address(charlie)), charlieTokenBalanceBefore + 750e18 / TICK_SPACING);
+        vm.stopPrank();
+    }
 }

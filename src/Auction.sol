@@ -456,7 +456,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         uint256 supplySoldToTick = supply - resolvedDemandAboveClearingPrice.applyMps(mpsDelta);
         tokensFilled = supplySoldToTick.fullMulDiv(_bidDemandMps, tickSpacing * _tickDemandMps);
         cumulativeMpsDelta = (
-            uint256(mpsDelta).fullMulDiv(supplySoldToTick, _tickDemandMps).fullMulDiv(_bidDemandMps, _tickDemandMps)
+            uint256(mpsDelta).fullMulDiv(supplySoldToTick, _tickDemandMps)
         ).toUint24();
     }
 

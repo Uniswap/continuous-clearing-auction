@@ -418,7 +418,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         uint256 tickDemand = tick.resolveDemand(tickSpacing);
         while (upper.prev != 0) {
             Checkpoint memory _next = _getCheckpoint(upper.prev);
-            // Stop when the next checkpoint is less than the tick price
+            // Stop searching when the next checkpoint is less than the tick price
             if (_next.clearingPrice < tick.price) {
                 // Upper is the last checkpoint where tick.price == clearingPrice
                 // Account for tokens sold in the upperCheckpoint block, since checkpoint ranges are not inclusive [start,end)

@@ -293,6 +293,8 @@ contract AuctionTest is TokenHandler, Test {
         assertEq(address(alice).balance, aliceBalanceBefore);
     }
 
+    /// forge-config: default.isolate = true
+    /// forge-config: ci.isolate = true
     function test_withdrawPartiallyFilledBid_succeeds_gas() public {
         address bob = makeAddr('bob');
         uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(2), true, 1000e18, alice, 1, bytes(''));

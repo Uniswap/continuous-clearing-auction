@@ -7,9 +7,6 @@ import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
 import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
 import {TickStorage} from './TickStorage.sol';
 
-import {console2} from 'forge-std/console2.sol';
-import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
-
 import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
 import {Tick, TickLib} from './libraries/TickLib.sol';
 
@@ -25,6 +22,8 @@ import {Demand, DemandLib} from './libraries/DemandLib.sol';
 
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+
+import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 /// @title Auction
@@ -145,8 +144,9 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
     /// @notice Update the checkpoint
     /// @param _checkpoint The checkpoint to update
     /// @param _clearingPrice The new clearing price
+    /// @param _blockTokenSupply The token supply at or above tickUpper in the block
     /// @return The updated checkpoint
-    function _updateCheckpoint(Checkpoint memory _checkpoint, uint256 _clearingPrice)
+    function _updateCheckpoint(Checkpoint memory _checkpoint, uint256 _clearingPrice, uint256 _blockTokenSupply)
         internal
         view
         returns (Checkpoint memory)
@@ -162,6 +162,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         // Otherwise, we can clear the entire supply being sold in the block
         else {
             _checkpoint.clearingPrice = _clearingPrice;
+            _checkpoint.blockCleared = _blockTokenSupply;
         }
 
         uint24 mpsSinceLastCheckpoint = (
@@ -218,10 +219,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
         uint256 newClearingPrice =
             _calculateNewClearingPrice(_tickUpper, ticks[_tickUpper.prev], blockTokenSupply, _checkpoint.cumulativeMps);
-        // Optimistically set the blockCleared to the blockTokenSupply for the majority of cases
-        // This is updated to blockDemand in `_updateCheckpoint` if the clearing price is under the floor price
-        _checkpoint.blockCleared = blockTokenSupply;
-        _checkpoint = _updateCheckpoint(_checkpoint, newClearingPrice);
+        _checkpoint = _updateCheckpoint(_checkpoint, newClearingPrice, blockTokenSupply);
         _insertCheckpoint(_checkpoint);
 
         emit CheckpointUpdated(

@@ -296,8 +296,9 @@ contract AuctionTest is TokenHandler, Test {
     function test_withdrawPartiallyFilledBid_succeeds_gas() public {
         address bob = makeAddr('bob');
         uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(2), true, 1000e18, alice, 1, bytes(''));
-        uint256 bidId2 = auction.submitBid{value: 1000e18}(_tickPriceAt(2), true, 1000e18, bob, 1, bytes(''));
+        uint256 bidId2 = auction.submitBid{value: 1500e18}(_tickPriceAt(3), true, 1500e18, bob, 2, bytes(''));
 
+        // Clearing price is at 2
         vm.roll(block.number + 1);
         auction.checkpoint();
 
@@ -307,16 +308,18 @@ contract AuctionTest is TokenHandler, Test {
         uint256 bobTokenBalanceBefore = token.balanceOf(address(bob));
 
         vm.roll(auction.endBlock() + 1);
-        vm.prank(alice);
+        vm.startPrank(alice);
         auction.withdrawPartiallyFilledBid(bidId, 2);
-        // Alice should have gotten filled for half of their bid
+        // At a clearing price of 2,
+        // Alice is purchasing 1000e18 / 2 = 500e18 tokens
+        // Bob is purchasing 1500e18 / 2 = 750e18 tokens
+        // Since the supply is only 1000e18, that means that bob should fully fill for 750e18 tokens, and
+        // Alice should partially fill for 250e18 tokens, spending 500e18 ETH
+        // Meaning she should be refunded 500e18 ETH
         assertEq(address(alice).balance, aliceBalanceBefore + 500e18);
-        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 500e18);
 
-        vm.prank(bob);
-        auction.withdrawPartiallyFilledBid(bidId2, 2);
-        // Bob should have gotten filled for half of their bid
-        assertEq(address(bob).balance, bobBalanceBefore + 500e18);
-        assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + 500e18);
+        auction.claimTokens(bidId);
+        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 250e18);
+        vm.stopPrank();
     }
 }

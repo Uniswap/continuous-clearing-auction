@@ -165,6 +165,12 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         _checkpoint.cumulativeMps += mpsSinceLastCheckpoint;
         _checkpoint.cumulativeMpsPerPrice +=
             uint256(mpsSinceLastCheckpoint).fullMulDiv(BidLib.PRECISION, _checkpoint.clearingPrice);
+        console2.log('tickUpper.price', ticks[tickUpperId].price);
+        console2.log('sumDemandTickUpper.currencyDemand', sumDemandTickUpper.currencyDemand);
+        console2.log('sumDemandTickUpper.tokenDemand', sumDemandTickUpper.tokenDemand);
+        console2.log('clearingPrice', _checkpoint.clearingPrice);
+        console2.log('tickSpacing', tickSpacing);
+        console2.log('resolvedActiveDemand', sumDemandTickUpper.resolve(_checkpoint.clearingPrice, tickSpacing));
         _checkpoint.resolvedActiveDemand = sumDemandTickUpper.resolve(_checkpoint.clearingPrice, tickSpacing);
         _checkpoint.blockCleared = _blockTokenSupply;
         _checkpoint.mps = step.mps;
@@ -272,8 +278,6 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             bid.tokensFilled = tokensFilled;
             bid.withdrawnBlock = uint64(block.number);
             _updateBid(bidId, bid);
-
-            token.transfer(_owner, tokensFilled);
         }
 
         currency.transfer(_owner, refund);
@@ -352,6 +356,8 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
                 tick,
                 bid
             );
+            console2.log('partialTokensFilled', partialTokensFilled);
+            console2.log('partialCumulativeMpsDelta', partialCumulativeMpsDelta);
             tokensFilled += partialTokensFilled;
             cumulativeMpsDelta += partialCumulativeMpsDelta;
         } else {
@@ -402,25 +408,32 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
     {
         uint256 bidDemand = bid.demand(tick.price, tickSpacing);
         uint256 tickDemand = tick.resolveDemand(tickSpacing);
+        console2.log('bidDemand', bidDemand);
+        console2.log('tickDemand', tickDemand);
         while (upper.prev != 0) {
             Checkpoint memory _next = _getCheckpoint(upper.prev);
             // Stop when the next checkpoint is less than the tick price
             if (_next.clearingPrice < tick.price) {
+                // Upper is the last checkpoint where tick.price == clearingPrice
+                console2.log('_next.clearingPrice < tick.price');
+                console2.log('upper.resolvedActiveDemand', upper.resolvedActiveDemand);
+                console2.log('tickDemand', tickDemand);
                 // Account for tokens sold in the upperCheckpoint block, since checkpoint ranges are not inclusive [start,end)
-                (uint256 _upperCheckpointTokensFilled, uint24 _upperCheckpointSupplyMps) = _partialFill(
-                    upper.blockCleared, upper.resolvedActiveDemand - tickDemand, upper.mps, bidDemand, tickDemand
-                );
+                (uint256 _upperCheckpointTokensFilled, uint24 _upperCheckpointSupplyMps) =
+                    _partialFill(upper.blockCleared, upper.resolvedActiveDemand, upper.mps, bidDemand, tickDemand);
                 tokensFilled += _upperCheckpointTokensFilled;
                 cumulativeMpsDelta += _upperCheckpointSupplyMps;
                 break;
             }
             (uint256 _tokensFilled, uint24 _actualSupplyMps) = _partialFill(
                 upper.totalCleared - _next.totalCleared,
-                upper.resolvedActiveDemand - tickDemand,
+                upper.resolvedActiveDemand,
                 upper.cumulativeMps - _next.cumulativeMps,
                 bidDemand,
                 tickDemand
             );
+            console2.log('tokensFilled', _tokensFilled);
+            console2.log('actualSupplyMps', _actualSupplyMps);
             tokensFilled += _tokensFilled;
             cumulativeMpsDelta += _actualSupplyMps;
             upper = _next;
@@ -435,14 +448,21 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         uint256 bidDemand,
         uint256 tickDemand
     ) internal pure returns (uint256 tokensFilled, uint24 cumulativeMpsDelta) {
-        uint256 matchingDemand = supply - demandAboveTick;
-
-        tokensFilled = matchingDemand.fullMulDiv(bidDemand, tickDemand);
+        console2.log('supply', supply);
+        console2.log('demandAboveTick', demandAboveTick);
+        console2.log('supplySoldMps', supplySoldMps);
+        console2.log('bidDemand', bidDemand);
+        console2.log('tickDemand', tickDemand);
+        uint256 supplySoldToTick = supply - demandAboveTick.applyMps(supplySoldMps);
+        console2.log('supplySoldToTick', supplySoldToTick);
+        tokensFilled = supplySoldToTick.fullMulDiv(bidDemand, tickDemand);
+        console2.log('tokensFilled', tokensFilled);
         cumulativeMpsDelta = (
-            uint256(uint256(supplySoldMps).fullMulDiv(matchingDemand, supply).toUint24()).fullMulDiv(
+            uint256(uint256(supplySoldMps).fullMulDiv(supplySoldToTick, supply).toUint24()).fullMulDiv(
                 bidDemand, tickDemand
             )
         ).toUint24();
+        console2.log('cumulativeMpsDelta', cumulativeMpsDelta);
     }
 
     receive() external payable {}

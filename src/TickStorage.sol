@@ -22,6 +22,13 @@ abstract contract TickStorage is ITickStorage {
     /// @notice The id of the first tick
     uint128 public headTickId;
 
+    /// @notice The tick spacing enforced for bid prices
+    uint256 public immutable tickSpacing;
+
+    constructor(uint256 _tickSpacing) {
+        tickSpacing = _tickSpacing;
+    }
+
     /// @notice Initialize a tick at `price` if its does not exist already
     /// @notice Requires `prev` to be the id of the tick immediately preceding the desired price
     /// @param prev The id of the previous tick
@@ -81,13 +88,18 @@ abstract contract TickStorage is ITickStorage {
     /// @param id The id of the tick
     /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
-    function _updateTick(uint128 id, bool exactIn, uint256 amount) internal {
+    function _updateTickAndTickUpper(uint128 id, bool exactIn, uint256 amount) internal {
         Tick storage tick = ticks[id];
 
         if (exactIn) {
             tick.demand = tick.demand.addCurrencyAmount(amount);
         } else {
             tick.demand = tick.demand.addTokenAmount(amount);
+        }
+
+        // If we initialized a new tick before tickUpper, update tickUpper
+        if (tick.next == tickUpperId) {
+            tickUpperId = id;
         }
     }
 

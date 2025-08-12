@@ -63,6 +63,7 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
 
     /// @notice Emitted when a bid is submitted
     /// @param id The id of the bid
+    /// @param owner The owner of the bid
     /// @param price The price of the bid
     /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
@@ -94,6 +95,7 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     /// @param owner The owner of the bid
     /// @param prevHintId The id of the previous tick hint
     /// @param hookData Additional data to pass to the hook required for validation
+    /// @return bidId The id of the bid
     function submitBid(
         uint128 maxPrice,
         bool exactIn,
@@ -101,13 +103,22 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
         address owner,
         uint128 prevHintId,
         bytes calldata hookData
-    ) external payable;
+    ) external payable returns (uint256 bidId);
+
+    /// @notice Register a new checkpoint
+    /// @dev This function is called every time a new bid is submitted above the current clearing price
+    function checkpoint() external returns (Checkpoint memory _checkpoint);
 
     /// @notice Withdraw a bid
-    /// @dev A bid can only be withdrawn if the maxPrice is below the current clearing price
+    /// @dev This function can only be used for bids where the max price is above the final clearing price after the auction has ended
     /// @param bidId The id of the bid
-    /// @param upperCheckpointId The id of the checkpoint immediately after the last "active" checkpoint for the bid
-    function withdrawBid(uint256 bidId, uint256 upperCheckpointId) external;
+    function withdrawBid(uint256 bidId) external;
+
+    /// @notice Withdraw a bid which has been partially filled
+    /// @dev This function can only be used for bids where the max price is below the final clearing price
+    /// @param bidId The id of the bid
+    /// @param outbidCheckpointBlock The block of the first checkpoint where the clearing price is strictly > bid.maxPrice
+    function withdrawPartiallyFilledBid(uint256 bidId, uint256 outbidCheckpointBlock) external;
 
     /// @notice Claim tokens after the auction's claim block
     /// @notice The bid must be withdrawn before claiming tokens

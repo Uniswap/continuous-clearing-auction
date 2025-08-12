@@ -22,6 +22,13 @@ abstract contract TickStorage is ITickStorage {
     /// @notice The id of the first tick
     uint128 public headTickId;
 
+    /// @notice The tick spacing enforced for bid prices
+    uint256 public immutable tickSpacing;
+
+    constructor(uint256 _tickSpacing) {
+        tickSpacing = _tickSpacing;
+    }
+
     /// @notice Initialize a tick at `price` if its does not exist already
     /// @notice Requires `prev` to be the id of the tick immediately preceding the desired price
     /// @param prev The id of the previous tick

@@ -7,6 +7,8 @@ import {Tick} from '../src/libraries/TickLib.sol';
 import {Test} from 'forge-std/Test.sol';
 
 contract MockTickStorage is TickStorage {
+    constructor(uint256 _tickSpacing) TickStorage(_tickSpacing) {}
+
     function getTick(uint128 id) external view returns (Tick memory) {
         return ticks[id];
     }
@@ -16,15 +18,16 @@ contract MockTickStorage is TickStorage {
     }
 
     function updateTick(uint128 id, bool exactIn, uint256 amount) external {
-        super._updateTick(id, exactIn, amount);
+        super._updateTickAndTickUpper(id, exactIn, amount);
     }
 }
 
 contract TickStorageTest is Test {
     MockTickStorage public tickStorage;
+    uint256 public constant TICK_SPACING = 1e18;
 
     function setUp() public {
-        tickStorage = new MockTickStorage();
+        tickStorage = new MockTickStorage(TICK_SPACING);
     }
 
     function test_initializeTickNoTicks_succeeds() public {

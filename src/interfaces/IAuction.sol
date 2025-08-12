@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {Checkpoint} from '../libraries/CheckpointLib.sol';
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
 import {IDistributionContract} from './external/IDistributionContract.sol';

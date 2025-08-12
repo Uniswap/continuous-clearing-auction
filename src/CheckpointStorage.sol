@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {TickStorage} from './TickStorage.sol';
-import {AuctionStepLib, AuctionStep} from './libraries/AuctionStepLib.sol';
+import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint} from './libraries/CheckpointLib.sol';
 import {Tick, TickLib} from './libraries/TickLib.sol';
@@ -10,6 +10,8 @@ import {Tick, TickLib} from './libraries/TickLib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
+/// @title CheckpointStorage
+/// @notice Abstract contract for managing auction checkpoints and bid fill calculations
 abstract contract CheckpointStorage is TickStorage {
     using FixedPointMathLib for uint256;
     using AuctionStepLib for *;

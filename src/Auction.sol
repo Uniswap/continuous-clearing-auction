@@ -27,7 +27,7 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 /// @title Auction
-contract Auction is PermitSingleForwarder, IAuction, BidStorage, CheckpointStorage, AuctionStepStorage {
+contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSingleForwarder, IAuction {
     using FixedPointMathLib for uint256;
     using CurrencyLibrary for Currency;
     using TickLib for Tick;
@@ -178,14 +178,9 @@ contract Auction is PermitSingleForwarder, IAuction, BidStorage, CheckpointStora
             _calculateNewClearingPrice(_tickUpper, ticks[_tickUpper.prev], blockTokenSupply, _checkpoint.cumulativeMps);
         uint256 blockResolvedDemandAboveClearing = sumDemandAboveClearing.resolve(newClearingPrice, tickSpacing);
 
-        _checkpoint = _updateCheckpoint(
-            _checkpoint,
-            step,
-            newClearingPrice,
-            blockResolvedDemandAboveClearing,
-            blockTokenSupply
-        );
-        
+        _checkpoint =
+            _updateCheckpoint(_checkpoint, step, newClearingPrice, blockResolvedDemandAboveClearing, blockTokenSupply);
+
         _insertCheckpoint(_checkpoint);
 
         emit CheckpointUpdated(

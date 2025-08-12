@@ -39,6 +39,15 @@ contract TickStorageTest is Test {
         assertEq(tick.price, price);
         assertEq(tick.demand.currencyDemand, 0);
         assertEq(tick.demand.tokenDemand, 0);
+        // First tick in the book has no prev
+        assertEq(tick.prev, 0);
+        // No other ticks initialized yet, so next is 0
+        assertEq(tick.next, 0);
+        // First tick is both head and tickUpper
+        assertEq(tickStorage.tickUpperId(), 1);
+        assertEq(tickStorage.headTickId(), 1);
+        // Next tick is 2
+        assertEq(tickStorage.nextTickId(), 2);
     }
 
     function test_initializeTickWithPrev_succeeds() public {
@@ -46,6 +55,7 @@ contract TickStorageTest is Test {
         uint256 price = 1e18;
         uint128 id = tickStorage.initializeTickIfNeeded(prev, price);
         assertEq(id, 1);
+        uint256 _tickUpperId = tickStorage.tickUpperId();
 
         prev = id;
         price = 2e18;
@@ -53,6 +63,13 @@ contract TickStorageTest is Test {
         assertEq(id, 2);
         Tick memory tick = tickStorage.getTick(id);
         assertEq(tick.price, price);
+        assertEq(tick.prev, 1);
+        assertEq(tick.next, 0);
+        // TickUpper is not updated by initializeTickIfNeeded, so it remains at its previous value
+        assertEq(tickStorage.tickUpperId(), _tickUpperId);
+        // Expect head to track the first tick
+        assertEq(tickStorage.headTickId(), 1);
+        assertEq(tickStorage.nextTickId(), 3);
     }
 
     function test_initializeTickBeforeHead_succeeds() public {
@@ -71,6 +88,34 @@ contract TickStorageTest is Test {
         assertEq(tick.prev, 0);
         // And the first tick we added is next
         assertEq(tick.next, 1);
+        // Assert that this is now the head tick
+        assertEq(tickStorage.headTickId(), 2);
+        // Next tick is 3
+        assertEq(tickStorage.nextTickId(), 3);
+    }
+
+    function test_initializeTickReturnsExistingTickAtHead_succeeds() public {
+        uint128 prev = 0;
+        uint256 price = 1e18;
+        uint128 id = tickStorage.initializeTickIfNeeded(prev, price);
+        assertEq(id, 1);
+
+        uint128 id2 = tickStorage.initializeTickIfNeeded(0, price);
+        assertEq(id2, 1);
+    }
+
+    function test_initializeTickReturnsExistingTick_succeeds() public {
+        uint128 prev = 0;
+        uint256 price = 1e18;
+        uint128 id = tickStorage.initializeTickIfNeeded(prev, price);
+        assertEq(id, 1);
+
+        uint128 id2 = tickStorage.initializeTickIfNeeded(1, 2e18);
+        assertEq(id2, 2);
+
+        // Try to initialize the same tick again, should return the same id
+        uint128 id3 = tickStorage.initializeTickIfNeeded(1, 2e18);
+        assertEq(id3, 2);
     }
 
     function test_initializeTickWithWrongPrice_reverts() public {
@@ -83,6 +128,19 @@ contract TickStorageTest is Test {
         price = 0;
         vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
         tickStorage.initializeTickIfNeeded(prev, price);
+    }
+
+    function test_initializeTickWithWrongPriceBetweenTicks_reverts() public {
+        uint128 prev = 0;
+        uint256 price = 1e18;
+        uint128 id = tickStorage.initializeTickIfNeeded(prev, price);
+        assertEq(id, 1);
+
+        tickStorage.initializeTickIfNeeded(1, 2e18);
+
+        // Wrong price, between ticks must be increasing
+        vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
+        tickStorage.initializeTickIfNeeded(1, 3e18);
     }
 
     function test_initializeTickBeforeHeadWithWrongPrice_reverts() public {

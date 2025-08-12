@@ -113,8 +113,8 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     /// @notice Withdraw a bid which has been partially filled
     /// @dev This function can only be used for bids where the max price is below the final clearing price
     /// @param bidId The id of the bid
-    /// @param upperCheckpointId The id of the first checkpoint where the clearing price is equal to the bid max price
-    function withdrawPartiallyFilledBid(uint256 bidId, uint256 upperCheckpointId) external;
+    /// @param outbidCheckpointBlock The block of the first checkpoint where the clearing price is strictly > bid.maxPrice
+    function withdrawPartiallyFilledBid(uint256 bidId, uint256 outbidCheckpointBlock) external;
 
     /// @notice Claim tokens after the auction's claim block
     /// @notice The bid must be withdrawn before claiming tokens

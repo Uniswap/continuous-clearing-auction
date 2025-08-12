@@ -288,7 +288,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     }
 
     /// @inheritdoc IAuction
-    function withdrawPartiallyFilledBid(uint256 bidId, uint256 upperCheckpointBlock) external {
+    function withdrawPartiallyFilledBid(uint256 bidId, uint256 outbidCheckpointBlock) external {
         Bid memory bid = _getBid(bidId);
         if (bid.withdrawnBlock != 0) revert BidAlreadyWithdrawn();
 
@@ -296,10 +296,10 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
 
         // Starting checkpoint must exist because we checkpoint on bid submission
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
-        // Upper checkpoint is the first checkpoint where the clearing price is strictly > tick.price
-        Checkpoint memory upperCheckpoint = _getCheckpoint(upperCheckpointBlock);
+        // Outbid checkpoint is the first checkpoint where the clearing price is strictly > tick.price
+        Checkpoint memory outbidCheckpoint = _getCheckpoint(outbidCheckpointBlock);
         // Last valid checkpoint is the last checkpoint where the clearing price is <= tick.price
-        Checkpoint memory lastValidCheckpoint = _getCheckpoint(upperCheckpoint.prev);
+        Checkpoint memory lastValidCheckpoint = _getCheckpoint(outbidCheckpoint.prev);
 
         uint256 tokensFilled;
         uint24 cumulativeMpsDelta;
@@ -319,9 +319,9 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         } else if (block.number > endBlock && tick.price == _clearingPrice) {
             /// @dev Bid is partially filled at the end of the auction
             /// Setup:
-            /// lastValidCheckpoint --- ... | upperCheckpoint --- ... | latestCheckpoint ... | endBlock
+            /// lastValidCheckpoint --- ... | outbidCheckpoint --- ... | latestCheckpoint ... | endBlock
             /// price < clearingPrice       | clearingPrice == price -------------------------->
-            if (upperCheckpoint.clearingPrice < tick.price || lastValidCheckpoint.clearingPrice > tick.price) {
+            if (outbidCheckpoint.clearingPrice < tick.price || lastValidCheckpoint.clearingPrice > tick.price) {
                 revert InvalidCheckpointHint();
             }
 

@@ -18,7 +18,7 @@ contract MockTickStorage is TickStorage {
     }
 
     function updateTick(uint128 id, bool exactIn, uint256 amount) external {
-        super._updateTickAndTickUpper(id, exactIn, amount);
+        super._updateTick(id, exactIn, amount);
     }
 }
 
@@ -154,6 +154,18 @@ contract TickStorageTest is Test {
         price = 2e18;
         vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
         tickStorage.initializeTickIfNeeded(prev, price);
+    }
+
+    function test_updateTickNewTickAtHead_succeeds() public {
+        uint128 prev = 0;
+        uint256 price = 1e18;
+        uint128 id = tickStorage.initializeTickIfNeeded(prev, price);
+        assertEq(id, 1);
+
+        tickStorage.updateTick(1, true, 1e18);
+        tickStorage.updateTick(1, false, 1e18);
+        assertEq(tickStorage.getTick(1).demand.currencyDemand, 1e18);
+        assertEq(tickStorage.getTick(1).demand.tokenDemand, 1e18);
     }
 
     function test_getUpperTickForPriceAtPrice_succeeds() public {

@@ -65,7 +65,14 @@ abstract contract TickStorage is ITickStorage {
         } else {
             ticks[prev].next = id;
         }
+
         if (next != 0) {
+            // If the next tick is the tickUpper, update tickUpper to the new tick
+            // This is because we always want tickUpper to track the tick right above the clearing price
+            // And we don't allow for bids to be placed below the clearing price
+            if (next == tickUpperId) {
+                tickUpperId = id;
+            }
             ticks[next].prev = id;
         }
 
@@ -79,18 +86,13 @@ abstract contract TickStorage is ITickStorage {
     /// @param id The id of the tick
     /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
-    function _updateTickAndTickUpper(uint128 id, bool exactIn, uint256 amount) internal {
+    function _updateTick(uint128 id, bool exactIn, uint256 amount) internal {
         Tick storage tick = ticks[id];
 
         if (exactIn) {
             tick.demand = tick.demand.addCurrencyAmount(amount);
         } else {
             tick.demand = tick.demand.addTokenAmount(amount);
-        }
-
-        // If we initialized a new tick before tickUpper, update tickUpper
-        if (tick.next == tickUpperId) {
-            tickUpperId = id;
         }
     }
 

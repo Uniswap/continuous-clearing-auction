@@ -220,7 +220,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         // ClearingPrice will be set to floor price in checkpoint() if not set already
         BidLib.validate(maxPrice, _clearingPrice, tickSpacing);
 
-        _updateTickAndTickUpper(tickId, exactIn, amount);
+        _updateTick(tickId, exactIn, amount);
 
         bidId = _createBid(exactIn, amount, owner, tickId);
 

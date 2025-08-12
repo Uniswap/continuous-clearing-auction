@@ -46,7 +46,12 @@ abstract contract TickStorage is ITickStorage {
         // The tick already exists, return it
         if (nextPrice == price) return next;
 
-        id = nextTickId == 0 ? 1 : nextTickId;
+        uint256 _nextTickId = nextTickId;
+        /// @solidity memory-safe-assembly
+        assembly {
+            // if nextTickId is 0, set id to 1, otherwise set it to nextTickId
+            id := or(_nextTickId, mul(1, iszero(_nextTickId)))
+        }
         Tick storage newTick = ticks[id];
         newTick.id = id;
         newTick.prev = prev;

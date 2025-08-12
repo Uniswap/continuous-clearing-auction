@@ -65,7 +65,7 @@ contract TickStorageTest is Test {
         assertEq(tick.price, price);
         assertEq(tick.prev, 1);
         assertEq(tick.next, 0);
-        // TickUpper is not updated by initializeTickIfNeeded, so it remains at its previous value
+        // new tick is not before tickUpper, so tickUpper is not updated
         assertEq(tickStorage.tickUpperId(), _tickUpperId);
         // Expect head to track the first tick
         assertEq(tickStorage.headTickId(), 1);
@@ -77,10 +77,14 @@ contract TickStorageTest is Test {
         uint256 price = 2e18;
         uint128 id = tickStorage.initializeTickIfNeeded(prev, price);
         assertEq(id, 1);
+        assertEq(tickStorage.tickUpperId(), 1);
 
         prev = 0;
         price = 1e18;
+        vm.expectEmit(true, true, true, true);
+        emit ITickStorage.TickUpperUpdated(2);
         id = tickStorage.initializeTickIfNeeded(prev, price);
+
         assertEq(id, 2);
         Tick memory tick = tickStorage.getTick(id);
         assertEq(tick.price, 1e18);
@@ -90,6 +94,8 @@ contract TickStorageTest is Test {
         assertEq(tick.next, 1);
         // Assert that this is now the head tick
         assertEq(tickStorage.headTickId(), 2);
+        // Assert that the tickUpper is updated to this tick
+        assertEq(tickStorage.tickUpperId(), 2);
         // Next tick is 3
         assertEq(tickStorage.nextTickId(), 3);
     }

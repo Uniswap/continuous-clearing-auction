@@ -29,8 +29,10 @@ abstract contract TickStorage is ITickStorage {
         tickSpacing = _tickSpacing;
     }
 
-    /// @notice Initialize a tick at `price` if its does not exist already
-    /// @notice Requires `prev` to be the id of the tick immediately preceding the desired price
+    /// @notice Initialize a tick at `price` if it does not exist already
+    /// @dev Requires `prev` to be the id of the tick immediately preceding the desired price
+    ///      If `prev` is 0, attempts to initialize a new tick at the beginning of the list
+    ///      TickUpper will be updated if the new tick is right before it
     /// @param prev The id of the previous tick
     /// @param price The price of the tick
     /// @return id The id of the tick
@@ -52,6 +54,7 @@ abstract contract TickStorage is ITickStorage {
             // if nextTickId is 0, set id to 1, otherwise set it to nextTickId
             id := or(_nextTickId, mul(1, iszero(_nextTickId)))
         }
+
         Tick storage newTick = ticks[id];
         newTick.id = id;
         newTick.prev = prev;
@@ -59,20 +62,22 @@ abstract contract TickStorage is ITickStorage {
         newTick.price = price;
 
         if (prev == 0) {
-            // Base case: first tick becomes both head and tickUpper
+            // First tick becomes head
             headTickId = id;
-            tickUpperId = id;
         } else {
+            // Link prev to new tick
             ticks[prev].next = id;
         }
 
+        // If the next tick is the tickUpper, update tickUpper to the new tick
+        // In the base case, where next == 0 and tickUpperId == 0, this will set tickUpperId to id
+        if (next == tickUpperId) {
+            tickUpperId = id;
+            emit TickUpperUpdated(id);
+        }
+
+        // Link next to new tick
         if (next != 0) {
-            // If the next tick is the tickUpper, update tickUpper to the new tick
-            // This is because we always want tickUpper to track the tick right above the clearing price
-            // And we don't allow for bids to be placed below the clearing price
-            if (next == tickUpperId) {
-                tickUpperId = id;
-            }
             ticks[next].prev = id;
         }
 

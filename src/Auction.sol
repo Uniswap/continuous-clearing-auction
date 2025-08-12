@@ -97,17 +97,17 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
     }
 
     /// @notice Advance the current step until the current block is within the step
-    function _advanceToCurrentStep() internal returns (Checkpoint memory _checkpoint) {
+    function _advanceToCurrentStep() internal returns (Checkpoint memory _checkpoint, uint256 _checkpointedBlock) {
         // Advance the current step until the current block is within the step
         _checkpoint = latestCheckpoint();
-        uint256 start = lastCheckpointedBlock;
+        _checkpointedBlock = lastCheckpointedBlock;
         uint256 end = step.endBlock;
 
-        while (block.number >= end) {
+        while (block.number >= end && end != endBlock) {
             if (_checkpoint.clearingPrice > 0) {
-                _checkpoint = _checkpoint.transform(start, end - start, step.mps);
+                _checkpoint = _checkpoint.transform(_checkpointedBlock, end - _checkpointedBlock, step.mps);
             }
-            start = end;
+            _checkpointedBlock = end;
             _advanceStep();
             end = step.endBlock;
         }
@@ -188,7 +188,7 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         if (block.number < startBlock) revert AuctionNotStarted();
 
         // Advance to the current step if needed, summing up the results since the last checkpointed block
-        _checkpoint = _advanceToCurrentStep();
+        (_checkpoint,) = _advanceToCurrentStep();
 
         uint256 blockTokenSupply = (totalSupply - _checkpoint.totalCleared).fullMulDiv(
             step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
@@ -225,6 +225,18 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
         emit CheckpointUpdated(
             block.number, _checkpoint.clearingPrice, _checkpoint.totalCleared, _checkpoint.cumulativeMps
         );
+    }
+
+    /// @notice Return the final checkpoint of the auction
+    /// @dev Only called when the auction is over. Changes the current state of the `step` to the final step in the auction
+    ///      any future calls to `step.mps` will return the mps of the last step in the auction
+    function _getFinalCheckpoint() internal returns (Checkpoint memory _checkpoint) {
+        uint256 _checkpointedBlock;
+        (_checkpoint, _checkpointedBlock) = _advanceToCurrentStep();
+        if (endBlock - _checkpointedBlock > 0) {
+            _checkpoint = _checkpoint.transform(_checkpointedBlock, endBlock - _checkpointedBlock, step.mps);
+        }
+        return _checkpoint;
     }
 
     function _submitBid(
@@ -305,11 +317,8 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
 
         /// @dev Bid was fully filled and the auction is now over
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
-        (uint256 tokensFilled, uint24 cumulativeMpsDelta) = _accountFullyFilledCheckpoints(
-            latestCheckpoint().transform(lastCheckpointedBlock, endBlock - lastCheckpointedBlock, step.mps),
-            startCheckpoint,
-            bid
-        );
+        (uint256 tokensFilled, uint24 cumulativeMpsDelta) =
+            _accountFullyFilledCheckpoints(_getFinalCheckpoint(), startCheckpoint, bid);
         uint256 refund = bid.calculateRefund(
             tick.price, tokensFilled, cumulativeMpsDelta, AuctionStepLib.MPS - startCheckpoint.cumulativeMps
         );
@@ -347,29 +356,18 @@ contract Auction is PermitSingleForwarder, IAuction, TickStorage, AuctionStepSto
             tokensFilled += _tokensFilled;
             cumulativeMpsDelta += _cumulativeMpsDelta;
         } else if (block.number > endBlock && tick.price == _clearingPrice) {
-            /// @dev Bid is partially filled at the end of the auction, tick.price must be equal to the clearing price
+            /// @dev Bid is partially filled at the end of the auction
+            /// Setup:
+            /// lastValidCheckpoint --- ... | upperCheckpoint --- ... | latestCheckpoint ... | endBlock
+            /// price < clearingPrice       | clearingPrice == price -------------------------->
             if (upperCheckpoint.clearingPrice < tick.price || lastValidCheckpoint.clearingPrice > tick.price) {
                 revert InvalidCheckpointHint();
             }
 
-            // Calculate the tokens sold and proportion of input used to bidders of a price (p)
-            // The tokens sold to bidders of a price (p) is equal to the supply sold `S` as a
-            // proportion of the demand at `p` of the total demand at or above the clearing price.
-            //
-            // Setup:
-            // lastValidCheckpoint --- ... | upperCheckpoint --- ... | latestCheckpoint ... | endBlock
-            // price < clearingPrice       | clearingPrice == price -------------------------->
-            //
-            // We can calculate the tokens sold and proportion of input used to bidders of a price (p)
-            // by using the fully filled checkpoints and then applying the proportion of the bid demand at the price level to the values
-
             (tokensFilled, cumulativeMpsDelta) =
                 _accountFullyFilledCheckpoints(lastValidCheckpoint, startCheckpoint, bid);
-            (uint256 partialTokensFilled, uint24 partialCumulativeMpsDelta,) = _accountPartiallyFilledCheckpoints(
-                latestCheckpoint().transform(lastCheckpointedBlock, endBlock - lastCheckpointedBlock, step.mps),
-                tick,
-                bid
-            );
+            (uint256 partialTokensFilled, uint24 partialCumulativeMpsDelta,) =
+                _accountPartiallyFilledCheckpoints(_getFinalCheckpoint(), tick, bid);
             tokensFilled += partialTokensFilled;
             cumulativeMpsDelta += partialCumulativeMpsDelta;
         } else {

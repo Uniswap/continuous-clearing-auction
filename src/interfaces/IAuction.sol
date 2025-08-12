@@ -63,6 +63,7 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
 
     /// @notice Emitted when a bid is submitted
     /// @param id The id of the bid
+    /// @param owner The owner of the bid
     /// @param price The price of the bid
     /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid

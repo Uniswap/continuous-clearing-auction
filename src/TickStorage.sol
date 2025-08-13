@@ -103,17 +103,20 @@ abstract contract TickStorage is ITickStorage {
 
     /// @inheritdoc ITickStorage
     function getLowerTickForPrice(uint256 price) external view returns (Tick memory) {
-        uint128 low = headTickId;
-        uint128 high = nextTickId - 1;
+        uint128 currentId = headTickId;
+        uint128 lastValidId = headTickId;
 
-        while (low < high) {
-            uint128 mid = (low + high + 1) / 2;
-            if (ticks[mid].price <= price) {
-                low = mid;
+        while (currentId != 0) {
+            Tick storage currentTick = ticks[currentId];
+
+            if (currentTick.price <= price) {
+                lastValidId = currentId;
+                currentId = currentTick.next;
             } else {
-                high = mid - 1;
+                break;
             }
         }
-        return ticks[low];
+
+        return ticks[lastValidId];
     }
 }

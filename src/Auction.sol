@@ -123,12 +123,11 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             return tickUpper.price;
         }
 
-        // blockDemandAboveClearing must be < blockTokenSupply here
-        Demand memory blockSumDemandTickLower = sumDemandAboveClearing.add(tickLower.demand).applyMpsDenominator(
+        Demand memory blockSumDemandAboveClearing = sumDemandAboveClearing.applyMpsDenominator(
             step.mps, AuctionStepLib.MPS - cumulativeMps
         );
-        uint256 _clearingPrice = blockSumDemandTickLower.currencyDemand.fullMulDiv(
-            tickSpacing, (blockTokenSupply - blockSumDemandTickLower.tokenDemand)
+        uint256 _clearingPrice = blockSumDemandAboveClearing.currencyDemand.fullMulDiv(
+            tickSpacing, (blockTokenSupply - blockSumDemandAboveClearing.tokenDemand)
         );
         if (_clearingPrice < tickLower.price) {
             return tickLower.price;

@@ -3,12 +3,15 @@ pragma solidity ^0.8.23;
 
 import {Auction} from '../src/Auction.sol';
 import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
+
+import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
+import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
+import {Bid, BidLib} from '../src/libraries/BidLib.sol';
+import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
-import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
-import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
-
+import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {Tick} from '../src/libraries/TickLib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {console2} from 'forge-std/console2.sol';
@@ -28,6 +31,12 @@ contract AuctionInvariantHandler is Test {
     Currency public currency;
     IERC20Minimal public token;
 
+    uint128 public constant BID_MAX_PRICE = type(uint64).max;
+
+    // Ghost variables
+    Checkpoint _checkpoint;
+    Bid[] _bids;
+
     constructor(Auction _auction, address[] memory _actors) {
         auction = _auction;
         permit2 = IPermit2(auction.PERMIT2());
@@ -37,44 +46,104 @@ contract AuctionInvariantHandler is Test {
     }
 
     modifier useActor(uint256 actorIndexSeed) {
-        currentActor = actors[bound(actorIndexSeed, 0, actors.length - 1)];
+        currentActor = actors[_bound(actorIndexSeed, 0, actors.length - 1)];
         vm.startPrank(currentActor);
         _;
         vm.stopPrank();
     }
 
-    function useMaxPrice(uint128 seed) public view returns (uint128) {
-        uint128 maxPrice = uint128(bound(seed, auction.floorPrice(), type(uint128).max));
-        // Round down to the nearest tick boundary
-        return maxPrice - (maxPrice % uint128(auction.tickSpacing()));
+    modifier useBid(uint256 bidIndexSeed) {
+        Bid memory bid = _bids[_bound(bidIndexSeed, 0, _bids.length - 1)];
+        _;
     }
 
-    function handleSubmitBid(bool exactIn, uint256 amount, uint256 actorIndexSeed, uint128 maxPriceSeed)
+    modifier validateCheckpoint() {
+        _;
+        Checkpoint memory checkpoint = auction.latestCheckpoint();
+        if (checkpoint.clearingPrice != 0) {
+            assertGe(checkpoint.clearingPrice, auction.floorPrice());
+        }
+        // Check that the clearing price is always increasing
+        assertGe(checkpoint.clearingPrice, _checkpoint.clearingPrice, 'Checkpoint clearing price is not increasing');
+        // Check that the cumulative variables are always increasing
+        assertGe(checkpoint.totalCleared, _checkpoint.totalCleared, 'Checkpoint total cleared is not increasing');
+        assertGe(checkpoint.cumulativeMps, _checkpoint.cumulativeMps, 'Checkpoint cumulative mps is not increasing');
+        assertGe(
+            checkpoint.cumulativeMpsPerPrice,
+            _checkpoint.cumulativeMpsPerPrice,
+            'Checkpoint cumulative mps per price is not increasing'
+        );
+
+        _checkpoint = checkpoint;
+    }
+
+    /// @notice Generate random values for amount and max price given a desired resolved amount of tokens to purchase
+    /// @dev Bounded by purchasing the total supply of tokens and some reasonable max price for bids to prevent overflow
+    function useAmountMaxPrice(bool exactIn, uint256 amount, uint256 seed) public view returns (uint256, uint128) {
+        uint128 maxPrice = uint128(_bound(seed, auction.floorPrice() + auction.tickSpacing(), BID_MAX_PRICE));
+        // Round down to the nearest tick boundary
+        maxPrice -= (maxPrice % uint128(auction.tickSpacing()));
+
+        if (exactIn) {
+            uint256 inputAmount = amount;
+            return (inputAmount, maxPrice);
+        } else {
+            uint256 inputAmount = amount.fullMulDivUp(maxPrice, auction.tickSpacing());
+            return (inputAmount, maxPrice);
+        }
+    }
+
+    /// @notice Roll the block number
+    /// @dev Consider decreasing the probability of this in relation to other functions
+    function handleRoll() public {
+        vm.roll(block.number + 1);
+    }
+
+    /// @notice Handle a bid submission, ensuring that the actor has enough funds and the bid parameters are valid
+    function handleSubmitBid(bool exactIn, uint256 actorIndexSeed, uint128 maxPriceSeed)
         public
         payable
         useActor(actorIndexSeed)
-        returns (uint256)
+        validateCheckpoint
     {
-        uint128 maxPrice = useMaxPrice(maxPriceSeed);
-        uint256 resolvedAmount = exactIn ? amount : amount.fullMulDivUp(maxPrice, auction.tickSpacing());
+        uint256 amount = maxPriceSeed % auction.totalSupply();
+        (uint256 inputAmount, uint128 maxPrice) = useAmountMaxPrice(exactIn, amount, maxPriceSeed);
 
         if (currency.isAddressZero()) {
-            vm.deal(currentActor, resolvedAmount);
+            vm.deal(currentActor, inputAmount);
         } else {
-            deal(Currency.unwrap(currency), currentActor, resolvedAmount);
+            deal(Currency.unwrap(currency), currentActor, inputAmount);
             // Approve the auction to spend the currency
             IERC20Minimal(Currency.unwrap(currency)).approve(address(permit2), type(uint256).max);
             permit2.approve(Currency.unwrap(currency), address(auction), type(uint160).max, type(uint48).max);
         }
 
-        Tick memory upper = auction.getLowerTickForPrice(maxPrice);
-        // getLowerTickForPrice will return the highest tick in the book so we will use that if returned
-        uint128 prevHintId = upper.id == (auction.nextTickId() - 1) ? upper.id : upper.prev;
+        Tick memory lower = auction.getLowerTickForPrice(maxPrice);
+        uint128 prevHintId = lower.price == maxPrice ? lower.prev : lower.id;
 
-        if (resolvedAmount == 0) vm.expectRevert(IAuction.InvalidAmount.selector);
-        return auction.submitBid{value: currency.isAddressZero() ? resolvedAmount : 0}(
-            maxPrice, true, resolvedAmount, currentActor, prevHintId, bytes('')
-        );
+        try auction.submitBid{value: currency.isAddressZero() ? inputAmount : 0}(
+            maxPrice, exactIn, amount, currentActor, prevHintId, bytes('')
+        ) {
+            _bids.push(
+                Bid({
+                    exactIn: exactIn,
+                    startBlock: uint64(block.number),
+                    withdrawnBlock: 0,
+                    tickId: auction.getLowerTickForPrice(maxPrice).id,
+                    owner: currentActor,
+                    amount: amount,
+                    tokensFilled: 0
+                })
+            );
+        } catch (bytes memory revertData) {
+            if (block.number >= auction.endBlock()) {
+                assertEq(revertData, abi.encodeWithSelector(IAuctionStepStorage.AuctionIsOver.selector));
+            } else if (inputAmount == 0) {
+                assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidAmount.selector));
+            } else if (maxPrice <= auction.clearingPrice()) {
+                assertEq(revertData, abi.encodeWithSelector(BidLib.InvalidBidPrice.selector));
+            }
+        }
     }
 }
 

@@ -130,6 +130,9 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         uint256 _clearingPrice = blockSumDemandTickLower.currencyDemand.fullMulDiv(
             tickSpacing, (blockTokenSupply - blockSumDemandTickLower.tokenDemand)
         );
+        if (_clearingPrice < tickLower.price) {
+            return tickLower.price;
+        }
         _clearingPrice = (_clearingPrice - (_clearingPrice % tickSpacing));
 
         // If the new clearing price is below the floor price, set it to the floor price
@@ -242,6 +245,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         uint128 prevHintId,
         bytes calldata hookData
     ) external payable returns (uint256) {
+        if (block.number > endBlock) revert AuctionIsOver();
         uint256 resolvedAmount = exactIn ? amount : amount.fullMulDivUp(maxPrice, tickSpacing);
         if (resolvedAmount == 0) revert InvalidAmount();
         if (currency.isAddressZero()) {

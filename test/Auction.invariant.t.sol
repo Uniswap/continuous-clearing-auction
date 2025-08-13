@@ -16,7 +16,6 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {Tick} from '../src/libraries/TickLib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
-import {console2} from 'forge-std/console2.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 
@@ -223,6 +222,11 @@ contract AuctionInvariantTest is AuctionBaseTest {
             vm.expectEmit(true, true, true, true);
             emit IAuction.BidWithdrawn(i, bid.owner);
             auction.withdrawBid(i);
+
+            // Bid might be deleted if tokensFilled = 0
+            bid = getBid(i);
+            if (bid.tokensFilled == 0) continue;
+            assertEq(bid.withdrawnBlock, block.number);
         }
     }
 }

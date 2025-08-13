@@ -271,7 +271,9 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             _updateBid(bidId, bid);
         }
 
-        currency.transfer(_owner, refund);
+        if (refund > 0) {
+            currency.transfer(_owner, refund);
+        }
 
         emit BidWithdrawn(bidId, _owner);
     }

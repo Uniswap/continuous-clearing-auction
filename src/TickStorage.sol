@@ -29,38 +29,32 @@ abstract contract TickStorage is ITickStorage {
         tickSpacing = _tickSpacing;
     }
 
-    /// @notice Initialize a tick at `price` if its does not exist already
-    /// @notice Requires `prev` to be the id of the tick immediately preceding the desired price
+    /// @notice Initialize a tick at `price` if it does not exist already
+    /// @dev Requires `prev` to be the id of the tick immediately preceding the desired price
+    ///      If `prev` is 0, attempts to initialize a new tick at the beginning of the list
+    ///      TickUpper will be updated if the new tick is right before it
     /// @param prev The id of the previous tick
     /// @param price The price of the tick
     /// @return id The id of the tick
     function _initializeTickIfNeeded(uint128 prev, uint256 price) internal returns (uint128 id) {
-        uint128 next;
-        uint256 nextPrice;
+        uint128 next = prev == 0 ? headTickId : ticks[prev].next;
+        uint256 nextPrice = ticks[next].price;
 
-        if (prev == 0) {
-            next = headTickId;
-            if (next != 0) {
-                nextPrice = ticks[next].price;
-                if (nextPrice < price) revert TickPriceNotIncreasing();
-            }
-        } else {
-            next = ticks[prev].next;
-            uint256 prevPrice = ticks[prev].price;
-
-            if (next != 0) {
-                nextPrice = ticks[next].price;
-            }
-
-            if (prevPrice >= price || (next != 0 && nextPrice < price)) {
-                revert TickPriceNotIncreasing();
-            }
-        }
+        // If there is a next tick it cannot be less than the new price
+        if (next != 0 && nextPrice < price) revert TickPriceNotIncreasing();
+        // If there is a previous tick it cannot be greater than or equal to the new price
+        else if (prev != 0 && ticks[prev].price >= price) revert TickPriceNotIncreasing();
 
         // The tick already exists, return it
         if (nextPrice == price) return next;
 
-        id = nextTickId == 0 ? 1 : nextTickId;
+        uint256 _nextTickId = nextTickId;
+        /// @solidity memory-safe-assembly
+        assembly {
+            // if nextTickId is 0, set id to 1, otherwise set it to nextTickId
+            id := or(_nextTickId, mul(1, iszero(_nextTickId)))
+        }
+
         Tick storage newTick = ticks[id];
         newTick.id = id;
         newTick.prev = prev;
@@ -68,12 +62,21 @@ abstract contract TickStorage is ITickStorage {
         newTick.price = price;
 
         if (prev == 0) {
-            // Base case: first tick becomes both head and tickUpper
+            // First tick becomes head
             headTickId = id;
-            tickUpperId = id;
         } else {
+            // Link prev to new tick
             ticks[prev].next = id;
         }
+
+        // If the next tick is the tickUpper, update tickUpper to the new tick
+        // In the base case, where next == 0 and tickUpperId == 0, this will set tickUpperId to id
+        if (next == tickUpperId) {
+            tickUpperId = id;
+            emit TickUpperUpdated(id);
+        }
+
+        // Link next to new tick
         if (next != 0) {
             ticks[next].prev = id;
         }
@@ -88,18 +91,13 @@ abstract contract TickStorage is ITickStorage {
     /// @param id The id of the tick
     /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
-    function _updateTickAndTickUpper(uint128 id, bool exactIn, uint256 amount) internal {
+    function _updateTick(uint128 id, bool exactIn, uint256 amount) internal {
         Tick storage tick = ticks[id];
 
         if (exactIn) {
             tick.demand = tick.demand.addCurrencyAmount(amount);
         } else {
             tick.demand = tick.demand.addTokenAmount(amount);
-        }
-
-        // If we initialized a new tick before tickUpper, update tickUpper
-        if (tick.next == tickUpperId) {
-            tickUpperId = id;
         }
     }
 }

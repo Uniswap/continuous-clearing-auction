@@ -165,4 +165,15 @@ contract AuctionInvariantTest is AuctionBaseTest {
             auction.checkpoint();
         }
     }
+
+    function invariant_allBidsUnderAreWithdrawable() public {
+        for (uint256 i = 0; i < handler._bids.length; i++) {
+            Bid memory bid = handler._bids[i];
+            (,,, uint128 price,) = auction.ticks(bid.tickId);
+            if (price < auction.clearingPrice() && bid.withdrawnBlock == 0) {
+
+                auction.withdrawPartiallyFilledBid(bid.id);
+            }
+        }
+    }
 }

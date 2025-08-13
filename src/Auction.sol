@@ -105,7 +105,11 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         }
     }
 
-    /// @notice Calculate the new clearing price
+    /// @notice Calculate the new clearing price, given:
+    /// @param tickUpper The tick at which there is not enough demand to fill the block supply
+    /// @param tickLower The tick at which there is more than enough demand to fill the block supply
+    /// @param blockTokenSupply The token supply at or above tickUpper in the block
+    /// @param cumulativeMps The cumulative mps at the last checkpoint
     function _calculateNewClearingPrice(
         Tick memory tickUpper,
         Tick memory tickLower,
@@ -123,19 +127,21 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             return tickUpper.price;
         }
 
-        // blockDemandAboveClearing must be < blockTokenSupply here
-        Demand memory blockSumDemandTickLower = sumDemandAboveClearing.add(tickLower.demand).applyMpsDenominator(
-            step.mps, AuctionStepLib.MPS - cumulativeMps
+        Demand memory blockSumDemandAboveClearing =
+            sumDemandAboveClearing.applyMpsDenominator(step.mps, AuctionStepLib.MPS - cumulativeMps);
+        uint256 _clearingPrice = blockSumDemandAboveClearing.currencyDemand.fullMulDiv(
+            tickSpacing, (blockTokenSupply - blockSumDemandAboveClearing.tokenDemand)
         );
-        uint256 _clearingPrice = blockSumDemandTickLower.currencyDemand.fullMulDiv(
-            tickSpacing, (blockTokenSupply - blockSumDemandTickLower.tokenDemand)
-        );
-        _clearingPrice = (_clearingPrice - (_clearingPrice % tickSpacing));
-
+        // If the new clearing price is below tickLower, set it to tickLower
+        if (_clearingPrice < tickLower.price) {
+            return tickLower.price;
+        }
         // If the new clearing price is below the floor price, set it to the floor price
         if (_clearingPrice < floorPrice) {
             return floorPrice;
         }
+        // Round down to the nearest tick boundary
+        _clearingPrice = (_clearingPrice - (_clearingPrice % tickSpacing));
         return _clearingPrice;
     }
 
@@ -242,6 +248,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         uint128 prevHintId,
         bytes calldata hookData
     ) external payable returns (uint256) {
+        if (block.number > endBlock) revert AuctionIsOver();
         uint256 resolvedAmount = exactIn ? amount : amount.fullMulDivUp(maxPrice, tickSpacing);
         if (resolvedAmount == 0) revert InvalidAmount();
         if (currency.isAddressZero()) {
@@ -264,7 +271,9 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             _updateBid(bidId, bid);
         }
 
-        currency.transfer(_owner, refund);
+        if (refund > 0) {
+            currency.transfer(_owner, refund);
+        }
 
         emit BidWithdrawn(bidId, _owner);
     }

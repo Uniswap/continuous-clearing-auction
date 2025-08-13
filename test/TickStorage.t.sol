@@ -174,34 +174,34 @@ contract TickStorageTest is Test {
         assertEq(tickStorage.getTick(1).demand.tokenDemand, 1e18);
     }
 
-    function test_getUpperTickForPriceAtPrice_succeeds() public {
+    function test_getLowerTickForPriceAtPrice_succeeds() public {
         uint128 prev = 0;
         uint256 price = 1e18;
         uint128 id = tickStorage.initializeTickIfNeeded(prev, price);
         assertEq(id, 1);
 
-        Tick memory tick = tickStorage.getUpperTickForPrice(1e18);
+        Tick memory tick = tickStorage.getLowerTickForPrice(1e18);
         assertEq(tick.id, 1);
         assertEq(tick.price, 1e18);
         assertEq(tick.demand.currencyDemand, 0);
         assertEq(tick.demand.tokenDemand, 0);
     }
 
-    function test_getUpperTickForPriceAboveTickReturnsHighestTick_succeeds() public {
+    function test_getLowerTickForPriceAboveTickReturnsHighestTick_succeeds() public {
         uint128 prev = 0;
         uint256 price = 1e18;
         uint128 id = tickStorage.initializeTickIfNeeded(prev, price);
         assertEq(id, 1);
 
         // Price is above the highest tick, so the highest tick is returned
-        Tick memory tick = tickStorage.getUpperTickForPrice(2e18);
+        Tick memory tick = tickStorage.getLowerTickForPrice(2e18);
         assertEq(tick.id, 1);
         assertEq(tick.price, 1e18);
         assertEq(tick.demand.currencyDemand, 0);
         assertEq(tick.demand.tokenDemand, 0);
     }
 
-    function test_getUpperTickForPriceBelowTick_succeeds() public {
+    function test_getLowerTickForPriceBelowTick_succeeds() public {
         uint128 prev = 0;
         uint256 price = 1e18;
         uint128 id = tickStorage.initializeTickIfNeeded(prev, price);
@@ -212,7 +212,17 @@ contract TickStorageTest is Test {
         id = tickStorage.initializeTickIfNeeded(prev, price);
         assertEq(id, 2);
 
-        Tick memory tick = tickStorage.getUpperTickForPrice(1.5e18);
+        Tick memory tick = tickStorage.getLowerTickForPrice(1.5e18);
+        assertEq(tick.id, 1);
+        assertEq(tick.price, 1e18);
+        assertEq(tick.demand.currencyDemand, 0);
+        assertEq(tick.demand.tokenDemand, 0);
+
+        price = 4e18;
+        id = tickStorage.initializeTickIfNeeded(id, price);
+        assertEq(id, 3);
+
+        tick = tickStorage.getLowerTickForPrice(3e18);
         assertEq(tick.id, 2);
         assertEq(tick.price, 2e18);
         assertEq(tick.demand.currencyDemand, 0);

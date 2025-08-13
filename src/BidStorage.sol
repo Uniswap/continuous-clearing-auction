@@ -7,7 +7,7 @@ abstract contract BidStorage {
     /// @notice The id of the next bid to be created
     uint256 public nextBidId;
     /// @notice The mapping of bid ids to bids
-    mapping(uint256 bidId => Bid bid) private bids;
+    mapping(uint256 bidId => Bid bid) public bids;
 
     /// @notice Get a bid from storage
     /// @param bidId The id of the bid to get

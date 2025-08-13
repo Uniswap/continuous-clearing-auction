@@ -7,7 +7,9 @@ import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
+
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
+import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
 import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
@@ -35,7 +37,8 @@ contract AuctionInvariantHandler is Test {
 
     // Ghost variables
     Checkpoint _checkpoint;
-    Bid[] _bids;
+    uint256[] public bidIds;
+    uint256 public bidCount;
 
     constructor(Auction _auction, address[] memory _actors) {
         auction = _auction;
@@ -50,11 +53,6 @@ contract AuctionInvariantHandler is Test {
         vm.startPrank(currentActor);
         _;
         vm.stopPrank();
-    }
-
-    modifier useBid(uint256 bidIndexSeed) {
-        Bid memory bid = _bids[_bound(bidIndexSeed, 0, _bids.length - 1)];
-        _;
     }
 
     modifier validateCheckpoint() {
@@ -120,21 +118,12 @@ contract AuctionInvariantHandler is Test {
 
         Tick memory lower = auction.getLowerTickForPrice(maxPrice);
         uint128 prevHintId = lower.price == maxPrice ? lower.prev : lower.id;
-
+        uint256 nextBidId = auction.nextBidId();
         try auction.submitBid{value: currency.isAddressZero() ? inputAmount : 0}(
             maxPrice, exactIn, amount, currentActor, prevHintId, bytes('')
         ) {
-            _bids.push(
-                Bid({
-                    exactIn: exactIn,
-                    startBlock: uint64(block.number),
-                    withdrawnBlock: 0,
-                    tickId: auction.getLowerTickForPrice(maxPrice).id,
-                    owner: currentActor,
-                    amount: amount,
-                    tokensFilled: 0
-                })
-            );
+            bidIds.push(nextBidId);
+            bidCount++;
         } catch (bytes memory revertData) {
             if (block.number >= auction.endBlock()) {
                 assertEq(revertData, abi.encodeWithSelector(IAuctionStepStorage.AuctionIsOver.selector));
@@ -160,20 +149,80 @@ contract AuctionInvariantTest is AuctionBaseTest {
         targetContract(address(handler));
     }
 
+    function getCheckpoint(uint256 blockNumber) public view returns (Checkpoint memory) {
+        (
+            uint256 clearingPrice,
+            uint256 blockCleared,
+            uint256 totalCleared,
+            uint24 mps,
+            uint24 cumulativeMps,
+            uint256 cumulativeMpsPerPrice,
+            uint256 resolvedDemandAboveClearingPrice,
+            uint256 prev
+        ) = auction.checkpoints(blockNumber);
+        return Checkpoint({
+            clearingPrice: clearingPrice,
+            blockCleared: blockCleared,
+            totalCleared: totalCleared,
+            mps: mps,
+            cumulativeMps: cumulativeMps,
+            cumulativeMpsPerPrice: cumulativeMpsPerPrice,
+            resolvedDemandAboveClearingPrice: resolvedDemandAboveClearingPrice,
+            prev: prev
+        });
+    }
+
+    function getBid(uint256 bidId) public view returns (Bid memory) {
+        (
+            bool exactIn,
+            uint64 startBlock,
+            uint64 withdrawnBlock,
+            uint128 tickId,
+            address owner,
+            uint256 amount,
+            uint256 tokensFilled
+        ) = auction.bids(bidId);
+        return Bid({
+            exactIn: exactIn,
+            startBlock: startBlock,
+            withdrawnBlock: withdrawnBlock,
+            tickId: tickId,
+            owner: owner,
+            amount: amount,
+            tokensFilled: tokensFilled
+        });
+    }
+
+    function getTick(uint128 tickId) public view returns (Tick memory) {
+        (uint128 id, uint128 prev, uint128 next, uint256 price, Demand memory demand) = auction.ticks(tickId);
+        return Tick({id: id, prev: prev, next: next, price: price, demand: demand});
+    }
+
     function invariant_canAlwaysCheckpointDuringAuction() public {
         if (block.number > auction.startBlock() && block.number < auction.endBlock()) {
             auction.checkpoint();
         }
     }
 
-    function invariant_allBidsUnderAreWithdrawable() public {
-        for (uint256 i = 0; i < handler._bids.length; i++) {
-            Bid memory bid = handler._bids[i];
-            (,,, uint128 price,) = auction.ticks(bid.tickId);
-            if (price < auction.clearingPrice() && bid.withdrawnBlock == 0) {
+    function invariant_allFullyFilledBidsAreWithdrawable() public {
+        // Roll to end of the auction
+        vm.roll(auction.endBlock() + 1);
 
-                auction.withdrawPartiallyFilledBid(bid.id);
-            }
+        uint256 clearingPrice = auction.clearingPrice();
+
+        uint256 bidCount = handler.bidCount();
+        for (uint256 i = 0; i < bidCount; i++) {
+            Bid memory bid = getBid(i);
+            Tick memory tick = getTick(bid.tickId);
+
+            // Invalid conditions
+            if (tick.price <= clearingPrice) continue;
+            if (bid.withdrawnBlock != 0) continue;
+            if (bid.tokensFilled != 0) continue;
+
+            vm.expectEmit(true, true, true, true);
+            emit IAuction.BidWithdrawn(i, bid.owner);
+            auction.withdrawBid(i);
         }
     }
 }

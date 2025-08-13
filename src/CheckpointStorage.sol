@@ -23,7 +23,7 @@ abstract contract CheckpointStorage is TickStorage {
     uint256 public immutable floorPrice;
 
     /// @notice Storage of checkpoints
-    mapping(uint256 blockNumber => Checkpoint) private checkpoints;
+    mapping(uint256 blockNumber => Checkpoint) public checkpoints;
     /// @notice The block number of the last checkpointed block
     uint256 public lastCheckpointedBlock;
 

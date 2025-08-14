@@ -59,8 +59,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
 
     constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
-        CheckpointStorage(_parameters.floorPrice)
-        TickStorage(_parameters.tickSpacing)
+        CheckpointStorage(_parameters.floorPrice, _parameters.tickSpacing)
         PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
     {
         currency = Currency.wrap(_parameters.currency);
@@ -184,8 +183,8 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             _calculateNewClearingPrice(_tickUpper, ticks[_tickUpper.prev], blockTokenSupply, _checkpoint.cumulativeMps);
         uint256 blockResolvedDemandAboveClearing = sumDemandAboveClearing.resolve(newClearingPrice, tickSpacing);
 
-        _checkpoint =
-            _updateCheckpoint(_checkpoint, step, newClearingPrice, blockResolvedDemandAboveClearing, blockTokenSupply);
+        _checkpoint.clearingPrice = newClearingPrice;
+        _checkpoint = _updateCheckpoint(_checkpoint, step, blockResolvedDemandAboveClearing, blockTokenSupply);
 
         _insertCheckpoint(_checkpoint);
 

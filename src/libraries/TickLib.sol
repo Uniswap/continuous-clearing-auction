@@ -15,6 +15,6 @@ library TickLib {
     using DemandLib for Demand;
 
     function resolveDemand(Tick memory tick, uint256 tickSpacing) internal pure returns (uint256) {
-        return tick.demand.resolve(tick.price, tickSpacing);
+        return tick.demand.resolve(tickSpacing, tick.price);
     }
 }

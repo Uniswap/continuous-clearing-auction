@@ -1,8 +1,7 @@
 {
   "submitBid": "148977",
-  "submitBid_recordStep_updateCheckpoint": "388539",
-  "submitBid_recordStep_updateCheckpoint_initializeTick": "388539",
-  "submitBid_updateCheckpoint": "351533",
-  "withdrawBid": "96654",
-  "withdrawPartiallyFilledBid": "123509"
+  "submitBid_recordStep_updateCheckpoint": "388821",
+  "submitBid_recordStep_updateCheckpoint_initializeTick": "388821",
+  "submitBid_updateCheckpoint": "351823",
+  "withdrawBid": "101135"
 }

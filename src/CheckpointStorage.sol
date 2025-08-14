@@ -101,14 +101,18 @@ abstract contract CheckpointStorage is TickStorage {
     /// @param lower The lower checkpoint
     /// @param bid The bid
     /// @return tokensFilled The tokens sold
+    /// @return refund refund
     /// @return cumulativeMpsDelta The proportion of input used
-    function _accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memory lower, Bid memory bid)
-        internal
-        pure
-        returns (uint256 tokensFilled, uint24 cumulativeMpsDelta)
-    {
+    function _accountFullyFilledCheckpoints(
+        Checkpoint memory upper,
+        Checkpoint memory lower,
+        Bid memory bid,
+        uint256 maxPrice
+    ) internal view returns (uint256 tokensFilled, uint256 refund, uint24 cumulativeMpsDelta) {
         cumulativeMpsDelta = upper.cumulativeMps - lower.cumulativeMps;
-        tokensFilled = bid.calculateFill(
+        (tokensFilled, refund) = bid.calculateFill(
+            maxPrice,
+            tickSpacing,
             upper.cumulativeMpsPerPrice - lower.cumulativeMpsPerPrice,
             cumulativeMpsDelta,
             AuctionStepLib.MPS - lower.cumulativeMps
@@ -153,6 +157,7 @@ abstract contract CheckpointStorage is TickStorage {
             );
             tokensFilled += _tokensFilled;
             cumulativeMpsDelta += _cumulativeMpsDelta;
+
             upper = _next;
         }
         return (tokensFilled, cumulativeMpsDelta, upper.prev);

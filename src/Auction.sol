@@ -287,11 +287,8 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
 
         /// @dev Bid was fully filled and the auction is now over
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
-        (uint256 tokensFilled, uint24 cumulativeMpsDelta) =
-            _accountFullyFilledCheckpoints(_getFinalCheckpoint(), startCheckpoint, bid);
-        uint256 refund = bid.calculateRefund(
-            tick.price, tokensFilled, cumulativeMpsDelta, AuctionStepLib.MPS - startCheckpoint.cumulativeMps
-        );
+        (uint256 tokensFilled, uint256 refund, uint24 cumulativeMpsDelta) =
+            _accountFullyFilledCheckpoints(_getFinalCheckpoint(), startCheckpoint, bid, tick.price);
 
         _processBidWithdraw(bidId, bid, tokensFilled, refund);
     }
@@ -311,6 +308,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         Checkpoint memory lastValidCheckpoint = _getCheckpoint(outbidCheckpoint.prev);
 
         uint256 tokensFilled;
+        uint256 refund;
         uint24 cumulativeMpsDelta;
         uint256 _clearingPrice = clearingPrice();
         /// @dev Bid has been outbid
@@ -321,9 +319,10 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             (tokensFilled, cumulativeMpsDelta, nextCheckpointBlock) =
                 _accountPartiallyFilledCheckpoints(lastValidCheckpoint, tick, bid);
             /// Now account for the fully filled checkpoints until the startCheckpoint
-            (uint256 _tokensFilled, uint24 _cumulativeMpsDelta) =
-                _accountFullyFilledCheckpoints(_getCheckpoint(nextCheckpointBlock), startCheckpoint, bid);
+            (uint256 _tokensFilled, uint256 _refund, uint24 _cumulativeMpsDelta) =
+                _accountFullyFilledCheckpoints(_getCheckpoint(nextCheckpointBlock), startCheckpoint, bid, tick.price);
             tokensFilled += _tokensFilled;
+            refund += _refund;
             cumulativeMpsDelta += _cumulativeMpsDelta;
         } else if (block.number > endBlock && tick.price == _clearingPrice) {
             /// @dev Bid is partially filled at the end of the auction
@@ -334,8 +333,8 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
                 revert InvalidCheckpointHint();
             }
 
-            (tokensFilled, cumulativeMpsDelta) =
-                _accountFullyFilledCheckpoints(lastValidCheckpoint, startCheckpoint, bid);
+            (tokensFilled, refund, cumulativeMpsDelta) =
+                _accountFullyFilledCheckpoints(lastValidCheckpoint, startCheckpoint, bid, tick.price);
             (uint256 partialTokensFilled, uint24 partialCumulativeMpsDelta,) =
                 _accountPartiallyFilledCheckpoints(_getFinalCheckpoint(), tick, bid);
             tokensFilled += partialTokensFilled;
@@ -343,10 +342,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         } else {
             revert CannotWithdrawBid();
         }
-
-        uint256 refund = bid.calculateRefund(
-            tick.price, tokensFilled, cumulativeMpsDelta, AuctionStepLib.MPS - startCheckpoint.cumulativeMps
-        );
 
         _processBidWithdraw(bidId, bid, tokensFilled, refund);
     }

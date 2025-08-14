@@ -3,6 +3,7 @@ pragma solidity ^0.8.23;
 
 import {AuctionStepLib} from './AuctionStepLib.sol';
 import {DemandLib} from './DemandLib.sol';
+import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
@@ -53,35 +54,29 @@ library BidLib {
     /// @param cumulativeMpsPerPriceDelta The cumulative mps per price delta
     /// @param cumulativeMpsDelta The cumulative mps delta
     /// @return tokensFilled The amount of tokens filled
+    /// @return refund The amount of currency refunded
     function calculateFill(
         Bid memory bid,
+        uint256 maxPrice,
+        uint256 tickSpacing,
         uint256 cumulativeMpsPerPriceDelta,
         uint24 cumulativeMpsDelta,
         uint24 mpsDenominator
-    ) internal pure returns (uint256 tokensFilled) {
+    ) internal pure returns (uint256 tokensFilled, uint256 refund) {
         if (bid.exactIn) {
+            // (ETH * Mps * 1e18 / price) / (1e18 * Mps), = ETH / price = tokens
             tokensFilled = bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, PRECISION * mpsDenominator);
+            refund = bid.amount - bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
         } else {
             tokensFilled = bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
+            uint256 initialEth = bid.amount.fullMulDivUp(maxPrice, tickSpacing);
+            // tokens = (ETH * Mps * 1e18 / price) / (1e18 * Mps)
+            // tokens * (1e18 * Mps) = (ETH * Mps * 1e18) / price
+            // tokens * (1e18 * Mps) * price = (ETH * Mps * 1e18)
+            // tokens * cumulativeMpsPerPrice / MPS / 1e18 = ETH
+            refund = initialEth
+                - tokensFilled.fullMulDiv(cumulativeMpsPerPriceDelta, PRECISION * mpsDenominator);
         }
-    }
-
-    /// @notice Calculate the refund of a bid
-    /// @param bid The bid
-    /// @param maxPrice The max price of the bid
-    /// @param tokensFilled The amount of tokens filled
-    /// @param cumulativeMpsDelta The cumulative mps delta
-    /// @return refund The amount of currency refunded
-    function calculateRefund(
-        Bid memory bid,
-        uint256 maxPrice,
-        uint256 tokensFilled,
-        uint24 cumulativeMpsDelta,
-        uint24 mpsDenominator
-    ) internal pure returns (uint256 refund) {
-        return bid.exactIn
-            ? bid.amount - bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator)
-            : maxPrice * (bid.amount - tokensFilled);
     }
 
     /// @notice Calculate the tokens filled and proportion of input used for a partially filled bid

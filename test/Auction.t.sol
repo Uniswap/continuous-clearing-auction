@@ -219,6 +219,32 @@ contract AuctionTest is TokenHandler, Test {
         auction.withdrawBid(bidId2);
     }
 
+    function test_withdrawBid_exactOut_succeeds() public {
+        uint256 amount = 500e18;
+        uint128 maxPrice = _tickPriceAt(2);
+        uint256 inputAmount = amount * maxPrice / TICK_SPACING;
+        uint256 bidId = auction.submitBid{value: inputAmount}(maxPrice, false, amount, alice, 1, bytes(''));
+
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+
+        // Expect the bid to be above clearing price
+        assertGt(maxPrice, auction.clearingPrice());
+
+        uint256 aliceBalanceBefore = address(alice).balance;
+        uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
+
+        vm.roll(auction.endBlock() + 1);
+        auction.withdrawBid(bidId);
+        // Alice initially deposited 500e18 * 2 = 1000e18 ETH
+        // They only purchased 500 tokens at a price of 1e18, so they should be refunded 1000e18 - 500e18 * 1 = 500e18 ETH
+        assertEq(address(alice).balance, aliceBalanceBefore + 500e18);
+
+        auction.claimTokens(bidId);
+        // Expect fully filled for all tokens
+        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + amount);
+    }
+
     function test_withdrawBid_afterEndBlock_succeeds() public {
         uint128 bidMaxPrice = _tickPriceAt(3);
         uint256 bidId = auction.submitBid{value: 1000e18}(bidMaxPrice, true, 1000e18, alice, 1, bytes(''));

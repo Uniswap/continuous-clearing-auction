@@ -174,7 +174,6 @@ contract CheckpointStorageTest is Test {
         assertEq(ethSpent, _ethSpent);
     }
 
-    // TODO: only works for 100% fill?
     function test_resolve_exactOut() public view {
         uint256[] memory mpsArray = new uint256[](1);
         uint256[] memory pricesArray = new uint256[](1);

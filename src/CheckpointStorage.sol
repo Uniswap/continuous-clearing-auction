@@ -55,20 +55,20 @@ abstract contract CheckpointStorage is TickStorage {
     /// @notice Update the checkpoint
     /// @param _checkpoint The checkpoint to update
     /// @param _clearingPrice The new clearing price
-    /// @param _blockResolvedDemandAboveClearing The resolved demand above the clearing price in the block
+    /// @param _resolvedDemandAboveClearing The resolved demand above the clearing price in the block
     /// @param _blockTokenSupply The token supply at or above tickUpper in the block
     /// @return The updated checkpoint
     function _updateCheckpoint(
         Checkpoint memory _checkpoint,
         AuctionStep memory _step,
         uint256 _clearingPrice,
-        uint256 _blockResolvedDemandAboveClearing,
+        uint256 _resolvedDemandAboveClearing,
         uint256 _blockTokenSupply
     ) internal view returns (Checkpoint memory) {
         // If the clearing price is the floor price, we can only clear the current demand at the floor price
         if (_clearingPrice == floorPrice) {
             // We can only clear the current demand at the floor price
-            _checkpoint.blockCleared = _blockResolvedDemandAboveClearing.applyMpsDenominator(
+            _checkpoint.blockCleared = _resolvedDemandAboveClearing.applyMpsDenominator(
                 _step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
             );
         }
@@ -87,7 +87,7 @@ abstract contract CheckpointStorage is TickStorage {
         _checkpoint.cumulativeMps += mpsSinceLastCheckpoint;
         _checkpoint.cumulativeMpsPerPrice +=
             uint256(mpsSinceLastCheckpoint).fullMulDiv(BidLib.PRECISION, _checkpoint.clearingPrice);
-        _checkpoint.resolvedDemandAboveClearingPrice = _blockResolvedDemandAboveClearing;
+        _checkpoint.resolvedDemandAboveClearingPrice = _resolvedDemandAboveClearing;
         _checkpoint.mps = _step.mps;
         _checkpoint.prev = lastCheckpointedBlock;
 
@@ -130,6 +130,7 @@ abstract contract CheckpointStorage is TickStorage {
         uint256 tickDemand,
         uint256 maxPrice
     ) internal view returns (uint256 tokensFilled, uint256 ethSpent, uint256 nextCheckpointBlock) {
+        console2.log('upper.prev', upper.prev);
         while (upper.prev != 0) {
             Checkpoint memory _next = _getCheckpoint(upper.prev);
             // Stop searching when the next checkpoint is less than the tick price
@@ -158,7 +159,6 @@ abstract contract CheckpointStorage is TickStorage {
             );
             tokensFilled += _tokensFilled;
             ethSpent += _ethSpent;
-
             upper = _next;
         }
         return (tokensFilled, ethSpent, upper.prev);
@@ -172,12 +172,14 @@ abstract contract CheckpointStorage is TickStorage {
         uint24 mpsDenominator
     ) internal view returns (uint256 tokensFilled, uint256 ethSpent) {
         if (bid.exactIn) {
+            // tokens = ETH * sum(mps / price) / MPS
             tokensFilled = bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, BidLib.PRECISION * mpsDenominator);
+            // ethSpent = ETH * mps / mps
             ethSpent = bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
         } else {
+            // tokens = tokens * mps / MPS
             tokensFilled = bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
-            ethSpent =
-                tokensFilled.fullMulDiv(cumulativeMpsPerPriceDelta * tickSpacing, BidLib.PRECISION * mpsDenominator);
+            ethSpent = tokensFilled.fullMulDiv(BidLib.PRECISION * mpsDenominator, cumulativeMpsPerPriceDelta);
         }
     }
 
@@ -186,16 +188,14 @@ abstract contract CheckpointStorage is TickStorage {
         uint256 bidDemand,
         uint256 tickDemand,
         uint256 price,
-        uint256 supply,
+        uint256 supplyOverMps,
         uint24 mpsDelta,
         uint256 resolvedDemandAboveClearingPrice
     ) internal view returns (uint256 tokensFilled, uint256 ethSpent) {
-        uint256 supplySoldToTick = supply - resolvedDemandAboveClearingPrice.applyMps(mpsDelta);
-        tokensFilled =
-            supplySoldToTick.fullMulDiv(bidDemand.applyMps(mpsDelta), tickSpacing * tickDemand.applyMps(mpsDelta));
-        console2.log('tokensFilled', tokensFilled);
-        console2.log('price', price);
+        console2.log('supplyOverMps', supplyOverMps);
+        uint256 supplySoldToTick = supplyOverMps - resolvedDemandAboveClearingPrice.applyMps(mpsDelta);
+        console2.log('supplySoldToTick', supplySoldToTick);
+        tokensFilled = supplySoldToTick.fullMulDiv(bidDemand.applyMps(mpsDelta), tickDemand.applyMps(mpsDelta));
         ethSpent = tokensFilled * price;
-        console2.log('ethSpent', ethSpent);
     }
 }

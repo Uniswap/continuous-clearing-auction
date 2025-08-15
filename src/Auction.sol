@@ -116,22 +116,26 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         uint256 blockTokenSupply,
         uint24 cumulativeMps
     ) internal view returns (uint256) {
-        uint256 resolvedBlockDemandAboveClearing = sumDemandAboveClearing.resolve(tickSpacing, tickUpper.price)
-            .applyMpsDenominator(step.mps, AuctionStepLib.MPS - cumulativeMps);
+        uint256 resolvedBlockDemandAboveClearing = sumDemandAboveClearing.resolve(tickUpper.price).applyMpsDenominator(
+            step.mps, AuctionStepLib.MPS - cumulativeMps
+        );
         // If there is no demand above the clearing price or the demand is equal to the block supply, the clearing price is tickUpper
         // This can happen in a few scenarios:
         // 1. The auction just started and the tickUpper represents the floor price and should be returned
         // 2. There is fully matching demand at tickUpper, so it should be new clearing price
         // 3. There is no demand above the current clearing price, so TickUpper is the highest tick in the book and should be new clearing price
-        if (resolvedBlockDemandAboveClearing == 0 || resolvedBlockDemandAboveClearing == blockTokenSupply) {
+        if (resolvedBlockDemandAboveClearing == 0 || resolvedBlockDemandAboveClearing >= blockTokenSupply) {
             return tickUpper.price;
         }
 
         Demand memory blockSumDemandAboveClearing =
             sumDemandAboveClearing.applyMpsDenominator(step.mps, AuctionStepLib.MPS - cumulativeMps);
-        uint256 _clearingPrice = blockSumDemandAboveClearing.currencyDemand.fullMulDiv(
-            tickSpacing, (blockTokenSupply - blockSumDemandAboveClearing.tokenDemand)
-        );
+        console2.log('blockSumDemandAboveClearing.currencyDemand', blockSumDemandAboveClearing.currencyDemand);
+        console2.log('blockSumDemandAboveClearing.tokenDemand', blockSumDemandAboveClearing.tokenDemand);
+        console2.log('blockTokenSupply', blockTokenSupply);
+        uint256 _clearingPrice =
+            blockSumDemandAboveClearing.currencyDemand / (blockTokenSupply - blockSumDemandAboveClearing.tokenDemand);
+        console2.log('_clearingPrice', _clearingPrice);
         // If the new clearing price is below tickLower, set it to tickLower
         if (_clearingPrice < tickLower.price) {
             return tickLower.price;
@@ -159,12 +163,11 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
 
         // All active demand above the current clearing price
         Demand memory _sumDemandAboveClearing = sumDemandAboveClearing;
-
         Tick memory _tickUpper = ticks[tickUpperId];
         // Resolve the demand at the next initialized tick
         // Find the tick which does not fully match the supply, or the highest tick in the book
         while (
-            _sumDemandAboveClearing.resolve(tickSpacing, _tickUpper.price).applyMpsDenominator(
+            _sumDemandAboveClearing.resolve(_tickUpper.price).applyMpsDenominator(
                 step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
             ) >= blockTokenSupply
         ) {
@@ -172,6 +175,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_tickUpper.demand);
             // If there is no future tick, break to avoid ending up in a bad state
             if (_tickUpper.next == 0) {
+                console2.log('no next tick');
                 break;
             }
             _tickUpper = ticks[_tickUpper.next];
@@ -182,10 +186,14 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
 
         uint256 newClearingPrice =
             _calculateNewClearingPrice(_tickUpper, ticks[_tickUpper.prev], blockTokenSupply, _checkpoint.cumulativeMps);
-        uint256 blockResolvedDemandAboveClearing = sumDemandAboveClearing.resolve(tickSpacing, newClearingPrice);
+        require(
+            sumDemandAboveClearing.resolve(newClearingPrice) <= totalSupply,
+            'sumDemandAboveClearing.resolve(newClearingPrice) < totalSupply'
+        );
 
-        _checkpoint =
-            _updateCheckpoint(_checkpoint, step, newClearingPrice, blockResolvedDemandAboveClearing, blockTokenSupply);
+        _checkpoint = _updateCheckpoint(
+            _checkpoint, step, newClearingPrice, sumDemandAboveClearing.resolve(newClearingPrice), blockTokenSupply
+        );
 
         _insertCheckpoint(_checkpoint);
 
@@ -249,7 +257,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         bytes calldata hookData
     ) external payable returns (uint256) {
         if (block.number > endBlock) revert AuctionIsOver();
-        uint256 resolvedAmount = exactIn ? amount : amount.fullMulDivUp(maxPrice, tickSpacing);
+        uint256 resolvedAmount = exactIn ? amount : amount * maxPrice;
         if (resolvedAmount == 0) revert InvalidAmount();
         if (currency.isAddressZero()) {
             if (msg.value != resolvedAmount) revert InvalidAmount();
@@ -290,7 +298,12 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         (uint256 tokensFilled, uint256 ethSpent) =
             _accountFullyFilledCheckpoints(_getFinalCheckpoint(), startCheckpoint, bid);
 
-        _processBidWithdraw(bidId, bid, tokensFilled, bid.inputAmount(tick.price, tickSpacing) - ethSpent);
+        uint256 resolvedAmount = bid.exactIn ? bid.amount : bid.amount * tick.price;
+        console2.log('tokensFilled', tokensFilled);
+        console2.log('resolvedAmount', resolvedAmount);
+        console2.log('ethSpent', ethSpent);
+        console2.log('resolvedAmount - ethSpent', resolvedAmount - ethSpent);
+        _processBidWithdraw(bidId, bid, tokensFilled, resolvedAmount - ethSpent);
     }
 
     /// @inheritdoc IAuction
@@ -312,11 +325,12 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         uint256 _clearingPrice = clearingPrice();
         /// @dev Bid has been outbid
         if (tick.price < _clearingPrice) {
-            if (lastValidCheckpoint.clearingPrice > tick.price) revert InvalidCheckpointHint();
+            console2.log('tick.price < _clearingPrice');
+            if (outbidCheckpoint.clearingPrice <= tick.price) revert InvalidCheckpointHint();
 
             uint256 nextCheckpointBlock;
             (tokensFilled, ethSpent, nextCheckpointBlock) = _accountPartiallyFilledCheckpoints(
-                lastValidCheckpoint, bid.demand(tick.price, tickSpacing), tick.resolveDemand(tickSpacing), tick.price
+                outbidCheckpoint, bid.demand(tick.price), tick.resolveDemand(), tick.price
             );
             /// Now account for the fully filled checkpoints until the startCheckpoint
             (uint256 _tokensFilled, uint256 _ethSpent) =
@@ -324,6 +338,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             tokensFilled += _tokensFilled;
             ethSpent += _ethSpent;
         } else if (block.number > endBlock && tick.price == _clearingPrice) {
+            console2.log('block.number > endBlock && tick.price == _clearingPrice');
             /// @dev Bid is partially filled at the end of the auction
             /// Setup:
             /// lastValidCheckpoint --- ... | outbidCheckpoint --- ... | latestCheckpoint ... | endBlock
@@ -334,19 +349,22 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
 
             (tokensFilled, ethSpent) = _accountFullyFilledCheckpoints(lastValidCheckpoint, startCheckpoint, bid);
             (uint256 partialTokensFilled, uint256 partialEthSpent,) = _accountPartiallyFilledCheckpoints(
-                _getFinalCheckpoint(), bid.demand(tick.price, tickSpacing), tick.resolveDemand(tickSpacing), tick.price
+                _getFinalCheckpoint(), bid.demand(tick.price), tick.resolveDemand(), tick.price
             );
+            console2.log('partial: tokensFilled', partialTokensFilled);
+            console2.log('partial: ethSpent', partialEthSpent);
             tokensFilled += partialTokensFilled;
             ethSpent += partialEthSpent;
         } else {
             revert CannotWithdrawBid();
         }
 
-        console2.log('tokensFilled', tokensFilled);
-        console2.log('bid.inputAmount(tick.price, tickSpacing)', bid.inputAmount(tick.price, tickSpacing));
-        console2.log('ethSpent', ethSpent);
-
-        _processBidWithdraw(bidId, bid, tokensFilled, bid.inputAmount(tick.price, tickSpacing) - ethSpent);
+        uint256 resolvedAmount = bid.exactIn ? bid.amount : bid.amount * tick.price;
+        console2.log('final - tokensFilled', tokensFilled);
+        console2.log('final - resolvedAmount', resolvedAmount);
+        console2.log('final - ethSpent', ethSpent);
+        console2.log('final - resolvedAmount - ethSpent', resolvedAmount - ethSpent);
+        _processBidWithdraw(bidId, bid, tokensFilled, resolvedAmount - ethSpent);
     }
 
     /// @inheritdoc IAuction

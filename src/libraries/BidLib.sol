@@ -43,18 +43,8 @@ library BidLib {
     /// @notice Resolve the demand of a bid
     /// @param bid The bid
     /// @param price The price of the bid
-    /// @param tickSpacing The tick spacing of the auction
     /// @return The demand of the bid
-    function demand(Bid memory bid, uint256 price, uint256 tickSpacing) internal pure returns (uint256) {
-        return bid.exactIn ? bid.amount.resolveCurrencyDemand(price, tickSpacing) : bid.amount;
-    }
-
-    /// @notice Calculate the amount of input required for a bid
-    /// @param bid The bid
-    /// @param maxPrice The max price of the bid
-    /// @param tickSpacing The tick spacing of the auction
-    /// @return The amount of input used
-    function inputAmount(Bid memory bid, uint256 maxPrice, uint256 tickSpacing) internal pure returns (uint256) {
-        return bid.exactIn ? bid.amount : bid.amount.fullMulDivUp(maxPrice, tickSpacing);
+    function demand(Bid memory bid, uint256 price) internal pure returns (uint256) {
+        return bid.exactIn ? bid.amount.resolveCurrencyDemand(price) : bid.amount;
     }
 }

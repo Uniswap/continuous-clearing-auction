@@ -215,12 +215,12 @@ contract AuctionTest is TokenHandler, Test {
         auction.checkpoint();
 
         uint256 aliceBalanceBefore = address(alice).balance;
+        uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
         // Expect that the first bid can be withdrawn, since the clearing price is now above its max price
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidWithdrawn(0, alice);
         vm.prank(alice);
         auction.withdrawPartiallyFilledBid(bidId1, 2);
-        vm.snapshotGasLastCall('withdrawBid');
         // Expect that alice is refunded the full amount of the first bid
         assertEq(address(alice).balance - aliceBalanceBefore, smallAmount * _tickPriceAt(2));
 

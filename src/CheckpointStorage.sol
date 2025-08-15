@@ -130,23 +130,24 @@ abstract contract CheckpointStorage is TickStorage {
         uint256 tickDemand,
         uint256 maxPrice
     ) internal view returns (uint256 tokensFilled, uint256 ethSpent, uint256 nextCheckpointBlock) {
-        console2.log('upper.prev', upper.prev);
         while (upper.prev != 0) {
             Checkpoint memory _next = _getCheckpoint(upper.prev);
             // Stop searching when the next checkpoint is less than the tick price
             if (_next.clearingPrice < maxPrice) {
-                // Upper is the last checkpoint where tick.price == clearingPrice
-                // Account for tokens sold in the upperCheckpoint block, since checkpoint ranges are not inclusive [start,end)
-                (uint256 _upperCheckpointTokensFilled, uint256 _upperCheckpointEthSpent) = _calculatePartialFill(
-                    bidDemand,
-                    tickDemand,
-                    maxPrice,
-                    upper.blockCleared,
-                    upper.mps,
-                    upper.resolvedDemandAboveClearingPrice
-                );
-                tokensFilled += _upperCheckpointTokensFilled;
-                ethSpent += _upperCheckpointEthSpent;
+                if (upper.clearingPrice == maxPrice) {
+                    // Upper is the last checkpoint where tick.price == clearingPrice
+                    // Account for tokens sold in the upperCheckpoint block, since checkpoint ranges are not inclusive [start,end)
+                    (uint256 _upperCheckpointTokensFilled, uint256 _upperCheckpointEthSpent) = _calculatePartialFill(
+                        bidDemand,
+                        tickDemand,
+                        maxPrice,
+                        upper.blockCleared,
+                        upper.mps,
+                        upper.resolvedDemandAboveClearingPrice
+                    );
+                    tokensFilled += _upperCheckpointTokensFilled;
+                    ethSpent += _upperCheckpointEthSpent;
+                }
                 break;
             }
             (uint256 _tokensFilled, uint256 _ethSpent) = _calculatePartialFill(
@@ -177,9 +178,12 @@ abstract contract CheckpointStorage is TickStorage {
             // ethSpent = ETH * mps / mps
             ethSpent = bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
         } else {
-            // tokens = tokens * mps / MPS
+            // filled = tokens * mps / MPS
+            //        = filled * 1e18 / (mps * 1e18 / price)
+            //        = tokens * mps * 1e18 / (mps * 1e18 / price)
+            //        = bid.amount * price
             tokensFilled = bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
-            ethSpent = tokensFilled.fullMulDiv(BidLib.PRECISION * mpsDenominator, cumulativeMpsPerPriceDelta);
+            ethSpent = tokensFilled.fullMulDiv(BidLib.PRECISION, cumulativeMpsPerPriceDelta);
         }
     }
 

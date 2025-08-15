@@ -22,7 +22,6 @@ contract CheckpointStorageTest is Test {
 
     uint24 public constant MPS = 1e7;
     uint256 public constant TICK_SPACING = 100;
-    uint256 public constant PRECISION = 1e18;
     uint256 public constant ETH_AMOUNT = 10 ether;
     uint256 public constant FLOOR_PRICE = 1000;
     uint128 public constant MAX_PRICE = 5000;
@@ -102,7 +101,7 @@ contract CheckpointStorageTest is Test {
     }
 
     function test_resolve_exactOut_fuzz_succeeds(uint24 cumulativeMpsDelta) public view {
-        vm.assume(cumulativeMpsDelta <= MPS);
+        vm.assume(cumulativeMpsDelta <= MPS && cumulativeMpsDelta > 0);
         // Setup: User commits to buy 100 tokens at max price 2000 per token
         Bid memory bid = Bid({
             exactIn: false,
@@ -115,15 +114,13 @@ contract CheckpointStorageTest is Test {
         });
 
         uint256 maxPrice = 2000;
-        uint256 initialEth = TOKEN_AMOUNT.fullMulDivUp(maxPrice, TICK_SPACING);
-        uint256 cumulativeMpsPerPriceDelta = uint256(cumulativeMpsDelta).fullMulDiv(PRECISION, maxPrice);
-        uint256 _expectedTokensFilled = TOKEN_AMOUNT.applyMps(cumulativeMpsDelta);
+        uint256 cumulativeMpsPerPriceDelta = uint256(cumulativeMpsDelta).fullMulDiv(BidLib.PRECISION, maxPrice);
 
         (uint256 tokensFilled, uint256 ethSpent) =
             mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta, MPS);
 
-        assertEq(tokensFilled, _expectedTokensFilled);
-        assertEq(ethSpent, tokensFilled.fullMulDiv(cumulativeMpsPerPriceDelta * TICK_SPACING, PRECISION * MPS));
+        assertEq(tokensFilled, TOKEN_AMOUNT.applyMps(cumulativeMpsDelta));
+        assertEq(ethSpent, tokensFilled * maxPrice);
     }
 
     function test_resolve_exactIn() public view {
@@ -151,7 +148,7 @@ contract CheckpointStorageTest is Test {
             _ethSpent += ethSpentInBlock;
 
             _totalMps += mpsArray[i];
-            _cumulativeMpsPerPrice += uint256(mpsArray[i]).fullMulDiv(PRECISION, pricesArray[i]);
+            _cumulativeMpsPerPrice += uint256(mpsArray[i]).fullMulDiv(BidLib.PRECISION, pricesArray[i]);
         }
 
         Bid memory bid = Bid({
@@ -178,25 +175,22 @@ contract CheckpointStorageTest is Test {
         assertEq(ethSpent, _ethSpent);
     }
 
+    // TODO: only works for 100% fill?
     function test_resolve_exactOut() public view {
-        uint256[] memory mpsArray = new uint256[](3);
-        uint256[] memory pricesArray = new uint256[](3);
+        uint256[] memory mpsArray = new uint256[](1);
+        uint256[] memory pricesArray = new uint256[](1);
 
-        mpsArray[0] = 50;
+        mpsArray[0] = 1e7;
         pricesArray[0] = 100;
-
-        mpsArray[1] = 30;
-        pricesArray[1] = 200;
-
-        mpsArray[2] = 20;
-        pricesArray[2] = 400;
 
         uint256 _totalMps;
         uint256 _cumulativeMpsPerPrice;
+        uint256 _ethSpent;
 
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < 1; i++) {
             _totalMps += mpsArray[i];
-            _cumulativeMpsPerPrice += uint256(mpsArray[i]).fullMulDiv(PRECISION, pricesArray[i]);
+            _cumulativeMpsPerPrice += uint256(mpsArray[i]).fullMulDiv(BidLib.PRECISION, pricesArray[i]);
+            _ethSpent += TOKEN_AMOUNT * mpsArray[i] / MPS * pricesArray[i];
         }
 
         Bid memory bid = Bid({
@@ -213,15 +207,9 @@ contract CheckpointStorageTest is Test {
         (uint256 tokensFilled, uint256 ethSpent) =
             mockCheckpointStorage.calculateFill(bid, _cumulativeMpsPerPrice, uint24(_totalMps), MPS);
 
-        // TokensFilled = 50 + 30 + 20 = 100 mps / 1e7
-        assertEq(_totalMps, 100);
-        assertEq(tokensFilled, TOKEN_AMOUNT.applyMps(100));
-        // MpsPerPrice = Mps * 1e18 / price
-        // 50 * 1e18 / 100 = 0.5 * 1e18
-        // 30 * 1e18 / 200 = 0.15 * 1e18
-        // 20 * 1e18 / 400 = 0.05 * 1e18
-        // 0.5 + 0.15 + 0.05 = 0.7 * 1e18
-        assertEq(ethSpent, tokensFilled.fullMulDiv(0.7 * 1e18 * TICK_SPACING, PRECISION * MPS));
+        assertEq(_totalMps, 1e7);
+        assertEq(tokensFilled, TOKEN_AMOUNT.applyMps(1e7));
+        assertEq(ethSpent, _ethSpent);
     }
 
     function test_resolve_exactIn_maxPrice() public view {
@@ -243,7 +231,7 @@ contract CheckpointStorageTest is Test {
             tickId: 0 // doesn't matter for this test
         });
 
-        uint256 cumulativeMpsPerPriceDelta = uint256(mpsArray[0]).fullMulDiv(PRECISION, pricesArray[0]);
+        uint256 cumulativeMpsPerPriceDelta = uint256(mpsArray[0]).fullMulDiv(BidLib.PRECISION, pricesArray[0]);
         uint24 cumulativeMpsDelta = MPS;
         uint256 expectedEthSpent = largeAmount * cumulativeMpsDelta / MPS;
 

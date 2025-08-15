@@ -12,7 +12,7 @@ contract MockCheckpointStorage is CheckpointStorage {
         uint256 cumulativeMpsPerPriceDelta,
         uint24 cumulativeMpsDelta,
         uint24 mpsDenominator
-    ) external view returns (uint256 tokensFilled, uint256 ethSpent) {
+    ) external pure returns (uint256 tokensFilled, uint256 currencySpent) {
         return _calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta, mpsDenominator);
     }
 
@@ -23,7 +23,7 @@ contract MockCheckpointStorage is CheckpointStorage {
         uint256 supply,
         uint24 mpsDelta,
         uint256 resolvedDemandAboveClearingPrice
-    ) external view returns (uint256 tokensFilled, uint256 ethSpent) {
+    ) external pure returns (uint256 tokensFilled, uint256 currencySpent) {
         return
             _calculatePartialFill(bidDemand, tickDemand, maxPrice, supply, mpsDelta, resolvedDemandAboveClearingPrice);
     }

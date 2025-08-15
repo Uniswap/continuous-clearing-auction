@@ -100,13 +100,13 @@ abstract contract CheckpointStorage is TickStorage {
     /// @param lower The lower checkpoint
     /// @param bid The bid
     /// @return tokensFilled The tokens sold
-    /// @return ethSpent The amount of currency spent
+    /// @return currencySpent The amount of currency spent
     function _accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memory lower, Bid memory bid)
         internal
-        view
-        returns (uint256 tokensFilled, uint256 ethSpent)
+        pure
+        returns (uint256 tokensFilled, uint256 currencySpent)
     {
-        (tokensFilled, ethSpent) = _calculateFill(
+        (tokensFilled, currencySpent) = _calculateFill(
             bid,
             upper.cumulativeMpsPerPrice - lower.cumulativeMpsPerPrice,
             upper.cumulativeMps - lower.cumulativeMps,
@@ -121,14 +121,14 @@ abstract contract CheckpointStorage is TickStorage {
     /// @param tickDemand The demand of the tick
     /// @param maxPrice The max price of the bid
     /// @return tokensFilled The tokens sold
-    /// @return ethSpent The amount of currency spent
+    /// @return currencySpent The amount of currency spent
     /// @return nextCheckpointBlock The block number of the checkpoint under the bid's max price. Will be 0 if it does not exist.
     function _accountPartiallyFilledCheckpoints(
         Checkpoint memory upper,
         uint256 bidDemand,
         uint256 tickDemand,
         uint256 maxPrice
-    ) internal view returns (uint256 tokensFilled, uint256 ethSpent, uint256 nextCheckpointBlock) {
+    ) internal view returns (uint256 tokensFilled, uint256 currencySpent, uint256 nextCheckpointBlock) {
         while (upper.prev != 0) {
             Checkpoint memory _next = _getCheckpoint(upper.prev);
             // Stop searching when the next checkpoint is less than the tick price
@@ -136,7 +136,8 @@ abstract contract CheckpointStorage is TickStorage {
                 if (upper.clearingPrice == maxPrice) {
                     // Upper is the last checkpoint where tick.price == clearingPrice
                     // Account for tokens sold in the upperCheckpoint block, since checkpoint ranges are not inclusive [start,end)
-                    (uint256 _upperCheckpointTokensFilled, uint256 _upperCheckpointEthSpent) = _calculatePartialFill(
+                    (uint256 _upperCheckpointTokensFilled, uint256 _upperCheckpointCurrencySpent) =
+                    _calculatePartialFill(
                         bidDemand,
                         tickDemand,
                         maxPrice,
@@ -145,11 +146,11 @@ abstract contract CheckpointStorage is TickStorage {
                         upper.resolvedDemandAboveClearingPrice
                     );
                     tokensFilled += _upperCheckpointTokensFilled;
-                    ethSpent += _upperCheckpointEthSpent;
+                    currencySpent += _upperCheckpointCurrencySpent;
                 }
                 break;
             }
-            (uint256 _tokensFilled, uint256 _ethSpent) = _calculatePartialFill(
+            (uint256 _tokensFilled, uint256 _currencySpent) = _calculatePartialFill(
                 bidDemand,
                 tickDemand,
                 maxPrice,
@@ -158,31 +159,33 @@ abstract contract CheckpointStorage is TickStorage {
                 upper.resolvedDemandAboveClearingPrice
             );
             tokensFilled += _tokensFilled;
-            ethSpent += _ethSpent;
+            currencySpent += _currencySpent;
             upper = _next;
         }
-        return (tokensFilled, ethSpent, upper.prev);
+        return (tokensFilled, currencySpent, upper.prev);
     }
 
-    /// @notice Calculate the tokens filled and proportion of input used for a fully filled bid
+    /// @notice Calculate the tokens filled and currency spent for a bid
+    /// @dev This function uses lazy accounting to efficiently calculate fills across time periods without iterating through individual blocks.
+    ///      It MUST only be used when the bid's max price is strictly greater than the clearing price throughout the entire period being calculated.
+    /// @param bid the bid to evaluate
+    /// @param cumulativeMpsPerPriceDelta the cumulative sum of (mps × 1e18 / price) across the block range
+    /// @param cumulativeMpsDelta the cumulative sum of mps values across the block range
+    /// @param mpsDenominator the percentage of the auction which the bid was spread over
+    /// @return tokensFilled the amount of tokens filled for this bid
+    /// @return currencySpent the amount of currency spent by this bid
     function _calculateFill(
         Bid memory bid,
         uint256 cumulativeMpsPerPriceDelta,
         uint24 cumulativeMpsDelta,
         uint24 mpsDenominator
-    ) internal view returns (uint256 tokensFilled, uint256 ethSpent) {
+    ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
         if (bid.exactIn) {
-            // tokens = ETH * sum(mps / price) / MPS
             tokensFilled = bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, BidLib.PRECISION * mpsDenominator);
-            // ethSpent = ETH * mps / mps
-            ethSpent = bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
+            currencySpent = bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
         } else {
-            // filled = amount * mps / MPS
-            //        = filled * 1e18 / (mps * 1e18 / price)
-            //        = amount * mps / MPS * 1e18 / (mps * 1e18 / price)
-            //        = (amount * price) * mps / MPS
             tokensFilled = bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
-            ethSpent = tokensFilled.fullMulDiv(BidLib.PRECISION * cumulativeMpsDelta, cumulativeMpsPerPriceDelta);
+            currencySpent = tokensFilled.fullMulDiv(BidLib.PRECISION * cumulativeMpsDelta, cumulativeMpsPerPriceDelta);
         }
     }
 
@@ -194,9 +197,9 @@ abstract contract CheckpointStorage is TickStorage {
         uint256 supplyOverMps,
         uint24 mpsDelta,
         uint256 resolvedDemandAboveClearingPrice
-    ) internal view returns (uint256 tokensFilled, uint256 ethSpent) {
+    ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
         uint256 supplySoldToTick = supplyOverMps - resolvedDemandAboveClearingPrice.applyMps(mpsDelta);
         tokensFilled = supplySoldToTick.fullMulDiv(bidDemand.applyMps(mpsDelta), tickDemand.applyMps(mpsDelta));
-        ethSpent = tokensFilled * price;
+        currencySpent = tokensFilled * price;
     }
 }

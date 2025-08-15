@@ -289,11 +289,11 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
 
         /// @dev Bid was fully filled and the auction is now over
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
-        (uint256 tokensFilled, uint256 ethSpent) =
+        (uint256 tokensFilled, uint256 currencySpent) =
             _accountFullyFilledCheckpoints(_getFinalCheckpoint(), startCheckpoint, bid);
 
         uint256 resolvedAmount = bid.exactIn ? bid.amount : bid.amount * tick.price;
-        _processBidWithdraw(bidId, bid, tokensFilled, resolvedAmount - ethSpent);
+        _processBidWithdraw(bidId, bid, tokensFilled, resolvedAmount - currencySpent);
     }
 
     /// @inheritdoc IAuction
@@ -311,21 +311,21 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         Checkpoint memory lastValidCheckpoint = _getCheckpoint(outbidCheckpoint.prev);
 
         uint256 tokensFilled;
-        uint256 ethSpent;
+        uint256 currencySpent;
         uint256 _clearingPrice = clearingPrice();
         /// @dev Bid has been outbid
         if (tick.price < _clearingPrice) {
             if (outbidCheckpoint.clearingPrice <= tick.price) revert InvalidCheckpointHint();
 
             uint256 nextCheckpointBlock;
-            (tokensFilled, ethSpent, nextCheckpointBlock) = _accountPartiallyFilledCheckpoints(
+            (tokensFilled, currencySpent, nextCheckpointBlock) = _accountPartiallyFilledCheckpoints(
                 outbidCheckpoint, bid.demand(tick.price), tick.resolveDemand(), tick.price
             );
             /// Now account for the fully filled checkpoints until the startCheckpoint
-            (uint256 _tokensFilled, uint256 _ethSpent) =
+            (uint256 _tokensFilled, uint256 _currencySpent) =
                 _accountFullyFilledCheckpoints(_getCheckpoint(nextCheckpointBlock), startCheckpoint, bid);
             tokensFilled += _tokensFilled;
-            ethSpent += _ethSpent;
+            currencySpent += _currencySpent;
         } else if (block.number > endBlock && tick.price == _clearingPrice) {
             /// @dev Bid is partially filled at the end of the auction
             /// Setup:
@@ -335,18 +335,18 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
                 revert InvalidCheckpointHint();
             }
 
-            (tokensFilled, ethSpent) = _accountFullyFilledCheckpoints(lastValidCheckpoint, startCheckpoint, bid);
-            (uint256 partialTokensFilled, uint256 partialEthSpent,) = _accountPartiallyFilledCheckpoints(
+            (tokensFilled, currencySpent) = _accountFullyFilledCheckpoints(lastValidCheckpoint, startCheckpoint, bid);
+            (uint256 partialTokensFilled, uint256 partialCurrencySpent,) = _accountPartiallyFilledCheckpoints(
                 _getFinalCheckpoint(), bid.demand(tick.price), tick.resolveDemand(), tick.price
             );
             tokensFilled += partialTokensFilled;
-            ethSpent += partialEthSpent;
+            currencySpent += partialCurrencySpent;
         } else {
             revert CannotWithdrawBid();
         }
 
         uint256 resolvedAmount = bid.exactIn ? bid.amount : bid.amount * tick.price;
-        _processBidWithdraw(bidId, bid, tokensFilled, resolvedAmount - ethSpent);
+        _processBidWithdraw(bidId, bid, tokensFilled, resolvedAmount - currencySpent);
     }
 
     /// @inheritdoc IAuction

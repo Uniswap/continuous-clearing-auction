@@ -6,7 +6,6 @@ import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint} from './libraries/CheckpointLib.sol';
 import {Tick, TickLib} from './libraries/TickLib.sol';
-import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
@@ -178,12 +177,12 @@ abstract contract CheckpointStorage is TickStorage {
             // ethSpent = ETH * mps / mps
             ethSpent = bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
         } else {
-            // filled = tokens * mps / MPS
+            // filled = amount * mps / MPS
             //        = filled * 1e18 / (mps * 1e18 / price)
-            //        = tokens * mps * 1e18 / (mps * 1e18 / price)
-            //        = bid.amount * price
+            //        = amount * mps / MPS * 1e18 / (mps * 1e18 / price)
+            //        = (amount * price) * mps / MPS
             tokensFilled = bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
-            ethSpent = tokensFilled.fullMulDiv(BidLib.PRECISION, cumulativeMpsPerPriceDelta);
+            ethSpent = tokensFilled.fullMulDiv(BidLib.PRECISION * cumulativeMpsDelta, cumulativeMpsPerPriceDelta);
         }
     }
 
@@ -196,9 +195,7 @@ abstract contract CheckpointStorage is TickStorage {
         uint24 mpsDelta,
         uint256 resolvedDemandAboveClearingPrice
     ) internal view returns (uint256 tokensFilled, uint256 ethSpent) {
-        console2.log('supplyOverMps', supplyOverMps);
         uint256 supplySoldToTick = supplyOverMps - resolvedDemandAboveClearingPrice.applyMps(mpsDelta);
-        console2.log('supplySoldToTick', supplySoldToTick);
         tokensFilled = supplySoldToTick.fullMulDiv(bidDemand.applyMps(mpsDelta), tickDemand.applyMps(mpsDelta));
         ethSpent = tokensFilled * price;
     }

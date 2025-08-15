@@ -8,7 +8,6 @@ import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
 import {Tick, TickLib} from '../src/libraries/TickLib.sol';
 import {MockCheckpointStorage} from './utils/MockCheckpointStorage.sol';
 import {Test} from 'forge-std/Test.sol';
-import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract CheckpointStorageTest is Test {

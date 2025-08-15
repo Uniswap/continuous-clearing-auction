@@ -3,7 +3,6 @@ pragma solidity ^0.8.23;
 
 import {AuctionStepLib} from './AuctionStepLib.sol';
 import {DemandLib} from './DemandLib.sol';
-import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 

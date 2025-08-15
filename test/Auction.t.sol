@@ -160,7 +160,7 @@ contract AuctionTest is TokenHandler, Test {
 
     function test_submitBid_exactOut_atFloorPrice_reverts() public {
         vm.expectRevert(BidLib.InvalidBidPrice.selector);
-        auction.submitBid{value: 10e18}(_tickPriceAt(1), false, 10e18, alice, 0, bytes(''));
+        auction.submitBid{value: 10e18 * _tickPriceAt(1)}(_tickPriceAt(1), false, 10e18, alice, 0, bytes(''));
     }
 
     function test_submitBid_exactInMsgValue_revertsWithInvalidAmount() public {

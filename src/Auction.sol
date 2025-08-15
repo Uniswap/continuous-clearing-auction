@@ -23,7 +23,6 @@ import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
-import {console2} from 'forge-std/console2.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
@@ -130,12 +129,8 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
 
         Demand memory blockSumDemandAboveClearing =
             sumDemandAboveClearing.applyMpsDenominator(step.mps, AuctionStepLib.MPS - cumulativeMps);
-        console2.log('blockSumDemandAboveClearing.currencyDemand', blockSumDemandAboveClearing.currencyDemand);
-        console2.log('blockSumDemandAboveClearing.tokenDemand', blockSumDemandAboveClearing.tokenDemand);
-        console2.log('blockTokenSupply', blockTokenSupply);
         uint256 _clearingPrice =
             blockSumDemandAboveClearing.currencyDemand / (blockTokenSupply - blockSumDemandAboveClearing.tokenDemand);
-        console2.log('_clearingPrice', _clearingPrice);
         // If the new clearing price is below tickLower, set it to tickLower
         if (_clearingPrice < tickLower.price) {
             return tickLower.price;
@@ -175,7 +170,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_tickUpper.demand);
             // If there is no future tick, break to avoid ending up in a bad state
             if (_tickUpper.next == 0) {
-                console2.log('no next tick');
                 break;
             }
             _tickUpper = ticks[_tickUpper.next];
@@ -299,10 +293,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             _accountFullyFilledCheckpoints(_getFinalCheckpoint(), startCheckpoint, bid);
 
         uint256 resolvedAmount = bid.exactIn ? bid.amount : bid.amount * tick.price;
-        console2.log('tokensFilled', tokensFilled);
-        console2.log('resolvedAmount', resolvedAmount);
-        console2.log('ethSpent', ethSpent);
-        console2.log('resolvedAmount - ethSpent', resolvedAmount - ethSpent);
         _processBidWithdraw(bidId, bid, tokensFilled, resolvedAmount - ethSpent);
     }
 
@@ -325,7 +315,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         uint256 _clearingPrice = clearingPrice();
         /// @dev Bid has been outbid
         if (tick.price < _clearingPrice) {
-            console2.log('tick.price < _clearingPrice');
             if (outbidCheckpoint.clearingPrice <= tick.price) revert InvalidCheckpointHint();
 
             uint256 nextCheckpointBlock;
@@ -338,7 +327,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             tokensFilled += _tokensFilled;
             ethSpent += _ethSpent;
         } else if (block.number > endBlock && tick.price == _clearingPrice) {
-            console2.log('block.number > endBlock && tick.price == _clearingPrice');
             /// @dev Bid is partially filled at the end of the auction
             /// Setup:
             /// lastValidCheckpoint --- ... | outbidCheckpoint --- ... | latestCheckpoint ... | endBlock
@@ -351,8 +339,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             (uint256 partialTokensFilled, uint256 partialEthSpent,) = _accountPartiallyFilledCheckpoints(
                 _getFinalCheckpoint(), bid.demand(tick.price), tick.resolveDemand(), tick.price
             );
-            console2.log('partial: tokensFilled', partialTokensFilled);
-            console2.log('partial: ethSpent', partialEthSpent);
             tokensFilled += partialTokensFilled;
             ethSpent += partialEthSpent;
         } else {
@@ -360,10 +346,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         }
 
         uint256 resolvedAmount = bid.exactIn ? bid.amount : bid.amount * tick.price;
-        console2.log('final - tokensFilled', tokensFilled);
-        console2.log('final - resolvedAmount', resolvedAmount);
-        console2.log('final - ethSpent', ethSpent);
-        console2.log('final - resolvedAmount - ethSpent', resolvedAmount - ethSpent);
         _processBidWithdraw(bidId, bid, tokensFilled, resolvedAmount - ethSpent);
     }
 

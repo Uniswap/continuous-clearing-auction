@@ -14,13 +14,14 @@ abstract contract TickStorage is ITickStorage {
     /// @notice Doubly linked list of ticks, sorted ascending by price
 
     mapping(uint128 id => Tick) public ticks;
-    /// @notice The id of the next tick to be initialized
-    uint128 public nextTickId;
+
     /// @notice The id of the tick directly above the clearing price
     /// @dev This will be equal to the clearingPrice if no other prices have been discovered
     uint128 public tickUpperId;
     /// @notice The id of the first tick
     uint128 public headTickId;
+    /// @notice The id of the latest tick to be initialized
+    uint128 public lastInitializedTickId;
 
     /// @notice The tick spacing enforced for bid prices
     uint256 public immutable tickSpacing;
@@ -48,13 +49,7 @@ abstract contract TickStorage is ITickStorage {
         // The tick already exists, return it
         if (nextPrice == price) return next;
 
-        uint256 _nextTickId = nextTickId;
-        /// @solidity memory-safe-assembly
-        assembly {
-            // if nextTickId is 0, set id to 1, otherwise set it to nextTickId
-            id := or(_nextTickId, mul(1, iszero(_nextTickId)))
-        }
-
+        id = ++lastInitializedTickId;
         Tick storage newTick = ticks[id];
         newTick.id = id;
         newTick.prev = prev;
@@ -80,8 +75,6 @@ abstract contract TickStorage is ITickStorage {
         if (next != 0) {
             ticks[next].prev = id;
         }
-
-        nextTickId = id + 1;
 
         emit TickInitialized(id, price);
     }

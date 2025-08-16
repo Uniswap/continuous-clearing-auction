@@ -46,8 +46,7 @@ contract TickStorageTest is Test {
         // First tick is both head and tickUpper
         assertEq(tickStorage.tickUpperId(), 1);
         assertEq(tickStorage.headTickId(), 1);
-        // Next tick is 2
-        assertEq(tickStorage.nextTickId(), 2);
+        assertEq(tickStorage.lastInitializedTickId(), 1);
     }
 
     function test_initializeTickWithPrev_succeeds() public {
@@ -69,7 +68,7 @@ contract TickStorageTest is Test {
         assertEq(tickStorage.tickUpperId(), _tickUpperId);
         // Expect head to track the first tick
         assertEq(tickStorage.headTickId(), 1);
-        assertEq(tickStorage.nextTickId(), 3);
+        assertEq(tickStorage.lastInitializedTickId(), 2);
     }
 
     function test_initializeTickBeforeHead_succeeds() public {
@@ -96,8 +95,7 @@ contract TickStorageTest is Test {
         assertEq(tickStorage.headTickId(), 2);
         // Assert that the tickUpper is updated to this tick
         assertEq(tickStorage.tickUpperId(), 2);
-        // Next tick is 3
-        assertEq(tickStorage.nextTickId(), 3);
+        assertEq(tickStorage.lastInitializedTickId(), 2);
     }
 
     function test_initializeTickReturnsExistingTickAtHead_succeeds() public {

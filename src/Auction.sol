@@ -160,6 +160,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         // All active demand above the current clearing price
         Demand memory _sumDemandAboveClearing = sumDemandAboveClearing;
 
+        Tick memory _tickUpper = getTick(tickUpperPrice);
         // Resolve the demand at the next initialized tick
         // Find the tick which does not fully match the supply, or the highest tick in the book
         while (
@@ -167,20 +168,20 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
                 step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
             ) >= blockTokenSupply
         ) {
-            Tick memory _tickUpper = ticks[tickUpperPrice];
             // Subtract the demand at the current tickUpper before advancing to the next tick
             _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_tickUpper.demand);
             // If there is no future tick, break to avoid ending up in a bad state
             if (_tickUpper.next == 0) {
                 break;
             }
-            tickUpperPrice = _tickUpper.next;
+            tickUpperPrice = toPrice(_tickUpper.next);
+            _tickUpper = getTick(tickUpperPrice);
         }
 
         sumDemandAboveClearing = _sumDemandAboveClearing;
 
         uint256 newClearingPrice = _calculateNewClearingPrice(
-            tickUpperPrice, ticks[tickUpperPrice].prev, blockTokenSupply, _checkpoint.cumulativeMps
+            tickUpperPrice, toPrice(_tickUpper.prev), blockTokenSupply, _checkpoint.cumulativeMps
         );
         uint256 blockResolvedDemandAboveClearing = sumDemandAboveClearing.resolve(newClearingPrice, tickSpacing);
 
@@ -211,13 +212,13 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         bool exactIn,
         uint256 amount,
         address owner,
-        uint256 prevTickPrice,
+        uint128 prevTickId,
         bytes calldata hookData
     ) internal returns (uint256 bidId) {
         // First bid in a block updates the clearing price
         if (lastCheckpointedBlock != block.number) checkpoint();
 
-        _initializeTickIfNeeded(prevTickPrice, maxPrice);
+        _initializeTickIfNeeded(prevTickId, maxPrice);
 
         if (address(validationHook) != address(0)) {
             validationHook.validate(maxPrice, exactIn, amount, owner, msg.sender, hookData);
@@ -226,7 +227,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         // ClearingPrice will be set to floor price in checkpoint() if not set already
         BidLib.validate(maxPrice, _clearingPrice, tickSpacing);
 
-        _updateTick(maxPrice, exactIn, amount);
+        _updateTick(toId(maxPrice), exactIn, amount);
 
         bidId = _createBid(exactIn, amount, owner, maxPrice);
 

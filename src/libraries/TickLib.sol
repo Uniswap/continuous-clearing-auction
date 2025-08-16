@@ -4,8 +4,8 @@ pragma solidity ^0.8.23;
 import {Demand, DemandLib} from './DemandLib.sol';
 
 struct Tick {
-    uint256 next;
-    uint256 prev;
+    uint128 next;
+    uint128 prev;
     Demand demand;
 }
 

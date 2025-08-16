@@ -129,7 +129,7 @@ abstract contract CheckpointStorage is TickStorage {
         view
         returns (uint256 tokensFilled, uint24 cumulativeMpsDelta, uint256 nextCheckpointBlock)
     {
-        Tick memory tick = ticks[bid.maxPrice];
+        Tick memory tick = getTick(bid.maxPrice);
         uint256 bidDemand = bid.demand(bid.maxPrice, tickSpacing);
         uint256 tickDemand = tick.demand.resolve(bid.maxPrice, tickSpacing);
         while (upper.prev != 0) {

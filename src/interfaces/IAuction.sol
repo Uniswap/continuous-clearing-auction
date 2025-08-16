@@ -24,11 +24,7 @@ struct AuctionParameters {
 
 /// @notice Interface for the Auction contract
 interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
-    /// @notice Error thrown when the token is invalid
-    error IDistributionContract__InvalidToken();
-    /// @notice Error thrown when the amount is invalid
-    error IDistributionContract__InvalidAmount();
-    /// @notice Error thrown when the amount received is invalid
+    /// @notice Error thrown when the amount of tokens received is invalid
     error IDistributionContract__InvalidAmountReceived();
 
     /// @notice Error thrown when not enough amount is deposited

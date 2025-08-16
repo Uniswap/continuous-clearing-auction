@@ -5,6 +5,7 @@ import {TickStorage} from './TickStorage.sol';
 import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint} from './libraries/CheckpointLib.sol';
+import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {Tick, TickLib} from './libraries/TickLib.sol';
 
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -18,6 +19,7 @@ abstract contract CheckpointStorage is TickStorage {
     using BidLib for *;
     using TickLib for Tick;
     using SafeCastLib for uint256;
+    using DemandLib for Demand;
 
     /// @notice The starting price of the auction
     uint256 public immutable floorPrice;
@@ -56,7 +58,7 @@ abstract contract CheckpointStorage is TickStorage {
     /// @param _checkpoint The checkpoint to update
     /// @param _clearingPrice The new clearing price
     /// @param _blockResolvedDemandAboveClearing The resolved demand above the clearing price in the block
-    /// @param _blockTokenSupply The token supply at or above tickUpper in the block
+    /// @param _blockTokenSupply The token supply at or above tickUpperPrice in the block
     /// @return The updated checkpoint
     function _updateCheckpoint(
         Checkpoint memory _checkpoint,
@@ -118,23 +120,23 @@ abstract contract CheckpointStorage is TickStorage {
     /// @notice Calculate the tokens sold, proportion of input used, and the block number of the next checkpoint under the bid's max price
     /// @dev This function does an iterative search through the checkpoints and thus is more gas intensive
     /// @param upper The upper checkpoint
-    /// @param tick The tick which the bid is at
     /// @param bid The bid
     /// @return tokensFilled The tokens sold
     /// @return cumulativeMpsDelta The proportion of input used
     /// @return nextCheckpointBlock The block number of the checkpoint under the bid's max price. Will be 0 if it does not exist.
-    function _accountPartiallyFilledCheckpoints(Checkpoint memory upper, Tick memory tick, Bid memory bid)
+    function _accountPartiallyFilledCheckpoints(Checkpoint memory upper, Bid memory bid)
         internal
         view
         returns (uint256 tokensFilled, uint24 cumulativeMpsDelta, uint256 nextCheckpointBlock)
     {
-        uint256 bidDemand = bid.demand(tick.price, tickSpacing);
-        uint256 tickDemand = tick.resolveDemand(tickSpacing);
+        Tick memory tick = ticks[bid.maxPrice];
+        uint256 bidDemand = bid.demand(bid.maxPrice, tickSpacing);
+        uint256 tickDemand = tick.demand.resolve(bid.maxPrice, tickSpacing);
         while (upper.prev != 0) {
             Checkpoint memory _next = _getCheckpoint(upper.prev);
             // Stop searching when the next checkpoint is less than the tick price
-            if (_next.clearingPrice < tick.price) {
-                // Upper is the last checkpoint where tick.price == clearingPrice
+            if (_next.clearingPrice < bid.maxPrice) {
+                // Upper is the last checkpoint where bid.maxPrice == clearingPrice
                 // Account for tokens sold in the upperCheckpoint block, since checkpoint ranges are not inclusive [start,end)
                 (uint256 _upperCheckpointTokensFilled, uint24 _upperCheckpointSupplyMps) = bidDemand
                     .calculatePartialFill(

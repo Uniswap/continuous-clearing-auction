@@ -11,17 +11,14 @@ import {Tick} from './libraries/TickLib.sol';
 /// @notice Abstract contract for handling tick storage
 abstract contract TickStorage is ITickStorage {
     using DemandLib for Demand;
-    /// @notice Doubly linked list of ticks, sorted ascending by price
 
-    mapping(uint128 id => Tick) public ticks;
+    mapping(uint256 price => Tick) public ticks;
 
-    /// @notice The id of the tick directly above the clearing price
+    /// @notice The price of the next initialized tick above the clearing price
     /// @dev This will be equal to the clearingPrice if no other prices have been discovered
-    uint128 public tickUpperId;
-    /// @notice The id of the first tick
-    uint128 public headTickId;
-    /// @notice The id of the latest tick to be initialized
-    uint128 public lastInitializedTickId;
+    uint256 public tickUpperPrice;
+    /// @notice The price of the first tick
+    uint256 public headTickPrice;
 
     /// @notice The tick spacing enforced for bid prices
     uint256 public immutable tickSpacing;
@@ -31,61 +28,63 @@ abstract contract TickStorage is ITickStorage {
     }
 
     /// @notice Initialize a tick at `price` if it does not exist already
-    /// @dev Requires `prev` to be the id of the tick immediately preceding the desired price
-    ///      If `prev` is 0, attempts to initialize a new tick at the beginning of the list
+    /// @dev Requires `prevPrice` to be the price of the tick immediately preceding the desired price
+    ///      If `prevPrice` is 0, attempts to initialize a new tick at the beginning of the list
     ///      TickUpper will be updated if the new tick is right before it
-    /// @param prev The id of the previous tick
+    /// @param prevPrice The price of the previous tick
     /// @param price The price of the tick
-    /// @return id The id of the tick
-    function _initializeTickIfNeeded(uint128 prev, uint256 price) internal returns (uint128 id) {
-        uint128 next = prev == 0 ? headTickId : ticks[prev].next;
-        uint256 nextPrice = ticks[next].price;
+    function _initializeTickIfNeeded(uint256 prevPrice, uint256 price) internal {
+        uint256 nextPrice;
+        // No previous tick
+        if (prevPrice == 0) {
+            nextPrice = headTickPrice;
+            // Check for the first tick initialized which will be 0
+            if (nextPrice != 0 && nextPrice < price) revert TickPriceNotIncreasing();
+        } else {
+            // No previous price can be greater than or equal to the new price
+            nextPrice = ticks[prevPrice].next;
+            if (prevPrice >= price || (nextPrice != 0 && nextPrice < price)) {
+                revert TickPriceNotIncreasing();
+            }
+        }
 
-        // If there is a next tick it cannot be less than the new price
-        if (next != 0 && nextPrice < price) revert TickPriceNotIncreasing();
-        // If there is a previous tick it cannot be greater than or equal to the new price
-        else if (prev != 0 && ticks[prev].price >= price) revert TickPriceNotIncreasing();
+        // The tick already exists, early return
+        if (nextPrice == price) return;
 
-        // The tick already exists, return it
-        if (nextPrice == price) return next;
+        Tick storage newTick = ticks[price];
+        newTick.next = nextPrice;
+        newTick.prev = prevPrice;
 
-        id = ++lastInitializedTickId;
-        Tick storage newTick = ticks[id];
-        newTick.id = id;
-        newTick.prev = prev;
-        newTick.next = next;
-        newTick.price = price;
-
-        if (prev == 0) {
+        if (prevPrice == 0) {
             // First tick becomes head
-            headTickId = id;
+            headTickPrice = price;
         } else {
             // Link prev to new tick
-            ticks[prev].next = id;
+            ticks[prevPrice].next = price;
         }
 
         // If the next tick is the tickUpper, update tickUpper to the new tick
-        // In the base case, where next == 0 and tickUpperId == 0, this will set tickUpperId to id
-        if (next == tickUpperId) {
-            tickUpperId = id;
-            emit TickUpperUpdated(id);
+        // In the base case, where next == 0 and tickUpperPrice == 0, this will set tickUpperPrice to price
+        if (nextPrice == tickUpperPrice) {
+            tickUpperPrice = price;
+            emit TickUpperUpdated(price);
         }
 
-        // Link next to new tick
-        if (next != 0) {
-            ticks[next].prev = id;
+        if (nextPrice != 0) {
+            // Link prev to new tick
+            ticks[nextPrice].prev = price;
         }
 
-        emit TickInitialized(id, price);
+        emit TickInitialized(price);
     }
 
     /// @notice Internal function to add a bid to a tick and update its values
     /// @dev Requires the tick to be initialized
-    /// @param id The id of the tick
+    /// @param price The price of the tick
     /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
-    function _updateTick(uint128 id, bool exactIn, uint256 amount) internal {
-        Tick storage tick = ticks[id];
+    function _updateTick(uint256 price, bool exactIn, uint256 amount) internal {
+        Tick storage tick = ticks[price];
 
         if (exactIn) {
             tick.demand = tick.demand.addCurrencyAmount(amount);
@@ -96,20 +95,20 @@ abstract contract TickStorage is ITickStorage {
 
     /// @inheritdoc ITickStorage
     function getLowerTickForPrice(uint256 price) external view returns (Tick memory) {
-        uint128 currentId = headTickId;
-        uint128 lastValidId = headTickId;
+        uint256 currentPrice = headTickPrice;
+        uint256 lastValidPrice = headTickPrice;
 
-        while (currentId != 0) {
-            Tick storage currentTick = ticks[currentId];
+        while (currentPrice != 0) {
+            Tick storage currentTick = ticks[currentPrice];
 
-            if (currentTick.price <= price) {
-                lastValidId = currentId;
-                currentId = currentTick.next;
+            if (currentPrice <= price) {
+                lastValidPrice = currentPrice;
+                currentPrice = currentTick.next;
             } else {
                 break;
             }
         }
 
-        return ticks[lastValidId];
+        return ticks[lastValidPrice];
     }
 }

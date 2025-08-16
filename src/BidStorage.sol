@@ -20,14 +20,17 @@ abstract contract BidStorage {
     /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
     /// @param owner The owner of the bid
-    /// @param tickId The id of the tick the bid is on
+    /// @param maxPrice The maximum price for the bid
     /// @return bidId The id of the created bid
-    function _createBid(bool exactIn, uint256 amount, address owner, uint128 tickId) internal returns (uint256 bidId) {
+    function _createBid(bool exactIn, uint256 amount, address owner, uint256 maxPrice)
+        internal
+        returns (uint256 bidId)
+    {
         Bid memory bid = Bid({
             exactIn: exactIn,
             startBlock: uint64(block.number),
             withdrawnBlock: 0,
-            tickId: tickId,
+            maxPrice: maxPrice,
             amount: amount,
             owner: owner,
             tokensFilled: 0

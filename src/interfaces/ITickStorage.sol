@@ -9,14 +9,13 @@ interface ITickStorage {
     /// @notice Error thrown when the tick price is not increasing
     error TickPriceNotIncreasing();
     /// @notice Emitted when a tick is initialized
-    /// @param id The id of the tick
     /// @param price The price of the tick
 
-    event TickInitialized(uint128 id, uint256 price);
+    event TickInitialized(uint256 price);
 
     /// @notice Emitted when the tickUpper is updated
-    /// @param id The id of the tick
-    event TickUpperUpdated(uint128 id);
+    /// @param price The price of the tick
+    event TickUpperUpdated(uint256 price);
 
     /// @notice Get the closest tick at or below `price`
     /// @dev This function is not gas efficient and should only be called offchain

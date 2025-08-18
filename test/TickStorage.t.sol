@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {TickStorage} from '../src/TickStorage.sol';
+import {Tick, TickStorage} from '../src/TickStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
-import {Tick} from '../src/libraries/TickLib.sol';
 import {Test} from 'forge-std/Test.sol';
 
 contract MockTickStorage is TickStorage {

@@ -5,10 +5,9 @@ import {AuctionStepStorage} from './AuctionStepStorage.sol';
 import {BidStorage} from './BidStorage.sol';
 import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
 import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
-import {TickStorage} from './TickStorage.sol';
+import {Tick, TickStorage} from './TickStorage.sol';
 
 import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
-import {Tick, TickLib} from './libraries/TickLib.sol';
 
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
@@ -30,7 +29,6 @@ import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSingleForwarder, IAuction {
     using FixedPointMathLib for uint256;
     using CurrencyLibrary for Currency;
-    using TickLib for Tick;
     using BidLib for Bid;
     using AuctionStepLib for *;
     using CheckpointLib for Checkpoint;

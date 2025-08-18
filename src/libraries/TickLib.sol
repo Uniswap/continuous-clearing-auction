@@ -8,5 +8,3 @@ struct Tick {
     uint128 prev;
     Demand demand;
 }
-
-library TickLib {}

@@ -5,8 +5,12 @@ import {ITickStorage} from './interfaces/ITickStorage.sol';
 
 import {Bid} from './libraries/BidLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
-import {Tick} from './libraries/TickLib.sol';
-import {console2} from 'forge-std/console2.sol';
+
+struct Tick {
+    uint128 next;
+    uint128 prev;
+    Demand demand;
+}
 
 /// @title TickStorage
 /// @notice Abstract contract for handling tick storage

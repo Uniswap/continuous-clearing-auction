@@ -29,7 +29,7 @@ abstract contract BidStorage {
         Bid memory bid = Bid({
             exactIn: exactIn,
             startBlock: uint64(block.number),
-            withdrawnBlock: 0,
+            exitedBlock: 0,
             maxPrice: maxPrice,
             amount: amount,
             owner: owner,

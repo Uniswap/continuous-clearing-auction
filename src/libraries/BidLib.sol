@@ -9,7 +9,7 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 struct Bid {
     bool exactIn; // If amount below is denoted in currency or tokens
     uint64 startBlock; // Block number when the bid was first made in
-    uint64 withdrawnBlock; // Block number when the bid was withdrawn
+    uint64 exitedBlock; // Block number when the bid was exited
     uint256 maxPrice; // The max price of the bid
     address owner; // Who is allowed to withdraw the bid
     uint256 amount; // User's demand

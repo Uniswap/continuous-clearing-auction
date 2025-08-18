@@ -183,8 +183,8 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         );
         uint256 blockResolvedDemandAboveClearing = sumDemandAboveClearing.resolve(newClearingPrice, tickSpacing);
 
-        _checkpoint =
-            _updateCheckpoint(_checkpoint, step, newClearingPrice, blockResolvedDemandAboveClearing, blockTokenSupply);
+        _checkpoint.clearingPrice = newClearingPrice;
+        _checkpoint = _updateCheckpoint(_checkpoint, step, blockResolvedDemandAboveClearing, blockTokenSupply);
 
         _insertCheckpoint(_checkpoint);
 
@@ -259,14 +259,14 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     }
 
     /// @notice Given a bid, tokens filled and refund, process the transfers and refund
-    function _processBidWithdraw(uint256 bidId, Bid memory bid, uint256 tokensFilled, uint256 refund) internal {
+    function _processExit(uint256 bidId, Bid memory bid, uint256 tokensFilled, uint256 refund) internal {
         address _owner = bid.owner;
 
         if (tokensFilled == 0) {
             _deleteBid(bidId);
         } else {
             bid.tokensFilled = tokensFilled;
-            bid.withdrawnBlock = uint64(block.number);
+            bid.exitedBlock = uint64(block.number);
             _updateBid(bidId, bid);
         }
 
@@ -274,14 +274,14 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             currency.transfer(_owner, refund);
         }
 
-        emit BidWithdrawn(bidId, _owner);
+        emit BidExited(bidId, _owner);
     }
 
     /// @inheritdoc IAuction
-    function withdrawBid(uint256 bidId) external {
+    function exitBid(uint256 bidId) external {
         Bid memory bid = _getBid(bidId);
-        if (bid.withdrawnBlock != 0) revert BidAlreadyWithdrawn();
-        if (block.number <= endBlock || bid.maxPrice <= clearingPrice()) revert CannotWithdrawBid();
+        if (bid.exitedBlock != 0) revert BidAlreadyExited();
+        if (block.number <= endBlock || bid.maxPrice <= clearingPrice()) revert CannotExitBid();
 
         /// @dev Bid was fully filled and the auction is now over
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
@@ -291,13 +291,13 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             bid.maxPrice, tokensFilled, cumulativeMpsDelta, AuctionStepLib.MPS - startCheckpoint.cumulativeMps
         );
 
-        _processBidWithdraw(bidId, bid, tokensFilled, refund);
+        _processExit(bidId, bid, tokensFilled, refund);
     }
 
     /// @inheritdoc IAuction
-    function withdrawPartiallyFilledBid(uint256 bidId, uint256 outbidCheckpointBlock) external {
+    function exitPartiallyFilledBid(uint256 bidId, uint256 outbidCheckpointBlock) external {
         Bid memory bid = _getBid(bidId);
-        if (bid.withdrawnBlock != 0) revert BidAlreadyWithdrawn();
+        if (bid.exitedBlock != 0) revert BidAlreadyExited();
 
         // Starting checkpoint must exist because we checkpoint on bid submission
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
@@ -337,20 +337,20 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             tokensFilled += partialTokensFilled;
             cumulativeMpsDelta += partialCumulativeMpsDelta;
         } else {
-            revert CannotWithdrawBid();
+            revert CannotExitBid();
         }
 
         uint256 refund = bid.calculateRefund(
             bid.maxPrice, tokensFilled, cumulativeMpsDelta, AuctionStepLib.MPS - startCheckpoint.cumulativeMps
         );
 
-        _processBidWithdraw(bidId, bid, tokensFilled, refund);
+        _processExit(bidId, bid, tokensFilled, refund);
     }
 
     /// @inheritdoc IAuction
     function claimTokens(uint256 bidId) external {
         Bid memory bid = _getBid(bidId);
-        if (bid.withdrawnBlock == 0) revert BidNotWithdrawn();
+        if (bid.exitedBlock == 0) revert BidNotExited();
         if (block.number < claimBlock) revert NotClaimable();
 
         uint256 tokensFilled = bid.tokensFilled;

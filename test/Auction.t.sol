@@ -203,9 +203,9 @@ contract AuctionTest is TokenHandler, Test {
         auction.checkpoint();
 
         uint256 aliceBalanceBefore = address(alice).balance;
-        // Expect that the first bid can be withdrawn, since the clearing price is now above its max price
+        // Expect that the first bid can be exited, since the clearing price is now above its max price
         vm.expectEmit(true, true, true, true);
-        emit IAuction.BidWithdrawn(0, alice);
+        emit IAuction.BidExited(0, alice);
         vm.prank(alice);
         auction.exitPartiallyFilledBid(bidId1, 2);
         vm.snapshotGasLastCall('exitBid');
@@ -213,7 +213,7 @@ contract AuctionTest is TokenHandler, Test {
         uint256 aliceBalanceAfter = address(alice).balance;
         assertEq(aliceBalanceAfter - aliceBalanceBefore, smallAmount);
 
-        // Expect that the second bid cannot be withdrawn, since the clearing price is below its max price
+        // Expect that the second bid cannot be exited, since the clearing price is below its max price
         vm.expectRevert(IAuction.CannotExitBid.selector);
         vm.prank(alice);
         auction.exitBid(bidId2);
@@ -229,7 +229,7 @@ contract AuctionTest is TokenHandler, Test {
         auction.checkpoint();
 
         assertGt(bidMaxPrice, auction.clearingPrice());
-        // Before the auction ends, the bid should not be withdrawable since it is above the clearing price
+        // Before the auction ends, the bid should not be exitable since it is above the clearing price
         vm.startPrank(alice);
         vm.roll(auction.endBlock());
         vm.expectRevert(IAuction.CannotExitBid.selector);
@@ -237,7 +237,7 @@ contract AuctionTest is TokenHandler, Test {
 
         uint256 aliceBalanceBefore = address(alice).balance;
 
-        // Now that the auction has ended, the bid should be withdrawable
+        // Now that the auction has ended, the bid should be exitable
         vm.roll(auction.endBlock() + 1);
         auction.exitBid(bidId);
         // Expect no refund
@@ -259,7 +259,7 @@ contract AuctionTest is TokenHandler, Test {
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
         vm.roll(auction.endBlock() + 1);
         auction.exitBid(bidId);
-        // Expect no refund since the bid was fully filled
+        // Expect no refund since the bid was fully exited
         assertEq(address(alice).balance, aliceBalanceBefore);
         auction.claimTokens(bidId);
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18 / TICK_SPACING);
@@ -273,13 +273,13 @@ contract AuctionTest is TokenHandler, Test {
         auction.exitBid(bidId);
     }
 
-    function test_exitBid_alreadyWithdrawn_revertsWithBidAlreadyWithdrawn() public {
+    function test_exitBid_alreadyExited_revertsWithBidAlreadyExited() public {
         uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(3), true, 1000e18, alice, 1, bytes(''));
         vm.roll(auction.endBlock() + 1);
 
         vm.startPrank(alice);
         auction.exitBid(bidId);
-        vm.expectRevert(IAuction.BidAlreadyWithdrawn.selector);
+        vm.expectRevert(IAuction.BidAlreadyExited.selector);
         auction.exitBid(bidId);
         vm.stopPrank();
     }
@@ -290,7 +290,7 @@ contract AuctionTest is TokenHandler, Test {
         auction.checkpoint();
         assertEq(auction.clearingPrice(), _tickPriceAt(2));
 
-        // Auction has ended, but the bid is not withdrawable through this function because the max price is at the clearing price
+        // Auction has ended, but the bid is not exitable through this function because the max price is at the clearing price
         vm.roll(auction.endBlock() + 1);
         vm.expectRevert(IAuction.CannotExitBid.selector);
         vm.prank(alice);

@@ -181,8 +181,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         uint256 newClearingPrice =
             _calculateNewClearingPrice(_tickUpper, ticks[_tickUpper.prev], blockTokenSupply, _checkpoint.cumulativeMps);
 
-        _checkpoint.clearingPrice = newClearingPrice;
-        _checkpoint = _updateCheckpoint(_checkpoint, step, sumDemandAboveClearing.resolve(newClearingPrice), blockTokenSupply);
+        _checkpoint = _updateCheckpoint(_checkpoint, step, _sumDemandAboveClearing, newClearingPrice, blockTokenSupply);
 
         _insertCheckpoint(_checkpoint);
 

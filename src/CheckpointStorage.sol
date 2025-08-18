@@ -5,6 +5,7 @@ import {TickStorage} from './TickStorage.sol';
 import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint} from './libraries/CheckpointLib.sol';
+import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {Tick, TickLib} from './libraries/TickLib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
@@ -17,6 +18,7 @@ abstract contract CheckpointStorage is TickStorage {
     using BidLib for *;
     using TickLib for Tick;
     using SafeCastLib for uint256;
+    using DemandLib for Demand;
 
     /// @notice The starting price of the auction
     uint256 public immutable floorPrice;
@@ -53,19 +55,22 @@ abstract contract CheckpointStorage is TickStorage {
 
     /// @notice Update the checkpoint
     /// @param _checkpoint The checkpoint to update
-    /// @param _blockResolvedDemandAboveClearing The resolved demand above the clearing price in the block
+    /// @param _sumDemandAboveClearing The sum of demand above the clearing price
+    /// @param _newClearingPrice The new clearing price
     /// @param _blockTokenSupply The token supply at or above tickUpper in the block
     /// @return The updated checkpoint
     function _updateCheckpoint(
         Checkpoint memory _checkpoint,
         AuctionStep memory _step,
-        uint256 _blockResolvedDemandAboveClearing,
+        Demand memory _sumDemandAboveClearing,
+        uint256 _newClearingPrice,
         uint256 _blockTokenSupply
     ) internal view returns (Checkpoint memory) {
+        uint256 resolvedDemandAboveClearing = _sumDemandAboveClearing.resolve(_newClearingPrice);
         // If the clearing price is the floor price, we can only clear the current demand at the floor price
-        if (_checkpoint.clearingPrice == floorPrice) {
+        if (_newClearingPrice == floorPrice) {
             // We can only clear the current demand at the floor price
-            _checkpoint.blockCleared = _resolvedDemandAboveClearing.applyMpsDenominator(
+            _checkpoint.blockCleared = resolvedDemandAboveClearing.applyMpsDenominator(
                 _step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
             );
         }
@@ -79,11 +84,12 @@ abstract contract CheckpointStorage is TickStorage {
                 * (block.number - (_step.startBlock > lastCheckpointedBlock ? _step.startBlock : lastCheckpointedBlock))
         ).toUint24();
 
+        _checkpoint.clearingPrice = _newClearingPrice;
         _checkpoint.totalCleared += _checkpoint.blockCleared;
         _checkpoint.cumulativeMps += mpsSinceLastCheckpoint;
         _checkpoint.cumulativeMpsPerPrice +=
             uint256(mpsSinceLastCheckpoint).fullMulDiv(BidLib.PRECISION, _checkpoint.clearingPrice);
-        _checkpoint.resolvedDemandAboveClearingPrice = _resolvedDemandAboveClearing;
+        _checkpoint.resolvedDemandAboveClearingPrice = resolvedDemandAboveClearing;
         _checkpoint.mps = _step.mps;
         _checkpoint.prev = lastCheckpointedBlock;
 

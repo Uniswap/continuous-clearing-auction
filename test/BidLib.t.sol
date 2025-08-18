@@ -3,6 +3,7 @@ pragma solidity ^0.8.23;
 
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Bid} from '../src/libraries/BidLib.sol';
+import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {MockBidLib} from './utils/MockBidLib.sol';
 import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -15,7 +16,6 @@ contract BidLibTest is Test {
 
     uint24 public constant MPS = 1e7;
     uint256 public constant TICK_SPACING = 100;
-    uint256 public constant PRECISION = 1e18;
     uint256 public constant ETH_AMOUNT = 10 ether;
     uint128 public constant MAX_PRICE = 5000;
     uint256 public constant TOKEN_AMOUNT = 1000;
@@ -41,7 +41,7 @@ contract BidLibTest is Test {
 
         // Execute: 30% of auction executed (3000 mps)
         uint24 cumulativeMpsDelta = 3000e3;
-        uint256 cumulativeMpsPerPriceDelta = uint256(cumulativeMpsDelta).fullMulDiv(PRECISION, maxPrice);
+        uint256 cumulativeMpsPerPriceDelta = uint256(cumulativeMpsDelta << FixedPoint96.RESOLUTION) / maxPrice;
 
         uint256 tokensFilled = mockBidLib.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta, MPS);
         uint256 refund = mockBidLib.calculateRefund(bid, maxPrice, tokensFilled, cumulativeMpsDelta, MPS);
@@ -122,7 +122,8 @@ contract BidLibTest is Test {
             _ethSpent += ethSpentInBlock;
 
             _totalMps += mpsArray[i];
-            _cumulativeMpsPerPrice += uint256(mpsArray[i]).fullMulDiv(PRECISION, pricesArray[i]);
+            // uint24.max << 96 will not overflow
+            _cumulativeMpsPerPrice += uint256(mpsArray[i] << FixedPoint96.RESOLUTION) / pricesArray[i];
         }
 
         Bid memory bid = Bid({
@@ -206,7 +207,8 @@ contract BidLibTest is Test {
             maxPrice: MAX_PRICE // doesn't matter for this test
         });
 
-        uint256 cumulativeMpsPerPriceDelta = uint256(mpsArray[0]).fullMulDiv(PRECISION, pricesArray[0]);
+        // uint24.max << 96 will not overflow
+        uint256 cumulativeMpsPerPriceDelta = uint256(mpsArray[0] << FixedPoint96.RESOLUTION) / pricesArray[0];
         uint24 cumulativeMpsDelta = MPS;
         uint256 ethSpent = largeAmount * cumulativeMpsDelta / MPS;
 

@@ -14,6 +14,7 @@ import {IDistributionContract} from './interfaces/external/IDistributionContract
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
+import {FixedPoint96} from './libraries/FixedPoint96.sol';
 
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
@@ -110,8 +111,9 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         uint256 blockTokenSupply,
         uint24 cumulativeMps
     ) internal view returns (uint256) {
-        uint256 resolvedBlockDemandAboveClearing = sumDemandAboveClearing.resolve(_tickUpperPrice, tickSpacing)
-            .applyMpsDenominator(step.mps, AuctionStepLib.MPS - cumulativeMps);
+        uint256 resolvedBlockDemandAboveClearing = sumDemandAboveClearing.resolve(_tickUpperPrice).applyMpsDenominator(
+            step.mps, AuctionStepLib.MPS - cumulativeMps
+        );
         // If there is no demand above the clearing price or the demand is equal to the block supply, the clearing price is tickUpper
         // This can happen in a few scenarios:
         // 1. The auction just started and the tickUpper represents the floor price and should be returned
@@ -124,7 +126,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         Demand memory blockSumDemandAboveClearing =
             sumDemandAboveClearing.applyMpsDenominator(step.mps, AuctionStepLib.MPS - cumulativeMps);
         uint256 _clearingPrice = blockSumDemandAboveClearing.currencyDemand.fullMulDiv(
-            tickSpacing, (blockTokenSupply - blockSumDemandAboveClearing.tokenDemand)
+            FixedPoint96.RESOLUTION, (blockTokenSupply - blockSumDemandAboveClearing.tokenDemand)
         );
 
         if (_clearingPrice < minimumClearingPrice) {
@@ -160,7 +162,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
 
         // Find the tick which does not fully match the supply, stopping at the highest tick in the book
         while (
-            _sumDemandAboveClearing.resolve(tickUpperPrice, tickSpacing).applyMpsDenominator(
+            _sumDemandAboveClearing.resolve(tickUpperPrice).applyMpsDenominator(
                 step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
             ) >= blockTokenSupply
         ) {
@@ -181,7 +183,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         uint256 newClearingPrice = _calculateNewClearingPrice(
             tickUpperPrice, minimumClearingPrice, blockTokenSupply, _checkpoint.cumulativeMps
         );
-        uint256 blockResolvedDemandAboveClearing = sumDemandAboveClearing.resolve(newClearingPrice, tickSpacing);
+        uint256 blockResolvedDemandAboveClearing = sumDemandAboveClearing.resolve(newClearingPrice);
 
         _checkpoint.clearingPrice = newClearingPrice;
         _checkpoint = _updateCheckpoint(_checkpoint, step, blockResolvedDemandAboveClearing, blockTokenSupply);
@@ -248,7 +250,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         bytes calldata hookData
     ) external payable returns (uint256) {
         if (block.number > endBlock) revert AuctionIsOver();
-        uint256 resolvedAmount = exactIn ? amount : amount.fullMulDivUp(maxPrice, tickSpacing);
+        uint256 resolvedAmount = exactIn ? amount : amount.fullMulDivUp(maxPrice, FixedPoint96.RESOLUTION);
         if (resolvedAmount == 0) revert InvalidAmount();
         if (currency.isAddressZero()) {
             if (msg.value != resolvedAmount) revert InvalidAmount();

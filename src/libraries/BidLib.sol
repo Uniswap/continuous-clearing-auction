@@ -26,8 +26,6 @@ library BidLib {
 
     error InvalidBidPrice();
 
-    uint256 public constant PRECISION = 1e18;
-
     /// @notice Validate a bid
     /// @dev The bid must be greater than the clearing price and at a tick boundary
     /// @param maxPrice The max price of the bid
@@ -42,10 +40,9 @@ library BidLib {
     /// @notice Resolve the demand of a bid
     /// @param bid The bid
     /// @param price The price of the bid
-    /// @param tickSpacing The tick spacing of the auction
     /// @return The demand of the bid
-    function demand(Bid memory bid, uint256 price, uint256 tickSpacing) internal pure returns (uint256) {
-        return bid.exactIn ? bid.amount.resolveCurrencyDemand(price, tickSpacing) : bid.amount;
+    function demand(Bid memory bid, uint256 price) internal pure returns (uint256) {
+        return bid.exactIn ? bid.amount.resolveCurrencyDemand(price) : bid.amount;
     }
 
     /// @notice Calculate the tokens filled and refund of a bid which has been fully filled
@@ -60,7 +57,8 @@ library BidLib {
         uint24 mpsDenominator
     ) internal pure returns (uint256 tokensFilled) {
         if (bid.exactIn) {
-            tokensFilled = bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, PRECISION * mpsDenominator);
+            // TODO: removed PRECISION
+            tokensFilled = bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, mpsDenominator);
         } else {
             tokensFilled = bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
         }
@@ -87,7 +85,6 @@ library BidLib {
     /// @notice Calculate the tokens filled and proportion of input used for a partially filled bid
     /// @param bidDemand The resolved demand of the bid at the tick price
     /// @param tickDemand The resolved demand at the tick
-    /// @param tickSpacing The tick spacing of the auction
     /// @param supply The supply of the auction being sold
     /// @param mpsDelta The mps of the totalSupply that is being sold
     /// @param resolvedDemandAboveClearingPrice The resolved demand above the clearing price
@@ -95,14 +92,13 @@ library BidLib {
     function calculatePartialFill(
         uint256 bidDemand,
         uint256 tickDemand,
-        uint256 tickSpacing,
         uint256 supply,
         uint24 mpsDelta,
         uint256 resolvedDemandAboveClearingPrice
     ) internal pure returns (uint256 tokensFilled, uint24 cumulativeMpsDelta) {
         uint256 _tickDemandMps = tickDemand.applyMps(mpsDelta);
         uint256 supplySoldToTick = supply - resolvedDemandAboveClearingPrice.applyMps(mpsDelta);
-        tokensFilled = supplySoldToTick.fullMulDiv(bidDemand.applyMps(mpsDelta), tickSpacing * _tickDemandMps);
+        tokensFilled = supplySoldToTick.fullMulDiv(bidDemand.applyMps(mpsDelta), _tickDemandMps);
         cumulativeMpsDelta = (uint256(mpsDelta).fullMulDiv(supplySoldToTick, _tickDemandMps)).toUint24();
     }
 }

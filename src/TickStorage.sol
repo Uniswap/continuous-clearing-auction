@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {ITickStorage} from './interfaces/ITickStorage.sol';
-
+import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {Bid} from './libraries/BidLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 
@@ -35,13 +35,16 @@ abstract contract TickStorage is ITickStorage {
 
     /// @notice Convert a price to an id
     function toId(uint256 price) internal view returns (uint128) {
-        require(price % tickSpacing == 0, 'TickStorage: price must be a multiple of tickSpacing');
-        return uint128(price / tickSpacing);
+        require(
+            price % (tickSpacing << FixedPoint96.RESOLUTION) == 0,
+            'TickStorage: price must be a multiple of tickSpacing'
+        );
+        return uint128(price / (tickSpacing << FixedPoint96.RESOLUTION));
     }
 
     /// @notice Convert an id to a price
     function toPrice(uint128 id) internal view returns (uint256) {
-        return id * tickSpacing;
+        return id * (tickSpacing << FixedPoint96.RESOLUTION);
     }
 
     /// @notice Get a tick at a price

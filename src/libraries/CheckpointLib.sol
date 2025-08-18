@@ -3,6 +3,7 @@ pragma solidity ^0.8.23;
 
 import {BidLib} from './BidLib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {FixedPoint96} from './FixedPoint96.sol';
 
 struct Checkpoint {
     uint256 clearingPrice;
@@ -38,8 +39,9 @@ library CheckpointLib {
             totalCleared: checkpoint.totalCleared + checkpoint.blockCleared * blockDelta,
             cumulativeMps: checkpoint.cumulativeMps + deltaMps,
             mps: mps,
+            // uint24.max << 96 will not overflow
             cumulativeMpsPerPrice: checkpoint.cumulativeMpsPerPrice
-                + uint256(deltaMps).fullMulDiv(BidLib.PRECISION, checkpoint.clearingPrice),
+                + uint256(deltaMps << FixedPoint96.RESOLUTION) / checkpoint.clearingPrice,
             resolvedDemandAboveClearingPrice: checkpoint.resolvedDemandAboveClearingPrice,
             prev: checkpointBlock
         });

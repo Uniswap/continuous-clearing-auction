@@ -6,6 +6,7 @@ import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint} from './libraries/CheckpointLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
+import {FixedPoint96} from './libraries/FixedPoint96.sol';
 
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
@@ -82,8 +83,9 @@ abstract contract CheckpointStorage is TickStorage {
 
         _checkpoint.totalCleared += _checkpoint.blockCleared;
         _checkpoint.cumulativeMps += mpsSinceLastCheckpoint;
+        // uint24.max << 96 will not overflow
         _checkpoint.cumulativeMpsPerPrice +=
-            uint256(mpsSinceLastCheckpoint).fullMulDiv(BidLib.PRECISION, _checkpoint.clearingPrice);
+            uint256(mpsSinceLastCheckpoint << FixedPoint96.RESOLUTION) / _checkpoint.clearingPrice;
         _checkpoint.resolvedDemandAboveClearingPrice = _blockResolvedDemandAboveClearing;
         _checkpoint.mps = _step.mps;
         _checkpoint.prev = lastCheckpointedBlock;
@@ -125,8 +127,8 @@ abstract contract CheckpointStorage is TickStorage {
         returns (uint256 tokensFilled, uint24 cumulativeMpsDelta, uint256 nextCheckpointBlock)
     {
         Tick memory tick = getTick(bid.maxPrice);
-        uint256 bidDemand = bid.demand(bid.maxPrice, tickSpacing);
-        uint256 tickDemand = tick.demand.resolve(bid.maxPrice, tickSpacing);
+        uint256 bidDemand = bid.demand(bid.maxPrice);
+        uint256 tickDemand = tick.demand.resolve(bid.maxPrice);
         while (upper.prev != 0) {
             Checkpoint memory _next = _getCheckpoint(upper.prev);
             // Stop searching when the next checkpoint is less than the tick price
@@ -134,16 +136,13 @@ abstract contract CheckpointStorage is TickStorage {
                 // Upper is the last checkpoint where bid.maxPrice == clearingPrice
                 // Account for tokens sold in the upperCheckpoint block, since checkpoint ranges are not inclusive [start,end)
                 (uint256 _upperCheckpointTokensFilled, uint24 _upperCheckpointSupplyMps) = bidDemand
-                    .calculatePartialFill(
-                    tickDemand, tickSpacing, upper.blockCleared, upper.mps, upper.resolvedDemandAboveClearingPrice
-                );
+                    .calculatePartialFill(tickDemand, upper.blockCleared, upper.mps, upper.resolvedDemandAboveClearingPrice);
                 tokensFilled += _upperCheckpointTokensFilled;
                 cumulativeMpsDelta += _upperCheckpointSupplyMps;
                 break;
             }
             (uint256 _tokensFilled, uint24 _cumulativeMpsDelta) = bidDemand.calculatePartialFill(
                 tickDemand,
-                tickSpacing,
                 upper.totalCleared - _next.totalCleared,
                 upper.cumulativeMps - _next.cumulativeMps,
                 upper.resolvedDemandAboveClearingPrice

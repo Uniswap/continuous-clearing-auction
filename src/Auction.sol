@@ -8,6 +8,7 @@ import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
 
 import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
+import {console2} from 'forge-std/console2.sol';
 
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
@@ -126,7 +127,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         Demand memory blockSumDemandAboveClearing =
             sumDemandAboveClearing.applyMpsDenominator(step.mps, AuctionStepLib.MPS - cumulativeMps);
         uint256 _clearingPrice = blockSumDemandAboveClearing.currencyDemand.fullMulDiv(
-            FixedPoint96.RESOLUTION, (blockTokenSupply - blockSumDemandAboveClearing.tokenDemand)
+            FixedPoint96.Q96, (blockTokenSupply - blockSumDemandAboveClearing.tokenDemand)
         );
 
         if (_clearingPrice < minimumClearingPrice) {
@@ -159,7 +160,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         // The new clearing price must be >= the last clearing price.
         uint256 minimumClearingPrice = _checkpoint.clearingPrice;
         Tick memory _tickUpper = getTick(tickUpperPrice);
-
         // Find the tick which does not fully match the supply, stopping at the highest tick in the book
         while (
             _sumDemandAboveClearing.resolve(tickUpperPrice).applyMpsDenominator(
@@ -169,12 +169,12 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             // Subtract the demand at the current tickUpper before advancing to the next tick
             _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_tickUpper.demand);
             // If there is no future tick, break to avoid ending up in a bad state
-            if (_tickUpper.next == MAX_TICK_ID) {
+            if (_tickUpper.next == MAX_TICK_PRICE) {
                 break;
             }
             // Since there was enough demand at tick upper to fill the supply, the new clearing price must be >= tickUpperPrice
             minimumClearingPrice = tickUpperPrice;
-            tickUpperPrice = toPrice(_tickUpper.next);
+            tickUpperPrice = _tickUpper.next;
             _tickUpper = getTick(tickUpperPrice);
         }
 
@@ -208,17 +208,17 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     }
 
     function _submitBid(
-        uint128 maxPrice,
+        uint256 maxPrice,
         bool exactIn,
         uint256 amount,
         address owner,
-        uint128 prevTickId,
+        uint256 prevTickPrice,
         bytes calldata hookData
     ) internal returns (uint256 bidId) {
         // First bid in a block updates the clearing price
         if (lastCheckpointedBlock != block.number) checkpoint();
 
-        _initializeTickIfNeeded(prevTickId, maxPrice);
+        _initializeTickIfNeeded(prevTickPrice, maxPrice);
 
         if (address(validationHook) != address(0)) {
             validationHook.validate(maxPrice, exactIn, amount, owner, msg.sender, hookData);
@@ -227,7 +227,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         // ClearingPrice will be set to floor price in checkpoint() if not set already
         BidLib.validate(maxPrice, _clearingPrice, tickSpacing);
 
-        _updateTick(toId(maxPrice), exactIn, amount);
+        _updateTick(maxPrice, exactIn, amount);
 
         bidId = _createBid(exactIn, amount, owner, maxPrice);
 
@@ -242,22 +242,22 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
 
     /// @inheritdoc IAuction
     function submitBid(
-        uint128 maxPrice,
+        uint256 maxPrice,
         bool exactIn,
         uint256 amount,
         address owner,
-        uint128 prevHintId,
+        uint256 prevTickPrice,
         bytes calldata hookData
     ) external payable returns (uint256) {
         if (block.number > endBlock) revert AuctionIsOver();
-        uint256 resolvedAmount = exactIn ? amount : amount.fullMulDivUp(maxPrice, FixedPoint96.RESOLUTION);
+        uint256 resolvedAmount = exactIn ? amount : amount.fullMulDivUp(maxPrice, FixedPoint96.Q96);
         if (resolvedAmount == 0) revert InvalidAmount();
         if (currency.isAddressZero()) {
             if (msg.value != resolvedAmount) revert InvalidAmount();
         } else {
             SafeTransferLib.permit2TransferFrom(Currency.unwrap(currency), msg.sender, address(this), resolvedAmount);
         }
-        return _submitBid(maxPrice, exactIn, amount, owner, prevHintId, hookData);
+        return _submitBid(maxPrice, exactIn, amount, owner, prevTickPrice, hookData);
     }
 
     /// @notice Given a bid, tokens filled and refund, process the transfers and refund

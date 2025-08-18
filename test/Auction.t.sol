@@ -7,6 +7,7 @@ import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
+import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
@@ -20,16 +21,16 @@ contract AuctionTest is TokenHandler, Test {
 
     uint256 public constant AUCTION_DURATION = 100;
     uint256 public constant TICK_SPACING = 1e6;
-    uint128 public constant FLOOR_PRICE = 1e6;
+    uint256 public constant FLOOR_PRICE = 1e6 << FixedPoint96.RESOLUTION;
     uint256 public constant TOTAL_SUPPLY = 1000e18;
 
     address public alice;
     address public tokensRecipient;
     address public fundsRecipient;
 
-    function _tickPriceAt(uint128 id) public pure returns (uint128 price) {
-        require(id > 0, 'id must be greater than 0');
-        return uint128(FLOOR_PRICE + (id - 1) * TICK_SPACING);
+    /// Helper function to convert a tick number to a price
+    function tickNumberToPrice(uint256 tickNumber) internal view returns (uint256) {
+        return tickNumber * TICK_SPACING << FixedPoint96.RESOLUTION;
     }
 
     function setUp() public {
@@ -48,7 +49,7 @@ contract AuctionTest is TokenHandler, Test {
 
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
-        emit ITickStorage.TickInitialized(_tickPriceAt(1));
+        emit ITickStorage.TickInitialized(tickNumberToPrice(1));
         auction = new Auction(address(token), TOTAL_SUPPLY, params);
 
         token.mint(address(auction), TOTAL_SUPPLY);
@@ -58,15 +59,15 @@ contract AuctionTest is TokenHandler, Test {
     /// forge-config: ci.isolate = true
     function test_submitBid_exactIn_succeeds_gas() public {
         vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(0, alice, _tickPriceAt(2), true, 100e18);
-        auction.submitBid{value: 100e18}(_tickPriceAt(2), true, 100e18, alice, 1, bytes(''));
+        emit IAuction.BidSubmitted(0, alice, tickNumberToPrice(2), true, 100e18);
+        auction.submitBid{value: 100e18}(tickNumberToPrice(2), true, 100e18, alice, tickNumberToPrice(1), bytes(''));
         vm.snapshotGasLastCall('submitBid_recordStep_updateCheckpoint');
 
         vm.roll(block.number + 1);
-        auction.submitBid{value: 100e18}(_tickPriceAt(2), true, 100e18, alice, 1, bytes(''));
+        auction.submitBid{value: 100e18}(tickNumberToPrice(2), true, 100e18, alice, tickNumberToPrice(1), bytes(''));
         vm.snapshotGasLastCall('submitBid_updateCheckpoint');
 
-        auction.submitBid{value: 100e18}(_tickPriceAt(2), true, 100e18, alice, 1, bytes(''));
+        auction.submitBid{value: 100e18}(tickNumberToPrice(2), true, 100e18, alice, tickNumberToPrice(1), bytes(''));
         vm.snapshotGasLastCall('submitBid');
     }
 
@@ -74,48 +75,52 @@ contract AuctionTest is TokenHandler, Test {
     /// forge-config: ci.isolate = true
     function test_submitBid_exactIn_initializesTickAndUpdatesClearingPrice_succeeds_gas() public {
         vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(0, alice, _tickPriceAt(2), true, TOTAL_SUPPLY * 2);
-        auction.submitBid{value: TOTAL_SUPPLY * 2}(_tickPriceAt(2), true, TOTAL_SUPPLY * 2, alice, 1, bytes(''));
+        emit IAuction.BidSubmitted(0, alice, tickNumberToPrice(2), true, TOTAL_SUPPLY * 2);
+        auction.submitBid{value: TOTAL_SUPPLY * 2}(
+            tickNumberToPrice(2), true, TOTAL_SUPPLY * 2, alice, tickNumberToPrice(1), bytes('')
+        );
         vm.snapshotGasLastCall('submitBid_recordStep_updateCheckpoint_initializeTick');
 
         vm.roll(block.number + 1);
         uint256 expectedTotalCleared = 10e18; // 100e3 mps * total supply (1000e18)
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(2), expectedTotalCleared, expectedCumulativeMps);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPrice(2), expectedTotalCleared, expectedCumulativeMps);
         auction.checkpoint();
 
-        assertEq(auction.clearingPrice(), _tickPriceAt(2));
+        assertEq(auction.clearingPrice(), tickNumberToPrice(2));
     }
 
     function test_submitBid_exactOut_initializesTickAndUpdatesClearingPrice_succeeds() public {
         vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(0, alice, _tickPriceAt(2), false, 1000e18);
+        emit IAuction.BidSubmitted(0, alice, tickNumberToPrice(2), false, 1000e18);
         // Oversubscribe the auction to increase the clearing price
-        auction.submitBid{value: 1000e18 * 2}(_tickPriceAt(2), false, 1000e18, alice, 1, bytes(''));
+        auction.submitBid{value: 1000e18 * 2}(
+            tickNumberToPrice(2), false, 1000e18, alice, tickNumberToPrice(1), bytes('')
+        );
 
         vm.roll(block.number + 1);
         uint256 expectedTotalCleared = 10e18; // 100e3 mps * total supply (1000e18)
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(2), expectedTotalCleared, expectedCumulativeMps);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPrice(2), expectedTotalCleared, expectedCumulativeMps);
         auction.checkpoint();
 
-        assertEq(auction.clearingPrice(), _tickPriceAt(2));
+        assertEq(auction.clearingPrice(), tickNumberToPrice(2));
     }
 
     function test_submitBid_updatesClearingPrice_succeeds() public {
         vm.expectEmit(true, true, true, true);
         // Expect the checkpoint to be made for the previous block
-        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(1), 0, 0);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPrice(1), 0, 0);
         // Bid enough to purchase the entire supply (1000e18) at a higher price (2e18)
-        auction.submitBid{value: 2000e18}(_tickPriceAt(2), true, 2000e18, alice, 1, bytes(''));
+        auction.submitBid{value: 2000e18}(tickNumberToPrice(2), true, 2000e18, alice, tickNumberToPrice(1), bytes(''));
 
         vm.roll(block.number + 1);
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
         uint256 expectedTotalCleared = 10e18; // 100e3 mps * total supply (1000e18)
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(2), expectedTotalCleared, expectedCumulativeMps);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPrice(2), expectedTotalCleared, expectedCumulativeMps);
         auction.checkpoint();
     }
 
@@ -125,61 +130,61 @@ contract AuctionTest is TokenHandler, Test {
 
         vm.expectEmit(true, true, true, true);
         // First checkpoint is blank
-        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(1), 0, 0);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPrice(1), 0, 0);
         vm.expectEmit(true, true, true, true);
-        emit ITickStorage.TickInitialized(_tickPriceAt(2));
+        emit ITickStorage.TickInitialized(tickNumberToPrice(2));
 
         // Bid 1000 ETH to purchase 500 tokens at a price of 2
-        auction.submitBid{value: 1000e18}(_tickPriceAt(2), true, 1000e18, alice, 1, bytes(''));
+        auction.submitBid{value: 1000e18}(tickNumberToPrice(2), true, 1000e18, alice, tickNumberToPrice(1), bytes(''));
 
         vm.expectEmit(true, true, true, true);
-        emit ITickStorage.TickInitialized(_tickPriceAt(3));
+        emit ITickStorage.TickInitialized(tickNumberToPrice(3));
         // Bid 1503 ETH to purchase 501 tokens at a price of 3
         // This bid will move the clearing price because now demand > total supply but no checkpoint is made until the next block
-        auction.submitBid{value: 1503e18}(_tickPriceAt(3), true, 1503e18, alice, 2, bytes(''));
+        auction.submitBid{value: 1503e18}(tickNumberToPrice(3), true, 1503e18, alice, tickNumberToPrice(2), bytes(''));
 
         vm.roll(block.number + 1);
         // New block, expect the clearing price to be updated and one block's worth of mps to be sold
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(2), expectedTotalCleared, expectedCumulativeMps);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPrice(2), expectedTotalCleared, expectedCumulativeMps);
         auction.checkpoint();
     }
 
     function test_submitBid_exactIn_atFloorPrice_reverts() public {
         vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
-        auction.submitBid{value: 10e18}(_tickPriceAt(1), true, 10e18, alice, 1, bytes(''));
+        auction.submitBid{value: 10e18}(tickNumberToPrice(1), true, 10e18, alice, tickNumberToPrice(1), bytes(''));
     }
 
     function test_submitBid_exactOut_atFloorPrice_reverts() public {
         vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
-        auction.submitBid{value: 10e18}(_tickPriceAt(1), false, 10e18, alice, 1, bytes(''));
+        auction.submitBid{value: 10e18}(tickNumberToPrice(1), false, 10e18, alice, tickNumberToPrice(1), bytes(''));
     }
 
     function test_submitBid_exactInMsgValue_revertsWithInvalidAmount() public {
         vm.expectRevert(IAuction.InvalidAmount.selector);
         // msg.value should be 1000e18
-        auction.submitBid{value: 2000e18}(_tickPriceAt(2), true, 1000e18, alice, 1, bytes(''));
+        auction.submitBid{value: 2000e18}(tickNumberToPrice(2), true, 1000e18, alice, tickNumberToPrice(1), bytes(''));
     }
 
     function test_submitBid_exactInZeroMsgValue_revertsWithInvalidAmount() public {
         vm.expectRevert(IAuction.InvalidAmount.selector);
-        auction.submitBid{value: 0}(_tickPriceAt(2), true, 1000e18, alice, 1, bytes(''));
+        auction.submitBid{value: 0}(tickNumberToPrice(2), true, 1000e18, alice, tickNumberToPrice(1), bytes(''));
     }
 
     function test_submitBid_exactOutMsgValue_revertsWithInvalidAmount() public {
         vm.expectRevert(IAuction.InvalidAmount.selector);
         // msg.value should be 2 * 1000e18
-        auction.submitBid{value: 1000e18}(_tickPriceAt(2), false, 1000e18, alice, 1, bytes(''));
+        auction.submitBid{value: 1000e18}(tickNumberToPrice(2), false, 1000e18, alice, tickNumberToPrice(1), bytes(''));
     }
 
     function test_submitBid_exactInZeroAmount_revertsWithInvalidAmount() public {
         vm.expectRevert(IAuction.InvalidAmount.selector);
-        auction.submitBid{value: 1000e18}(_tickPriceAt(2), true, 0, alice, 1, bytes(''));
+        auction.submitBid{value: 1000e18}(tickNumberToPrice(2), true, 0, alice, tickNumberToPrice(1), bytes(''));
     }
 
     function test_submitBid_exactOutZeroAmount_revertsWithInvalidAmount() public {
         vm.expectRevert(IAuction.InvalidAmount.selector);
-        auction.submitBid{value: 1000e18}(_tickPriceAt(2), false, 0, alice, 1, bytes(''));
+        auction.submitBid{value: 1000e18}(tickNumberToPrice(2), false, 0, alice, tickNumberToPrice(1), bytes(''));
     }
 
     /// forge-config: default.isolate = true
@@ -187,19 +192,23 @@ contract AuctionTest is TokenHandler, Test {
     function test_exitBid_succeeds_gas() public {
         uint256 smallAmount = 500e18;
         vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(0, alice, _tickPriceAt(2), true, smallAmount);
-        uint256 bidId1 = auction.submitBid{value: smallAmount}(_tickPriceAt(2), true, smallAmount, alice, 1, bytes(''));
+        emit IAuction.BidSubmitted(0, alice, tickNumberToPrice(2), true, smallAmount);
+        uint256 bidId1 = auction.submitBid{value: smallAmount}(
+            tickNumberToPrice(2), true, smallAmount, alice, tickNumberToPrice(1), bytes('')
+        );
 
         // Bid enough to move the clearing price to 3
         uint256 largeAmount = 3000e18;
         vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(1, alice, _tickPriceAt(3), true, largeAmount);
-        uint256 bidId2 = auction.submitBid{value: largeAmount}(_tickPriceAt(3), true, largeAmount, alice, 2, bytes(''));
+        emit IAuction.BidSubmitted(1, alice, tickNumberToPrice(3), true, largeAmount);
+        uint256 bidId2 = auction.submitBid{value: largeAmount}(
+            tickNumberToPrice(3), true, largeAmount, alice, tickNumberToPrice(2), bytes('')
+        );
         uint256 expectedTotalCleared = TOTAL_SUPPLY * 100e3 / AuctionStepLib.MPS;
 
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(3), expectedTotalCleared, 100e3);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPrice(3), expectedTotalCleared, 100e3);
         auction.checkpoint();
 
         uint256 aliceBalanceBefore = address(alice).balance;
@@ -220,12 +229,15 @@ contract AuctionTest is TokenHandler, Test {
     }
 
     function test_exitBid_afterEndBlock_succeeds() public {
-        uint128 bidMaxPrice = _tickPriceAt(3);
-        uint256 bidId = auction.submitBid{value: 1000e18}(bidMaxPrice, true, 1000e18, alice, 1, bytes(''));
+        uint256 bidMaxPrice = tickNumberToPrice(3);
+        uint256 bidId =
+            auction.submitBid{value: 1000e18}(bidMaxPrice, true, 1000e18, alice, tickNumberToPrice(1), bytes(''));
 
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(1), TOTAL_SUPPLY * 100e3 / AuctionStepLib.MPS, 100e3);
+        emit IAuction.CheckpointUpdated(
+            block.number, tickNumberToPrice(1), TOTAL_SUPPLY * 100e3 / AuctionStepLib.MPS, 100e3
+        );
         auction.checkpoint();
 
         assertGt(bidMaxPrice, auction.clearingPrice());
@@ -250,7 +262,9 @@ contract AuctionTest is TokenHandler, Test {
 
     function test_exitBid_joinedLate_succeeds() public {
         vm.roll(auction.endBlock() - 2);
-        uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(2), true, 1000e18, alice, 1, bytes(''));
+        uint256 bidId = auction.submitBid{value: 1000e18}(
+            tickNumberToPrice(2), true, 1000e18, alice, tickNumberToPrice(1), bytes('')
+        );
 
         vm.roll(block.number + 1);
         auction.checkpoint();
@@ -266,7 +280,9 @@ contract AuctionTest is TokenHandler, Test {
     }
 
     function test_exitBid_beforeEndBlock_revertsWithCannotExitBid() public {
-        uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(3), true, 1000e18, alice, 1, bytes(''));
+        uint256 bidId = auction.submitBid{value: 1000e18}(
+            tickNumberToPrice(3), true, 1000e18, alice, tickNumberToPrice(1), bytes('')
+        );
         // Expect revert because the bid is not below the clearing price
         vm.expectRevert(IAuction.CannotExitBid.selector);
         vm.prank(alice);
@@ -274,7 +290,9 @@ contract AuctionTest is TokenHandler, Test {
     }
 
     function test_exitBid_alreadyExited_revertsWithBidAlreadyExited() public {
-        uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(3), true, 1000e18, alice, 1, bytes(''));
+        uint256 bidId = auction.submitBid{value: 1000e18}(
+            tickNumberToPrice(3), true, 1000e18, alice, tickNumberToPrice(1), bytes('')
+        );
         vm.roll(auction.endBlock() + 1);
 
         vm.startPrank(alice);
@@ -285,10 +303,12 @@ contract AuctionTest is TokenHandler, Test {
     }
 
     function test_exitBid_maxPriceAtClearingPrice_revertsWithCannotExitBid() public {
-        uint256 bidId = auction.submitBid{value: 2000e18}(_tickPriceAt(2), true, 2000e18, alice, 1, bytes(''));
+        uint256 bidId = auction.submitBid{value: 2000e18}(
+            tickNumberToPrice(2), true, 2000e18, alice, tickNumberToPrice(1), bytes('')
+        );
         vm.roll(block.number + 1);
         auction.checkpoint();
-        assertEq(auction.clearingPrice(), _tickPriceAt(2));
+        assertEq(auction.clearingPrice(), tickNumberToPrice(2));
 
         // Auction has ended, but the bid is not exitable through this function because the max price is at the clearing price
         vm.roll(auction.endBlock() + 1);
@@ -299,7 +319,9 @@ contract AuctionTest is TokenHandler, Test {
 
     /// Simple test for a bid that partiall fills at the clearing price but is the only bid at that price, functionally fully filled
     function test_exitPartiallyFilledBid_atClearingPrice_succeeds() public {
-        uint256 bidId = auction.submitBid{value: 2000e18}(_tickPriceAt(2), true, 2000e18, alice, 1, bytes(''));
+        uint256 bidId = auction.submitBid{value: 2000e18}(
+            tickNumberToPrice(2), true, 2000e18, alice, tickNumberToPrice(1), bytes('')
+        );
         vm.roll(block.number + 1);
         auction.checkpoint();
 
@@ -322,8 +344,11 @@ contract AuctionTest is TokenHandler, Test {
     /// forge-config: ci.isolate = true
     function test_exitPartiallyFilledBid_succeeds_gas() public {
         address bob = makeAddr('bob');
-        uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(2), true, 1000e18, alice, 1, bytes(''));
-        uint256 bidId2 = auction.submitBid{value: 1500e18}(_tickPriceAt(3), true, 1500e18, bob, 2, bytes(''));
+        uint256 bidId = auction.submitBid{value: 1000e18}(
+            tickNumberToPrice(2), true, 1000e18, alice, tickNumberToPrice(1), bytes('')
+        );
+        uint256 bidId2 =
+            auction.submitBid{value: 1500e18}(tickNumberToPrice(3), true, 1500e18, bob, tickNumberToPrice(2), bytes(''));
 
         // Clearing price is at 2
         vm.roll(block.number + 1);
@@ -363,9 +388,13 @@ contract AuctionTest is TokenHandler, Test {
     function test_exitPartiallyFilledBid_multipleBidders_succeeds() public {
         address bob = makeAddr('bob');
         address charlie = makeAddr('charlie');
-        uint256 bidId1 = auction.submitBid{value: 400e18}(_tickPriceAt(2), true, 400e18, alice, 1, bytes('')); // Wanting 200 at 2
-        uint256 bidId2 = auction.submitBid{value: 600e18}(_tickPriceAt(2), true, 600e18, bob, 1, bytes('')); // Wanting 300 at 2
-        uint256 bidId3 = auction.submitBid{value: 1500e18}(_tickPriceAt(3), true, 1500e18, charlie, 2, bytes(''));
+        uint256 bidId1 =
+            auction.submitBid{value: 400e18}(tickNumberToPrice(2), true, 400e18, alice, tickNumberToPrice(1), bytes('')); // Wanting 200 at 2
+        uint256 bidId2 =
+            auction.submitBid{value: 600e18}(tickNumberToPrice(2), true, 600e18, bob, tickNumberToPrice(1), bytes('')); // Wanting 300 at 2
+        uint256 bidId3 = auction.submitBid{value: 1500e18}(
+            tickNumberToPrice(3), true, 1500e18, charlie, tickNumberToPrice(2), bytes('')
+        );
 
         vm.roll(block.number + 1);
         auction.checkpoint();

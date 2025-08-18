@@ -1,9 +1,6 @@
 {
-  "claimTokens": "65929",
-  "exitBid": "96270",
-  "exitPartiallyFilledBid": "119503",
-  "submitBid": "144849",
-  "submitBid_recordStep_updateCheckpoint": "328818",
-  "submitBid_recordStep_updateCheckpoint_initializeTick": "328818",
-  "submitBid_updateCheckpoint": "334781"
+  "submitBid": "144250",
+  "submitBid_recordStep_updateCheckpoint": "327900",
+  "submitBid_recordStep_updateCheckpoint_initializeTick": "327900",
+  "submitBid_updateCheckpoint": "314235"
 }

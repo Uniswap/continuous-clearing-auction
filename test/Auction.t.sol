@@ -215,19 +215,18 @@ contract AuctionTest is TokenHandler, Test {
         auction.checkpoint();
 
         uint256 aliceBalanceBefore = address(alice).balance;
-        uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
         // Expect that the first bid can be withdrawn, since the clearing price is now above its max price
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidWithdrawn(0, alice);
-        vm.prank(alice);
+        vm.startPrank(alice);
         auction.withdrawPartiallyFilledBid(bidId1, 2);
         // Expect that alice is refunded the full amount of the first bid
         assertEq(address(alice).balance - aliceBalanceBefore, smallAmount * _tickPriceAt(2));
 
         // Expect that the second bid cannot be withdrawn, since the clearing price is below its max price
         vm.expectRevert(IAuction.CannotWithdrawBid.selector);
-        vm.prank(alice);
         auction.withdrawBid(bidId2);
+        vm.stopPrank();
     }
 
     function test_withdrawBid_exactOut_succeeds() public {

@@ -181,9 +181,8 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         uint256 newClearingPrice =
             _calculateNewClearingPrice(_tickUpper, ticks[_tickUpper.prev], blockTokenSupply, _checkpoint.cumulativeMps);
 
-        _checkpoint = _updateCheckpoint(
-            _checkpoint, step, newClearingPrice, sumDemandAboveClearing.resolve(newClearingPrice), blockTokenSupply
-        );
+        _checkpoint.clearingPrice = newClearingPrice;
+        _checkpoint = _updateCheckpoint(_checkpoint, step, sumDemandAboveClearing.resolve(newClearingPrice), blockTokenSupply);
 
         _insertCheckpoint(_checkpoint);
 
@@ -258,14 +257,14 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     }
 
     /// @notice Given a bid, tokens filled and refund, process the transfers and refund
-    function _processBidWithdraw(uint256 bidId, Bid memory bid, uint256 tokensFilled, uint256 refund) internal {
+    function _processExit(uint256 bidId, Bid memory bid, uint256 tokensFilled, uint256 refund) internal {
         address _owner = bid.owner;
 
         if (tokensFilled == 0) {
             _deleteBid(bidId);
         } else {
             bid.tokensFilled = tokensFilled;
-            bid.withdrawnBlock = uint64(block.number);
+            bid.exitedBlock = uint64(block.number);
             _updateBid(bidId, bid);
         }
 
@@ -273,15 +272,15 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             currency.transfer(_owner, refund);
         }
 
-        emit BidWithdrawn(bidId, _owner);
+        emit BidExited(bidId, _owner);
     }
 
     /// @inheritdoc IAuction
-    function withdrawBid(uint256 bidId) external {
+    function exitBid(uint256 bidId) external {
         Bid memory bid = _getBid(bidId);
-        if (bid.withdrawnBlock != 0) revert BidAlreadyWithdrawn();
+        if (bid.exitedBlock != 0) revert BidAlreadyExited();
         Tick memory tick = ticks[bid.tickId];
-        if (block.number <= endBlock || tick.price <= clearingPrice()) revert CannotWithdrawBid();
+        if (block.number <= endBlock || tick.price <= clearingPrice()) revert CannotExitBid();
 
         /// @dev Bid was fully filled and the auction is now over
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
@@ -289,13 +288,13 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             _accountFullyFilledCheckpoints(_getFinalCheckpoint(), startCheckpoint, bid);
 
         uint256 resolvedAmount = bid.exactIn ? bid.amount : bid.amount * tick.price;
-        _processBidWithdraw(bidId, bid, tokensFilled, resolvedAmount - currencySpent);
+        _processExit(bidId, bid, tokensFilled, resolvedAmount - currencySpent);
     }
 
     /// @inheritdoc IAuction
-    function withdrawPartiallyFilledBid(uint256 bidId, uint256 outbidCheckpointBlock) external {
+    function exitPartiallyFilledBid(uint256 bidId, uint256 outbidCheckpointBlock) external {
         Bid memory bid = _getBid(bidId);
-        if (bid.withdrawnBlock != 0) revert BidAlreadyWithdrawn();
+        if (bid.exitedBlock != 0) revert BidAlreadyExited();
 
         Tick memory tick = ticks[bid.tickId];
 
@@ -338,17 +337,17 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             tokensFilled += partialTokensFilled;
             currencySpent += partialCurrencySpent;
         } else {
-            revert CannotWithdrawBid();
+            revert CannotExitBid();
         }
 
         uint256 resolvedAmount = bid.exactIn ? bid.amount : bid.amount * tick.price;
-        _processBidWithdraw(bidId, bid, tokensFilled, resolvedAmount - currencySpent);
+        _processExit(bidId, bid, tokensFilled, resolvedAmount - currencySpent);
     }
 
     /// @inheritdoc IAuction
     function claimTokens(uint256 bidId) external {
         Bid memory bid = _getBid(bidId);
-        if (bid.withdrawnBlock == 0) revert BidNotWithdrawn();
+        if (bid.exitedBlock == 0) revert BidNotExited();
         if (block.number < claimBlock) revert NotClaimable();
 
         uint256 tokensFilled = bid.tokensFilled;

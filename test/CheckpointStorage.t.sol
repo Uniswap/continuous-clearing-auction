@@ -41,7 +41,7 @@ contract CheckpointStorageTest is Test {
             amount: exactOutAmount,
             tokensFilled: 0,
             startBlock: 100,
-            withdrawnBlock: 0,
+            exitedBlock: 0,
             tickId: 0 // doesn't matter for this test
         });
         Tick memory tick = Tick({
@@ -89,7 +89,7 @@ contract CheckpointStorageTest is Test {
             amount: ETH_AMOUNT,
             tokensFilled: 0,
             startBlock: 100,
-            withdrawnBlock: 0,
+            exitedBlock: 0,
             tickId: 0 // doesn't matter for this test
         });
 
@@ -109,7 +109,7 @@ contract CheckpointStorageTest is Test {
             amount: TOKEN_AMOUNT,
             tokensFilled: 0,
             startBlock: 100,
-            withdrawnBlock: 0,
+            exitedBlock: 0,
             tickId: 0 // doesn't matter for this test
         });
 
@@ -157,7 +157,7 @@ contract CheckpointStorageTest is Test {
             amount: ETH_AMOUNT,
             tokensFilled: 0,
             startBlock: 100,
-            withdrawnBlock: 0,
+            exitedBlock: 0,
             tickId: 0 // doesn't matter for this test
         });
 
@@ -198,7 +198,7 @@ contract CheckpointStorageTest is Test {
             amount: TOKEN_AMOUNT,
             tokensFilled: 0,
             startBlock: 100,
-            withdrawnBlock: 0,
+            exitedBlock: 0,
             tickId: 0 // doesn't matter for this test
         });
 
@@ -226,7 +226,7 @@ contract CheckpointStorageTest is Test {
             amount: largeAmount,
             tokensFilled: 0,
             startBlock: 100,
-            withdrawnBlock: 0,
+            exitedBlock: 0,
             tickId: 0 // doesn't matter for this test
         });
 

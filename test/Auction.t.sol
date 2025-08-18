@@ -146,13 +146,13 @@ contract AuctionTest is TokenHandler, Test {
     }
 
     function test_submitBid_exactIn_atFloorPrice_reverts() public {
-        vm.expectRevert(BidLib.InvalidBidPrice.selector);
-        auction.submitBid{value: 10e18}(_tickPriceAt(1), true, 10e18, alice, 0, bytes(''));
+        vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
+        auction.submitBid{value: 10e18}(_tickPriceAt(1), true, 10e18, alice, 1, bytes(''));
     }
 
     function test_submitBid_exactOut_atFloorPrice_reverts() public {
-        vm.expectRevert(BidLib.InvalidBidPrice.selector);
-        auction.submitBid{value: 10e18}(_tickPriceAt(1), false, 10e18, alice, 0, bytes(''));
+        vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
+        auction.submitBid{value: 10e18}(_tickPriceAt(1), false, 10e18, alice, 1, bytes(''));
     }
 
     function test_submitBid_exactInMsgValue_revertsWithInvalidAmount() public {

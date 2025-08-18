@@ -29,7 +29,7 @@ abstract contract CheckpointStorage is TickStorage {
     /// @notice The block number of the last checkpointed block
     uint256 public lastCheckpointedBlock;
 
-    constructor(uint256 _floorPrice) {
+    constructor(uint256 _floorPrice, uint256 _tickSpacing) TickStorage(_tickSpacing, _floorPrice) {
         floorPrice = _floorPrice;
     }
 

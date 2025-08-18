@@ -59,8 +59,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
 
     constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
-        CheckpointStorage(_parameters.floorPrice)
-        TickStorage(_parameters.tickSpacing)
+        CheckpointStorage(_parameters.floorPrice, _parameters.tickSpacing)
         PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
     {
         currency = Currency.wrap(_parameters.currency);
@@ -70,9 +69,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         fundsRecipient = _parameters.fundsRecipient;
         claimBlock = _parameters.claimBlock;
         validationHook = IValidationHook(_parameters.validationHook);
-
-        // Initialize a tick for the floor price
-        _initializeTickIfNeeded(0, floorPrice);
 
         if (totalSupply == 0) revert TotalSupplyIsZero();
         if (floorPrice == 0) revert FloorPriceIsZero();
@@ -171,7 +167,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             // Subtract the demand at the current tickUpper before advancing to the next tick
             _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_tickUpper.demand);
             // If there is no future tick, break to avoid ending up in a bad state
-            if (_tickUpper.next == 0) {
+            if (_tickUpper.next == MAX_TICK_ID) {
                 break;
             }
             tickUpperPrice = toPrice(_tickUpper.next);

@@ -278,11 +278,11 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     }
 
     /// @inheritdoc IAuction
-    function withdrawBid(uint256 bidId) external {
+    function exitBid(uint256 bidId) external {
         Bid memory bid = _getBid(bidId);
         if (bid.withdrawnBlock != 0) revert BidAlreadyWithdrawn();
         Tick memory tick = ticks[bid.tickId];
-        if (block.number <= endBlock || tick.price <= clearingPrice()) revert CannotWithdrawBid();
+        if (block.number <= endBlock || tick.price <= clearingPrice()) revert CannotExitBid();
 
         /// @dev Bid was fully filled and the auction is now over
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
@@ -296,7 +296,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     }
 
     /// @inheritdoc IAuction
-    function withdrawPartiallyFilledBid(uint256 bidId, uint256 outbidCheckpointBlock) external {
+    function exitPartiallyFilledBid(uint256 bidId, uint256 outbidCheckpointBlock) external {
         Bid memory bid = _getBid(bidId);
         if (bid.withdrawnBlock != 0) revert BidAlreadyWithdrawn();
 
@@ -340,7 +340,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             tokensFilled += partialTokensFilled;
             cumulativeMpsDelta += partialCumulativeMpsDelta;
         } else {
-            revert CannotWithdrawBid();
+            revert CannotExitBid();
         }
 
         uint256 refund = bid.calculateRefund(

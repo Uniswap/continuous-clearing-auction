@@ -184,7 +184,7 @@ contract AuctionTest is TokenHandler, Test {
 
     /// forge-config: default.isolate = true
     /// forge-config: ci.isolate = true
-    function test_withdrawBid_succeeds_gas() public {
+    function test_exitBid_succeeds_gas() public {
         uint256 smallAmount = 500e18;
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(0, alice, _tickPriceAt(2), true, smallAmount);
@@ -207,19 +207,19 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidWithdrawn(0, alice);
         vm.prank(alice);
-        auction.withdrawPartiallyFilledBid(bidId1, 2);
-        vm.snapshotGasLastCall('withdrawBid');
+        auction.exitPartiallyFilledBid(bidId1, 2);
+        vm.snapshotGasLastCall('exitBid');
         // Expect that alice is refunded the full amount of the first bid
         uint256 aliceBalanceAfter = address(alice).balance;
         assertEq(aliceBalanceAfter - aliceBalanceBefore, smallAmount);
 
         // Expect that the second bid cannot be withdrawn, since the clearing price is below its max price
-        vm.expectRevert(IAuction.CannotWithdrawBid.selector);
+        vm.expectRevert(IAuction.CannotExitBid.selector);
         vm.prank(alice);
-        auction.withdrawBid(bidId2);
+        auction.exitBid(bidId2);
     }
 
-    function test_withdrawBid_afterEndBlock_succeeds() public {
+    function test_exitBid_afterEndBlock_succeeds() public {
         uint128 bidMaxPrice = _tickPriceAt(3);
         uint256 bidId = auction.submitBid{value: 1000e18}(bidMaxPrice, true, 1000e18, alice, 1, bytes(''));
 
@@ -232,14 +232,14 @@ contract AuctionTest is TokenHandler, Test {
         // Before the auction ends, the bid should not be withdrawable since it is above the clearing price
         vm.startPrank(alice);
         vm.roll(auction.endBlock());
-        vm.expectRevert(IAuction.CannotWithdrawBid.selector);
-        auction.withdrawBid(bidId);
+        vm.expectRevert(IAuction.CannotExitBid.selector);
+        auction.exitBid(bidId);
 
         uint256 aliceBalanceBefore = address(alice).balance;
 
         // Now that the auction has ended, the bid should be withdrawable
         vm.roll(auction.endBlock() + 1);
-        auction.withdrawBid(bidId);
+        auction.exitBid(bidId);
         // Expect no refund
         assertEq(address(alice).balance, aliceBalanceBefore);
         auction.claimTokens(bidId);
@@ -248,7 +248,7 @@ contract AuctionTest is TokenHandler, Test {
         vm.stopPrank();
     }
 
-    function test_withdrawBid_joinedLate_succeeds() public {
+    function test_exitBid_joinedLate_succeeds() public {
         vm.roll(auction.endBlock() - 2);
         uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(2), true, 1000e18, alice, 1, bytes(''));
 
@@ -258,33 +258,33 @@ contract AuctionTest is TokenHandler, Test {
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
         vm.roll(auction.endBlock() + 1);
-        auction.withdrawBid(bidId);
+        auction.exitBid(bidId);
         // Expect no refund since the bid was fully filled
         assertEq(address(alice).balance, aliceBalanceBefore);
         auction.claimTokens(bidId);
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18 / TICK_SPACING);
     }
 
-    function test_withdrawBid_beforeEndBlock_revertsWithCannotWithdrawBid() public {
+    function test_exitBid_beforeEndBlock_revertsWithCannotExitBid() public {
         uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(3), true, 1000e18, alice, 1, bytes(''));
         // Expect revert because the bid is not below the clearing price
-        vm.expectRevert(IAuction.CannotWithdrawBid.selector);
+        vm.expectRevert(IAuction.CannotExitBid.selector);
         vm.prank(alice);
-        auction.withdrawBid(bidId);
+        auction.exitBid(bidId);
     }
 
-    function test_withdrawBid_alreadyWithdrawn_revertsWithBidAlreadyWithdrawn() public {
+    function test_exitBid_alreadyWithdrawn_revertsWithBidAlreadyWithdrawn() public {
         uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(3), true, 1000e18, alice, 1, bytes(''));
         vm.roll(auction.endBlock() + 1);
 
         vm.startPrank(alice);
-        auction.withdrawBid(bidId);
+        auction.exitBid(bidId);
         vm.expectRevert(IAuction.BidAlreadyWithdrawn.selector);
-        auction.withdrawBid(bidId);
+        auction.exitBid(bidId);
         vm.stopPrank();
     }
 
-    function test_withdrawBid_maxPriceAtClearingPrice_revertsWithCannotWithdrawBid() public {
+    function test_exitBid_maxPriceAtClearingPrice_revertsWithCannotExitBid() public {
         uint256 bidId = auction.submitBid{value: 2000e18}(_tickPriceAt(2), true, 2000e18, alice, 1, bytes(''));
         vm.roll(block.number + 1);
         auction.checkpoint();
@@ -292,27 +292,27 @@ contract AuctionTest is TokenHandler, Test {
 
         // Auction has ended, but the bid is not withdrawable through this function because the max price is at the clearing price
         vm.roll(auction.endBlock() + 1);
-        vm.expectRevert(IAuction.CannotWithdrawBid.selector);
+        vm.expectRevert(IAuction.CannotExitBid.selector);
         vm.prank(alice);
-        auction.withdrawBid(bidId);
+        auction.exitBid(bidId);
     }
 
     /// Simple test for a bid that partiall fills at the clearing price but is the only bid at that price, functionally fully filled
-    function test_withdrawPartiallyFilledBid_atClearingPrice_succeeds() public {
+    function test_exitPartiallyFilledBid_atClearingPrice_succeeds() public {
         uint256 bidId = auction.submitBid{value: 2000e18}(_tickPriceAt(2), true, 2000e18, alice, 1, bytes(''));
         vm.roll(block.number + 1);
         auction.checkpoint();
 
         vm.roll(auction.endBlock());
-        vm.expectRevert(IAuction.CannotWithdrawBid.selector);
+        vm.expectRevert(IAuction.CannotExitBid.selector);
         vm.prank(alice);
-        auction.withdrawPartiallyFilledBid(bidId, 2);
+        auction.exitPartiallyFilledBid(bidId, 2);
 
         uint256 aliceBalanceBefore = address(alice).balance;
 
         vm.roll(auction.endBlock() + 1);
         vm.prank(alice);
-        auction.withdrawPartiallyFilledBid(bidId, 2);
+        auction.exitPartiallyFilledBid(bidId, 2);
 
         // Expect no refund
         assertEq(address(alice).balance, aliceBalanceBefore);
@@ -320,7 +320,7 @@ contract AuctionTest is TokenHandler, Test {
 
     /// forge-config: default.isolate = true
     /// forge-config: ci.isolate = true
-    function test_withdrawPartiallyFilledBid_succeeds_gas() public {
+    function test_exitPartiallyFilledBid_succeeds_gas() public {
         address bob = makeAddr('bob');
         uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(2), true, 1000e18, alice, 1, bytes(''));
         uint256 bidId2 = auction.submitBid{value: 1500e18}(_tickPriceAt(3), true, 1500e18, bob, 2, bytes(''));
@@ -336,8 +336,8 @@ contract AuctionTest is TokenHandler, Test {
 
         vm.roll(auction.endBlock() + 1);
         vm.startPrank(alice);
-        auction.withdrawPartiallyFilledBid(bidId, 2);
-        vm.snapshotGasLastCall('withdrawPartiallyFilledBid');
+        auction.exitPartiallyFilledBid(bidId, 2);
+        vm.snapshotGasLastCall('exitPartiallyFilledBid');
         // At a clearing price of 2,
         // Alice is purchasing 1000e18 / 2e6 = 500e12 tokens
         // Bob is purchasing 1500e18 / 2e6 = 750e12 tokens
@@ -351,8 +351,8 @@ contract AuctionTest is TokenHandler, Test {
         vm.stopPrank();
 
         vm.startPrank(bob);
-        auction.withdrawBid(bidId2);
-        vm.snapshotGasLastCall('withdrawBid');
+        auction.exitBid(bidId2);
+        vm.snapshotGasLastCall('exitBid');
         // Bob purchased 750e18 tokens for a price of 2, so they should have spent all of their ETH.
         assertEq(address(bob).balance, bobBalanceBefore + 0);
         auction.claimTokens(bidId2);
@@ -360,7 +360,7 @@ contract AuctionTest is TokenHandler, Test {
         vm.stopPrank();
     }
 
-    function test_withdrawPartiallyFilledBid_multipleBidders_succeeds() public {
+    function test_exitPartiallyFilledBid_multipleBidders_succeeds() public {
         address bob = makeAddr('bob');
         address charlie = makeAddr('charlie');
         uint256 bidId1 = auction.submitBid{value: 400e18}(_tickPriceAt(2), true, 400e18, alice, 1, bytes('')); // Wanting 200 at 2
@@ -389,20 +389,20 @@ contract AuctionTest is TokenHandler, Test {
         // - And spent 150e18 * 2 = 300 ETH. He should be refunded 300 ETH
         vm.roll(auction.endBlock() + 1);
         vm.startPrank(alice);
-        auction.withdrawPartiallyFilledBid(bidId1, 2);
+        auction.exitPartiallyFilledBid(bidId1, 2);
         assertEq(address(alice).balance, aliceBalanceBefore + 200e18);
         auction.claimTokens(bidId1);
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 100e18 / TICK_SPACING);
 
         vm.startPrank(bob);
-        auction.withdrawPartiallyFilledBid(bidId2, 2);
+        auction.exitPartiallyFilledBid(bidId2, 2);
         assertEq(address(bob).balance, bobBalanceBefore + 300e18);
         auction.claimTokens(bidId2);
         assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + 150e18 / TICK_SPACING);
         vm.stopPrank();
 
         vm.startPrank(charlie);
-        auction.withdrawBid(bidId3);
+        auction.exitBid(bidId3);
         assertEq(address(charlie).balance, charlieBalanceBefore + 0);
         auction.claimTokens(bidId3);
         assertEq(token.balanceOf(address(charlie)), charlieTokenBalanceBefore + 750e18 / TICK_SPACING);

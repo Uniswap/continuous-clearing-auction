@@ -54,7 +54,7 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     /// @notice Error thrown when the bid has already been withdrawn
     error BidAlreadyWithdrawn();
     /// @notice Error thrown when the bid is higher than the clearing price
-    error CannotWithdrawBid();
+    error CannotExitBid();
     /// @notice Error thrown when the checkpoint hint is invalid
     error InvalidCheckpointHint();
     /// @notice Error thrown when the bid is not claimable
@@ -113,13 +113,13 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     /// @notice Withdraw a bid
     /// @dev This function can only be used for bids where the max price is above the final clearing price after the auction has ended
     /// @param bidId The id of the bid
-    function withdrawBid(uint256 bidId) external;
+    function exitBid(uint256 bidId) external;
 
     /// @notice Withdraw a bid which has been partially filled
     /// @dev This function can only be used for bids where the max price is below the final clearing price
     /// @param bidId The id of the bid
     /// @param outbidCheckpointBlock The block of the first checkpoint where the clearing price is strictly > bid.maxPrice
-    function withdrawPartiallyFilledBid(uint256 bidId, uint256 outbidCheckpointBlock) external;
+    function exitPartiallyFilledBid(uint256 bidId, uint256 outbidCheckpointBlock) external;
 
     /// @notice Claim tokens after the auction's claim block
     /// @notice The bid must be withdrawn before claiming tokens

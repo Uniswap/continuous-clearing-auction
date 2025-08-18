@@ -35,8 +35,8 @@ contract BidLibTest is Test {
             amount: exactOutAmount,
             tokensFilled: 0,
             startBlock: 100,
-            withdrawnBlock: 0,
-            tickId: 0 // doesn't matter for this test
+            exitedBlock: 0,
+            maxPrice: maxPrice
         });
 
         // Execute: 30% of auction executed (3000 mps)
@@ -63,8 +63,8 @@ contract BidLibTest is Test {
             amount: ETH_AMOUNT,
             tokensFilled: 0,
             startBlock: 100,
-            withdrawnBlock: 0,
-            tickId: 0 // doesn't matter for this test
+            exitedBlock: 0,
+            maxPrice: MAX_PRICE // doesn't matter for this test
         });
 
         uint256 tokensFilled = mockBidLib.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta, MPS);
@@ -83,8 +83,8 @@ contract BidLibTest is Test {
             amount: TOKEN_AMOUNT,
             tokensFilled: 0,
             startBlock: 100,
-            withdrawnBlock: 0,
-            tickId: 0 // doesn't matter for this test
+            exitedBlock: 0,
+            maxPrice: MAX_PRICE // doesn't matter for this test
         });
 
         uint256 maxPrice = 2000;
@@ -131,8 +131,8 @@ contract BidLibTest is Test {
             amount: ETH_AMOUNT,
             tokensFilled: 0,
             startBlock: 100,
-            withdrawnBlock: 0,
-            tickId: 0 // doesn't matter for this test
+            exitedBlock: 0,
+            maxPrice: MAX_PRICE // doesn't matter for this test
         });
 
         // 50e3 * 1e18 / 100 = 0.5 * 1e18
@@ -175,8 +175,8 @@ contract BidLibTest is Test {
             amount: TOKEN_AMOUNT,
             tokensFilled: 0,
             startBlock: 100,
-            withdrawnBlock: 0,
-            tickId: 0 // doesn't matter for this test
+            exitedBlock: 0,
+            maxPrice: MAX_PRICE // doesn't matter for this test
         });
 
         // Bid is fully filled since max price is always higher than all prices
@@ -202,8 +202,8 @@ contract BidLibTest is Test {
             amount: largeAmount,
             tokensFilled: 0,
             startBlock: 100,
-            withdrawnBlock: 0,
-            tickId: 0 // doesn't matter for this test
+            exitedBlock: 0,
+            maxPrice: MAX_PRICE // doesn't matter for this test
         });
 
         uint256 cumulativeMpsPerPriceDelta = uint256(mpsArray[0]).fullMulDiv(PRECISION, pricesArray[0]);

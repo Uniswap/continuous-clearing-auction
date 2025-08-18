@@ -51,16 +51,16 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     error ClaimBlockIsBeforeEndBlock();
     /// @notice Error thrown when the funds recipient is the zero address
     error FundsRecipientIsZero();
-    /// @notice Error thrown when the bid has already been withdrawn
-    error BidAlreadyWithdrawn();
+    /// @notice Error thrown when the bid has already been exited
+    error BidAlreadyExited();
     /// @notice Error thrown when the bid is higher than the clearing price
-    error CannotWithdrawBid();
+    error CannotExitBid();
     /// @notice Error thrown when the checkpoint hint is invalid
     error InvalidCheckpointHint();
     /// @notice Error thrown when the bid is not claimable
     error NotClaimable();
-    /// @notice Error thrown when the bid has not been withdrawn
-    error BidNotWithdrawn();
+    /// @notice Error thrown when the bid has not been exited
+    error BidNotExited();
 
     /// @notice Emitted when a bid is submitted
     /// @param id The id of the bid
@@ -79,10 +79,10 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
         uint256 indexed blockNumber, uint256 clearingPrice, uint256 totalCleared, uint24 cumulativeMps
     );
 
-    /// @notice Emitted when a bid is withdrawn
+    /// @notice Emitted when a bid is exited
     /// @param bidId The id of the bid
     /// @param owner The owner of the bid
-    event BidWithdrawn(uint256 indexed bidId, address indexed owner);
+    event BidExited(uint256 indexed bidId, address indexed owner);
 
     /// @notice Emitted when a bid is claimed
     /// @param owner The owner of the bid
@@ -110,19 +110,19 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     /// @dev This function is called every time a new bid is submitted above the current clearing price
     function checkpoint() external returns (Checkpoint memory _checkpoint);
 
-    /// @notice Withdraw a bid
+    /// @notice Exit a bid
     /// @dev This function can only be used for bids where the max price is above the final clearing price after the auction has ended
     /// @param bidId The id of the bid
-    function withdrawBid(uint256 bidId) external;
+    function exitBid(uint256 bidId) external;
 
-    /// @notice Withdraw a bid which has been partially filled
+    /// @notice Exit a bid which has been partially filled
     /// @dev This function can only be used for bids where the max price is below the final clearing price
     /// @param bidId The id of the bid
     /// @param outbidCheckpointBlock The block of the first checkpoint where the clearing price is strictly > bid.maxPrice
-    function withdrawPartiallyFilledBid(uint256 bidId, uint256 outbidCheckpointBlock) external;
+    function exitPartiallyFilledBid(uint256 bidId, uint256 outbidCheckpointBlock) external;
 
     /// @notice Claim tokens after the auction's claim block
-    /// @notice The bid must be withdrawn before claiming tokens
+    /// @notice The bid must be exited before claiming tokens
     /// @dev Anyone can claim tokens for any bid, the tokens are transferred to the bid owner
     /// @param bidId The id of the bid
     function claimTokens(uint256 bidId) external;

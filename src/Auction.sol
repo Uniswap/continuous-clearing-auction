@@ -101,7 +101,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
 
     /// @notice Calculate the new clearing price, given:
     /// @param _tickUpperPrice The price of the tick at which there is not enough demand to fill the block supply
-    /// @param _lowerBound The greater value between the last clearing price and the lastTickUpperPrice
+    /// @param minimumClearingPrice The minimum clearing price
     /// @param blockTokenSupply The token supply at or above tickUpperPrice in the block
     /// @param cumulativeMps The cumulative mps at the last checkpoint
     function _calculateNewClearingPrice(
@@ -156,7 +156,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
 
         // The new clearing price must be >= the last clearing price.
         uint256 minimumClearingPrice = _checkpoint.clearingPrice;
-        Tick memory _tickUpper = getTick(_lastTickUpperPrice);
+        Tick memory _tickUpper = getTick(tickUpperPrice);
 
         // Find the tick which does not fully match the supply, stopping at the highest tick in the book
         while (

@@ -180,10 +180,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
 
         uint256 newClearingPrice =
             _calculateNewClearingPrice(_tickUpper, ticks[_tickUpper.prev], blockTokenSupply, _checkpoint.cumulativeMps);
-        require(
-            sumDemandAboveClearing.resolve(newClearingPrice) <= totalSupply,
-            'sumDemandAboveClearing.resolve(newClearingPrice) < totalSupply'
-        );
 
         _checkpoint = _updateCheckpoint(
             _checkpoint, step, newClearingPrice, sumDemandAboveClearing.resolve(newClearingPrice), blockTokenSupply

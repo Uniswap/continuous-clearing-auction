@@ -14,7 +14,7 @@ struct Tick {
 library TickLib {
     using DemandLib for Demand;
 
-    function resolveDemand(Tick memory tick, uint256 tickSpacing) internal pure returns (uint256) {
-        return tick.demand.resolve(tick.price, tickSpacing);
+    function resolveDemand(Tick memory tick) internal pure returns (uint256) {
+        return tick.demand.resolve(tick.price);
     }
 }

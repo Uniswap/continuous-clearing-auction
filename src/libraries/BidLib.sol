@@ -11,7 +11,7 @@ struct Bid {
     uint64 startBlock; // Block number when the bid was first made in
     uint64 exitedBlock; // Block number when the bid was exited
     uint256 maxPrice; // The max price of the bid
-    address owner; // Who is allowed to withdraw the bid
+    address owner; // Who is allowed to exit the bid
     uint256 amount; // User's demand
     uint256 tokensFilled; // Amount of tokens filled
 }

@@ -2,9 +2,12 @@
 pragma solidity ^0.8.23;
 
 import {Auction} from '../../src/Auction.sol';
-import {AuctionParameters, IAuction} from '../../src/interfaces/IAuction.sol';
 
+import {Tick} from '../../src/TickStorage.sol';
+
+import {AuctionParameters, IAuction} from '../../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
+import {Demand} from '../../src/libraries/DemandLib.sol';
 import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
 import {TokenHandler} from './TokenHandler.sol';
@@ -47,9 +50,25 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
 
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
-        emit ITickStorage.TickInitialized(1, _tickPriceAt(1));
+        emit ITickStorage.TickInitialized(_tickPriceAt(1));
         auction = new Auction(address(token), TOTAL_SUPPLY, params);
 
         token.mint(address(auction), TOTAL_SUPPLY);
+    }
+
+    /// @dev Copied from TickStorage.sol
+    function toId(uint256 price) internal pure returns (uint128) {
+        return uint128(price / TICK_SPACING);
+    }
+
+    /// @dev Copied from TickStorage.sol
+    function toPrice(uint128 id) internal pure returns (uint256) {
+        return id * TICK_SPACING;
+    }
+
+    /// @notice Helper function to return the tick at the given price
+    function getTick(uint256 price) public view returns (Tick memory) {
+        (uint128 next, Demand memory demand) = auction.ticks(toId(price));
+        return Tick({next: next, demand: demand});
     }
 }

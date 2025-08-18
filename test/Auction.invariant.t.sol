@@ -13,8 +13,8 @@ import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
 import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
+import {Tick} from '../src/TickStorage.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
-import {Tick} from '../src/libraries/TickLib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
@@ -90,6 +90,25 @@ contract AuctionInvariantHandler is Test {
         }
     }
 
+    /// @dev Copied from TickStorage.sol
+    function toId(uint256 price) internal view returns (uint128) {
+        return uint128(price / auction.tickSpacing());
+    }
+
+    /// @dev Copied from TickStorage.sol
+    function toPrice(uint128 id) internal view returns (uint256) {
+        return id * auction.tickSpacing();
+    }
+
+    /// @notice Return the tick immediately equal to or below the given price
+    function getLowerTick(uint256 price) public view returns (uint128) {
+        uint128 id = toId(auction.floorPrice());
+        while (toPrice(id) < price) {
+            (id,) = auction.ticks(id);
+        }
+        return id;
+    }
+
     /// @notice Roll the block number
     /// @dev Consider decreasing the probability of this in relation to other functions
     function handleRoll() public {
@@ -115,8 +134,7 @@ contract AuctionInvariantHandler is Test {
             permit2.approve(Currency.unwrap(currency), address(auction), type(uint160).max, type(uint48).max);
         }
 
-        Tick memory lower = auction.getLowerTickForPrice(maxPrice);
-        uint128 prevHintId = lower.price == maxPrice ? lower.prev : lower.id;
+        uint128 prevHintId = getLowerTick(maxPrice);
         uint256 nextBidId = auction.nextBidId();
         try auction.submitBid{value: currency.isAddressZero() ? inputAmount : 0}(
             maxPrice, exactIn, amount, currentActor, prevHintId, bytes('')
@@ -175,8 +193,8 @@ contract AuctionInvariantTest is AuctionBaseTest {
         (
             bool exactIn,
             uint64 startBlock,
-            uint64 withdrawnBlock,
-            uint128 tickId,
+            uint64 exitedBlock,
+            uint256 maxPrice,
             address owner,
             uint256 amount,
             uint256 tokensFilled
@@ -184,17 +202,12 @@ contract AuctionInvariantTest is AuctionBaseTest {
         return Bid({
             exactIn: exactIn,
             startBlock: startBlock,
-            withdrawnBlock: withdrawnBlock,
-            tickId: tickId,
+            exitedBlock: exitedBlock,
+            maxPrice: maxPrice,
             owner: owner,
             amount: amount,
             tokensFilled: tokensFilled
         });
-    }
-
-    function getTick(uint128 tickId) public view returns (Tick memory) {
-        (uint128 id, uint128 prev, uint128 next, uint256 price, Demand memory demand) = auction.ticks(tickId);
-        return Tick({id: id, prev: prev, next: next, price: price, demand: demand});
     }
 
     function invariant_canAlwaysCheckpointDuringAuction() public {
@@ -212,21 +225,20 @@ contract AuctionInvariantTest is AuctionBaseTest {
         uint256 bidCount = handler.bidCount();
         for (uint256 i = 0; i < bidCount; i++) {
             Bid memory bid = getBid(i);
-            Tick memory tick = getTick(bid.tickId);
 
             // Invalid conditions
-            if (tick.price <= clearingPrice) continue;
-            if (bid.withdrawnBlock != 0) continue;
+            if (bid.maxPrice <= clearingPrice) continue;
+            if (bid.exitedBlock != 0) continue;
             if (bid.tokensFilled != 0) continue;
 
             vm.expectEmit(true, true, true, true);
-            emit IAuction.BidWithdrawn(i, bid.owner);
-            auction.withdrawBid(i);
+            emit IAuction.BidExited(i, bid.owner);
+            auction.exitBid(i);
 
             // Bid might be deleted if tokensFilled = 0
             bid = getBid(i);
             if (bid.tokensFilled == 0) continue;
-            assertEq(bid.withdrawnBlock, block.number);
+            assertEq(bid.exitedBlock, block.number);
         }
     }
 }

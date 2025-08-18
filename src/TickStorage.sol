@@ -8,7 +8,6 @@ import {Demand, DemandLib} from './libraries/DemandLib.sol';
 
 struct Tick {
     uint128 next;
-    uint128 prev;
     Demand demand;
 }
 
@@ -82,7 +81,6 @@ abstract contract TickStorage is ITickStorage {
 
         Tick storage newTick = ticks[id];
         newTick.next = nextId;
-        newTick.prev = prevId;
 
         // Link prev to new tick
         ticks[prevId].next = id;
@@ -92,11 +90,6 @@ abstract contract TickStorage is ITickStorage {
         if (toPrice(nextId) == tickUpperPrice) {
             tickUpperPrice = price;
             emit TickUpperUpdated(price);
-        }
-
-        if (nextId != MAX_TICK_ID) {
-            // Link prev to new tick
-            ticks[nextId].prev = id;
         }
 
         emit TickInitialized(price);

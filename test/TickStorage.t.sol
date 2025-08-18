@@ -43,8 +43,6 @@ contract TickStorageTest is Test {
         Tick memory tick = tickStorage.getTick(price);
         assertEq(tick.demand.currencyDemand, 0);
         assertEq(tick.demand.tokenDemand, 0);
-        // Assert the prev tick is the floor price tick
-        assertEq(tick.prev, toId(FLOOR_PRICE));
         // Assert there is no next tick (type(uint128).max)
         assertEq(tick.next, type(uint128).max);
         // Assert the tickUpper is unchanged
@@ -58,7 +56,6 @@ contract TickStorageTest is Test {
         uint256 price = 2e18;
         tickStorage.initializeTickIfNeeded(toId(FLOOR_PRICE), price);
         Tick memory tick = tickStorage.getTick(price);
-        assertEq(tick.prev, toId(FLOOR_PRICE));
         assertEq(tick.next, type(uint128).max);
         // new tick is not before tickUpper, so tickUpper is not updated
         assertEq(tickStorage.tickUpperPrice(), _tickUpperPrice);
@@ -69,16 +66,13 @@ contract TickStorageTest is Test {
         uint256 price = 2e18;
         uint128 id = tickStorage.initializeTickIfNeeded(prev, price);
         Tick memory tick = tickStorage.getTick(price);
-        assertEq(tick.prev, prev);
         assertEq(tick.next, type(uint128).max);
 
         uint128 next = tickStorage.initializeTickIfNeeded(id, 3e18);
         tick = tickStorage.getTick(3e18);
-        assertEq(tick.prev, id);
         assertEq(tick.next, type(uint128).max);
 
         tick = tickStorage.getTick(2e18);
-        assertEq(tick.prev, prev);
         assertEq(tick.next, next);
     }
 

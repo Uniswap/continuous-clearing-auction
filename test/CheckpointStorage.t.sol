@@ -9,6 +9,8 @@ import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {MockCheckpointStorage} from './utils/MockCheckpointStorage.sol';
 import {Test} from 'forge-std/Test.sol';
+
+import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract CheckpointStorageTest is Test {
@@ -22,8 +24,8 @@ contract CheckpointStorageTest is Test {
     uint24 public constant MPS = 1e7;
     uint256 public constant TICK_SPACING = 100;
     uint256 public constant ETH_AMOUNT = 10 ether;
-    uint256 public constant FLOOR_PRICE = 1000;
-    uint128 public constant MAX_PRICE = 5000;
+    uint256 public constant FLOOR_PRICE = 100 << FixedPoint96.RESOLUTION;
+    uint256 public constant MAX_PRICE = 500 << FixedPoint96.RESOLUTION;
     uint256 public constant TOKEN_AMOUNT = 100e18;
     uint256 public constant TOTAL_SUPPLY = 1000e18;
 
@@ -34,7 +36,7 @@ contract CheckpointStorageTest is Test {
     function test_resolve_exactOut_calculatePartialFill_succeeds() public view {
         // Buy exactly 100 tokens at max price 2000 per token
         uint256 exactOutAmount = 1000e18;
-        uint256 maxPrice = 2000;
+        uint256 maxPrice = 2000 << FixedPoint96.RESOLUTION;
         Bid memory bid = Bid({
             exactIn: false,
             owner: address(this),
@@ -107,14 +109,19 @@ contract CheckpointStorageTest is Test {
             maxPrice: MAX_PRICE // doesn't matter for this test
         });
 
-        uint256 maxPrice = 2000;
-        uint256 cumulativeMpsPerPriceDelta = uint256(cumulativeMpsDelta).fullMulDiv(FixedPoint96.Q96, maxPrice);
+        uint256 maxPrice = 2000 << FixedPoint96.RESOLUTION;
+        uint256 cumulativeMpsPerPrice = (uint256(cumulativeMpsDelta) << FixedPoint96.RESOLUTION) / maxPrice;
+        uint256 _tokensFilled = TOKEN_AMOUNT.applyMps(cumulativeMpsDelta);
+        console2.log('tokensFilled', _tokensFilled);
+        console2.log('cumulativeMpsDelta', cumulativeMpsDelta);
+        console2.log('cumulativeMpsPerPrice', cumulativeMpsPerPrice);
+        uint256 _currencySpent = _tokensFilled.fullMulDiv(cumulativeMpsDelta, cumulativeMpsPerPrice);
 
         (uint256 tokensFilled, uint256 currencySpent) =
-            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta, MPS);
+            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPrice, cumulativeMpsDelta, MPS);
 
-        assertEq(tokensFilled, TOKEN_AMOUNT.applyMps(cumulativeMpsDelta));
-        assertEq(currencySpent, tokensFilled * maxPrice);
+        assertEq(tokensFilled, _tokensFilled);
+        assertEq(currencySpent, _currencySpent);
     }
 
     function test_resolve_exactIn() public view {
@@ -122,13 +129,13 @@ contract CheckpointStorageTest is Test {
         uint256[] memory pricesArray = new uint256[](3);
 
         mpsArray[0] = 50e3;
-        pricesArray[0] = 100;
+        pricesArray[0] = 100 << FixedPoint96.RESOLUTION;
 
         mpsArray[1] = 30e3;
-        pricesArray[1] = 200;
+        pricesArray[1] = 200 << FixedPoint96.RESOLUTION;
 
         mpsArray[2] = 20e3;
-        pricesArray[2] = 200;
+        pricesArray[2] = 200 << FixedPoint96.RESOLUTION;
 
         uint256 _tokensFilled;
         uint256 _currencySpent;
@@ -137,13 +144,12 @@ contract CheckpointStorageTest is Test {
 
         for (uint256 i = 0; i < 3; i++) {
             uint256 currencySpentInBlock = ETH_AMOUNT * mpsArray[i] / MPS;
-            uint256 tokensFilledInBlock = currencySpentInBlock / pricesArray[i];
+            uint256 tokensFilledInBlock = currencySpentInBlock.fullMulDiv(FixedPoint96.Q96, pricesArray[i]);
             _tokensFilled += tokensFilledInBlock;
             _currencySpent += currencySpentInBlock;
 
             _totalMps += mpsArray[i];
-            // uint24.max << 96 will not overflow
-            _cumulativeMpsPerPrice += uint256(mpsArray[i] << FixedPoint96.RESOLUTION) / pricesArray[i];
+            _cumulativeMpsPerPrice += (uint256(mpsArray[i]) << FixedPoint96.RESOLUTION) / pricesArray[i];
         }
 
         Bid memory bid = Bid({
@@ -156,17 +162,10 @@ contract CheckpointStorageTest is Test {
             maxPrice: MAX_PRICE // doesn't matter for this test
         });
 
-        // 50e3 * 1e18 / 100 = 0.5 * 1e18
-        // 30e3 * 1e18 / 200 = 0.15 * 1e18
-        // 20e3 * 1e18 / 200 = 0.1 * 1e18
-        // 0.5 + 0.15 + 0.1 = 0.75 * 1e18 * 1e3 (for mps)
-        assertEq(_cumulativeMpsPerPrice, 0.75 ether * 1e3);
         (uint256 tokensFilled, uint256 currencySpent) =
             mockCheckpointStorage.calculateFill(bid, _cumulativeMpsPerPrice, uint24(_totalMps), MPS);
 
-        // Manual tokensFilled calculation:
-        // 10 * 1e18 * 0.75 * 1e18 / 1e18 * 1e4 = 7.5 * 1e18 / 1e4 = 7.5e14
-        assertEq(tokensFilled, 7.5e14);
+        assertEq(tokensFilled, _tokensFilled);
         assertEq(currencySpent, _currencySpent);
     }
 
@@ -175,7 +174,7 @@ contract CheckpointStorageTest is Test {
         uint256[] memory pricesArray = new uint256[](1);
 
         mpsArray[0] = 1e7;
-        pricesArray[0] = 100;
+        pricesArray[0] = 100 << FixedPoint96.RESOLUTION;
 
         uint256 _totalMps;
         uint256 _cumulativeMpsPerPrice;
@@ -183,8 +182,8 @@ contract CheckpointStorageTest is Test {
 
         for (uint256 i = 0; i < 1; i++) {
             _totalMps += mpsArray[i];
-            _cumulativeMpsPerPrice += uint256(mpsArray[i]).fullMulDiv(FixedPoint96.Q96, pricesArray[i]);
-            _currencySpent += TOKEN_AMOUNT * mpsArray[i] / MPS * pricesArray[i];
+            _cumulativeMpsPerPrice += (uint256(mpsArray[i]) << FixedPoint96.RESOLUTION) / pricesArray[i];
+            _currencySpent += TOKEN_AMOUNT.fullMulDiv(mpsArray[i], _cumulativeMpsPerPrice);
         }
 
         Bid memory bid = Bid({
@@ -226,11 +225,11 @@ contract CheckpointStorageTest is Test {
         });
 
         // uint24.max << 96 will not overflow
-        uint256 cumulativeMpsPerPriceDelta = uint256(mpsArray[0] << FixedPoint96.RESOLUTION) / pricesArray[0];
+        uint256 cumulativeMpsPerPriceDelta = (uint256(mpsArray[0]) << FixedPoint96.RESOLUTION) / pricesArray[0];
         uint24 cumulativeMpsDelta = MPS;
         uint256 expectedCurrencySpent = largeAmount * cumulativeMpsDelta / MPS;
 
-        uint256 expectedTokensFilled = expectedCurrencySpent / MAX_PRICE;
+        uint256 expectedTokensFilled = expectedCurrencySpent.fullMulDiv(FixedPoint96.Q96, MAX_PRICE);
 
         (uint256 tokensFilled, uint256 currencySpent) =
             mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta, MPS);

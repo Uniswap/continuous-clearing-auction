@@ -8,6 +8,7 @@ import {Checkpoint} from './libraries/CheckpointLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 
+import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
@@ -87,9 +88,8 @@ abstract contract CheckpointStorage is TickStorage {
         _checkpoint.clearingPrice = _newClearingPrice;
         _checkpoint.totalCleared += _checkpoint.blockCleared;
         _checkpoint.cumulativeMps += mpsSinceLastCheckpoint;
-        // uint24.max << 96 will not overflow
         _checkpoint.cumulativeMpsPerPrice +=
-            uint256(mpsSinceLastCheckpoint << FixedPoint96.RESOLUTION) / _checkpoint.clearingPrice;
+            (uint256(mpsSinceLastCheckpoint) << FixedPoint96.RESOLUTION) / _checkpoint.clearingPrice;
         _checkpoint.resolvedDemandAboveClearingPrice = resolvedDemandAboveClearing;
         _checkpoint.mps = _step.mps;
         _checkpoint.prev = lastCheckpointedBlock;
@@ -184,11 +184,14 @@ abstract contract CheckpointStorage is TickStorage {
         uint24 mpsDenominator
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
         if (bid.exactIn) {
-            tokensFilled = bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsDenominator);
+            console2.log('bid.amount', bid.amount);
+            console2.log('cumulativeMpsPerPriceDelta', cumulativeMpsPerPriceDelta);
+            console2.log('mpsDenominator', mpsDenominator);
+            tokensFilled = bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, mpsDenominator);
             currencySpent = bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
         } else {
             tokensFilled = bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
-            currencySpent = tokensFilled.fullMulDiv(FixedPoint96.Q96 * cumulativeMpsDelta, cumulativeMpsPerPriceDelta);
+            currencySpent = tokensFilled.fullMulDiv(cumulativeMpsDelta, cumulativeMpsPerPriceDelta);
         }
     }
 

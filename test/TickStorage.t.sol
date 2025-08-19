@@ -29,15 +29,15 @@ contract TickStorageTest is Test {
         tickStorage = new MockTickStorage(TICK_SPACING, FLOOR_PRICE);
     }
 
-    /// Helper function to convert a tick number to a price
-    function tickNumberToPrice(uint256 tickNumber) internal view returns (uint256) {
-        return tickNumber * TICK_SPACING << FixedPoint96.RESOLUTION;
+    /// Helper function to convert a tick number to a priceX96
+    function tickNumberToPriceX96(uint256 tickNumber) internal pure returns (uint256) {
+        return ((FLOOR_PRICE >> FixedPoint96.RESOLUTION) + (tickNumber - 1) * TICK_SPACING) << FixedPoint96.RESOLUTION;
     }
 
     function test_initializeTick_succeeds() public {
         uint256 prev = FLOOR_PRICE;
         // 2e18 << FixedPoint96.RESOLUTION
-        uint256 price = tickNumberToPrice(2);
+        uint256 price = tickNumberToPriceX96(2);
         tickStorage.initializeTickIfNeeded(prev, price);
         Tick memory tick = tickStorage.getTick(price);
         assertEq(tick.demand.currencyDemand, 0);
@@ -52,7 +52,7 @@ contract TickStorageTest is Test {
         uint256 _tickUpperPrice = tickStorage.tickUpperPrice();
         assertEq(_tickUpperPrice, FLOOR_PRICE);
 
-        uint256 price = tickNumberToPrice(2);
+        uint256 price = tickNumberToPriceX96(2);
         tickStorage.initializeTickIfNeeded(FLOOR_PRICE, price);
         Tick memory tick = tickStorage.getTick(price);
         assertEq(tick.next, type(uint256).max);
@@ -62,17 +62,17 @@ contract TickStorageTest is Test {
 
     function test_initializeTickSetsNext_succeeds() public {
         uint256 prev = FLOOR_PRICE;
-        uint256 price = tickNumberToPrice(2);
+        uint256 price = tickNumberToPriceX96(2);
         tickStorage.initializeTickIfNeeded(prev, price);
         Tick memory tick = tickStorage.getTick(price);
         assertEq(tick.next, type(uint256).max);
 
-        tickStorage.initializeTickIfNeeded(price, tickNumberToPrice(3));
-        tick = tickStorage.getTick(tickNumberToPrice(3));
+        tickStorage.initializeTickIfNeeded(price, tickNumberToPriceX96(3));
+        tick = tickStorage.getTick(tickNumberToPriceX96(3));
         assertEq(tick.next, type(uint256).max);
 
-        tick = tickStorage.getTick(tickNumberToPrice(2));
-        assertEq(tick.next, tickNumberToPrice(3));
+        tick = tickStorage.getTick(tickNumberToPriceX96(2));
+        assertEq(tick.next, tickNumberToPriceX96(3));
     }
 
     function test_initializeTickWithWrongPrice_reverts() public {
@@ -88,14 +88,14 @@ contract TickStorageTest is Test {
     // The tick at 0 id should never be initialized, thus its next value is 0, which should cause a revert
     function test_initializeTickWithZeroPrev_reverts() public {
         vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
-        tickStorage.initializeTickIfNeeded(0, tickNumberToPrice(2));
+        tickStorage.initializeTickIfNeeded(0, tickNumberToPriceX96(2));
     }
 
     function test_initializeTickWithWrongPriceBetweenTicks_reverts() public {
-        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, tickNumberToPrice(2));
+        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, tickNumberToPriceX96(2));
 
         // Wrong price, between ticks must be increasing
         vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
-        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, tickNumberToPrice(3));
+        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, tickNumberToPriceX96(3));
     }
 }

@@ -286,7 +286,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         (uint256 tokensFilled, uint256 currencySpent) =
             _accountFullyFilledCheckpoints(_getFinalCheckpoint(), startCheckpoint, bid);
 
-        uint256 resolvedAmount = bid.exactIn ? bid.amount : bid.amount * bid.maxPrice;
+        uint256 resolvedAmount = bid.exactIn ? bid.amount : bid.amount.fullMulDiv(bid.maxPrice, FixedPoint96.Q96);
         _processExit(bidId, bid, tokensFilled, resolvedAmount - currencySpent);
     }
 
@@ -335,7 +335,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             revert CannotExitBid();
         }
 
-        uint256 resolvedAmount = bid.exactIn ? bid.amount : bid.amount * bid.maxPrice;
+        uint256 resolvedAmount = bid.exactIn ? bid.amount : bid.amount.fullMulDiv(bid.maxPrice, FixedPoint96.Q96);
         _processExit(bidId, bid, tokensFilled, resolvedAmount - currencySpent);
     }
 

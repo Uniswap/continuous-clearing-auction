@@ -42,7 +42,7 @@ library CheckpointLib {
             mps: mps,
             // uint24.max << 96 will not overflow
             cumulativeMpsPerPrice: checkpoint.cumulativeMpsPerPrice
-                + uint256(deltaMps << FixedPoint96.RESOLUTION) / checkpoint.clearingPrice,
+                + (uint256(deltaMps) << FixedPoint96.RESOLUTION) / checkpoint.clearingPrice,
             resolvedDemandAboveClearingPrice: checkpoint.resolvedDemandAboveClearingPrice,
             prev: checkpointBlock
         });

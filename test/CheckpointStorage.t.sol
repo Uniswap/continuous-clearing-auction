@@ -10,7 +10,6 @@ import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {MockCheckpointStorage} from './utils/MockCheckpointStorage.sol';
 import {Test} from 'forge-std/Test.sol';
 
-import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract CheckpointStorageTest is Test {
@@ -112,7 +111,8 @@ contract CheckpointStorageTest is Test {
         uint256 maxPrice = 2000 << FixedPoint96.RESOLUTION;
         uint256 cumulativeMpsPerPrice = (uint256(cumulativeMpsDelta) << (FixedPoint96.RESOLUTION * 2)) / maxPrice;
         uint256 _tokensFilled = TOKEN_AMOUNT.applyMps(cumulativeMpsDelta);
-        uint256 _currencySpent = _tokensFilled.fullMulDiv(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPrice);
+        uint256 _currencySpent =
+            _tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPrice);
 
         (uint256 tokensFilled, uint256 currencySpent) =
             mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPrice, cumulativeMpsDelta, MPS);

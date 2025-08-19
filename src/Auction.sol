@@ -8,7 +8,6 @@ import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
 
 import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
-import {console2} from 'forge-std/console2.sol';
 
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
@@ -150,7 +149,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         // Advance to the current step if needed, summing up the results since the last checkpointed block
         (_checkpoint,) = _advanceToCurrentStep();
 
-        uint256 blockTokenSupply = (totalSupply - _checkpoint.totalCleared).fullMulDiv(
+        uint256 blockTokenSupply = (totalSupply - _checkpoint.totalCleared).applyMpsDenominator(
             step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
         );
 
@@ -246,12 +245,14 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         bytes calldata hookData
     ) external payable returns (uint256) {
         if (block.number > endBlock) revert AuctionIsOver();
-        uint256 resolvedAmount = exactIn ? amount : amount.fullMulDivUp(maxPrice, FixedPoint96.Q96);
-        if (resolvedAmount == 0) revert InvalidAmount();
+        uint256 requiredCurrencyAmount = BidLib.inputAmount(exactIn, amount, maxPrice);
+        if (requiredCurrencyAmount == 0) revert InvalidAmount();
         if (currency.isAddressZero()) {
-            if (msg.value != resolvedAmount) revert InvalidAmount();
+            if (msg.value != requiredCurrencyAmount) revert InvalidAmount();
         } else {
-            SafeTransferLib.permit2TransferFrom(Currency.unwrap(currency), msg.sender, address(this), resolvedAmount);
+            SafeTransferLib.permit2TransferFrom(
+                Currency.unwrap(currency), msg.sender, address(this), requiredCurrencyAmount
+            );
         }
         return _submitBid(maxPrice, exactIn, amount, owner, prevTickPrice, hookData);
     }
@@ -286,8 +287,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         (uint256 tokensFilled, uint256 currencySpent) =
             _accountFullyFilledCheckpoints(_getFinalCheckpoint(), startCheckpoint, bid);
 
-        uint256 resolvedAmount = bid.exactIn ? bid.amount : bid.amount.fullMulDiv(bid.maxPrice, FixedPoint96.Q96);
-        _processExit(bidId, bid, tokensFilled, resolvedAmount - currencySpent);
+        _processExit(bidId, bid, tokensFilled, bid.inputAmount() - currencySpent);
     }
 
     /// @inheritdoc IAuction
@@ -302,10 +302,9 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         // Last valid checkpoint is the last checkpoint where the clearing price is <= bid.maxPrice
         Checkpoint memory lastValidCheckpoint = _getCheckpoint(outbidCheckpoint.prev);
 
-        /// @dev Bid is partially filled at the end of the auction
-        /// Setup:
+        /// @dev Bid is partially filled. Require the outbid checkpoint to be strictly > bid.maxPrice and the last valid checkpoint to be <= bid.maxPrice
         /// lastValidCheckpoint --- ... | outbidCheckpoint --- ... | latestCheckpoint ... | endBlock
-        /// price < clearingPrice       | clearingPrice == price -------------------------->
+        /// price == clearingPrice      | clearingPrice > price -------------------------->
         if (outbidCheckpoint.clearingPrice < bid.maxPrice || lastValidCheckpoint.clearingPrice > bid.maxPrice) {
             revert InvalidCheckpointHint();
         }
@@ -333,10 +332,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             revert CannotExitBid();
         }
 
-        uint256 resolvedAmount = bid.exactIn ? bid.amount : bid.amount.fullMulDiv(bid.maxPrice, FixedPoint96.Q96);
-        console2.log('resolvedAmount', resolvedAmount);
-        console2.log('currencySpent', currencySpent);
-        _processExit(bidId, bid, tokensFilled, resolvedAmount - currencySpent);
+        _processExit(bidId, bid, tokensFilled, bid.inputAmount() - currencySpent);
     }
 
     /// @inheritdoc IAuction

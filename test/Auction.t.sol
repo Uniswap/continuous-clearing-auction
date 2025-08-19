@@ -13,7 +13,6 @@ import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
 
-import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract AuctionTest is TokenHandler, Test {
@@ -34,7 +33,7 @@ contract AuctionTest is TokenHandler, Test {
 
     /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice
     function inputAmountForTokens(uint256 tokens, uint256 maxPrice) internal pure returns (uint256) {
-        return tokens.fullMulDiv(maxPrice, FixedPoint96.Q96);
+        return tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96);
     }
 
     /// Helper function to convert a tick number to a priceX96

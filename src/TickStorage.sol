@@ -6,7 +6,6 @@ import {ITickStorage} from './interfaces/ITickStorage.sol';
 import {Bid} from './libraries/BidLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
-import {console2} from 'forge-std/console2.sol';
 
 struct Tick {
     uint256 next;

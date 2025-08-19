@@ -34,12 +34,12 @@ library AuctionStepLib {
     /// @notice Apply mps to a value
     /// @dev Requires that value is > MPS to avoid loss of precision
     function applyMps(uint256 value, uint24 mps) internal pure returns (uint256) {
-        return value.fullMulDivUp(mps, MPS);
+        return value * mps / MPS;
     }
 
     /// @notice Apply mps to a value with a denominator
     /// @dev Requires that value is > denominator to avoid loss of precision
     function applyMpsDenominator(uint256 value, uint24 mps, uint24 denominator) internal pure returns (uint256) {
-        return value.fullMulDivUp(mps, denominator);
+        return value * mps / denominator;
     }
 }

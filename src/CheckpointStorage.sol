@@ -120,52 +120,37 @@ abstract contract CheckpointStorage is TickStorage {
 
     /// @notice Calculate the tokens sold, proportion of input used, and the block number of the next checkpoint under the bid's max price
     /// @dev This function does an iterative search through the checkpoints and thus is more gas intensive
-    /// @param upper The upper checkpoint
+    /// @param lastValidCheckpoint The last checkpoint where the clearing price is == bid.maxPrice
     /// @param bid The bid
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent
     /// @return nextCheckpointBlock The block number of the checkpoint under the bid's max price. Will be 0 if it does not exist.
-    function _accountPartiallyFilledCheckpoints(Checkpoint memory upper, Bid memory bid)
+    function _accountPartiallyFilledCheckpoints(Checkpoint memory lastValidCheckpoint, Bid memory bid)
         internal
         view
         returns (uint256 tokensFilled, uint256 currencySpent, uint256 nextCheckpointBlock)
     {
         uint256 bidDemand = bid.demand();
         uint256 tickDemand = getTick(bid.maxPrice).demand.resolve(bid.maxPrice);
-        while (upper.prev != 0) {
-            Checkpoint memory _next = _getCheckpoint(upper.prev);
-            // Stop searching when the next checkpoint is less than the tick price
-            if (_next.clearingPrice < bid.maxPrice) {
-                if (upper.clearingPrice == bid.maxPrice) {
-                    // Upper is the last checkpoint where tick.price == clearingPrice
-                    // Account for tokens sold in the upperCheckpoint block, since checkpoint ranges are not inclusive [start,end)
-                    (uint256 _upperCheckpointTokensFilled, uint256 _upperCheckpointCurrencySpent) =
-                    _calculatePartialFill(
-                        bidDemand,
-                        tickDemand,
-                        bid.maxPrice,
-                        upper.blockCleared,
-                        upper.mps,
-                        upper.resolvedDemandAboveClearingPrice
-                    );
-                    tokensFilled += _upperCheckpointTokensFilled;
-                    currencySpent += _upperCheckpointCurrencySpent;
-                }
-                break;
-            }
+        while (lastValidCheckpoint.prev != 0) {
+            Checkpoint memory _next = _getCheckpoint(lastValidCheckpoint.prev);
             (uint256 _tokensFilled, uint256 _currencySpent) = _calculatePartialFill(
                 bidDemand,
                 tickDemand,
                 bid.maxPrice,
-                upper.totalCleared - _next.totalCleared,
-                upper.cumulativeMps - _next.cumulativeMps,
-                upper.resolvedDemandAboveClearingPrice
+                lastValidCheckpoint.totalCleared - _next.totalCleared,
+                lastValidCheckpoint.cumulativeMps - _next.cumulativeMps,
+                lastValidCheckpoint.resolvedDemandAboveClearingPrice
             );
             tokensFilled += _tokensFilled;
             currencySpent += _currencySpent;
-            upper = _next;
+            // Stop searching when the next checkpoint is less than the tick price
+            if (_next.clearingPrice < bid.maxPrice) {
+                break;
+            }
+            lastValidCheckpoint = _next;
         }
-        return (tokensFilled, currencySpent, upper.prev);
+        return (tokensFilled, currencySpent, lastValidCheckpoint.prev);
     }
 
     /// @notice Calculate the tokens filled and currency spent for a bid
@@ -201,19 +186,9 @@ abstract contract CheckpointStorage is TickStorage {
         uint24 mpsDelta,
         uint256 resolvedDemandAboveClearingPrice
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
-        console2.log('supplyOverMps', supplyOverMps);
-        console2.log('resolvedDemandAboveClearingPrice', resolvedDemandAboveClearingPrice);
-        console2.log('mpsDelta', mpsDelta);
-        console2.log('resolvedDemandAboveClearingPrice.applyMps(mpsDelta)', resolvedDemandAboveClearingPrice.applyMps(mpsDelta));
         uint256 supplySoldToTick = supplyOverMps - resolvedDemandAboveClearingPrice.applyMps(mpsDelta);
-        console2.log('supplySoldToTick', supplySoldToTick);
-        console2.log('bidDemand.applyMps(mpsDelta)', bidDemand.applyMps(mpsDelta));
-        console2.log('tickDemand.applyMps(mpsDelta)', tickDemand.applyMps(mpsDelta));
         tokensFilled = supplySoldToTick.fullMulDiv(bidDemand.applyMps(mpsDelta), tickDemand.applyMps(mpsDelta));
-        console2.log('tokensFilled', tokensFilled);
-        console2.log('price', price);
-        console2.log('tokensFilled.fullMulDiv(price, FixedPoint96.Q96)', tokensFilled.fullMulDiv(price, FixedPoint96.Q96));
-        currencySpent = tokensFilled.fullMulDiv(price, FixedPoint96.Q96);
-        console2.log('_calculatePartialFill: currencySpent', currencySpent);
+        require(tokensFilled <= supplySoldToTick, 'debug: tokensFilled > supplySoldToTick');
+        currencySpent = tokensFilled.fullMulDivUp(price, FixedPoint96.Q96);
     }
 }

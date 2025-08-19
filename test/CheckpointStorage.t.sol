@@ -70,7 +70,7 @@ contract CheckpointStorageTest is Test {
         // 30% of 1000e18 tokens = 300e18 tokens filled
         assertEq(tokensFilled, 300e18);
         // All tokens were purchased at the bid's max price
-        assertEq(currencySpent, tokensFilled * maxPrice);
+        assertEq(currencySpent, tokensFilled.fullMulDiv(maxPrice, FixedPoint96.Q96));
     }
 
     function test_resolve_exactIn_fuzz_succeeds(uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
@@ -110,12 +110,9 @@ contract CheckpointStorageTest is Test {
         });
 
         uint256 maxPrice = 2000 << FixedPoint96.RESOLUTION;
-        uint256 cumulativeMpsPerPrice = (uint256(cumulativeMpsDelta) << FixedPoint96.RESOLUTION) / maxPrice;
+        uint256 cumulativeMpsPerPrice = (uint256(cumulativeMpsDelta) << (FixedPoint96.RESOLUTION * 2)) / maxPrice;
         uint256 _tokensFilled = TOKEN_AMOUNT.applyMps(cumulativeMpsDelta);
-        console2.log('tokensFilled', _tokensFilled);
-        console2.log('cumulativeMpsDelta', cumulativeMpsDelta);
-        console2.log('cumulativeMpsPerPrice', cumulativeMpsPerPrice);
-        uint256 _currencySpent = _tokensFilled.fullMulDiv(cumulativeMpsDelta, cumulativeMpsPerPrice);
+        uint256 _currencySpent = _tokensFilled.fullMulDiv(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPrice);
 
         (uint256 tokensFilled, uint256 currencySpent) =
             mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPrice, cumulativeMpsDelta, MPS);
@@ -182,8 +179,8 @@ contract CheckpointStorageTest is Test {
 
         for (uint256 i = 0; i < 1; i++) {
             _totalMps += mpsArray[i];
-            _cumulativeMpsPerPrice += (uint256(mpsArray[i]) << FixedPoint96.RESOLUTION) / pricesArray[i];
-            _currencySpent += TOKEN_AMOUNT.fullMulDiv(mpsArray[i], _cumulativeMpsPerPrice);
+            _cumulativeMpsPerPrice += (uint256(mpsArray[i]) << (FixedPoint96.RESOLUTION * 2)) / pricesArray[i];
+            _currencySpent += TOKEN_AMOUNT.fullMulDiv(mpsArray[i] * FixedPoint96.Q96, _cumulativeMpsPerPrice);
         }
 
         Bid memory bid = Bid({

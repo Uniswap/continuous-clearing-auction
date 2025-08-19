@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+
 struct AuctionStep {
     uint24 mps; // Mps to sell per block in the step
     uint64 startBlock; // Start block of the step (inclusive)
@@ -8,7 +10,9 @@ struct AuctionStep {
 }
 
 library AuctionStepLib {
+    using FixedPointMathLib for uint256;
     /// @notice we use milli-bips, or one thousandth of a basis point
+
     uint24 public constant MPS = 1e7;
 
     /// @notice Unpack the mps and block delta from the auction steps data
@@ -30,12 +34,12 @@ library AuctionStepLib {
     /// @notice Apply mps to a value
     /// @dev Requires that value is > MPS to avoid loss of precision
     function applyMps(uint256 value, uint24 mps) internal pure returns (uint256) {
-        return mps * value / MPS;
+        return value.fullMulDivUp(mps, MPS);
     }
 
     /// @notice Apply mps to a value with a denominator
     /// @dev Requires that value is > denominator to avoid loss of precision
     function applyMpsDenominator(uint256 value, uint24 mps, uint24 denominator) internal pure returns (uint256) {
-        return mps * value / denominator;
+        return value.fullMulDivUp(mps, denominator);
     }
 }

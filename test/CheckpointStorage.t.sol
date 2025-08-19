@@ -149,7 +149,7 @@ contract CheckpointStorageTest is Test {
             _currencySpent += currencySpentInBlock;
 
             _totalMps += mpsArray[i];
-            _cumulativeMpsPerPrice += (uint256(mpsArray[i]) << FixedPoint96.RESOLUTION) / pricesArray[i];
+            _cumulativeMpsPerPrice += (uint256(mpsArray[i]) << (FixedPoint96.RESOLUTION * 2)) / pricesArray[i];
         }
 
         Bid memory bid = Bid({
@@ -225,7 +225,7 @@ contract CheckpointStorageTest is Test {
         });
 
         // uint24.max << 96 will not overflow
-        uint256 cumulativeMpsPerPriceDelta = (uint256(mpsArray[0]) << FixedPoint96.RESOLUTION) / pricesArray[0];
+        uint256 cumulativeMpsPerPriceDelta = (uint256(mpsArray[0]) << (FixedPoint96.RESOLUTION * 2)) / pricesArray[0];
         uint24 cumulativeMpsDelta = MPS;
         uint256 expectedCurrencySpent = largeAmount * cumulativeMpsDelta / MPS;
 

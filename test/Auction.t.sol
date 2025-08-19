@@ -523,6 +523,7 @@ contract AuctionTest is TokenHandler, Test {
         // Clearing price is at 2
         vm.roll(block.number + 1);
         auction.checkpoint();
+        assertEq(auction.clearingPrice(), tickNumberToPriceX96(2));
 
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 bobBalanceBefore = address(bob).balance;
@@ -533,13 +534,13 @@ contract AuctionTest is TokenHandler, Test {
         vm.startPrank(alice);
         auction.exitPartiallyFilledBid(bidId, 2);
         vm.snapshotGasLastCall('exitPartiallyFilledBid');
-        // At a clearing price of 2e6,
-        // Alice is purchasing 1000e18 / 2 = 500e18 tokens
-        // Bob is purchasing 1500e18 / 2 = 750e18 tokens
+        // Alice is purchasing with 500e18 * 2000 = 1000e21 ETH
+        // Bob is purchasing with 500e18 * 3000 = 1500e21 ETH
+        // At a clearing price of 2e6
         // Since the supply is only 1000e18, that means that bob should fully fill for 750e18 tokens, and
-        // Alice should partially fill for 250e18 tokens, spending 500e18 ETH
-        // Meaning she should be refunded 500e18 ETH
-        assertEq(address(alice).balance, aliceBalanceBefore + inputAmountForTokens(250e18, tickNumberToPriceX96(2)));
+        // Alice should partially fill for 250e18 tokens, spending 500e21 ETH
+        // Meaning she should be refunded 1000e21 - 500e21 = 500e21 ETH
+        assertEq(address(alice).balance, aliceBalanceBefore + 500e21);
         auction.claimTokens(bidId);
         vm.snapshotGasLastCall('claimTokens');
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 250e18);

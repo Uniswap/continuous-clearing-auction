@@ -201,8 +201,19 @@ abstract contract CheckpointStorage is TickStorage {
         uint24 mpsDelta,
         uint256 resolvedDemandAboveClearingPrice
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
+        console2.log('supplyOverMps', supplyOverMps);
+        console2.log('resolvedDemandAboveClearingPrice', resolvedDemandAboveClearingPrice);
+        console2.log('mpsDelta', mpsDelta);
+        console2.log('resolvedDemandAboveClearingPrice.applyMps(mpsDelta)', resolvedDemandAboveClearingPrice.applyMps(mpsDelta));
         uint256 supplySoldToTick = supplyOverMps - resolvedDemandAboveClearingPrice.applyMps(mpsDelta);
+        console2.log('supplySoldToTick', supplySoldToTick);
+        console2.log('bidDemand.applyMps(mpsDelta)', bidDemand.applyMps(mpsDelta));
+        console2.log('tickDemand.applyMps(mpsDelta)', tickDemand.applyMps(mpsDelta));
         tokensFilled = supplySoldToTick.fullMulDiv(bidDemand.applyMps(mpsDelta), tickDemand.applyMps(mpsDelta));
+        console2.log('tokensFilled', tokensFilled);
+        console2.log('price', price);
+        console2.log('tokensFilled.fullMulDiv(price, FixedPoint96.Q96)', tokensFilled.fullMulDiv(price, FixedPoint96.Q96));
         currencySpent = tokensFilled.fullMulDiv(price, FixedPoint96.Q96);
+        console2.log('_calculatePartialFill: currencySpent', currencySpent);
     }
 }

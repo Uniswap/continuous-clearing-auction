@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import {Tick} from '../src/TickStorage.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
-
+import {CheckpointLib} from '../src/libraries/CheckpointLib.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
@@ -109,7 +109,7 @@ contract CheckpointStorageTest is Test {
         });
 
         uint256 maxPrice = 2000 << FixedPoint96.RESOLUTION;
-        uint256 cumulativeMpsPerPrice = (uint256(cumulativeMpsDelta) << (FixedPoint96.RESOLUTION * 2)) / maxPrice;
+        uint256 cumulativeMpsPerPrice = CheckpointLib.getMpsPerPrice(cumulativeMpsDelta, maxPrice);
         uint256 _tokensFilled = TOKEN_AMOUNT.applyMps(cumulativeMpsDelta);
         uint256 _currencySpent =
             _tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPrice);
@@ -146,7 +146,7 @@ contract CheckpointStorageTest is Test {
             _currencySpent += currencySpentInBlock;
 
             _totalMps += mpsArray[i];
-            _cumulativeMpsPerPrice += (uint256(mpsArray[i]) << (FixedPoint96.RESOLUTION * 2)) / pricesArray[i];
+            _cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(mpsArray[i], pricesArray[i]);
         }
 
         Bid memory bid = Bid({
@@ -167,7 +167,7 @@ contract CheckpointStorageTest is Test {
     }
 
     function test_resolve_exactOut() public view {
-        uint256[] memory mpsArray = new uint256[](1);
+        uint24[] memory mpsArray = new uint24[](1);
         uint256[] memory pricesArray = new uint256[](1);
 
         mpsArray[0] = 1e7;
@@ -179,7 +179,7 @@ contract CheckpointStorageTest is Test {
 
         for (uint256 i = 0; i < 1; i++) {
             _totalMps += mpsArray[i];
-            _cumulativeMpsPerPrice += (uint256(mpsArray[i]) << (FixedPoint96.RESOLUTION * 2)) / pricesArray[i];
+            _cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(mpsArray[i], pricesArray[i]);
             _currencySpent += TOKEN_AMOUNT.fullMulDiv(mpsArray[i] * FixedPoint96.Q96, _cumulativeMpsPerPrice);
         }
 
@@ -221,8 +221,7 @@ contract CheckpointStorageTest is Test {
             maxPrice: MAX_PRICE // doesn't matter for this test
         });
 
-        // uint24.max << 96 will not overflow
-        uint256 cumulativeMpsPerPriceDelta = (uint256(mpsArray[0]) << (FixedPoint96.RESOLUTION * 2)) / pricesArray[0];
+        uint256 cumulativeMpsPerPriceDelta = CheckpointLib.getMpsPerPrice(mpsArray[0], pricesArray[0]);
         uint24 cumulativeMpsDelta = MPS;
         uint256 expectedCurrencySpent = largeAmount * cumulativeMpsDelta / MPS;
 

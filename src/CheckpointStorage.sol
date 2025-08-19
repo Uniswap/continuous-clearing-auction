@@ -89,7 +89,7 @@ abstract contract CheckpointStorage is TickStorage {
         _checkpoint.totalCleared += _checkpoint.blockCleared;
         _checkpoint.cumulativeMps += mpsSinceLastCheckpoint;
         _checkpoint.cumulativeMpsPerPrice +=
-            (uint256(mpsSinceLastCheckpoint) << FixedPoint96.RESOLUTION) / _checkpoint.clearingPrice;
+            (uint256(mpsSinceLastCheckpoint) << (FixedPoint96.RESOLUTION * 2)) / _checkpoint.clearingPrice;
         _checkpoint.resolvedDemandAboveClearingPrice = resolvedDemandAboveClearing;
         _checkpoint.mps = _step.mps;
         _checkpoint.prev = lastCheckpointedBlock;
@@ -172,7 +172,7 @@ abstract contract CheckpointStorage is TickStorage {
     /// @dev This function uses lazy accounting to efficiently calculate fills across time periods without iterating through individual blocks.
     ///      It MUST only be used when the bid's max price is strictly greater than the clearing price throughout the entire period being calculated.
     /// @param bid the bid to evaluate
-    /// @param cumulativeMpsPerPriceDelta the cumulative sum of (mps × 1e18 / price) across the block range
+    /// @param cumulativeMpsPerPriceDelta the cumulative sum of supply to price ratio
     /// @param cumulativeMpsDelta the cumulative sum of mps values across the block range
     /// @param mpsDenominator the percentage of the auction which the bid was spread over
     /// @return tokensFilled the amount of tokens filled for this bid
@@ -184,14 +184,11 @@ abstract contract CheckpointStorage is TickStorage {
         uint24 mpsDenominator
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
         if (bid.exactIn) {
-            console2.log('bid.amount', bid.amount);
-            console2.log('cumulativeMpsPerPriceDelta', cumulativeMpsPerPriceDelta);
-            console2.log('mpsDenominator', mpsDenominator);
-            tokensFilled = bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, mpsDenominator);
+            tokensFilled = bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsDenominator);
             currencySpent = bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
         } else {
             tokensFilled = bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
-            currencySpent = tokensFilled.fullMulDiv(cumulativeMpsDelta, cumulativeMpsPerPriceDelta);
+            currencySpent = tokensFilled.fullMulDiv(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPriceDelta);
         }
     }
 
@@ -206,6 +203,6 @@ abstract contract CheckpointStorage is TickStorage {
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
         uint256 supplySoldToTick = supplyOverMps - resolvedDemandAboveClearingPrice.applyMps(mpsDelta);
         tokensFilled = supplySoldToTick.fullMulDiv(bidDemand.applyMps(mpsDelta), tickDemand.applyMps(mpsDelta));
-        currencySpent = tokensFilled * price;
+        currencySpent = tokensFilled.fullMulDiv(price, FixedPoint96.Q96);
     }
 }

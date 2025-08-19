@@ -12,6 +12,8 @@ import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
+
+import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract AuctionTest is TokenHandler, Test {
@@ -556,36 +558,36 @@ contract AuctionTest is TokenHandler, Test {
     function test_exitPartiallyFilledBid_multipleBidders_succeeds() public {
         address bob = makeAddr('bob');
         address charlie = makeAddr('charlie');
-        uint256 bidId1 = auction.submitBid{value: inputAmountForTokens(400e18, tickNumberToPriceX96(2))}(
-            tickNumberToPriceX96(2),
+        uint256 bidId1 = auction.submitBid{value: inputAmountForTokens(400e18, tickNumberToPriceX96(11))}(
+            tickNumberToPriceX96(11),
             true,
-            inputAmountForTokens(400e18, tickNumberToPriceX96(2)),
+            inputAmountForTokens(400e18, tickNumberToPriceX96(11)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
         );
-        uint256 bidId2 = auction.submitBid{value: inputAmountForTokens(600e18, tickNumberToPriceX96(2))}(
-            tickNumberToPriceX96(2),
+        uint256 bidId2 = auction.submitBid{value: inputAmountForTokens(600e18, tickNumberToPriceX96(11))}(
+            tickNumberToPriceX96(11),
             true,
-            inputAmountForTokens(600e18, tickNumberToPriceX96(2)),
+            inputAmountForTokens(600e18, tickNumberToPriceX96(11)),
             bob,
             tickNumberToPriceX96(1),
             bytes('')
         );
 
         // Not enough to move the price to 3, but to cause partial fills at 2
-        uint256 bidId3 = auction.submitBid{value: inputAmountForTokens(500e18, tickNumberToPriceX96(3))}(
-            tickNumberToPriceX96(3),
+        uint256 bidId3 = auction.submitBid{value: inputAmountForTokens(500e18, tickNumberToPriceX96(21))}(
+            tickNumberToPriceX96(21),
             true,
-            inputAmountForTokens(500e18, tickNumberToPriceX96(3)),
+            inputAmountForTokens(500e18, tickNumberToPriceX96(21)),
             charlie,
-            tickNumberToPriceX96(2),
+            tickNumberToPriceX96(11),
             bytes('')
         );
 
         vm.roll(block.number + 1);
         auction.checkpoint();
-        assertEq(auction.clearingPrice(), tickNumberToPriceX96(2));
+        assertEq(auction.clearingPrice(), tickNumberToPriceX96(11));
 
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 bobBalanceBefore = address(bob).balance;
@@ -594,31 +596,38 @@ contract AuctionTest is TokenHandler, Test {
         uint256 bobTokenBalanceBefore = token.balanceOf(address(bob));
         uint256 charlieTokenBalanceBefore = token.balanceOf(address(charlie));
 
-        // Clearing price is at tick 2 = 1100
-        // Alice is purchasing 400e18 * 1.1 = 440e18 / 1.1 = 400e18 tokens
-        // Bob is purchasing 600e18 * 1.1 = 660e18 / 1.1 = 600e18 tokens
-        // Charlie is purchasing 500e18 * 1.2 = 600e18 / 1.1 = 545e18 tokens
+        // Clearing price is at tick 21 = 2000
+        // Alice is purchasing with 400e18 * 2000 = 800e21 ETH
+        // Bob is purchasing with 600e18 * 2000 = 1200e21 ETH
+        // Charlie is purchasing with 500e18 * 2000 = 1500e21 ETH
+        //
+        // At the clearing price of 2000
+        // Charlie purchases 750e18 tokens
+        // Remaining supply is 1000 - 750 = 250e18 tokens
+        // Alice purchases 400/1000 * 250 = 100e18 tokens
+        // - Spending 100e18 * 2000 = 200e21 ETH
+        // - Refunded 800e21 - 200e21 = 600e21 ETH
+        // Bob purchases 600/1000 * 250 = 150e18 tokens
+        // - Spending 150e18 * 2000 = 300e21 ETH
+        // - Refunded 1200e21 - 300e21 = 900e21 ETH
         vm.roll(auction.endBlock() + 1);
 
         vm.startPrank(charlie);
         auction.exitBid(bidId3);
         assertEq(address(charlie).balance, charlieBalanceBefore + 0);
         auction.claimTokens(bidId3);
-        assertEq(
-            token.balanceOf(address(charlie)),
-            charlieTokenBalanceBefore + 600e18 / (tickNumberToPriceX96(2) >> FixedPoint96.RESOLUTION)
-        );
+        assertEq(token.balanceOf(address(charlie)), charlieTokenBalanceBefore + 750e18);
         vm.stopPrank();
 
         vm.startPrank(alice);
         auction.exitPartiallyFilledBid(bidId1, 2);
-        assertEq(address(alice).balance, aliceBalanceBefore + inputAmountForTokens(600e18, tickNumberToPriceX96(2)));
+        assertEq(address(alice).balance, aliceBalanceBefore + 600e21);
         auction.claimTokens(bidId1);
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 100e18);
 
         vm.startPrank(bob);
         auction.exitPartiallyFilledBid(bidId2, 2);
-        assertEq(address(bob).balance, bobBalanceBefore + inputAmountForTokens(900e18, tickNumberToPriceX96(2)));
+        assertEq(address(bob).balance, bobBalanceBefore + 900e21);
         auction.claimTokens(bidId2);
         assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + 150e18);
         vm.stopPrank();

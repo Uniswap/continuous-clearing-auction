@@ -124,7 +124,7 @@ contract CheckpointStorageTest is Test {
         assertEq(currencySpent, _currencySpent);
     }
 
-    function test_resolve_exactIn() public view {
+    function test_resolve_exactIn_iterative() public view {
         uint24[] memory mpsArray = new uint24[](3);
         uint256[] memory pricesArray = new uint256[](3);
 

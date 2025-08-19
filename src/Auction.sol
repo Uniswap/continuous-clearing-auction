@@ -336,6 +336,8 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         }
 
         uint256 resolvedAmount = bid.exactIn ? bid.amount : bid.amount.fullMulDiv(bid.maxPrice, FixedPoint96.Q96);
+        console2.log('resolvedAmount', resolvedAmount);
+        console2.log('currencySpent', currencySpent);
         _processExit(bidId, bid, tokensFilled, resolvedAmount - currencySpent);
     }
 

@@ -3,9 +3,10 @@ pragma solidity ^0.8.23;
 
 import {Tick} from '../src/TickStorage.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
-import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
+
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
+import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {MockCheckpointStorage} from './utils/MockCheckpointStorage.sol';
 import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -47,7 +48,6 @@ contract CheckpointStorageTest is Test {
 
         // Execute: 30% of auction executed (3000 mps)
         uint24 cumulativeMpsDelta = 3000e3;
-        uint256 cumulativeMpsPerPriceDelta = uint256(cumulativeMpsDelta << FixedPoint96.RESOLUTION) / maxPrice;
 
         // Calculate partial fill values
         uint256 bidDemand = bid.demand();
@@ -90,7 +90,7 @@ contract CheckpointStorageTest is Test {
         (uint256 tokensFilled, uint256 currencySpent) =
             mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta, MPS);
 
-        assertEq(tokensFilled, ETH_AMOUNT.fullMulDiv(cumulativeMpsPerPriceDelta, BidLib.PRECISION * MPS));
+        assertEq(tokensFilled, ETH_AMOUNT.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * MPS));
         assertEq(currencySpent, ETH_AMOUNT.applyMps(cumulativeMpsDelta));
     }
 
@@ -108,7 +108,7 @@ contract CheckpointStorageTest is Test {
         });
 
         uint256 maxPrice = 2000;
-        uint256 cumulativeMpsPerPriceDelta = uint256(cumulativeMpsDelta).fullMulDiv(BidLib.PRECISION, maxPrice);
+        uint256 cumulativeMpsPerPriceDelta = uint256(cumulativeMpsDelta).fullMulDiv(FixedPoint96.Q96, maxPrice);
 
         (uint256 tokensFilled, uint256 currencySpent) =
             mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta, MPS);
@@ -183,7 +183,7 @@ contract CheckpointStorageTest is Test {
 
         for (uint256 i = 0; i < 1; i++) {
             _totalMps += mpsArray[i];
-            _cumulativeMpsPerPrice += uint256(mpsArray[i]).fullMulDiv(BidLib.PRECISION, pricesArray[i]);
+            _cumulativeMpsPerPrice += uint256(mpsArray[i]).fullMulDiv(FixedPoint96.Q96, pricesArray[i]);
             _currencySpent += TOKEN_AMOUNT * mpsArray[i] / MPS * pricesArray[i];
         }
 

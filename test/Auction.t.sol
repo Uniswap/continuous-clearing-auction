@@ -29,7 +29,7 @@ contract AuctionTest is TokenHandler, Test {
     address public fundsRecipient;
 
     /// Helper function to convert a tick number to a price
-    function tickNumberToPrice(uint256 tickNumber) internal view returns (uint256) {
+    function tickNumberToPrice(uint256 tickNumber) internal pure returns (uint256) {
         return tickNumber * TICK_SPACING << FixedPoint96.RESOLUTION;
     }
 
@@ -95,7 +95,9 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(0, alice, tickNumberToPrice(2), false, 1000e18);
         // Oversubscribe the auction to increase the clearing price
-        auction.submitBid{value: 1000e18 * tickNumberToPrice(2)}(tickNumberToPrice(2), false, 1000e18, alice, tickNumberToPrice(1), bytes(''));
+        auction.submitBid{value: 1000e18 * tickNumberToPrice(2)}(
+            tickNumberToPrice(2), false, 1000e18, alice, tickNumberToPrice(1), bytes('')
+        );
 
         vm.roll(block.number + 1);
         uint256 expectedTotalCleared = 10e18; // 100e3 mps * total supply (1000e18)
@@ -161,7 +163,9 @@ contract AuctionTest is TokenHandler, Test {
 
     function test_submitBid_exactOut_atFloorPrice_reverts() public {
         vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
-        auction.submitBid{value: 10e18 * tickNumberToPrice(1)}(tickNumberToPrice(1), false, 10e18, alice, tickNumberToPrice(1), bytes(''));
+        auction.submitBid{value: 10e18 * tickNumberToPrice(1)}(
+            tickNumberToPrice(1), false, 10e18, alice, tickNumberToPrice(1), bytes('')
+        );
     }
 
     function test_submitBid_exactInMsgValue_revertsWithInvalidAmount() public {
@@ -232,9 +236,10 @@ contract AuctionTest is TokenHandler, Test {
 
     function test_exitBid_exactOut_succeeds() public {
         uint256 amount = 500e18;
-        uint128 maxPrice = tickNumberToPrice(2);
+        uint256 maxPrice = tickNumberToPrice(2);
         uint256 inputAmount = amount * maxPrice;
-        uint256 bidId = auction.submitBid{value: inputAmount}(maxPrice, false, amount, alice, tickNumberToPrice(1), bytes(''));
+        uint256 bidId =
+            auction.submitBid{value: inputAmount}(maxPrice, false, amount, alice, tickNumberToPrice(1), bytes(''));
 
         vm.roll(block.number + 1);
         auction.checkpoint();
@@ -257,7 +262,7 @@ contract AuctionTest is TokenHandler, Test {
     }
 
     function test_exitBid_afterEndBlock_succeeds() public {
-        uint128 bidMaxPrice = tickNumberToPrice(3);
+        uint256 bidMaxPrice = tickNumberToPrice(3);
         uint256 bidId = auction.submitBid{value: 1000e18 * TICK_SPACING}(
             bidMaxPrice, true, 1000e18 * TICK_SPACING, alice, tickNumberToPrice(1), bytes('')
         );

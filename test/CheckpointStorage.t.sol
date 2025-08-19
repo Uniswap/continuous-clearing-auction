@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import {Tick} from '../src/TickStorage.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
-
 import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
-import {Tick, TickLib} from '../src/libraries/TickLib.sol';
 import {MockCheckpointStorage} from './utils/MockCheckpointStorage.sol';
 import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -13,7 +12,6 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 contract CheckpointStorageTest is Test {
     MockCheckpointStorage mockCheckpointStorage;
 
-    using TickLib for Tick;
     using BidLib for Bid;
     using DemandLib for Demand;
     using FixedPointMathLib for uint256;
@@ -44,13 +42,7 @@ contract CheckpointStorageTest is Test {
             exitedBlock: 0,
             maxPrice: maxPrice
         });
-        Tick memory tick = Tick({
-            id: 0,
-            prev: 0,
-            next: 0,
-            price: maxPrice,
-            demand: Demand({currencyDemand: 0, tokenDemand: exactOutAmount})
-        });
+        Tick memory tick = Tick({next: 0, demand: Demand({currencyDemand: 0, tokenDemand: exactOutAmount})});
 
         // Execute: 30% of auction executed (3000 mps)
         uint24 cumulativeMpsDelta = 3000e3;
@@ -58,7 +50,7 @@ contract CheckpointStorageTest is Test {
         // Calculate partial fill values
         uint256 bidDemand = bid.demand(maxPrice);
         assertEq(bidDemand, exactOutAmount);
-        uint256 tickDemand = tick.resolveDemand();
+        uint256 tickDemand = tick.demand.resolve(maxPrice);
         // No one else at tick, so demand is the same
         assertEq(bidDemand, tickDemand);
         uint256 supply = TOTAL_SUPPLY.applyMps(cumulativeMpsDelta);

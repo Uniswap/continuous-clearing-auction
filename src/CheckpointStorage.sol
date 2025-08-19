@@ -122,13 +122,14 @@ abstract contract CheckpointStorage is TickStorage {
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent
     /// @return nextCheckpointBlock The block number of the checkpoint under the bid's max price. Will be 0 if it does not exist.
-    function _accountPartiallyFilledCheckpoints(
-        Checkpoint memory upper,
-        Bid memory bid
-    ) internal view returns (uint256 tokensFilled, uint256 currencySpent, uint256 nextCheckpointBlock) {
+    function _accountPartiallyFilledCheckpoints(Checkpoint memory upper, Bid memory bid)
+        internal
+        view
+        returns (uint256 tokensFilled, uint256 currencySpent, uint256 nextCheckpointBlock)
+    {
         Tick memory tick = getTick(bid.maxPrice);
-        uint256 bidDemand = bid.demand(bid.maxPrice, tickSpacing);
-        uint256 tickDemand = tick.demand.resolve(bid.maxPrice, tickSpacing);
+        uint256 bidDemand = bid.demand(bid.maxPrice);
+        uint256 tickDemand = tick.demand.resolve(bid.maxPrice);
         while (upper.prev != 0) {
             Checkpoint memory _next = _getCheckpoint(upper.prev);
             // Stop searching when the next checkpoint is less than the tick price
@@ -153,7 +154,7 @@ abstract contract CheckpointStorage is TickStorage {
             (uint256 _tokensFilled, uint256 _currencySpent) = _calculatePartialFill(
                 bidDemand,
                 tickDemand,
-                maxPrice,
+                bid.maxPrice,
                 upper.totalCleared - _next.totalCleared,
                 upper.cumulativeMps - _next.cumulativeMps,
                 upper.resolvedDemandAboveClearingPrice

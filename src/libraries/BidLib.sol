@@ -39,11 +39,10 @@ library BidLib {
         }
     }
 
-    /// @notice Resolve the demand of a bid
+    /// @notice Resolve the demand of a bid at its maxPrice
     /// @param bid The bid
-    /// @param price The price of the bid
     /// @return The demand of the bid
-    function demand(Bid memory bid, uint256 price) internal pure returns (uint256) {
-        return bid.exactIn ? bid.amount.resolveCurrencyDemand(price) : bid.amount;
+    function demand(Bid memory bid) internal pure returns (uint256) {
+        return bid.exactIn ? bid.amount.resolveCurrencyDemand(bid.maxPrice) : bid.amount;
     }
 }

@@ -48,7 +48,7 @@ contract CheckpointStorageTest is Test {
         uint24 cumulativeMpsDelta = 3000e3;
 
         // Calculate partial fill values
-        uint256 bidDemand = bid.demand(maxPrice);
+        uint256 bidDemand = bid.demand();
         assertEq(bidDemand, exactOutAmount);
         uint256 tickDemand = tick.demand.resolve(maxPrice);
         // No one else at tick, so demand is the same

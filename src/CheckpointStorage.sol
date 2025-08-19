@@ -127,9 +127,8 @@ abstract contract CheckpointStorage is TickStorage {
         view
         returns (uint256 tokensFilled, uint256 currencySpent, uint256 nextCheckpointBlock)
     {
-        Tick memory tick = getTick(bid.maxPrice);
-        uint256 bidDemand = bid.demand(bid.maxPrice);
-        uint256 tickDemand = tick.demand.resolve(bid.maxPrice);
+        uint256 bidDemand = bid.demand();
+        uint256 tickDemand = getTick(bid.maxPrice).demand.resolve(bid.maxPrice);
         while (upper.prev != 0) {
             Checkpoint memory _next = _getCheckpoint(upper.prev);
             // Stop searching when the next checkpoint is less than the tick price

@@ -10,7 +10,7 @@ struct Bid {
     bool exactIn; // If amount below is denoted in currency or tokens
     uint64 startBlock; // Block number when the bid was first made in
     uint64 exitedBlock; // Block number when the bid was exited
-    uint128 tickId; // The tick id of the bid
+    uint256 maxPrice; // The max price of the bid
     address owner; // Who is allowed to exit the bid
     uint256 amount; // User's demand
     uint256 tokensFilled; // Amount of tokens filled
@@ -39,11 +39,10 @@ library BidLib {
         }
     }
 
-    /// @notice Resolve the demand of a bid
+    /// @notice Resolve the demand of a bid at its maxPrice
     /// @param bid The bid
-    /// @param price The price of the bid
     /// @return The demand of the bid
-    function demand(Bid memory bid, uint256 price) internal pure returns (uint256) {
-        return bid.exactIn ? bid.amount.resolveCurrencyDemand(price) : bid.amount;
+    function demand(Bid memory bid) internal pure returns (uint256) {
+        return bid.exactIn ? bid.amount.resolveCurrencyDemand(bid.maxPrice) : bid.amount;
     }
 }

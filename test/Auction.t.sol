@@ -48,7 +48,7 @@ contract AuctionTest is TokenHandler, Test {
 
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
-        emit ITickStorage.TickInitialized(1, _tickPriceAt(1));
+        emit ITickStorage.TickInitialized(_tickPriceAt(1));
         auction = new Auction(address(token), TOTAL_SUPPLY, params);
 
         token.mint(address(auction), TOTAL_SUPPLY);
@@ -131,7 +131,7 @@ contract AuctionTest is TokenHandler, Test {
         // First checkpoint is blank
         emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(1), 0, 0);
         vm.expectEmit(true, true, true, true);
-        emit ITickStorage.TickInitialized(2, _tickPriceAt(2));
+        emit ITickStorage.TickInitialized(_tickPriceAt(2));
 
         // Bid to purchase 500e18 tokens at a price of 2e6
         auction.submitBid{value: 500e18 * _tickPriceAt(2)}(
@@ -139,7 +139,7 @@ contract AuctionTest is TokenHandler, Test {
         );
 
         vm.expectEmit(true, true, true, true);
-        emit ITickStorage.TickInitialized(3, _tickPriceAt(3));
+        emit ITickStorage.TickInitialized(_tickPriceAt(3));
         // Bid 1503 ETH to purchase 501 tokens at a price of 3
         // This bid will move the clearing price because now demand > total supply but no checkpoint is made until the next block
         auction.submitBid{value: 501e18 * _tickPriceAt(3)}(
@@ -154,13 +154,13 @@ contract AuctionTest is TokenHandler, Test {
     }
 
     function test_submitBid_exactIn_atFloorPrice_reverts() public {
-        vm.expectRevert(BidLib.InvalidBidPrice.selector);
-        auction.submitBid{value: 10e18}(_tickPriceAt(1), true, 10e18, alice, 0, bytes(''));
+        vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
+        auction.submitBid{value: 10e18}(_tickPriceAt(1), true, 10e18, alice, 1, bytes(''));
     }
 
     function test_submitBid_exactOut_atFloorPrice_reverts() public {
-        vm.expectRevert(BidLib.InvalidBidPrice.selector);
-        auction.submitBid{value: 10e18 * _tickPriceAt(1)}(_tickPriceAt(1), false, 10e18, alice, 0, bytes(''));
+        vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
+        auction.submitBid{value: 10e18 * _tickPriceAt(1)}(_tickPriceAt(1), false, 10e18, alice, 1, bytes(''));
     }
 
     function test_submitBid_exactInMsgValue_revertsWithInvalidAmount() public {

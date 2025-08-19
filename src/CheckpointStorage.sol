@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {TickStorage} from './TickStorage.sol';
+import {Tick, TickStorage} from './TickStorage.sol';
 import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint} from './libraries/CheckpointLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
-import {Tick, TickLib} from './libraries/TickLib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
@@ -16,7 +15,6 @@ abstract contract CheckpointStorage is TickStorage {
     using FixedPointMathLib for uint256;
     using AuctionStepLib for *;
     using BidLib for *;
-    using TickLib for Tick;
     using SafeCastLib for uint256;
     using DemandLib for Demand;
 
@@ -28,7 +26,7 @@ abstract contract CheckpointStorage is TickStorage {
     /// @notice The block number of the last checkpointed block
     uint256 public lastCheckpointedBlock;
 
-    constructor(uint256 _floorPrice, uint256 _tickSpacing) TickStorage(_tickSpacing) {
+    constructor(uint256 _floorPrice, uint256 _tickSpacing) TickStorage(_tickSpacing, _floorPrice) {
         floorPrice = _floorPrice;
     }
 
@@ -120,30 +118,29 @@ abstract contract CheckpointStorage is TickStorage {
     /// @notice Calculate the tokens sold, proportion of input used, and the block number of the next checkpoint under the bid's max price
     /// @dev This function does an iterative search through the checkpoints and thus is more gas intensive
     /// @param upper The upper checkpoint
-    /// @param bidDemand The demand of the bid
-    /// @param tickDemand The demand of the tick
-    /// @param maxPrice The max price of the bid
+    /// @param bid The bid
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent
     /// @return nextCheckpointBlock The block number of the checkpoint under the bid's max price. Will be 0 if it does not exist.
-    function _accountPartiallyFilledCheckpoints(
-        Checkpoint memory upper,
-        uint256 bidDemand,
-        uint256 tickDemand,
-        uint256 maxPrice
-    ) internal view returns (uint256 tokensFilled, uint256 currencySpent, uint256 nextCheckpointBlock) {
+    function _accountPartiallyFilledCheckpoints(Checkpoint memory upper, Bid memory bid)
+        internal
+        view
+        returns (uint256 tokensFilled, uint256 currencySpent, uint256 nextCheckpointBlock)
+    {
+        uint256 bidDemand = bid.demand();
+        uint256 tickDemand = getTick(bid.maxPrice).demand.resolve(bid.maxPrice);
         while (upper.prev != 0) {
             Checkpoint memory _next = _getCheckpoint(upper.prev);
             // Stop searching when the next checkpoint is less than the tick price
-            if (_next.clearingPrice < maxPrice) {
-                if (upper.clearingPrice == maxPrice) {
+            if (_next.clearingPrice < bid.maxPrice) {
+                if (upper.clearingPrice == bid.maxPrice) {
                     // Upper is the last checkpoint where tick.price == clearingPrice
                     // Account for tokens sold in the upperCheckpoint block, since checkpoint ranges are not inclusive [start,end)
                     (uint256 _upperCheckpointTokensFilled, uint256 _upperCheckpointCurrencySpent) =
                     _calculatePartialFill(
                         bidDemand,
                         tickDemand,
-                        maxPrice,
+                        bid.maxPrice,
                         upper.blockCleared,
                         upper.mps,
                         upper.resolvedDemandAboveClearingPrice
@@ -156,7 +153,7 @@ abstract contract CheckpointStorage is TickStorage {
             (uint256 _tokensFilled, uint256 _currencySpent) = _calculatePartialFill(
                 bidDemand,
                 tickDemand,
-                maxPrice,
+                bid.maxPrice,
                 upper.totalCleared - _next.totalCleared,
                 upper.cumulativeMps - _next.cumulativeMps,
                 upper.resolvedDemandAboveClearingPrice

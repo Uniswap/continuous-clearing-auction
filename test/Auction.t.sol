@@ -153,6 +153,22 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
     }
 
+    function test_checkpoint_startBlock_succeeds() public {
+        vm.roll(auction.startBlock());
+        auction.checkpoint();
+    }
+
+    function test_checkpoint_endBlock_succeeds() public {
+        vm.roll(auction.endBlock());
+        auction.checkpoint();
+    }
+
+    function test_checkpoint_afterEndBlock_reverts() public {
+        vm.roll(auction.endBlock() + 1);
+        vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
+        auction.checkpoint();
+    }
+
     function test_submitBid_exactIn_atFloorPrice_reverts() public {
         vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
         auction.submitBid{value: 10e18}(_tickPriceAt(1), true, 10e18, alice, 1, bytes(''));

@@ -35,18 +35,12 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     error InvalidAmount();
     /// @notice Error thrown when the auction is not started
     error AuctionNotStarted();
-    /// @notice Error thrown when the current step is not complete
-    error AuctionStepNotOver();
     /// @notice Error thrown when the total supply is zero
     error TotalSupplyIsZero();
     /// @notice Error thrown when the floor price is zero
     error FloorPriceIsZero();
     /// @notice Error thrown when the tick spacing is zero
     error TickSpacingIsZero();
-    /// @notice Error thrown when the end block is before the start block
-    error EndBlockIsBeforeStartBlock();
-    /// @notice Error thrown when the end block is too large
-    error EndBlockIsTooLarge();
     /// @notice Error thrown when the claim block is before the end block
     error ClaimBlockIsBeforeEndBlock();
     /// @notice Error thrown when the funds recipient is the zero address

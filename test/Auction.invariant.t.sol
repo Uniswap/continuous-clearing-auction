@@ -154,7 +154,7 @@ contract AuctionInvariantHandler is Test {
             bidIds.push(nextBidId);
             bidCount++;
         } catch (bytes memory revertData) {
-            if (block.number >= auction.endBlock()) {
+            if (block.number > auction.endBlock()) {
                 assertEq(revertData, abi.encodeWithSelector(IAuctionStepStorage.AuctionIsOver.selector));
             } else if (inputAmount == 0) {
                 assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidAmount.selector));

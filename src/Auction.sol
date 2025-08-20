@@ -21,7 +21,7 @@ import {Demand, DemandLib} from './libraries/DemandLib.sol';
 
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-
+import {console2} from 'forge-std/console2.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
@@ -142,6 +142,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     /// @notice Register a new checkpoint
     /// @dev This function is called every time a new bid is submitted above the current clearing price
     function checkpoint() public returns (Checkpoint memory _checkpoint) {
+        if (block.number == lastCheckpointedBlock) return latestCheckpoint();
         if (block.number < startBlock) revert AuctionNotStarted();
 
         // Advance to the current step if needed, summing up the results since the last checkpointed block
@@ -209,8 +210,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         uint128 prevTickId,
         bytes calldata hookData
     ) internal returns (uint256 bidId) {
-        // First bid in a block updates the clearing price
-        if (lastCheckpointedBlock != block.number) checkpoint();
+        checkpoint();
 
         _initializeTickIfNeeded(prevTickId, maxPrice);
 

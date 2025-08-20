@@ -33,6 +33,7 @@ contract AuctionInvariantHandler is Test {
     IERC20Minimal public token;
 
     uint128 public constant BID_MAX_PRICE = type(uint64).max;
+    uint128 public BID_MIN_PRICE;
 
     // Ghost variables
     Checkpoint _checkpoint;
@@ -45,6 +46,8 @@ contract AuctionInvariantHandler is Test {
         currency = auction.currency();
         token = auction.token();
         actors = _actors;
+
+        BID_MIN_PRICE = uint128(auction.floorPrice() + auction.tickSpacing());
     }
 
     modifier useActor(uint256 actorIndexSeed) {
@@ -76,8 +79,13 @@ contract AuctionInvariantHandler is Test {
 
     /// @notice Generate random values for amount and max price given a desired resolved amount of tokens to purchase
     /// @dev Bounded by purchasing the total supply of tokens and some reasonable max price for bids to prevent overflow
-    function useAmountMaxPrice(bool exactIn, uint256 amount, uint256 seed) public view returns (uint256, uint128) {
-        uint128 maxPrice = uint128(_bound(seed, auction.floorPrice() + auction.tickSpacing(), BID_MAX_PRICE));
+    function useAmountMaxPrice(bool exactIn, uint256 amount, uint256 tickNumber)
+        public
+        view
+        returns (uint256, uint128)
+    {
+        uint128 tickNumberPrice = uint128(auction.floorPrice() + tickNumber * auction.tickSpacing());
+        uint128 maxPrice = uint128(_bound(tickNumberPrice, BID_MIN_PRICE, BID_MAX_PRICE));
         // Round down to the nearest tick boundary
         maxPrice -= (maxPrice % uint128(auction.tickSpacing()));
 
@@ -85,7 +93,7 @@ contract AuctionInvariantHandler is Test {
             uint256 inputAmount = amount;
             return (inputAmount, maxPrice);
         } else {
-            uint256 inputAmount = amount.fullMulDivUp(maxPrice, auction.tickSpacing());
+            uint256 inputAmount = amount * maxPrice;
             return (inputAmount, maxPrice);
         }
     }
@@ -104,7 +112,11 @@ contract AuctionInvariantHandler is Test {
     function getLowerTick(uint256 price) public view returns (uint128) {
         uint128 id = toId(auction.floorPrice());
         while (toPrice(id) < price) {
+            uint128 _id = id;
             (id,) = auction.ticks(id);
+            if (id == type(uint128).max) {
+                return _id;
+            }
         }
         return id;
     }
@@ -116,14 +128,14 @@ contract AuctionInvariantHandler is Test {
     }
 
     /// @notice Handle a bid submission, ensuring that the actor has enough funds and the bid parameters are valid
-    function handleSubmitBid(bool exactIn, uint256 actorIndexSeed, uint128 maxPriceSeed)
+    function handleSubmitBid(bool exactIn, uint256 actorIndexSeed, uint128 tickNumber)
         public
         payable
         useActor(actorIndexSeed)
         validateCheckpoint
     {
-        uint256 amount = maxPriceSeed % auction.totalSupply();
-        (uint256 inputAmount, uint128 maxPrice) = useAmountMaxPrice(exactIn, amount, maxPriceSeed);
+        uint256 amount = tickNumber % auction.totalSupply();
+        (uint256 inputAmount, uint128 maxPrice) = useAmountMaxPrice(exactIn, amount, tickNumber);
 
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
@@ -137,7 +149,7 @@ contract AuctionInvariantHandler is Test {
         uint128 prevHintId = getLowerTick(maxPrice);
         uint256 nextBidId = auction.nextBidId();
         try auction.submitBid{value: currency.isAddressZero() ? inputAmount : 0}(
-            maxPrice, exactIn, amount, currentActor, prevHintId, bytes('')
+            maxPrice, exactIn, inputAmount, currentActor, prevHintId, bytes('')
         ) {
             bidIds.push(nextBidId);
             bidCount++;
@@ -216,7 +228,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
         }
     }
 
-    function invariant_allFullyFilledBidsAreWithdrawable() public {
+    function invariant_canExitAndClaimFullyFilledBids() public {
         // Roll to end of the auction
         vm.roll(auction.endBlock() + 1);
 
@@ -239,6 +251,20 @@ contract AuctionInvariantTest is AuctionBaseTest {
             bid = getBid(i);
             if (bid.tokensFilled == 0) continue;
             assertEq(bid.exitedBlock, block.number);
+        }
+
+        vm.roll(auction.claimBlock());
+        for (uint256 i = 0; i < bidCount; i++) {
+            Bid memory bid = getBid(i);
+            if (bid.tokensFilled == 0) continue;
+            assertNotEq(bid.exitedBlock, 0);
+
+            vm.expectEmit(true, true, true, true);
+            emit IAuction.TokensClaimed(bid.owner, bid.tokensFilled);
+            auction.claimTokens(i);
+
+            bid = getBid(i);
+            assertEq(bid.tokensFilled, 0);
         }
     }
 }

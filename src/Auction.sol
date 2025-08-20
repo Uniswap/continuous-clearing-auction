@@ -139,11 +139,16 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         return _clearingPrice;
     }
 
+    function checkpoint() public returns (Checkpoint memory _checkpoint) {
+        return _unsafeCheckpoint(block.number);
+    }
+
     /// @notice Register a new checkpoint
     /// @dev This function is called every time a new bid is submitted above the current clearing price
-    function checkpoint() public returns (Checkpoint memory _checkpoint) {
-        if (block.number == lastCheckpointedBlock) return latestCheckpoint();
-        if (block.number < startBlock) revert AuctionNotStarted();
+    function _unsafeCheckpoint(uint256 blockNumber) internal returns (Checkpoint memory _checkpoint) {
+        if (blockNumber == lastCheckpointedBlock) return latestCheckpoint();
+        if (blockNumber < startBlock) revert AuctionNotStarted();
+        if (blockNumber > endBlock) revert AuctionIsOver();
 
         // Advance to the current step if needed, summing up the results since the last checkpointed block
         (_checkpoint,) = _advanceToCurrentStep();
@@ -181,12 +186,14 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             tickUpperPrice, minimumClearingPrice, blockTokenSupply, _checkpoint.cumulativeMps
         );
 
-        _checkpoint = _updateCheckpoint(_checkpoint, step, _sumDemandAboveClearing, newClearingPrice, blockTokenSupply);
+        _checkpoint = _updateCheckpoint(
+            _checkpoint, step, _sumDemandAboveClearing, blockNumber, newClearingPrice, blockTokenSupply
+        );
 
         _insertCheckpoint(_checkpoint);
 
         emit CheckpointUpdated(
-            block.number, _checkpoint.clearingPrice, _checkpoint.totalCleared, _checkpoint.cumulativeMps
+            blockNumber, _checkpoint.clearingPrice, _checkpoint.totalCleared, _checkpoint.cumulativeMps
         );
     }
 
@@ -194,12 +201,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     /// @dev Only called when the auction is over. Changes the current state of the `step` to the final step in the auction
     ///      any future calls to `step.mps` will return the mps of the last step in the auction
     function _getFinalCheckpoint() internal returns (Checkpoint memory _checkpoint) {
-        uint256 _checkpointedBlock;
-        (_checkpoint, _checkpointedBlock) = _advanceToCurrentStep();
-        if (endBlock - _checkpointedBlock > 0) {
-            _checkpoint = _checkpoint.transform(_checkpointedBlock, endBlock - _checkpointedBlock, step.mps);
-        }
-        return _checkpoint;
+        return _unsafeCheckpoint(endBlock);
     }
 
     function _submitBid(
@@ -279,10 +281,11 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
         if (block.number < endBlock || bid.maxPrice <= clearingPrice()) revert CannotExitBid();
 
+        Checkpoint memory finalCheckpoint = _unsafeCheckpoint(endBlock);
         /// @dev Bid was fully filled and the auction is now over
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
         (uint256 tokensFilled, uint256 currencySpent) =
-            _accountFullyFilledCheckpoints(_getFinalCheckpoint(), startCheckpoint, bid);
+            _accountFullyFilledCheckpoints(finalCheckpoint, startCheckpoint, bid);
 
         uint256 resolvedAmount = bid.exactIn ? bid.amount : bid.amount * bid.maxPrice;
         _processExit(bidId, bid, tokensFilled, resolvedAmount - currencySpent);

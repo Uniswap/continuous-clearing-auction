@@ -251,7 +251,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
 
     function invariant_canExitAndClaimFullyFilledBids() public {
         // Roll to end of the auction
-        vm.roll(auction.endBlock() + 1);
+        vm.roll(auction.endBlock());
 
         uint256 clearingPrice = auction.clearingPrice();
 

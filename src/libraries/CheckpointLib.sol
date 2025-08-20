@@ -32,16 +32,12 @@ library CheckpointLib {
     {
         // This is an unsafe cast, but we ensure in the construtor that the max blockDelta (end - start) * mps is always less than 1e7 (100%)
         uint24 deltaMps = uint24(mps * blockDelta);
-        return Checkpoint({
-            clearingPrice: checkpoint.clearingPrice,
-            blockCleared: checkpoint.blockCleared,
-            totalCleared: checkpoint.totalCleared + checkpoint.blockCleared * blockDelta,
-            cumulativeMps: checkpoint.cumulativeMps + deltaMps,
-            mps: mps,
-            cumulativeMpsPerPrice: checkpoint.cumulativeMpsPerPrice
-                + uint256(deltaMps).fullMulDiv(BidLib.PRECISION, checkpoint.clearingPrice),
-            resolvedDemandAboveClearingPrice: checkpoint.resolvedDemandAboveClearingPrice,
-            prev: checkpointBlock
-        });
+        checkpoint.totalCleared += checkpoint.blockCleared * blockDelta;
+        checkpoint.cumulativeMps += deltaMps;
+        checkpoint.cumulativeMpsPerPrice +=
+            checkpoint.clearingPrice != 0 ? uint256(deltaMps).fullMulDiv(BidLib.PRECISION, checkpoint.clearingPrice) : 0;
+        checkpoint.mps = mps;
+        checkpoint.prev = checkpointBlock;
+        return checkpoint;
     }
 }

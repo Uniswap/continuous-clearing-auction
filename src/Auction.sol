@@ -243,7 +243,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         uint128 prevHintId,
         bytes calldata hookData
     ) external payable returns (uint256) {
-        if (block.number > endBlock) revert AuctionIsOver();
+        if (block.number >= endBlock) revert AuctionIsOver();
         uint256 resolvedAmount = exactIn ? amount : amount * maxPrice;
         if (resolvedAmount == 0) revert InvalidAmount();
         if (currency.isAddressZero()) {
@@ -277,7 +277,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     function exitBid(uint256 bidId) external {
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
-        if (block.number <= endBlock || bid.maxPrice <= clearingPrice()) revert CannotExitBid();
+        if (block.number < endBlock || bid.maxPrice <= clearingPrice()) revert CannotExitBid();
 
         /// @dev Bid was fully filled and the auction is now over
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
@@ -315,7 +315,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
                 _accountFullyFilledCheckpoints(_getCheckpoint(nextCheckpointBlock), startCheckpoint, bid);
             tokensFilled += _tokensFilled;
             currencySpent += _currencySpent;
-        } else if (block.number > endBlock && bid.maxPrice == _clearingPrice) {
+        } else if (block.number >= endBlock && bid.maxPrice == _clearingPrice) {
             /// @dev Bid is partially filled at the end of the auction
             /// Setup:
             /// lastValidCheckpoint --- ... | outbidCheckpoint --- ... | latestCheckpoint ... | endBlock

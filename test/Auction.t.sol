@@ -502,27 +502,27 @@ contract AuctionTest is TokenHandler, Test {
     /// forge-config: ci.isolate = true
     function test_exitPartiallyFilledBid_succeeds_gas() public {
         address bob = makeAddr('bob');
-        uint256 bidId = auction.submitBid{value: inputAmountForTokens(500e18, tickNumberToPriceX96(2))}(
-            tickNumberToPriceX96(2),
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(500e18, tickNumberToPriceX96(11))}(
+            tickNumberToPriceX96(11),
             true,
-            inputAmountForTokens(500e18, tickNumberToPriceX96(2)),
+            inputAmountForTokens(500e18, tickNumberToPriceX96(11)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
         );
-        uint256 bidId2 = auction.submitBid{value: inputAmountForTokens(500e18, tickNumberToPriceX96(3))}(
-            tickNumberToPriceX96(3),
+        uint256 bidId2 = auction.submitBid{value: inputAmountForTokens(500e18, tickNumberToPriceX96(21))}(
+            tickNumberToPriceX96(21),
             true,
-            inputAmountForTokens(500e18, tickNumberToPriceX96(3)),
+            inputAmountForTokens(500e18, tickNumberToPriceX96(21)),
             bob,
-            tickNumberToPriceX96(2),
+            tickNumberToPriceX96(11),
             bytes('')
         );
 
         // Clearing price is at 2
         vm.roll(block.number + 1);
         auction.checkpoint();
-        assertEq(auction.clearingPrice(), tickNumberToPriceX96(2));
+        assertEq(auction.clearingPrice(), tickNumberToPriceX96(11));
 
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 bobBalanceBefore = address(bob).balance;

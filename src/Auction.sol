@@ -8,6 +8,7 @@ import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
 
 import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
+import {console2} from 'forge-std/console2.sol';
 
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';

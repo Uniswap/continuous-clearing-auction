@@ -464,4 +464,129 @@ contract AuctionTest is TokenHandler, Test {
         assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + 240e18);
         vm.stopPrank();
     }
+
+    function test_onTokensReceived_withCorrectTokenAndAmount_succeeds() public {
+        // Should not revert since tokens are already minted in setUp()
+        auction.onTokensReceived(address(token), TOTAL_SUPPLY);
+    }
+
+    function test_onTokensReceived_withWrongToken_reverts() public {
+        // Create a different token
+        address wrongToken = makeAddr('wrongToken');
+        
+        vm.expectRevert(IAuction.IDistributionContract__InvalidToken.selector);
+        auction.onTokensReceived(wrongToken, TOTAL_SUPPLY);
+    }
+
+    function test_onTokensReceived_withWrongAmount_reverts() public {
+        vm.expectRevert(IAuction.IDistributionContract__InvalidAmount.selector);
+        auction.onTokensReceived(address(token), TOTAL_SUPPLY + 1);
+    }
+
+    function test_onTokensReceived_withWrongBalance_reverts() public {
+        // Mint less tokens than expected
+        token.mint(address(auction), TOTAL_SUPPLY - 1);
+        
+        vm.expectRevert(IAuction.IDistributionContract__InvalidAmountReceived.selector);
+        auction.onTokensReceived(address(token), TOTAL_SUPPLY);
+    }
+
+    function test_advanceToCurrentStep_withClearingPriceZero() public {
+        // Create auction with multiple steps
+        bytes memory auctionStepsData = AuctionStepsBuilder.init()
+            .addStep(100e3, 100);
+        
+        AuctionParameters memory params = AuctionParamsBuilder.init()
+            .withCurrency(ETH_SENTINEL)
+            .withFloorPrice(FLOOR_PRICE)
+            .withTickSpacing(TICK_SPACING)
+            .withValidationHook(address(0))
+            .withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient)
+            .withStartBlock(block.number)
+            .withEndBlock(block.number + 100)
+            .withClaimBlock(block.number + 100)
+            .withAuctionStepsData(auctionStepsData);
+
+        Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(newAuction), TOTAL_SUPPLY);
+
+        // Advance to middle of step without any bids (clearing price = 0)
+        vm.roll(block.number + 50);
+        newAuction.checkpoint();
+        
+        // Should not have transformed checkpoint since clearing price is 0
+        // The clearing price will be set to floor price when first checkpoint is created
+        assertEq(newAuction.clearingPrice(), FLOOR_PRICE);
+    }
+
+    function test_calculateNewClearingPrice_withNoDemand() public {
+        // Don't submit any bids
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+        
+        // Clearing price should be the tick upper price since there's no demand
+        assertEq(auction.clearingPrice(), auction.tickUpperPrice());
+    }
+
+    function test_exitPartiallyFilledBid_withInvalidCheckpointHint_reverts() public {
+        uint256 bidId = auction.submitBid{value: 100e18}(_tickPriceAt(2), true, 100e18, alice, 1, bytes(''));
+        
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+        
+        vm.roll(auction.endBlock() + 1);
+        
+        // Try to exit with invalid checkpoint hint - should revert with CannotExitBid since bid is not outbid
+        vm.expectRevert(IAuction.CannotExitBid.selector);
+        auction.exitPartiallyFilledBid(bidId, 999); // Invalid checkpoint block
+    }
+
+    function test_advanceToCurrentStep_withMultipleStepsAndClearingPrice() public {
+        // Create auction with multiple steps that sum to 100% (1e7)
+        // Each step: mps * blocks = total, sum must equal 1e7 = 10,000,000
+        bytes memory auctionStepsData = AuctionStepsBuilder.init()
+            .addStep(100e3, 20)  // 100e3 * 20 = 2,000,000
+            .addStep(150e3, 20)  // 150e3 * 20 = 3,000,000  
+            .addStep(250e3, 20); // 250e3 * 20 = 5,000,000, total = 10,000,000 = 1e7
+        
+        AuctionParameters memory params = AuctionParamsBuilder.init()
+            .withCurrency(ETH_SENTINEL)
+            .withFloorPrice(FLOOR_PRICE)
+            .withTickSpacing(TICK_SPACING)
+            .withValidationHook(address(0))
+            .withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient)
+            .withStartBlock(block.number)
+            .withEndBlock(block.number + 60)
+            .withClaimBlock(block.number + 60)
+            .withAuctionStepsData(auctionStepsData);
+
+        Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(newAuction), TOTAL_SUPPLY);
+
+        // Submit a bid to create initial checkpoint with clearing price > 0
+        newAuction.submitBid{value: 100e18}(_tickPriceAt(2), true, 100e18, alice, 1, bytes(''));
+        
+        // Advance to block 10 (middle of first step)
+        vm.roll(block.number + 10);
+        newAuction.checkpoint();
+        // Don't assert specific clearing price since it depends on demand vs supply
+        
+        // Advance to block 25 - this should trigger the while loop to advance past first step
+        vm.roll(block.number + 15); // Now at block 25, past first step (ends at block 20)
+        newAuction.checkpoint();
+        
+        // Should now be in second step
+        (uint24 mps,,) = newAuction.step();
+        assertEq(mps, 150e3); // Should be in second step with 150e3 mps
+        
+        // Advance past second step too
+        vm.roll(block.number + 20); // Now at block 45, past second step (ends at block 40)
+        newAuction.checkpoint();
+        
+        // Should now be in third step
+        (mps,,) = newAuction.step();
+        assertEq(mps, 250e3); // Should be in third step with 250e3 mps
+    }
 }

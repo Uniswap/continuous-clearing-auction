@@ -122,9 +122,8 @@ contract AuctionInvariantHandler is Test {
     }
 
     /// @notice Roll the block number
-    /// @dev Consider decreasing the probability of this in relation to other functions
-    function handleRoll() public {
-        vm.roll(block.number + 1);
+    function handleRoll(uint256 seed) public {
+        if (seed % 3 == 0) vm.roll(block.number + 1);
     }
 
     /// @notice Handle a bid submission, ensuring that the actor has enough funds and the bid parameters are valid
@@ -134,7 +133,7 @@ contract AuctionInvariantHandler is Test {
         useActor(actorIndexSeed)
         validateCheckpoint
     {
-        uint256 amount = tickNumber % auction.totalSupply();
+        uint256 amount = _bound(tickNumber, 1, auction.totalSupply() * 2);
         (uint256 inputAmount, uint128 maxPrice) = useAmountMaxPrice(exactIn, amount, tickNumber);
 
         if (currency.isAddressZero()) {
@@ -149,7 +148,7 @@ contract AuctionInvariantHandler is Test {
         uint128 prevHintId = getLowerTick(maxPrice);
         uint256 nextBidId = auction.nextBidId();
         try auction.submitBid{value: currency.isAddressZero() ? inputAmount : 0}(
-            maxPrice, exactIn, inputAmount, currentActor, prevHintId, bytes('')
+            maxPrice, exactIn, exactIn ? inputAmount : amount, currentActor, prevHintId, bytes('')
         ) {
             bidIds.push(nextBidId);
             bidCount++;
@@ -222,6 +221,28 @@ contract AuctionInvariantTest is AuctionBaseTest {
         });
     }
 
+    function getOutbidCheckpointBlock(uint256 maxPrice) public view returns (uint256) {
+        uint256 currentBlock = auction.lastCheckpointedBlock();
+        uint256 previousBlock = 0;
+
+        if (currentBlock == 0) {
+            return 0;
+        }
+
+        while (currentBlock != 0) {
+            (uint256 clearingPrice,,,,,,, uint256 prevBlock) = auction.checkpoints(currentBlock);
+
+            if (clearingPrice <= maxPrice) {
+                return previousBlock;
+            }
+
+            previousBlock = currentBlock;
+            currentBlock = prevBlock;
+        }
+
+        return previousBlock;
+    }
+
     function invariant_canAlwaysCheckpointDuringAuction() public {
         if (block.number > auction.startBlock() && block.number < auction.endBlock()) {
             auction.checkpoint();
@@ -239,13 +260,17 @@ contract AuctionInvariantTest is AuctionBaseTest {
             Bid memory bid = getBid(i);
 
             // Invalid conditions
-            if (bid.maxPrice <= clearingPrice) continue;
             if (bid.exitedBlock != 0) continue;
             if (bid.tokensFilled != 0) continue;
 
             vm.expectEmit(true, true, true, true);
             emit IAuction.BidExited(i, bid.owner);
-            auction.exitBid(i);
+            if (bid.maxPrice > clearingPrice) {
+                auction.exitBid(i);
+            } else {
+                uint256 outbidCheckpointBlock = getOutbidCheckpointBlock(bid.maxPrice);
+                auction.exitPartiallyFilledBid(i, outbidCheckpointBlock);
+            }
 
             // Bid might be deleted if tokensFilled = 0
             bid = getBid(i);

@@ -114,6 +114,45 @@ contract AuctionTest is AuctionBaseTest {
         auction.checkpoint();
     }
 
+    function test_submitBid_exactIn_overTotalSupply_isPartiallyFilled() public {
+        uint256 amount = 2000e18;
+        uint256 bidId = auction.submitBid{value: amount * _tickPriceAt(2)}(
+            _tickPriceAt(2), true, amount * _tickPriceAt(2), alice, 1, bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+
+        vm.roll(auction.endBlock());
+        uint256 aliceBalanceBefore = address(alice).balance;
+        uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
+
+        auction.exitPartiallyFilledBid(bidId, 2);
+        assertEq(address(alice).balance, aliceBalanceBefore + 1000e18 * _tickPriceAt(2));
+
+        auction.claimTokens(bidId);
+        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
+    }
+
+    function test_submitBid_exactOut_overTotalSupply_isPartiallyFilled() public {
+        uint256 amount = 2000e18;
+        uint256 bidId =
+            auction.submitBid{value: amount * _tickPriceAt(2)}(_tickPriceAt(2), false, amount, alice, 1, bytes(''));
+
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+
+        vm.roll(auction.endBlock());
+        uint256 aliceBalanceBefore = address(alice).balance;
+        uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
+
+        auction.exitPartiallyFilledBid(bidId, 2);
+        assertEq(address(alice).balance, aliceBalanceBefore + 1000e18 * _tickPriceAt(2));
+
+        auction.claimTokens(bidId);
+        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
+    }
+
     function test_submitBid_exactIn_atFloorPrice_reverts() public {
         vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
         auction.submitBid{value: 10e18}(_tickPriceAt(1), true, 10e18, alice, 1, bytes(''));

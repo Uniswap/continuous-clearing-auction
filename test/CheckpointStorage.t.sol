@@ -89,7 +89,11 @@ contract CheckpointStorageTest is Test {
             mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta, MPS);
 
         assertEq(tokensFilled, ETH_AMOUNT.fullMulDiv(cumulativeMpsPerPriceDelta, BidLib.PRECISION * MPS));
-        assertEq(currencySpent, ETH_AMOUNT.applyMps(cumulativeMpsDelta));
+        if (tokensFilled != 0) {
+            assertEq(currencySpent, ETH_AMOUNT.applyMps(cumulativeMpsDelta));
+        } else {
+            assertEq(currencySpent, 0);
+        }
     }
 
     function test_resolve_exactOut_fuzz_succeeds(uint24 cumulativeMpsDelta) public view {

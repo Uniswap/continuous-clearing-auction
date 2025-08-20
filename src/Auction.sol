@@ -19,9 +19,9 @@ import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 
+import {console2} from 'forge-std/console2.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {console2} from 'forge-std/console2.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
@@ -300,30 +300,27 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         // Last valid checkpoint is the last checkpoint where the clearing price is <= bid.maxPrice
         Checkpoint memory lastValidCheckpoint = _getCheckpoint(outbidCheckpoint.prev);
 
+        /// @dev Bid is partially filled. Require the outbid checkpoint to be strictly > bid.maxPrice and the last valid checkpoint to be <= bid.maxPrice
+        /// lastValidCheckpoint --- ... | outbidCheckpoint --- ... | latestCheckpoint ... | endBlock
+        /// price == clearingPrice      | clearingPrice > price -------------------------->
+        if (outbidCheckpoint.clearingPrice < bid.maxPrice || lastValidCheckpoint.clearingPrice > bid.maxPrice) {
+            revert InvalidCheckpointHint();
+        }
+
         uint256 tokensFilled;
         uint256 currencySpent;
         uint256 _clearingPrice = clearingPrice();
         /// @dev Bid has been outbid
         if (bid.maxPrice < _clearingPrice) {
-            if (outbidCheckpoint.clearingPrice <= bid.maxPrice) revert InvalidCheckpointHint();
-
             uint256 nextCheckpointBlock;
             (tokensFilled, currencySpent, nextCheckpointBlock) =
-                _accountPartiallyFilledCheckpoints(outbidCheckpoint, bid);
+                _accountPartiallyFilledCheckpoints(lastValidCheckpoint, bid);
             /// Now account for the fully filled checkpoints until the startCheckpoint
             (uint256 _tokensFilled, uint256 _currencySpent) =
                 _accountFullyFilledCheckpoints(_getCheckpoint(nextCheckpointBlock), startCheckpoint, bid);
             tokensFilled += _tokensFilled;
             currencySpent += _currencySpent;
         } else if (block.number >= endBlock && bid.maxPrice == _clearingPrice) {
-            /// @dev Bid is partially filled at the end of the auction
-            /// Setup:
-            /// lastValidCheckpoint --- ... | outbidCheckpoint --- ... | latestCheckpoint ... | endBlock
-            /// price < clearingPrice       | clearingPrice == price -------------------------->
-            if (outbidCheckpoint.clearingPrice < bid.maxPrice || lastValidCheckpoint.clearingPrice > bid.maxPrice) {
-                revert InvalidCheckpointHint();
-            }
-
             (tokensFilled, currencySpent) = _accountFullyFilledCheckpoints(lastValidCheckpoint, startCheckpoint, bid);
             (uint256 partialTokensFilled, uint256 partialCurrencySpent,) =
                 _accountPartiallyFilledCheckpoints(_getFinalCheckpoint(), bid);

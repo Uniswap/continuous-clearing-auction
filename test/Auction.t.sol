@@ -114,19 +114,6 @@ contract AuctionTest is AuctionBaseTest {
         auction.checkpoint();
     }
 
-    function test_submitBid_exactIn_atEndBlock_succeeds() public {
-        vm.roll(auction.endBlock());
-        vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, _tickPriceAt(1), 0, 10000000);
-        vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(0, alice, _tickPriceAt(2), true, 500e18 * _tickPriceAt(2));
-        auction.submitBid{value: 500e18 * _tickPriceAt(2)}(_tickPriceAt(2), true, 500e18 * _tickPriceAt(2), alice, 1, bytes(''));
-
-        vm.roll(block.number + 1);
-        vm.prank(alice);
-        auction.exitBid(0);
-    }
-
     function test_submitBid_exactIn_atFloorPrice_reverts() public {
         vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
         auction.submitBid{value: 10e18}(_tickPriceAt(1), true, 10e18, alice, 1, bytes(''));

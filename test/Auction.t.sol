@@ -3,8 +3,9 @@ pragma solidity ^0.8.23;
 
 import {Auction, AuctionParameters} from '../src/Auction.sol';
 import {IAuction} from '../src/interfaces/IAuction.sol';
-import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 
+import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
+import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
@@ -190,6 +191,12 @@ contract AuctionTest is TokenHandler, Test {
         auction.submitBid{value: 1000e18}(_tickPriceAt(2), false, 0, alice, 1, bytes(''));
     }
 
+    function test_submitBid_endBlock_reverts() public {
+        vm.roll(auction.endBlock());
+        vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
+        auction.submitBid{value: 1000e18}(_tickPriceAt(2), true, 1000e18, alice, 1, bytes(''));
+    }
+
     /// forge-config: default.isolate = true
     /// forge-config: ci.isolate = true
     function test_exitBid_succeeds_gas() public {
@@ -289,9 +296,6 @@ contract AuctionTest is TokenHandler, Test {
     function test_exitBid_joinedLate_succeeds() public {
         vm.roll(auction.endBlock() - 1);
         uint256 bidId = auction.submitBid{value: 1000e18}(_tickPriceAt(2), true, 1000e18, alice, 1, bytes(''));
-
-        vm.roll(block.number + 1);
-        auction.checkpoint();
 
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));

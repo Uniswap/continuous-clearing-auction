@@ -2,6 +2,8 @@
 pragma solidity ^0.8.23;
 
 import {AuctionStepLib} from './AuctionStepLib.sol';
+
+import {FixedPoint96} from './FixedPoint96.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 struct Demand {
@@ -19,7 +21,7 @@ library DemandLib {
     }
 
     function resolveCurrencyDemand(uint256 amount, uint256 price) internal pure returns (uint256) {
-        return price == 0 ? 0 : amount / price;
+        return price == 0 ? 0 : amount.fullMulDiv(FixedPoint96.Q96, price);
     }
 
     function resolveTokenDemand(uint256 amount) internal pure returns (uint256) {

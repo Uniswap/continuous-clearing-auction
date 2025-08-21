@@ -88,15 +88,15 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
     /// @param owner The owner of the bid
-    /// @param prevHintId The id of the previous tick hint
+    /// @param prevTickPrice The price of the previous tick
     /// @param hookData Additional data to pass to the hook required for validation
     /// @return bidId The id of the bid
     function submitBid(
-        uint128 maxPrice,
+        uint256 maxPrice,
         bool exactIn,
         uint256 amount,
         address owner,
-        uint128 prevHintId,
+        uint256 prevTickPrice,
         bytes calldata hookData
     ) external payable returns (uint256 bidId);
 

@@ -4,9 +4,9 @@ pragma solidity ^0.8.23;
 import {Tick, TickStorage} from './TickStorage.sol';
 import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
-import {Checkpoint} from './libraries/CheckpointLib.sol';
+import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
-
+import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
@@ -87,7 +87,7 @@ abstract contract CheckpointStorage is TickStorage {
         _checkpoint.totalCleared += _checkpoint.blockCleared * blockDelta;
         _checkpoint.cumulativeMps += mpsSinceLastCheckpoint;
         _checkpoint.cumulativeMpsPerPrice +=
-            uint256(mpsSinceLastCheckpoint).fullMulDiv(BidLib.PRECISION, _checkpoint.clearingPrice);
+            CheckpointLib.getMpsPerPrice(mpsSinceLastCheckpoint, _checkpoint.clearingPrice);
         _checkpoint.resolvedDemandAboveClearingPrice = resolvedDemandAboveClearing;
         _checkpoint.mps = _step.mps;
         _checkpoint.prev = lastCheckpointedBlock;
@@ -155,7 +155,7 @@ abstract contract CheckpointStorage is TickStorage {
     /// @dev This function uses lazy accounting to efficiently calculate fills across time periods without iterating through individual blocks.
     ///      It MUST only be used when the bid's max price is strictly greater than the clearing price throughout the entire period being calculated.
     /// @param bid the bid to evaluate
-    /// @param cumulativeMpsPerPriceDelta the cumulative sum of (mps × 1e18 / price) across the block range
+    /// @param cumulativeMpsPerPriceDelta the cumulative sum of supply to price ratio
     /// @param cumulativeMpsDelta the cumulative sum of mps values across the block range
     /// @param mpsDenominator the percentage of the auction which the bid was spread over
     /// @return tokensFilled the amount of tokens filled for this bid
@@ -167,13 +167,13 @@ abstract contract CheckpointStorage is TickStorage {
         uint24 mpsDenominator
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
         tokensFilled = bid.exactIn
-            ? bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, BidLib.PRECISION * mpsDenominator)
+            ? bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsDenominator)
             : bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
         // If tokensFilled is 0 then currencySpent must be 0
         if (tokensFilled != 0) {
             currencySpent = bid.exactIn
                 ? bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator)
-                : tokensFilled.fullMulDivUp(BidLib.PRECISION * cumulativeMpsDelta, cumulativeMpsPerPriceDelta);
+                : tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPriceDelta);
         }
     }
 
@@ -186,8 +186,12 @@ abstract contract CheckpointStorage is TickStorage {
         uint24 mpsDelta,
         uint256 resolvedDemandAboveClearingPrice
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
-        uint256 supplySoldToTick = supplyOverMps - resolvedDemandAboveClearingPrice.applyMps(mpsDelta);
-        tokensFilled = supplySoldToTick.fullMulDiv(bidDemand.applyMps(mpsDelta), tickDemand.applyMps(mpsDelta));
-        currencySpent = tokensFilled * price;
+        // Round up here to decrease the amount sold to the partial fill tick
+        uint256 supplySoldToTick =
+            supplyOverMps - resolvedDemandAboveClearingPrice.fullMulDivUp(mpsDelta, AuctionStepLib.MPS);
+        // Rounds down for tokensFilled
+        tokensFilled = supplySoldToTick.fullMulDiv(bidDemand, tickDemand);
+        // Round up for currencySpent
+        currencySpent = tokensFilled.fullMulDivUp(price, FixedPoint96.Q96);
     }
 }

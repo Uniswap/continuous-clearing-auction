@@ -98,27 +98,16 @@ contract AuctionInvariantHandler is Test {
         }
     }
 
-    /// @dev Copied from TickStorage.sol
-    function toId(uint256 price) internal view returns (uint128) {
-        return uint128(price / auction.tickSpacing());
-    }
-
-    /// @dev Copied from TickStorage.sol
-    function toPrice(uint128 id) internal view returns (uint256) {
-        return id * auction.tickSpacing();
-    }
-
     /// @notice Return the tick immediately equal to or below the given price
-    function getLowerTick(uint256 price) public view returns (uint128) {
-        uint128 id = toId(auction.floorPrice());
-        while (toPrice(id) < price) {
-            uint128 _id = id;
-            (id,) = auction.ticks(id);
-            if (id == type(uint128).max) {
-                return _id;
+    function getLowerTick(uint256 price) public view returns (uint256) {
+        uint256 _price = auction.floorPrice();
+        while (_price < price) {
+            (_price,) = auction.ticks(_price);
+            if (_price == type(uint256).max) {
+                return _price;
             }
         }
-        return id;
+        return _price;
     }
 
     /// @notice Roll the block number
@@ -145,10 +134,10 @@ contract AuctionInvariantHandler is Test {
             permit2.approve(Currency.unwrap(currency), address(auction), type(uint160).max, type(uint48).max);
         }
 
-        uint128 prevHintId = getLowerTick(maxPrice);
+        uint256 prevTickPrice = getLowerTick(maxPrice);
         uint256 nextBidId = auction.nextBidId();
         try auction.submitBid{value: currency.isAddressZero() ? inputAmount : 0}(
-            maxPrice, exactIn, exactIn ? inputAmount : amount, currentActor, prevHintId, bytes('')
+            maxPrice, exactIn, exactIn ? inputAmount : amount, currentActor, prevTickPrice, bytes('')
         ) {
             bidIds.push(nextBidId);
             bidCount++;

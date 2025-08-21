@@ -84,17 +84,20 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     }
 
     /// @notice Advance the current step until the current block is within the step
-    function _advanceToCurrentStep() internal returns (Checkpoint memory _checkpoint, uint256 _checkpointedBlock) {
+    function _advanceToCurrentStep() internal returns (Checkpoint memory _checkpoint, uint256 _lastCheckpointedBlock) {
         // Advance the current step until the current block is within the step
         _checkpoint = latestCheckpoint();
-        _checkpointedBlock = lastCheckpointedBlock;
+        uint256 start = step.startBlock < lastCheckpointedBlock ? step.startBlock : lastCheckpointedBlock;
         uint256 end = step.endBlock;
 
-        while (block.number >= end && end != endBlock) {
+        while (block.number > end) {
             if (_checkpoint.clearingPrice > 0) {
-                _checkpoint = _checkpoint.transform(_checkpointedBlock, end - _checkpointedBlock, step.mps);
+                uint256 blockDelta = end - start - 1;
+                _checkpoint = _checkpoint.transform(blockDelta, step.mps);
+                _lastCheckpointedBlock = end;
             }
-            _checkpointedBlock = end;
+            start = end;
+            if (end == endBlock) break;
             _advanceStep();
             end = step.endBlock;
         }
@@ -111,9 +114,8 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         uint256 blockTokenSupply,
         uint24 cumulativeMps
     ) internal view returns (uint256) {
-        uint256 resolvedBlockDemandAboveClearing = sumDemandAboveClearing.resolve(_tickUpperPrice).applyMpsDenominator(
-            step.mps, AuctionStepLib.MPS - cumulativeMps
-        );
+        uint256 resolvedBlockDemandAboveClearing =
+            sumDemandAboveClearing.resolve(_tickUpperPrice).applyMpsDenominator(step.mps, AuctionStepLib.MPS);
         // If there is no demand above the clearing price or the demand is equal to the block supply, the clearing price is tickUpper
         // This can happen in a few scenarios:
         // 1. The auction just started and the tickUpper represents the floor price and should be returned
@@ -123,8 +125,12 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             return _tickUpperPrice;
         }
 
+        console2.log('sumDemandAboveClearing.currencyDemand', sumDemandAboveClearing.currencyDemand);
+        console2.log('cumulativeMps', cumulativeMps);
+
         Demand memory blockSumDemandAboveClearing =
-            sumDemandAboveClearing.applyMpsDenominator(step.mps, AuctionStepLib.MPS - cumulativeMps);
+            sumDemandAboveClearing.applyMpsDenominator(step.mps, AuctionStepLib.MPS);
+
         uint256 _clearingPrice = blockSumDemandAboveClearing.currencyDemand.fullMulDiv(
             FixedPoint96.Q96, (blockTokenSupply - blockSumDemandAboveClearing.tokenDemand)
         );
@@ -153,8 +159,9 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         if (blockNumber > endBlock) revert AuctionIsOver();
 
         // Advance to the current step if needed, summing up the results since the last checkpointed block
-        (_checkpoint,) = _advanceToCurrentStep();
-
+        uint256 _lastCheckpointedBlock;
+        (_checkpoint, _lastCheckpointedBlock) = _advanceToCurrentStep();
+        
         uint256 blockTokenSupply = (totalSupply - _checkpoint.totalCleared).applyMpsDenominator(
             step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
         );
@@ -165,9 +172,8 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         Tick memory _tickUpper = getTick(tickUpperPrice);
         // Find the tick which does not fully match the supply, stopping at the highest tick in the book
         while (
-            _sumDemandAboveClearing.resolve(tickUpperPrice).applyMpsDenominator(
-                step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
-            ) >= blockTokenSupply
+            _sumDemandAboveClearing.resolve(tickUpperPrice).applyMpsDenominator(step.mps, AuctionStepLib.MPS)
+                >= blockTokenSupply
         ) {
             // Subtract the demand at the current tickUpper before advancing to the next tick
             _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_tickUpper.demand);
@@ -188,7 +194,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         );
 
         _checkpoint = _updateCheckpoint(
-            _checkpoint, step, _sumDemandAboveClearing, blockNumber, newClearingPrice, blockTokenSupply
+            _checkpoint, step, _sumDemandAboveClearing, blockNumber, _lastCheckpointedBlock, newClearingPrice, blockTokenSupply
         );
 
         _insertCheckpoint(_checkpoint, blockNumber);

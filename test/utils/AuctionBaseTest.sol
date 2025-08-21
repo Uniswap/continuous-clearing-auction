@@ -35,7 +35,7 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 
-        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
+        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 50).addStep(100e3, 50);
         AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
             FLOOR_PRICE
         ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)

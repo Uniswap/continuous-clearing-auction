@@ -367,7 +367,7 @@ contract AuctionTest is AuctionBaseTest {
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
-        vm.roll(auction.endBlock());
+        vm.roll(auction.endBlock() + 1);
         auction.exitBid(bidId);
         // Alice initially deposited 500e18 * tickNumberToPrice(2e6) = 1000e24 ETH
         // They only purchased 500e18 tokens at a price of 1e6, so they should be refunded 1000e24 - 500e18 * tickNumberToPrice(1e6) = 500e18 ETH
@@ -435,7 +435,7 @@ contract AuctionTest is AuctionBaseTest {
 
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
-        vm.roll(auction.endBlock());
+        vm.roll(auction.endBlock() + 1);
         auction.exitBid(bidId);
         // Expect no refund since the bid was fully exited
         assertEq(address(alice).balance, aliceBalanceBefore);
@@ -490,7 +490,7 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(auction.clearingPrice(), tickNumberToPriceX96(2));
 
         // Auction has ended, but the bid is not exitable through this function because the max price is at the clearing price
-        vm.roll(auction.endBlock());
+        vm.roll(auction.endBlock() + 1);
         vm.expectRevert(IAuction.CannotExitBid.selector);
         vm.prank(alice);
         auction.exitBid(bidId);
@@ -555,7 +555,7 @@ contract AuctionTest is AuctionBaseTest {
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
         uint256 bobTokenBalanceBefore = token.balanceOf(address(bob));
 
-        vm.roll(auction.endBlock());
+        vm.roll(auction.endBlock() + 1);
         vm.startPrank(alice);
         auction.exitPartiallyFilledBid(bidId, 2);
         vm.snapshotGasLastCall('exitPartiallyFilledBid');
@@ -622,17 +622,21 @@ contract AuctionTest is AuctionBaseTest {
         uint256 bobTokenBalanceBefore = token.balanceOf(address(bob));
         uint256 charlieTokenBalanceBefore = token.balanceOf(address(charlie));
 
-        // Clearing price is at 2
-        // Alice is purchasing 800e24 / 2e6 = 400e18 tokens
-        // Bob is purchasing 1200e24 / 2e6 = 600e18 tokens
-        // Charlie is purchasing 1500e24 / 3e6 = 500e18 tokens
-        // Since the supply is only 1000e18, that means that charlie should fully fill for 600e18 tokens
-        // So 400e18 tokens left over
-        // Alice should partially fill for 400/1000 * 400e18 = 160e18 tokens
-        // - And spent 160e18 * 2 = 320 ETH. She should be refunded 800e18 - 320e18 = 480e18 ETH
-        // Bob should partially fill for 600/1000 * 400e18 = 240e18 tokens
-        // - And spent 240e18 * 2 = 480 ETH. He should be refunded 1200e18 - 480e18 = 720e18 ETH
-        vm.roll(auction.endBlock());
+        // Clearing price is at tick 21 = 2000
+        // Alice is purchasing with 400e18 * 2000 = 800e21 ETH
+        // Bob is purchasing with 600e18 * 2000 = 1200e21 ETH
+        // Charlie is purchasing with 500e18 * 2000 = 1500e21 ETH
+        //
+        // At the clearing price of 2000
+        // Charlie purchases 750e18 tokens
+        // Remaining supply is 1000 - 750 = 250e18 tokens
+        // Alice purchases 400/1000 * 250 = 100e18 tokens
+        // - Spending 100e18 * 2000 = 200e21 ETH
+        // - Refunded 800e21 - 200e21 = 600e21 ETH
+        // Bob purchases 600/1000 * 250 = 150e18 tokens
+        // - Spending 150e18 * 2000 = 300e21 ETH
+        // - Refunded 1200e21 - 300e21 = 900e21 ETH
+        vm.roll(auction.endBlock() + 1);
 
         vm.startPrank(charlie);
         auction.exitBid(bidId3);

@@ -13,7 +13,7 @@ interface IValidationHook {
     /// @param sender The sender of the bid
     /// @param hookData Additional data to pass to the hook required for validation
     function validate(
-        uint128 maxPrice,
+        uint256 maxPrice,
         bool exactIn,
         uint256 amount,
         address owner,

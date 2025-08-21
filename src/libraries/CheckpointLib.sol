@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {BidLib} from './BidLib.sol';
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {FixedPoint96} from './FixedPoint96.sol';
 
 struct Checkpoint {
     uint256 clearingPrice;
@@ -17,8 +17,6 @@ struct Checkpoint {
 
 /// @title CheckpointLib
 library CheckpointLib {
-    using FixedPointMathLib for uint256;
-
     /// @notice Return a new checkpoint after advancing the current checkpoint by a number of blocks
     /// @param checkpoint The checkpoint to transform
     /// @param checkpointBlock The block number of the checkpoint
@@ -38,10 +36,19 @@ library CheckpointLib {
             totalCleared: checkpoint.totalCleared + checkpoint.blockCleared * blockDelta,
             cumulativeMps: checkpoint.cumulativeMps + deltaMps,
             mps: mps,
-            cumulativeMpsPerPrice: checkpoint.cumulativeMpsPerPrice
-                + uint256(deltaMps).fullMulDiv(BidLib.PRECISION, checkpoint.clearingPrice),
+            cumulativeMpsPerPrice: checkpoint.cumulativeMpsPerPrice + getMpsPerPrice(deltaMps, checkpoint.clearingPrice),
             resolvedDemandAboveClearingPrice: checkpoint.resolvedDemandAboveClearingPrice,
             prev: checkpointBlock
         });
+    }
+
+    /// @notice Calculate the supply to price ratio
+    /// @dev This function returns a value in Q96 form
+    /// @param mps The number of supply mps sold
+    /// @param price The price they were sold at
+    /// @return the ratio
+    function getMpsPerPrice(uint24 mps, uint256 price) internal pure returns (uint256) {
+        // The bitshift cannot overflow because a uint24 shifted left 96 * 2 will always be less than 2^256
+        return (uint256(mps) << (FixedPoint96.RESOLUTION * 2)) / price;
     }
 }

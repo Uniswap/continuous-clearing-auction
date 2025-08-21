@@ -181,9 +181,9 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_submitBid_exactIn_overTotalSupply_isPartiallyFilled() public {
-        uint256 amount = 2000e18;
-        uint256 bidId = auction.submitBid{value: amount * tickNumberToPriceX96(2)}(
-            tickNumberToPriceX96(2), true, amount * tickNumberToPriceX96(2), alice, 1, bytes('')
+        uint256 inputAmount = inputAmountForTokens(2000e18, tickNumberToPriceX96(2));
+        uint256 bidId = auction.submitBid{value: inputAmount}(
+            tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
 
         vm.roll(block.number + 1);
@@ -194,16 +194,15 @@ contract AuctionTest is AuctionBaseTest {
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
         auction.exitPartiallyFilledBid(bidId, 2);
-        assertEq(address(alice).balance, aliceBalanceBefore + 1000e18 * tickNumberToPriceX96(2));
+        assertEq(address(alice).balance, aliceBalanceBefore + inputAmount / 2);
 
         auction.claimTokens(bidId);
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
     }
 
     function test_submitBid_exactOut_overTotalSupply_isPartiallyFilled() public {
-        uint256 amount = 2000e18;
-        uint256 bidId = auction.submitBid{value: amount * tickNumberToPriceX96(2)}(
-            tickNumberToPriceX96(2), false, amount, alice, 1, bytes('')
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(2000e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2), false, 2000e18, alice, tickNumberToPriceX96(1), bytes('')
         );
 
         vm.roll(block.number + 1);
@@ -214,7 +213,9 @@ contract AuctionTest is AuctionBaseTest {
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
         auction.exitPartiallyFilledBid(bidId, 2);
-        assertEq(address(alice).balance, aliceBalanceBefore + 1000e18 * tickNumberToPriceX96(2));
+        assertEq(
+            address(alice).balance, aliceBalanceBefore + inputAmountForTokens(2000e18, tickNumberToPriceX96(2)) / 2
+        );
 
         auction.claimTokens(bidId);
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);

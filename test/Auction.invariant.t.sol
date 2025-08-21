@@ -32,8 +32,8 @@ contract AuctionInvariantHandler is Test {
     Currency public currency;
     IERC20Minimal public token;
 
-    uint128 public constant BID_MAX_PRICE = type(uint64).max;
-    uint128 public BID_MIN_PRICE;
+    uint256 public constant BID_MAX_PRICE = type(uint256).max;
+    uint256 public BID_MIN_PRICE;
 
     // Ghost variables
     Checkpoint _checkpoint;
@@ -47,7 +47,7 @@ contract AuctionInvariantHandler is Test {
         token = auction.token();
         actors = _actors;
 
-        BID_MIN_PRICE = uint128(auction.floorPrice() + auction.tickSpacing());
+        BID_MIN_PRICE = uint256(auction.floorPrice() + auction.tickSpacing());
     }
 
     modifier useActor(uint256 actorIndexSeed) {

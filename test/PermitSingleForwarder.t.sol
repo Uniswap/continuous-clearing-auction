@@ -3,8 +3,9 @@ pragma solidity ^0.8.23;
 
 import {PermitSingleForwarder} from '../src/PermitSingleForwarder.sol';
 import {IPermitSingleForwarder} from '../src/interfaces/IPermitSingleForwarder.sol';
-import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
+
 import {Test} from 'forge-std/Test.sol';
+import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 
 // Mock Permit2 contract for testing
 contract MockPermit2 {
@@ -19,11 +20,9 @@ contract MockPermit2 {
         lastReason = _reason;
     }
 
-    function permit(
-        address owner,
-        IAllowanceTransfer.PermitSingle calldata permitSingle,
-        bytes calldata signature
-    ) external {
+    function permit(address owner, IAllowanceTransfer.PermitSingle calldata permitSingle, bytes calldata signature)
+        external
+    {
         if (shouldRevert) {
             revert(string(lastReason));
         }
@@ -90,7 +89,7 @@ contract PermitSingleForwarderTest is Test {
         });
 
         bytes memory signature = new bytes(65); // Mock signature
-        bytes memory expectedError = "Permit expired";
+        bytes memory expectedError = 'Permit expired';
 
         // Set mock to revert
         mockPermit2.setShouldRevert(true);
@@ -101,7 +100,7 @@ contract PermitSingleForwarderTest is Test {
 
         // Should return the error bytes (revert includes ABI encoding)
         assertTrue(result.length > 0);
-        assertTrue(keccak256(result) != keccak256(""));
+        assertTrue(keccak256(result) != keccak256(''));
     }
 
     function test_permit_withEmptySignature() public {
@@ -306,7 +305,8 @@ contract PermitSingleForwarderTest is Test {
         });
 
         bytes memory signature = new bytes(65);
-        bytes memory complexError = abi.encodeWithSignature("ComplexError(uint256,string)", 123, "Complex error message");
+        bytes memory complexError =
+            abi.encodeWithSignature('ComplexError(uint256,string)', 123, 'Complex error message');
 
         // Set mock to revert with complex error
         mockPermit2.setShouldRevert(true);
@@ -317,7 +317,7 @@ contract PermitSingleForwarderTest is Test {
 
         // Should return the complex error bytes (revert includes ABI encoding)
         assertTrue(result.length > 0);
-        assertTrue(keccak256(result) != keccak256(""));
+        assertTrue(keccak256(result) != keccak256(''));
     }
 
     function test_permit_isPayable() public {

@@ -84,16 +84,16 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     }
 
     /// @notice Advance the current step until the current block is within the step
-    function _advanceToCurrentStep() internal returns (Checkpoint memory _checkpoint, uint256 _lastCheckpointedBlock) {
+    function _advanceToCurrentStep() internal returns (Checkpoint memory _checkpoint, uint256 start) {
         // Advance the current step until the current block is within the step
         _checkpoint = latestCheckpoint();
-        uint256 start = step.startBlock < lastCheckpointedBlock ? step.startBlock : lastCheckpointedBlock;
+        // Start at the smaller of the last checkpointed block or the start block of the current step
+        start = step.startBlock > lastCheckpointedBlock ? lastCheckpointedBlock : step.startBlock;
         uint256 end = step.endBlock;
 
         while (block.number > end) {
             if (_checkpoint.clearingPrice > 0) {
-                _lastCheckpointedBlock = end - 1;
-                _checkpoint = _checkpoint.transform(_lastCheckpointedBlock - start, step.mps);
+                _checkpoint = _checkpoint.transform(end - 1 - start, step.mps);
             }
             start = end;
             if (end == endBlock) break;

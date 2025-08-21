@@ -92,9 +92,8 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
 
         while (block.number > end) {
             if (_checkpoint.clearingPrice > 0) {
-                uint256 blockDelta = end - start - 1;
-                _checkpoint = _checkpoint.transform(blockDelta, step.mps);
-                _lastCheckpointedBlock = end;
+                _lastCheckpointedBlock = end - 1;
+                _checkpoint = _checkpoint.transform(_lastCheckpointedBlock - start, step.mps);
             }
             start = end;
             if (end == endBlock) break;
@@ -161,6 +160,9 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         // Advance to the current step if needed, summing up the results since the last checkpointed block
         uint256 _lastCheckpointedBlock;
         (_checkpoint, _lastCheckpointedBlock) = _advanceToCurrentStep();
+        console2.log('checkpointing blockNumber', blockNumber);
+        console2.log('after advance _lastCheckpointedBlock', _lastCheckpointedBlock);
+        console2.log('after advance _checkpoint.cumulativeMps', _checkpoint.cumulativeMps);
         
         uint256 blockTokenSupply = (totalSupply - _checkpoint.totalCleared).applyMpsDenominator(
             step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps

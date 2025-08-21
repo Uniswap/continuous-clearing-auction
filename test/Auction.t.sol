@@ -3,8 +3,9 @@ pragma solidity ^0.8.23;
 
 import {Auction, AuctionParameters} from '../src/Auction.sol';
 import {IAuction} from '../src/interfaces/IAuction.sol';
-import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 
+import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
+import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';

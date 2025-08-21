@@ -8,7 +8,6 @@ import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
 import {Tick} from './TickStorage.sol';
 
 import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
-import {console2} from 'forge-std/console2.sol';
 
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
@@ -245,7 +244,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         uint256 prevTickPrice,
         bytes calldata hookData
     ) external payable returns (uint256) {
-        if (block.number > endBlock) revert AuctionIsOver();
+        if (block.number >= endBlock) revert AuctionIsOver();
         uint256 requiredCurrencyAmount = BidLib.inputAmount(exactIn, amount, maxPrice);
         if (requiredCurrencyAmount == 0) revert InvalidAmount();
         if (currency.isAddressZero()) {
@@ -281,7 +280,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     function exitBid(uint256 bidId) external {
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
-        if (block.number <= endBlock || bid.maxPrice <= clearingPrice()) revert CannotExitBid();
+        if (block.number < endBlock || bid.maxPrice <= clearingPrice()) revert CannotExitBid();
 
         /// @dev Bid was fully filled and the auction is now over
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
@@ -323,7 +322,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
                 _accountFullyFilledCheckpoints(_getCheckpoint(nextCheckpointBlock), startCheckpoint, bid);
             tokensFilled += _tokensFilled;
             currencySpent += _currencySpent;
-        } else if (block.number > endBlock && bid.maxPrice == _clearingPrice) {
+        } else if (block.number >= endBlock && bid.maxPrice == _clearingPrice) {
             (tokensFilled, currencySpent) = _accountFullyFilledCheckpoints(lastValidCheckpoint, startCheckpoint, bid);
             (uint256 partialTokensFilled, uint256 partialCurrencySpent,) =
                 _accountPartiallyFilledCheckpoints(_getFinalCheckpoint(), bid);

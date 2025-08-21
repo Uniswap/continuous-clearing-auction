@@ -28,6 +28,8 @@ library BidLib {
 
     error InvalidBidPrice();
 
+    uint256 public constant PRECISION = 1e18;
+
     /// @notice Validate a bid
     /// @dev The bid must be greater than the clearing price and at a tick boundary
     /// @param maxPrice The max price of the bid

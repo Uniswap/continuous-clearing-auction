@@ -4,11 +4,9 @@ pragma solidity ^0.8.23;
 import {Tick, TickStorage} from './TickStorage.sol';
 import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
-import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
+import {Checkpoint} from './libraries/CheckpointLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
-
-import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 

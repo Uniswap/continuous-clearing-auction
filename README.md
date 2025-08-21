@@ -34,6 +34,7 @@ graph TD;
         CheckpointLib;
         DemandLib;
         CurrencyLibrary;
+        FixedPoint96;
         SSTORE2[solady/utils/SSTORE2];
         FixedPointMathLib[solady/utils/FixedPointMathLib];
         SafeTransferLib[solady/utils/SafeTransferLib];
@@ -68,6 +69,7 @@ graph TD;
     Auction -- uses --> CheckpointLib;
     Auction -- uses --> DemandLib;
     Auction -- uses --> CurrencyLibrary;
+    Auction -- uses --> FixedPoint96;
     Auction -- uses --> FixedPointMathLib;
     Auction -- uses --> SafeTransferLib;
 
@@ -82,7 +84,9 @@ graph TD;
 
     CheckpointStorage -- uses --> CheckpointLib;
     CheckpointStorage -- uses --> DemandLib;
+    CheckpointStorage -- uses --> FixedPoint96;
     TickStorage -- uses --> DemandLib;
+    TickStorage -- uses --> FixedPoint96;
     TickStorage -- implements --> ITickStorage;
 
     PermitSingleForwarder -- implements --> IPermitSingleForwarder;
@@ -132,11 +136,11 @@ struct AuctionParameters {
     address tokensRecipient; // address to receive leftover tokens
     address fundsRecipient; // address to receive all raised funds
     uint64 startBlock; // Block which the first step starts
-    uint64 endBlock; // When the auction finishes
+    uint64 endBlock; // When the auction finishes (exclusive)
     uint64 claimBlock; // Block when the auction can claimed
-    uint256 tickSpacing; // Fixed granularity for prices
+    uint256 tickSpacing; // Fixed granularity for prices (in Q96 format)
     address validationHook; // Optional hook called before a bid
-    uint256 floorPrice; // Starting floor price for the auction
+    uint256 floorPrice; // Starting floor price for the auction (in Q96 format)
     // Packed bytes describing token issuance schedule
     bytes auctionStepsData;
 }
@@ -149,6 +153,23 @@ constructor(
 ```
 
 **Implementation**: The factory decodes `configData` into `AuctionParameters` containing the step function data (MPS schedule), price parameters, and timing configuration. The step function defines how many tokens are released per block over time.
+
+### Q96 Fixed-Point Pricing
+
+The auction uses Q96 fixed-point arithmetic for precise price representation without rounding errors:
+
+```solidity
+library FixedPoint96 {
+    uint8 internal constant RESOLUTION = 96;
+    uint256 internal constant Q96 = 0x1000000000000000000000000; // 2^96
+}
+```
+
+**Price Encoding**: All prices are stored as `price * 2^96` to represent exact decimal values. For example:
+- A price of 1.5 tokens per currency unit = `1.5 * 2^96`
+- This allows precise arithmetic without floating-point precision loss
+
+**Implementation**: The Q96 system enables exact price calculations during clearing price discovery and bid fill accounting, ensuring no rounding errors in critical financial operations.
 
 ### Auction steps (supply issuance schedule)
 
@@ -186,7 +207,7 @@ Optional validation hooks allow custom logic to be executed before bids are acce
 ```solidity
 interface IValidationHook {
     function validate(
-        uint128 maxPrice,
+        uint256 maxPrice,
         bool exactIn,
         uint256 amount,
         address owner,
@@ -200,16 +221,16 @@ interface IValidationHook {
 
 ### Bid Submission
 
-Users can submit bids specifying either exact currency input or exact token output desired. The bid id is returned to the user and can be used to claim tokens or exit the bid. The `prevHintId` parameter is used to determine the location of the tick to insert the bid into. The `maxPrice` is the maximum price the user is willing to pay. The `exactIn` parameter indicates whether the user is bidding in the currency or the token. The `amount` is the amount of currency or token the user is bidding. The `owner` is the address of the user who can claim tokens or exit the bid.
+Users can submit bids specifying either exact currency input or exact token output desired. The bid id is returned to the user and can be used to claim tokens or exit the bid. The `prevTickPrice` parameter is used to determine the location of the tick to insert the bid into. The `maxPrice` is the maximum price the user is willing to pay (in Q96 fixed-point format). The `exactIn` parameter indicates whether the user is bidding in the currency or the token. The `amount` is the amount of currency or token the user is bidding. The `owner` is the address of the user who can claim tokens or exit the bid.
 
 ```solidity
 interface IAuction {
     function submitBid(
-        uint128 maxPrice,
+        uint256 maxPrice,
         bool exactIn,
         uint256 amount,
         address owner,
-        uint128 prevHintId,
+        uint256 prevTickPrice,
         bytes calldata hookData
     ) external payable returns (uint256 bidId);
 }

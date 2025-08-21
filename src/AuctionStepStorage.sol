@@ -38,6 +38,8 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
 
         _validate(_pointer);
         pointer = _pointer;
+
+        _advanceStep();
     }
 
     /// @notice Validate the data provided in the constructor

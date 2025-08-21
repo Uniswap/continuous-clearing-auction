@@ -1,0 +1,71 @@
+---
+globs: *.sol
+alwaysApply: false
+---
+
+## Code Practices
+
+### Code Style
+
+The repo follows the official [Solidity Style Guide](https://docs.soliditylang.org/en/latest/style-guide.html). In addition to that, this repo also borrows the following rules from [OpenZeppelin](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/GUIDELINES.md#solidity-conventions):
+
+- Internal or private state variables or functions should have an underscore prefix.
+
+  ```solidity
+  contract TestContract {
+      uint256 private _privateVar;
+      uint256 internal _internalVar;
+      function _testInternal() internal { ... }
+      function _testPrivate() private { ... }
+  }
+  ```
+
+- Events should generally be emitted immediately after the state change that they
+  represent, and should be named in the past tense. Some exceptions may be made for gas
+  efficiency if the result doesn't affect observable ordering of events.
+
+  ```solidity
+  function _burn(address who, uint256 value) internal {
+      super._burn(who, value);
+      emit TokensBurned(who, value);
+  }
+  ```
+
+- Interface names should have a capital I prefix.
+
+  ```solidity
+  interface IERC777 {
+  ```
+
+- Contracts not intended to be used standalone should be marked abstract
+  so they are required to be inherited to other contracts.
+
+  ```solidity
+  abstract contract AccessControl is ..., {
+  ```
+
+- Unchecked arithmetic blocks should contain comments explaining why overflow is guaranteed not to happen or permissible. If the reason is immediately apparent from the line above the unchecked block, the comment may be omitted.
+
+### Interfaces
+
+Every contract MUST implement their corresponding interface that includes all externally callable functions, errors and events.
+
+### NatSpec & Comments
+
+Interfaces should be the entrypoint for all contracts. When exploring the a contract within the repository, the interface MUST contain all relevant information to understand the functionality of the contract in the form of NatSpec comments. This includes all externally callable functions, errors and events. The NatSpec documentation MUST be added to the functions, errors and events within the interface. This allows a reader to understand the functionality of a function before moving on to the implementation. The implementing functions MUST point to the NatSpec documentation in the interface using `@inheritdoc`. Internal and private functions shouldn't have NatSpec documentation except for `@dev` comments, whenever more context is needed. Additional comments within a function should only be used to give more context to more complex operations, otherwise the code should be kept readable and self-explanatory.
+
+## Testing
+
+The following testing practices should be followed when writing unit tests for new code. All functions, lines and branches should be tested to result in 100% testing coverage. Fuzz parameters and conditions whenever possible. Extremes should be tested in dedicated edge case and corner case tests. Invariants should be tested in dedicated invariant tests.
+
+Differential testing should be used to compare assembly implementations with implementations in Solidity or testing alternative implementations against existing Solidity or non-Solidity code using ffi.
+
+New features must be merged with associated tests. Bug fixes should have a corresponding test that fails without the bug fix.
+
+### Gas Metering
+
+The [Forge Gas Snapshot](https://github.com/marktoda/forge-gas-snapshot) library is used to measure the gas cost of individual actions. To ensure that the measured gas is accurate, tests have to be run using the isolate argument to generate the correct snapshot and ensure that CI passes:
+
+```sh
+$ forge test --isolate
+```

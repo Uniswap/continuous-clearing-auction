@@ -30,12 +30,10 @@ contract AuctionStepStorageTest is Test {
         _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7);
     }
 
-    function test_advanceStep_succeeds() public {
+    function test_advanceStep_initializesFirstStep() public {
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(1, 1e7);
         MockAuctionStepStorage auctionStepStorage =
             _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7);
-
-        auctionStepStorage.advanceStep();
 
         (uint24 mps, uint64 startBlock, uint64 endBlock) = auctionStepStorage.step();
 
@@ -46,13 +44,12 @@ contract AuctionStepStorageTest is Test {
 
     function test_advanceStep_usesStartBlock() public {
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(1, 1e7);
-        MockAuctionStepStorage auctionStepStorage =
-            _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7);
 
         // Advance many blocks in the future
         vm.roll(auctionStartBlock + 100);
 
-        auctionStepStorage.advanceStep();
+        MockAuctionStepStorage auctionStepStorage =
+            _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7);
 
         // Expect startBlock to be auction.startBlock
         (uint24 mps, uint64 startBlock, uint64 endBlock) = auctionStepStorage.step();
@@ -61,6 +58,30 @@ contract AuctionStepStorageTest is Test {
         assertEq(mps, 1);
         assertEq(startBlock, auctionStartBlock);
         assertEq(endBlock, auctionStartBlock + 1e7);
+    }
+
+    function test_advanceStep_succeeds() public {
+        uint256 step1EndBlock = auctionStartBlock + 1e7 / 2;
+        uint256 step2EndBlock = step1EndBlock + 1e7 / 4;
+        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(1, uint40(step1EndBlock - auctionStartBlock))
+            .addStep(2, uint40(step2EndBlock - step1EndBlock));
+        MockAuctionStepStorage auctionStepStorage = _create(auctionStepsData, auctionStartBlock, step2EndBlock);
+
+        // Expect first step to be initialized
+        (uint24 mps, uint64 startBlock, uint64 endBlock) = auctionStepStorage.step();
+        assertEq(mps, 1);
+        assertEq(startBlock, auctionStartBlock);
+        assertEq(endBlock, step1EndBlock);
+
+        vm.expectEmit(true, true, true, true);
+        emit IAuctionStepStorage.AuctionStepRecorded(step1EndBlock, step2EndBlock, 2);
+        auctionStepStorage.advanceStep();
+
+        (mps, startBlock, endBlock) = auctionStepStorage.step();
+
+        assertEq(mps, 2);
+        assertEq(startBlock, step1EndBlock);
+        assertEq(endBlock, step2EndBlock);
     }
 
     function test_emptyAuctionStepsData_reverts_withInvalidAuctionDataLength() public {

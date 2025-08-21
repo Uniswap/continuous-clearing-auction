@@ -22,6 +22,8 @@ graph TD;
         AuctionFactory;
         Auction;
         AuctionStepStorage;
+        BidStorage;
+        CheckpointStorage;
         TickStorage;
         PermitSingleForwarder;
     end
@@ -29,6 +31,8 @@ graph TD;
     subgraph Libraries
         AuctionStepLib;
         BidLib;
+        CheckpointLib;
+        DemandLib;
         CurrencyLibrary;
         SSTORE2[solady/utils/SSTORE2];
         FixedPointMathLib[solady/utils/FixedPointMathLib];
@@ -51,12 +55,18 @@ graph TD;
     AuctionFactory -- implements --> IDistributionStrategy;
 
     Auction -- inherits from --> PermitSingleForwarder;
-    Auction -- inherits from --> TickStorage;
+    Auction -- inherits from --> BidStorage;
+    Auction -- inherits from --> CheckpointStorage;
     Auction -- inherits from --> AuctionStepStorage;
     Auction -- implements --> IAuction;
 
+    CheckpointStorage -- inherits from --> TickStorage;
+    BidStorage -- uses --> BidLib;
+
     Auction -- uses --> AuctionStepLib;
     Auction -- uses --> BidLib;
+    Auction -- uses --> CheckpointLib;
+    Auction -- uses --> DemandLib;
     Auction -- uses --> CurrencyLibrary;
     Auction -- uses --> FixedPointMathLib;
     Auction -- uses --> SafeTransferLib;
@@ -70,7 +80,9 @@ graph TD;
     AuctionStepStorage -- uses --> SSTORE2;
     AuctionStepStorage -- implements --> IAuctionStepStorage;
 
-    TickStorage -- uses --> BidLib;
+    CheckpointStorage -- uses --> CheckpointLib;
+    CheckpointStorage -- uses --> DemandLib;
+    TickStorage -- uses --> DemandLib;
     TickStorage -- implements --> ITickStorage;
 
     PermitSingleForwarder -- implements --> IPermitSingleForwarder;
@@ -82,13 +94,19 @@ graph TD;
 ```mermaid
 classDiagram
     class PermitSingleForwarder
+    class BidStorage
+    class CheckpointStorage
     class TickStorage
     class AuctionStepStorage
     class IAuction
+    
     Auction --|> PermitSingleForwarder
-    Auction --|> TickStorage
+    Auction --|> BidStorage
+    Auction --|> CheckpointStorage
     Auction --|> AuctionStepStorage
     Auction --|> IAuction
+    CheckpointStorage --|> TickStorage
+    
     class Auction
 ```
 
@@ -167,7 +185,14 @@ Optional validation hooks allow custom logic to be executed before bids are acce
 
 ```solidity
 interface IValidationHook {
-    function validate(Bid calldata bid) external view;
+    function validate(
+        uint128 maxPrice,
+        bool exactIn,
+        uint256 amount,
+        address owner,
+        address sender,
+        bytes calldata hookData
+    ) external view;
 }
 ```
 
@@ -175,7 +200,7 @@ interface IValidationHook {
 
 ### Bid Submission
 
-Users can submit bids specifying either exact currency input or exact token output desired. The bid id is returned to the user and can be used to claim tokens or withdraw the bid. The `prevHintId` parameter is used to determine the location of the tick to insert the bid into. The `maxPrice` is the maximum price the user is willing to pay. The `exactIn` parameter indicates whether the user is bidding in the currency or the token. The `amount` is the amount of currency or token the user is bidding. The `owner` is the address of the user who can claim tokens or withdraw the bid.
+Users can submit bids specifying either exact currency input or exact token output desired. The bid id is returned to the user and can be used to claim tokens or exit the bid. The `prevHintId` parameter is used to determine the location of the tick to insert the bid into. The `maxPrice` is the maximum price the user is willing to pay. The `exactIn` parameter indicates whether the user is bidding in the currency or the token. The `amount` is the amount of currency or token the user is bidding. The `owner` is the address of the user who can claim tokens or exit the bid.
 
 ```solidity
 interface IAuction {
@@ -184,13 +209,14 @@ interface IAuction {
         bool exactIn,
         uint256 amount,
         address owner,
-        uint128 prevHintId
-    ) external payable;
+        uint128 prevHintId,
+        bytes calldata hookData
+    ) external payable returns (uint256 bidId);
 }
 
-event BidSubmitted(uint256 bidId, address owner, uint256 maxPrice, bool exactIn, uint256 amount);
+event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, bool exactIn, uint256 amount);
 
-event TickInitialized(uint128 id, uint256 price);
+event TickInitialized(uint256 price);
 ```
 
 **Implementation**: Bids are validated, funds transferred via Permit2 (or ETH), ticks initialized if needed, and demand aggregated.
@@ -204,7 +230,7 @@ interface IAuction {
     function checkpoint() external;
 }
 
-event CheckpointUpdated(uint256 blockNumber, uint256 clearingPrice, uint256 totalCleared, uint256 cumulativeMps);
+event CheckpointUpdated(uint256 indexed blockNumber, uint256 clearingPrice, uint256 totalCleared, uint24 cumulativeMps);
 ```
 
 ### Clearing price
@@ -219,33 +245,40 @@ interface IAuction {
 
 **Implementation**: Returns the clearing price from the most recent checkpoint.
 
-### Bid withdrawal
+### Bid Exit
 
-Users can withdraw their bid if their max price is below the clearing price. Withdrawing a bid is a one-time operation and cannot be undone.
+Users can exit their bids in two scenarios:
+
+1. **Full Exit**: For bids with max price above the final clearing price after auction ends
+2. **Partial Exit**: For bids that were partially filled during the auction
 
 ```solidity
 interface IAuction {
-    function withdrawBid(uint256 bidId) external;
+    /// @notice Exit a bid where max price is above final clearing price
+    function exitBid(uint256 bidId) external;
+    
+    /// @notice Exit a partially filled bid with checkpoint hint for gas efficiency
+    function exitPartiallyFilledBid(uint256 bidId, uint256 outbidCheckpointBlock) external;
 }
 
-event BidWithdrawn(uint256 bidId, uint256 amount);
+event BidExited(uint256 indexed bidId, address indexed owner);
 ```
 
-**Implementation**: The bid is removed from the auction and the user is refunded the amount which was not sold.
+**Implementation**: The bid is processed and the user is refunded any unspent currency. Tokens purchased are tracked for claiming.
 
 ### Claiming tokens
 
-Users can determine their token allocation by providing a bid id along with checkpoint information. The bid must be withdrawn before claiming tokens, this is a safeguard to ensure that users do not forget to claim their refunded bid amount.
+Users can claim their purchased tokens after the auction's claim block. The bid must be exited before claiming tokens.
 
 ```solidity
 interface IAuction {
     function claimTokens(uint256 bidId) external;
 }
 
-event TokensClaimed(uint256 bidId, uint256 amount);
+event TokensClaimed(address indexed owner, uint256 tokensFilled);
 ```
 
-**Implementation**: Bids above the clearing price receive tokens proportional to time elapsed and MPS rate.
+**Implementation**: Transfers the calculated token allocation to the bid owner. Anyone can call this function, but tokens are always sent to the bid owner.
 
 
 ### Auction information
@@ -291,27 +324,29 @@ sequenceDiagram
 sequenceDiagram
     participant User
     participant Auction
-    participant PermitSingleForwarder
     participant IAllowanceTransfer
+    participant CheckpointStorage
     participant TickStorage
-    participant AuctionStepStorage
+    participant BidStorage
     participant IValidationHook
 
-    User->>Auction: submitBid(maxPrice, exactIn, amount, owner, prevHintId)
+    User->>Auction: submitBid(maxPrice, exactIn, amount, owner, prevHintId, hookData)
     alt ERC20 Token
         Auction->>IAllowanceTransfer: permit2TransferFrom(...)
     else ETH
         User-->>Auction: sends ETH with call
     end
-    Auction->>PermitSingleForwarder: _submitBid(...)
-    PermitSingleForwarder->>IValidationHook: validate(bid)
-    PermitSingleForwarder->>AuctionStepStorage: checkpoint()
-    AuctionStepStorage->>AuctionStepStorage: _advanceToCurrentStep()
-    PermitSingleForwarder->>TickStorage: _initializeTickIfNeeded(...)
-    PermitSingleForwarder->>TickStorage: _updateTick(...)
-    TickStorage-->>PermitSingleForwarder: 
-    PermitSingleForwarder-->>Auction: 
-    Auction-->>User: 
+    Auction->>Auction: _submitBid(...)
+    Auction->>CheckpointStorage: checkpoint() (if first bid in block)
+    CheckpointStorage->>CheckpointStorage: _advanceToCurrentStep()
+    Auction->>TickStorage: _initializeTickIfNeeded(...)
+    alt Validation Hook Configured
+        Auction->>IValidationHook: validate(maxPrice, exactIn, amount, owner, sender, hookData)
+    end
+    Auction->>TickStorage: _updateTick(...)
+    Auction->>BidStorage: _createBid(...)
+    Auction->>Auction: update sumDemandAboveClearing
+    Auction-->>User: bidId
 ```
 
 ### Clearing price update flow
@@ -320,20 +355,25 @@ sequenceDiagram
 sequenceDiagram
     participant Bidder
     participant Auction
+    participant CheckpointStorage
     participant TickStorage
-    participant Checkpoint
 
     Bidder->>Auction: submitBid(highPrice, ...)
     Auction->>TickStorage: _initializeTickIfNeeded()
     Auction->>TickStorage: _updateTick() 
     TickStorage->>TickStorage: aggregate demand at price level
-    Auction->>Checkpoint: checkpoint()
-    Checkpoint->>Checkpoint: calculate supply vs demand
-    alt Demand > Supply
-        Checkpoint->>Checkpoint: increase clearing price
-    else Demand <= Supply  
-        Checkpoint->>Checkpoint: maintain clearing price
+    Auction->>CheckpointStorage: checkpoint()
+    CheckpointStorage->>CheckpointStorage: _advanceToCurrentStep()
+    CheckpointStorage->>CheckpointStorage: calculate clearing price via tick walking
+    loop Walk through ticks
+        CheckpointStorage->>CheckpointStorage: check if demand >= supply at current tick
+        alt Demand >= Supply
+            CheckpointStorage->>CheckpointStorage: advance to next higher tick
+        else Demand < Supply
+            CheckpointStorage->>CheckpointStorage: interpolate clearing price
+        end
     end
-    Checkpoint-->>Auction: new clearing price
+    CheckpointStorage->>CheckpointStorage: update checkpoint with new clearing price
+    CheckpointStorage-->>Auction: new checkpoint
     Auction->>Auction: emit CheckpointUpdated(...)
 ```

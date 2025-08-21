@@ -376,14 +376,14 @@ contract AuctionTest is TokenHandler, Test {
         assertGt(bidMaxPrice, auction.clearingPrice());
         // Before the auction ends, the bid should not be exitable since it is above the clearing price
         vm.startPrank(alice);
-        vm.roll(auction.endBlock());
+        vm.roll(auction.endBlock() - 1);
         vm.expectRevert(IAuction.CannotExitBid.selector);
         auction.exitBid(bidId);
 
         uint256 aliceBalanceBefore = address(alice).balance;
 
         // Now that the auction has ended, the bid should be exitable
-        vm.roll(auction.endBlock() + 1);
+        vm.roll(auction.endBlock());
         auction.exitBid(bidId);
         // Expect no refund
         assertEq(address(alice).balance, aliceBalanceBefore);
@@ -484,14 +484,14 @@ contract AuctionTest is TokenHandler, Test {
         vm.roll(block.number + 1);
         auction.checkpoint();
 
-        vm.roll(auction.endBlock());
+        vm.roll(auction.endBlock() - 1);
         vm.expectRevert(IAuction.CannotExitBid.selector);
         vm.prank(alice);
         auction.exitPartiallyFilledBid(bidId, 2);
 
         uint256 aliceBalanceBefore = address(alice).balance;
 
-        vm.roll(auction.endBlock() + 1);
+        vm.roll(auction.endBlock());
         vm.prank(alice);
         auction.exitPartiallyFilledBid(bidId, 2);
 

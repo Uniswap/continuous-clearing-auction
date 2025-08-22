@@ -14,7 +14,7 @@ import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract CheckpointStorageTest is Test {
-    MockCheckpointStorage mockCheckpointStorage;
+    MockCheckpointStorage public mockCheckpointStorage;
 
     using BidLib for Bid;
     using DemandLib for Demand;

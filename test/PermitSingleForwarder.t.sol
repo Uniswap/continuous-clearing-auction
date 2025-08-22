@@ -31,8 +31,8 @@ contract MockPermit2 {
 }
 
 contract PermitSingleForwarderTest is Test {
-    TestPermitSingleForwarder forwarder;
-    MockPermit2 mockPermit2;
+    TestPermitSingleForwarder public forwarder;
+    MockPermit2 public mockPermit2;
 
     address public owner;
     address public spender;

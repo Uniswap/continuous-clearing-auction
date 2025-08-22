@@ -8,13 +8,14 @@ import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
-import {BidLib} from '../src/libraries/BidLib.sol';
 import {Currency} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 
 import {MockAuction} from './utils/MockAuction.sol';
+
+import {MockToken} from './utils/MockToken.sol';
 import {MockValidationHook} from './utils/MockValidationHook.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 
@@ -1081,6 +1082,40 @@ contract AuctionTest is TokenHandler, Test {
         // Try to claim tokens before the claim block
         vm.expectRevert(IAuction.NotClaimable.selector);
         auction.claimTokens(bidId);
+        vm.stopPrank();
+    }
+
+    function test_claimTokens_tokenTransferFails_reverts() public {
+        MockToken failingToken = new MockToken();
+
+        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            FLOOR_PRICE
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
+
+        Auction failingAuction = new Auction(address(failingToken), TOTAL_SUPPLY, params);
+
+        failingToken.mint(address(failingAuction), TOTAL_SUPPLY);
+
+        uint256 bidId = failingAuction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(auction.endBlock() + 1);
+        vm.startPrank(alice);
+        failingAuction.exitBid(bidId);
+
+        vm.roll(failingAuction.claimBlock());
+
+        vm.expectRevert(IAuction.TokenTransferFailed.selector);
+        failingAuction.claimTokens(bidId);
         vm.stopPrank();
     }
 }

@@ -4,7 +4,6 @@ pragma solidity ^0.8.23;
 import {Tick, TickStorage} from '../src/TickStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 
-import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {Test} from 'forge-std/Test.sol';
 
 contract MockTickStorage is TickStorage {

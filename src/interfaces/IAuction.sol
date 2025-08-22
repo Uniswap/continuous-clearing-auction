@@ -5,6 +5,7 @@ import {Checkpoint} from '../libraries/CheckpointLib.sol';
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
 import {IDistributionContract} from './external/IDistributionContract.sol';
+import {ISubscriber} from './external/ISubscriber.sol';
 
 /// @notice Parameters for the auction
 /// @dev token and totalSupply are passed as constructor arguments
@@ -15,11 +16,13 @@ struct AuctionParameters {
     uint64 startBlock; // Block which the first step starts
     uint64 endBlock; // When the auction finishes
     uint64 claimBlock; // Block when the auction can claimed
+    uint64 notifyBlock; // Block when the auction can be notified
     uint256 tickSpacing; // Fixed granularity for prices
     address validationHook; // Optional hook called before a bid
     uint256 floorPrice; // Starting floor price for the auction
     // Packed bytes describing token issuance schedule
     bytes auctionStepsData;
+    ISubscriber[] subscribers; // Subscribers to notify when the auction is finished
 }
 
 /// @notice Interface for the Auction contract

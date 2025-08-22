@@ -54,7 +54,8 @@ contract AuctionTest is TokenHandler, Test {
             FLOOR_PRICE
         ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
             .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
+            .withClaimBlock(block.number + AUCTION_DURATION).withNotifyBlock(block.number + AUCTION_DURATION)
+            .withAuctionStepsData(auctionStepsData);
 
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);

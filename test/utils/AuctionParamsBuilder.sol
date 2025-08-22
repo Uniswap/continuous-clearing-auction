@@ -2,6 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {AuctionParameters} from '../../src/interfaces/IAuction.sol';
+import {ISubscriber} from '../../src/interfaces/external/ISubscriber.sol';
 
 library AuctionParamsBuilder {
     function init() internal pure returns (AuctionParameters memory) {
@@ -15,7 +16,9 @@ library AuctionParamsBuilder {
             startBlock: 0,
             endBlock: 0,
             claimBlock: 0,
-            auctionStepsData: new bytes(0)
+            notifyBlock: 0,
+            auctionStepsData: new bytes(0),
+            subscribers: new ISubscriber[](0)
         });
     }
 
@@ -139,6 +142,25 @@ library AuctionParamsBuilder {
         returns (AuctionParameters memory)
     {
         params.auctionStepsData = auctionStepsData;
+        return params;
+    }
+
+    function withSubscribers(AuctionParameters memory params, ISubscriber[] memory subscribers)
+        internal
+        pure
+        returns (AuctionParameters memory)
+    {
+        params.subscribers = subscribers;
+        return params;
+    }
+
+    function withNotifyBlock(AuctionParameters memory params, uint256 notifyBlock)
+        internal
+        pure
+        returns (AuctionParameters memory)
+    {
+        require(notifyBlock <= type(uint64).max, 'notifyBlock too large');
+        params.notifyBlock = uint64(notifyBlock);
         return params;
     }
 }

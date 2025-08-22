@@ -12,6 +12,7 @@ import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
+import {INotifier} from './interfaces/external/INotifier.sol';
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
@@ -23,11 +24,12 @@ import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
+import {Notifier} from './Notifier.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 /// @title Auction
-contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSingleForwarder, IAuction {
+contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSingleForwarder, Notifier, IAuction {
     using FixedPointMathLib for uint256;
     using CurrencyLibrary for Currency;
     using BidLib for Bid;
@@ -60,6 +62,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
         CheckpointStorage(_parameters.floorPrice, _parameters.tickSpacing)
         PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
+        Notifier(_parameters.subscribers, _parameters.notifyBlock)
     {
         currency = Currency.wrap(_parameters.currency);
         token = IERC20Minimal(_token);
@@ -98,6 +101,18 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             _advanceStep();
             end = step.endBlock;
         }
+    }
+
+    /// @notice Return the final checkpoint of the auction
+    /// @dev Only called when the auction is over. Changes the current state of the `step` to the final step in the auction
+    ///      any future calls to `step.mps` will return the mps of the last step in the auction
+    function _getFinalCheckpoint() internal returns (Checkpoint memory _checkpoint) {
+        uint256 _checkpointedBlock;
+        (_checkpoint, _checkpointedBlock) = _advanceToCurrentStep();
+        if (endBlock - _checkpointedBlock > 0) {
+            _checkpoint = _checkpoint.transform(_checkpointedBlock, endBlock - _checkpointedBlock, step.mps);
+        }
+        return _checkpoint;
     }
 
     /// @notice Calculate the new clearing price, given:
@@ -139,6 +154,58 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         // Round down to the nearest tick boundary
         _clearingPrice = (_clearingPrice - (_clearingPrice % tickSpacing));
         return _clearingPrice;
+    }
+
+    function _submitBid(
+        uint256 maxPrice,
+        bool exactIn,
+        uint256 amount,
+        address owner,
+        uint256 prevTickPrice,
+        bytes calldata hookData
+    ) internal returns (uint256 bidId) {
+        // First bid in a block updates the clearing price
+        if (lastCheckpointedBlock != block.number) checkpoint();
+
+        _initializeTickIfNeeded(prevTickPrice, maxPrice);
+
+        if (address(validationHook) != address(0)) {
+            validationHook.validate(maxPrice, exactIn, amount, owner, msg.sender, hookData);
+        }
+        uint256 _clearingPrice = clearingPrice();
+        // ClearingPrice will be set to floor price in checkpoint() if not set already
+        BidLib.validate(maxPrice, _clearingPrice, tickSpacing);
+
+        _updateTick(maxPrice, exactIn, amount);
+
+        bidId = _createBid(exactIn, amount, owner, maxPrice);
+
+        if (exactIn) {
+            sumDemandAboveClearing = sumDemandAboveClearing.addCurrencyAmount(amount);
+        } else {
+            sumDemandAboveClearing = sumDemandAboveClearing.addTokenAmount(amount);
+        }
+
+        emit BidSubmitted(bidId, owner, maxPrice, exactIn, amount);
+    }
+
+    /// @notice Given a bid, tokens filled and refund, process the transfers and refund
+    function _processExit(uint256 bidId, Bid memory bid, uint256 tokensFilled, uint256 refund) internal {
+        address _owner = bid.owner;
+
+        if (tokensFilled == 0) {
+            _deleteBid(bidId);
+        } else {
+            bid.tokensFilled = tokensFilled;
+            bid.exitedBlock = uint64(block.number);
+            _updateBid(bidId, bid);
+        }
+
+        if (refund > 0) {
+            currency.transfer(_owner, refund);
+        }
+
+        emit BidExited(bidId, _owner);
     }
 
     /// @notice Register a new checkpoint
@@ -190,51 +257,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         );
     }
 
-    /// @notice Return the final checkpoint of the auction
-    /// @dev Only called when the auction is over. Changes the current state of the `step` to the final step in the auction
-    ///      any future calls to `step.mps` will return the mps of the last step in the auction
-    function _getFinalCheckpoint() internal returns (Checkpoint memory _checkpoint) {
-        uint256 _checkpointedBlock;
-        (_checkpoint, _checkpointedBlock) = _advanceToCurrentStep();
-        if (endBlock - _checkpointedBlock > 0) {
-            _checkpoint = _checkpoint.transform(_checkpointedBlock, endBlock - _checkpointedBlock, step.mps);
-        }
-        return _checkpoint;
-    }
-
-    function _submitBid(
-        uint256 maxPrice,
-        bool exactIn,
-        uint256 amount,
-        address owner,
-        uint256 prevTickPrice,
-        bytes calldata hookData
-    ) internal returns (uint256 bidId) {
-        // First bid in a block updates the clearing price
-        if (lastCheckpointedBlock != block.number) checkpoint();
-
-        _initializeTickIfNeeded(prevTickPrice, maxPrice);
-
-        if (address(validationHook) != address(0)) {
-            validationHook.validate(maxPrice, exactIn, amount, owner, msg.sender, hookData);
-        }
-        uint256 _clearingPrice = clearingPrice();
-        // ClearingPrice will be set to floor price in checkpoint() if not set already
-        BidLib.validate(maxPrice, _clearingPrice, tickSpacing);
-
-        _updateTick(maxPrice, exactIn, amount);
-
-        bidId = _createBid(exactIn, amount, owner, maxPrice);
-
-        if (exactIn) {
-            sumDemandAboveClearing = sumDemandAboveClearing.addCurrencyAmount(amount);
-        } else {
-            sumDemandAboveClearing = sumDemandAboveClearing.addTokenAmount(amount);
-        }
-
-        emit BidSubmitted(bidId, owner, maxPrice, exactIn, amount);
-    }
-
     /// @inheritdoc IAuction
     function submitBid(
         uint256 maxPrice,
@@ -255,25 +277,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             );
         }
         return _submitBid(maxPrice, exactIn, amount, owner, prevTickPrice, hookData);
-    }
-
-    /// @notice Given a bid, tokens filled and refund, process the transfers and refund
-    function _processExit(uint256 bidId, Bid memory bid, uint256 tokensFilled, uint256 refund) internal {
-        address _owner = bid.owner;
-
-        if (tokensFilled == 0) {
-            _deleteBid(bidId);
-        } else {
-            bid.tokensFilled = tokensFilled;
-            bid.exitedBlock = uint64(block.number);
-            _updateBid(bidId, bid);
-        }
-
-        if (refund > 0) {
-            currency.transfer(_owner, refund);
-        }
-
-        emit BidExited(bidId, _owner);
     }
 
     /// @inheritdoc IAuction
@@ -348,6 +351,23 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         token.transfer(bid.owner, tokensFilled);
 
         emit TokensClaimed(bid.owner, tokensFilled);
+    }
+
+    /// @inheritdoc INotifier
+    function notify() external override {
+        Checkpoint memory _checkpoint = _getFinalCheckpoint();
+
+        uint256 priceX192 = _checkpoint.clearingPrice << FixedPoint96.RESOLUTION;
+
+        uint128 currencyRaised = uint128(
+            _checkpoint.totalCleared.fullMulDivUp(
+                _checkpoint.cumulativeMps * FixedPoint96.Q96, _checkpoint.cumulativeMpsPerPrice
+            )
+        );
+
+        uint128 tokenAmount = uint128(uint256(currencyRaised).fullMulDivUp(FixedPoint96.Q96 * 2, priceX192));
+
+        _notify(priceX192, tokenAmount, currencyRaised);
     }
 
     receive() external payable {}

@@ -28,8 +28,6 @@ abstract contract Notifier is INotifier {
     /// @param tokenAmount The amount of tokens to match with the currency raised at the price
     /// @param currencyAmount The amount of currency raised
     function _notify(uint256 priceX192, uint128 tokenAmount, uint128 currencyAmount) internal {
-        if (block.number < notifyBlock) revert CannotNotifyYet();
-
         for (uint256 i = 0; i < subscribers.length; i++) {
             subscribers[i].setInitialPrice(priceX192, tokenAmount, currencyAmount);
         }

@@ -278,7 +278,7 @@ contract AuctionTest is TokenHandler, Test {
 
     /// forge-config: default.isolate = true
     /// forge-config: ci.isolate = true
-    function test_exitBid_succeeds_gas() public {
+    function test_exitBid_succeeds() public {
         uint256 smallAmount = 500e18;
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(
@@ -329,6 +329,17 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectRevert(IAuction.CannotExitBid.selector);
         auction.exitBid(bidId2);
         vm.stopPrank();
+
+        vm.roll(auction.endBlock());
+        uint256 expectedCurrentRaised = inputAmountForTokens(largeAmount, tickNumberToPriceX96(3));
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.CurrencySwept(auction.fundsRecipient(), expectedCurrentRaised);
+        auction.sweepCurrency();
+
+        // Auction fully subscribed so no tokens are left
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.TokensSwept(auction.tokensRecipient(), 0);
+        auction.sweepTokens();
     }
 
     function test_exitBid_exactOut_succeeds() public {
@@ -347,7 +358,7 @@ contract AuctionTest is TokenHandler, Test {
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
-        vm.roll(auction.endBlock() + 1);
+        vm.roll(auction.endBlock());
         auction.exitBid(bidId);
         // Alice initially deposited 500e18 * tickNumberToPrice(2e6) = 1000e24 ETH
         // They only purchased 500e18 tokens at a price of 1e6, so they should be refunded 1000e24 - 500e18 * tickNumberToPrice(1e6) = 500e18 ETH
@@ -360,6 +371,17 @@ contract AuctionTest is TokenHandler, Test {
         auction.claimTokens(bidId);
         // Expect fully filled for all tokens
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + amount);
+
+        // Alice purchased 500e18 tokens at a price of 1e6, so the currency raised is 500e18 * 1e6 = 500e18 ETH
+        uint256 expectedCurrencyRaised = inputAmountForTokens(500e18, tickNumberToPriceX96(1));
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.CurrencySwept(auction.fundsRecipient(), expectedCurrencyRaised);
+        auction.sweepCurrency();
+
+        uint256 expectedTokensSold = 500e18;
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.TokensSwept(auction.tokensRecipient(), expectedTokensSold);
+        auction.sweepTokens();
     }
 
     function test_exitBid_afterEndBlock_succeeds() public {
@@ -608,7 +630,7 @@ contract AuctionTest is TokenHandler, Test {
         // Clearing price is at tick 21 = 2000
         // Alice is purchasing with 400e18 * 2000 = 800e21 ETH
         // Bob is purchasing with 600e18 * 2000 = 1200e21 ETH
-        // Charlie is purchasing with 500e18 * 2000 = 1500e21 ETH
+        // Charlie is purchasing with 500e18 * 2000 = 1000e21 ETH
         //
         // At the clearing price of 2000
         // Charlie purchases 750e18 tokens
@@ -640,6 +662,21 @@ contract AuctionTest is TokenHandler, Test {
         auction.claimTokens(bidId2);
         assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + 150e18);
         vm.stopPrank();
+
+        uint256 charlieCurrencySpent = inputAmountForTokens(750e18, tickNumberToPriceX96(11));
+        // Purchased 100 tokens at clearing price
+        uint256 aliceCurrencySpent = inputAmountForTokens(100e18, tickNumberToPriceX96(11));
+        // Purchased 150 tokens at clearing price
+        uint256 bobCurrencySpent = inputAmountForTokens(150e18, tickNumberToPriceX96(11));
+        uint256 expectedCurrencyRaised = charlieCurrencySpent + aliceCurrencySpent + bobCurrencySpent;
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.CurrencySwept(auction.fundsRecipient(), expectedCurrencyRaised);
+        auction.sweepCurrency();
+
+        // All tokens were sold
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.TokensSwept(auction.tokensRecipient(), 0);
+        auction.sweepTokens();
     }
 
     function test_onTokensReceived_withCorrectTokenAndAmount_succeeds() public view {
@@ -1118,5 +1155,17 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectRevert(IAuction.TokenTransferFailed.selector);
         failingAuction.claimTokens(bidId);
         vm.stopPrank();
+    }
+
+    function test_sweepCurrency_beforeAuctionEnds_reverts() public {
+        vm.roll(auction.endBlock() - 1);
+        vm.expectRevert(IAuction.AuctionIsNotOver.selector);
+        auction.sweepCurrency();
+    }
+
+    function test_sweepTokens_beforeAuctionEnds_reverts() public {
+        vm.roll(auction.endBlock() - 1);
+        vm.expectRevert(IAuction.AuctionIsNotOver.selector);
+        auction.sweepTokens();
     }
 }

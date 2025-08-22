@@ -60,7 +60,7 @@ library CheckpointLib {
     /// @return The total currency raised
     function getCurrencyRaised(Checkpoint memory checkpoint) internal pure returns (uint128) {
         return uint128(
-            checkpoint.totalCleared.fullMulDivUp(
+            checkpoint.totalCleared.fullMulDiv(
                 checkpoint.cumulativeMps * FixedPoint96.Q96, checkpoint.cumulativeMpsPerPrice
             )
         );

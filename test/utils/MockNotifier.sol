@@ -30,6 +30,7 @@ contract MockNotifier is Notifier {
 
     /// @inheritdoc Notifier
     function notify() external override {
+        if (block.number < notifyBlock) revert CannotNotifyYet();
         _notify(priceX192, tokenAmount, currencyAmount);
     }
 }

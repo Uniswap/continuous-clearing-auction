@@ -361,6 +361,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
 
     /// @inheritdoc INotifier
     function notify() external override {
+        if (block.number < notifyBlock) revert CannotNotifyYet();
         Checkpoint memory _checkpoint = _getFinalCheckpoint();
         uint256 priceX192 = _checkpoint.clearingPrice << FixedPoint96.RESOLUTION;
         _notify(priceX192, 0, _checkpoint.getCurrencyRaised());
@@ -382,7 +383,9 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         if (sweepTokensBlock != 0) revert TokensAlreadySwept();
         sweepTokensBlock = block.number;
         uint256 tokensSold = totalSupply - _getFinalCheckpoint().totalCleared;
-        token.transfer(tokensRecipient, tokensSold);
+        if (tokensSold > 0) {
+            token.transfer(tokensRecipient, tokensSold);
+        }
         emit TokensSwept(tokensRecipient, tokensSold);
     }
 }

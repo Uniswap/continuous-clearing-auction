@@ -103,14 +103,14 @@ classDiagram
     class TickStorage
     class AuctionStepStorage
     class IAuction
-    
+
     Auction --|> PermitSingleForwarder
     Auction --|> BidStorage
     Auction --|> CheckpointStorage
     Auction --|> AuctionStepStorage
     Auction --|> IAuction
     CheckpointStorage --|> TickStorage
-    
+
     class Auction
 ```
 
@@ -166,6 +166,7 @@ library FixedPoint96 {
 ```
 
 **Price Encoding**: All prices are stored as `price * 2^96` to represent exact decimal values. For example:
+
 - A price of 1.5 tokens per currency unit = `1.5 * 2^96`
 - This allows precise arithmetic without floating-point precision loss
 
@@ -277,7 +278,7 @@ Users can exit their bids in two scenarios:
 interface IAuction {
     /// @notice Exit a bid where max price is above final clearing price
     function exitBid(uint256 bidId) external;
-    
+
     /// @notice Exit a partially filled bid with checkpoint hint for gas efficiency
     function exitPartiallyFilledBid(uint256 bidId, uint256 outbidCheckpointBlock) external;
 }
@@ -300,7 +301,6 @@ event TokensClaimed(address indexed owner, uint256 tokensFilled);
 ```
 
 **Implementation**: Transfers the calculated token allocation to the bid owner. Anyone can call this function, but tokens are always sent to the bid owner.
-
 
 ### Auction information
 
@@ -381,7 +381,7 @@ sequenceDiagram
 
     Bidder->>Auction: submitBid(highPrice, ...)
     Auction->>TickStorage: _initializeTickIfNeeded()
-    Auction->>TickStorage: _updateTick() 
+    Auction->>TickStorage: _updateTick()
     TickStorage->>TickStorage: aggregate demand at price level
     Auction->>CheckpointStorage: checkpoint()
     CheckpointStorage->>CheckpointStorage: _advanceToCurrentStep()

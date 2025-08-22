@@ -58,6 +58,8 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     error NotClaimable();
     /// @notice Error thrown when the bid has not been exited
     error BidNotExited();
+    /// @notice Error thrown when the token transfer fails
+    error TokenTransferFailed();
 
     /// @notice Emitted when a bid is submitted
     /// @param id The id of the bid

@@ -1,46 +1,400 @@
-## Template Repo (Foundry)
+# TWAP Auction
 
-[![CI Status](../../actions/workflows/test.yaml/badge.svg)](../../actions)
+This repository contains the smart contracts for a TWAP (Time-Weighted Average Price) auction mechanism.
 
-This template repo is a quick and easy way to get started with a new Solidity project. It comes with a number of features that are useful for developing and deploying smart contracts. Such as:
+## Installation
 
-- Pre-commit hooks for formatting, auto generated documentation, and more
-- Various libraries with useful contracts (OpenZeppelin, Solady) and libraries (Deployment log generation, storage checks, deployer templates)
-
-#### Table of Contents
-
-- [Setup](#setup)
-- [Deployment](#deployment)
-- [Docs](#docs)
-- [Contributing](#contributing)
-
-## Setup
-
-Follow these steps to set up your local environment:
-
-- [Install foundry](https://book.getfoundry.sh/getting-started/installation)
-- Install dependencies: `forge install`
-- Build contracts: `forge build`
-- Test contracts: `forge test`
-
-If you intend to develop on this repo, follow the steps outlined in [CONTRIBUTING.md](CONTRIBUTING.md#install).
-
-## Deployment
-
-This repo utilizes versioned deployments. For more information on how to use forge scripts within the repo, check [here](CONTRIBUTING.md#deployment).
-
-Smart contracts are deployed or upgraded using the following command:
-
-```shell
-forge script script/Deploy.s.sol --broadcast --rpc-url <rpc_url> --verify
+```bash
+forge install
 ```
 
-## Docs
+## Testing
 
-The documentation and architecture diagrams for the contracts within this repo can be found [here](docs/).
-Detailed documentation generated from the NatSpec documentation of the contracts can be found [here](docs/autogen/src/src/).
-When exploring the contracts within this repository, it is recommended to start with the interfaces first and then move on to the implementation as outlined [here](CONTRIBUTING.md#natspec--comments)
+```bash
+forge test
+```
 
-## Contributing
+## Architecture
 
-If you want to contribute to this project, please check [CONTRIBUTING.md](CONTRIBUTING.md) first.
+```mermaid
+graph TD;
+    subgraph Contracts
+        AuctionFactory;
+        Auction;
+        AuctionStepStorage;
+        BidStorage;
+        CheckpointStorage;
+        TickStorage;
+        PermitSingleForwarder;
+    end
+
+    subgraph Libraries
+        AuctionStepLib;
+        BidLib;
+        CheckpointLib;
+        DemandLib;
+        CurrencyLibrary;
+        FixedPoint96;
+        SSTORE2[solady/utils/SSTORE2];
+        FixedPointMathLib[solady/utils/FixedPointMathLib];
+        SafeTransferLib[solady/utils/SafeTransferLib];
+    end
+
+    subgraph Interfaces
+        IAuction;
+        IAuctionStepStorage;
+        ITickStorage;
+        IPermitSingleForwarder;
+        IValidationHook;
+        IDistributionContract;
+        IDistributionStrategy;
+        IERC20Minimal;
+        IAllowanceTransfer[permit2/IAllowanceTransfer];
+    end
+
+    AuctionFactory -- creates --> Auction;
+    AuctionFactory -- implements --> IDistributionStrategy;
+
+    Auction -- inherits from --> PermitSingleForwarder;
+    Auction -- inherits from --> BidStorage;
+    Auction -- inherits from --> CheckpointStorage;
+    Auction -- inherits from --> AuctionStepStorage;
+    Auction -- implements --> IAuction;
+
+    CheckpointStorage -- inherits from --> TickStorage;
+    BidStorage -- uses --> BidLib;
+
+    Auction -- uses --> AuctionStepLib;
+    Auction -- uses --> BidLib;
+    Auction -- uses --> CheckpointLib;
+    Auction -- uses --> DemandLib;
+    Auction -- uses --> CurrencyLibrary;
+    Auction -- uses --> FixedPoint96;
+    Auction -- uses --> FixedPointMathLib;
+    Auction -- uses --> SafeTransferLib;
+
+    Auction -- interacts with --> IValidationHook;
+    Auction -- interacts with --> IDistributionContract;
+    Auction -- interacts with --> IERC20Minimal;
+    Auction -- interacts with --> IAllowanceTransfer;
+
+    AuctionStepStorage -- uses --> AuctionStepLib;
+    AuctionStepStorage -- uses --> SSTORE2;
+    AuctionStepStorage -- implements --> IAuctionStepStorage;
+
+    CheckpointStorage -- uses --> CheckpointLib;
+    CheckpointStorage -- uses --> DemandLib;
+    CheckpointStorage -- uses --> FixedPoint96;
+    TickStorage -- uses --> DemandLib;
+    TickStorage -- uses --> FixedPoint96;
+    TickStorage -- implements --> ITickStorage;
+
+    PermitSingleForwarder -- implements --> IPermitSingleForwarder;
+    PermitSingleForwarder -- interacts with --> IAllowanceTransfer;
+```
+
+## Contract Inheritance for Auction.sol
+
+```mermaid
+classDiagram
+    class PermitSingleForwarder
+    class BidStorage
+    class CheckpointStorage
+    class TickStorage
+    class AuctionStepStorage
+    class IAuction
+
+    Auction --|> PermitSingleForwarder
+    Auction --|> BidStorage
+    Auction --|> CheckpointStorage
+    Auction --|> AuctionStepStorage
+    Auction --|> IAuction
+    CheckpointStorage --|> TickStorage
+
+    class Auction
+```
+
+## Auction Functions
+
+### Setup and Configuration
+
+The auction and its supply curve are configured through the AuctionFactory which deploys individual Auction contracts with configurable parameters.
+
+```solidity
+interface IAuctionFactory {
+    function initializeDistribution(
+        address token,
+        uint256 amount,
+        bytes calldata configData
+    ) external returns (address);
+}
+
+/// @notice Parameters for the auction
+/// @dev token and totalSupply are passed as constructor arguments
+struct AuctionParameters {
+    address currency; // token to raise funds in. Use address(0) for ETH
+    address tokensRecipient; // address to receive leftover tokens
+    address fundsRecipient; // address to receive all raised funds
+    uint64 startBlock; // Block which the first step starts
+    uint64 endBlock; // When the auction finishes (exclusive)
+    uint64 claimBlock; // Block when the auction can claimed
+    uint256 tickSpacing; // Fixed granularity for prices (in Q96 format)
+    address validationHook; // Optional hook called before a bid
+    uint256 floorPrice; // Starting floor price for the auction (in Q96 format)
+    // Packed bytes describing token issuance schedule
+    bytes auctionStepsData;
+}
+
+constructor(
+    address _token,
+    uint256 _totalSupply,
+    AuctionParameters memory _parameters
+) {}
+```
+
+**Implementation**: The factory decodes `configData` into `AuctionParameters` containing the step function data (MPS schedule), price parameters, and timing configuration. The step function defines how many tokens are released per block over time.
+
+### Q96 Fixed-Point Pricing
+
+The auction uses Q96 fixed-point arithmetic for precise price representation without rounding errors:
+
+```solidity
+library FixedPoint96 {
+    uint8 internal constant RESOLUTION = 96;
+    uint256 internal constant Q96 = 0x1000000000000000000000000; // 2^96
+}
+```
+
+**Price Encoding**: All prices are stored as `price * 2^96` to represent exact decimal values. For example:
+
+- A price of 1.5 tokens per currency unit = `1.5 * 2^96`
+- This allows precise arithmetic without floating-point precision loss
+
+**Implementation**: The Q96 system enables exact price calculations during clearing price discovery and bid fill accounting, ensuring no rounding errors in critical financial operations.
+
+### Auction steps (supply issuance schedule)
+
+The auction steps define the supply issuance schedule. The auction steps are packed into a bytes array and passed to the constructor along with the other parameters. Each step is a packed `uint64` with the first 24 bits being the per-block issuance rate in MPS (milli-bips), and the last 40 bits being the number of blocks to sell over.
+
+```solidity
+/// AuctionStepLib.sol
+
+function parse(bytes8 data) internal pure returns (uint24 mps, uint40 blockDelta) {
+    mps = uint24(bytes3(data));
+    blockDelta = uint40(uint64(data));
+}
+```
+
+For example, to sell 1 basis point of supply per block for 100 blocks, then 2 basis points for the next 100 blocks, the packed `uint64` would be:
+
+```solidity
+uint24 mps = 1000; // 1000 mps = 1 basis point
+uint40 blockDelta = 100; // 100 blocks
+bytes8 packed1 = uint64(mps) | (uint64(blockDelta) << 24);
+
+mps = 2000; // 2000 mps = 2 basis points
+blockDelta = 100; // 100 blocks
+bytes8 packed2 = uint64(mps) | (uint64(blockDelta) << 24);
+
+bytes packed = abi.encodePacked(packed1, packed2);
+```
+
+**Implementation**: The data is deployed to an external SSTORE2 contract for cheaper reads over the lifetime of the auction.
+
+### Validation Hooks
+
+Optional validation hooks allow custom logic to be executed before bids are accepted, enabling features like allowlists, rate limiting, or complex validation rules.
+
+```solidity
+interface IValidationHook {
+    function validate(
+        uint256 maxPrice,
+        bool exactIn,
+        uint256 amount,
+        address owner,
+        address sender,
+        bytes calldata hookData
+    ) external view;
+}
+```
+
+**Implementation**: If a validation hook is configured during auction deployment, it is called during `_submitBid()` and must not revert for the bid to be accepted.
+
+### Bid Submission
+
+Users can submit bids specifying either exact currency input or exact token output desired. The bid id is returned to the user and can be used to claim tokens or exit the bid. The `prevTickPrice` parameter is used to determine the location of the tick to insert the bid into. The `maxPrice` is the maximum price the user is willing to pay (in Q96 fixed-point format). The `exactIn` parameter indicates whether the user is bidding in the currency or the token. The `amount` is the amount of currency or token the user is bidding. The `owner` is the address of the user who can claim tokens or exit the bid.
+
+```solidity
+interface IAuction {
+    function submitBid(
+        uint256 maxPrice,
+        bool exactIn,
+        uint256 amount,
+        address owner,
+        uint256 prevTickPrice,
+        bytes calldata hookData
+    ) external payable returns (uint256 bidId);
+}
+
+event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, bool exactIn, uint256 amount);
+
+event TickInitialized(uint256 price);
+```
+
+**Implementation**: Bids are validated, funds transferred via Permit2 (or ETH), ticks initialized if needed, and demand aggregated.
+
+### Checkpointing
+
+The auction is checkpointed once every block with a new bid. The checkpoint is a snapshot of the auction state up to (NOT including) that block. Checkpoints are used to determine the token allocation for each bid. Checkpoints are created automatically when a new bid is submitted, but they can be manually created by calling the `checkpoint` function.
+
+```solidity
+interface IAuction {
+    function checkpoint() external;
+}
+
+event CheckpointUpdated(uint256 indexed blockNumber, uint256 clearingPrice, uint256 totalCleared, uint24 cumulativeMps);
+```
+
+### Clearing price
+
+The clearing price represents the current marginal price at which tokens are being sold. The clearing price is updated when a new bid is submitted that would change the price. An event is emitted when the clearing price is updated. The clearing price never decreases.
+
+```solidity
+interface IAuction {
+    function clearingPrice() external view returns (uint256);
+}
+```
+
+**Implementation**: Returns the clearing price from the most recent checkpoint.
+
+### Bid Exit
+
+Users can exit their bids in two scenarios:
+
+1. **Full Exit**: For bids with max price above the final clearing price after auction ends
+2. **Partial Exit**: For bids that were partially filled during the auction
+
+```solidity
+interface IAuction {
+    /// @notice Exit a bid where max price is above final clearing price
+    function exitBid(uint256 bidId) external;
+
+    /// @notice Exit a partially filled bid with checkpoint hint for gas efficiency
+    function exitPartiallyFilledBid(uint256 bidId, uint256 outbidCheckpointBlock) external;
+}
+
+event BidExited(uint256 indexed bidId, address indexed owner);
+```
+
+**Implementation**: The bid is processed and the user is refunded any unspent currency. Tokens purchased are tracked for claiming.
+
+### Claiming tokens
+
+Users can claim their purchased tokens after the auction's claim block. The bid must be exited before claiming tokens.
+
+```solidity
+interface IAuction {
+    function claimTokens(uint256 bidId) external;
+}
+
+event TokensClaimed(address indexed owner, uint256 tokensFilled);
+```
+
+**Implementation**: Transfers the calculated token allocation to the bid owner. Anyone can call this function, but tokens are always sent to the bid owner.
+
+### Auction information
+
+```solidity
+interface IAuctionStepStorage {
+    function step() external view returns (AuctionStep memory);
+    function startBlock() external view returns (uint64);
+    function endBlock() external view returns (uint64);
+}
+
+interface IAuction {
+    function totalSupply() external view returns (uint256);
+}
+```
+
+**Implementation**: Current step contains MPS (tokens per block), start/end blocks. Total supply is immutable.
+
+## Flow Diagrams
+
+### Auction Construction Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant AuctionFactory
+    participant Auction
+    participant AuctionParameters
+
+    User->>AuctionFactory: initializeDistribution(token, amount, configData)
+    AuctionFactory->>AuctionParameters: abi.decode(configData)
+    AuctionFactory->>Auction: new Auction(token, amount, parameters)
+    create participant NewAuction
+    Auction->>NewAuction: constructor()
+    NewAuction-->>Auction: address
+    Auction-->>AuctionFactory: auctionContractAddress
+    AuctionFactory-->>User: auctionContractAddress
+```
+
+### Bid Submission Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Auction
+    participant IAllowanceTransfer
+    participant CheckpointStorage
+    participant TickStorage
+    participant BidStorage
+    participant IValidationHook
+
+    User->>Auction: submitBid(maxPrice, exactIn, amount, owner, prevHintId, hookData)
+    alt ERC20 Token
+        Auction->>IAllowanceTransfer: permit2TransferFrom(...)
+    else ETH
+        User-->>Auction: sends ETH with call
+    end
+    Auction->>Auction: _submitBid(...)
+    Auction->>CheckpointStorage: checkpoint() (if first bid in block)
+    CheckpointStorage->>CheckpointStorage: _advanceToCurrentStep()
+    Auction->>TickStorage: _initializeTickIfNeeded(...)
+    alt Validation Hook Configured
+        Auction->>IValidationHook: validate(maxPrice, exactIn, amount, owner, sender, hookData)
+    end
+    Auction->>TickStorage: _updateTick(...)
+    Auction->>BidStorage: _createBid(...)
+    Auction->>Auction: update sumDemandAboveClearing
+    Auction-->>User: bidId
+```
+
+### Clearing price update flow
+
+```mermaid
+sequenceDiagram
+    participant Bidder
+    participant Auction
+    participant CheckpointStorage
+    participant TickStorage
+
+    Bidder->>Auction: submitBid(highPrice, ...)
+    Auction->>TickStorage: _initializeTickIfNeeded()
+    Auction->>TickStorage: _updateTick()
+    TickStorage->>TickStorage: aggregate demand at price level
+    Auction->>CheckpointStorage: checkpoint()
+    CheckpointStorage->>CheckpointStorage: _advanceToCurrentStep()
+    CheckpointStorage->>CheckpointStorage: calculate clearing price via tick walking
+    loop Walk through ticks
+        CheckpointStorage->>CheckpointStorage: check if demand >= supply at current tick
+        alt Demand >= Supply
+            CheckpointStorage->>CheckpointStorage: advance to next higher tick
+        else Demand < Supply
+            CheckpointStorage->>CheckpointStorage: interpolate clearing price
+        end
+    end
+    CheckpointStorage->>CheckpointStorage: update checkpoint with new clearing price
+    CheckpointStorage-->>Auction: new checkpoint
+    Auction->>Auction: emit CheckpointUpdated(...)
+```

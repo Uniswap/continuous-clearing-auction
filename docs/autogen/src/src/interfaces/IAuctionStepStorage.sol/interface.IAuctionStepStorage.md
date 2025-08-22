@@ -1,0 +1,62 @@
+# IAuctionStepStorage
+[Git Source](https://github.com/Uniswap/twap-auction/blob/a40941ed6c71ce668b5d7c2923b5830fe9b23869/src/interfaces/IAuctionStepStorage.sol)
+
+
+## Events
+### AuctionStepRecorded
+Emitted when an auction step is recorded
+
+
+```solidity
+event AuctionStepRecorded(uint256 indexed startBlock, uint256 indexed endBlock, uint24 mps);
+```
+
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`startBlock`|`uint256`|The start block of the auction step|
+|`endBlock`|`uint256`|The end block of the auction step|
+|`mps`|`uint24`|The percentage of total tokens to sell per block during this auction step, represented in ten-millionths of the total supply (1e7 = 100%)|
+
+## Errors
+### InvalidPointer
+Error thrown when the SSTORE2 pointer is the zero address
+
+
+```solidity
+error InvalidPointer();
+```
+
+### AuctionIsOver
+Error thrown when the auction is over
+
+
+```solidity
+error AuctionIsOver();
+```
+
+### InvalidAuctionDataLength
+Error thrown when the auction data length is invalid
+
+
+```solidity
+error InvalidAuctionDataLength();
+```
+
+### InvalidMps
+Error thrown when the mps is invalid
+
+
+```solidity
+error InvalidMps();
+```
+
+### InvalidEndBlock
+Error thrown when the end block is invalid
+
+
+```solidity
+error InvalidEndBlock();
+```
+

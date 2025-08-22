@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.23;
+
+import {IValidationHook} from '../../src/interfaces/IValidationHook.sol';
+
+contract MockValidationHook is IValidationHook {
+    function validate(
+        uint256 maxPrice,
+        bool exactIn,
+        uint256 amount,
+        address owner,
+        address sender,
+        bytes calldata hookData
+    ) external pure {}
+}

@@ -2,7 +2,6 @@
 pragma solidity ^0.8.23;
 
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
-
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {MockAuctionStepStorage} from './utils/MockAuctionStepStorage.sol';
@@ -117,5 +116,19 @@ contract AuctionStepStorageTest is Test {
         vm.expectRevert(IAuctionStepStorage.InvalidEndBlock.selector);
         // The end block should be block.number + 1e7, but is 1e7 - 1
         _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7 - 1);
+    }
+
+    function test_advanceStep_exceedsLength_reverts_withAuctionIsOver() public {
+        // Create auction with only one step
+        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(1, 1e7);
+        MockAuctionStepStorage auctionStepStorage =
+            _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7);
+
+        // First call to advanceStep - this should succeed (offset goes from 8 to 16)
+        auctionStepStorage.advanceStep();
+
+        // Second call to advanceStep - now offset (16) > _length (8), should revert
+        vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
+        auctionStepStorage.advanceStep();
     }
 }

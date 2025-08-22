@@ -473,7 +473,7 @@ contract AuctionTest is TokenHandler, Test {
         vm.stopPrank();
     }
 
-    function test_onTokensReceived_withCorrectTokenAndAmount_succeeds() public {
+    function test_onTokensReceived_withCorrectTokenAndAmount_succeeds() public view {
         // Should not revert since tokens are already minted in setUp()
         auction.onTokensReceived(address(token), TOTAL_SUPPLY);
     }

@@ -20,13 +20,10 @@ contract MockPermit2 {
         lastReason = _reason;
     }
 
-    function permit(address owner, IAllowanceTransfer.PermitSingle calldata permitSingle, bytes calldata signature)
-        external
-    {
+    function permit(address, IAllowanceTransfer.PermitSingle calldata, bytes calldata) external view {
         if (shouldRevert) {
             revert(string(lastReason));
         }
-        // Success case - do nothing
     }
 }
 
@@ -51,7 +48,7 @@ contract PermitSingleForwarderTest is Test {
         token = makeAddr('token');
     }
 
-    function test_constructor_setsPermit2() public {
+    function test_constructor_setsPermit2() public view {
         assertEq(address(forwarder.permit2()), address(mockPermit2));
     }
 

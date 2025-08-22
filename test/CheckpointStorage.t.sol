@@ -237,7 +237,7 @@ contract CheckpointStorageTest is Test {
         assertEq(currencySpent, expectedCurrencySpent);
     }
 
-    function test_latestCheckpoint_returnsCheckpoint() public {
+    function test_latestCheckpoint_returnsCheckpoint() public view {
         // Since MockCheckpointStorage inherits from CheckpointStorage, it has the latestCheckpoint() function
 
         // Initially, there should be no checkpoint (lastCheckpointedBlock = 0)

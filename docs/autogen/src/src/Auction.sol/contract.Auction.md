@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/fd01708363597d050b143e62ef412f8ecb8849da/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/001c4da6489812fa75056d1768e5cda204c6e8b4/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [Notifier](/src/Notifier.sol/abstract.Notifier.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -307,7 +307,7 @@ function notify() external override;
 
 ### sweepCurrency
 
-Sweep the currency to the funds recipient
+Sweep all of the currency raised to the funds recipient
 
 *This function can only be called after the auction has ended*
 
@@ -318,19 +318,12 @@ function sweepCurrency() external;
 
 ### sweepTokens
 
-Sweep the tokens to the tokens recipient
+Sweep any leftover tokens to the tokens recipient
 
 *This function can only be called after the auction has ended*
 
 
 ```solidity
 function sweepTokens() external;
-```
-
-### receive
-
-
-```solidity
-receive() external payable;
 ```
 

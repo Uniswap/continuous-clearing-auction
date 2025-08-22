@@ -142,11 +142,11 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     /// @param bidId The id of the bid
     function claimTokens(uint256 bidId) external;
 
-    /// @notice Sweep the currency to the funds recipient
+    /// @notice Sweep all of the currency raised to the funds recipient
     /// @dev This function can only be called after the auction has ended
     function sweepCurrency() external;
 
-    /// @notice Sweep the tokens to the tokens recipient
+    /// @notice Sweep any leftover tokens to the tokens recipient
     /// @dev This function can only be called after the auction has ended
     function sweepTokens() external;
 }

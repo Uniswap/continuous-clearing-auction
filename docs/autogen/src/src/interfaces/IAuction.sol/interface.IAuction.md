@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/fd01708363597d050b143e62ef412f8ecb8849da/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/001c4da6489812fa75056d1768e5cda204c6e8b4/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md)
@@ -108,7 +108,7 @@ function claimTokens(uint256 bidId) external;
 
 ### sweepCurrency
 
-Sweep the currency to the funds recipient
+Sweep all of the currency raised to the funds recipient
 
 *This function can only be called after the auction has ended*
 
@@ -119,7 +119,7 @@ function sweepCurrency() external;
 
 ### sweepTokens
 
-Sweep the tokens to the tokens recipient
+Sweep any leftover tokens to the tokens recipient
 
 *This function can only be called after the auction has ended*
 

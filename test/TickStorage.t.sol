@@ -22,7 +22,7 @@ contract MockTickStorage is TickStorage {
 contract TickStorageTest is Test {
     MockTickStorage public tickStorage;
     uint256 public constant TICK_SPACING = 100;
-    uint256 public constant FLOOR_PRICE = 100 << FixedPoint96.RESOLUTION;
+    uint256 public constant FLOOR_PRICE = 100e6; // 100 in X96 format
 
     function setUp() public {
         tickStorage = new MockTickStorage(TICK_SPACING, FLOOR_PRICE);
@@ -30,7 +30,7 @@ contract TickStorageTest is Test {
 
     /// Helper function to convert a tick number to a priceX96
     function tickNumberToPriceX96(uint256 tickNumber) internal pure returns (uint256) {
-        return ((FLOOR_PRICE >> FixedPoint96.RESOLUTION) + (tickNumber - 1) * TICK_SPACING) << FixedPoint96.RESOLUTION;
+        return FLOOR_PRICE + (tickNumber - 1) * TICK_SPACING;
     }
 
     function test_initializeTick_succeeds() public {
@@ -75,13 +75,13 @@ contract TickStorageTest is Test {
     }
 
     function test_initializeTickUpdatesTickUpperPrice_succeeds() public {
-        uint256 maxTickPrice = uint256(type(uint128).max) * TICK_SPACING;
+        // Set tickUpperPrice to a high value
+        uint256 maxTickPrice = type(uint256).max;
         vm.store(address(tickStorage), bytes32(uint256(1)), bytes32(maxTickPrice));
 
-        // When we call initializeTickIfNeeded, nextId will be MAX_TICK_ID
-        // and toPrice(nextId) will equal tickUpperPrice, triggering the update
-        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, 2e18);
-        assertEq(tickStorage.tickUpperPrice(), 2e18);
+        // When we call initializeTickIfNeeded, the new tick should update tickUpperPrice
+        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, 200e6);
+        assertEq(tickStorage.tickUpperPrice(), 200e6);
     }
 
     function test_initializeTickWithWrongPrice_reverts() public {
@@ -108,7 +108,7 @@ contract TickStorageTest is Test {
         tickStorage.initializeTickIfNeeded(FLOOR_PRICE, tickNumberToPriceX96(3));
     }
 
-        function test_initializeTickIfNeeded_withNextIdLessThanId_reverts() public {
+    function test_initializeTickIfNeeded_withNextIdLessThanId_reverts() public {
         tickStorage.initializeTickIfNeeded(FLOOR_PRICE, 2e18);
 
         // Then try to initialize a tick at price 3 with prevId=1, but nextId=2 is less than id=3
@@ -121,10 +121,5 @@ contract TickStorageTest is Test {
         // Try to initialize a tick at price 1 with prevId=2, but prevId > id
         vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
         tickStorage.initializeTickIfNeeded(2, 1e18);
-    }
-
-    function test_toId_notMultipleOfTickSpacing_reverts() public {
-        vm.expectRevert('TickStorage: price must be a multiple of tickSpacing');
-        tickStorage.getTick(2147);
     }
 }

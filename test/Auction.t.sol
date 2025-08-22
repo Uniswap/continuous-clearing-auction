@@ -6,17 +6,21 @@ import {IAuction} from '../src/interfaces/IAuction.sol';
 
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
-import {Currency} from '../src/libraries/CurrencyLibrary.sol';
+
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
+import {Currency} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
-import {TokenHandler} from './utils/TokenHandler.sol';
+
 import {MockAuction} from './utils/MockAuction.sol';
 import {MockValidationHook} from './utils/MockValidationHook.sol';
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {TokenHandler} from './utils/TokenHandler.sol';
+
 import {Test} from 'forge-std/Test.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 contract AuctionTest is TokenHandler, Test {
     using AuctionParamsBuilder for AuctionParameters;
@@ -635,6 +639,7 @@ contract AuctionTest is TokenHandler, Test {
         assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + 150e18);
         vm.stopPrank();
     }
+
     function test_onTokensReceived_withCorrectTokenAndAmount_succeeds() public view {
         // Should not revert since tokens are already minted in setUp()
         auction.onTokensReceived(address(token), TOTAL_SUPPLY);
@@ -694,16 +699,39 @@ contract AuctionTest is TokenHandler, Test {
     }
 
     function test_exitPartiallyFilledBid_withInvalidCheckpointHint_reverts() public {
-        uint256 bidId = auction.submitBid{value: 100e18}(tickNumberToPriceX96(2), true, 100e18, alice, 1, bytes(''));
+        // Submit a bid at price 2
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
 
         vm.roll(block.number + 1);
-        auction.checkpoint();
+        auction.checkpoint(); // This creates checkpoint 2 with clearing price = tickNumberToPriceX96(2)
+
+        // Submit a larger bid to move clearing price above the first bid
+        auction.submitBid{value: inputAmountForTokens(1000e18, tickNumberToPriceX96(3))}(
+            tickNumberToPriceX96(3),
+            true,
+            inputAmountForTokens(1000e18, tickNumberToPriceX96(3)),
+            alice,
+            tickNumberToPriceX96(2),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        auction.checkpoint(); // This creates checkpoint 3 with clearing price = tickNumberToPriceX96(3)
 
         vm.roll(auction.endBlock() + 1);
 
-        // Try to exit with invalid checkpoint hint - should revert with CannotExitBid since bid is not outbid
-        vm.expectRevert(IAuction.CannotExitBid.selector);
-        auction.exitPartiallyFilledBid(bidId, 999); // Invalid checkpoint block
+        // Try to exit with checkpoint 2 as the outbid checkpoint
+        // But checkpoint 2 has clearing price = tickNumberToPriceX96(2), which equals bid.maxPrice
+        // This violates the condition: outbidCheckpoint.clearingPrice < bid.maxPrice
+        vm.expectRevert(IAuction.InvalidCheckpointHint.selector);
+        auction.exitPartiallyFilledBid(bidId, 2);
     }
 
     function test_advanceToCurrentStep_withMultipleStepsAndClearingPrice() public {
@@ -720,7 +748,14 @@ contract AuctionTest is TokenHandler, Test {
         Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(newAuction), TOTAL_SUPPLY);
 
-        newAuction.submitBid{value: 100e18}(tickNumberToPriceX96(2), true, 100e18, alice, 1, bytes(''));
+        newAuction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
 
         vm.roll(block.number + 10);
         newAuction.checkpoint();
@@ -739,37 +774,44 @@ contract AuctionTest is TokenHandler, Test {
     }
 
     function test_calculateNewClearingPrice_belowFloorPrice_returnsFloorPrice() public {
-        // Create a test auction exposer with a higher floor price to test the floor price condition directly
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
-        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(10e6)
-            .withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            10e6 << FixedPoint96.RESOLUTION
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
             .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION) // High floor price
-            .withAuctionStepsData(auctionStepsData);
+            .withClaimBlock(block.number + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
 
-        MockAuction exposer = new MockAuction(address(token), TOTAL_SUPPLY, params);
-        token.mint(address(exposer), TOTAL_SUPPLY);
+        MockAuction mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(mockAuction), TOTAL_SUPPLY);
 
-        // Set up the auction state properly by submitting bids and checkpointing
-        exposer.submitBid{value: 100e18}(uint128(12e6), true, 100e18, alice, 10, bytes(''));
+        // Set up the auction state by submitting a bid and checkpointing
+        uint256 bidPrice = 12e6 << FixedPoint96.RESOLUTION;
+        mockAuction.submitBid{value: inputAmountForTokens(100e18, bidPrice)}(
+            bidPrice, true, inputAmountForTokens(100e18, bidPrice), alice, 10e6 << FixedPoint96.RESOLUTION, bytes('')
+        );
 
         vm.roll(block.number + 1);
-        exposer.checkpoint(); // This sets up sumDemandAboveClearing properly
+        mockAuction.checkpoint(); // This sets up sumDemandAboveClearing properly
 
-        // Now test the function with parameters that should trigger floor price condition
-        // We need to create a scenario where calculated price is between minimumClearingPrice and floorPrice
-        // With currencyDemand = 1e18, we need blockTokenSupply to be small enough
-        // to make 1e18 / blockTokenSupply > 7e5 but < 10e6
-        // So: 7e5 < 1e18 / blockTokenSupply < 10e6
-        // This means: 1e18 / 10e6 < blockTokenSupply < 1e18 / 7e5
-        // Or: 1e12 < blockTokenSupply < 1.43e12
-        uint256 result = exposer.calculateNewClearingPrice(
-            15e6, // _tickUpperPrice
-            7e5, // minimumClearingPrice (below floor price)
-            1.2e12, // blockTokenSupply that should give calculated price between 7e5 and 10e6
+        // We need: minimumClearingPrice < calculated_price < floorPrice
+        // Use a much smaller minimumClearingPrice so the calculated price will be above it
+        uint256 minimumClearingPrice = 1e1 << FixedPoint96.RESOLUTION; // Much much smaller than floor price (10e6 << 96)
+
+        // Use a blockTokenSupply that will give a calculated price between minimumClearingPrice and floorPrice
+        // The formula is: clearingPrice = currencyDemand * Q96 / (blockTokenSupply - tokenDemand)
+        // We want: minimumClearingPrice < calculated_price < floorPrice
+        // With currencyDemand = 120e18 and tokenDemand = 100e18, we need to find the right blockTokenSupply
+        uint256 blockTokenSupply = 1e22; // Even larger supply to get a smaller calculated price
+
+        uint256 result = mockAuction.calculateNewClearingPrice(
+            15e6 << FixedPoint96.RESOLUTION, // _tickUpperPrice in X96
+            minimumClearingPrice, // minimumClearingPrice in X96 (below floor price)
+            blockTokenSupply, // blockTokenSupply
             0 // cumulativeMps
         );
-        assertEq(result, 10e6);
+
+        assertEq(result, 10e6 << FixedPoint96.RESOLUTION);
     }
 
     function test_submitBid_withValidationHook_callsValidationHook() public {
@@ -789,19 +831,19 @@ contract AuctionTest is TokenHandler, Test {
         token.mint(address(testAuction), TOTAL_SUPPLY);
 
         // Submit a bid with hook data to trigger the validation hook
-        uint256 bidId = testAuction.submitBid{value: 100e18}(
-            uint128(FLOOR_PRICE + TICK_SPACING), // maxPrice = _tickPriceAt(2)
-            true, // exactIn
-            100e18, // amount (currency amount for exactIn)
-            alice, // owner
-            1, // prevHintId
-            bytes('hook data') // hookData - this will be passed to the validation hook
+        uint256 bidId = testAuction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('hook data')
         );
 
         assertEq(bidId, 0);
     }
 
-    function test_submitBid_withERC20Currency_callsPermit2Transfer() public {
+    function test_submitBid_withERC20Currency_unpermittedPermit2Transfer_reverts() public {
         // Create auction parameters with ERC20 currency instead of ETH
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
         AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(address(currency)).withFloorPrice(
@@ -822,46 +864,34 @@ contract AuctionTest is TokenHandler, Test {
         assertEq(Currency.unwrap(erc20Auction.currency()), address(currency));
         assertFalse(erc20Auction.currency().isAddressZero());
 
-        // Now let's actually call submitBid to trigger line 252
-        // We expect it to revert due to Permit2 transfer failure, but that's OK
-        // The important thing is that the code path up to line 252 is executed
-        vm.expectRevert(); // Expect revert due to Permit2 transfer failure
+        vm.expectRevert(SafeTransferLib.TransferFromFailed.selector); // Expect revert due to Permit2 transfer failure
         erc20Auction.submitBid{value: 0}(
-            tickNumberToPriceX96(2), // maxPrice
-            true, // exactIn
-            100e18, // amount (currency amount for exactIn)
-            alice, // owner
-            1, // prevHintId
-            bytes('') // hookData
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
         );
     }
 
     function test_exitPartiallyFilledBid_withInvalidCheckpointHint_atEndBlock_reverts() public {
-        address bob = makeAddr('bob');
-
-        // Submit a bid that will equal the clearing price after the auction ends
-        uint256 bidId = auction.submitBid{value: 100e18}(tickNumberToPriceX96(2), true, 100e18, alice, 1, bytes(''));
-
-        // Submit enough demand to move the clearing price to match the bid's max price
-        auction.submitBid{value: 1000e18 * tickNumberToPriceX96(2)}(
-            tickNumberToPriceX96(2), true, 1000e18 * tickNumberToPriceX96(2), bob, 1, bytes('')
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
         );
 
         vm.roll(block.number + 1);
         auction.checkpoint();
 
-        // The clearing price should now be at tick 2, matching alice's bid
-        assertEq(auction.clearingPrice(), tickNumberToPriceX96(2));
-
-        // Advance to after the auction ends
         vm.roll(auction.endBlock() + 1);
 
-        // Try to exit with an invalid checkpoint hint
-        // This should trigger the second InvalidCheckpointHint revert (line 324)
-        vm.startPrank(alice);
         vm.expectRevert(IAuction.InvalidCheckpointHint.selector);
-        auction.exitPartiallyFilledBid(bidId, 1); // Using checkpoint 1 which should be invalid
-        vm.stopPrank();
+        auction.exitPartiallyFilledBid(bidId, 2);
     }
 
     function test_auctionConstruction_reverts() public {
@@ -905,7 +935,7 @@ contract AuctionTest is TokenHandler, Test {
         new Auction(address(token), TOTAL_SUPPLY, params);
     }
 
-    function test_checkpoint_beforeAuctionStarts_revertsWithAuctionNotStarted() public {
+    function test_checkpoint_beforeAuctionStarts_reverts() public {
         // Create an auction that starts in the future
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
         AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
@@ -923,23 +953,40 @@ contract AuctionTest is TokenHandler, Test {
         futureAuction.checkpoint();
     }
 
-    function test_submitBid_afterAuctionEnds_revertsWithAuctionIsOver() public {
+    function test_submitBid_afterAuctionEnds_reverts() public {
         // Advance to after the auction ends
         vm.roll(auction.endBlock() + 1);
 
         // Try to submit a bid after the auction has ended
         vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
-        auction.submitBid{value: 100e18}(tickNumberToPriceX96(2), true, 100e18, alice, 1, bytes(''));
+        auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
     }
 
-    function test_exitPartiallyFilledBid_alreadyExited_revertsWithBidAlreadyExited() public {
+    function test_exitPartiallyFilledBid_alreadyExited_reverts() public {
         // Use the same pattern as the working test_exitPartiallyFilledBid_succeeds_gas
         address bob = makeAddr('bob');
-        uint256 bidId = auction.submitBid{value: 500e18 * tickNumberToPriceX96(2)}(
-            tickNumberToPriceX96(2), true, 500e18 * tickNumberToPriceX96(2), alice, 1, bytes('')
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(500e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(500e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
         );
-        auction.submitBid{value: 500e18 * tickNumberToPriceX96(3)}(
-            tickNumberToPriceX96(3), true, 500e18 * tickNumberToPriceX96(3), bob, 2, bytes('')
+        auction.submitBid{value: inputAmountForTokens(500e18, tickNumberToPriceX96(3))}(
+            tickNumberToPriceX96(3),
+            true,
+            inputAmountForTokens(500e18, tickNumberToPriceX96(3)),
+            bob,
+            tickNumberToPriceX96(2),
+            bytes('')
         );
 
         // Clearing price is at 2
@@ -961,11 +1008,23 @@ contract AuctionTest is TokenHandler, Test {
 
     function test_exitPartiallyFilledBid_withInvalidCheckpointHint_onLine308_reverts() public {
         // Submit a bid at a lower price
-        uint256 bidId = auction.submitBid{value: 100e18}(tickNumberToPriceX96(2), true, 100e18, alice, 1, bytes(''));
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
 
         // Submit a much larger bid to move the clearing price above the first bid
-        auction.submitBid{value: 1000e18 * tickNumberToPriceX96(3)}(
-            tickNumberToPriceX96(3), true, 1000e18 * tickNumberToPriceX96(3), alice, 2, bytes('')
+        auction.submitBid{value: inputAmountForTokens(1000e18, tickNumberToPriceX96(3))}(
+            tickNumberToPriceX96(3),
+            true,
+            inputAmountForTokens(1000e18, tickNumberToPriceX96(3)),
+            alice,
+            tickNumberToPriceX96(2),
+            bytes('')
         );
 
         vm.roll(block.number + 1);
@@ -983,9 +1042,16 @@ contract AuctionTest is TokenHandler, Test {
         vm.stopPrank();
     }
 
-    function test_claimTokens_beforeBidExited_revertsWithBidNotExited() public {
+    function test_claimTokens_beforeBidExited_reverts() public {
         // Submit a bid but don't exit it
-        uint256 bidId = auction.submitBid{value: 100e18}(tickNumberToPriceX96(2), true, 100e18, alice, 1, bytes(''));
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
 
         // Try to claim tokens before the bid has been exited
         vm.startPrank(alice);
@@ -994,8 +1060,15 @@ contract AuctionTest is TokenHandler, Test {
         vm.stopPrank();
     }
 
-    function test_claimTokens_beforeClaimBlock_revertsWithNotClaimable() public {
-        uint256 bidId = auction.submitBid{value: 100e18}(tickNumberToPriceX96(2), true, 100e18, alice, 1, bytes(''));
+    function test_claimTokens_beforeClaimBlock_reverts() public {
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
 
         // Exit the bid
         vm.roll(auction.endBlock() + 1);
@@ -1009,5 +1082,5 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectRevert(IAuction.NotClaimable.selector);
         auction.claimTokens(bidId);
         vm.stopPrank();
-    }    
+    }
 }

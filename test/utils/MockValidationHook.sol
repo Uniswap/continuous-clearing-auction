@@ -4,7 +4,7 @@ pragma solidity ^0.8.23;
 import {IValidationHook} from '../../src/interfaces/IValidationHook.sol';
 
 contract MockValidationHook is IValidationHook {
-     function validate(
+    function validate(
         uint256 maxPrice,
         bool exactIn,
         uint256 amount,

@@ -3,14 +3,31 @@ pragma solidity ^0.8.23;
 
 import {PermitSingleForwarder} from '../src/PermitSingleForwarder.sol';
 import {IPermitSingleForwarder} from '../src/interfaces/IPermitSingleForwarder.sol';
-import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
-import {MockPermit2} from './utils/MockPermit2.sol';
+
 import {Test} from 'forge-std/Test.sol';
-
-
+import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 
 contract TestPermitSingleForwarder is PermitSingleForwarder {
     constructor(IAllowanceTransfer _permit2) PermitSingleForwarder(_permit2) {}
+}
+
+contract MockPermit2 {
+    bool public shouldRevert;
+    bytes public lastReason;
+
+    function setShouldRevert(bool _shouldRevert) external {
+        shouldRevert = _shouldRevert;
+    }
+
+    function setLastReason(bytes memory _reason) external {
+        lastReason = _reason;
+    }
+
+    function permit(address, IAllowanceTransfer.PermitSingle calldata, bytes calldata) external view {
+        if (shouldRevert) {
+            revert(string(lastReason));
+        }
+    }
 }
 
 contract PermitSingleForwarderTest is Test {

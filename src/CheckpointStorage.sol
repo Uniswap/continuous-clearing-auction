@@ -60,8 +60,9 @@ abstract contract CheckpointStorage is TickStorage {
     /// @return The updated checkpoint
     function _updateCheckpoint(
         Checkpoint memory _checkpoint,
-        AuctionStep memory _step,
         Demand memory _sumDemandAboveClearing,
+        uint24 _stepMps,
+        uint64 _stepStartBlock,
         uint256 _newClearingPrice,
         uint256 _blockTokenSupply
     ) internal view returns (Checkpoint memory) {
@@ -70,7 +71,7 @@ abstract contract CheckpointStorage is TickStorage {
         if (_newClearingPrice == floorPrice) {
             // We can only clear the current demand at the floor price
             _checkpoint.blockCleared = resolvedDemandAboveClearing.applyMpsDenominator(
-                _step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
+                _stepMps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
             );
         }
         // Otherwise, we can clear the entire supply being sold in the block
@@ -79,8 +80,8 @@ abstract contract CheckpointStorage is TickStorage {
         }
 
         uint24 mpsSinceLastCheckpoint = (
-            _step.mps
-                * (block.number - (_step.startBlock > lastCheckpointedBlock ? _step.startBlock : lastCheckpointedBlock))
+            _stepMps
+                * (block.number - (_stepStartBlock > lastCheckpointedBlock ? _stepStartBlock : lastCheckpointedBlock))
         ).toUint24();
 
         _checkpoint.clearingPrice = _newClearingPrice;
@@ -89,7 +90,7 @@ abstract contract CheckpointStorage is TickStorage {
         _checkpoint.cumulativeMpsPerPrice +=
             CheckpointLib.getMpsPerPrice(mpsSinceLastCheckpoint, _checkpoint.clearingPrice);
         _checkpoint.resolvedDemandAboveClearingPrice = resolvedDemandAboveClearing;
-        _checkpoint.mps = _step.mps;
+        _checkpoint.mps = _stepMps;
         _checkpoint.prev = lastCheckpointedBlock;
 
         return _checkpoint;

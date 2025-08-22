@@ -149,39 +149,45 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         // Advance to the current step if needed, summing up the results since the last checkpointed block
         (_checkpoint,) = _advanceToCurrentStep();
 
+        uint24 _stepMps = step.mps;
         uint256 blockTokenSupply = (totalSupply - _checkpoint.totalCleared).applyMpsDenominator(
-            step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
+            _stepMps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
         );
 
         // All active demand above the current clearing price
         Demand memory _sumDemandAboveClearing = sumDemandAboveClearing;
+        uint256 _tickUpperPrice = tickUpperPrice;
         uint256 minimumClearingPrice = _checkpoint.clearingPrice;
-        Tick memory _tickUpper = getTick(tickUpperPrice);
+        Tick memory _tickUpper = getTick(_tickUpperPrice);
         // Find the tick which does not fully match the supply, stopping at the highest tick in the book
         while (
-            _sumDemandAboveClearing.resolve(tickUpperPrice).applyMpsDenominator(
-                step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
+            _sumDemandAboveClearing.resolve(_tickUpperPrice).applyMpsDenominator(
+                _stepMps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
             ) >= blockTokenSupply
         ) {
             // Subtract the demand at the current tickUpper before advancing to the next tick
             _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_tickUpper.demand);
             // If there is no future tick, break to avoid ending up in a bad state
-            if (_tickUpper.next == MAX_TICK_PRICE) {
+            uint256 nextTickPrice = _tickUpper.next;
+            if (nextTickPrice == MAX_TICK_PRICE) {
                 break;
             }
             // Since there was enough demand at tick upper to fill the supply, the new clearing price must be >= tickUpperPrice
-            minimumClearingPrice = tickUpperPrice;
-            tickUpperPrice = _tickUpper.next;
-            _tickUpper = getTick(tickUpperPrice);
+            minimumClearingPrice = _tickUpperPrice;
+            _tickUpperPrice = nextTickPrice;
+            _tickUpper = getTick(nextTickPrice);
         }
 
+        tickUpperPrice = _tickUpperPrice;
         sumDemandAboveClearing = _sumDemandAboveClearing;
 
         uint256 newClearingPrice = _calculateNewClearingPrice(
             tickUpperPrice, minimumClearingPrice, blockTokenSupply, _checkpoint.cumulativeMps
         );
 
-        _checkpoint = _updateCheckpoint(_checkpoint, step, _sumDemandAboveClearing, newClearingPrice, blockTokenSupply);
+        _checkpoint = _updateCheckpoint(
+            _checkpoint, _sumDemandAboveClearing, _stepMps, step.startBlock, newClearingPrice, blockTokenSupply
+        );
 
         _insertCheckpoint(_checkpoint);
 

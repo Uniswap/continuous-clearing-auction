@@ -332,8 +332,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         bid.tokensFilled = 0;
         _updateBid(bidId, bid);
 
-        bool success = token.transfer(bid.owner, tokensFilled);
-        if (!success) revert TokenTransferFailed();
+        Currency.wrap(address(token)).transfer(bid.owner, tokensFilled);
 
         emit TokensClaimed(bid.owner, tokensFilled);
     }

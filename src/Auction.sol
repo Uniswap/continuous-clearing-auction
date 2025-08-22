@@ -371,7 +371,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         sweepTokensBlock = block.number;
         uint256 tokensSold = totalSupply - _getFinalCheckpoint().totalCleared;
         if (tokensSold > 0) {
-            token.transfer(tokensRecipient, tokensSold);
+            Currency.wrap(address(token)).transfer(tokensRecipient, tokensSold);
         }
         emit TokensSwept(tokensRecipient, tokensSold);
     }

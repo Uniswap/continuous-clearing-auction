@@ -9,12 +9,11 @@ contract MockAuction is Auction {
         Auction(_token, _totalSupply, _parameters)
     {}
 
-    function calculateNewClearingPrice(
-        uint256 _tickUpperPrice,
-        uint256 minimumClearingPrice,
-        uint256 blockTokenSupply,
-        uint24 cumulativeMps
-    ) external view returns (uint256) {
-        return _calculateNewClearingPrice(_tickUpperPrice, minimumClearingPrice, blockTokenSupply, cumulativeMps);
+    function calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 blockTokenSupply, uint24 cumulativeMps)
+        external
+        view
+        returns (uint256)
+    {
+        return _calculateNewClearingPrice(minimumClearingPrice, blockTokenSupply, cumulativeMps);
     }
 }

@@ -9,6 +9,11 @@ import {Test} from 'forge-std/Test.sol';
 contract MockTickStorage is TickStorage {
     constructor(uint256 _tickSpacing, uint256 _floorPrice) TickStorage(_tickSpacing, _floorPrice) {}
 
+    /// @notice Set the tickUpperPrice, only for testing
+    function setTickUpperPrice(uint256 price) external {
+        tickUpperPrice = price;
+    }
+
     function initializeTickIfNeeded(uint256 prevPrice, uint256 price) external {
         super._initializeTickIfNeeded(prevPrice, price);
     }
@@ -71,6 +76,21 @@ contract TickStorageTest is Test {
 
         tick = tickStorage.getTick(tickNumberToPriceX96(2));
         assertEq(tick.next, tickNumberToPriceX96(3));
+    }
+
+    function test_initializeTickSetsTickUpperPrice_whenTickUpperPriceIsMax_succeeds() public {
+        uint256 price = tickNumberToPriceX96(2);
+        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, price);
+        Tick memory tick = tickStorage.getTick(price);
+        assertEq(tick.next, type(uint256).max);
+
+        // Set tickUpperPrice to MAX_TICK_PRICE
+        tickStorage.setTickUpperPrice(type(uint256).max);
+        assertEq(tickStorage.tickUpperPrice(), type(uint256).max);
+
+        // Initializing a tick above the highest tick in the book should set tickUpperPrice to the new tick
+        tickStorage.initializeTickIfNeeded(price, tickNumberToPriceX96(3));
+        assertEq(tickStorage.tickUpperPrice(), tickNumberToPriceX96(3));
     }
 
     function test_initializeTickUpdatesTickUpperPrice_succeeds() public {

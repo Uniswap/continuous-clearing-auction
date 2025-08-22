@@ -393,10 +393,9 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_exitBid_afterEndBlock_succeeds() public {
-        uint256 bidMaxPrice = tickNumberToPriceX96(3);
         // Bid at 3 but only provide 1000e18 ETH, such that the auction is only fully filled at 1e6
         uint256 bidId = auction.submitBid{value: inputAmountForTokens(1000e18, tickNumberToPriceX96(1))}(
-            bidMaxPrice,
+            tickNumberToPriceX96(3),
             true,
             inputAmountForTokens(1000e18, tickNumberToPriceX96(1)),
             alice,

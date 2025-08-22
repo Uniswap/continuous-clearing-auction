@@ -54,48 +54,6 @@ abstract contract CheckpointStorage is TickStorage {
         lastCheckpointedBlock = blockNumber;
     }
 
-    /// @notice Update the checkpoint
-    /// @param _checkpoint The checkpoint to update
-    /// @param _sumDemandAboveClearing The sum of demand above the clearing price
-    /// @param _newClearingPrice The new clearing price
-    /// @param _blockTokenSupply The token supply at or above tickUpper in the block
-    /// @return The updated checkpoint
-    function _updateCheckpoint(
-        Checkpoint memory _checkpoint,
-        AuctionStep memory _step,
-        Demand memory _sumDemandAboveClearing,
-        uint256 _blockNumber,
-        uint256 _lastCheckpointedBlock,
-        uint256 _newClearingPrice,
-        uint256 _blockTokenSupply
-    ) internal view returns (Checkpoint memory) {
-        uint256 resolvedDemandAboveClearing = _sumDemandAboveClearing.resolve(_newClearingPrice);
-        // If the clearing price is the floor price, we can only clear the current demand at the floor price
-        if (_newClearingPrice == floorPrice) {
-            // We can only clear the current demand at the floor price
-            _checkpoint.blockCleared = resolvedDemandAboveClearing.applyMpsDenominator(_step.mps, AuctionStepLib.MPS);
-        }
-        // Otherwise, we can clear the entire supply being sold in the block
-        else {
-            _checkpoint.blockCleared = _blockTokenSupply;
-        }
-
-        uint256 blockDelta =
-            _blockNumber - (_step.startBlock > _lastCheckpointedBlock ? _step.startBlock : _lastCheckpointedBlock);
-        uint24 mpsSinceLastCheckpoint = (_step.mps * blockDelta).toUint24();
-
-        _checkpoint.clearingPrice = _newClearingPrice;
-        _checkpoint.totalCleared += _checkpoint.blockCleared * blockDelta;
-        _checkpoint.cumulativeMps += mpsSinceLastCheckpoint;
-        _checkpoint.cumulativeMpsPerPrice +=
-            CheckpointLib.getMpsPerPrice(mpsSinceLastCheckpoint, _checkpoint.clearingPrice);
-        _checkpoint.resolvedDemandAboveClearingPrice = resolvedDemandAboveClearing;
-        _checkpoint.mps = _step.mps;
-        _checkpoint.prev = lastCheckpointedBlock;
-
-        return _checkpoint;
-    }
-
     /// @notice Calculate the tokens sold and proportion of input used for a fully filled bid between two checkpoints
     /// @dev This function MUST only be used for checkpoints where the bid's max price is strictly greater than the clearing price
     ///      because it uses lazy accounting to calculate the tokens filled
@@ -109,11 +67,6 @@ abstract contract CheckpointStorage is TickStorage {
         pure
         returns (uint256 tokensFilled, uint256 currencySpent)
     {
-        console2.log('upper.cumulativeMpsPerPrice', upper.cumulativeMpsPerPrice);
-        console2.log('lower.cumulativeMpsPerPrice', lower.cumulativeMpsPerPrice);
-        console2.log('upper.cumulativeMps', upper.cumulativeMps);
-        console2.log('lower.cumulativeMps', lower.cumulativeMps);
-
         (tokensFilled, currencySpent) = _calculateFill(
             bid,
             upper.cumulativeMpsPerPrice - lower.cumulativeMpsPerPrice,

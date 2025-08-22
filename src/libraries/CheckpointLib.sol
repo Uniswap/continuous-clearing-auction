@@ -33,7 +33,6 @@ library CheckpointLib {
         checkpoint.cumulativeMps += deltaMps;
         checkpoint.cumulativeMpsPerPrice +=
             checkpoint.clearingPrice != 0 ? getMpsPerPrice(deltaMps, checkpoint.clearingPrice) : 0;
-        checkpoint.mps = mps;
         return checkpoint;
     }
 

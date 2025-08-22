@@ -27,6 +27,8 @@ import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 
 contract AuctionTest is AuctionBaseTest {
     using FixedPointMathLib for uint256;
+    using AuctionParamsBuilder for AuctionParameters;
+    using AuctionStepsBuilder for bytes;
 
     function setUp() public {
         setUpAuction();

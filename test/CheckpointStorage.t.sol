@@ -3,15 +3,14 @@ pragma solidity ^0.8.23;
 
 import {Tick} from '../src/TickStorage.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
-
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
+import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {CheckpointLib} from '../src/libraries/CheckpointLib.sol';
 import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {MockCheckpointStorage} from './utils/MockCheckpointStorage.sol';
-import {Test} from 'forge-std/Test.sol';
-
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {Test} from 'forge-std/Test.sol';
 
 contract CheckpointStorageTest is Test {
     MockCheckpointStorage mockCheckpointStorage;
@@ -233,5 +232,17 @@ contract CheckpointStorageTest is Test {
 
         assertEq(tokensFilled, expectedTokensFilled);
         assertEq(currencySpent, expectedCurrencySpent);
+    }
+
+    function test_latestCheckpoint_returnsCheckpoint() public view {
+        // Since MockCheckpointStorage inherits from CheckpointStorage, it has the latestCheckpoint() function
+
+        // Initially, there should be no checkpoint (lastCheckpointedBlock = 0)
+        Checkpoint memory checkpoint = mockCheckpointStorage.latestCheckpoint();
+
+        // The checkpoint should be empty (all fields default to 0)
+        assertEq(checkpoint.clearingPrice, 0);
+        assertEq(checkpoint.totalCleared, 0);
+        assertEq(checkpoint.cumulativeMps, 0);
     }
 }

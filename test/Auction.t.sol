@@ -806,7 +806,6 @@ contract AuctionTest is TokenHandler, Test {
         uint256 blockTokenSupply = 1e22; // Even larger supply to get a smaller calculated price
 
         uint256 result = mockAuction.calculateNewClearingPrice(
-            15e6 << FixedPoint96.RESOLUTION, // _tickUpperPrice in X96
             minimumClearingPrice, // minimumClearingPrice in X96 (below floor price)
             blockTokenSupply, // blockTokenSupply
             0 // cumulativeMps

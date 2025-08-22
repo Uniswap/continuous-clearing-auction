@@ -62,6 +62,10 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     error TokenTransferFailed();
     /// @notice Error thrown when the auction is not over
     error AuctionIsNotOver();
+    /// @notice Error thrown when the currency has already been swept
+    error CurrencyAlreadySwept();
+    /// @notice Error thrown when the tokens have already been swept
+    error TokensAlreadySwept();
 
     /// @notice Emitted when a bid is submitted
     /// @param id The id of the bid
@@ -89,6 +93,16 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     /// @param owner The owner of the bid
     /// @param tokensFilled The amount of tokens claimed
     event TokensClaimed(address indexed owner, uint256 tokensFilled);
+
+    /// @notice Emitted when the tokens are swept
+    /// @param tokensRecipient The address of the tokens recipient
+    /// @param tokensAmount The amount of tokens swept
+    event TokensSwept(address indexed tokensRecipient, uint256 tokensAmount);
+
+    /// @notice Emitted when the currency is swept
+    /// @param fundsRecipient The address of the funds recipient
+    /// @param currencyAmount The amount of currency swept
+    event CurrencySwept(address indexed fundsRecipient, uint256 currencyAmount);
 
     /// @notice Submit a new bid
     /// @param maxPrice The maximum price the bidder is willing to pay
@@ -129,8 +143,10 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     function claimTokens(uint256 bidId) external;
 
     /// @notice Sweep the currency to the funds recipient
+    /// @dev This function can only be called after the auction has ended
     function sweepCurrency() external;
 
     /// @notice Sweep the tokens to the tokens recipient
+    /// @dev This function can only be called after the auction has ended
     function sweepTokens() external;
 }

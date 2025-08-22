@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/2c68a019e4915708e1fd99bbd58a0cf7221ad013/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/fd01708363597d050b143e62ef412f8ecb8849da/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md)
@@ -110,6 +110,8 @@ function claimTokens(uint256 bidId) external;
 
 Sweep the currency to the funds recipient
 
+*This function can only be called after the auction has ended*
+
 
 ```solidity
 function sweepCurrency() external;
@@ -118,6 +120,8 @@ function sweepCurrency() external;
 ### sweepTokens
 
 Sweep the tokens to the tokens recipient
+
+*This function can only be called after the auction has ended*
 
 
 ```solidity
@@ -189,6 +193,36 @@ event TokensClaimed(address indexed owner, uint256 tokensFilled);
 |----|----|-----------|
 |`owner`|`address`|The owner of the bid|
 |`tokensFilled`|`uint256`|The amount of tokens claimed|
+
+### TokensSwept
+Emitted when the tokens are swept
+
+
+```solidity
+event TokensSwept(address indexed tokensRecipient, uint256 tokensAmount);
+```
+
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`tokensRecipient`|`address`|The address of the tokens recipient|
+|`tokensAmount`|`uint256`|The amount of tokens swept|
+
+### CurrencySwept
+Emitted when the currency is swept
+
+
+```solidity
+event CurrencySwept(address indexed fundsRecipient, uint256 currencyAmount);
+```
+
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`fundsRecipient`|`address`|The address of the funds recipient|
+|`currencyAmount`|`uint256`|The amount of currency swept|
 
 ## Errors
 ### IDistributionContract__InvalidToken
@@ -325,5 +359,21 @@ Error thrown when the auction is not over
 
 ```solidity
 error AuctionIsNotOver();
+```
+
+### CurrencyAlreadySwept
+Error thrown when the currency has already been swept
+
+
+```solidity
+error CurrencyAlreadySwept();
+```
+
+### TokensAlreadySwept
+Error thrown when the tokens have already been swept
+
+
+```solidity
+error TokensAlreadySwept();
 ```
 

@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/2c68a019e4915708e1fd99bbd58a0cf7221ad013/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/fd01708363597d050b143e62ef412f8ecb8849da/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [Notifier](/src/Notifier.sol/abstract.Notifier.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -75,6 +75,24 @@ The sum of demand in ticks above the clearing price
 
 ```solidity
 Demand public sumDemandAboveClearing;
+```
+
+
+### sweepCurrencyBlock
+The block at which the currency was swept
+
+
+```solidity
+uint256 public sweepCurrencyBlock;
+```
+
+
+### sweepTokensBlock
+The block at which the tokens were swept
+
+
+```solidity
+uint256 public sweepTokensBlock;
 ```
 
 
@@ -291,6 +309,8 @@ function notify() external override;
 
 Sweep the currency to the funds recipient
 
+*This function can only be called after the auction has ended*
+
 
 ```solidity
 function sweepCurrency() external;
@@ -299,6 +319,8 @@ function sweepCurrency() external;
 ### sweepTokens
 
 Sweep the tokens to the tokens recipient
+
+*This function can only be called after the auction has ended*
 
 
 ```solidity

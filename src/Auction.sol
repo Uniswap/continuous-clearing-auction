@@ -56,6 +56,11 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     /// @notice The sum of demand in ticks above the clearing price
     Demand public sumDemandAboveClearing;
 
+    /// @notice The block at which the currency was swept
+    uint256 public sweepCurrencyBlock;
+    /// @notice The block at which the tokens were swept
+    uint256 public sweepTokensBlock;
+
     address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
     constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
@@ -364,13 +369,21 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     /// @inheritdoc IAuction
     function sweepCurrency() external {
         if (block.number < endBlock) revert AuctionIsNotOver();
-        currency.transfer(fundsRecipient, _getFinalCheckpoint().getCurrencyRaised());
+        if (sweepCurrencyBlock != 0) revert CurrencyAlreadySwept();
+        sweepCurrencyBlock = block.number;
+        uint256 currencyRaised = _getFinalCheckpoint().getCurrencyRaised();
+        currency.transfer(fundsRecipient, currencyRaised);
+        emit CurrencySwept(fundsRecipient, currencyRaised);
     }
 
     /// @inheritdoc IAuction
     function sweepTokens() external {
         if (block.number < endBlock) revert AuctionIsNotOver();
-        token.transfer(tokensRecipient, totalSupply - _getFinalCheckpoint().totalCleared);
+        if (sweepTokensBlock != 0) revert TokensAlreadySwept();
+        sweepTokensBlock = block.number;
+        uint256 tokensSold = totalSupply - _getFinalCheckpoint().totalCleared;
+        token.transfer(tokensRecipient, tokensSold);
+        emit TokensSwept(tokensRecipient, tokensSold);
     }
 
     receive() external payable {}

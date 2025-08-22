@@ -5,5 +5,6 @@
   "submitBid": "144288",
   "submitBid_recordStep_updateCheckpoint": "327683",
   "submitBid_recordStep_updateCheckpoint_initializeTick": "327683",
-  "submitBid_updateCheckpoint": "333938"
+  "submitBid_updateCheckpoint": "333938",
+  "submitBid_updateClearingPriceCrossesMultipleTicks": "171109"
 }

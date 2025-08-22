@@ -165,24 +165,25 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
                 _stepMps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
             ) >= blockTokenSupply
         ) {
-            // Subtract the demand at the current tickUpper before advancing to the next tick
-            _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_tickUpper.demand);
+            uint256 _nextTickPrice = _tickUpper.next;
             // If there is no future tick, break to avoid ending up in a bad state
-            uint256 nextTickPrice = _tickUpper.next;
-            if (nextTickPrice == MAX_TICK_PRICE) {
+            if (_nextTickPrice == MAX_TICK_PRICE) {
                 break;
             }
+            // Subtract the demand at the current tickUpper before advancing to the next tick
+            _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_tickUpper.demand);
             // Since there was enough demand at tick upper to fill the supply, the new clearing price must be >= tickUpperPrice
             minimumClearingPrice = _tickUpperPrice;
-            _tickUpperPrice = nextTickPrice;
-            _tickUpper = getTick(nextTickPrice);
+            _tickUpperPrice = _nextTickPrice;
+            _tickUpper = getTick(_tickUpperPrice);
         }
 
+        // Commit to storage
         tickUpperPrice = _tickUpperPrice;
         sumDemandAboveClearing = _sumDemandAboveClearing;
 
         uint256 newClearingPrice = _calculateNewClearingPrice(
-            tickUpperPrice, minimumClearingPrice, blockTokenSupply, _checkpoint.cumulativeMps
+            _tickUpperPrice, minimumClearingPrice, blockTokenSupply, _checkpoint.cumulativeMps
         );
 
         _checkpoint = _updateCheckpoint(

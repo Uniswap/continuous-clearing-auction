@@ -13,6 +13,7 @@ import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
+import {console2} from 'forge-std/console2.sol';
 
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
@@ -216,6 +217,81 @@ contract AuctionTest is TokenHandler, Test {
             block.number, tickNumberToPriceX96(2), expectedTotalCleared, expectedCumulativeMps
         );
         auction.checkpoint();
+    }
+
+    function test_submitBid_updateClearingPriceCrossesMultipleTicks_succeeds() public {
+        uint256 expectedTotalCleared = 100e3 * TOTAL_SUPPLY / AuctionStepLib.MPS;
+        uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
+
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), 0, 0);
+        vm.expectEmit(true, true, true, true);
+        emit ITickStorage.TickInitialized(tickNumberToPriceX96(2));
+        // Move price to 2
+        auction.submitBid{value: inputAmountForTokens(1000e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(1000e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.CheckpointUpdated(
+            block.number, tickNumberToPriceX96(2), expectedTotalCleared, expectedCumulativeMps
+        );
+        auction.checkpoint();
+
+        // Bid at 3 but don't move the clearing price
+        vm.expectEmit(true, true, true, true);
+        emit ITickStorage.TickInitialized(tickNumberToPriceX96(3));
+        auction.submitBid{value: inputAmountForTokens(1e18, tickNumberToPriceX96(3))}(
+            tickNumberToPriceX96(3),
+            true,
+            inputAmountForTokens(1e18, tickNumberToPriceX96(3)),
+            alice,
+            tickNumberToPriceX96(2),
+            bytes('')
+        );
+
+        // Bid 4 but don't move the clearing price
+        vm.roll(block.number + 1);
+        emit ITickStorage.TickInitialized(tickNumberToPriceX96(4));
+        auction.submitBid{value: inputAmountForTokens(1e18, tickNumberToPriceX96(4))}(
+            tickNumberToPriceX96(4),
+            true,
+            inputAmountForTokens(1e18, tickNumberToPriceX96(4)),
+            alice,
+            tickNumberToPriceX96(3),
+            bytes('')
+        );
+
+        // Bid 5 but don't move the clearing price
+        vm.roll(block.number + 1);
+        emit ITickStorage.TickInitialized(tickNumberToPriceX96(5));
+        auction.submitBid{value: inputAmountForTokens(1e18, tickNumberToPriceX96(5))}(
+            tickNumberToPriceX96(5),
+            true,
+            inputAmountForTokens(1e18, tickNumberToPriceX96(5)),
+            alice,
+            tickNumberToPriceX96(4),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        // Move the clearing price
+        vm.expectEmit(true, true, true, true);
+        emit ITickStorage.TickInitialized(tickNumberToPriceX96(6));
+        auction.submitBid{value: inputAmountForTokens(1000e18, tickNumberToPriceX96(6))}(
+            tickNumberToPriceX96(6), false, 1000e18, alice, tickNumberToPriceX96(5), bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+        vm.snapshotGasLastCall('submitBid_updateClearingPriceCrossesMultipleTicks');
+        assertEq(auction.clearingPrice(), tickNumberToPriceX96(6));
     }
 
     function test_submitBid_exactIn_atFloorPrice_reverts() public {

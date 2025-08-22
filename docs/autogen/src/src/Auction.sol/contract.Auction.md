@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/a40941ed6c71ce668b5d7c2923b5830fe9b23869/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/7722a01ed7eda1fea4d451a4339197a599baa109/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -123,22 +123,19 @@ function _advanceToCurrentStep() internal returns (Checkpoint memory _checkpoint
 
 ### _calculateNewClearingPrice
 
-Calculate the new clearing price, given:
+Calculate the new clearing price
 
 
 ```solidity
-function _calculateNewClearingPrice(
-    uint256 _tickUpperPrice,
-    uint256 minimumClearingPrice,
-    uint256 blockTokenSupply,
-    uint24 cumulativeMps
-) internal view returns (uint256);
+function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 blockTokenSupply, uint24 cumulativeMps)
+    internal
+    view
+    returns (uint256);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`_tickUpperPrice`|`uint256`|The price of the tick at which there is not enough demand to fill the block supply|
 |`minimumClearingPrice`|`uint256`|The minimum clearing price|
 |`blockTokenSupply`|`uint256`|The token supply at or above tickUpperPrice in the block|
 |`cumulativeMps`|`uint24`|The cumulative mps at the last checkpoint|

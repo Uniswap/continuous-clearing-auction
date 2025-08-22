@@ -20,6 +20,7 @@ import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 
+import {console2} from 'forge-std/console2.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
@@ -112,6 +113,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     {
         Demand memory blockSumDemandAboveClearing =
             sumDemandAboveClearing.applyMpsDenominator(step.mps, AuctionStepLib.MPS - cumulativeMps);
+
         uint256 _clearingPrice = blockSumDemandAboveClearing.currencyDemand.fullMulDiv(
             FixedPoint96.Q96, (blockTokenSupply - blockSumDemandAboveClearing.tokenDemand)
         );
@@ -142,24 +144,24 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
 
         // All active demand above the current clearing price
         Demand memory _sumDemandAboveClearing = sumDemandAboveClearing;
-        uint256 _tickUpperPrice = tickUpperPrice;
         uint256 _lastTickUpperPrice = _checkpoint.clearingPrice;
-        Tick memory _tickUpper = getTick(_tickUpperPrice);
+        Tick memory _tickUpper = getTick(tickUpperPrice);
         // Find the tick which does not fully match the supply, stopping at the highest tick in the book
         while (
             _sumDemandAboveClearing.resolve(tickUpperPrice).applyMpsDenominator(
                 step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
             ) >= blockTokenSupply
         ) {
-            // Subtract the demand at the current tickUpper before advancing to the next tick
+            // Subtract the demand at the current tickUpper
             _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_tickUpper.demand);
+            // Cache the tick upper price. The new clearing price must be at least this because there was enough demand to fill the supply
+            _lastTickUpperPrice = tickUpperPrice;
+            // Advance to the next tick
             uint256 _nextTickPrice = _tickUpper.next;
-            // Since there was enough demand at tick upper to fill the supply, the new clearing price must be >= tickUpperPrice
-            _lastTickUpperPrice = _tickUpperPrice;
-            _tickUpperPrice = _nextTickPrice;
-            _tickUpper = getTick(_tickUpperPrice);
+            tickUpperPrice = _nextTickPrice;
+            _tickUpper = getTick(_nextTickPrice);
         }
-
+        // Set state variables
         sumDemandAboveClearing = _sumDemandAboveClearing;
 
         uint256 newClearingPrice =

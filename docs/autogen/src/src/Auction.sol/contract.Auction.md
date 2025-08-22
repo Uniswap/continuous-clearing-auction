@@ -1,8 +1,8 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/a40941ed6c71ce668b5d7c2923b5830fe9b23869/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/95d02e3e7495a7b877fb15da76e79ca2d28e1d25/src/Auction.sol)
 
 **Inherits:**
-[BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
+[BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [Notifier](/src/Notifier.sol/abstract.Notifier.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
 
 
 ## State Variables
@@ -93,7 +93,8 @@ address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
     AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
     CheckpointStorage(_parameters.floorPrice, _parameters.tickSpacing)
-    PermitSingleForwarder(IAllowanceTransfer(PERMIT2));
+    PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
+    Notifier(_parameters.subscribers, _parameters.notifyBlock);
 ```
 
 ### onTokensReceived
@@ -121,6 +122,18 @@ Advance the current step until the current block is within the step
 function _advanceToCurrentStep() internal returns (Checkpoint memory _checkpoint, uint256 _checkpointedBlock);
 ```
 
+### _getFinalCheckpoint
+
+Return the final checkpoint of the auction
+
+*Only called when the auction is over. Changes the current state of the `step` to the final step in the auction
+any future calls to `step.mps` will return the mps of the last step in the auction*
+
+
+```solidity
+function _getFinalCheckpoint() internal returns (Checkpoint memory _checkpoint);
+```
+
 ### _calculateNewClearingPrice
 
 Calculate the new clearing price, given:
@@ -144,29 +157,6 @@ function _calculateNewClearingPrice(
 |`cumulativeMps`|`uint24`|The cumulative mps at the last checkpoint|
 
 
-### checkpoint
-
-Register a new checkpoint
-
-*This function is called every time a new bid is submitted above the current clearing price*
-
-
-```solidity
-function checkpoint() public returns (Checkpoint memory _checkpoint);
-```
-
-### _getFinalCheckpoint
-
-Return the final checkpoint of the auction
-
-*Only called when the auction is over. Changes the current state of the `step` to the final step in the auction
-any future calls to `step.mps` will return the mps of the last step in the auction*
-
-
-```solidity
-function _getFinalCheckpoint() internal returns (Checkpoint memory _checkpoint);
-```
-
 ### _submitBid
 
 
@@ -179,6 +169,26 @@ function _submitBid(
     uint256 prevTickPrice,
     bytes calldata hookData
 ) internal returns (uint256 bidId);
+```
+
+### _processExit
+
+Given a bid, tokens filled and refund, process the transfers and refund
+
+
+```solidity
+function _processExit(uint256 bidId, Bid memory bid, uint256 tokensFilled, uint256 refund) internal;
+```
+
+### checkpoint
+
+Register a new checkpoint
+
+*This function is called every time a new bid is submitted above the current clearing price*
+
+
+```solidity
+function checkpoint() public returns (Checkpoint memory _checkpoint);
 ```
 
 ### submitBid
@@ -213,15 +223,6 @@ function submitBid(
 |----|----|-----------|
 |`<none>`|`uint256`|bidId The id of the bid|
 
-
-### _processExit
-
-Given a bid, tokens filled and refund, process the transfers and refund
-
-
-```solidity
-function _processExit(uint256 bidId, Bid memory bid, uint256 tokensFilled, uint256 refund) internal;
-```
 
 ### exitBid
 
@@ -274,6 +275,17 @@ function claimTokens(uint256 bidId) external;
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
 
+
+### notify
+
+Notify the subscribers
+
+*The schema is defined by the implementation, proper authorization checks must be done*
+
+
+```solidity
+function notify() external override;
+```
 
 ### receive
 

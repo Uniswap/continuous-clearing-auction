@@ -60,6 +60,8 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     error BidNotExited();
     /// @notice Error thrown when the token transfer fails
     error TokenTransferFailed();
+    /// @notice Error thrown when the auction is not over
+    error AuctionIsNotOver();
 
     /// @notice Emitted when a bid is submitted
     /// @param id The id of the bid
@@ -125,4 +127,10 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     /// @dev Anyone can claim tokens for any bid, the tokens are transferred to the bid owner
     /// @param bidId The id of the bid
     function claimTokens(uint256 bidId) external;
+
+    /// @notice Sweep the currency to the funds recipient
+    function sweepCurrency() external;
+
+    /// @notice Sweep the tokens to the tokens recipient
+    function sweepTokens() external;
 }

@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/95d02e3e7495a7b877fb15da76e79ca2d28e1d25/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/2c68a019e4915708e1fd99bbd58a0cf7221ad013/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [Notifier](/src/Notifier.sol/abstract.Notifier.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -285,6 +285,24 @@ Notify the subscribers
 
 ```solidity
 function notify() external override;
+```
+
+### sweepCurrency
+
+Sweep the currency to the funds recipient
+
+
+```solidity
+function sweepCurrency() external;
+```
+
+### sweepTokens
+
+Sweep the tokens to the tokens recipient
+
+
+```solidity
+function sweepTokens() external;
 ```
 
 ### receive

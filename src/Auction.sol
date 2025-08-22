@@ -357,18 +357,20 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     /// @inheritdoc INotifier
     function notify() external override {
         Checkpoint memory _checkpoint = _getFinalCheckpoint();
-
         uint256 priceX192 = _checkpoint.clearingPrice << FixedPoint96.RESOLUTION;
+        _notify(priceX192, 0, _checkpoint.getCurrencyRaised());
+    }
 
-        uint128 currencyRaised = uint128(
-            _checkpoint.totalCleared.fullMulDivUp(
-                _checkpoint.cumulativeMps * FixedPoint96.Q96, _checkpoint.cumulativeMpsPerPrice
-            )
-        );
+    /// @inheritdoc IAuction
+    function sweepCurrency() external {
+        if (block.number < endBlock) revert AuctionIsNotOver();
+        currency.transfer(fundsRecipient, _getFinalCheckpoint().getCurrencyRaised());
+    }
 
-        uint128 tokenAmount = uint128(uint256(currencyRaised).fullMulDivUp(FixedPoint96.Q96 * 2, priceX192));
-
-        _notify(priceX192, tokenAmount, currencyRaised);
+    /// @inheritdoc IAuction
+    function sweepTokens() external {
+        if (block.number < endBlock) revert AuctionIsNotOver();
+        token.transfer(tokensRecipient, totalSupply - _getFinalCheckpoint().totalCleared);
     }
 
     receive() external payable {}

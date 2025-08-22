@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/a40941ed6c71ce668b5d7c2923b5830fe9b23869/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/2c68a019e4915708e1fd99bbd58a0cf7221ad013/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md)
@@ -105,6 +105,24 @@ function claimTokens(uint256 bidId) external;
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
 
+
+### sweepCurrency
+
+Sweep the currency to the funds recipient
+
+
+```solidity
+function sweepCurrency() external;
+```
+
+### sweepTokens
+
+Sweep the tokens to the tokens recipient
+
+
+```solidity
+function sweepTokens() external;
+```
 
 ## Events
 ### BidSubmitted
@@ -299,5 +317,13 @@ Error thrown when the token transfer fails
 
 ```solidity
 error TokenTransferFailed();
+```
+
+### AuctionIsNotOver
+Error thrown when the auction is not over
+
+
+```solidity
+error AuctionIsNotOver();
 ```
 

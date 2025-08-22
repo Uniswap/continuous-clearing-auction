@@ -576,7 +576,7 @@ contract AuctionTest is TokenHandler, Test {
         assertEq(mps, 250e3);
     }
 
-    function test_exposed_calculateNewClearingPrice_belowFloorPrice_returnsFloorPrice() public {
+    function test_calculateNewClearingPrice_belowFloorPrice_returnsFloorPrice() public {
         // Create a test auction exposer with a higher floor price to test the floor price condition directly
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
         AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(10e6)
@@ -601,7 +601,7 @@ contract AuctionTest is TokenHandler, Test {
         // So: 7e5 < 1e18 / blockTokenSupply < 10e6
         // This means: 1e18 / 10e6 < blockTokenSupply < 1e18 / 7e5
         // Or: 1e12 < blockTokenSupply < 1.43e12
-        uint256 result = exposer.exposed_calculateNewClearingPrice(
+        uint256 result = exposer.calculateNewClearingPrice(
             15e6, // _tickUpperPrice
             7e5, // minimumClearingPrice (below floor price)
             1.2e12, // blockTokenSupply that should give calculated price between 7e5 and 10e6

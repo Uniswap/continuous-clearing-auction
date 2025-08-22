@@ -66,7 +66,6 @@ contract PermitSingleForwarderTest is Test {
 
         bytes memory signature = new bytes(65); // Mock signature
 
-        // Should not revert
         bytes memory result = forwarder.permit(owner, permitSingle, signature);
 
         // Should return empty bytes on success
@@ -114,7 +113,6 @@ contract PermitSingleForwarderTest is Test {
 
         bytes memory signature = new bytes(0); // Empty signature
 
-        // Should not revert
         bytes memory result = forwarder.permit(owner, permitSingle, signature);
 
         // Should return empty bytes on success
@@ -135,7 +133,6 @@ contract PermitSingleForwarderTest is Test {
 
         bytes memory signature = new bytes(1000); // Large signature
 
-        // Should not revert
         bytes memory result = forwarder.permit(owner, permitSingle, signature);
 
         // Should return empty bytes on success
@@ -156,7 +153,6 @@ contract PermitSingleForwarderTest is Test {
 
         bytes memory signature = new bytes(65);
 
-        // Should not revert
         bytes memory result = forwarder.permit(address(0), permitSingle, signature);
 
         // Should return empty bytes on success
@@ -171,13 +167,12 @@ contract PermitSingleForwarderTest is Test {
                 expiration: uint48(block.timestamp + 3600),
                 nonce: 0
             }),
-            spender: makeAddr('differentSpender'), // Different spender
+            spender: makeAddr('charlie'),
             sigDeadline: uint48(block.timestamp + 3600)
         });
 
         bytes memory signature = new bytes(65);
 
-        // Should not revert
         bytes memory result = forwarder.permit(owner, permitSingle, signature);
 
         // Should return empty bytes on success
@@ -198,7 +193,6 @@ contract PermitSingleForwarderTest is Test {
 
         bytes memory signature = new bytes(65);
 
-        // Should not revert
         bytes memory result = forwarder.permit(owner, permitSingle, signature);
 
         // Should return empty bytes on success (mock doesn't validate expiration)
@@ -219,7 +213,6 @@ contract PermitSingleForwarderTest is Test {
 
         bytes memory signature = new bytes(65);
 
-        // Should not revert
         bytes memory result = forwarder.permit(owner, permitSingle, signature);
 
         // Should return empty bytes on success
@@ -240,7 +233,6 @@ contract PermitSingleForwarderTest is Test {
 
         bytes memory signature = new bytes(65);
 
-        // Should not revert
         bytes memory result = forwarder.permit(owner, permitSingle, signature);
 
         // Should return empty bytes on success
@@ -261,7 +253,6 @@ contract PermitSingleForwarderTest is Test {
 
         bytes memory signature = new bytes(65);
 
-        // Should not revert
         bytes memory result = forwarder.permit(owner, permitSingle, signature);
 
         // Should return empty bytes on success
@@ -282,7 +273,6 @@ contract PermitSingleForwarderTest is Test {
 
         bytes memory signature = new bytes(65);
 
-        // Should not revert
         bytes memory result = forwarder.permit(owner, permitSingle, signature);
 
         // Should return empty bytes on success

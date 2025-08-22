@@ -119,7 +119,6 @@ contract TickStorageTest is Test {
     }
 
     function test_initializeTickIfNeeded_withNextIdLessThanId_reverts() public {
-        // First initialize a tick at price 2
         tickStorage.initializeTickIfNeeded(toId(FLOOR_PRICE), 2e18);
 
         // Then try to initialize a tick at price 3 with prevId=1, but nextId=2 is less than id=3

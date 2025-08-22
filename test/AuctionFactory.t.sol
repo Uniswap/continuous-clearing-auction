@@ -173,7 +173,6 @@ contract AuctionFactoryTest is TokenHandler, Test {
 
         bytes memory configData = abi.encode(params);
 
-        // Test that the factory implements IDistributionStrategy
         IDistributionStrategy strategy = IDistributionStrategy(address(factory));
         IDistributionContract distributionContract =
             strategy.initializeDistribution(address(token), TOTAL_SUPPLY, configData);
@@ -195,7 +194,6 @@ contract AuctionFactoryTest is TokenHandler, Test {
         IDistributionContract distributionContract =
             factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData);
 
-        // Verify the created auction implements IDistributionContract
         auction = Auction(payable(address(distributionContract)));
 
         // Test that the auction can receive tokens (implements IDistributionContract)

@@ -106,12 +106,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     /// @notice Calculate the new clearing price
     /// @param minimumClearingPrice The minimum clearing price
     /// @param supply The token supply at or above tickUpperPrice in the block
-    /// @param cumulativeMps The cumulative mps at the last checkpoint
-    function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 supply, uint24 cumulativeMps)
-        internal
-        view
-        returns (uint256)
-    {
+    function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 supply) internal view returns (uint256) {
         // Get the demand at and above `minimumClearingPrice` being sold
         Demand memory blockSumDemandAboveClearing = sumDemandAboveClearing.applyMps(step.mps);
 
@@ -168,7 +163,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         // Save state variables
         sumDemandAboveClearing = _sumDemandAboveClearing;
 
-        _checkpoint.clearingPrice = _calculateNewClearingPrice(minimumClearingPrice, supply, _checkpoint.cumulativeMps);
+        _checkpoint.clearingPrice = _calculateNewClearingPrice(minimumClearingPrice, supply);
         uint256 resolvedDemandAboveClearing = _sumDemandAboveClearing.resolve(_checkpoint.clearingPrice);
 
         // If the clearing price is the floor price, we can only clear the current demand at the floor price
@@ -353,8 +348,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         bid.tokensFilled = 0;
         _updateBid(bidId, bid);
 
-        bool success = token.transfer(bid.owner, tokensFilled);
-        if (!success) revert TokenTransferFailed();
+        Currency.wrap(address(token)).transfer(bid.owner, tokensFilled);
 
         emit TokensClaimed(bid.owner, tokensFilled);
     }

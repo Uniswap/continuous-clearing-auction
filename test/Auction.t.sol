@@ -8,7 +8,7 @@ import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
-import {Currency} from '../src/libraries/CurrencyLibrary.sol';
+import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
@@ -833,8 +833,7 @@ contract AuctionTest is AuctionBaseTest {
 
         uint256 result = mockAuction.calculateNewClearingPrice(
             minimumClearingPrice, // minimumClearingPrice in X96 (below floor price)
-            blockTokenSupply, // blockTokenSupply
-            0 // cumulativeMps
+            blockTokenSupply // blockTokenSupply
         );
 
         assertEq(result, 10e6 << FixedPoint96.RESOLUTION);
@@ -1139,7 +1138,7 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(failingAuction.claimBlock());
 
-        vm.expectRevert(IAuction.TokenTransferFailed.selector);
+        vm.expectRevert(CurrencyLibrary.ERC20TransferFailed.selector);
         failingAuction.claimTokens(bidId);
         vm.stopPrank();
     }

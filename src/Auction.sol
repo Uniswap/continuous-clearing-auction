@@ -84,9 +84,10 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     }
 
     /// @notice Advance the current step until the current block is within the step
+    /// @dev The checkpoint must be up to date since `transform` depends on the clearingPrice
     function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint256 blockNumber)
         internal
-        returns (Checkpoint memory, uint256)
+        returns (Checkpoint memory)
     {
         // Advance the current step until the current block is within the step
         // Start at the smaller of the last checkpointed block or the start block of the current step
@@ -100,7 +101,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             _advanceStep();
             end = step.endBlock;
         }
-        return (_checkpoint, start);
+        return _checkpoint;
     }
 
     /// @notice Calculate the new clearing price
@@ -177,7 +178,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         }
 
         // The local checkpoint is now up to date. Advance it to the current block
-        (_checkpoint,) = _advanceToCurrentStep(_checkpoint, blockNumber);
+        _checkpoint = _advanceToCurrentStep(_checkpoint, blockNumber);
 
         // Account for any time in between this checkpoint and the greater of the start of the step or the last checkpointed block
         uint256 blockDelta =

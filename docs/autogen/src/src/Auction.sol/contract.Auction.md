@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c2dd0a6c704cd1292624039dee42341e0a61b05d/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c3cb29592c107b5f0dcf4303acffce91ae6bfb6f/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -116,11 +116,13 @@ function onTokensReceived(address _token, uint256 _amount) external view;
 
 Advance the current step until the current block is within the step
 
+*The checkpoint must be up to date since `transform` depends on the clearingPrice*
+
 
 ```solidity
 function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint256 blockNumber)
     internal
-    returns (Checkpoint memory, uint256);
+    returns (Checkpoint memory);
 ```
 
 ### _calculateNewClearingPrice

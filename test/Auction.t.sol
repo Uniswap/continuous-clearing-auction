@@ -807,8 +807,7 @@ contract AuctionTest is TokenHandler, Test {
 
         uint256 result = mockAuction.calculateNewClearingPrice(
             minimumClearingPrice, // minimumClearingPrice in X96 (below floor price)
-            blockTokenSupply, // blockTokenSupply
-            0 // cumulativeMps
+            blockTokenSupply // blockTokenSupply
         );
 
         assertEq(result, 10e6 << FixedPoint96.RESOLUTION);

@@ -69,9 +69,7 @@ abstract contract CheckpointStorage is TickStorage {
         // If the clearing price is the floor price, we can only clear the current demand at the floor price
         if (_newClearingPrice == floorPrice) {
             // We can only clear the current demand at the floor price
-            _checkpoint.blockCleared = resolvedDemandAboveClearing.applyMpsDenominator(
-                _step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
-            );
+            _checkpoint.blockCleared = resolvedDemandAboveClearing.applyMps(_step.mps);
         }
         // Otherwise, we can clear the entire supply being sold in the block
         else {

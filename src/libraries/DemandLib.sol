@@ -42,14 +42,10 @@ library DemandLib {
         });
     }
 
-    function applyMpsDenominator(Demand memory _demand, uint24 mps, uint24 mpsDenominator)
-        internal
-        pure
-        returns (Demand memory)
-    {
+    function applyMps(Demand memory _demand, uint24 mps) internal pure returns (Demand memory) {
         return Demand({
-            currencyDemand: _demand.currencyDemand.applyMpsDenominator(mps, mpsDenominator),
-            tokenDemand: _demand.tokenDemand.applyMpsDenominator(mps, mpsDenominator)
+            currencyDemand: _demand.currencyDemand.applyMps(mps),
+            tokenDemand: _demand.tokenDemand.applyMps(mps)
         });
     }
 

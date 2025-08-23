@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/64073dd424d59f4492ba600df76c0af715c909bb/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/5825a8083068ded2b640fc7532b6abca001afa15/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -141,17 +141,6 @@ function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 supply
 |`supply`|`uint256`|The token supply at or above tickUpperPrice in the block|
 
 
-### checkpoint
-
-Register a new checkpoint
-
-*This function is called every time a new bid is submitted above the current clearing price*
-
-
-```solidity
-function checkpoint() public returns (Checkpoint memory _checkpoint);
-```
-
 ### _unsafeCheckpoint
 
 Internal function for checkpointing at a specific block number
@@ -193,6 +182,26 @@ function _submitBid(
 ) internal returns (uint256 bidId);
 ```
 
+### _processExit
+
+Given a bid, tokens filled and refund, process the transfers and refund
+
+
+```solidity
+function _processExit(uint256 bidId, Bid memory bid, uint256 tokensFilled, uint256 refund) internal;
+```
+
+### checkpoint
+
+Register a new checkpoint
+
+*This function is called every time a new bid is submitted above the current clearing price*
+
+
+```solidity
+function checkpoint() public returns (Checkpoint memory _checkpoint);
+```
+
 ### submitBid
 
 Submit a new bid
@@ -225,15 +234,6 @@ function submitBid(
 |----|----|-----------|
 |`<none>`|`uint256`|bidId The id of the bid|
 
-
-### _processExit
-
-Given a bid, tokens filled and refund, process the transfers and refund
-
-
-```solidity
-function _processExit(uint256 bidId, Bid memory bid, uint256 tokensFilled, uint256 refund) internal;
-```
 
 ### exitBid
 

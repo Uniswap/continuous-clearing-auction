@@ -124,11 +124,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         return (_clearingPrice - (_clearingPrice % tickSpacing));
     }
 
-    /// @inheritdoc IAuction
-    function checkpoint() public returns (Checkpoint memory _checkpoint) {
-        return _unsafeCheckpoint(block.number);
-    }
-
     /// @notice Internal function for checkpointing at a specific block number
     /// @param blockNumber The block number to checkpoint at
     function _unsafeCheckpoint(uint256 blockNumber) internal returns (Checkpoint memory _checkpoint) {
@@ -237,6 +232,30 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         emit BidSubmitted(bidId, owner, maxPrice, exactIn, amount);
     }
 
+    /// @notice Given a bid, tokens filled and refund, process the transfers and refund
+    function _processExit(uint256 bidId, Bid memory bid, uint256 tokensFilled, uint256 refund) internal {
+        address _owner = bid.owner;
+
+        if (tokensFilled == 0) {
+            _deleteBid(bidId);
+        } else {
+            bid.tokensFilled = tokensFilled;
+            bid.exitedBlock = uint64(block.number);
+            _updateBid(bidId, bid);
+        }
+
+        if (refund > 0) {
+            currency.transfer(_owner, refund);
+        }
+
+        emit BidExited(bidId, _owner);
+    }
+
+    /// @inheritdoc IAuction
+    function checkpoint() public returns (Checkpoint memory _checkpoint) {
+        return _unsafeCheckpoint(block.number);
+    }
+
     /// @inheritdoc IAuction
     function submitBid(
         uint256 maxPrice,
@@ -257,25 +276,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             );
         }
         return _submitBid(maxPrice, exactIn, amount, owner, prevTickPrice, hookData);
-    }
-
-    /// @notice Given a bid, tokens filled and refund, process the transfers and refund
-    function _processExit(uint256 bidId, Bid memory bid, uint256 tokensFilled, uint256 refund) internal {
-        address _owner = bid.owner;
-
-        if (tokensFilled == 0) {
-            _deleteBid(bidId);
-        } else {
-            bid.tokensFilled = tokensFilled;
-            bid.exitedBlock = uint64(block.number);
-            _updateBid(bidId, bid);
-        }
-
-        if (refund > 0) {
-            currency.transfer(_owner, refund);
-        }
-
-        emit BidExited(bidId, _owner);
     }
 
     /// @inheritdoc IAuction

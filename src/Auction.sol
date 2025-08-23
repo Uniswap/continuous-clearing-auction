@@ -329,6 +329,4 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
 
         emit TokensClaimed(bid.owner, tokensFilled);
     }
-
-    receive() external payable {}
 }

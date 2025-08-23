@@ -113,8 +113,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         returns (uint256)
     {
         // Get the demand at and above `minimumClearingPrice` being sold
-        Demand memory blockSumDemandAboveClearing =
-            sumDemandAboveClearing.applyMpsDenominator(step.mps, AuctionStepLib.MPS - cumulativeMps);
+        Demand memory blockSumDemandAboveClearing = sumDemandAboveClearing.applyMps(step.mps);
 
         // Calculate the clearing price by first subtracting the exactOut tokenDemand then dividing by the currencyDemand
         // Follows the formula ~ ETH / tokens = price
@@ -155,11 +154,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
 
         // Find the tick where the demand at and above it is NOT enough to fill the supply
         // Sets tickUpperPrice to MAX_TICK_PRICE if the highest tick in the book is reached
-        while (
-            _sumDemandAboveClearing.resolve(tickUpperPrice).applyMpsDenominator(
-                step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
-            ) >= supply
-        ) {
+        while (_sumDemandAboveClearing.resolve(tickUpperPrice).applyMps(step.mps) >= supply) {
             // Subtract the demand at tickUpper
             _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_tickUpper.demand);
             // The tickUpperPrice is now the minimum clearing price because there was enough demand to fill the supply
@@ -170,21 +165,16 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             _tickUpper = getTick(_nextTickPrice);
         }
 
-        console2.log('after tickUpperPrice >> FixedPoint96.RESOLUTION', tickUpperPrice >> FixedPoint96.RESOLUTION);
-
         // Save state variables
         sumDemandAboveClearing = _sumDemandAboveClearing;
 
-        _checkpoint.clearingPrice =
-            _calculateNewClearingPrice(minimumClearingPrice, supply, _checkpoint.cumulativeMps);
+        _checkpoint.clearingPrice = _calculateNewClearingPrice(minimumClearingPrice, supply, _checkpoint.cumulativeMps);
         uint256 resolvedDemandAboveClearing = _sumDemandAboveClearing.resolve(_checkpoint.clearingPrice);
 
         // If the clearing price is the floor price, we can only clear the current demand at the floor price
         if (_checkpoint.clearingPrice == floorPrice) {
             // We can only clear the current demand at the floor price
-            _checkpoint.blockCleared = resolvedDemandAboveClearing.applyMpsDenominator(
-                step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
-            );
+            _checkpoint.blockCleared = resolvedDemandAboveClearing.applyMps(step.mps);
         }
         // Otherwise, we can clear the entire supply being sold in the block
         else {

@@ -1,5 +1,5 @@
 # BidStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/a40941ed6c71ce668b5d7c2923b5830fe9b23869/src/BidStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c2dd0a6c704cd1292624039dee42341e0a61b05d/src/BidStorage.sol)
 
 
 ## State Variables
@@ -17,7 +17,7 @@ The mapping of bid ids to bids
 
 
 ```solidity
-mapping(uint256 bidId => Bid bid) private bids;
+mapping(uint256 bidId => Bid bid) public bids;
 ```
 
 

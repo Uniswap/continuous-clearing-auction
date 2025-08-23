@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/0f8be98674094070ff1b4a61076ca6e497b8ff31/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/64073dd424d59f4492ba600df76c0af715c909bb/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -116,9 +116,13 @@ function onTokensReceived(address _token, uint256 _amount) external view;
 
 Advance the current step until the current block is within the step
 
+*The checkpoint must be up to date since `transform` depends on the clearingPrice*
+
 
 ```solidity
-function _advanceToCurrentStep() internal returns (Checkpoint memory _checkpoint, uint256 _checkpointedBlock);
+function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint256 blockNumber)
+    internal
+    returns (Checkpoint memory);
 ```
 
 ### _calculateNewClearingPrice
@@ -127,17 +131,14 @@ Calculate the new clearing price
 
 
 ```solidity
-function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 blockTokenSupply)
-    internal
-    view
-    returns (uint256);
+function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 supply) internal view returns (uint256);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`minimumClearingPrice`|`uint256`|The minimum clearing price|
-|`blockTokenSupply`|`uint256`|The token supply at or above tickUpperPrice in the block|
+|`supply`|`uint256`|The token supply at or above tickUpperPrice in the block|
 
 
 ### checkpoint
@@ -150,6 +151,21 @@ Register a new checkpoint
 ```solidity
 function checkpoint() public returns (Checkpoint memory _checkpoint);
 ```
+
+### _unsafeCheckpoint
+
+Internal function for checkpointing at a specific block number
+
+
+```solidity
+function _unsafeCheckpoint(uint256 blockNumber) internal returns (Checkpoint memory _checkpoint);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`blockNumber`|`uint256`|The block number to checkpoint at|
+
 
 ### _getFinalCheckpoint
 

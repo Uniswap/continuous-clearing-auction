@@ -7,6 +7,7 @@ import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
+
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
@@ -23,7 +24,7 @@ abstract contract CheckpointStorage is TickStorage {
     uint256 public immutable floorPrice;
 
     /// @notice Storage of checkpoints
-    mapping(uint256 blockNumber => Checkpoint) private checkpoints;
+    mapping(uint256 blockNumber => Checkpoint) public checkpoints;
     /// @notice The block number of the last checkpointed block
     uint256 public lastCheckpointedBlock;
 
@@ -47,50 +48,9 @@ abstract contract CheckpointStorage is TickStorage {
     }
 
     /// @notice Insert a checkpoint into storage
-    function _insertCheckpoint(Checkpoint memory checkpoint) internal {
-        checkpoints[block.number] = checkpoint;
-        lastCheckpointedBlock = block.number;
-    }
-
-    /// @notice Update the checkpoint
-    /// @param _checkpoint The checkpoint to update
-    /// @param _sumDemandAboveClearing The sum of demand above the clearing price
-    /// @param _newClearingPrice The new clearing price
-    /// @param _blockTokenSupply The token supply at or above tickUpper in the block
-    /// @return The updated checkpoint
-    function _updateCheckpoint(
-        Checkpoint memory _checkpoint,
-        AuctionStep memory _step,
-        Demand memory _sumDemandAboveClearing,
-        uint256 _newClearingPrice,
-        uint256 _blockTokenSupply
-    ) internal view returns (Checkpoint memory) {
-        uint256 resolvedDemandAboveClearing = _sumDemandAboveClearing.resolve(_newClearingPrice);
-        // If the clearing price is the floor price, we can only clear the current demand at the floor price
-        if (_newClearingPrice == floorPrice) {
-            // We can only clear the current demand at the floor price
-            _checkpoint.blockCleared = resolvedDemandAboveClearing.applyMps(_step.mps);
-        }
-        // Otherwise, we can clear the entire supply being sold in the block
-        else {
-            _checkpoint.blockCleared = _blockTokenSupply;
-        }
-
-        uint24 mpsSinceLastCheckpoint = (
-            _step.mps
-                * (block.number - (_step.startBlock > lastCheckpointedBlock ? _step.startBlock : lastCheckpointedBlock))
-        ).toUint24();
-
-        _checkpoint.clearingPrice = _newClearingPrice;
-        _checkpoint.totalCleared += _checkpoint.blockCleared;
-        _checkpoint.cumulativeMps += mpsSinceLastCheckpoint;
-        _checkpoint.cumulativeMpsPerPrice +=
-            CheckpointLib.getMpsPerPrice(mpsSinceLastCheckpoint, _checkpoint.clearingPrice);
-        _checkpoint.resolvedDemandAboveClearingPrice = resolvedDemandAboveClearing;
-        _checkpoint.mps = _step.mps;
-        _checkpoint.prev = lastCheckpointedBlock;
-
-        return _checkpoint;
+    function _insertCheckpoint(Checkpoint memory checkpoint, uint256 blockNumber) internal {
+        checkpoints[blockNumber] = checkpoint;
+        lastCheckpointedBlock = blockNumber;
     }
 
     /// @notice Calculate the tokens sold and proportion of input used for a fully filled bid between two checkpoints
@@ -164,14 +124,14 @@ abstract contract CheckpointStorage is TickStorage {
         uint24 cumulativeMpsDelta,
         uint24 mpsDenominator
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
-        if (bid.exactIn) {
-            tokensFilled = bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsDenominator);
-            // Round up for currencySpent
-            currencySpent = bid.amount.fullMulDivUp(cumulativeMpsDelta, mpsDenominator);
-        } else {
-            tokensFilled = bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
-            // Round up for currencySpent
-            currencySpent = tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPriceDelta);
+        tokensFilled = bid.exactIn
+            ? bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsDenominator)
+            : bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
+        // If tokensFilled is 0 then currencySpent must be 0
+        if (tokensFilled != 0) {
+            currencySpent = bid.exactIn
+                ? bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator)
+                : tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPriceDelta);
         }
     }
 

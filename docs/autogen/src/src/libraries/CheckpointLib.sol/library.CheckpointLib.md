@@ -1,11 +1,13 @@
 # CheckpointLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c2dd0a6c704cd1292624039dee42341e0a61b05d/src/libraries/CheckpointLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/925b9803fc5f67f28a80cfa7e37eaf409feb8843/src/libraries/CheckpointLib.sol)
 
 
 ## Functions
 ### transform
 
 Return a new checkpoint after advancing the current checkpoint by a number of blocks
+
+*The checkpoint must have a non zero clearing price*
 
 
 ```solidity

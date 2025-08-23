@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c3cb29592c107b5f0dcf4303acffce91ae6bfb6f/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/925b9803fc5f67f28a80cfa7e37eaf409feb8843/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -143,6 +143,10 @@ function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 supply
 
 ### checkpoint
 
+Register a new checkpoint
+
+*This function is called every time a new bid is submitted above the current clearing price*
+
 
 ```solidity
 function checkpoint() public returns (Checkpoint memory _checkpoint);
@@ -150,14 +154,18 @@ function checkpoint() public returns (Checkpoint memory _checkpoint);
 
 ### _unsafeCheckpoint
 
-Register a new checkpoint
-
-*This function is called every time a new bid is submitted above the current clearing price*
+Internal function for checkpointing at a specific block number
 
 
 ```solidity
 function _unsafeCheckpoint(uint256 blockNumber) internal returns (Checkpoint memory _checkpoint);
 ```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`blockNumber`|`uint256`|The block number to checkpoint at|
+
 
 ### _getFinalCheckpoint
 

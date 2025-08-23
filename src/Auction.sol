@@ -124,12 +124,13 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         return (_clearingPrice - (_clearingPrice % tickSpacing));
     }
 
+    /// @inheritdoc IAuction
     function checkpoint() public returns (Checkpoint memory _checkpoint) {
         return _unsafeCheckpoint(block.number);
     }
 
-    /// @notice Register a new checkpoint
-    /// @dev This function is called every time a new bid is submitted above the current clearing price
+    /// @notice Internal function for checkpointing at a specific block number
+    /// @param blockNumber The block number to checkpoint at
     function _unsafeCheckpoint(uint256 blockNumber) internal returns (Checkpoint memory _checkpoint) {
         _checkpoint = latestCheckpoint();
         if (blockNumber == lastCheckpointedBlock) return _checkpoint;

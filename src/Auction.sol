@@ -221,9 +221,8 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         if (address(validationHook) != address(0)) {
             validationHook.validate(maxPrice, exactIn, amount, owner, msg.sender, hookData);
         }
-        uint256 _clearingPrice = clearingPrice();
         // ClearingPrice will be set to floor price in checkpoint() if not set already
-        BidLib.validate(maxPrice, _clearingPrice, tickSpacing);
+        BidLib.validate(maxPrice, clearingPrice(), tickSpacing);
 
         _updateTick(maxPrice, exactIn, amount);
 

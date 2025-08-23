@@ -1,5 +1,5 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/a40941ed6c71ce668b5d7c2923b5830fe9b23869/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c2dd0a6c704cd1292624039dee42341e0a61b05d/src/CheckpointStorage.sol)
 
 **Inherits:**
 [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md)
@@ -22,7 +22,7 @@ Storage of checkpoints
 
 
 ```solidity
-mapping(uint256 blockNumber => Checkpoint) private checkpoints;
+mapping(uint256 blockNumber => Checkpoint) public checkpoints;
 ```
 
 
@@ -76,39 +76,8 @@ Insert a checkpoint into storage
 
 
 ```solidity
-function _insertCheckpoint(Checkpoint memory checkpoint) internal;
+function _insertCheckpoint(Checkpoint memory checkpoint, uint256 blockNumber) internal;
 ```
-
-### _updateCheckpoint
-
-Update the checkpoint
-
-
-```solidity
-function _updateCheckpoint(
-    Checkpoint memory _checkpoint,
-    AuctionStep memory _step,
-    Demand memory _sumDemandAboveClearing,
-    uint256 _newClearingPrice,
-    uint256 _blockTokenSupply
-) internal view returns (Checkpoint memory);
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`_checkpoint`|`Checkpoint`|The checkpoint to update|
-|`_step`|`AuctionStep`||
-|`_sumDemandAboveClearing`|`Demand`|The sum of demand above the clearing price|
-|`_newClearingPrice`|`uint256`|The new clearing price|
-|`_blockTokenSupply`|`uint256`|The token supply at or above tickUpper in the block|
-
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`Checkpoint`|The updated checkpoint|
-
 
 ### _accountFullyFilledCheckpoints
 

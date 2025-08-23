@@ -1,5 +1,5 @@
 # CheckpointLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/a40941ed6c71ce668b5d7c2923b5830fe9b23869/src/libraries/CheckpointLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c2dd0a6c704cd1292624039dee42341e0a61b05d/src/libraries/CheckpointLib.sol)
 
 
 ## Functions
@@ -9,7 +9,7 @@ Return a new checkpoint after advancing the current checkpoint by a number of bl
 
 
 ```solidity
-function transform(Checkpoint memory checkpoint, uint256 checkpointBlock, uint256 blockDelta, uint24 mps)
+function transform(Checkpoint memory checkpoint, uint256 blockDelta, uint24 mps)
     internal
     pure
     returns (Checkpoint memory);
@@ -19,7 +19,6 @@ function transform(Checkpoint memory checkpoint, uint256 checkpointBlock, uint25
 |Name|Type|Description|
 |----|----|-----------|
 |`checkpoint`|`Checkpoint`|The checkpoint to transform|
-|`checkpointBlock`|`uint256`|The block number of the checkpoint|
 |`blockDelta`|`uint256`|The number of blocks to advance|
 |`mps`|`uint24`|The number of mps to add|
 

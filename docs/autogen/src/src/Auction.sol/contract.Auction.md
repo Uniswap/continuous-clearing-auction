@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/7722a01ed7eda1fea4d451a4339197a599baa109/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c2dd0a6c704cd1292624039dee42341e0a61b05d/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -118,7 +118,9 @@ Advance the current step until the current block is within the step
 
 
 ```solidity
-function _advanceToCurrentStep() internal returns (Checkpoint memory _checkpoint, uint256 _checkpointedBlock);
+function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint256 blockNumber)
+    internal
+    returns (Checkpoint memory, uint256);
 ```
 
 ### _calculateNewClearingPrice
@@ -127,21 +129,24 @@ Calculate the new clearing price
 
 
 ```solidity
-function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 blockTokenSupply, uint24 cumulativeMps)
-    internal
-    view
-    returns (uint256);
+function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 supply) internal view returns (uint256);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`minimumClearingPrice`|`uint256`|The minimum clearing price|
-|`blockTokenSupply`|`uint256`|The token supply at or above tickUpperPrice in the block|
-|`cumulativeMps`|`uint24`|The cumulative mps at the last checkpoint|
+|`supply`|`uint256`|The token supply at or above tickUpperPrice in the block|
 
 
 ### checkpoint
+
+
+```solidity
+function checkpoint() public returns (Checkpoint memory _checkpoint);
+```
+
+### _unsafeCheckpoint
 
 Register a new checkpoint
 
@@ -149,7 +154,7 @@ Register a new checkpoint
 
 
 ```solidity
-function checkpoint() public returns (Checkpoint memory _checkpoint);
+function _unsafeCheckpoint(uint256 blockNumber) internal returns (Checkpoint memory _checkpoint);
 ```
 
 ### _getFinalCheckpoint

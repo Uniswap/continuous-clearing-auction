@@ -1,5 +1,5 @@
 # DemandLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/a40941ed6c71ce668b5d7c2923b5830fe9b23869/src/libraries/DemandLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0f8be98674094070ff1b4a61076ca6e497b8ff31/src/libraries/DemandLib.sol)
 
 
 ## Functions
@@ -38,14 +38,11 @@ function sub(Demand memory _demand, Demand memory _other) internal pure returns 
 function add(Demand memory _demand, Demand memory _other) internal pure returns (Demand memory);
 ```
 
-### applyMpsDenominator
+### applyMps
 
 
 ```solidity
-function applyMpsDenominator(Demand memory _demand, uint24 mps, uint24 mpsDenominator)
-    internal
-    pure
-    returns (Demand memory);
+function applyMps(Demand memory _demand, uint24 mps) internal pure returns (Demand memory);
 ```
 
 ### addCurrencyAmount

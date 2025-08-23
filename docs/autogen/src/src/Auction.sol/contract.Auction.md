@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/7722a01ed7eda1fea4d451a4339197a599baa109/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0f8be98674094070ff1b4a61076ca6e497b8ff31/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -127,7 +127,7 @@ Calculate the new clearing price
 
 
 ```solidity
-function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 blockTokenSupply, uint24 cumulativeMps)
+function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 blockTokenSupply)
     internal
     view
     returns (uint256);
@@ -138,7 +138,6 @@ function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 blockT
 |----|----|-----------|
 |`minimumClearingPrice`|`uint256`|The minimum clearing price|
 |`blockTokenSupply`|`uint256`|The token supply at or above tickUpperPrice in the block|
-|`cumulativeMps`|`uint24`|The cumulative mps at the last checkpoint|
 
 
 ### checkpoint
@@ -271,11 +270,4 @@ function claimTokens(uint256 bidId) external;
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
 
-
-### receive
-
-
-```solidity
-receive() external payable;
-```
 

@@ -103,15 +103,13 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     /// @notice Calculate the new clearing price
     /// @param minimumClearingPrice The minimum clearing price
     /// @param blockTokenSupply The token supply at or above tickUpperPrice in the block
-    /// @param cumulativeMps The cumulative mps at the last checkpoint
-    function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 blockTokenSupply, uint24 cumulativeMps)
+    function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 blockTokenSupply)
         internal
         view
         returns (uint256)
     {
         // Get the demand at and above `minimumClearingPrice` being sold
-        Demand memory blockSumDemandAboveClearing =
-            sumDemandAboveClearing.applyMpsDenominator(step.mps, AuctionStepLib.MPS - cumulativeMps);
+        Demand memory blockSumDemandAboveClearing = sumDemandAboveClearing.applyMps(step.mps);
 
         // Calculate the clearing price by first subtracting the exactOut tokenDemand then dividing by the currencyDemand
         // Follows the formula ~ ETH / tokens = price
@@ -147,11 +145,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
 
         // Find the tick where the demand at and above it is NOT enough to fill the supply
         // Sets tickUpperPrice to MAX_TICK_PRICE if the highest tick in the book is reached
-        while (
-            _sumDemandAboveClearing.resolve(tickUpperPrice).applyMpsDenominator(
-                step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
-            ) >= blockTokenSupply
-        ) {
+        while (_sumDemandAboveClearing.resolve(tickUpperPrice).applyMps(step.mps) >= blockTokenSupply) {
             // Subtract the demand at tickUpper
             _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_tickUpper.demand);
             // The tickUpperPrice is now the minimum clearing price because there was enough demand to fill the supply
@@ -165,8 +159,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         // Save state variables
         sumDemandAboveClearing = _sumDemandAboveClearing;
 
-        uint256 newClearingPrice =
-            _calculateNewClearingPrice(minimumClearingPrice, blockTokenSupply, _checkpoint.cumulativeMps);
+        uint256 newClearingPrice = _calculateNewClearingPrice(minimumClearingPrice, blockTokenSupply);
 
         _checkpoint = _updateCheckpoint(_checkpoint, step, _sumDemandAboveClearing, newClearingPrice, blockTokenSupply);
 

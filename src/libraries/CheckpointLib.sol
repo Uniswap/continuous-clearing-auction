@@ -18,6 +18,7 @@ struct Checkpoint {
 /// @title CheckpointLib
 library CheckpointLib {
     /// @notice Return a new checkpoint after advancing the current checkpoint by a number of blocks
+    /// @dev The checkpoint must have a non zero clearing price
     /// @param checkpoint The checkpoint to transform
     /// @param blockDelta The number of blocks to advance
     /// @param mps The number of mps to add
@@ -31,8 +32,7 @@ library CheckpointLib {
         uint24 deltaMps = uint24(mps * blockDelta);
         checkpoint.totalCleared += checkpoint.blockCleared * blockDelta;
         checkpoint.cumulativeMps += deltaMps;
-        checkpoint.cumulativeMpsPerPrice +=
-            checkpoint.clearingPrice != 0 ? getMpsPerPrice(deltaMps, checkpoint.clearingPrice) : 0;
+        checkpoint.cumulativeMpsPerPrice += getMpsPerPrice(deltaMps, checkpoint.clearingPrice);
         return checkpoint;
     }
 

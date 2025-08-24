@@ -112,12 +112,9 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         if (_priceStrictlyBefore(_clearingPrice, floorPrice)) return floorPrice;
 
         if (currencyIsToken0) {
-            console2.log('rounding up');
-            console2.log('_clearingPrice', _clearingPrice);
             // Round up to the nearest tick boundary
             return (_clearingPrice + (_clearingPrice % tickSpacing));
         } else {
-            console2.log('rounding down');
             // Otherwise, round down to the nearest tick boundary
             return (_clearingPrice - (_clearingPrice % tickSpacing));
         }
@@ -132,9 +129,8 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         if (blockNumber > endBlock) revert AuctionIsOver();
 
         // Get the supply being sold in this block, accounting for rollovers of past supply
-        uint256 supply = (totalSupply - _checkpoint.totalCleared).applyMpsDenominator(
-            step.mps, AuctionStepLib.MPS - _checkpoint.cumulativeMps
-        );
+        uint256 supply =
+            ((totalSupply - _checkpoint.totalCleared) * step.mps) / (AuctionStepLib.MPS - _checkpoint.cumulativeMps);
 
         // All active demand above the current clearing price
         Demand memory _sumDemandAboveClearing = sumDemandAboveClearing;
@@ -217,14 +213,8 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             validationHook.validate(maxPrice, exactIn, amount, owner, msg.sender, hookData);
         }
         // ClearingPrice will be set to floor price in checkpoint() if not set already
-        // Bid price must be less than clearing price if currency is token0
-        if (currencyIsToken0) {
-            if (maxPrice > clearingPrice()) revert InvalidBidPrice();
-        }
-        // Otherwise, bid price must be greater than clearing price and at a tick boundary
-        else {
-            if (maxPrice <= clearingPrice()) revert InvalidBidPrice();
-        }
+        // Bid price must be strictly after clearing price
+        if (!_priceStrictlyAfter(maxPrice, clearingPrice())) revert InvalidBidPrice();
 
         _updateTick(maxPrice, exactIn, amount);
 
@@ -290,61 +280,65 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         if (block.number < endBlock) revert CannotExitBid();
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
-        if (currencyIsToken0) {
-            if (bid.maxPrice >= clearingPrice()) revert CannotExitBid();
-        } else {
-            if (bid.maxPrice <= clearingPrice()) revert CannotExitBid();
-        }
+        // Bid price must be strictly after clearing price
+        if (!_priceStrictlyAfter(bid.maxPrice, clearingPrice())) revert CannotExitBid();
 
         Checkpoint memory finalCheckpoint = _unsafeCheckpoint(endBlock);
         /// @dev Bid was fully filled and the auction is now over
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
         (uint256 tokensFilled, uint256 currencySpent) =
-            _accountFullyFilledCheckpoints(finalCheckpoint, startCheckpoint, bid);
+            _accountFullyFilledCheckpoints(finalCheckpoint, startCheckpoint, bid, currencyIsToken0);
 
         _processExit(bidId, bid, tokensFilled, bid.inputAmount(currencyIsToken0) - currencySpent);
     }
 
     /// @inheritdoc IAuction
+    /// @dev Bid is partially filled. Require the outbid checkpoint to be strictly after bid.maxPrice
+    ///      and its prev checkpoint to be before or equal to bid.maxPrice
+    /// outbidCheckpoint.prev --- ... | outbidCheckpoint --- ... | latestCheckpoint ... | endBlock
+    /// price == clearingPrice        | clearingPrice > price or clearingPrice < price depending on currencyIsToken0
     function exitPartiallyFilledBid(uint256 bidId, uint256 outbidCheckpointBlock) external {
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
 
         // Starting checkpoint must exist because we checkpoint on bid submission
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
-        // Outbid checkpoint is the first checkpoint where the clearing price is strictly > bid.maxPrice
+        // Outbid checkpoint is the first checkpoint where the clearing price is strictly after bid.maxPrice
         Checkpoint memory outbidCheckpoint = _getCheckpoint(outbidCheckpointBlock);
-        // Last valid checkpoint is the last checkpoint where the clearing price is <= bid.maxPrice
+        // Last valid checkpoint is the last checkpoint where the clearing price is before or equal to bid.maxPrice
         Checkpoint memory lastValidCheckpoint = _getCheckpoint(outbidCheckpoint.prev);
 
-        /// @dev Bid is partially filled. Require the outbid checkpoint to be strictly > bid.maxPrice and the last valid checkpoint to be <= bid.maxPrice
-        /// lastValidCheckpoint --- ... | outbidCheckpoint --- ... | latestCheckpoint ... | endBlock
-        /// price == clearingPrice      | clearingPrice > price -------------------------->
-        if (outbidCheckpoint.clearingPrice < bid.maxPrice || lastValidCheckpoint.clearingPrice > bid.maxPrice) {
+        if (
+            _priceStrictlyBefore(outbidCheckpoint.clearingPrice, bid.maxPrice)
+                || _priceStrictlyAfter(lastValidCheckpoint.clearingPrice, bid.maxPrice)
+        ) {
             revert InvalidCheckpointHint();
         }
 
         uint256 tokensFilled;
         uint256 currencySpent;
-        uint256 _clearingPrice = clearingPrice();
         /// @dev Bid has been outbid
-        if (bid.maxPrice < _clearingPrice) {
+        if (_priceStrictlyBefore(bid.maxPrice, clearingPrice())) {
             uint256 nextCheckpointBlock;
             (tokensFilled, currencySpent, nextCheckpointBlock) = _accountPartiallyFilledCheckpoints(
                 lastValidCheckpoint,
+                currencyIsToken0,
                 bid.demand(currencyIsToken0),
                 getTick(bid.maxPrice).demand.resolve(bid.maxPrice, currencyIsToken0),
                 bid.maxPrice
             );
             /// Now account for the fully filled checkpoints until the startCheckpoint
-            (uint256 _tokensFilled, uint256 _currencySpent) =
-                _accountFullyFilledCheckpoints(_getCheckpoint(nextCheckpointBlock), startCheckpoint, bid);
+            (uint256 _tokensFilled, uint256 _currencySpent) = _accountFullyFilledCheckpoints(
+                _getCheckpoint(nextCheckpointBlock), startCheckpoint, bid, currencyIsToken0
+            );
             tokensFilled += _tokensFilled;
             currencySpent += _currencySpent;
-        } else if (block.number >= endBlock && bid.maxPrice == _clearingPrice) {
-            (tokensFilled, currencySpent) = _accountFullyFilledCheckpoints(lastValidCheckpoint, startCheckpoint, bid);
+        } else if (block.number >= endBlock && bid.maxPrice == clearingPrice()) {
+            (tokensFilled, currencySpent) =
+                _accountFullyFilledCheckpoints(lastValidCheckpoint, startCheckpoint, bid, currencyIsToken0);
             (uint256 partialTokensFilled, uint256 partialCurrencySpent,) = _accountPartiallyFilledCheckpoints(
                 _getFinalCheckpoint(),
+                currencyIsToken0,
                 bid.demand(currencyIsToken0),
                 getTick(bid.maxPrice).demand.resolve(bid.maxPrice, currencyIsToken0),
                 bid.maxPrice
@@ -354,6 +348,13 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         } else {
             revert CannotExitBid();
         }
+
+        console2.log('tokensFilled', tokensFilled);
+        console2.log('currencySpent', currencySpent);
+        console2.log('bid.inputAmount(currencyIsToken0)', bid.inputAmount(currencyIsToken0));
+        console2.log(
+            'bid.inputAmount(currencyIsToken0) - currencySpent', bid.inputAmount(currencyIsToken0) - currencySpent
+        );
 
         _processExit(bidId, bid, tokensFilled, bid.inputAmount(currencyIsToken0) - currencySpent);
     }

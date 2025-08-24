@@ -7,7 +7,7 @@ import {ITokenCurrencyStorage} from './ITokenCurrencyStorage.sol';
 /// @notice Interface for the TickStorage contract
 interface ITickStorage is ITokenCurrencyStorage {
     /// @notice Error thrown when the tick price is not increasing
-    error TickPriceNotIncreasing();
+    error InvalidTickPrice();
     /// @notice Error thrown when the tick price is not at a tick boundary
     error TickPriceNotAtBoundary();
     /// @notice Emitted when a tick is initialized

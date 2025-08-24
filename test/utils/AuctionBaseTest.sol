@@ -55,10 +55,18 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
 
     /// @dev Helper function to convert a tick number to a priceX96
     function tickNumberToPriceX96(uint256 tickNumber) internal view returns (uint256) {
+        return tickNumberToPriceX96(FLOOR_PRICE, TICK_SPACING, tickNumber);
+    }
+
+    function tickNumberToPriceX96(uint256 floorPrice, uint256 tickSpacing, uint256 tickNumber)
+        internal
+        view
+        returns (uint256)
+    {
         if (currencyIsToken0) {
-            return (FLOOR_PRICE - (tickNumber - 1) * TICK_SPACING);
+            return (floorPrice - (tickNumber - 1) * tickSpacing);
         } else {
-            return (FLOOR_PRICE + (tickNumber - 1) * TICK_SPACING);
+            return (floorPrice + (tickNumber - 1) * tickSpacing);
         }
     }
 

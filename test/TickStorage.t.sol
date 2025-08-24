@@ -136,22 +136,22 @@ contract TickStorageTest is Test {
 
     function test_initializeTickWithWrongPrice_reverts() public {
         if (currencyIsToken0) {
-            vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
+            vm.expectRevert(ITickStorage.InvalidTickPrice.selector);
             tickStorage.initializeTickIfNeeded(FLOOR_PRICE, type(uint256).max);
         } else {
-            vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
+            vm.expectRevert(ITickStorage.InvalidTickPrice.selector);
             tickStorage.initializeTickIfNeeded(FLOOR_PRICE, 0);
         }
     }
 
     function test_initializeTickAtFloorPrice_reverts() public {
-        vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
+        vm.expectRevert(ITickStorage.InvalidTickPrice.selector);
         tickStorage.initializeTickIfNeeded(FLOOR_PRICE, FLOOR_PRICE);
     }
 
     // The tick at 0 id should never be initialized, thus its next value is 0, which should cause a revert
     function test_initializeTickWithZeroPrev_reverts() public {
-        vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
+        vm.expectRevert(ITickStorage.InvalidTickPrice.selector);
         tickStorage.initializeTickIfNeeded(0, tickNumberToPriceX96(2));
     }
 
@@ -160,11 +160,11 @@ contract TickStorageTest is Test {
 
         if (currencyIsToken0) {
             // Wrong price, between ticks must be decreasing
-            vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
+            vm.expectRevert(ITickStorage.InvalidTickPrice.selector);
             tickStorage.initializeTickIfNeeded(FLOOR_PRICE, tickNumberToPriceX96(1) + 1);
         } else {
             // Wrong price, between ticks must be increasing
-            vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
+            vm.expectRevert(ITickStorage.InvalidTickPrice.selector);
             tickStorage.initializeTickIfNeeded(FLOOR_PRICE, tickNumberToPriceX96(1) - 1);
         }
     }
@@ -173,13 +173,13 @@ contract TickStorageTest is Test {
         tickStorage.initializeTickIfNeeded(FLOOR_PRICE, tickNumberToPriceX96(2));
         // Then try to initialize a tick at price 3 with prevId=1, but nextId=2 is less than id=3
         // This should revert because nextId < id
-        vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
+        vm.expectRevert(ITickStorage.InvalidTickPrice.selector);
         tickStorage.initializeTickIfNeeded(FLOOR_PRICE, tickNumberToPriceX96(3));
     }
 
     function test_initializeTickIfNeeded_withPrevIdGreaterThanId_reverts() public {
         // Try to initialize a tick at price 1 with prevId=2, but prevId > id
-        vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
+        vm.expectRevert(ITickStorage.InvalidTickPrice.selector);
         tickStorage.initializeTickIfNeeded(2, 1e18);
     }
 }

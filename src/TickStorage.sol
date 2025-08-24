@@ -7,6 +7,7 @@ import {TokenCurrencyStorage} from './TokenCurrencyStorage.sol';
 import {Bid} from './libraries/BidLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
+import {console2} from 'forge-std/console2.sol';
 
 struct Tick {
     uint256 next;
@@ -74,18 +75,9 @@ abstract contract TickStorage is TokenCurrencyStorage, ITickStorage {
         // No previous price can be greater than or equal to the new price
         uint256 nextPrice = ticks[prevPrice].next;
 
-        if (currencyIsToken0) {
-            // Prices must be decreasing
-            // nextPrice | price | prevPrice
-            if (prevPrice <= price || (nextPrice != MIN_TICK_PRICE && nextPrice > price)) {
-                revert TickPriceNotIncreasing();
-            }
-        } else {
-            // Prices must be increasing
-            // prevPrice | price | nextPrice
-            if (prevPrice >= price || (nextPrice != MAX_TICK_PRICE && nextPrice < price)) {
-                revert TickPriceNotIncreasing();
-            }
+        // Revert if prev price is after or equal to the new price OR if the next price is before the new price
+        if (_priceAfterOrEqual(prevPrice, price) || _priceStrictlyBefore(nextPrice, price)) {
+            revert InvalidTickPrice();
         }
 
         if (price % tickSpacing != 0) {

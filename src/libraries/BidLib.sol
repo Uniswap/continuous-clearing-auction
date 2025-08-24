@@ -53,14 +53,23 @@ library BidLib {
     /// @param amount The amount of the bid
     /// @param maxPrice The max price of the bid
     /// @return The input amount required for an amount and maxPrice
-    function inputAmount(bool exactIn, uint256 amount, uint256 maxPrice) internal pure returns (uint256) {
-        return exactIn ? amount : amount.fullMulDivUp(maxPrice, FixedPoint96.Q96);
+    function inputAmount(bool exactIn, uint256 amount, uint256 maxPrice, bool currencyIsToken0)
+        internal
+        pure
+        returns (uint256)
+    {
+        if (exactIn) return amount;
+        if (currencyIsToken0) {
+            return amount.fullMulDivUp(FixedPoint96.Q96, maxPrice);
+        } else {
+            return amount.fullMulDivUp(maxPrice, FixedPoint96.Q96);
+        }
     }
 
     /// @notice Calculate the input amount required to place the bid
     /// @param bid The bid
     /// @return The input amount required to place the bid
-    function inputAmount(Bid memory bid) internal pure returns (uint256) {
-        return inputAmount(bid.exactIn, bid.amount, bid.maxPrice);
+    function inputAmount(Bid memory bid, bool currencyIsToken0) internal pure returns (uint256) {
+        return inputAmount(bid.exactIn, bid.amount, bid.maxPrice, currencyIsToken0);
     }
 }

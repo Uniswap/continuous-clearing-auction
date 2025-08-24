@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
+import {ITokenCurrencyStorage} from './ITokenCurrencyStorage.sol';
 import {IDistributionContract} from './external/IDistributionContract.sol';
 
 /// @notice Parameters for the auction
@@ -23,7 +24,7 @@ struct AuctionParameters {
 }
 
 /// @notice Interface for the Auction contract
-interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
+interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage, ITokenCurrencyStorage {
     /// @notice Error thrown when the token is invalid
     error IDistributionContract__InvalidToken();
     /// @notice Error thrown when the amount is invalid
@@ -35,16 +36,12 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     error InvalidAmount();
     /// @notice Error thrown when the auction is not started
     error AuctionNotStarted();
-    /// @notice Error thrown when the total supply is zero
-    error TotalSupplyIsZero();
     /// @notice Error thrown when the floor price is zero
     error FloorPriceIsZero();
     /// @notice Error thrown when the tick spacing is zero
     error TickSpacingIsZero();
     /// @notice Error thrown when the claim block is before the end block
     error ClaimBlockIsBeforeEndBlock();
-    /// @notice Error thrown when the funds recipient is the zero address
-    error FundsRecipientIsZero();
     /// @notice Error thrown when the bid has already been exited
     error BidAlreadyExited();
     /// @notice Error thrown when the bid is higher than the clearing price

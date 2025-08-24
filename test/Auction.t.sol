@@ -6,6 +6,7 @@ import {IAuction} from '../src/interfaces/IAuction.sol';
 
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
+import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
@@ -24,6 +25,7 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
+import {console2} from 'forge-std/console2.sol';
 
 contract AuctionTest is AuctionBaseTest {
     using FixedPointMathLib for uint256;
@@ -35,8 +37,12 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice
-    function inputAmountForTokens(uint256 tokens, uint256 maxPrice) internal pure returns (uint256) {
-        return tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96);
+    function inputAmountForTokens(uint256 tokens, uint256 maxPrice) internal view returns (uint256) {
+        if (auction.currencyIsToken0()) {
+            return tokens.fullMulDiv(FixedPoint96.Q96, maxPrice);
+        } else {
+            return tokens.fullMulDiv(maxPrice, FixedPoint96.Q96);
+        }
     }
 
     /// forge-config: default.isolate = true
@@ -101,6 +107,9 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(
             block.number, tickNumberToPriceX96(2), expectedTotalCleared, expectedCumulativeMps
+        );
+        console2.log(
+            'tickNumberToPriceX96(2) >> FixedPoint96.RESOLUTION', tickNumberToPriceX96(2) >> FixedPoint96.RESOLUTION
         );
         auction.checkpoint();
 
@@ -826,7 +835,7 @@ contract AuctionTest is AuctionBaseTest {
         uint256 minimumClearingPrice = 1e1 << FixedPoint96.RESOLUTION; // Much much smaller than floor price (10e6 << 96)
 
         // Use a blockTokenSupply that will give a calculated price between minimumClearingPrice and floorPrice
-        // The formula is: clearingPrice = currencyDemand * Q96 / (blockTokenSupply - tokenDemand)
+        // Since currency is token0, the formula is tokens / currency, so (blockTokenSupply - tokenDemand) * Q96 / currencyDemand = price
         // We want: minimumClearingPrice < calculated_price < floorPrice
         // With currencyDemand = 120e18 and tokenDemand = 100e18, we need to find the right blockTokenSupply
         uint256 blockTokenSupply = 1e22; // Even larger supply to get a smaller calculated price
@@ -927,7 +936,7 @@ contract AuctionTest is AuctionBaseTest {
             .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
             .withClaimBlock(block.number + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
 
-        vm.expectRevert(IAuction.TotalSupplyIsZero.selector);
+        vm.expectRevert(ITokenCurrencyStorage.TotalSupplyIsZero.selector);
         new Auction(address(token), 0, params);
 
         params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(0).withTickSpacing(TICK_SPACING)
@@ -956,7 +965,7 @@ contract AuctionTest is AuctionBaseTest {
             block.number + AUCTION_DURATION
         ).withAuctionStepsData(auctionStepsData);
 
-        vm.expectRevert(IAuction.FundsRecipientIsZero.selector);
+        vm.expectRevert(ITokenCurrencyStorage.FundsRecipientIsZero.selector);
         new Auction(address(token), TOTAL_SUPPLY, params);
     }
 

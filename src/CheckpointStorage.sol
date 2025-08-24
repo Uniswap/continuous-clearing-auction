@@ -124,6 +124,8 @@ abstract contract CheckpointStorage is TickStorage {
         uint24 cumulativeMpsDelta,
         uint24 mpsDenominator
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
+        // if currency is token0, then price = token / currency, so token = currency * price
+        // if currency is token1, then price = currency / token, so currency = token * price
         tokensFilled = bid.exactIn
             ? bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsDenominator)
             : bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);

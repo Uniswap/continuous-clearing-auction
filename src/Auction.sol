@@ -4,8 +4,10 @@ pragma solidity ^0.8.23;
 import {AuctionStepStorage} from './AuctionStepStorage.sol';
 import {BidStorage} from './BidStorage.sol';
 import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
+
 import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
 import {Tick} from './TickStorage.sol';
+import {TokenCurrencyStorage} from './TokenCurrencyStorage.sol';
 
 import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
 
@@ -20,13 +22,21 @@ import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 
+import {console2} from 'forge-std/console2.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 /// @title Auction
-contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSingleForwarder, IAuction {
+contract Auction is
+    BidStorage,
+    CheckpointStorage,
+    AuctionStepStorage,
+    TokenCurrencyStorage,
+    PermitSingleForwarder,
+    IAuction
+{
     using FixedPointMathLib for uint256;
     using CurrencyLibrary for Currency;
     using BidLib for Bid;
@@ -35,17 +45,9 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     using DemandLib for Demand;
     using SafeCastLib for uint256;
 
-    /// @notice The currency of the auction
-    Currency public immutable currency;
-    /// @notice The token of the auction
-    IERC20Minimal public immutable token;
-    /// @notice The total supply of token to sell
-    uint256 public immutable totalSupply;
-    /// @notice The recipient of any unsold tokens
-    address public immutable tokensRecipient;
-    /// @notice The recipient of the funds from the auction
-    address public immutable fundsRecipient;
-    /// @notice The block at which purchased tokens can be claimed
+    /// @notice Permit2 address
+    address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+    /// @notice The block at which purchased tokens can be claimed by bidders
     uint64 public immutable claimBlock;
     /// @notice An optional hook to be called before a bid is registered
     IValidationHook public immutable validationHook;
@@ -53,26 +55,24 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     /// @notice The sum of demand in ticks above the clearing price
     Demand public sumDemandAboveClearing;
 
-    address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
-
     constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
         CheckpointStorage(_parameters.floorPrice, _parameters.tickSpacing)
+        TokenCurrencyStorage(
+            _token,
+            _totalSupply,
+            _parameters.currency,
+            _parameters.tokensRecipient,
+            _parameters.fundsRecipient
+        )
         PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
     {
-        currency = Currency.wrap(_parameters.currency);
-        token = IERC20Minimal(_token);
-        totalSupply = _totalSupply;
-        tokensRecipient = _parameters.tokensRecipient;
-        fundsRecipient = _parameters.fundsRecipient;
         claimBlock = _parameters.claimBlock;
         validationHook = IValidationHook(_parameters.validationHook);
 
-        if (totalSupply == 0) revert TotalSupplyIsZero();
         if (floorPrice == 0) revert FloorPriceIsZero();
         if (tickSpacing == 0) revert TickSpacingIsZero();
         if (claimBlock < endBlock) revert ClaimBlockIsBeforeEndBlock();
-        if (fundsRecipient == address(0)) revert FundsRecipientIsZero();
     }
 
     /// @inheritdoc IDistributionContract
@@ -111,10 +111,8 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         Demand memory blockSumDemandAboveClearing = sumDemandAboveClearing.applyMps(step.mps);
 
         // Calculate the clearing price by first subtracting the exactOut tokenDemand then dividing by the currencyDemand
-        // Follows the formula ~ ETH / tokens = price
-        uint256 _clearingPrice = blockSumDemandAboveClearing.currencyDemand.fullMulDiv(
-            FixedPoint96.Q96, (supply - blockSumDemandAboveClearing.tokenDemand)
-        );
+        uint256 _clearingPrice =
+            _toPrice(blockSumDemandAboveClearing.currencyDemand, (supply - blockSumDemandAboveClearing.tokenDemand));
 
         // If the new clearing price is below the minimum clearing price return the minimum clearing price
         if (_clearingPrice < minimumClearingPrice) return minimumClearingPrice;
@@ -266,7 +264,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         bytes calldata hookData
     ) external payable returns (uint256) {
         if (block.number >= endBlock) revert AuctionIsOver();
-        uint256 requiredCurrencyAmount = BidLib.inputAmount(exactIn, amount, maxPrice);
+        uint256 requiredCurrencyAmount = BidLib.inputAmount(exactIn, amount, maxPrice, currencyIsToken0);
         if (requiredCurrencyAmount == 0) revert InvalidAmount();
         if (currency.isAddressZero()) {
             if (msg.value != requiredCurrencyAmount) revert InvalidAmount();
@@ -290,7 +288,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         (uint256 tokensFilled, uint256 currencySpent) =
             _accountFullyFilledCheckpoints(finalCheckpoint, startCheckpoint, bid);
 
-        _processExit(bidId, bid, tokensFilled, bid.inputAmount() - currencySpent);
+        _processExit(bidId, bid, tokensFilled, bid.inputAmount(currencyIsToken0) - currencySpent);
     }
 
     /// @inheritdoc IAuction
@@ -335,7 +333,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             revert CannotExitBid();
         }
 
-        _processExit(bidId, bid, tokensFilled, bid.inputAmount() - currencySpent);
+        _processExit(bidId, bid, tokensFilled, bid.inputAmount(currencyIsToken0) - currencySpent);
     }
 
     /// @inheritdoc IAuction

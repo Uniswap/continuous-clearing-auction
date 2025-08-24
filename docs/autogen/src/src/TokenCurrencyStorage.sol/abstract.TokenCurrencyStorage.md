@@ -1,5 +1,5 @@
 # TokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/03b283c54c5f2efd695e0da42cae5de574a91cf7/src/TokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/754a9fd70af9e184d49edc120bb93866e5543890/src/TokenCurrencyStorage.sol)
 
 **Inherits:**
 [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -83,12 +83,22 @@ function _toPrice(uint256 currencyAmount, uint256 tokenAmount) internal view ret
 
 ### _priceStrictlyBefore
 
+Returns true if price1 is strictly ordered before price2
+
+*Prices will be monotonically increasing or decreasing depending on the currency/token order
+This function returns true if price1 would come before price2 in that order*
+
 
 ```solidity
 function _priceStrictlyBefore(uint256 price1, uint256 price2) internal view returns (bool);
 ```
 
 ### _priceBeforeOrEqual
+
+Returns true if price1 is ordered before or equal to price2
+
+*Prices will be monotonically increasing or decreasing depending on the currency/token order
+This function returns true if price1 would come before or equal to price2 in that order*
 
 
 ```solidity
@@ -97,12 +107,22 @@ function _priceBeforeOrEqual(uint256 price1, uint256 price2) internal view retur
 
 ### _priceStrictlyAfter
 
+Returns true if price1 is strictly ordered after price2
+
+*Prices will be monotonically increasing or decreasing depending on the currency/token order
+This function returns true if price1 would come after price2 in that order*
+
 
 ```solidity
 function _priceStrictlyAfter(uint256 price1, uint256 price2) internal view returns (bool);
 ```
 
 ### _priceAfterOrEqual
+
+Returns true if price1 is ordered after or equal to price2
+
+*Prices will be monotonically increasing or decreasing depending on the currency/token order
+This function returns true if price1 would come after or equal to price2 in that order*
 
 
 ```solidity

@@ -166,31 +166,30 @@ contract CheckpointStorageTest is Test {
         uint256[] memory pricesArray = new uint256[](3);
 
         mpsArray[0] = 50e3;
-        pricesArray[0] = 100 << FixedPoint96.RESOLUTION;
+        pricesArray[0] = 500 << FixedPoint96.RESOLUTION;
 
         mpsArray[1] = 30e3;
-        pricesArray[1] = 200 << FixedPoint96.RESOLUTION;
+        pricesArray[1] = 300 << FixedPoint96.RESOLUTION;
 
         mpsArray[2] = 20e3;
         pricesArray[2] = 200 << FixedPoint96.RESOLUTION;
 
-        uint256 _tokensFilled;
         uint256 _currencySpent;
-        uint256 _totalMps;
+        uint24 _totalMps;
         uint256 _cumulativeMpsPerPrice;
 
-        for (uint256 i = 0; i < 3; i++) {
-            uint256 currencySpentInBlock = ETH_AMOUNT * mpsArray[i] / MPS;
-            uint256 tokensFilledInBlock;
-            if (currencyIsToken0) {
-                tokensFilledInBlock = currencySpentInBlock.fullMulDiv(pricesArray[i], FixedPoint96.Q96);
-            } else {
-                tokensFilledInBlock = currencySpentInBlock.fullMulDiv(FixedPoint96.Q96, pricesArray[i]);
-            }
-            _tokensFilled += tokensFilledInBlock;
+        for (uint256 i = 0; i < mpsArray.length; i++) {
+            uint256 currencySpentInBlock = ETH_AMOUNT.applyMps(mpsArray[i]);
             _currencySpent += currencySpentInBlock;
             _totalMps += mpsArray[i];
             _cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(mpsArray[i], pricesArray[i]);
+        }
+
+        uint256 expectedTokensFilled;
+        if (currencyIsToken0) {
+            expectedTokensFilled = _currencySpent.fullMulDiv(FixedPoint96.Q96 * _totalMps, _cumulativeMpsPerPrice);
+        } else {
+            expectedTokensFilled = _currencySpent.fullMulDiv(_cumulativeMpsPerPrice, FixedPoint96.Q96 * _totalMps);
         }
 
         Bid memory bid = Bid({
@@ -204,9 +203,9 @@ contract CheckpointStorageTest is Test {
         });
 
         (uint256 tokensFilled, uint256 currencySpent) =
-            mockCheckpointStorage.calculateFill(bid, currencyIsToken0, _cumulativeMpsPerPrice, uint24(_totalMps), MPS);
+            mockCheckpointStorage.calculateFill(bid, currencyIsToken0, _cumulativeMpsPerPrice, _totalMps, MPS);
 
-        assertEq(tokensFilled, _tokensFilled);
+        assertEq(tokensFilled, expectedTokensFilled);
         assertEq(currencySpent, _currencySpent);
     }
 

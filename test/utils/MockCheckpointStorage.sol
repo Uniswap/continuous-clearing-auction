@@ -5,8 +5,6 @@ import {CheckpointStorage} from '../../src/CheckpointStorage.sol';
 import {Bid} from '../../src/libraries/BidLib.sol';
 
 contract MockCheckpointStorage is CheckpointStorage {
-    constructor(uint256 _floorPrice, uint256 _tickSpacing) CheckpointStorage(_floorPrice, _tickSpacing) {}
-
     function calculateFill(
         Bid memory bid,
         uint256 cumulativeMpsPerPriceDelta,

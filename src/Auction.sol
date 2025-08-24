@@ -6,7 +6,7 @@ import {BidStorage} from './BidStorage.sol';
 import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
 
 import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
-import {Tick} from './TickStorage.sol';
+import {Tick, TickStorage} from './TickStorage.sol';
 import {TokenCurrencyStorage} from './TokenCurrencyStorage.sol';
 
 import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
@@ -29,14 +29,7 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 /// @title Auction
-contract Auction is
-    BidStorage,
-    CheckpointStorage,
-    AuctionStepStorage,
-    TokenCurrencyStorage,
-    PermitSingleForwarder,
-    IAuction
-{
+contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSingleForwarder, TickStorage, IAuction {
     using FixedPointMathLib for uint256;
     using CurrencyLibrary for Currency;
     using BidLib for Bid;
@@ -57,13 +50,14 @@ contract Auction is
 
     constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
-        CheckpointStorage(_parameters.floorPrice, _parameters.tickSpacing)
-        TokenCurrencyStorage(
+        TickStorage(
             _token,
-            _totalSupply,
             _parameters.currency,
+            _totalSupply,
             _parameters.tokensRecipient,
-            _parameters.fundsRecipient
+            _parameters.fundsRecipient,
+            _parameters.tickSpacing,
+            _parameters.floorPrice
         )
         PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
     {
@@ -217,12 +211,12 @@ contract Auction is
         }
         // ClearingPrice will be set to floor price in checkpoint() if not set already
         // Bid price must be less than clearing price if currency is token0
-        if(currencyIsToken0) {
-            if(maxPrice > clearingPrice()) revert InvalidBidPrice();
+        if (currencyIsToken0) {
+            if (maxPrice > clearingPrice()) revert InvalidBidPrice();
         }
         // Otherwise, bid price must be greater than clearing price and at a tick boundary
         else {
-            if(maxPrice <= clearingPrice()) revert InvalidBidPrice();
+            if (maxPrice <= clearingPrice()) revert InvalidBidPrice();
         }
 
         _updateTick(maxPrice, exactIn, amount);
@@ -286,9 +280,14 @@ contract Auction is
 
     /// @inheritdoc IAuction
     function exitBid(uint256 bidId) external {
+        if (block.number < endBlock) revert CannotExitBid();
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
-        if (block.number < endBlock || bid.maxPrice <= clearingPrice()) revert CannotExitBid();
+        if (currencyIsToken0) {
+            if (bid.maxPrice >= clearingPrice()) revert CannotExitBid();
+        } else {
+            if (bid.maxPrice <= clearingPrice()) revert CannotExitBid();
+        }
 
         Checkpoint memory finalCheckpoint = _unsafeCheckpoint(endBlock);
         /// @dev Bid was fully filled and the auction is now over

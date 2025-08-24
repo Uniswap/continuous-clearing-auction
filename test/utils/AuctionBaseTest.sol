@@ -28,6 +28,8 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
     address public tokensRecipient;
     address public fundsRecipient;
 
+    bool public currencyIsToken0;
+
     function setUpAuction() public {
         setUpTokens();
 
@@ -42,6 +44,7 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
             .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
             .withClaimBlock(block.number + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
 
+        currencyIsToken0 = ETH_SENTINEL < address(token);
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(tickNumberToPriceX96(1));
@@ -51,8 +54,12 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
     }
 
     /// @dev Helper function to convert a tick number to a priceX96
-    function tickNumberToPriceX96(uint256 tickNumber) internal pure returns (uint256) {
-        return (FLOOR_PRICE - (tickNumber - 1) * TICK_SPACING);
+    function tickNumberToPriceX96(uint256 tickNumber) internal view returns (uint256) {
+        if (currencyIsToken0) {
+            return (FLOOR_PRICE - (tickNumber - 1) * TICK_SPACING);
+        } else {
+            return (FLOOR_PRICE + (tickNumber - 1) * TICK_SPACING);
+        }
     }
 
     /// @notice Helper function to return the tick at the given price

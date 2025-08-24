@@ -32,7 +32,7 @@ contract CheckpointStorageTest is Test {
     bool public constant CURRENCY_IS_TOKEN0 = true;
 
     function setUp() public {
-        mockCheckpointStorage = new MockCheckpointStorage(FLOOR_PRICE, TICK_SPACING);
+        mockCheckpointStorage = new MockCheckpointStorage();
     }
 
     function test_resolve_exactOut_calculatePartialFill_succeeds() public view {

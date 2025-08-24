@@ -24,7 +24,7 @@ struct AuctionParameters {
 }
 
 /// @notice Interface for the Auction contract
-interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage, ITokenCurrencyStorage {
+interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     /// @notice Error thrown when the token is invalid
     error IDistributionContract__InvalidToken();
     /// @notice Error thrown when the amount is invalid

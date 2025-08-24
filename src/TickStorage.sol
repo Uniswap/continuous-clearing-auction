@@ -3,6 +3,7 @@ pragma solidity ^0.8.23;
 
 import {ITickStorage} from './interfaces/ITickStorage.sol';
 
+import {TokenCurrencyStorage} from './TokenCurrencyStorage.sol';
 import {Bid} from './libraries/BidLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
@@ -14,24 +15,36 @@ struct Tick {
 
 /// @title TickStorage
 /// @notice Abstract contract for handling tick storage
-abstract contract TickStorage is ITickStorage {
+abstract contract TickStorage is TokenCurrencyStorage, ITickStorage {
     using DemandLib for Demand;
 
     mapping(uint256 price => Tick) public ticks;
 
-    /// @notice The price of the next initialized tick above the clearing price
+    /// @notice The price of the next initialized tick above or below the clearing price, depending on currency/token order
     /// @dev This will be equal to the clearingPrice if no ticks have been initialized yet
     uint256 public nextActiveTickPrice;
 
     /// @notice The tick spacing enforced for bid prices
     uint256 public immutable tickSpacing;
+    /// @notice The starting price of the auction
+    uint256 public immutable floorPrice;
 
     /// @notice Sentinel value for the next value of the highest tick in the book
     uint256 public constant MAX_TICK_PRICE = type(uint256).max;
+    /// @notice Sentinel value for the next value of the lowest tick in the book
     uint256 public constant MIN_TICK_PRICE = 0;
 
-    constructor(uint256 _tickSpacing, uint256 _floorPrice) {
+    constructor(
+        address _token,
+        address _currency,
+        uint256 _totalSupply,
+        address _tokensRecipient,
+        address _fundsRecipient,
+        uint256 _tickSpacing,
+        uint256 _floorPrice
+    ) TokenCurrencyStorage(_token, _currency, _totalSupply, _tokensRecipient, _fundsRecipient) {
         tickSpacing = _tickSpacing;
+        floorPrice = _floorPrice;
         _unsafeInitializeTick(_floorPrice);
     }
 
@@ -46,7 +59,7 @@ abstract contract TickStorage is ITickStorage {
     /// @dev This function is unsafe and should only be used when the tick is guaranteed to be the first in the book
     /// @param price The price of the tick
     function _unsafeInitializeTick(uint256 price) internal {
-        ticks[price].next = MAX_TICK_PRICE;
+        ticks[price].next = currencyIsToken0 ? MIN_TICK_PRICE : MAX_TICK_PRICE;
         nextActiveTickPrice = price;
         emit NextActiveTickUpdated(price);
         emit TickInitialized(price);
@@ -60,11 +73,22 @@ abstract contract TickStorage is ITickStorage {
     function _initializeTickIfNeeded(uint256 prevPrice, uint256 price) internal {
         // No previous price can be greater than or equal to the new price
         uint256 nextPrice = ticks[prevPrice].next;
-        if (prevPrice >= price || (nextPrice != MAX_TICK_PRICE && nextPrice < price)) {
-            revert TickPriceNotIncreasing();
+
+        if (currencyIsToken0) {
+            // Prices must be decreasing
+            // nextPrice | price | prevPrice
+            if (prevPrice <= price || (nextPrice != MIN_TICK_PRICE && nextPrice > price)) {
+                revert TickPriceNotIncreasing();
+            }
+        } else {
+            // Prices must be increasing
+            // prevPrice | price | nextPrice
+            if (prevPrice >= price || (nextPrice != MAX_TICK_PRICE && nextPrice < price)) {
+                revert TickPriceNotIncreasing();
+            }
         }
 
-        if(price % tickSpacing != 0) {
+        if (price % tickSpacing != 0) {
             revert TickPriceNotAtBoundary();
         }
 

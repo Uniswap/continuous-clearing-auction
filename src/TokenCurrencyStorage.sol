@@ -30,8 +30,8 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
 
     constructor(
         address _token,
-        uint256 _totalSupply,
         address _currency,
+        uint256 _totalSupply,
         address _tokensRecipient,
         address _fundsRecipient
     ) {

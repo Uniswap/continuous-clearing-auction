@@ -38,7 +38,7 @@ contract AuctionTest is AuctionBaseTest {
 
     /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice
     function inputAmountForTokens(uint256 tokens, uint256 maxPrice) internal view returns (uint256) {
-        if (auction.currencyIsToken0()) {
+        if (currencyIsToken0) {
             return tokens.fullMulDiv(FixedPoint96.Q96, maxPrice);
         } else {
             return tokens.fullMulDiv(maxPrice, FixedPoint96.Q96);
@@ -880,10 +880,10 @@ contract AuctionTest is AuctionBaseTest {
     function test_submitBid_withERC20Currency_unpermittedPermit2Transfer_reverts() public {
         // Create auction parameters with ERC20 currency instead of ETH
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
-        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(address(currency)).withFloorPrice(
-            FLOOR_PRICE
-        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(address(nonNativeCurrency))
+            .withFloorPrice(FLOOR_PRICE).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(
+            tokensRecipient
+        ).withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
             .withClaimBlock(block.number + AUCTION_DURATION) // Use ERC20 currency instead of ETH_SENTINEL
             .withAuctionStepsData(auctionStepsData);
 
@@ -891,11 +891,11 @@ contract AuctionTest is AuctionBaseTest {
         token.mint(address(erc20Auction), TOTAL_SUPPLY);
 
         // Mint currency tokens to alice
-        currency.mint(alice, 1000e18);
+        nonNativeCurrency.mint(alice, 1000e18);
 
         // For now, let's just verify that the currency is set correctly
         // and that we would reach line 252 if the Permit2 transfer worked
-        assertEq(Currency.unwrap(erc20Auction.currency()), address(currency));
+        assertEq(Currency.unwrap(erc20Auction.currency()), address(nonNativeCurrency));
         assertFalse(erc20Auction.currency().isAddressZero());
 
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector); // Expect revert due to Permit2 transfer failure

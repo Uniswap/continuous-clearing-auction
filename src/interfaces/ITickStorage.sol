@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Tick} from '../TickStorage.sol';
+import {ITokenCurrencyStorage} from './ITokenCurrencyStorage.sol';
 
 /// @title ITickStorage
 /// @notice Interface for the TickStorage contract
-interface ITickStorage {
+interface ITickStorage is ITokenCurrencyStorage {
     /// @notice Error thrown when the tick price is not increasing
     error TickPriceNotIncreasing();
     /// @notice Error thrown when the tick price is not at a tick boundary

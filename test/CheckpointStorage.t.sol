@@ -29,6 +29,8 @@ contract CheckpointStorageTest is Test {
     uint256 public constant TOKEN_AMOUNT = 100e18;
     uint256 public constant TOTAL_SUPPLY = 1000e18;
 
+    bool public constant CURRENCY_IS_TOKEN0 = true;
+
     function setUp() public {
         mockCheckpointStorage = new MockCheckpointStorage(FLOOR_PRICE, TICK_SPACING);
     }
@@ -52,9 +54,9 @@ contract CheckpointStorageTest is Test {
         uint24 cumulativeMpsDelta = 3000e3;
 
         // Calculate partial fill values
-        uint256 bidDemand = bid.demand();
+        uint256 bidDemand = bid.demand(CURRENCY_IS_TOKEN0);
         assertEq(bidDemand, exactOutAmount);
-        uint256 tickDemand = tick.demand.resolve(maxPrice);
+        uint256 tickDemand = tick.demand.resolve(maxPrice, CURRENCY_IS_TOKEN0);
         // No one else at tick, so demand is the same
         assertEq(bidDemand, tickDemand);
         uint256 supply = TOTAL_SUPPLY.applyMps(cumulativeMpsDelta);

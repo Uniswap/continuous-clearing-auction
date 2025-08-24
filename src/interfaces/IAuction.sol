@@ -34,6 +34,8 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage, 
 
     /// @notice Error thrown when not enough amount is deposited
     error InvalidAmount();
+    /// @notice Error thrown when the bid price is invalid
+    error InvalidBidPrice();
     /// @notice Error thrown when the auction is not started
     error AuctionNotStarted();
     /// @notice Error thrown when the floor price is zero

@@ -8,6 +8,8 @@ import {Tick} from '../TickStorage.sol';
 interface ITickStorage {
     /// @notice Error thrown when the tick price is not increasing
     error TickPriceNotIncreasing();
+    /// @notice Error thrown when the tick price is not at a tick boundary
+    error TickPriceNotAtBoundary();
     /// @notice Emitted when a tick is initialized
     /// @param price The price of the tick
 

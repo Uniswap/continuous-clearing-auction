@@ -26,26 +26,13 @@ library BidLib {
     using SafeCastLib for uint256;
     using FixedPointMathLib for uint256;
 
-    error InvalidBidPrice();
-
     uint256 public constant PRECISION = 1e18;
-
-    /// @notice Validate a bid
-    /// @dev The bid must be greater than the clearing price and at a tick boundary
-    /// @param maxPrice The max price of the bid
-    /// @param clearingPrice The clearing price of the auction
-    /// @param tickSpacing The tick spacing of the auction
-    function validate(uint256 maxPrice, uint256 clearingPrice, uint256 tickSpacing) internal pure {
-        if (maxPrice <= clearingPrice || maxPrice % tickSpacing != 0) {
-            revert InvalidBidPrice();
-        }
-    }
 
     /// @notice Resolve the demand of a bid at its maxPrice
     /// @param bid The bid
     /// @return The demand of the bid
-    function demand(Bid memory bid) internal pure returns (uint256) {
-        return bid.exactIn ? bid.amount.resolveCurrencyDemand(bid.maxPrice) : bid.amount;
+    function demand(Bid memory bid, bool currencyIsToken0) internal pure returns (uint256) {
+        return bid.exactIn ? bid.amount.resolveCurrencyDemand(bid.maxPrice, currencyIsToken0) : bid.amount;
     }
 
     /// @notice Calculate the input amount required for an amount and maxPrice

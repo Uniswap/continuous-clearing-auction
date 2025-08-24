@@ -143,7 +143,7 @@ contract Auction is
 
         // Find the tick where the demand at and above it is NOT enough to fill the supply
         // Sets tickUpperPrice to MAX_TICK_PRICE if the highest tick in the book is reached
-        while (_sumDemandAboveClearing.resolve(tickUpperPrice).applyMps(step.mps) >= supply) {
+        while (_sumDemandAboveClearing.resolve(tickUpperPrice, currencyIsToken0).applyMps(step.mps) >= supply) {
             // Subtract the demand at tickUpper
             _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_tickUpper.demand);
             // The tickUpperPrice is now the minimum clearing price because there was enough demand to fill the supply
@@ -158,7 +158,8 @@ contract Auction is
         sumDemandAboveClearing = _sumDemandAboveClearing;
 
         _checkpoint.clearingPrice = _calculateNewClearingPrice(minimumClearingPrice, supply);
-        uint256 resolvedDemandAboveClearing = _sumDemandAboveClearing.resolve(_checkpoint.clearingPrice);
+        uint256 resolvedDemandAboveClearing =
+            _sumDemandAboveClearing.resolve(_checkpoint.clearingPrice, currencyIsToken0);
 
         // If the clearing price is the floor price, we can only clear the current demand at the floor price
         if (_checkpoint.clearingPrice == floorPrice) {
@@ -215,7 +216,14 @@ contract Auction is
             validationHook.validate(maxPrice, exactIn, amount, owner, msg.sender, hookData);
         }
         // ClearingPrice will be set to floor price in checkpoint() if not set already
-        BidLib.validate(maxPrice, clearingPrice(), tickSpacing);
+        // Bid price must be less than clearing price if currency is token0
+        if(currencyIsToken0) {
+            if(maxPrice > clearingPrice()) revert InvalidBidPrice();
+        }
+        // Otherwise, bid price must be greater than clearing price and at a tick boundary
+        else {
+            if(maxPrice <= clearingPrice()) revert InvalidBidPrice();
+        }
 
         _updateTick(maxPrice, exactIn, amount);
 
@@ -316,8 +324,12 @@ contract Auction is
         /// @dev Bid has been outbid
         if (bid.maxPrice < _clearingPrice) {
             uint256 nextCheckpointBlock;
-            (tokensFilled, currencySpent, nextCheckpointBlock) =
-                _accountPartiallyFilledCheckpoints(lastValidCheckpoint, bid);
+            (tokensFilled, currencySpent, nextCheckpointBlock) = _accountPartiallyFilledCheckpoints(
+                lastValidCheckpoint,
+                bid.demand(currencyIsToken0),
+                getTick(bid.maxPrice).demand.resolve(bid.maxPrice, currencyIsToken0),
+                bid.maxPrice
+            );
             /// Now account for the fully filled checkpoints until the startCheckpoint
             (uint256 _tokensFilled, uint256 _currencySpent) =
                 _accountFullyFilledCheckpoints(_getCheckpoint(nextCheckpointBlock), startCheckpoint, bid);
@@ -325,8 +337,12 @@ contract Auction is
             currencySpent += _currencySpent;
         } else if (block.number >= endBlock && bid.maxPrice == _clearingPrice) {
             (tokensFilled, currencySpent) = _accountFullyFilledCheckpoints(lastValidCheckpoint, startCheckpoint, bid);
-            (uint256 partialTokensFilled, uint256 partialCurrencySpent,) =
-                _accountPartiallyFilledCheckpoints(_getFinalCheckpoint(), bid);
+            (uint256 partialTokensFilled, uint256 partialCurrencySpent,) = _accountPartiallyFilledCheckpoints(
+                _getFinalCheckpoint(),
+                bid.demand(currencyIsToken0),
+                getTick(bid.maxPrice).demand.resolve(bid.maxPrice, currencyIsToken0),
+                bid.maxPrice
+            );
             tokensFilled += partialTokensFilled;
             currencySpent += partialCurrencySpent;
         } else {

@@ -52,7 +52,7 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
 
     /// @dev Helper function to convert a tick number to a priceX96
     function tickNumberToPriceX96(uint256 tickNumber) internal pure returns (uint256) {
-        return (FLOOR_PRICE + (tickNumber - 1) * TICK_SPACING);
+        return (FLOOR_PRICE - (tickNumber - 1) * TICK_SPACING);
     }
 
     /// @notice Helper function to return the tick at the given price

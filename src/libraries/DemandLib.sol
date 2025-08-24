@@ -16,12 +16,22 @@ library DemandLib {
     using FixedPointMathLib for uint256;
     using AuctionStepLib for uint256;
 
-    function resolve(Demand memory _demand, uint256 price) internal pure returns (uint256) {
-        return price == 0 ? 0 : _demand.currencyDemand.resolveCurrencyDemand(price) + _demand.tokenDemand;
+    function resolve(Demand memory _demand, uint256 price, bool currencyIsToken0) internal pure returns (uint256) {
+        return
+            price == 0 ? 0 : _demand.currencyDemand.resolveCurrencyDemand(price, currencyIsToken0) + _demand.tokenDemand;
     }
 
-    function resolveCurrencyDemand(uint256 amount, uint256 price) internal pure returns (uint256) {
-        return price == 0 ? 0 : amount.fullMulDiv(FixedPoint96.Q96, price);
+    function resolveCurrencyDemand(uint256 amount, uint256 price, bool currencyIsToken0)
+        internal
+        pure
+        returns (uint256)
+    {
+        if (price == 0) return 0;
+        if (currencyIsToken0) {
+            return amount.fullMulDiv(price, FixedPoint96.Q96);
+        } else {
+            return amount.fullMulDiv(FixedPoint96.Q96, price);
+        }
     }
 
     function resolveTokenDemand(uint256 amount) internal pure returns (uint256) {

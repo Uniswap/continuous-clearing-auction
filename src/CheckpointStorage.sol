@@ -77,23 +77,24 @@ abstract contract CheckpointStorage is TickStorage {
     /// @notice Calculate the tokens sold, proportion of input used, and the block number of the next checkpoint under the bid's max price
     /// @dev This function does an iterative search through the checkpoints and thus is more gas intensive
     /// @param lastValidCheckpoint The last checkpoint where the clearing price is == bid.maxPrice
-    /// @param bid The bid
+    /// @param bidDemand The demand of the bid
+    /// @param tickDemand The demand of the tick
+    /// @param maxPrice The max price of the bid
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent
     /// @return nextCheckpointBlock The block number of the checkpoint under the bid's max price. Will be 0 if it does not exist.
-    function _accountPartiallyFilledCheckpoints(Checkpoint memory lastValidCheckpoint, Bid memory bid)
-        internal
-        view
-        returns (uint256 tokensFilled, uint256 currencySpent, uint256 nextCheckpointBlock)
-    {
-        uint256 bidDemand = bid.demand();
-        uint256 tickDemand = getTick(bid.maxPrice).demand.resolve(bid.maxPrice);
+    function _accountPartiallyFilledCheckpoints(
+        Checkpoint memory lastValidCheckpoint,
+        uint256 bidDemand,
+        uint256 tickDemand,
+        uint256 maxPrice
+    ) internal view returns (uint256 tokensFilled, uint256 currencySpent, uint256 nextCheckpointBlock) {
         while (lastValidCheckpoint.prev != 0) {
             Checkpoint memory _next = _getCheckpoint(lastValidCheckpoint.prev);
             (uint256 _tokensFilled, uint256 _currencySpent) = _calculatePartialFill(
                 bidDemand,
                 tickDemand,
-                bid.maxPrice,
+                maxPrice,
                 lastValidCheckpoint.totalCleared - _next.totalCleared,
                 lastValidCheckpoint.cumulativeMps - _next.cumulativeMps,
                 lastValidCheckpoint.resolvedDemandAboveClearingPrice
@@ -101,7 +102,7 @@ abstract contract CheckpointStorage is TickStorage {
             tokensFilled += _tokensFilled;
             currencySpent += _currencySpent;
             // Stop searching when the next checkpoint is less than the tick price
-            if (_next.clearingPrice < bid.maxPrice) {
+            if (_next.clearingPrice < maxPrice) {
                 break;
             }
             lastValidCheckpoint = _next;

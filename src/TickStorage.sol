@@ -28,6 +28,7 @@ abstract contract TickStorage is ITickStorage {
 
     /// @notice Sentinel value for the next value of the highest tick in the book
     uint256 public constant MAX_TICK_PRICE = type(uint256).max;
+    uint256 public constant MIN_TICK_PRICE = 0;
 
     constructor(uint256 _tickSpacing, uint256 _floorPrice) {
         tickSpacing = _tickSpacing;
@@ -61,6 +62,10 @@ abstract contract TickStorage is ITickStorage {
         uint256 nextPrice = ticks[prevPrice].next;
         if (prevPrice >= price || (nextPrice != MAX_TICK_PRICE && nextPrice < price)) {
             revert TickPriceNotIncreasing();
+        }
+
+        if(price % tickSpacing != 0) {
+            revert TickPriceNotAtBoundary();
         }
 
         // The tick already exists, early return

@@ -53,9 +53,6 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         // Price will be 0 or undefined if either amount is 0 so return here
         if (currencyAmount == 0 || tokenAmount == 0) return 0;
         if (currencyIsToken0) {
-            console2.log('tokenAmount', tokenAmount);
-            console2.log('currencyAmount', currencyAmount);
-            console2.log('tokenAmount / currencyAmount', tokenAmount / currencyAmount);
             return tokenAmount.fullMulDiv(FixedPoint96.Q96, currencyAmount);
         } else {
             return currencyAmount.fullMulDiv(FixedPoint96.Q96, tokenAmount);

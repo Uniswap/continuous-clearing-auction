@@ -1,5 +1,8 @@
 # ITickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/549d4b926d52df765a1a4cf1e867f87f2df6825e/src/interfaces/ITickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/03b283c54c5f2efd695e0da42cae5de574a91cf7/src/interfaces/ITickStorage.sol)
+
+**Inherits:**
+[ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
 
 Interface for the TickStorage contract
 
@@ -34,11 +37,19 @@ event NextActiveTickUpdated(uint256 price);
 |`price`|`uint256`|The price of the tick|
 
 ## Errors
-### TickPriceNotIncreasing
+### InvalidTickPrice
 Error thrown when the tick price is not increasing
 
 
 ```solidity
-error TickPriceNotIncreasing();
+error InvalidTickPrice();
+```
+
+### TickPriceNotAtBoundary
+Error thrown when the tick price is not at a tick boundary
+
+
+```solidity
+error TickPriceNotAtBoundary();
 ```
 

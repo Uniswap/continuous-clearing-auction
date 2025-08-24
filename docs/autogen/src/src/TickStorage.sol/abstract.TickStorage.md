@@ -1,8 +1,8 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/aaee2fe3d89df4951f429da87be2e5f38bad3fbf/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/03b283c54c5f2efd695e0da42cae5de574a91cf7/src/TickStorage.sol)
 
 **Inherits:**
-[ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
+[TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
 
 Abstract contract for handling tick storage
 
@@ -16,7 +16,7 @@ mapping(uint256 price => Tick) public ticks;
 
 
 ### nextActiveTickPrice
-The price of the next initialized tick above the clearing price
+The price of the next initialized tick above or below the clearing price, depending on currency/token order
 
 *This will be equal to the clearingPrice if no ticks have been initialized yet*
 
@@ -35,6 +35,15 @@ uint256 public immutable tickSpacing;
 ```
 
 
+### floorPrice
+The starting price of the auction
+
+
+```solidity
+uint256 public immutable floorPrice;
+```
+
+
 ### MAX_TICK_PRICE
 Sentinel value for the next value of the highest tick in the book
 
@@ -44,12 +53,29 @@ uint256 public constant MAX_TICK_PRICE = type(uint256).max;
 ```
 
 
+### MIN_TICK_PRICE
+Sentinel value for the next value of the lowest tick in the book
+
+
+```solidity
+uint256 public constant MIN_TICK_PRICE = 1;
+```
+
+
 ## Functions
 ### constructor
 
 
 ```solidity
-constructor(uint256 _tickSpacing, uint256 _floorPrice);
+constructor(
+    address _token,
+    address _currency,
+    uint256 _totalSupply,
+    address _tokensRecipient,
+    address _fundsRecipient,
+    uint256 _tickSpacing,
+    uint256 _floorPrice
+) TokenCurrencyStorage(_token, _currency, _totalSupply, _tokensRecipient, _fundsRecipient);
 ```
 
 ### getTick

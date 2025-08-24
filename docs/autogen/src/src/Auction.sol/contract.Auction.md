@@ -1,58 +1,22 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/549d4b926d52df765a1a4cf1e867f87f2df6825e/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/03b283c54c5f2efd695e0da42cae5de574a91cf7/src/Auction.sol)
 
 **Inherits:**
-[BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
+[BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
 
 
 ## State Variables
-### currency
-The currency of the auction
+### PERMIT2
+Permit2 address
 
 
 ```solidity
-Currency public immutable currency;
-```
-
-
-### token
-The token of the auction
-
-
-```solidity
-IERC20Minimal public immutable token;
-```
-
-
-### totalSupply
-The total supply of token to sell
-
-
-```solidity
-uint256 public immutable totalSupply;
-```
-
-
-### tokensRecipient
-The recipient of any unsold tokens
-
-
-```solidity
-address public immutable tokensRecipient;
-```
-
-
-### fundsRecipient
-The recipient of the funds from the auction
-
-
-```solidity
-address public immutable fundsRecipient;
+address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 ```
 
 
 ### claimBlock
-The block at which purchased tokens can be claimed
+The block at which purchased tokens can be claimed by bidders
 
 
 ```solidity
@@ -78,13 +42,6 @@ Demand public sumDemandAboveClearing;
 ```
 
 
-### PERMIT2
-
-```solidity
-address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
-```
-
-
 ## Functions
 ### constructor
 
@@ -92,7 +49,15 @@ address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 ```solidity
 constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
     AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
-    CheckpointStorage(_parameters.floorPrice, _parameters.tickSpacing)
+    TickStorage(
+        _token,
+        _parameters.currency,
+        _totalSupply,
+        _parameters.tokensRecipient,
+        _parameters.fundsRecipient,
+        _parameters.tickSpacing,
+        _parameters.floorPrice
+    )
     PermitSingleForwarder(IAllowanceTransfer(PERMIT2));
 ```
 
@@ -256,7 +221,10 @@ function exitBid(uint256 bidId) external;
 
 Exit a bid which has been partially filled
 
-*This function can only be used for bids where the max price is below the final clearing price*
+*Bid is partially filled. Require the outbid checkpoint to be strictly after bid.maxPrice
+and its prev checkpoint to be before or equal to bid.maxPrice
+outbidCheckpoint.prev --- ... | outbidCheckpoint --- ... | latestCheckpoint ... | endBlock
+price == clearingPrice        | clearingPrice > price or clearingPrice < price depending on currencyIsToken0*
 
 
 ```solidity

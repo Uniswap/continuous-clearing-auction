@@ -1,22 +1,10 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c2dd0a6c704cd1292624039dee42341e0a61b05d/src/CheckpointStorage.sol)
-
-**Inherits:**
-[TickStorage](/src/TickStorage.sol/abstract.TickStorage.md)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/03b283c54c5f2efd695e0da42cae5de574a91cf7/src/CheckpointStorage.sol)
 
 Abstract contract for managing auction checkpoints and bid fill calculations
 
 
 ## State Variables
-### floorPrice
-The starting price of the auction
-
-
-```solidity
-uint256 public immutable floorPrice;
-```
-
-
 ### checkpoints
 Storage of checkpoints
 
@@ -36,13 +24,6 @@ uint256 public lastCheckpointedBlock;
 
 
 ## Functions
-### constructor
-
-
-```solidity
-constructor(uint256 _floorPrice, uint256 _tickSpacing) TickStorage(_tickSpacing, _floorPrice);
-```
-
 ### latestCheckpoint
 
 Get the latest checkpoint at the last checkpointed block
@@ -88,10 +69,12 @@ because it uses lazy accounting to calculate the tokens filled*
 
 
 ```solidity
-function _accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memory lower, Bid memory bid)
-    internal
-    pure
-    returns (uint256 tokensFilled, uint256 currencySpent);
+function _accountFullyFilledCheckpoints(
+    Checkpoint memory upper,
+    Checkpoint memory lower,
+    Bid memory bid,
+    bool currencyIsToken0
+) internal pure returns (uint256 tokensFilled, uint256 currencySpent);
 ```
 **Parameters**
 
@@ -100,6 +83,7 @@ function _accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memo
 |`upper`|`Checkpoint`|The upper checkpoint|
 |`lower`|`Checkpoint`|The lower checkpoint|
 |`bid`|`Bid`|The bid|
+|`currencyIsToken0`|`bool`||
 
 **Returns**
 
@@ -117,17 +101,23 @@ Calculate the tokens sold, proportion of input used, and the block number of the
 
 
 ```solidity
-function _accountPartiallyFilledCheckpoints(Checkpoint memory lastValidCheckpoint, Bid memory bid)
-    internal
-    view
-    returns (uint256 tokensFilled, uint256 currencySpent, uint256 nextCheckpointBlock);
+function _accountPartiallyFilledCheckpoints(
+    Checkpoint memory lastValidCheckpoint,
+    bool currencyIsToken0,
+    uint256 bidDemand,
+    uint256 tickDemand,
+    uint256 maxPrice
+) internal view returns (uint256 tokensFilled, uint256 currencySpent, uint256 nextCheckpointBlock);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`lastValidCheckpoint`|`Checkpoint`|The last checkpoint where the clearing price is == bid.maxPrice|
-|`bid`|`Bid`|The bid|
+|`currencyIsToken0`|`bool`|Whether the currency is token0|
+|`bidDemand`|`uint256`|The demand of the bid|
+|`tickDemand`|`uint256`|The demand of the tick|
+|`maxPrice`|`uint256`|The max price of the bid|
 
 **Returns**
 
@@ -135,7 +125,7 @@ function _accountPartiallyFilledCheckpoints(Checkpoint memory lastValidCheckpoin
 |----|----|-----------|
 |`tokensFilled`|`uint256`|The tokens sold|
 |`currencySpent`|`uint256`|The amount of currency spent|
-|`nextCheckpointBlock`|`uint256`|The block number of the checkpoint under the bid's max price. Will be 0 if it does not exist.|
+|`nextCheckpointBlock`|`uint256`|The block number of the checkpoint before the bid's max price. Will be 0 if it does not exist.|
 
 
 ### _calculateFill
@@ -149,6 +139,7 @@ It MUST only be used when the bid's max price is strictly greater than the clear
 ```solidity
 function _calculateFill(
     Bid memory bid,
+    bool currencyIsToken0,
     uint256 cumulativeMpsPerPriceDelta,
     uint24 cumulativeMpsDelta,
     uint24 mpsDenominator
@@ -159,6 +150,7 @@ function _calculateFill(
 |Name|Type|Description|
 |----|----|-----------|
 |`bid`|`Bid`|the bid to evaluate|
+|`currencyIsToken0`|`bool`|whether the currency is token0|
 |`cumulativeMpsPerPriceDelta`|`uint256`|the cumulative sum of supply to price ratio|
 |`cumulativeMpsDelta`|`uint24`|the cumulative sum of mps values across the block range|
 |`mpsDenominator`|`uint24`|the percentage of the auction which the bid was spread over|
@@ -180,10 +172,37 @@ Calculate the tokens filled and proportion of input used for a partially filled 
 function _calculatePartialFill(
     uint256 bidDemand,
     uint256 tickDemand,
-    uint256 price,
     uint256 supplyOverMps,
     uint24 mpsDelta,
     uint256 resolvedDemandAboveClearingPrice
-) internal pure returns (uint256 tokensFilled, uint256 currencySpent);
+) internal pure returns (uint256 tokensFilled);
 ```
+
+### _calculatePartialFillCurrencySpent
+
+Calculate the currency spent for a partially filled bid
+
+*This function rounds up to keep the protocol solvent*
+
+
+```solidity
+function _calculatePartialFillCurrencySpent(uint256 tokensFilled, uint256 maxPrice, bool currencyIsToken0)
+    internal
+    pure
+    returns (uint256 currencySpent);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`tokensFilled`|`uint256`|the amount of tokens filled|
+|`maxPrice`|`uint256`|the max price of the bid|
+|`currencyIsToken0`|`bool`|whether the currency is token0|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`currencySpent`|`uint256`|the amount of currency spent|
+
 

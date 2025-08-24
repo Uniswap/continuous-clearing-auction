@@ -20,7 +20,7 @@ abstract contract TickStorage is ITickStorage {
     mapping(uint256 price => Tick) public ticks;
 
     /// @notice The price of the next initialized tick above the clearing price
-    /// @dev This will be equal to the clearingPrice if no other prices have been discovered
+    /// @dev This will be equal to the clearingPrice if no ticks have been initialized yet
     uint256 public nextActiveTickPrice;
 
     /// @notice The tick spacing enforced for bid prices

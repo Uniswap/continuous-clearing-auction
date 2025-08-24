@@ -1,5 +1,5 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/549d4b926d52df765a1a4cf1e867f87f2df6825e/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/aaee2fe3d89df4951f429da87be2e5f38bad3fbf/src/TickStorage.sol)
 
 **Inherits:**
 [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
@@ -18,7 +18,7 @@ mapping(uint256 price => Tick) public ticks;
 ### nextActiveTickPrice
 The price of the next initialized tick above the clearing price
 
-*This will be equal to the clearingPrice if no other prices have been discovered*
+*This will be equal to the clearingPrice if no ticks have been initialized yet*
 
 
 ```solidity

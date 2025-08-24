@@ -730,8 +730,8 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(block.number + 1);
         auction.checkpoint();
 
-        // Clearing price should be the tick upper price since there's no demand
-        assertEq(auction.clearingPrice(), auction.tickUpperPrice());
+        // Clearing price should be the next active tick price since there's no demand
+        assertEq(auction.clearingPrice(), auction.nextActiveTickPrice());
     }
 
     function test_exitPartiallyFilledBid_withInvalidCheckpointHint_reverts() public {

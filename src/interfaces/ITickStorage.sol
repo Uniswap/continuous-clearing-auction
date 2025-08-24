@@ -15,7 +15,7 @@ interface ITickStorage {
 
     event TickInitialized(uint256 price);
 
-    /// @notice Emitted when the tickUpper is updated
+    /// @notice Emitted when the nextActiveTick is updated
     /// @param price The price of the tick
-    event TickUpperUpdated(uint256 price);
+    event NextActiveTickUpdated(uint256 price);
 }

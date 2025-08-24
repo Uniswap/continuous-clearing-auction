@@ -20,8 +20,8 @@ abstract contract TickStorage is ITickStorage {
     mapping(uint256 price => Tick) public ticks;
 
     /// @notice The price of the next initialized tick above the clearing price
-    /// @dev This will be equal to the clearingPrice if no other prices have been discovered
-    uint256 public tickUpperPrice;
+    /// @dev This will be equal to the clearingPrice if no ticks have been initialized yet
+    uint256 public nextActiveTickPrice;
 
     /// @notice The tick spacing enforced for bid prices
     uint256 public immutable tickSpacing;
@@ -47,14 +47,14 @@ abstract contract TickStorage is ITickStorage {
     /// @param price The price of the tick
     function _unsafeInitializeTick(uint256 price) internal {
         ticks[price].next = MAX_TICK_PRICE;
-        tickUpperPrice = price;
-        emit TickUpperUpdated(price);
+        nextActiveTickPrice = price;
+        emit NextActiveTickUpdated(price);
         emit TickInitialized(price);
     }
 
     /// @notice Initialize a tick at `price` if it does not exist already
     /// @dev Requires `prevId` to be the id of the tick immediately preceding the desired price
-    ///      TickUpper will be updated if the new tick is right before it
+    ///      NextActiveTick will be updated if the new tick is right before it
     /// @param prevPrice The price of the previous tick
     /// @param price The price of the tick
     function _initializeTickIfNeeded(uint256 prevPrice, uint256 price) internal {
@@ -77,11 +77,11 @@ abstract contract TickStorage is ITickStorage {
         // Link prev to new tick
         ticks[prevPrice].next = price;
 
-        // If the next tick is the tickUpper, update tickUpper to the new tick
-        // In the base case, where next == 0 and tickUpperPrice == 0, this will set tickUpperPrice to price
-        if (nextPrice == tickUpperPrice) {
-            tickUpperPrice = price;
-            emit TickUpperUpdated(price);
+        // If the next tick is the nextActiveTick, update nextActiveTick to the new tick
+        // In the base case, where next == 0 and nextActiveTickPrice == 0, this will set nextActiveTickPrice to price
+        if (nextPrice == nextActiveTickPrice) {
+            nextActiveTickPrice = price;
+            emit NextActiveTickUpdated(price);
         }
 
         emit TickInitialized(price);

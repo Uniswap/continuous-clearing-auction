@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/5825a8083068ded2b640fc7532b6abca001afa15/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/549d4b926d52df765a1a4cf1e867f87f2df6825e/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -138,7 +138,7 @@ function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 supply
 |Name|Type|Description|
 |----|----|-----------|
 |`minimumClearingPrice`|`uint256`|The minimum clearing price|
-|`supply`|`uint256`|The token supply at or above tickUpperPrice in the block|
+|`supply`|`uint256`|The token supply at or above nextActiveTickPrice in the block|
 
 
 ### _unsafeCheckpoint

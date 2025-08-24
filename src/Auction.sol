@@ -105,7 +105,7 @@ contract Auction is
 
     /// @notice Calculate the new clearing price
     /// @param minimumClearingPrice The minimum clearing price
-    /// @param supply The token supply at or above tickUpperPrice in the block
+    /// @param supply The token supply at or above nextActiveTickPrice in the block
     function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 supply) internal view returns (uint256) {
         // Get the demand at and above `minimumClearingPrice` being sold
         Demand memory blockSumDemandAboveClearing = sumDemandAboveClearing.applyMps(step.mps);
@@ -139,19 +139,19 @@ contract Auction is
         Demand memory _sumDemandAboveClearing = sumDemandAboveClearing;
         // The minimum clearing price
         uint256 minimumClearingPrice = _checkpoint.clearingPrice;
-        Tick memory _tickUpper = getTick(tickUpperPrice);
+        Tick memory _nextActiveTick = getTick(nextActiveTickPrice);
 
         // Find the tick where the demand at and above it is NOT enough to fill the supply
         // Sets tickUpperPrice to MAX_TICK_PRICE if the highest tick in the book is reached
-        while (_sumDemandAboveClearing.resolve(tickUpperPrice, currencyIsToken0).applyMps(step.mps) >= supply) {
+        while (_sumDemandAboveClearing.resolve(nextActiveTickPrice, currencyIsToken0).applyMps(step.mps) >= supply) {
             // Subtract the demand at tickUpper
-            _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_tickUpper.demand);
+            _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_nextActiveTick.demand);
             // The tickUpperPrice is now the minimum clearing price because there was enough demand to fill the supply
-            minimumClearingPrice = tickUpperPrice;
+            minimumClearingPrice = nextActiveTickPrice;
             // Advance to the next tick
-            uint256 _nextTickPrice = _tickUpper.next;
-            tickUpperPrice = _nextTickPrice;
-            _tickUpper = getTick(_nextTickPrice);
+            uint256 _nextTickPrice = _nextActiveTick.next;
+            nextActiveTickPrice = _nextTickPrice;
+            _nextActiveTick = getTick(_nextTickPrice);
         }
 
         // Save state variables

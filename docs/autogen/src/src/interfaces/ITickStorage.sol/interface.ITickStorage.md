@@ -1,5 +1,5 @@
 # ITickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/a40941ed6c71ce668b5d7c2923b5830fe9b23869/src/interfaces/ITickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/549d4b926d52df765a1a4cf1e867f87f2df6825e/src/interfaces/ITickStorage.sol)
 
 Interface for the TickStorage contract
 
@@ -19,12 +19,12 @@ event TickInitialized(uint256 price);
 |----|----|-----------|
 |`price`|`uint256`|The price of the tick|
 
-### TickUpperUpdated
-Emitted when the tickUpper is updated
+### NextActiveTickUpdated
+Emitted when the nextActiveTick is updated
 
 
 ```solidity
-event TickUpperUpdated(uint256 price);
+event NextActiveTickUpdated(uint256 price);
 ```
 
 **Parameters**

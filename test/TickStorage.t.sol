@@ -9,9 +9,9 @@ import {Test} from 'forge-std/Test.sol';
 contract MockTickStorage is TickStorage {
     constructor(uint256 _tickSpacing, uint256 _floorPrice) TickStorage(_tickSpacing, _floorPrice) {}
 
-    /// @notice Set the tickUpperPrice, only for testing
-    function setTickUpperPrice(uint256 price) external {
-        tickUpperPrice = price;
+    /// @notice Set the nextActiveTickPrice, only for testing
+    function setNextActiveTickPrice(uint256 price) external {
+        nextActiveTickPrice = price;
     }
 
     function initializeTickIfNeeded(uint256 prevPrice, uint256 price) external {
@@ -47,20 +47,20 @@ contract TickStorageTest is Test {
         assertEq(tick.demand.tokenDemand, 0);
         // Assert there is no next tick (type(uint256).max)
         assertEq(tick.next, type(uint256).max);
-        // Assert the tickUpper is unchanged
-        assertEq(tickStorage.tickUpperPrice(), FLOOR_PRICE);
+        // Assert the nextActiveTick is unchanged
+        assertEq(tickStorage.nextActiveTickPrice(), FLOOR_PRICE);
     }
 
     function test_initializeTickWithPrev_succeeds() public {
-        uint256 _tickUpperPrice = tickStorage.tickUpperPrice();
-        assertEq(_tickUpperPrice, FLOOR_PRICE);
+        uint256 _nextActiveTickPrice = tickStorage.nextActiveTickPrice();
+        assertEq(_nextActiveTickPrice, FLOOR_PRICE);
 
         uint256 price = tickNumberToPriceX96(2);
         tickStorage.initializeTickIfNeeded(FLOOR_PRICE, price);
         Tick memory tick = tickStorage.getTick(price);
         assertEq(tick.next, type(uint256).max);
-        // new tick is not before tickUpper, so tickUpper is not updated
-        assertEq(tickStorage.tickUpperPrice(), _tickUpperPrice);
+        // new tick is not before nextActiveTick, so nextActiveTick is not updated
+        assertEq(tickStorage.nextActiveTickPrice(), _nextActiveTickPrice);
     }
 
     function test_initializeTickSetsNext_succeeds() public {
@@ -78,29 +78,29 @@ contract TickStorageTest is Test {
         assertEq(tick.next, tickNumberToPriceX96(3));
     }
 
-    function test_initializeTickSetsTickUpperPrice_whenTickUpperPriceIsMax_succeeds() public {
+    function test_initializeTickSetsNextActiveTickPrice_whenNextActiveTickPriceIsMax_succeeds() public {
         uint256 price = tickNumberToPriceX96(2);
         tickStorage.initializeTickIfNeeded(FLOOR_PRICE, price);
         Tick memory tick = tickStorage.getTick(price);
         assertEq(tick.next, type(uint256).max);
 
-        // Set tickUpperPrice to MAX_TICK_PRICE
-        tickStorage.setTickUpperPrice(type(uint256).max);
-        assertEq(tickStorage.tickUpperPrice(), type(uint256).max);
+        // Set nextActiveTickPrice to MAX_TICK_PRICE
+        tickStorage.setNextActiveTickPrice(type(uint256).max);
+        assertEq(tickStorage.nextActiveTickPrice(), type(uint256).max);
 
-        // Initializing a tick above the highest tick in the book should set tickUpperPrice to the new tick
+        // Initializing a tick above the highest tick in the book should set nextActiveTickPrice to the new tick
         tickStorage.initializeTickIfNeeded(price, tickNumberToPriceX96(3));
-        assertEq(tickStorage.tickUpperPrice(), tickNumberToPriceX96(3));
+        assertEq(tickStorage.nextActiveTickPrice(), tickNumberToPriceX96(3));
     }
 
-    function test_initializeTickUpdatesTickUpperPrice_succeeds() public {
-        // Set tickUpperPrice to a high value
+    function test_initializeTickUpdatesNextActiveTickPrice_succeeds() public {
+        // Set nextActiveTickPrice to a high value
         uint256 maxTickPrice = type(uint256).max;
         vm.store(address(tickStorage), bytes32(uint256(1)), bytes32(maxTickPrice));
 
-        // When we call initializeTickIfNeeded, the new tick should update tickUpperPrice
+        // When we call initializeTickIfNeeded, the new tick should update nextActiveTickPrice
         tickStorage.initializeTickIfNeeded(FLOOR_PRICE, 200e6);
-        assertEq(tickStorage.tickUpperPrice(), 200e6);
+        assertEq(tickStorage.nextActiveTickPrice(), 200e6);
     }
 
     function test_initializeTickWithWrongPrice_reverts() public {

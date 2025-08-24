@@ -4,6 +4,8 @@ pragma solidity ^0.8.23;
 import {AuctionStepLib} from './AuctionStepLib.sol';
 
 import {FixedPoint96} from './FixedPoint96.sol';
+
+import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 struct Demand {
@@ -21,12 +23,14 @@ library DemandLib {
             price == 0 ? 0 : _demand.currencyDemand.resolveCurrencyDemand(price, currencyIsToken0) + _demand.tokenDemand;
     }
 
+    /// @notice Resolve the currency demand at a price based on currencyIsToken0
+    /// @return the demand in terms of `token`
     function resolveCurrencyDemand(uint256 amount, uint256 price, bool currencyIsToken0)
         internal
         pure
         returns (uint256)
     {
-        if (price == 0) return 0;
+        if (price == 0 || amount == 0) return 0;
         if (currencyIsToken0) {
             return amount.fullMulDiv(price, FixedPoint96.Q96);
         } else {

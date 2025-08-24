@@ -39,7 +39,7 @@ contract AuctionTest is AuctionBaseTest {
     /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice
     function inputAmountForTokens(uint256 tokens, uint256 maxPrice) internal view returns (uint256) {
         if (currencyIsToken0) {
-            return tokens.fullMulDiv(FixedPoint96.Q96, maxPrice);
+            return tokens.fullMulDivUp(FixedPoint96.Q96, maxPrice);
         } else {
             return tokens.fullMulDiv(maxPrice, FixedPoint96.Q96);
         }
@@ -140,7 +140,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         // Expect the checkpoint to be made for the previous block
         emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), 0, 0);
-        // Bid enough to purchase the entire supply (1000e18) at a higher price (2e18)
+        // Bid enough to purchase the entire supply (1000e18) at a higher price
         auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
             true,

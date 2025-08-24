@@ -51,11 +51,38 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     /// @dev Price is always expressed as token1 / token0
     function _toPrice(uint256 currencyAmount, uint256 tokenAmount) internal view returns (uint256) {
         // Price will be 0 or undefined if either amount is 0 so return here
-        if (currencyAmount == 0 || tokenAmount == 0) return 0;
         if (currencyIsToken0) {
-            return tokenAmount.fullMulDiv(FixedPoint96.Q96, currencyAmount);
+            if (tokenAmount == 0) return 0;
+            if (currencyAmount == 0) return type(uint256).max;
+            return tokenAmount.fullMulDivUp(FixedPoint96.Q96, currencyAmount);
         } else {
+            if (currencyAmount == 0) return 0;
+            if (tokenAmount == 0) return type(uint256).max;
             return currencyAmount.fullMulDiv(FixedPoint96.Q96, tokenAmount);
         }
+    }
+
+    function _priceStrictlyBefore(uint256 price1, uint256 price2) internal view returns (bool) {
+        if (currencyIsToken0) {
+            return price1 > price2;
+        } else {
+            return price1 < price2;
+        }
+    }
+
+    function _priceBeforeOrEqual(uint256 price1, uint256 price2) internal view returns (bool) {
+        return _priceStrictlyBefore(price1, price2) || price1 == price2;
+    }
+
+    function _priceStrictlyAfter(uint256 price1, uint256 price2) internal view returns (bool) {
+        if (currencyIsToken0) {
+            return price1 < price2;
+        } else {
+            return price1 > price2;
+        }
+    }
+
+    function _priceAfterOrEqual(uint256 price1, uint256 price2) internal view returns (bool) {
+        return _priceStrictlyAfter(price1, price2) || price1 == price2;
     }
 }

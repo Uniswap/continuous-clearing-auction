@@ -108,12 +108,19 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         uint256 _clearingPrice =
             _toPrice(blockSumDemandAboveClearing.currencyDemand, (supply - blockSumDemandAboveClearing.tokenDemand));
 
-        // If the new clearing price is below the minimum clearing price return the minimum clearing price
-        if (_clearingPrice < minimumClearingPrice) return minimumClearingPrice;
-        // If the new clearing price is below the floor price return the floor price
-        if (_clearingPrice < floorPrice) return floorPrice;
-        // Otherwise, round down to the nearest tick boundary
-        return (_clearingPrice - (_clearingPrice % tickSpacing));
+        if (_priceStrictlyBefore(_clearingPrice, minimumClearingPrice)) return minimumClearingPrice;
+        if (_priceStrictlyBefore(_clearingPrice, floorPrice)) return floorPrice;
+
+        if (currencyIsToken0) {
+            console2.log('rounding up');
+            console2.log('_clearingPrice', _clearingPrice);
+            // Round up to the nearest tick boundary
+            return (_clearingPrice + (_clearingPrice % tickSpacing));
+        } else {
+            console2.log('rounding down');
+            // Otherwise, round down to the nearest tick boundary
+            return (_clearingPrice - (_clearingPrice % tickSpacing));
+        }
     }
 
     /// @notice Internal function for checkpointing at a specific block number
@@ -132,7 +139,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         // All active demand above the current clearing price
         Demand memory _sumDemandAboveClearing = sumDemandAboveClearing;
         // The minimum clearing price
-        uint256 minimumClearingPrice = _checkpoint.clearingPrice;
+        uint256 minimumClearingPrice = _checkpoint.clearingPrice == 0 ? floorPrice : _checkpoint.clearingPrice;
         Tick memory _nextActiveTick = getTick(nextActiveTickPrice);
 
         // Find the tick where the demand at and above it is NOT enough to fill the supply

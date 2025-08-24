@@ -32,7 +32,7 @@ abstract contract TickStorage is TokenCurrencyStorage, ITickStorage {
     /// @notice Sentinel value for the next value of the highest tick in the book
     uint256 public constant MAX_TICK_PRICE = type(uint256).max;
     /// @notice Sentinel value for the next value of the lowest tick in the book
-    uint256 public constant MIN_TICK_PRICE = 0;
+    uint256 public constant MIN_TICK_PRICE = 1;
 
     constructor(
         address _token,

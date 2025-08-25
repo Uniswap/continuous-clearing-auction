@@ -8,16 +8,20 @@ import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 
-import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
-import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
-import {Test} from 'forge-std/Test.sol';
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-
 import {Tick} from '../src/TickStorage.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
+import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
+import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
+import {PriceLib} from '../src/libraries/PriceLib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
+
+import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
+import {MockAuction} from './utils/MockAuction.sol';
+import {Test} from 'forge-std/Test.sol';
+import {console2} from 'forge-std/console2.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract AuctionInvariantHandler is Test {
     using CurrencyLibrary for Currency;
@@ -32,8 +36,9 @@ contract AuctionInvariantHandler is Test {
     Currency public currency;
     IERC20Minimal public token;
 
-    uint256 public constant BID_MAX_PRICE = type(uint256).max;
-    uint256 public BID_MIN_PRICE;
+    uint256 public immutable BID_MAX_PRICE;
+    uint256 public immutable BID_MIN_PRICE;
+    bool public immutable currencyIsToken0;
 
     // Ghost variables
     Checkpoint _checkpoint;
@@ -47,7 +52,14 @@ contract AuctionInvariantHandler is Test {
         token = auction.token();
         actors = _actors;
 
-        BID_MIN_PRICE = uint256(auction.floorPrice() + auction.tickSpacing());
+        if (auction.currencyIsToken0()) {
+            BID_MAX_PRICE = uint256(auction.floorPrice() - auction.tickSpacing());
+            BID_MIN_PRICE = 1;
+        } else {
+            BID_MAX_PRICE = type(uint256).max;
+            BID_MIN_PRICE = uint256(auction.floorPrice() + auction.tickSpacing());
+        }
+        currencyIsToken0 = auction.currencyIsToken0();
     }
 
     modifier useActor(uint256 actorIndexSeed) {
@@ -61,10 +73,18 @@ contract AuctionInvariantHandler is Test {
         _;
         Checkpoint memory checkpoint = auction.latestCheckpoint();
         if (checkpoint.clearingPrice != 0) {
-            assertGe(checkpoint.clearingPrice, auction.floorPrice());
+            assertTrue(
+                PriceLib.priceAfterOrEqual(checkpoint.clearingPrice, auction.floorPrice(), currencyIsToken0),
+                'Checkpoint clearing price is not after floor price'
+            );
         }
-        // Check that the clearing price is always increasing
-        assertGe(checkpoint.clearingPrice, _checkpoint.clearingPrice, 'Checkpoint clearing price is not increasing');
+        // Check that the clearing price is strictly after the previous clearing price
+        if (_checkpoint.clearingPrice != 0) {
+            assertTrue(
+                PriceLib.priceAfterOrEqual(checkpoint.clearingPrice, _checkpoint.clearingPrice, currencyIsToken0),
+                'Checkpoint clearing price is not monotonic'
+            );
+        }
         // Check that the cumulative variables are always increasing
         assertGe(checkpoint.totalCleared, _checkpoint.totalCleared, 'Checkpoint total cleared is not increasing');
         assertGe(checkpoint.cumulativeMps, _checkpoint.cumulativeMps, 'Checkpoint cumulative mps is not increasing');
@@ -82,29 +102,48 @@ contract AuctionInvariantHandler is Test {
     function useAmountMaxPrice(bool exactIn, uint256 amount, uint256 tickNumber)
         public
         view
-        returns (uint256, uint128)
+        returns (uint256, uint256)
     {
-        uint128 tickNumberPrice = uint128(auction.floorPrice() + tickNumber * auction.tickSpacing());
-        uint128 maxPrice = uint128(_bound(tickNumberPrice, BID_MIN_PRICE, BID_MAX_PRICE));
-        // Round down to the nearest tick boundary
-        maxPrice -= (maxPrice % uint128(auction.tickSpacing()));
-
-        if (exactIn) {
-            uint256 inputAmount = amount;
-            return (inputAmount, maxPrice);
+        tickNumber = _bound(tickNumber, 1, 10);
+        uint256 tickNumberPrice;
+        if (currencyIsToken0) {
+            tickNumberPrice = auction.floorPrice() - (tickNumber - 1) * auction.tickSpacing();
         } else {
-            uint256 inputAmount = amount * maxPrice;
-            return (inputAmount, maxPrice);
+            tickNumberPrice = auction.floorPrice() + (tickNumber - 1) * auction.tickSpacing();
         }
+        uint256 maxPrice = _bound(tickNumberPrice, BID_MIN_PRICE, BID_MAX_PRICE);
+
+        if (currencyIsToken0) {
+            maxPrice += (maxPrice % auction.tickSpacing());
+        } else {
+            maxPrice -= (maxPrice % auction.tickSpacing());
+        }
+
+        uint256 inputAmount;
+        if (exactIn) {
+            inputAmount = amount;
+        } else {
+            if (currencyIsToken0) {
+                inputAmount = amount.fullMulDivUp(FixedPoint96.Q96, maxPrice);
+            } else {
+                inputAmount = amount.fullMulDivUp(maxPrice, FixedPoint96.Q96);
+            }
+        }
+        return (inputAmount, maxPrice);
     }
 
     /// @notice Return the tick immediately equal to or below the given price
-    function getLowerTick(uint256 price) public view returns (uint256) {
+    function getBeforeTick(uint256 price) public view returns (uint256) {
         uint256 _price = auction.floorPrice();
-        while (_price < price) {
+        while (PriceLib.priceStrictlyBefore(_price, price, currencyIsToken0)) {
+            // Advance to the next tick
+            uint256 _lastPrice = _price;
             (_price,) = auction.ticks(_price);
-            if (_price == type(uint256).max) {
-                return _price;
+            if (
+                currencyIsToken0 && _price == auction.MIN_TICK_PRICE()
+                    || !currencyIsToken0 && _price == auction.MAX_TICK_PRICE()
+            ) {
+                return _lastPrice;
             }
         }
         return _price;
@@ -116,14 +155,14 @@ contract AuctionInvariantHandler is Test {
     }
 
     /// @notice Handle a bid submission, ensuring that the actor has enough funds and the bid parameters are valid
-    function handleSubmitBid(bool exactIn, uint256 actorIndexSeed, uint128 tickNumber)
+    function handleSubmitBid(bool exactIn, uint256 actorIndexSeed, uint256 tickNumber)
         public
         payable
         useActor(actorIndexSeed)
         validateCheckpoint
     {
         uint256 amount = _bound(tickNumber, 1, auction.totalSupply() * 2);
-        (uint256 inputAmount, uint128 maxPrice) = useAmountMaxPrice(exactIn, amount, tickNumber);
+        (uint256 inputAmount, uint256 maxPrice) = useAmountMaxPrice(exactIn, amount, tickNumber);
 
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
@@ -134,7 +173,7 @@ contract AuctionInvariantHandler is Test {
             permit2.approve(Currency.unwrap(currency), address(auction), type(uint160).max, type(uint48).max);
         }
 
-        uint256 prevTickPrice = getLowerTick(maxPrice);
+        uint256 prevTickPrice = getBeforeTick(maxPrice);
         uint256 nextBidId = auction.nextBidId();
         try auction.submitBid{value: currency.isAddressZero() ? inputAmount : 0}(
             maxPrice, exactIn, exactIn ? inputAmount : amount, currentActor, prevTickPrice, bytes('')
@@ -146,7 +185,7 @@ contract AuctionInvariantHandler is Test {
                 assertEq(revertData, abi.encodeWithSelector(IAuctionStepStorage.AuctionIsOver.selector));
             } else if (inputAmount == 0) {
                 assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidAmount.selector));
-            } else if (maxPrice <= auction.clearingPrice()) {
+            } else if (PriceLib.priceBeforeOrEqual(maxPrice, auction.clearingPrice(), currencyIsToken0)) {
                 assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidBidPrice.selector));
             }
         }
@@ -162,7 +201,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
         address[] memory actors = new address[](1);
         actors[0] = alice;
 
-        handler = new AuctionInvariantHandler(auction, actors);
+        handler = new AuctionInvariantHandler(MockAuction(address(auction)), actors);
         targetContract(address(handler));
     }
 
@@ -221,7 +260,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
         while (currentBlock != 0) {
             (uint256 clearingPrice,,,,,,, uint256 prevBlock) = auction.checkpoints(currentBlock);
 
-            if (clearingPrice <= maxPrice) {
+            if (PriceLib.priceBeforeOrEqual(clearingPrice, maxPrice, currencyIsToken0)) {
                 return previousBlock;
             }
 
@@ -254,7 +293,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
 
             vm.expectEmit(true, true, true, true);
             emit IAuction.BidExited(i, bid.owner);
-            if (bid.maxPrice > clearingPrice) {
+            if (PriceLib.priceStrictlyAfter(bid.maxPrice, clearingPrice, currencyIsToken0)) {
                 auction.exitBid(i);
             } else {
                 uint256 outbidCheckpointBlock = getOutbidCheckpointBlock(bid.maxPrice);

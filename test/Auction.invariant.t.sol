@@ -147,7 +147,7 @@ contract AuctionInvariantHandler is Test {
             } else if (inputAmount == 0) {
                 assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidAmount.selector));
             } else if (maxPrice <= auction.clearingPrice()) {
-                assertEq(revertData, abi.encodeWithSelector(BidLib.InvalidBidPrice.selector));
+                assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidBidPrice.selector));
             }
         }
     }

@@ -215,7 +215,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
             validationHook.validate(maxPrice, exactIn, amount, owner, msg.sender, hookData);
         }
         // ClearingPrice will be set to floor price in checkpoint() if not set already
-        BidLib.validate(maxPrice, clearingPrice(), tickSpacing);
+        if(maxPrice <= clearingPrice()) revert InvalidBidPrice();
 
         _updateTick(maxPrice, exactIn, amount);
 

@@ -12,6 +12,7 @@ interface ITickStorage {
     error TickPriceNotAtBoundary();
     /// @notice Emitted when a tick is initialized
     /// @param price The price of the tick
+
     event TickInitialized(uint256 price);
 
     /// @notice Emitted when the nextActiveTick is updated

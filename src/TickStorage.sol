@@ -65,7 +65,7 @@ abstract contract TickStorage is ITickStorage {
             revert TickPriceNotIncreasing();
         }
 
-        if(price % tickSpacing != 0) revert TickPriceNotAtBoundary();
+        if (price % tickSpacing != 0) revert TickPriceNotAtBoundary();
 
         // The tick already exists, early return
         if (nextPrice == price) return;

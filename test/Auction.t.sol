@@ -362,9 +362,11 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(auction.endBlock());
         uint256 expectedCurrentRaised = inputAmountForTokens(largeAmount, tickNumberToPriceX96(3));
+        vm.startPrank(auction.fundsRecipient());
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.CurrencySwept(auction.fundsRecipient(), expectedCurrentRaised);
         auction.sweepCurrency();
+        vm.stopPrank();
 
         // Auction fully subscribed so no tokens are left
         vm.expectEmit(true, true, true, true);
@@ -404,9 +406,11 @@ contract AuctionTest is AuctionBaseTest {
 
         // Alice purchased 500e18 tokens at a price of 1e6, so the currency raised is 500e18 * 1e6 = 500e18 ETH
         uint256 expectedCurrencyRaised = inputAmountForTokens(500e18, tickNumberToPriceX96(1));
+        vm.startPrank(auction.fundsRecipient());
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.CurrencySwept(auction.fundsRecipient(), expectedCurrencyRaised);
         auction.sweepCurrency();
+        vm.stopPrank();
 
         uint256 expectedTokensSold = 500e18;
         vm.expectEmit(true, true, true, true);
@@ -694,9 +698,12 @@ contract AuctionTest is AuctionBaseTest {
         // Purchased 150 tokens at clearing price
         uint256 bobCurrencySpent = inputAmountForTokens(150e18, tickNumberToPriceX96(11));
         uint256 expectedCurrencyRaised = charlieCurrencySpent + aliceCurrencySpent + bobCurrencySpent;
+
+        vm.startPrank(auction.fundsRecipient());
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.CurrencySwept(auction.fundsRecipient(), expectedCurrencyRaised);
         auction.sweepCurrency();
+        vm.stopPrank();
 
         // All tokens were sold
         vm.expectEmit(true, true, true, true);
@@ -1181,9 +1188,11 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_sweepCurrency_beforeAuctionEnds_reverts() public {
+        vm.startPrank(auction.fundsRecipient());
         vm.roll(auction.endBlock() - 1);
         vm.expectRevert(IAuction.AuctionIsNotOver.selector);
         auction.sweepCurrency();
+        vm.stopPrank();
     }
 
     function test_sweepTokens_beforeAuctionEnds_reverts() public {

@@ -3,7 +3,6 @@
 # src
   - [❱ interfaces](src/interfaces/README.md)
     - [❱ external](src/interfaces/external/README.md)
-      - [IDistributionContract](src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md)
       - [IDistributionStrategy](src/interfaces/external/IDistributionStrategy.sol/interface.IDistributionStrategy.md)
       - [IERC20Minimal](src/interfaces/external/IERC20Minimal.sol/interface.IERC20Minimal.md)
     - [AuctionParameters](src/interfaces/IAuction.sol/struct.AuctionParameters.md)

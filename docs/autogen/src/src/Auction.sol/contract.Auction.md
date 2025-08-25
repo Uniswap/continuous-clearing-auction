@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/549d4b926d52df765a1a4cf1e867f87f2df6825e/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/f955567475dc7cb036aa7f88109eaf0e5c68f43d/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -95,22 +95,6 @@ constructor(address _token, uint256 _totalSupply, AuctionParameters memory _para
     CheckpointStorage(_parameters.floorPrice, _parameters.tickSpacing)
     PermitSingleForwarder(IAllowanceTransfer(PERMIT2));
 ```
-
-### onTokensReceived
-
-Notify a distribution contract that it has received the tokens to distribute
-
-
-```solidity
-function onTokensReceived(address _token, uint256 _amount) external view;
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`_token`|`address`||
-|`_amount`|`uint256`||
-
 
 ### _advanceToCurrentStep
 

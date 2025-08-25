@@ -1,5 +1,5 @@
 # IERC20Minimal
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c2dd0a6c704cd1292624039dee42341e0a61b05d/src/interfaces/external/IERC20Minimal.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/f955567475dc7cb036aa7f88109eaf0e5c68f43d/src/interfaces/external/IERC20Minimal.sol)
 
 Minimal ERC20 interface
 
@@ -68,5 +68,28 @@ function approve(address spender, uint256 amount) external returns (bool);
 |Name|Type|Description|
 |----|----|-----------|
 |`<none>`|`bool`|Returns true for a successful approval, false for an unsuccessful approval|
+
+
+### transferFrom
+
+Transfers the amount of token from the `from` account to the `to` account
+
+
+```solidity
+function transferFrom(address from, address to, uint256 amount) external returns (bool);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`from`|`address`|The account that will send the amount|
+|`to`|`address`|The account that will receive the amount|
+|`amount`|`uint256`|The number of tokens to send from the `from` account to the `to` account|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`bool`|Returns true for a successful transfer, false for an unsuccessful transfer|
 
 

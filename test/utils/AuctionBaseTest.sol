@@ -2,6 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {Auction} from '../../src/Auction.sol';
+import {AuctionFactory} from '../../src/AuctionFactory.sol';
 import {Tick} from '../../src/TickStorage.sol';
 import {AuctionParameters, IAuction} from '../../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
@@ -11,6 +12,7 @@ import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
 import {TokenHandler} from './TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
+import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 
 /// @notice Handler contract for setting up an auction
 abstract contract AuctionBaseTest is TokenHandler, Test {
@@ -18,6 +20,7 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
     using AuctionStepsBuilder for bytes;
 
     Auction public auction;
+    AuctionFactory public factory;
 
     uint256 public constant AUCTION_DURATION = 100;
     uint256 public constant TICK_SPACING = 100;
@@ -31,6 +34,8 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
     function setUpAuction() public {
         setUpTokens();
 
+        factory = new AuctionFactory();
+
         alice = makeAddr('alice');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
@@ -42,12 +47,21 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
             .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
             .withClaimBlock(block.number + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
 
+        auction = setUpAuctionWithFactory(token, TOTAL_SUPPLY, abi.encode(params), bytes32(0));
+    }
+
+    function setUpAuctionWithFactory(ERC20Mock _token, uint256 amount, bytes memory configData, bytes32 salt)
+        public
+        returns (Auction)
+    {
+        (address[] memory addresses, uint256[] memory amounts) =
+            factory.getAddressesAndAmounts(address(_token), amount, configData, salt);
+        _token.mint(addresses[0], amounts[0]);
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(tickNumberToPriceX96(1));
-        auction = new Auction(address(token), TOTAL_SUPPLY, params);
-
-        token.mint(address(auction), TOTAL_SUPPLY);
+        factory.initializeDistribution(address(_token), amount, configData, salt);
+        return Auction(payable(addresses[0]));
     }
 
     /// @dev Helper function to convert a tick number to a priceX96

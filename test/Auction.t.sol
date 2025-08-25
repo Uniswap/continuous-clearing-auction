@@ -6,6 +6,7 @@ import {IAuction} from '../src/interfaces/IAuction.sol';
 
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
+import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
@@ -667,32 +668,6 @@ contract AuctionTest is AuctionBaseTest {
         vm.stopPrank();
     }
 
-    function test_onTokensReceived_withCorrectTokenAndAmount_succeeds() public view {
-        // Should not revert since tokens are already minted in setUp()
-        auction.onTokensReceived(address(token), TOTAL_SUPPLY);
-    }
-
-    function test_onTokensReceived_withWrongToken_reverts() public {
-        // Create a different token
-        address wrongToken = makeAddr('wrongToken');
-
-        vm.expectRevert(IAuction.IDistributionContract__InvalidToken.selector);
-        auction.onTokensReceived(wrongToken, TOTAL_SUPPLY);
-    }
-
-    function test_onTokensReceived_withWrongAmount_reverts() public {
-        vm.expectRevert(IAuction.IDistributionContract__InvalidAmount.selector);
-        auction.onTokensReceived(address(token), TOTAL_SUPPLY + 1);
-    }
-
-    function test_onTokensReceived_withWrongBalance_reverts() public {
-        // Mint less tokens than expected
-        token.mint(address(auction), TOTAL_SUPPLY - 1);
-
-        vm.expectRevert(IAuction.IDistributionContract__InvalidAmountReceived.selector);
-        auction.onTokensReceived(address(token), TOTAL_SUPPLY);
-    }
-
     function test_advanceToCurrentStep_withClearingPriceZero() public {
         // Create auction with multiple steps
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
@@ -704,8 +679,7 @@ contract AuctionTest is AuctionBaseTest {
             block.number + 100
         ).withAuctionStepsData(auctionStepsData);
 
-        Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
-        token.mint(address(newAuction), TOTAL_SUPPLY);
+        Auction newAuction = setUpAuctionWithFactory(token, TOTAL_SUPPLY, abi.encode(params), bytes32(0));
 
         // Advance to middle of step without any bids (clearing price = 0)
         vm.roll(block.number + 50);
@@ -772,8 +746,7 @@ contract AuctionTest is AuctionBaseTest {
             block.number + 60
         ).withAuctionStepsData(auctionStepsData);
 
-        Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
-        token.mint(address(newAuction), TOTAL_SUPPLY);
+        Auction newAuction = setUpAuctionWithFactory(token, TOTAL_SUPPLY, abi.encode(params), bytes32(0));
 
         newAuction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
@@ -800,45 +773,6 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(mps, 250e3);
     }
 
-    function test_calculateNewClearingPrice_belowFloorPrice_returnsFloorPrice() public {
-        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
-
-        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
-            10e6 << FixedPoint96.RESOLUTION
-        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
-
-        MockAuction mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, params);
-        token.mint(address(mockAuction), TOTAL_SUPPLY);
-
-        // Set up the auction state by submitting a bid and checkpointing
-        uint256 bidPrice = 12e6 << FixedPoint96.RESOLUTION;
-        mockAuction.submitBid{value: inputAmountForTokens(100e18, bidPrice)}(
-            bidPrice, true, inputAmountForTokens(100e18, bidPrice), alice, 10e6 << FixedPoint96.RESOLUTION, bytes('')
-        );
-
-        vm.roll(block.number + 1);
-        mockAuction.checkpoint(); // This sets up sumDemandAboveClearing properly
-
-        // We need: minimumClearingPrice < calculated_price < floorPrice
-        // Use a much smaller minimumClearingPrice so the calculated price will be above it
-        uint256 minimumClearingPrice = 1e1 << FixedPoint96.RESOLUTION; // Much much smaller than floor price (10e6 << 96)
-
-        // Use a blockTokenSupply that will give a calculated price between minimumClearingPrice and floorPrice
-        // The formula is: clearingPrice = currencyDemand * Q96 / (blockTokenSupply - tokenDemand)
-        // We want: minimumClearingPrice < calculated_price < floorPrice
-        // With currencyDemand = 120e18 and tokenDemand = 100e18, we need to find the right blockTokenSupply
-        uint256 blockTokenSupply = 1e22; // Even larger supply to get a smaller calculated price
-
-        uint256 result = mockAuction.calculateNewClearingPrice(
-            minimumClearingPrice, // minimumClearingPrice in X96 (below floor price)
-            blockTokenSupply // blockTokenSupply
-        );
-
-        assertEq(result, 10e6 << FixedPoint96.RESOLUTION);
-    }
-
     function test_submitBid_withValidationHook_callsValidationHook() public {
         // Create a mock validation hook
         MockValidationHook validationHook = new MockValidationHook();
@@ -852,8 +786,7 @@ contract AuctionTest is AuctionBaseTest {
             .withClaimBlock(block.number + AUCTION_DURATION) // Set the validation hook
             .withAuctionStepsData(auctionStepsData);
 
-        Auction testAuction = new Auction(address(token), TOTAL_SUPPLY, params);
-        token.mint(address(testAuction), TOTAL_SUPPLY);
+        Auction testAuction = setUpAuctionWithFactory(token, TOTAL_SUPPLY, abi.encode(params), bytes32(0));
 
         // Submit a bid with hook data to trigger the validation hook
         uint256 bidId = testAuction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
@@ -878,8 +811,7 @@ contract AuctionTest is AuctionBaseTest {
             .withClaimBlock(block.number + AUCTION_DURATION) // Use ERC20 currency instead of ETH_SENTINEL
             .withAuctionStepsData(auctionStepsData);
 
-        Auction erc20Auction = new Auction(address(token), TOTAL_SUPPLY, params);
-        token.mint(address(erc20Auction), TOTAL_SUPPLY);
+        Auction erc20Auction = setUpAuctionWithFactory(token, TOTAL_SUPPLY, abi.encode(params), bytes32(0));
 
         // Mint currency tokens to alice
         currency.mint(alice, 1000e18);
@@ -970,8 +902,7 @@ contract AuctionTest is AuctionBaseTest {
             block.number + 10 + AUCTION_DURATION
         ).withClaimBlock(block.number + 10 + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
 
-        Auction futureAuction = new Auction(address(token), TOTAL_SUPPLY, params);
-        token.mint(address(futureAuction), TOTAL_SUPPLY);
+        Auction futureAuction = setUpAuctionWithFactory(token, TOTAL_SUPPLY, abi.encode(params), bytes32(0));
 
         // Try to call checkpoint before the auction starts
         vm.expectRevert(IAuction.AuctionNotStarted.selector);
@@ -1119,9 +1050,8 @@ contract AuctionTest is AuctionBaseTest {
             .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
             .withClaimBlock(block.number + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
 
-        Auction failingAuction = new Auction(address(failingToken), TOTAL_SUPPLY, params);
-
-        failingToken.mint(address(failingAuction), TOTAL_SUPPLY);
+        Auction failingAuction =
+            setUpAuctionWithFactory(ERC20Mock(address(failingToken)), TOTAL_SUPPLY, abi.encode(params), bytes32(0));
 
         uint256 bidId = failingAuction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),

@@ -10,7 +10,6 @@ import {Tick} from './TickStorage.sol';
 import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
 
 import {IValidationHook} from './interfaces/IValidationHook.sol';
-import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
@@ -73,13 +72,8 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         if (tickSpacing == 0) revert TickSpacingIsZero();
         if (claimBlock < endBlock) revert ClaimBlockIsBeforeEndBlock();
         if (fundsRecipient == address(0)) revert FundsRecipientIsZero();
-    }
 
-    /// @inheritdoc IDistributionContract
-    function onTokensReceived(address _token, uint256 _amount) external view {
-        if (_token != address(token)) revert IDistributionContract__InvalidToken();
-        if (_amount != totalSupply) revert IDistributionContract__InvalidAmount();
-        if (token.balanceOf(address(this)) != _amount) revert IDistributionContract__InvalidAmountReceived();
+        if (token.balanceOf(address(this)) < _totalSupply) revert NotEnoughTokensReceived();
     }
 
     /// @notice Advance the current step until the current block is within the step

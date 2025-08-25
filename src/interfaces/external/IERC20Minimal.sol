@@ -19,4 +19,11 @@ interface IERC20Minimal {
     /// @param amount The number of tokens to allow the spender to spend
     /// @return Returns true for a successful approval, false for an unsuccessful approval
     function approve(address spender, uint256 amount) external returns (bool);
+
+    /// @notice Transfers the amount of token from the `from` account to the `to` account
+    /// @param from The account that will send the amount
+    /// @param to The account that will receive the amount
+    /// @param amount The number of tokens to send from the `from` account to the `to` account
+    /// @return Returns true for a successful transfer, false for an unsuccessful transfer
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
 }

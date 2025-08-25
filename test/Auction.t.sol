@@ -6,7 +6,7 @@ import {IAuction} from '../src/interfaces/IAuction.sol';
 
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
-
+import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
@@ -363,12 +363,12 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(auction.endBlock());
         uint256 expectedCurrentRaised = inputAmountForTokens(largeAmount, tickNumberToPriceX96(3));
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CurrencySwept(auction.fundsRecipient(), expectedCurrentRaised);
+        emit ITokenCurrencyStorage.CurrencySwept(auction.fundsRecipient(), expectedCurrentRaised);
         auction.sweepCurrency();
 
         // Auction fully subscribed so no tokens are left
         vm.expectEmit(true, true, true, true);
-        emit IAuction.TokensSwept(auction.tokensRecipient(), 0);
+        emit ITokenCurrencyStorage.TokensSwept(auction.tokensRecipient(), 0);
         auction.sweepTokens();
     }
 
@@ -405,12 +405,12 @@ contract AuctionTest is AuctionBaseTest {
         // Alice purchased 500e18 tokens at a price of 1e6, so the currency raised is 500e18 * 1e6 = 500e18 ETH
         uint256 expectedCurrencyRaised = inputAmountForTokens(500e18, tickNumberToPriceX96(1));
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CurrencySwept(auction.fundsRecipient(), expectedCurrencyRaised);
+        emit ITokenCurrencyStorage.CurrencySwept(auction.fundsRecipient(), expectedCurrencyRaised);
         auction.sweepCurrency();
 
         uint256 expectedTokensSold = 500e18;
         vm.expectEmit(true, true, true, true);
-        emit IAuction.TokensSwept(auction.tokensRecipient(), expectedTokensSold);
+        emit ITokenCurrencyStorage.TokensSwept(auction.tokensRecipient(), expectedTokensSold);
         auction.sweepTokens();
     }
 
@@ -695,12 +695,12 @@ contract AuctionTest is AuctionBaseTest {
         uint256 bobCurrencySpent = inputAmountForTokens(150e18, tickNumberToPriceX96(11));
         uint256 expectedCurrencyRaised = charlieCurrencySpent + aliceCurrencySpent + bobCurrencySpent;
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CurrencySwept(auction.fundsRecipient(), expectedCurrencyRaised);
+        emit ITokenCurrencyStorage.CurrencySwept(auction.fundsRecipient(), expectedCurrencyRaised);
         auction.sweepCurrency();
 
         // All tokens were sold
         vm.expectEmit(true, true, true, true);
-        emit IAuction.TokensSwept(auction.tokensRecipient(), 0);
+        emit ITokenCurrencyStorage.TokensSwept(auction.tokensRecipient(), 0);
         auction.sweepTokens();
     }
 
@@ -964,7 +964,7 @@ contract AuctionTest is AuctionBaseTest {
             .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
             .withClaimBlock(block.number + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
 
-        vm.expectRevert(IAuction.TotalSupplyIsZero.selector);
+        vm.expectRevert(ITokenCurrencyStorage.TotalSupplyIsZero.selector);
         new Auction(address(token), 0, params);
 
         params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(0).withTickSpacing(TICK_SPACING)
@@ -993,7 +993,7 @@ contract AuctionTest is AuctionBaseTest {
             block.number + AUCTION_DURATION
         ).withAuctionStepsData(auctionStepsData);
 
-        vm.expectRevert(IAuction.FundsRecipientIsZero.selector);
+        vm.expectRevert(ITokenCurrencyStorage.FundsRecipientIsZero.selector);
         new Auction(address(token), TOTAL_SUPPLY, params);
     }
 

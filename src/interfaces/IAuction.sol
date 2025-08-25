@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
+
+import {ITokenCurrencyStorage} from './ITokenCurrencyStorage.sol';
 import {IDistributionContract} from './external/IDistributionContract.sol';
 
 /// @notice Parameters for the auction
@@ -15,6 +17,8 @@ struct AuctionParameters {
     uint64 startBlock; // Block which the first step starts
     uint64 endBlock; // When the auction finishes
     uint64 claimBlock; // Block when the auction can claimed
+    uint64 fundsRecipientDeadlineBlock; // Block the funds recipient must withdraw the currency by
+    uint24 graduationThresholdMps; // Minimum percentage of tokens that must be sold to graduate the auction
     uint256 tickSpacing; // Fixed granularity for prices
     address validationHook; // Optional hook called before a bid
     uint256 floorPrice; // Starting floor price for the auction
@@ -23,7 +27,7 @@ struct AuctionParameters {
 }
 
 /// @notice Interface for the Auction contract
-interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
+interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage, ITokenCurrencyStorage {
     /// @notice Error thrown when the token is invalid
     error IDistributionContract__InvalidToken();
     /// @notice Error thrown when the amount is invalid
@@ -35,16 +39,12 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     error InvalidAmount();
     /// @notice Error thrown when the auction is not started
     error AuctionNotStarted();
-    /// @notice Error thrown when the total supply is zero
-    error TotalSupplyIsZero();
     /// @notice Error thrown when the floor price is zero
     error FloorPriceIsZero();
     /// @notice Error thrown when the tick spacing is zero
     error TickSpacingIsZero();
     /// @notice Error thrown when the claim block is before the end block
     error ClaimBlockIsBeforeEndBlock();
-    /// @notice Error thrown when the funds recipient is the zero address
-    error FundsRecipientIsZero();
     /// @notice Error thrown when the bid has already been exited
     error BidAlreadyExited();
     /// @notice Error thrown when the bid is higher than the clearing price
@@ -59,10 +59,6 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     error TokenTransferFailed();
     /// @notice Error thrown when the auction is not over
     error AuctionIsNotOver();
-    /// @notice Error thrown when the currency has already been swept
-    error CurrencyAlreadySwept();
-    /// @notice Error thrown when the tokens have already been swept
-    error TokensAlreadySwept();
 
     /// @notice Emitted when a bid is submitted
     /// @param id The id of the bid
@@ -90,16 +86,6 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     /// @param owner The owner of the bid
     /// @param tokensFilled The amount of tokens claimed
     event TokensClaimed(address indexed owner, uint256 tokensFilled);
-
-    /// @notice Emitted when the tokens are swept
-    /// @param tokensRecipient The address of the tokens recipient
-    /// @param tokensAmount The amount of tokens swept
-    event TokensSwept(address indexed tokensRecipient, uint256 tokensAmount);
-
-    /// @notice Emitted when the currency is swept
-    /// @param fundsRecipient The address of the funds recipient
-    /// @param currencyAmount The amount of currency swept
-    event CurrencySwept(address indexed fundsRecipient, uint256 currencyAmount);
 
     /// @notice Submit a new bid
     /// @param maxPrice The maximum price the bidder is willing to pay
@@ -139,8 +125,9 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     /// @param bidId The id of the bid
     function claimTokens(uint256 bidId) external;
 
-    /// @notice Sweep all of the currency raised to the funds recipient
-    /// @dev This function can only be called after the auction has ended
+    /// @notice Withdraw all of the currency raised
+    /// @dev Can only be called by the funds recipient after the auction has ended
+    ///      Must be called before the `fundsRecipientDeadlineBlock`
     function sweepCurrency() external;
 
     /// @notice Sweep any leftover tokens to the tokens recipient

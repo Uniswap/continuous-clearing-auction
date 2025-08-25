@@ -15,6 +15,8 @@ library AuctionParamsBuilder {
             startBlock: 0,
             endBlock: 0,
             claimBlock: 0,
+            fundsRecipientDeadlineBlock: 0,
+            graduationThresholdMps: 0,
             auctionStepsData: new bytes(0)
         });
     }
@@ -130,6 +132,35 @@ library AuctionParamsBuilder {
     {
         require(claimBlock <= type(uint64).max, 'claimBlock too large');
         params.claimBlock = uint64(claimBlock);
+        return params;
+    }
+
+    function withFundsRecipientDeadlineBlock(AuctionParameters memory params, uint64 fundsRecipientDeadlineBlock)
+        internal
+        pure
+        returns (AuctionParameters memory)
+    {
+        params.fundsRecipientDeadlineBlock = fundsRecipientDeadlineBlock;
+        return params;
+    }
+
+    /// @dev Helper function which converts a uint256 to a uint64
+    function withFundsRecipientDeadlineBlock(AuctionParameters memory params, uint256 fundsRecipientDeadlineBlock)
+        internal
+        pure
+        returns (AuctionParameters memory)
+    {
+        require(fundsRecipientDeadlineBlock <= type(uint64).max, 'fundsRecipientDeadlineBlock too large');
+        params.fundsRecipientDeadlineBlock = uint64(fundsRecipientDeadlineBlock);
+        return params;
+    }
+
+    function withGraduationThresholdMps(AuctionParameters memory params, uint24 graduationThresholdMps)
+        internal
+        pure
+        returns (AuctionParameters memory)
+    {
+        params.graduationThresholdMps = graduationThresholdMps;
         return params;
     }
 

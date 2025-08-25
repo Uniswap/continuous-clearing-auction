@@ -16,6 +16,7 @@ import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 
+import {TokenCurrencyStorage} from './TokenCurrencyStorage.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
@@ -27,7 +28,14 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 /// @title Auction
-contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSingleForwarder, IAuction {
+contract Auction is
+    BidStorage,
+    CheckpointStorage,
+    AuctionStepStorage,
+    PermitSingleForwarder,
+    TokenCurrencyStorage,
+    IAuction
+{
     using FixedPointMathLib for uint256;
     using CurrencyLibrary for Currency;
     using BidLib for Bid;
@@ -36,16 +44,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     using DemandLib for Demand;
     using SafeCastLib for uint256;
 
-    /// @notice The currency of the auction
-    Currency public immutable currency;
-    /// @notice The token of the auction
-    IERC20Minimal public immutable token;
-    /// @notice The total supply of token to sell
-    uint256 public immutable totalSupply;
-    /// @notice The recipient of any unsold tokens
-    address public immutable tokensRecipient;
-    /// @notice The recipient of the funds from the auction
-    address public immutable fundsRecipient;
     /// @notice The block at which purchased tokens can be claimed
     uint64 public immutable claimBlock;
     /// @notice An optional hook to be called before a bid is registered
@@ -54,16 +52,20 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     /// @notice The sum of demand in ticks above the clearing price
     Demand public sumDemandAboveClearing;
 
-    /// @notice The block at which the currency was swept
-    uint256 public sweepCurrencyBlock;
-    /// @notice The block at which the tokens were swept
-    uint256 public sweepTokensBlock;
-
     address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
     constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
         CheckpointStorage(_parameters.floorPrice, _parameters.tickSpacing)
+        TokenCurrencyStorage(
+            _token,
+            _parameters.currency,
+            _totalSupply,
+            _parameters.tokensRecipient,
+            _parameters.fundsRecipient,
+            _parameters.fundsRecipientDeadlineBlock,
+            _parameters.graduationThresholdMps
+        )
         PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
     {
         currency = Currency.wrap(_parameters.currency);
@@ -362,22 +364,25 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
     /// @inheritdoc IAuction
     function sweepCurrency() external {
         if (block.number < endBlock) revert AuctionIsNotOver();
-        if (sweepCurrencyBlock != 0) revert CurrencyAlreadySwept();
-        sweepCurrencyBlock = block.number;
-        uint256 currencyRaised = _getFinalCheckpoint().getCurrencyRaised();
-        currency.transfer(fundsRecipient, currencyRaised);
-        emit CurrencySwept(fundsRecipient, currencyRaised);
+        if (msg.sender != fundsRecipient) revert OnlyFundsRecipient();
+        // Cannot sweep if already swept or if the deadline is passed
+        if (!_canSweepCurrency()) revert CannotSweepCurrency();
+        Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
+        // Cannot sweep currency if the auction has not graduated, as the Currency must be refunded
+        if (!_isGraduated(finalCheckpoint.totalCleared)) revert NotGraduated();
+        _sweepCurrency(finalCheckpoint.getCurrencyRaised());
     }
 
     /// @inheritdoc IAuction
     function sweepTokens() external {
         if (block.number < endBlock) revert AuctionIsNotOver();
-        if (sweepTokensBlock != 0) revert TokensAlreadySwept();
-        sweepTokensBlock = block.number;
-        uint256 tokensSold = totalSupply - _getFinalCheckpoint().totalCleared;
-        if (tokensSold > 0) {
-            Currency.wrap(address(token)).transfer(tokensRecipient, tokensSold);
+        if (sweepTokensBlock != 0) revert CannotSweepTokens();
+        uint256 _totalCleared = _getFinalCheckpoint().totalCleared;
+
+        if (_isGraduated(_totalCleared)) {
+            _sweepTokens(totalSupply - _totalCleared);
+        } else {
+            _sweepTokens(totalSupply);
         }
-        emit TokensSwept(tokensRecipient, tokensSold);
     }
 }

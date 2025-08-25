@@ -83,22 +83,21 @@ abstract contract CheckpointStorage {
     ) internal view returns (uint256 tokensFilled, uint256 currencySpent, uint256 nextCheckpointBlock) {
         while (lastValidCheckpoint.prev != 0) {
             Checkpoint memory _next = _getCheckpoint(lastValidCheckpoint.prev);
-            (uint256 _tokensFilled, uint256 _currencySpent) = _calculatePartialFill(
+            tokensFilled += _calculatePartialFill(
                 bidDemand,
                 tickDemand,
-                bidMaxPrice,
                 lastValidCheckpoint.totalCleared - _next.totalCleared,
                 lastValidCheckpoint.cumulativeMps - _next.cumulativeMps,
                 lastValidCheckpoint.resolvedDemandAboveClearingPrice
             );
-            tokensFilled += _tokensFilled;
-            currencySpent += _currencySpent;
             // Stop searching when the next checkpoint is less than the tick price
             if (_next.clearingPrice < bidMaxPrice) {
                 break;
             }
             lastValidCheckpoint = _next;
         }
+        // Round up at the end to avoid rounding too early
+        currencySpent = tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96);
         return (tokensFilled, currencySpent, lastValidCheckpoint.prev);
     }
 
@@ -132,17 +131,14 @@ abstract contract CheckpointStorage {
     function _calculatePartialFill(
         uint256 bidDemand,
         uint256 tickDemand,
-        uint256 price,
         uint256 supplyOverMps,
         uint24 mpsDelta,
         uint256 resolvedDemandAboveClearingPrice
-    ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
+    ) internal pure returns (uint256 tokensFilled) {
         // Round up here to decrease the amount sold to the partial fill tick
         uint256 supplySoldToTick =
             supplyOverMps - resolvedDemandAboveClearingPrice.fullMulDivUp(mpsDelta, AuctionStepLib.MPS);
         // Rounds down for tokensFilled
         tokensFilled = supplySoldToTick.fullMulDiv(bidDemand, tickDemand);
-        // Round up for currencySpent
-        currencySpent = tokensFilled.fullMulDivUp(price, FixedPoint96.Q96);
     }
 }

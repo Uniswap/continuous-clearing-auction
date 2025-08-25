@@ -17,12 +17,10 @@ contract MockCheckpointStorage is CheckpointStorage {
     function calculatePartialFill(
         uint256 bidDemand,
         uint256 tickDemand,
-        uint256 maxPrice,
         uint256 supply,
         uint24 mpsDelta,
         uint256 resolvedDemandAboveClearingPrice
-    ) external pure returns (uint256 tokensFilled, uint256 currencySpent) {
-        return
-            _calculatePartialFill(bidDemand, tickDemand, maxPrice, supply, mpsDelta, resolvedDemandAboveClearingPrice);
+    ) external pure returns (uint256 tokensFilled) {
+        return _calculatePartialFill(bidDemand, tickDemand, supply, mpsDelta, resolvedDemandAboveClearingPrice);
     }
 }

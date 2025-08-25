@@ -1,8 +1,8 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/549d4b926d52df765a1a4cf1e867f87f2df6825e/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/13cd1d53d60ab98156520abac9b48572b5ed6f15/src/Auction.sol)
 
 **Inherits:**
-[BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [Notifier](/src/Notifier.sol/abstract.Notifier.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
+[BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
 
 
 ## State Variables
@@ -111,8 +111,7 @@ address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
     AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
     CheckpointStorage(_parameters.floorPrice, _parameters.tickSpacing)
-    PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
-    Notifier(_parameters.subscribers, _parameters.notifyBlock);
+    PermitSingleForwarder(IAllowanceTransfer(PERMIT2));
 ```
 
 ### onTokensReceived
@@ -142,18 +141,6 @@ Advance the current step until the current block is within the step
 function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint256 blockNumber)
     internal
     returns (Checkpoint memory);
-```
-
-### _getFinalCheckpoint
-
-Return the final checkpoint of the auction
-
-*Only called when the auction is over. Changes the current state of the `step` to the final step in the auction
-any future calls to `step.mps` will return the mps of the last step in the auction*
-
-
-```solidity
-function _getFinalCheckpoint() internal returns (Checkpoint memory _checkpoint);
 ```
 
 ### _calculateNewClearingPrice
@@ -317,4 +304,26 @@ function claimTokens(uint256 bidId) external;
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
 
+
+### sweepCurrency
+
+Sweep all of the currency raised to the funds recipient
+
+*This function can only be called after the auction has ended*
+
+
+```solidity
+function sweepCurrency() external;
+```
+
+### sweepTokens
+
+Sweep any leftover tokens to the tokens recipient
+
+*This function can only be called after the auction has ended*
+
+
+```solidity
+function sweepTokens() external;
+```
 

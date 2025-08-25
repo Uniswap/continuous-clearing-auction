@@ -12,7 +12,6 @@ import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
-import {INotifier} from './interfaces/external/INotifier.sol';
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
@@ -24,12 +23,11 @@ import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
-import {Notifier} from './Notifier.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 /// @title Auction
-contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSingleForwarder, Notifier, IAuction {
+contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSingleForwarder, IAuction {
     using FixedPointMathLib for uint256;
     using CurrencyLibrary for Currency;
     using BidLib for Bid;
@@ -67,7 +65,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
         CheckpointStorage(_parameters.floorPrice, _parameters.tickSpacing)
         PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
-        Notifier(_parameters.subscribers, _parameters.notifyBlock)
     {
         currency = Currency.wrap(_parameters.currency);
         token = IERC20Minimal(_token);
@@ -360,14 +357,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         Currency.wrap(address(token)).transfer(bid.owner, tokensFilled);
 
         emit TokensClaimed(bid.owner, tokensFilled);
-    }
-
-    /// @inheritdoc INotifier
-    function notify() external override {
-        if (block.number < notifyBlock) revert CannotNotifyYet();
-        Checkpoint memory _checkpoint = _getFinalCheckpoint();
-        uint256 priceX192 = _checkpoint.clearingPrice << FixedPoint96.RESOLUTION;
-        _notify(priceX192, 0, _checkpoint.getCurrencyRaised());
     }
 
     /// @inheritdoc IAuction

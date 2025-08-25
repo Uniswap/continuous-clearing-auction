@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/7ea2dd23e58f7a655485f81d2a28675b53a449d3/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/13cd1d53d60ab98156520abac9b48572b5ed6f15/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md)
@@ -343,5 +343,37 @@ Error thrown when the bid has not been exited
 
 ```solidity
 error BidNotExited();
+```
+
+### TokenTransferFailed
+Error thrown when the token transfer fails
+
+
+```solidity
+error TokenTransferFailed();
+```
+
+### AuctionIsNotOver
+Error thrown when the auction is not over
+
+
+```solidity
+error AuctionIsNotOver();
+```
+
+### CurrencyAlreadySwept
+Error thrown when the currency has already been swept
+
+
+```solidity
+error CurrencyAlreadySwept();
+```
+
+### TokensAlreadySwept
+Error thrown when the tokens have already been swept
+
+
+```solidity
+error TokensAlreadySwept();
 ```
 

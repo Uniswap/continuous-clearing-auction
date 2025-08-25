@@ -112,18 +112,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         return _checkpoint;
     }
 
-    /// @notice Return the final checkpoint of the auction
-    /// @dev Only called when the auction is over. Changes the current state of the `step` to the final step in the auction
-    ///      any future calls to `step.mps` will return the mps of the last step in the auction
-    function _getFinalCheckpoint() internal returns (Checkpoint memory _checkpoint) {
-        uint256 _checkpointedBlock;
-        (_checkpoint, _checkpointedBlock) = _advanceToCurrentStep();
-        if (endBlock - _checkpointedBlock > 0) {
-            _checkpoint = _checkpoint.transform(_checkpointedBlock, endBlock - _checkpointedBlock, step.mps);
-        }
-        return _checkpoint;
-    }
-
     /// @notice Calculate the new clearing price, given:
     /// @param minimumClearingPrice The minimum clearing price
     /// @param supply The token supply at or above nextActiveTickPrice in the block

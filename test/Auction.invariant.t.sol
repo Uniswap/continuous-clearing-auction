@@ -251,21 +251,25 @@ contract AuctionInvariantTest is AuctionBaseTest {
 
     function getOutbidCheckpointBlock(uint256 maxPrice) public view returns (uint256) {
         uint256 currentBlock = auction.lastCheckpointedBlock();
-        uint256 previousBlock = 0;
+        uint256 clearingPrice = getCheckpoint(currentBlock).clearingPrice;
+        if(clearingPrice == maxPrice) {
+            return currentBlock;
+        }
+
+        uint256 previousBlock;
 
         if (currentBlock == 0) {
             return 0;
         }
 
         while (currentBlock != 0) {
-            (uint256 clearingPrice,,,,,,, uint256 prevBlock) = auction.checkpoints(currentBlock);
-
+            (clearingPrice,,,,,,, previousBlock) = auction.checkpoints(currentBlock);
             if (PriceLib.priceBeforeOrEqual(clearingPrice, maxPrice, currencyIsToken0)) {
                 return previousBlock;
             }
 
             previousBlock = currentBlock;
-            currentBlock = prevBlock;
+            currentBlock = previousBlock;
         }
 
         return previousBlock;
@@ -280,6 +284,11 @@ contract AuctionInvariantTest is AuctionBaseTest {
     function invariant_canExitAndClaimFullyFilledBids() public {
         // Roll to end of the auction
         vm.roll(auction.endBlock());
+
+        // Checkpoint at the end of the auction so clearing price is up to date
+        if (auction.lastCheckpointedBlock() != auction.endBlock()) {
+            auction.checkpoint();
+        }
 
         uint256 clearingPrice = auction.clearingPrice();
 

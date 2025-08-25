@@ -280,10 +280,9 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         if (block.number < endBlock) revert CannotExitBid();
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
-        // Bid price must be strictly after clearing price
-        if (!_priceStrictlyAfter(bid.maxPrice, clearingPrice())) revert CannotExitBid();
-
         Checkpoint memory finalCheckpoint = _unsafeCheckpoint(endBlock);
+        // Bid price must be strictly after clearing price
+        if (_priceBeforeOrEqual(bid.maxPrice, clearingPrice())) revert CannotExitBid();
         /// @dev Bid was fully filled and the auction is now over
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
         (uint256 tokensFilled, uint256 currencySpent) =
@@ -301,6 +300,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
 
+        Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
         // Starting checkpoint must exist because we checkpoint on bid submission
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
         // Outbid checkpoint is the first checkpoint where the clearing price is strictly after bid.maxPrice
@@ -337,7 +337,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
             (tokensFilled, currencySpent) =
                 _accountFullyFilledCheckpoints(lastValidCheckpoint, startCheckpoint, bid, currencyIsToken0);
             (uint256 partialTokensFilled, uint256 partialCurrencySpent,) = _accountPartiallyFilledCheckpoints(
-                _getFinalCheckpoint(),
+                finalCheckpoint,
                 currencyIsToken0,
                 bid.demand(currencyIsToken0),
                 getTick(bid.maxPrice).demand.resolve(bid.maxPrice, currencyIsToken0),
@@ -348,13 +348,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         } else {
             revert CannotExitBid();
         }
-
-        console2.log('tokensFilled', tokensFilled);
-        console2.log('currencySpent', currencySpent);
-        console2.log('bid.inputAmount(currencyIsToken0)', bid.inputAmount(currencyIsToken0));
-        console2.log(
-            'bid.inputAmount(currencyIsToken0) - currencySpent', bid.inputAmount(currencyIsToken0) - currencySpent
-        );
 
         _processExit(bidId, bid, tokensFilled, bid.inputAmount(currencyIsToken0) - currencySpent);
     }

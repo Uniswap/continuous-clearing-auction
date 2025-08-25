@@ -473,10 +473,10 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_exitBid_alreadyExited_revertsWithBidAlreadyExited() public {
-        uint256 bidId = auction.submitBid{value: inputAmountForTokens(1000e18, tickNumberToPriceX96(3))}(
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(1000e18, tickNumberToPriceX96(1))}(
             tickNumberToPriceX96(3),
             true,
-            inputAmountForTokens(1000e18, tickNumberToPriceX96(3)),
+            inputAmountForTokens(1000e18, tickNumberToPriceX96(1)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')

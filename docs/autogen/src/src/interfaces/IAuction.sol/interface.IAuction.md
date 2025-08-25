@@ -1,8 +1,8 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/13cd1d53d60ab98156520abac9b48572b5ed6f15/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/8f0cdceab8341bbaf5daef9ba1cd7a3cb87561d1/src/interfaces/IAuction.sol)
 
 **Inherits:**
-[IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md)
+[IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
 
 Interface for the Auction contract
 
@@ -108,16 +108,17 @@ function claimTokens(uint256 bidId) external;
 
 ### sweepCurrency
 
-Sweep all of the currency raised to the funds recipient
+Withdraw all of the currency raised
 
-*This function can only be called after the auction has ended*
+*Can only be called by the funds recipient after the auction has ended
+Must be called before the `fundsRecipientDeadlineBlock`*
 
 
 ```solidity
 function sweepCurrency() external;
 ```
 
-### sweepTokens
+### sweepUnsoldTokens
 
 Sweep any leftover tokens to the tokens recipient
 
@@ -125,7 +126,7 @@ Sweep any leftover tokens to the tokens recipient
 
 
 ```solidity
-function sweepTokens() external;
+function sweepUnsoldTokens() external;
 ```
 
 ## Events
@@ -194,36 +195,6 @@ event TokensClaimed(address indexed owner, uint256 tokensFilled);
 |`owner`|`address`|The owner of the bid|
 |`tokensFilled`|`uint256`|The amount of tokens claimed|
 
-### TokensSwept
-Emitted when the tokens are swept
-
-
-```solidity
-event TokensSwept(address indexed tokensRecipient, uint256 tokensAmount);
-```
-
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`tokensRecipient`|`address`|The address of the tokens recipient|
-|`tokensAmount`|`uint256`|The amount of tokens swept|
-
-### CurrencySwept
-Emitted when the currency is swept
-
-
-```solidity
-event CurrencySwept(address indexed fundsRecipient, uint256 currencyAmount);
-```
-
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`fundsRecipient`|`address`|The address of the funds recipient|
-|`currencyAmount`|`uint256`|The amount of currency swept|
-
 ## Errors
 ### IDistributionContract__InvalidToken
 Error thrown when the token is invalid
@@ -265,14 +236,6 @@ Error thrown when the auction is not started
 error AuctionNotStarted();
 ```
 
-### TotalSupplyIsZero
-Error thrown when the total supply is zero
-
-
-```solidity
-error TotalSupplyIsZero();
-```
-
 ### FloorPriceIsZero
 Error thrown when the floor price is zero
 
@@ -295,14 +258,6 @@ Error thrown when the claim block is before the end block
 
 ```solidity
 error ClaimBlockIsBeforeEndBlock();
-```
-
-### FundsRecipientIsZero
-Error thrown when the funds recipient is the zero address
-
-
-```solidity
-error FundsRecipientIsZero();
 ```
 
 ### BidAlreadyExited
@@ -359,21 +314,5 @@ Error thrown when the auction is not over
 
 ```solidity
 error AuctionIsNotOver();
-```
-
-### CurrencyAlreadySwept
-Error thrown when the currency has already been swept
-
-
-```solidity
-error CurrencyAlreadySwept();
-```
-
-### TokensAlreadySwept
-Error thrown when the tokens have already been swept
-
-
-```solidity
-error TokensAlreadySwept();
 ```
 

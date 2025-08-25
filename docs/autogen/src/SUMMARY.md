@@ -12,6 +12,7 @@
     - [IAuctionStepStorage](src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md)
     - [IPermitSingleForwarder](src/interfaces/IPermitSingleForwarder.sol/interface.IPermitSingleForwarder.md)
     - [ITickStorage](src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
+    - [ITokenCurrencyStorage](src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
     - [IValidationHook](src/interfaces/IValidationHook.sol/interface.IValidationHook.md)
   - [❱ libraries](src/libraries/README.md)
     - [AuctionStep](src/libraries/AuctionStepLib.sol/struct.AuctionStep.md)
@@ -33,3 +34,4 @@
   - [PermitSingleForwarder](src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md)
   - [Tick](src/TickStorage.sol/struct.Tick.md)
   - [TickStorage](src/TickStorage.sol/abstract.TickStorage.md)
+  - [TokenCurrencyStorage](src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md)

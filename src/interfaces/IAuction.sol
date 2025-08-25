@@ -132,5 +132,5 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage, 
 
     /// @notice Sweep any leftover tokens to the tokens recipient
     /// @dev This function can only be called after the auction has ended
-    function sweepTokens() external;
+    function sweepUnsoldTokens() external;
 }

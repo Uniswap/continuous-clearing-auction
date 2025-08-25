@@ -374,15 +374,15 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function sweepTokens() external {
+    function sweepUnsoldTokens() external {
         if (block.number < endBlock) revert AuctionIsNotOver();
-        if (sweepTokensBlock != 0) revert CannotSweepTokens();
+        if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
         uint256 _totalCleared = _getFinalCheckpoint().totalCleared;
 
         if (_isGraduated(_totalCleared)) {
-            _sweepTokens(totalSupply - _totalCleared);
+            _sweepUnsoldTokens(totalSupply - _totalCleared);
         } else {
-            _sweepTokens(totalSupply);
+            _sweepUnsoldTokens(totalSupply);
         }
     }
 }

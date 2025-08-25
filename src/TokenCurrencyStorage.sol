@@ -29,7 +29,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     /// @notice The block at which the currency was swept
     uint256 public sweepCurrencyBlock;
     /// @notice The block at which the tokens were swept
-    uint256 public sweepTokensBlock;
+    uint256 public sweepUnsoldTokensBlock;
 
     constructor(
         address _token,
@@ -71,8 +71,8 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         emit CurrencySwept(fundsRecipient, amount);
     }
 
-    function _sweepTokens(uint256 amount) internal {
-        sweepTokensBlock = block.number;
+    function _sweepUnsoldTokens(uint256 amount) internal {
+        sweepUnsoldTokensBlock = block.number;
         if (amount > 0) {
             Currency.wrap(address(token)).transfer(tokensRecipient, amount);
         }

@@ -371,7 +371,7 @@ contract AuctionTest is AuctionBaseTest {
         // Auction fully subscribed so no tokens are left
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(auction.tokensRecipient(), 0);
-        auction.sweepTokens();
+        auction.sweepUnsoldTokens();
     }
 
     function test_exitBid_exactOut_succeeds() public {
@@ -415,7 +415,7 @@ contract AuctionTest is AuctionBaseTest {
         uint256 expectedTokensSold = 500e18;
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(auction.tokensRecipient(), expectedTokensSold);
-        auction.sweepTokens();
+        auction.sweepUnsoldTokens();
     }
 
     function test_exitBid_afterEndBlock_succeeds() public {
@@ -708,7 +708,7 @@ contract AuctionTest is AuctionBaseTest {
         // All tokens were sold
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(auction.tokensRecipient(), 0);
-        auction.sweepTokens();
+        auction.sweepUnsoldTokens();
     }
 
     function test_onTokensReceived_withCorrectTokenAndAmount_succeeds() public view {
@@ -1195,9 +1195,9 @@ contract AuctionTest is AuctionBaseTest {
         vm.stopPrank();
     }
 
-    function test_sweepTokens_beforeAuctionEnds_reverts() public {
+    function test_sweepUnsoldTokens_beforeAuctionEnds_reverts() public {
         vm.roll(auction.endBlock() - 1);
         vm.expectRevert(IAuction.AuctionIsNotOver.selector);
-        auction.sweepTokens();
+        auction.sweepUnsoldTokens();
     }
 }

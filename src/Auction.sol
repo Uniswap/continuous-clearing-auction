@@ -126,6 +126,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         _checkpoint = latestCheckpoint();
         if (blockNumber == lastCheckpointedBlock) return _checkpoint;
         if (blockNumber < startBlock) revert AuctionNotStarted();
+        // We allow checkpointing at the endBlock to get the final state of the auction
         if (blockNumber > endBlock) revert AuctionIsOver();
 
         // Get the supply being sold in this block, accounting for rollovers of past supply
@@ -205,7 +206,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         uint256 prevTickPrice,
         bytes calldata hookData
     ) internal returns (uint256 bidId) {
-        checkpoint();
+        _unsafeCheckpoint(block.number);
 
         _initializeTickIfNeeded(prevTickPrice, maxPrice);
 
@@ -280,9 +281,9 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, PermitSin
         if (block.number < endBlock) revert CannotExitBid();
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
-        Checkpoint memory finalCheckpoint = _unsafeCheckpoint(endBlock);
+        Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
         // Bid price must be strictly after clearing price
-        if (_priceBeforeOrEqual(bid.maxPrice, clearingPrice())) revert CannotExitBid();
+        if (_priceBeforeOrEqual(bid.maxPrice, finalCheckpoint.clearingPrice)) revert CannotExitBid();
         /// @dev Bid was fully filled and the auction is now over
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
         (uint256 tokensFilled, uint256 currencySpent) =

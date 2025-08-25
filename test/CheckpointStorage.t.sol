@@ -30,7 +30,7 @@ contract CheckpointStorageTest is Test {
     uint256 public constant TOTAL_SUPPLY = 1000e18;
 
     function setUp() public {
-        mockCheckpointStorage = new MockCheckpointStorage(FLOOR_PRICE, TICK_SPACING);
+        mockCheckpointStorage = new MockCheckpointStorage();
     }
 
     function test_resolve_exactOut_calculatePartialFill_succeeds() public view {

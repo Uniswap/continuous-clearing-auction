@@ -467,16 +467,17 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_exitBid_alreadyExited_revertsWithBidAlreadyExited() public {
-        uint256 bidId = auction.submitBid{value: inputAmountForTokens(1000e18, tickNumberToPriceX96(3))}(
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(500e18, tickNumberToPriceX96(3))}(
             tickNumberToPriceX96(3),
             true,
-            inputAmountForTokens(1000e18, tickNumberToPriceX96(3)),
+            inputAmountForTokens(500e18, tickNumberToPriceX96(3)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
         );
         vm.roll(auction.endBlock());
 
+        // The clearing price is at tick 1 which is below our clearing price so we can use `exitBid`
         vm.startPrank(alice);
         auction.exitBid(bidId);
         vm.expectRevert(IAuction.BidAlreadyExited.selector);

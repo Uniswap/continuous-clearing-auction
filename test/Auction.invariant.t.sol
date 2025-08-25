@@ -252,7 +252,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
     function getOutbidCheckpointBlock(uint256 maxPrice) public view returns (uint256) {
         uint256 currentBlock = auction.lastCheckpointedBlock();
         uint256 clearingPrice = getCheckpoint(currentBlock).clearingPrice;
-        if(clearingPrice == maxPrice) {
+        if (clearingPrice == maxPrice) {
             return currentBlock;
         }
 

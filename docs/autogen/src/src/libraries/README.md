@@ -12,3 +12,4 @@
 - [Demand](DemandLib.sol/struct.Demand.md)
 - [DemandLib](DemandLib.sol/library.DemandLib.md)
 - [FixedPoint96](FixedPoint96.sol/library.FixedPoint96.md)
+- [PriceLib](PriceLib.sol/library.PriceLib.md)

@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/7a1ba15f804ff420347b7c5bfbc5e25dcb2d2cf5/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/549d4b926d52df765a1a4cf1e867f87f2df6825e/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [Notifier](/src/Notifier.sol/abstract.Notifier.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -135,9 +135,13 @@ function onTokensReceived(address _token, uint256 _amount) external view;
 
 Advance the current step until the current block is within the step
 
+*The checkpoint must be up to date since `transform` depends on the clearingPrice*
+
 
 ```solidity
-function _advanceToCurrentStep() internal returns (Checkpoint memory _checkpoint, uint256 _checkpointedBlock);
+function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint256 blockNumber)
+    internal
+    returns (Checkpoint memory);
 ```
 
 ### _getFinalCheckpoint
@@ -158,19 +162,42 @@ Calculate the new clearing price, given:
 
 
 ```solidity
-function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 blockTokenSupply, uint24 cumulativeMps)
-    internal
-    view
-    returns (uint256);
+function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 supply) internal view returns (uint256);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`minimumClearingPrice`|`uint256`|The minimum clearing price|
-|`blockTokenSupply`|`uint256`|The token supply at or above tickUpperPrice in the block|
-|`cumulativeMps`|`uint24`|The cumulative mps at the last checkpoint|
+|`supply`|`uint256`|The token supply at or above nextActiveTickPrice in the block|
 
+
+### _unsafeCheckpoint
+
+Internal function for checkpointing at a specific block number
+
+
+```solidity
+function _unsafeCheckpoint(uint256 blockNumber) internal returns (Checkpoint memory _checkpoint);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`blockNumber`|`uint256`|The block number to checkpoint at|
+
+
+### _getFinalCheckpoint
+
+Return the final checkpoint of the auction
+
+*Only called when the auction is over. Changes the current state of the `step` to the final step in the auction
+any future calls to `step.mps` will return the mps of the last step in the auction*
+
+
+```solidity
+function _getFinalCheckpoint() internal returns (Checkpoint memory _checkpoint);
+```
 
 ### _submitBid
 
@@ -290,37 +317,4 @@ function claimTokens(uint256 bidId) external;
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
 
-
-### notify
-
-Notify the subscribers
-
-*The schema is defined by the implementation, proper authorization checks must be done*
-
-
-```solidity
-function notify() external override;
-```
-
-### sweepCurrency
-
-Sweep all of the currency raised to the funds recipient
-
-*This function can only be called after the auction has ended*
-
-
-```solidity
-function sweepCurrency() external;
-```
-
-### sweepTokens
-
-Sweep any leftover tokens to the tokens recipient
-
-*This function can only be called after the auction has ended*
-
-
-```solidity
-function sweepTokens() external;
-```
 

@@ -1,5 +1,5 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/a40941ed6c71ce668b5d7c2923b5830fe9b23869/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/aaee2fe3d89df4951f429da87be2e5f38bad3fbf/src/TickStorage.sol)
 
 **Inherits:**
 [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
@@ -15,14 +15,14 @@ mapping(uint256 price => Tick) public ticks;
 ```
 
 
-### tickUpperPrice
+### nextActiveTickPrice
 The price of the next initialized tick above the clearing price
 
-*This will be equal to the clearingPrice if no other prices have been discovered*
+*This will be equal to the clearingPrice if no ticks have been initialized yet*
 
 
 ```solidity
-uint256 public tickUpperPrice;
+uint256 public nextActiveTickPrice;
 ```
 
 
@@ -91,7 +91,7 @@ function _unsafeInitializeTick(uint256 price) internal;
 Initialize a tick at `price` if it does not exist already
 
 *Requires `prevId` to be the id of the tick immediately preceding the desired price
-TickUpper will be updated if the new tick is right before it*
+NextActiveTick will be updated if the new tick is right before it*
 
 
 ```solidity

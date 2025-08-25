@@ -17,7 +17,8 @@ remappings = [
   "forge-std=lib/forge-std/src",
   "@openzeppelin/contracts=lib/openzeppelin-contracts/contracts",
   "@openzeppelin/contracts-upgradeable=lib/openzeppelin-contracts-upgradeable/contracts",
-  "solady=lib/solady/src"
+  "solady=lib/solady/src",
+  "permit2=lib/permit2"
 ]
 
 additional_compiler_profiles = [
@@ -30,6 +31,11 @@ compilation_restrictions = [
 
 [profile.default.fuzz]
 runs = 1000
+
+[profile.default.invariant]
+fail_on_revert = true
+runs = 100
+depth = 500
 
 [profile.pr.fuzz]
 runs = 10000

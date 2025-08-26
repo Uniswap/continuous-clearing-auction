@@ -1095,7 +1095,7 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         // Exit the bid
-        vm.roll(auction.endBlock() + 1);
+        vm.roll(auction.endBlock());
         vm.startPrank(alice);
         auction.exitBid(bidId);
 

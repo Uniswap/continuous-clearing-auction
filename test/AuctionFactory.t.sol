@@ -52,7 +52,7 @@ contract AuctionFactoryTest is TokenHandler, Test {
         emit IAuctionFactory.AuctionCreated(address(0), address(token), TOTAL_SUPPLY, configData);
 
         IDistributionContract distributionContract =
-            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData);
+            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
 
         // Verify the auction was created correctly
         auction = Auction(payable(address(distributionContract)));
@@ -79,11 +79,11 @@ contract AuctionFactoryTest is TokenHandler, Test {
 
         // Create first auction
         IDistributionContract distributionContract1 =
-            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData);
+            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
 
         // Create second auction with different amount
         IDistributionContract distributionContract2 =
-            factory.initializeDistribution(address(token), TOTAL_SUPPLY * 2, configData);
+            factory.initializeDistribution(address(token), TOTAL_SUPPLY * 2, configData, bytes32(0));
 
         // Addresses should be different due to different amount in salt
         assertTrue(address(distributionContract1) != address(distributionContract2));
@@ -101,11 +101,12 @@ contract AuctionFactoryTest is TokenHandler, Test {
 
         // Create auction with token1
         IDistributionContract distributionContract1 =
-            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData);
+            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
 
         // Create auction with token2 (different token address)
         address token2 = makeAddr('token2');
-        IDistributionContract distributionContract2 = factory.initializeDistribution(token2, TOTAL_SUPPLY, configData);
+        IDistributionContract distributionContract2 =
+            factory.initializeDistribution(token2, TOTAL_SUPPLY, configData, bytes32(0));
 
         // Addresses should be different due to different token in salt
         assertTrue(address(distributionContract1) != address(distributionContract2));
@@ -123,11 +124,11 @@ contract AuctionFactoryTest is TokenHandler, Test {
 
         // Create auction with amount1
         IDistributionContract distributionContract1 =
-            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData);
+            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
 
         // Create auction with amount2 (different amount)
         IDistributionContract distributionContract2 =
-            factory.initializeDistribution(address(token), TOTAL_SUPPLY * 2, configData);
+            factory.initializeDistribution(address(token), TOTAL_SUPPLY * 2, configData, bytes32(0));
 
         // Addresses should be different due to different amount in salt
         assertTrue(address(distributionContract1) != address(distributionContract2));
@@ -153,11 +154,11 @@ contract AuctionFactoryTest is TokenHandler, Test {
 
         // Create auction with params1
         IDistributionContract distributionContract1 =
-            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData1);
+            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData1, bytes32(0));
 
         // Create auction with params2
         IDistributionContract distributionContract2 =
-            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData2);
+            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData2, bytes32(0));
 
         // Addresses should be different due to different parameters in salt
         assertTrue(address(distributionContract1) != address(distributionContract2));
@@ -175,7 +176,7 @@ contract AuctionFactoryTest is TokenHandler, Test {
 
         IDistributionStrategy strategy = IDistributionStrategy(address(factory));
         IDistributionContract distributionContract =
-            strategy.initializeDistribution(address(token), TOTAL_SUPPLY, configData);
+            strategy.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
 
         // Verify it returns a valid distribution contract
         assertTrue(address(distributionContract) != address(0));
@@ -192,13 +193,13 @@ contract AuctionFactoryTest is TokenHandler, Test {
         bytes memory configData = abi.encode(params);
 
         IDistributionContract distributionContract =
-            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData);
+            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
 
         auction = Auction(payable(address(distributionContract)));
 
         // Test that the auction can receive tokens (implements IDistributionContract)
         token.mint(address(auction), TOTAL_SUPPLY);
-        auction.onTokensReceived(address(token), TOTAL_SUPPLY);
+        auction.onTokensReceived();
 
         // Verify the auction has the correct token balance
         assertEq(token.balanceOf(address(auction)), TOTAL_SUPPLY);

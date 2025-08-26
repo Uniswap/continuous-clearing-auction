@@ -669,20 +669,7 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_onTokensReceived_withCorrectTokenAndAmount_succeeds() public view {
         // Should not revert since tokens are already minted in setUp()
-        auction.onTokensReceived(address(token), TOTAL_SUPPLY);
-    }
-
-    function test_onTokensReceived_withWrongToken_reverts() public {
-        // Create a different token
-        address wrongToken = makeAddr('wrongToken');
-
-        vm.expectRevert(IAuction.IDistributionContract__InvalidToken.selector);
-        auction.onTokensReceived(wrongToken, TOTAL_SUPPLY);
-    }
-
-    function test_onTokensReceived_withWrongAmount_reverts() public {
-        vm.expectRevert(IAuction.IDistributionContract__InvalidAmount.selector);
-        auction.onTokensReceived(address(token), TOTAL_SUPPLY + 1);
+        auction.onTokensReceived();
     }
 
     function test_onTokensReceived_withWrongBalance_reverts() public {
@@ -690,7 +677,7 @@ contract AuctionTest is AuctionBaseTest {
         token.mint(address(auction), TOTAL_SUPPLY - 1);
 
         vm.expectRevert(IAuction.IDistributionContract__InvalidAmountReceived.selector);
-        auction.onTokensReceived(address(token), TOTAL_SUPPLY);
+        auction.onTokensReceived();
     }
 
     function test_advanceToCurrentStep_withClearingPriceZero() public {

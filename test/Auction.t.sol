@@ -3,26 +3,20 @@ pragma solidity ^0.8.23;
 
 import {Auction, AuctionParameters} from '../src/Auction.sol';
 import {IAuction} from '../src/interfaces/IAuction.sol';
-
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
-
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
-
 import {MockAuction} from './utils/MockAuction.sol';
-
 import {MockToken} from './utils/MockToken.sol';
 import {MockValidationHook} from './utils/MockValidationHook.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
-
 import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
-
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 
 contract AuctionTest is AuctionBaseTest {
@@ -309,7 +303,7 @@ contract AuctionTest is AuctionBaseTest {
 
     /// forge-config: default.isolate = true
     /// forge-config: ci.isolate = true
-    function test_exitBid_succeeds_gas() public {
+    function test_exitBid_succeeds() public {
         uint256 smallAmount = 500e18;
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(
@@ -362,7 +356,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.stopPrank();
     }
 
-    function test_exitBid_exactOut_succeeds() public {
+    function test_exitBid_exactOut_succeeds_gas() public {
         uint256 amount = 500e18;
         uint256 maxPrice = tickNumberToPriceX96(2);
         uint256 bidId = auction.submitBid{value: inputAmountForTokens(500e18, tickNumberToPriceX96(2))}(
@@ -675,14 +669,6 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_onTokensReceived_withWrongBalance_reverts() public {
-        // Mint less tokens than expected
-        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
-        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
-            FLOOR_PRICE
-        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + 100).withClaimBlock(
-            block.number + 100
-        ).withAuctionStepsData(auctionStepsData);
         // Use salt to get a new address
         Auction newAuction = new Auction{salt: bytes32(uint256(1))}(address(token), TOTAL_SUPPLY, params);
 
@@ -693,15 +679,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_advanceToCurrentStep_withClearingPriceZero() public {
-        // Create auction with multiple steps
-        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
-
-        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
-            FLOOR_PRICE
-        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + 100).withClaimBlock(
-            block.number + 100
-        ).withAuctionStepsData(auctionStepsData);
+        params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(100e3, 100));
 
         Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(newAuction), TOTAL_SUPPLY);

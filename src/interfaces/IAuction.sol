@@ -5,6 +5,7 @@ import {Checkpoint} from '../libraries/CheckpointLib.sol';
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
 import {IDistributionContract} from './external/IDistributionContract.sol';
+import {ICheckpointStorage} from './ICheckpointStorage.sol';
 
 /// @notice Parameters for the auction
 /// @dev token and totalSupply are passed as constructor arguments
@@ -23,7 +24,7 @@ struct AuctionParameters {
 }
 
 /// @notice Interface for the Auction contract
-interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
+interface IAuction is IDistributionContract, ICheckpointStorage, ITickStorage, IAuctionStepStorage {
     /// @notice Error thrown when the amount received is invalid
     error IDistributionContract__InvalidAmountReceived();
 
@@ -99,9 +100,6 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     /// @notice Register a new checkpoint
     /// @dev This function is called every time a new bid is submitted above the current clearing price
     function checkpoint() external returns (Checkpoint memory _checkpoint);
-
-    /// @notice Get the clearing price at the last checkpointed block
-    function clearingPrice() external view returns (uint256);
 
     /// @notice Exit a bid
     /// @dev This function can only be used for bids where the max price is above the final clearing price after the auction has ended

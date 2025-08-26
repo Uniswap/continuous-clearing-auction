@@ -2,6 +2,8 @@
 pragma solidity ^0.8.23;
 
 import {Tick, TickStorage} from './TickStorage.sol';
+
+import {ICheckpointStorage} from './interfaces/ICheckpointStorage.sol';
 import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
@@ -13,7 +15,7 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
 /// @title CheckpointStorage
 /// @notice Abstract contract for managing auction checkpoints and bid fill calculations
-abstract contract CheckpointStorage is TickStorage {
+abstract contract CheckpointStorage is TickStorage, ICheckpointStorage {
     using FixedPointMathLib for uint256;
     using AuctionStepLib for *;
     using BidLib for *;
@@ -32,12 +34,12 @@ abstract contract CheckpointStorage is TickStorage {
         floorPrice = _floorPrice;
     }
 
-    /// @notice Get the latest checkpoint at the last checkpointed block
+    /// @inheritdoc ICheckpointStorage
     function latestCheckpoint() public view returns (Checkpoint memory) {
         return checkpoints[lastCheckpointedBlock];
     }
 
-    /// @notice Get the clearing price at the last checkpointed block
+    /// @inheritdoc ICheckpointStorage
     function clearingPrice() public view returns (uint256) {
         return checkpoints[lastCheckpointedBlock].clearingPrice;
     }

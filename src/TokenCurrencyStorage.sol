@@ -57,11 +57,6 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         return _totalCleared >= ((totalSupply * graduationThresholdMps) / AuctionStepLib.MPS);
     }
 
-    /// @dev The currency can only be swept if they have not been already, and before the claim block
-    function _canSweepCurrency() internal view virtual returns (bool) {
-        return sweepCurrencyBlock == 0;
-    }
-
     function _sweepCurrency(uint256 amount) internal {
         sweepCurrencyBlock = block.number;
         currency.transfer(fundsRecipient, amount);

@@ -380,7 +380,9 @@ contract Auction is
         }
     }
 
-    /// @inheritdoc TokenCurrencyStorage
+    /// @notice Returns true if the currency can be swept
+    /// @dev If the auction has graduated but the currency is not swept before claimBlock, 
+    ///      all bidders will be refunded all of their currency and no tokens will be sold
     function _canSweepCurrency() internal view override returns (bool) {
         return sweepCurrencyBlock == 0 && block.number < claimBlock;
     }

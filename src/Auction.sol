@@ -249,12 +249,12 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
 
     /// @inheritdoc IAuction
     function checkpoint() public returns (Checkpoint memory _checkpoint) {
-        if (block.number >= endBlock) revert AuctionIsOver();
+        if (block.number > endBlock) revert AuctionIsOver();
         return _unsafeCheckpoint(block.number);
     }
 
     /// @inheritdoc IAuction
-    /// @dev Bids can be submitted anytime between the startBlock and the endBlock. This is enforced in the `checkpoint` flow
+    /// @dev Bids can be submitted anytime between the startBlock and the endBlock.
     function submitBid(
         uint256 maxPrice,
         bool exactIn,
@@ -263,6 +263,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         uint256 prevTickPrice,
         bytes calldata hookData
     ) external payable returns (uint256) {
+        if (block.number >= endBlock) revert AuctionIsOver();
         uint256 requiredCurrencyAmount = BidLib.inputAmount(exactIn, amount, maxPrice);
         if (requiredCurrencyAmount == 0) revert InvalidAmount();
         if (currency.isAddressZero()) {

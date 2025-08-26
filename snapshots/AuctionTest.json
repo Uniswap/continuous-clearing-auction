@@ -1,9 +1,12 @@
 {
-    "claimTokens": "65829",
-    "exitBid": "92129",
-    "exitPartiallyFilledBid": "311387",
-    "submitBid": "161097",
-    "submitBid_recordStep_updateCheckpoint": "331353",
-    "submitBid_recordStep_updateCheckpoint_initializeTick": "331353",
-    "submitBid_updateCheckpoint": "336117"
+  "checkpoint_advanceToCurrentStep": "175154",
+  "checkpoint_noBids": "158066",
+  "claimTokens": "65829",
+  "exitBid": "92129",
+  "exitPartiallyFilledBid": "311387",
+  "submitBid": "158016",
+  "submitBid_recordStep_updateCheckpoint": "328272",
+  "submitBid_recordStep_updateCheckpoint_initializeTick": "328272",
+  "submitBid_updateCheckpoint": "333036",
+  "submitBid_withValidationHook": "332308"
 }

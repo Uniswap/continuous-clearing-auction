@@ -7,14 +7,16 @@ contract MockFundsRecipient {
     event RevertWithReason(bytes reason);
     event RevertWithoutReason();
 
-    function revertWithReason(bytes memory reason) external {
+    function revertWithReason(bytes memory reason) external pure {
         revert(string(reason));
     }
 
-    function revertWithoutReason() external {
+    function revertWithoutReason() external pure {
         revert();
     }
 
-    // All other calls are successful, as well as receiving ETH
-    fallback() external payable {}
+    receive() external payable {}
+
+    // All other calls are successful
+    fallback() external {}
 }

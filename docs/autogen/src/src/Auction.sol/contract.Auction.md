@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/abd85a797aa2998d51aca9a412d76d90cff29052/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/b31828966506d0d2d5044dede6b93199c8af2fc2/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -59,6 +59,15 @@ constructor(address _token, uint256 _totalSupply, AuctionParameters memory _para
     )
     TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
     PermitSingleForwarder(IAllowanceTransfer(PERMIT2));
+```
+
+### onlyAfterAuctionIsOver
+
+Modifier for functions which can only be called after the auction is over
+
+
+```solidity
+modifier onlyAfterAuctionIsOver();
 ```
 
 ### onTokensReceived
@@ -203,7 +212,7 @@ Exit a bid
 
 
 ```solidity
-function exitBid(uint256 bidId) external;
+function exitBid(uint256 bidId) external onlyAfterAuctionIsOver;
 ```
 **Parameters**
 
@@ -256,7 +265,7 @@ Must be called before the `claimBlock`*
 
 
 ```solidity
-function sweepCurrency() external;
+function sweepCurrency() external onlyAfterAuctionIsOver;
 ```
 
 ### sweepUnsoldTokens
@@ -267,7 +276,7 @@ Sweep any leftover tokens to the tokens recipient
 
 
 ```solidity
-function sweepUnsoldTokens() external;
+function sweepUnsoldTokens() external onlyAfterAuctionIsOver;
 ```
 
 ### _canSweepCurrency

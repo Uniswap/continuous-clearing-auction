@@ -13,9 +13,9 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
 
     /// @notice The size of a uint64 in bytes
     uint256 public constant UINT64_SIZE = 8;
-    /// @notice The block at which the auction starts
+    /// @inheritdoc IAuctionStepStorage
     uint64 public immutable startBlock;
-    /// @notice The block at which the auction ends
+    /// @inheritdoc IAuctionStepStorage
     uint64 public immutable endBlock;
     /// @notice Cached length of the auction steps data provided in the constructor
     uint256 private immutable _length;

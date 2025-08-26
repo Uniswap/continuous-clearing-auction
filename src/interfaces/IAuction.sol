@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
+import {ICheckpointStorage} from './ICheckpointStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
 
 import {ITokenCurrencyStorage} from './ITokenCurrencyStorage.sol';
@@ -26,11 +27,13 @@ struct AuctionParameters {
 }
 
 /// @notice Interface for the Auction contract
-interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage, ITokenCurrencyStorage {
-    /// @notice Error thrown when the token is invalid
-    error IDistributionContract__InvalidToken();
-    /// @notice Error thrown when the amount is invalid
-    error IDistributionContract__InvalidAmount();
+interface IAuction is
+    IDistributionContract,
+    ICheckpointStorage,
+    ITickStorage,
+    IAuctionStepStorage,
+    ITokenCurrencyStorage
+{
     /// @notice Error thrown when the amount received is invalid
     error IDistributionContract__InvalidAmountReceived();
 

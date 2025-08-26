@@ -1,5 +1,5 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/d200a5546708f64ff0ca4fc019aad142ca33d228/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/381b0ae668f577856bcecaebacb52bec6c71bf17/src/TickStorage.sol)
 
 **Inherits:**
 [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
@@ -27,7 +27,7 @@ uint256 public nextActiveTickPrice;
 
 
 ### floorPrice
-The minimum price of the auction
+Get the floor price of the auction
 
 
 ```solidity
@@ -36,7 +36,7 @@ uint256 public immutable floorPrice;
 
 
 ### tickSpacing
-The tick spacing enforced for bid prices
+Get the tick spacing enforced for bid prices
 
 
 ```solidity

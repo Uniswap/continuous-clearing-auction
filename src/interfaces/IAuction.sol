@@ -100,6 +100,9 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage {
     /// @dev This function is called every time a new bid is submitted above the current clearing price
     function checkpoint() external returns (Checkpoint memory _checkpoint);
 
+    /// @notice Get the clearing price at the last checkpointed block
+    function clearingPrice() external view returns (uint256);
+
     /// @notice Exit a bid
     /// @dev This function can only be used for bids where the max price is above the final clearing price after the auction has ended
     /// @param bidId The id of the bid

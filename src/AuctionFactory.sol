@@ -20,7 +20,9 @@ contract AuctionFactory is IAuctionFactory {
         // If the fundsRecipient is address(1), set it to the msg.sender
         if (parameters.fundsRecipient == USE_MSG_SENDER) parameters.fundsRecipient = msg.sender;
 
-        distributionContract = IDistributionContract(address(new Auction{salt: salt}(token, amount, parameters)));
+        distributionContract = IDistributionContract(
+            address(new Auction{salt: keccak256(abi.encode(msg.sender, salt))}(token, amount, parameters))
+        );
 
         emit AuctionCreated(address(distributionContract), token, amount, configData);
     }

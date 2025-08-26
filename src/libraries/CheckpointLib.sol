@@ -32,7 +32,8 @@ library CheckpointLib {
         uint24 deltaMps = uint24(mps * blockDelta);
         checkpoint.totalCleared += checkpoint.blockCleared * blockDelta;
         checkpoint.cumulativeMps += deltaMps;
-        checkpoint.cumulativeMpsPerPrice += getMpsPerPrice(deltaMps, checkpoint.clearingPrice);
+        checkpoint.cumulativeMpsPerPrice +=
+            checkpoint.clearingPrice == 0 ? 0 : getMpsPerPrice(deltaMps, checkpoint.clearingPrice);
         return checkpoint;
     }
 

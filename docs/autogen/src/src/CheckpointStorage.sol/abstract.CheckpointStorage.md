@@ -1,5 +1,8 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/d200a5546708f64ff0ca4fc019aad142ca33d228/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/381b0ae668f577856bcecaebacb52bec6c71bf17/src/CheckpointStorage.sol)
+
+**Inherits:**
+[ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
 
 Abstract contract for managing auction checkpoints and bid fill calculations
 

@@ -10,9 +10,6 @@ interface ICheckpointStorage {
     /// @notice Get the clearing price at the last checkpointed block
     function clearingPrice() external view returns (uint256);
 
-    /// @notice Get the floor price of the auction
-    function floorPrice() external view returns (uint256);
-
     /// @notice Get the number of the last checkpointed block
     function lastCheckpointedBlock() external view returns (uint256);
 }

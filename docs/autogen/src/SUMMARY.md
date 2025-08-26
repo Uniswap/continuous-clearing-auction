@@ -10,6 +10,7 @@
     - [IAuction](src/interfaces/IAuction.sol/interface.IAuction.md)
     - [IAuctionFactory](src/interfaces/IAuctionFactory.sol/interface.IAuctionFactory.md)
     - [IAuctionStepStorage](src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md)
+    - [ICheckpointStorage](src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
     - [IPermitSingleForwarder](src/interfaces/IPermitSingleForwarder.sol/interface.IPermitSingleForwarder.md)
     - [ITickStorage](src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
     - [IValidationHook](src/interfaces/IValidationHook.sol/interface.IValidationHook.md)

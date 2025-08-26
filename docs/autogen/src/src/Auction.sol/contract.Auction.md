@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/d200a5546708f64ff0ca4fc019aad142ca33d228/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/4c64e5272f1f7db7bff878add63979a77518e17b/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -200,6 +200,8 @@ function checkpoint() public returns (Checkpoint memory _checkpoint);
 ### submitBid
 
 Submit a new bid
+
+*Bids can be submitted anytime between the startBlock and the endBlock. This is enforced in the `checkpoint` flow*
 
 
 ```solidity

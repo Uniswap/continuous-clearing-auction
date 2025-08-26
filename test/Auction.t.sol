@@ -241,8 +241,9 @@ contract AuctionTest is AuctionBaseTest {
         auction.checkpoint();
     }
 
-    function test_checkpoint_endBlock_succeeds() public {
+    function test_checkpoint_endBlock_revertsWithAuctionIsOver() public {
         vm.roll(auction.endBlock());
+        vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
         auction.checkpoint();
     }
 
@@ -1132,7 +1133,7 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         // Exit the bid
-        vm.roll(auction.endBlock() + 1);
+        vm.roll(auction.endBlock());
         vm.startPrank(alice);
         auction.exitBid(bidId);
 

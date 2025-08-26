@@ -1,5 +1,5 @@
 # ITokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/8f0cdceab8341bbaf5daef9ba1cd7a3cb87561d1/src/interfaces/ITokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/3a2a79a8442dc1d66aca4be0c1d531db5a9f8424/src/interfaces/ITokenCurrencyStorage.sol)
 
 
 ## Events
@@ -88,5 +88,13 @@ Error thrown when the auction has not graduated
 
 ```solidity
 error NotGraduated();
+```
+
+### FundsRecipientCallFailed
+Error thrown when the funds recipient data cannot be decoded
+
+
+```solidity
+error FundsRecipientCallFailed();
 ```
 

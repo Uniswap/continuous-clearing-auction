@@ -376,7 +376,6 @@ contract Auction is
         if (block.number < endBlock) revert AuctionIsNotOver();
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
         uint256 _totalCleared = _getFinalCheckpoint().totalCleared;
-
         if (_isGraduated(_totalCleared)) {
             _sweepUnsoldTokens(totalSupply - _totalCleared);
         } else {

@@ -6,6 +6,7 @@ import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
+import {console2} from 'forge-std/console2.sol';
 
 /// @title TokenCurrencyStorage
 abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
@@ -53,6 +54,13 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     /// @dev Should only be called after the auction has ended
     /// @param _totalCleared The total amount of tokens cleared, must be the final checkpoint of the auction
     function _isGraduated(uint256 _totalCleared) internal view returns (bool) {
+        console2.log('totalCleared', _totalCleared);
+        console2.log('totalSupply', totalSupply);
+        console2.log('graduationThresholdMps', graduationThresholdMps);
+        console2.log(
+            'totalSupply * graduationThresholdMps / AuctionStepLib.MPS',
+            (totalSupply * graduationThresholdMps) / AuctionStepLib.MPS
+        );
         return _totalCleared >= ((totalSupply * graduationThresholdMps) / AuctionStepLib.MPS);
     }
 

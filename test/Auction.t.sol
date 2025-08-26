@@ -1363,21 +1363,14 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_sweepUnsoldTokens_notGraduated_sweepsAll() public {
-        // Create an auction with high graduation threshold
-        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 50).addStep(100e3, 50);
-        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
-            FLOOR_PRICE
-        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION + 10).withGraduationThresholdMps(500e3) // 50% graduation threshold
-            .withAuctionStepsData(auctionStepsData);
-
+        // Create an auction with high graduation threshold (50%)
+        params = params.withGraduationThresholdMps(1e7 / 2);
         Auction auctionWithThreshold = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
 
         // Submit a small bid for 10% of supply (below 50% threshold, so not graduated)
         uint256 smallAmount = TOTAL_SUPPLY / 10;
-        uint256 inputAmount = inputAmountForTokens(smallAmount, tickNumberToPriceX96(2));
+        uint256 inputAmount = inputAmountForTokens(smallAmount, tickNumberToPriceX96(1));
         auctionWithThreshold.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
@@ -1396,23 +1389,15 @@ contract AuctionTest is AuctionBaseTest {
     // Integration tests
 
     function test_sweepCurrency_thenSweepTokens_graduated_succeeds() public {
-        // Create an auction with graduation threshold
-        setUpTokens();
-
-        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 50).addStep(100e3, 50);
-        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
-            FLOOR_PRICE
-        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION + 10).withGraduationThresholdMps(400e3) // 40% graduation threshold
-            .withAuctionStepsData(auctionStepsData);
+        // Create an auction with graduation threshold (40%)
+        params = params.withGraduationThresholdMps(40e5);
 
         Auction auctionWithThreshold = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
 
         // Submit a bid for 70% of supply (above threshold)
         uint256 soldAmount = (TOTAL_SUPPLY * 70) / 100;
-        uint256 inputAmount = inputAmountForTokens(soldAmount, tickNumberToPriceX96(2));
+        uint256 inputAmount = inputAmountForTokens(soldAmount, tickNumberToPriceX96(1));
         auctionWithThreshold.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
@@ -1438,23 +1423,15 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_sweepTokens_notGraduated_cannotSweepCurrency() public {
-        // Create an auction with high graduation threshold
-        setUpTokens();
-
-        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 50).addStep(100e3, 50);
-        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
-            FLOOR_PRICE
-        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION + 10).withGraduationThresholdMps(800e3) // 80% graduation threshold
-            .withAuctionStepsData(auctionStepsData);
+        // Create an auction with high graduation threshold (80%)
+        params = params.withGraduationThresholdMps(80e5);
 
         Auction auctionWithThreshold = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
 
         // Submit a bid for only 20% of supply (below 80% threshold)
         uint256 smallAmount = TOTAL_SUPPLY / 5;
-        uint256 inputAmount = inputAmountForTokens(smallAmount, tickNumberToPriceX96(2));
+        uint256 inputAmount = inputAmountForTokens(smallAmount, tickNumberToPriceX96(1));
         auctionWithThreshold.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );

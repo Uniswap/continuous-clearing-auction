@@ -1,8 +1,8 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/381b0ae668f577856bcecaebacb52bec6c71bf17/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ba0ef575d825ce397bf2f008f0cd27ea57bdbc58/src/interfaces/IAuction.sol)
 
 **Inherits:**
-[IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md)
+[IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
 
 Interface for the Auction contract
 
@@ -111,7 +111,7 @@ function claimTokens(uint256 bidId) external;
 Withdraw all of the currency raised
 
 *Can only be called by the funds recipient after the auction has ended
-Must be called before the `fundsRecipientDeadlineBlock`*
+Must be called before the `claimBlock`*
 
 
 ```solidity
@@ -284,8 +284,24 @@ Error thrown when the bid has not been exited
 error BidNotExited();
 ```
 
+### TokenTransferFailed
+Error thrown when the token transfer fails
+
+
+```solidity
+error TokenTransferFailed();
+```
+
+### AuctionIsNotOver
+Error thrown when the auction is not over
+
+
+```solidity
+error AuctionIsNotOver();
+```
+
 ### InvalidBidPrice
-Error thrown when the bid price is invalid
+Error thrown when a new bid is less than or equal to the clearing price
 
 
 ```solidity

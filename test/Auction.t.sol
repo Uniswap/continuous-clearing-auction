@@ -1329,7 +1329,7 @@ contract AuctionTest is AuctionBaseTest {
 
         // Submit a bid for 60% of supply (above 30% threshold, so graduated)
         uint256 soldAmount = (TOTAL_SUPPLY * 60) / 100;
-        uint256 inputAmount = inputAmountForTokens(soldAmount, tickNumberToPriceX96(2));
+        uint256 inputAmount = inputAmountForTokens(soldAmount, tickNumberToPriceX96(1));
         auctionWithThreshold.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );

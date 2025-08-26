@@ -1,8 +1,8 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4c64e5272f1f7db7bff878add63979a77518e17b/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ba0ef575d825ce397bf2f008f0cd27ea57bdbc58/src/Auction.sol)
 
 **Inherits:**
-[BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
+[BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
 
 
 ## State Variables
@@ -12,51 +12,6 @@ Permit2 address
 
 ```solidity
 address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
-```
-
-
-### currency
-The currency of the auction
-
-
-```solidity
-Currency public immutable currency;
-```
-
-
-### token
-The token of the auction
-
-
-```solidity
-IERC20Minimal public immutable token;
-```
-
-
-### totalSupply
-The total supply of token to sell
-
-
-```solidity
-uint256 public immutable totalSupply;
-```
-
-
-### tokensRecipient
-The recipient of any unsold tokens
-
-
-```solidity
-address public immutable tokensRecipient;
-```
-
-
-### fundsRecipient
-The recipient of the funds from the auction
-
-
-```solidity
-address public immutable fundsRecipient;
 ```
 
 
@@ -94,6 +49,14 @@ Demand public sumDemandAboveClearing;
 ```solidity
 constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
     AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
+    TokenCurrencyStorage(
+        _token,
+        _parameters.currency,
+        _totalSupply,
+        _parameters.tokensRecipient,
+        _parameters.fundsRecipient,
+        _parameters.graduationThresholdMps
+    )
     TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
     PermitSingleForwarder(IAllowanceTransfer(PERMIT2));
 ```
@@ -289,7 +252,7 @@ function claimTokens(uint256 bidId) external;
 Withdraw all of the currency raised
 
 *Can only be called by the funds recipient after the auction has ended
-Must be called before the `fundsRecipientDeadlineBlock`*
+Must be called before the `claimBlock`*
 
 
 ```solidity
@@ -305,5 +268,14 @@ Sweep any leftover tokens to the tokens recipient
 
 ```solidity
 function sweepUnsoldTokens() external;
+```
+
+### _canSweepCurrency
+
+*The currency can only be swept if they have not been already, and before the claim block*
+
+
+```solidity
+function _canSweepCurrency() internal view override returns (bool);
 ```
 

@@ -1,5 +1,5 @@
 # TokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/8f0cdceab8341bbaf5daef9ba1cd7a3cb87561d1/src/TokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ba0ef575d825ce397bf2f008f0cd27ea57bdbc58/src/TokenCurrencyStorage.sol)
 
 **Inherits:**
 [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -51,15 +51,6 @@ address public immutable fundsRecipient;
 ```
 
 
-### fundsRecipientDeadlineBlock
-The block at which the Currency must be swept by the funds recipient
-
-
-```solidity
-uint64 public immutable fundsRecipientDeadlineBlock;
-```
-
-
 ### graduationThresholdMps
 The minimum percentage of the total supply that must be sold
 
@@ -98,7 +89,6 @@ constructor(
     uint256 _totalSupply,
     address _tokensRecipient,
     address _fundsRecipient,
-    uint64 _fundsRecipientDeadlineBlock,
     uint24 _graduationThresholdMps
 );
 ```
@@ -122,11 +112,11 @@ function _isGraduated(uint256 _totalCleared) internal view returns (bool);
 
 ### _canSweepCurrency
 
-*The currency can only be swept if they have not been already, and before the deadline for sweeping tokens has passed*
+*The currency can only be swept if they have not been already, and before the claim block*
 
 
 ```solidity
-function _canSweepCurrency() internal view returns (bool);
+function _canSweepCurrency() internal view virtual returns (bool);
 ```
 
 ### _sweepCurrency

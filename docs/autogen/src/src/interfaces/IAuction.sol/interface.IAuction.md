@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/da50bb7a07b27dca661d22f04fb3c44d8922d9da/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/d200a5546708f64ff0ca4fc019aad142ca33d228/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md)
@@ -275,5 +275,13 @@ Error thrown when the bid has not been exited
 
 ```solidity
 error BidNotExited();
+```
+
+### InvalidBidPrice
+Error thrown when the bid price is invalid
+
+
+```solidity
+error InvalidBidPrice();
 ```
 

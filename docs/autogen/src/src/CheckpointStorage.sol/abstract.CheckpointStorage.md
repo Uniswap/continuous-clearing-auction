@@ -1,22 +1,10 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c2dd0a6c704cd1292624039dee42341e0a61b05d/src/CheckpointStorage.sol)
-
-**Inherits:**
-[TickStorage](/src/TickStorage.sol/abstract.TickStorage.md)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/d200a5546708f64ff0ca4fc019aad142ca33d228/src/CheckpointStorage.sol)
 
 Abstract contract for managing auction checkpoints and bid fill calculations
 
 
 ## State Variables
-### floorPrice
-The starting price of the auction
-
-
-```solidity
-uint256 public immutable floorPrice;
-```
-
-
 ### checkpoints
 Storage of checkpoints
 
@@ -36,13 +24,6 @@ uint256 public lastCheckpointedBlock;
 
 
 ## Functions
-### constructor
-
-
-```solidity
-constructor(uint256 _floorPrice, uint256 _tickSpacing) TickStorage(_tickSpacing, _floorPrice);
-```
-
 ### latestCheckpoint
 
 Get the latest checkpoint at the last checkpointed block
@@ -117,17 +98,21 @@ Calculate the tokens sold, proportion of input used, and the block number of the
 
 
 ```solidity
-function _accountPartiallyFilledCheckpoints(Checkpoint memory lastValidCheckpoint, Bid memory bid)
-    internal
-    view
-    returns (uint256 tokensFilled, uint256 currencySpent, uint256 nextCheckpointBlock);
+function _accountPartiallyFilledCheckpoints(
+    Checkpoint memory lastValidCheckpoint,
+    uint256 bidDemand,
+    uint256 tickDemand,
+    uint256 bidMaxPrice
+) internal view returns (uint256 tokensFilled, uint256 currencySpent, uint256 nextCheckpointBlock);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`lastValidCheckpoint`|`Checkpoint`|The last checkpoint where the clearing price is == bid.maxPrice|
-|`bid`|`Bid`|The bid|
+|`bidDemand`|`uint256`|The demand of the bid|
+|`tickDemand`|`uint256`|The demand of the tick|
+|`bidMaxPrice`|`uint256`|The max price of the bid|
 
 **Returns**
 
@@ -180,10 +165,9 @@ Calculate the tokens filled and proportion of input used for a partially filled 
 function _calculatePartialFill(
     uint256 bidDemand,
     uint256 tickDemand,
-    uint256 price,
     uint256 supplyOverMps,
     uint24 mpsDelta,
     uint256 resolvedDemandAboveClearingPrice
-) internal pure returns (uint256 tokensFilled, uint256 currencySpent);
+) internal pure returns (uint256 tokensFilled);
 ```
 

@@ -30,7 +30,7 @@ contract CheckpointStorageTest is Test {
     uint256 public constant TOTAL_SUPPLY = 1000e18;
 
     function setUp() public {
-        mockCheckpointStorage = new MockCheckpointStorage(FLOOR_PRICE, TICK_SPACING);
+        mockCheckpointStorage = new MockCheckpointStorage();
     }
 
     function test_resolve_exactOut_calculatePartialFill_succeeds() public view {
@@ -61,16 +61,12 @@ contract CheckpointStorageTest is Test {
 
         // First case, no other demand, bid is "fully filled"
         uint256 resolvedDemandAboveClearingPrice = 0;
-        uint256 tokensFilled;
-        uint256 currencySpent;
-        (tokensFilled, currencySpent) = mockCheckpointStorage.calculatePartialFill(
-            bidDemand, tickDemand, maxPrice, supply, cumulativeMpsDelta, resolvedDemandAboveClearingPrice
+        uint256 tokensFilled = mockCheckpointStorage.calculatePartialFill(
+            bidDemand, tickDemand, supply, cumulativeMpsDelta, resolvedDemandAboveClearingPrice
         );
 
         // 30% of 1000e18 tokens = 300e18 tokens filled
         assertEq(tokensFilled, 300e18);
-        // All tokens were purchased at the bid's max price
-        assertEq(currencySpent, tokensFilled.fullMulDiv(maxPrice, FixedPoint96.Q96));
     }
 
     function test_resolve_exactIn_fuzz_succeeds(uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)

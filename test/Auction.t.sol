@@ -675,10 +675,20 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_onTokensReceived_withWrongBalance_reverts() public {
         // Mint less tokens than expected
-        token.mint(address(auction), TOTAL_SUPPLY - 1);
+        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            FLOOR_PRICE
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + 100).withClaimBlock(
+            block.number + 100
+        ).withAuctionStepsData(auctionStepsData);
+        // Use salt to get a new address
+        Auction newAuction = new Auction{salt: bytes32(uint256(1))}(address(token), TOTAL_SUPPLY, params);
+
+        token.mint(address(newAuction), TOTAL_SUPPLY - 1);
 
         vm.expectRevert(IAuction.IDistributionContract__InvalidAmountReceived.selector);
-        auction.onTokensReceived();
+        newAuction.onTokensReceived();
     }
 
     function test_advanceToCurrentStep_withClearingPriceZero() public {

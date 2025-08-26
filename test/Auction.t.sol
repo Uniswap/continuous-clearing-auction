@@ -203,6 +203,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitPartiallyFilledBid(bidId, 2);
         assertEq(address(alice).balance, aliceBalanceBefore + inputAmount / 2);
 
+        vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
     }
@@ -224,6 +225,7 @@ contract AuctionTest is AuctionBaseTest {
             address(alice).balance, aliceBalanceBefore + inputAmountForTokens(2000e18, tickNumberToPriceX96(2)) / 2
         );
 
+        vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
     }
@@ -382,6 +384,7 @@ contract AuctionTest is AuctionBaseTest {
                 - inputAmountForTokens(500e18, tickNumberToPriceX96(1))
         );
 
+        vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
         // Expect fully filled for all tokens
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + amount);
@@ -418,6 +421,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitBid(bidId);
         // Expect no refund
         assertEq(address(alice).balance, aliceBalanceBefore);
+        vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
         // Expect purchased 1000e18 tokens
         assertEq(token.balanceOf(address(alice)), 1000e18);
@@ -442,6 +446,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitBid(bidId);
         // Expect no refund since the bid was fully exited
         assertEq(address(alice).balance, aliceBalanceBefore);
+        vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
     }
@@ -570,6 +575,7 @@ contract AuctionTest is AuctionBaseTest {
         // Alice should partially fill for 250e18 tokens, spending 500e21 ETH
         // Meaning she should be refunded 1000e21 - 500e21 = 500e21 ETH
         assertEq(address(alice).balance, aliceBalanceBefore + 500e21);
+        vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
         vm.snapshotGasLastCall('claimTokens');
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 250e18);
@@ -580,6 +586,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.snapshotGasLastCall('exitBid');
         // Bob purchased 750e18 tokens for a price of 2, so they should have spent all of their ETH.
         assertEq(address(bob).balance, bobBalanceBefore + 0);
+        vm.roll(auction.claimBlock());
         auction.claimTokens(bidId2);
         assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + 750e18);
         vm.stopPrank();
@@ -626,6 +633,18 @@ contract AuctionTest is AuctionBaseTest {
         uint256 bobTokenBalanceBefore = token.balanceOf(address(bob));
         uint256 charlieTokenBalanceBefore = token.balanceOf(address(charlie));
 
+        // Roll to end of auction
+        vm.roll(auction.endBlock());
+        uint256 expectedCurrencyRaised = inputAmountForTokens(750e18, tickNumberToPriceX96(11))
+            + inputAmountForTokens(100e18, tickNumberToPriceX96(11))
+            + inputAmountForTokens(150e18, tickNumberToPriceX96(11));
+
+        vm.startPrank(auction.fundsRecipient());
+        vm.expectEmit(true, true, true, true);
+        emit ITokenCurrencyStorage.CurrencySwept(auction.fundsRecipient(), expectedCurrencyRaised);
+        auction.sweepCurrency();
+        vm.stopPrank();
+
         // Clearing price is at tick 21 = 2000
         // Alice is purchasing with 400e18 * 2000 = 800e21 ETH
         // Bob is purchasing with 600e18 * 2000 = 1200e21 ETH
@@ -640,7 +659,7 @@ contract AuctionTest is AuctionBaseTest {
         // Bob purchases 600/1000 * 250 = 150e18 tokens
         // - Spending 150e18 * 2000 = 300e21 ETH
         // - Refunded 1200e21 - 300e21 = 900e21 ETH
-        vm.roll(auction.endBlock() + 1);
+        vm.roll(auction.claimBlock());
 
         vm.startPrank(charlie);
         auction.exitBid(bidId3);
@@ -1056,6 +1075,7 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         // Try to claim tokens before the bid has been exited
+        vm.roll(auction.claimBlock());
         vm.startPrank(alice);
         vm.expectRevert(IAuction.BidNotExited.selector);
         auction.claimTokens(bidId);

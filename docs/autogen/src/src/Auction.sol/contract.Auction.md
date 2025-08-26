@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/ba0ef575d825ce397bf2f008f0cd27ea57bdbc58/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/abd85a797aa2998d51aca9a412d76d90cff29052/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -272,10 +272,13 @@ function sweepUnsoldTokens() external;
 
 ### _canSweepCurrency
 
-*The currency can only be swept if they have not been already, and before the claim block*
+Returns true if the currency can be swept
+
+*If the auction has graduated but the currency is not swept before claimBlock,
+all bidders will be refunded all of their currency and no tokens will be sold*
 
 
 ```solidity
-function _canSweepCurrency() internal view override returns (bool);
+function _canSweepCurrency() internal view returns (bool);
 ```
 

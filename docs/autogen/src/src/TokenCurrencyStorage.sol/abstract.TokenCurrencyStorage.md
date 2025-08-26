@@ -1,5 +1,5 @@
 # TokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/ba0ef575d825ce397bf2f008f0cd27ea57bdbc58/src/TokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/abd85a797aa2998d51aca9a412d76d90cff29052/src/TokenCurrencyStorage.sol)
 
 **Inherits:**
 [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -109,15 +109,6 @@ function _isGraduated(uint256 _totalCleared) internal view returns (bool);
 |----|----|-----------|
 |`_totalCleared`|`uint256`|The total amount of tokens cleared, must be the final checkpoint of the auction|
 
-
-### _canSweepCurrency
-
-*The currency can only be swept if they have not been already, and before the claim block*
-
-
-```solidity
-function _canSweepCurrency() internal view virtual returns (bool);
-```
 
 ### _sweepCurrency
 

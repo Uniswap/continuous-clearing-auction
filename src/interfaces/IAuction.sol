@@ -58,6 +58,8 @@ interface IAuction is IDistributionContract, ITickStorage, IAuctionStepStorage, 
     error TokenTransferFailed();
     /// @notice Error thrown when the auction is not over
     error AuctionIsNotOver();
+    /// @notice Error thrown when a new bid is less than or equal to the clearing price
+    error InvalidBidPrice();
 
     /// @notice Emitted when a bid is submitted
     /// @param id The id of the bid

@@ -6,7 +6,6 @@ import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
-import {console2} from 'forge-std/console2.sol';
 
 /// @title TokenCurrencyStorage
 abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {

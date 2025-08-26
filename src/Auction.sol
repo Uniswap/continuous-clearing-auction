@@ -20,7 +20,6 @@ import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 
-import {console2} from 'forge-std/console2.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
@@ -81,6 +80,12 @@ contract Auction is
         if (tickSpacing == 0) revert TickSpacingIsZero();
         if (claimBlock < endBlock) revert ClaimBlockIsBeforeEndBlock();
         if (fundsRecipient == address(0)) revert FundsRecipientIsZero();
+    }
+
+    /// @notice Modifier for functions which can only be called after the auction is over
+    modifier onlyAfterAuctionIsOver() {
+        if (block.number < endBlock) revert AuctionIsNotOver();
+        _;
     }
 
     /// @inheritdoc IDistributionContract
@@ -284,12 +289,12 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function exitBid(uint256 bidId) external {
+    function exitBid(uint256 bidId) external onlyAfterAuctionIsOver {
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
         Checkpoint memory finalCheckpoint = _unsafeCheckpoint(endBlock);
 
-        if (block.number < endBlock || bid.maxPrice <= finalCheckpoint.clearingPrice) revert CannotExitBid();
+        if (bid.maxPrice <= finalCheckpoint.clearingPrice) revert CannotExitBid();
         /// @dev Bid was fully filled and the auction is now over
         (uint256 tokensFilled, uint256 currencySpent) = _accountFullyFilledCheckpoints(finalCheckpoint, bid);
 
@@ -357,8 +362,7 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function sweepCurrency() external {
-        if (block.number < endBlock) revert AuctionIsNotOver();
+    function sweepCurrency() external onlyAfterAuctionIsOver {
         if (msg.sender != fundsRecipient) revert OnlyFundsRecipient();
         // Cannot sweep if already swept or if the deadline is passed
         if (!_canSweepCurrency()) revert CannotSweepCurrency();
@@ -369,8 +373,7 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function sweepUnsoldTokens() external {
-        if (block.number < endBlock) revert AuctionIsNotOver();
+    function sweepUnsoldTokens() external onlyAfterAuctionIsOver {
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
         uint256 _totalCleared = _getFinalCheckpoint().totalCleared;
         if (_isGraduated(_totalCleared)) {

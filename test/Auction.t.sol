@@ -359,11 +359,11 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         // Expect that the second bid cannot be withdrawn, since the clearing price is below its max price
+        vm.roll(auction.endBlock());
         vm.expectRevert(IAuction.CannotExitBid.selector);
         auction.exitBid(bidId2);
         vm.stopPrank();
 
-        vm.roll(auction.endBlock());
         uint256 expectedCurrentRaised = inputAmountForTokens(largeAmount, tickNumberToPriceX96(3));
         vm.startPrank(auction.fundsRecipient());
         vm.expectEmit(true, true, true, true);
@@ -430,7 +430,7 @@ contract AuctionTest is AuctionBaseTest {
         // Before the auction ends, the bid should not be exitable since it is above the clearing price
         vm.startPrank(alice);
         vm.roll(auction.endBlock() - 1);
-        vm.expectRevert(IAuction.CannotExitBid.selector);
+        vm.expectRevert(IAuction.AuctionIsNotOver.selector);
         auction.exitBid(bidId);
 
         uint256 aliceBalanceBefore = address(alice).balance;
@@ -480,6 +480,7 @@ contract AuctionTest is AuctionBaseTest {
             bytes('')
         );
         // Expect revert because the bid is not below the clearing price
+        vm.roll(auction.endBlock());
         vm.expectRevert(IAuction.CannotExitBid.selector);
         vm.prank(alice);
         auction.exitBid(bidId);
@@ -538,8 +539,8 @@ contract AuctionTest is AuctionBaseTest {
         auction.checkpoint();
 
         vm.roll(auction.endBlock() - 1);
-        vm.expectRevert(IAuction.CannotExitBid.selector);
         vm.prank(alice);
+        vm.expectRevert(IAuction.CannotExitBid.selector);
         auction.exitPartiallyFilledBid(bidId, 2);
 
         uint256 aliceBalanceBefore = address(alice).balance;

@@ -63,7 +63,6 @@ contract Auction is
             _totalSupply,
             _parameters.tokensRecipient,
             _parameters.fundsRecipient,
-            _parameters.fundsRecipientDeadlineBlock,
             _parameters.graduationThresholdMps
         )
         PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
@@ -384,5 +383,10 @@ contract Auction is
         } else {
             _sweepUnsoldTokens(totalSupply);
         }
+    }
+
+    /// @inheritdoc TokenCurrencyStorage
+    function _canSweepCurrency() internal view override returns (bool) {
+        return sweepCurrencyBlock == 0 && block.number < claimBlock;
     }
 }

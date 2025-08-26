@@ -21,8 +21,6 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     address public immutable tokensRecipient;
     /// @notice The recipient of the raised Currency from the auction
     address public immutable fundsRecipient;
-    /// @notice The block at which the Currency must be swept by the funds recipient
-    uint64 public immutable fundsRecipientDeadlineBlock;
     /// @notice The minimum percentage of the total supply that must be sold
     uint24 public immutable graduationThresholdMps;
 
@@ -37,7 +35,6 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         uint256 _totalSupply,
         address _tokensRecipient,
         address _fundsRecipient,
-        uint64 _fundsRecipientDeadlineBlock,
         uint24 _graduationThresholdMps
     ) {
         token = IERC20Minimal(_token);
@@ -45,7 +42,6 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         currency = Currency.wrap(_currency);
         tokensRecipient = _tokensRecipient;
         fundsRecipient = _fundsRecipient;
-        fundsRecipientDeadlineBlock = _fundsRecipientDeadlineBlock;
         graduationThresholdMps = _graduationThresholdMps;
 
         if (totalSupply == 0) revert TotalSupplyIsZero();
@@ -57,12 +53,12 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     /// @dev Should only be called after the auction has ended
     /// @param _totalCleared The total amount of tokens cleared, must be the final checkpoint of the auction
     function _isGraduated(uint256 _totalCleared) internal view returns (bool) {
-        return _totalCleared >= (totalSupply * graduationThresholdMps / AuctionStepLib.MPS);
+        return _totalCleared >= ((totalSupply * graduationThresholdMps) / AuctionStepLib.MPS);
     }
 
-    /// @dev The currency can only be swept if they have not been already, and before the deadline for sweeping tokens has passed
-    function _canSweepCurrency() internal view returns (bool) {
-        return sweepCurrencyBlock != 0 && block.number <= fundsRecipientDeadlineBlock;
+    /// @dev The currency can only be swept if they have not been already, and before the claim block
+    function _canSweepCurrency() internal view virtual returns (bool) {
+        return sweepCurrencyBlock == 0;
     }
 
     function _sweepCurrency(uint256 amount) internal {

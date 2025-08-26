@@ -234,7 +234,9 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
     }
 
-    function test_submitBid_zeroSupply_succeeds_gas() public {
+    /// forge-config: default.isolate = true
+    /// forge-config: ci.isolate = true
+    function test_submitBid_zeroSupply_exitPartiallyFilledBid_succeeds_gas() public {
         // 0 mps for first 50 blocks, then 200mps for the last 50 blocks
         params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(0, 100).addStep(100e3, 100))
             .withEndBlock(block.number + 200).withClaimBlock(block.number + 200);
@@ -275,6 +277,51 @@ contract AuctionTest is AuctionBaseTest {
 
         auction.exitPartiallyFilledBid(bidId, auction.startBlock() + 101);
         assertEq(address(alice).balance, aliceBalanceBefore + inputAmount / 2);
+
+        vm.roll(auction.claimBlock());
+        auction.claimTokens(bidId);
+        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
+    }
+
+    function test_submitBid_zeroSupply_exitBid_succeeds() public {
+        // 0 mps for first 50 blocks, then 200mps for the last 50 blocks
+        params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(0, 100).addStep(100e3, 100))
+            .withEndBlock(block.number + 200).withClaimBlock(block.number + 200);
+        auction = new Auction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(auction), TOTAL_SUPPLY);
+
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.BidSubmitted(
+            0, alice, tickNumberToPriceX96(2), true, inputAmountForTokens(1000e18, tickNumberToPriceX96(1))
+        );
+        uint256 inputAmount = inputAmountForTokens(1000e18, tickNumberToPriceX96(1));
+        uint256 bidId = auction.submitBid{value: inputAmount}(
+            tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
+        );
+        // Assert that no checkpoint was made
+        assertEq(auction.lastCheckpointedBlock(), 0);
+
+        // Advance to the next block to get the next checkpoint
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+        // Assert that no checkpoint was made
+        assertEq(auction.lastCheckpointedBlock(), 0);
+
+        // Advance to the end of the first step
+        vm.roll(auction.startBlock() + 101);
+
+        uint256 expectedTotalCleared = 100e3 * TOTAL_SUPPLY / AuctionStepLib.MPS;
+        // Now the auction should start clearing
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), expectedTotalCleared, 100e3);
+        auction.checkpoint();
+
+        vm.roll(auction.endBlock());
+        uint256 aliceBalanceBefore = address(alice).balance;
+        uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
+
+        auction.exitBid(bidId);
+        assertEq(address(alice).balance, aliceBalanceBefore + 0);
 
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);

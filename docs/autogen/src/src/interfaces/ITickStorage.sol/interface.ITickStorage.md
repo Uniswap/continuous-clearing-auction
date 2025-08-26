@@ -1,8 +1,38 @@
 # ITickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/d200a5546708f64ff0ca4fc019aad142ca33d228/src/interfaces/ITickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/381b0ae668f577856bcecaebacb52bec6c71bf17/src/interfaces/ITickStorage.sol)
 
 Interface for the TickStorage contract
 
+
+## Functions
+### nextActiveTickPrice
+
+The price of the next initialized tick above the clearing price
+
+*This will be equal to the clearingPrice if no ticks have been initialized yet*
+
+
+```solidity
+function nextActiveTickPrice() external view returns (uint256);
+```
+
+### floorPrice
+
+Get the floor price of the auction
+
+
+```solidity
+function floorPrice() external view returns (uint256);
+```
+
+### tickSpacing
+
+Get the tick spacing enforced for bid prices
+
+
+```solidity
+function tickSpacing() external view returns (uint256);
+```
 
 ## Events
 ### TickInitialized

@@ -104,15 +104,8 @@ Notify a distribution contract that it has received the tokens to distribute
 
 
 ```solidity
-function onTokensReceived(address _token, uint256 _amount) external view;
+function onTokensReceived() external view;
 ```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`_token`|`address`||
-|`_amount`|`uint256`||
-
 
 ### _advanceToCurrentStep
 

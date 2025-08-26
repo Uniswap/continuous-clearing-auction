@@ -13,9 +13,10 @@ interface IDistributionStrategy {
     /// @param token The address of the token to be distributed.
     /// @param amount The amount of tokens intended for distribution.
     /// @param configData Arbitrary, strategy-specific parameters.
+    /// @param salt The salt to use for the deterministic deployment.
     /// @return distributionContract The contract that will handle or manage the distribution.
     ///         (Could be `address(this)` if the strategy is handled in-place, or a newly deployed instance).
-    function initializeDistribution(address token, uint256 amount, bytes calldata configData)
+    function initializeDistribution(address token, uint256 amount, bytes calldata configData, bytes32 salt)
         external
         returns (IDistributionContract distributionContract);
 }

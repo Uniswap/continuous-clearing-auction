@@ -1,5 +1,5 @@
 # IDistributionStrategy
-[Git Source](https://github.com/Uniswap/twap-auction/blob/a40941ed6c71ce668b5d7c2923b5830fe9b23869/src/interfaces/external/IDistributionStrategy.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/da50bb7a07b27dca661d22f04fb3c44d8922d9da/src/interfaces/external/IDistributionStrategy.sol)
 
 Interface for token distribution strategies.
 
@@ -15,7 +15,7 @@ could merely set up initial state and provide additional entrypoints to handle t
 
 
 ```solidity
-function initializeDistribution(address token, uint256 amount, bytes calldata configData)
+function initializeDistribution(address token, uint256 amount, bytes calldata configData, bytes32 salt)
     external
     returns (IDistributionContract distributionContract);
 ```
@@ -26,6 +26,7 @@ function initializeDistribution(address token, uint256 amount, bytes calldata co
 |`token`|`address`|The address of the token to be distributed.|
 |`amount`|`uint256`|The amount of tokens intended for distribution.|
 |`configData`|`bytes`|Arbitrary, strategy-specific parameters.|
+|`salt`|`bytes32`|The salt to use for the deterministic deployment.|
 
 **Returns**
 

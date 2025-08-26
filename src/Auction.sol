@@ -75,10 +75,8 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
     }
 
     /// @inheritdoc IDistributionContract
-    function onTokensReceived(address _token, uint256 _amount) external view {
-        if (_token != address(token)) revert IDistributionContract__InvalidToken();
-        if (_amount != totalSupply) revert IDistributionContract__InvalidAmount();
-        if (token.balanceOf(address(this)) != _amount) revert IDistributionContract__InvalidAmountReceived();
+    function onTokensReceived() external view {
+        if (token.balanceOf(address(this)) < totalSupply) revert IDistributionContract__InvalidAmountReceived();
     }
 
     /// @notice Advance the current step until the current block is within the step

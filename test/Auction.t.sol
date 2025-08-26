@@ -670,28 +670,25 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_onTokensReceived_withCorrectTokenAndAmount_succeeds() public view {
         // Should not revert since tokens are already minted in setUp()
-        auction.onTokensReceived(address(token), TOTAL_SUPPLY);
-    }
-
-    function test_onTokensReceived_withWrongToken_reverts() public {
-        // Create a different token
-        address wrongToken = makeAddr('wrongToken');
-
-        vm.expectRevert(IAuction.IDistributionContract__InvalidToken.selector);
-        auction.onTokensReceived(wrongToken, TOTAL_SUPPLY);
-    }
-
-    function test_onTokensReceived_withWrongAmount_reverts() public {
-        vm.expectRevert(IAuction.IDistributionContract__InvalidAmount.selector);
-        auction.onTokensReceived(address(token), TOTAL_SUPPLY + 1);
+        auction.onTokensReceived();
     }
 
     function test_onTokensReceived_withWrongBalance_reverts() public {
         // Mint less tokens than expected
-        token.mint(address(auction), TOTAL_SUPPLY - 1);
+        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            FLOOR_PRICE
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + 100).withClaimBlock(
+            block.number + 100
+        ).withAuctionStepsData(auctionStepsData);
+        // Use salt to get a new address
+        Auction newAuction = new Auction{salt: bytes32(uint256(1))}(address(token), TOTAL_SUPPLY, params);
+
+        token.mint(address(newAuction), TOTAL_SUPPLY - 1);
 
         vm.expectRevert(IAuction.IDistributionContract__InvalidAmountReceived.selector);
-        auction.onTokensReceived(address(token), TOTAL_SUPPLY);
+        newAuction.onTokensReceived();
     }
 
     function test_advanceToCurrentStep_withClearingPriceZero() public {

@@ -1,6 +1,25 @@
 # IAuctionStepStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/a40941ed6c71ce668b5d7c2923b5830fe9b23869/src/interfaces/IAuctionStepStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/da50bb7a07b27dca661d22f04fb3c44d8922d9da/src/interfaces/IAuctionStepStorage.sol)
 
+
+## Functions
+### startBlock
+
+The block at which the auction starts
+
+
+```solidity
+function startBlock() external view returns (uint64);
+```
+
+### endBlock
+
+The block at which the auction ends
+
+
+```solidity
+function endBlock() external view returns (uint64);
+```
 
 ## Events
 ### AuctionStepRecorded

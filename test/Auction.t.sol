@@ -1211,9 +1211,9 @@ contract AuctionTest is AuctionBaseTest {
             tickNumberToPriceX96(1),
             bytes('')
         );
-        
+
         vm.roll(auction.endBlock());
-        
+
         // Try to sweep as alice (not fundsRecipient)
         vm.prank(alice);
         vm.expectRevert(ITokenCurrencyStorage.OnlyFundsRecipient.selector);
@@ -1230,13 +1230,13 @@ contract AuctionTest is AuctionBaseTest {
             tickNumberToPriceX96(1),
             bytes('')
         );
-        
+
         vm.roll(auction.endBlock());
-        
+
         // First sweep should succeed
         vm.prank(auction.fundsRecipient());
         auction.sweepCurrency();
-        
+
         // Second sweep should fail
         vm.prank(auction.fundsRecipient());
         vm.expectRevert(ITokenCurrencyStorage.CannotSweepCurrency.selector);
@@ -1253,10 +1253,10 @@ contract AuctionTest is AuctionBaseTest {
             tickNumberToPriceX96(1),
             bytes('')
         );
-        
+
         // Roll to claimBlock (currency can only be swept before claimBlock)
         vm.roll(auction.claimBlock());
-        
+
         vm.prank(auction.fundsRecipient());
         vm.expectRevert(ITokenCurrencyStorage.CannotSweepCurrency.selector);
         auction.sweepCurrency();
@@ -1265,24 +1265,18 @@ contract AuctionTest is AuctionBaseTest {
     function test_sweepCurrency_notGraduated_reverts() public {
         // Create an auction with a high graduation threshold
         setUpTokens();
-        
+
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 50).addStep(100e3, 50);
-        AuctionParameters memory params = AuctionParamsBuilder.init()
-            .withCurrency(ETH_SENTINEL)
-            .withFloorPrice(FLOOR_PRICE)
-            .withTickSpacing(TICK_SPACING)
-            .withValidationHook(address(0))
-            .withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient)
-            .withStartBlock(block.number)
-            .withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION + 10)
-            .withGraduationThresholdMps(500e3) // 50% graduation threshold
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            FLOOR_PRICE
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION + 10).withGraduationThresholdMps(500e3) // 50% graduation threshold
             .withAuctionStepsData(auctionStepsData);
-        
+
         Auction auctionWithThreshold = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
-        
+
         // Submit a small bid (only 10% of supply, below 50% threshold)
         uint256 smallAmount = TOTAL_SUPPLY / 10;
         auctionWithThreshold.submitBid{value: inputAmountForTokens(smallAmount, tickNumberToPriceX96(2))}(
@@ -1293,9 +1287,9 @@ contract AuctionTest is AuctionBaseTest {
             tickNumberToPriceX96(1),
             bytes('')
         );
-        
+
         vm.roll(auctionWithThreshold.endBlock());
-        
+
         vm.prank(fundsRecipient);
         vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
         auctionWithThreshold.sweepCurrency();
@@ -1303,41 +1297,30 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_sweepCurrency_graduated_succeeds() public {
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 50).addStep(100e3, 50);
-        AuctionParameters memory params = AuctionParamsBuilder.init()
-            .withCurrency(ETH_SENTINEL)
-            .withFloorPrice(FLOOR_PRICE)
-            .withTickSpacing(TICK_SPACING)
-            .withValidationHook(address(0))
-            .withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient)
-            .withStartBlock(block.number)
-            .withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION + 10)
-            .withGraduationThresholdMps(300e3) // 30% graduation threshold
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            FLOOR_PRICE
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION + 10).withGraduationThresholdMps(300e3) // 30% graduation threshold
             .withAuctionStepsData(auctionStepsData);
-        
+
         Auction auctionWithThreshold = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
-        
+
         // Submit a bid for 50% of supply (above 30% threshold)
         uint256 halfSupply = TOTAL_SUPPLY / 2;
         uint256 inputAmount = inputAmountForTokens(halfSupply, tickNumberToPriceX96(2));
         auctionWithThreshold.submitBid{value: inputAmount}(
-            tickNumberToPriceX96(2),
-            true,
-            inputAmount,
-            alice,
-            tickNumberToPriceX96(1),
-            bytes('')
+            tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
-        
+
         vm.roll(auctionWithThreshold.endBlock());
-                
+
         vm.prank(fundsRecipient);
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.CurrencySwept(fundsRecipient, inputAmount);
         auctionWithThreshold.sweepCurrency();
-        
+
         // Verify funds were transferred
         assertEq(fundsRecipient.balance, inputAmount);
     }
@@ -1346,10 +1329,10 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_sweepUnsoldTokens_alreadySwept_reverts() public {
         vm.roll(auction.endBlock());
-        
+
         // First sweep should succeed
         auction.sweepUnsoldTokens();
-        
+
         // Second sweep should fail
         vm.expectRevert(ITokenCurrencyStorage.CannotSweepTokens.selector);
         auction.sweepUnsoldTokens();
@@ -1357,43 +1340,32 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_sweepUnsoldTokens_graduated_sweepsUnsold() public {
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 50).addStep(100e3, 50);
-        AuctionParameters memory params = AuctionParamsBuilder.init()
-            .withCurrency(ETH_SENTINEL)
-            .withFloorPrice(FLOOR_PRICE)
-            .withTickSpacing(TICK_SPACING)
-            .withValidationHook(address(0))
-            .withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient)
-            .withStartBlock(block.number)
-            .withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION + 10)
-            .withGraduationThresholdMps(300e3) // 30% graduation threshold
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            FLOOR_PRICE
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION + 10).withGraduationThresholdMps(300e3) // 30% graduation threshold
             .withAuctionStepsData(auctionStepsData);
-        
+
         Auction auctionWithThreshold = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
-        
+
         // Submit a bid for 60% of supply (above 30% threshold, so graduated)
         uint256 soldAmount = (TOTAL_SUPPLY * 60) / 100;
         uint256 inputAmount = inputAmountForTokens(soldAmount, tickNumberToPriceX96(2));
         auctionWithThreshold.submitBid{value: inputAmount}(
-            tickNumberToPriceX96(2),
-            true,
-            inputAmount,
-            alice,
-            tickNumberToPriceX96(1),
-            bytes('')
+            tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
-        
+
         vm.roll(auctionWithThreshold.endBlock());
-        
+
         // Should sweep only unsold tokens (40% of supply)
         uint256 expectedUnsoldTokens = TOTAL_SUPPLY - soldAmount;
-        
+
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, expectedUnsoldTokens);
         auctionWithThreshold.sweepUnsoldTokens();
-        
+
         // Verify tokens were transferred
         assertEq(token.balanceOf(tokensRecipient), expectedUnsoldTokens);
     }
@@ -1401,43 +1373,32 @@ contract AuctionTest is AuctionBaseTest {
     function test_sweepUnsoldTokens_notGraduated_sweepsAll() public {
         // Create an auction with high graduation threshold
         setUpTokens();
-        
+
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 50).addStep(100e3, 50);
-        AuctionParameters memory params = AuctionParamsBuilder.init()
-            .withCurrency(ETH_SENTINEL)
-            .withFloorPrice(FLOOR_PRICE)
-            .withTickSpacing(TICK_SPACING)
-            .withValidationHook(address(0))
-            .withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient)
-            .withStartBlock(block.number)
-            .withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION + 10)
-            .withGraduationThresholdMps(500e3) // 50% graduation threshold
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            FLOOR_PRICE
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION + 10).withGraduationThresholdMps(500e3) // 50% graduation threshold
             .withAuctionStepsData(auctionStepsData);
-        
+
         Auction auctionWithThreshold = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
-        
+
         // Submit a small bid for 10% of supply (below 50% threshold, so not graduated)
         uint256 smallAmount = TOTAL_SUPPLY / 10;
         uint256 inputAmount = inputAmountForTokens(smallAmount, tickNumberToPriceX96(2));
         auctionWithThreshold.submitBid{value: inputAmount}(
-            tickNumberToPriceX96(2),
-            true,
-            inputAmount,
-            alice,
-            tickNumberToPriceX96(1),
-            bytes('')
+            tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
-        
+
         vm.roll(auctionWithThreshold.endBlock());
-        
+
         // Should sweep ALL tokens since auction didn't graduate
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, TOTAL_SUPPLY);
         auctionWithThreshold.sweepUnsoldTokens();
-        
+
         // Verify all tokens were transferred
         assertEq(token.balanceOf(tokensRecipient), TOTAL_SUPPLY);
     }
@@ -1447,51 +1408,40 @@ contract AuctionTest is AuctionBaseTest {
     function test_sweepCurrency_thenSweepTokens_graduated_succeeds() public {
         // Create an auction with graduation threshold
         setUpTokens();
-        
+
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 50).addStep(100e3, 50);
-        AuctionParameters memory params = AuctionParamsBuilder.init()
-            .withCurrency(ETH_SENTINEL)
-            .withFloorPrice(FLOOR_PRICE)
-            .withTickSpacing(TICK_SPACING)
-            .withValidationHook(address(0))
-            .withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient)
-            .withStartBlock(block.number)
-            .withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION + 10)
-            .withGraduationThresholdMps(400e3) // 40% graduation threshold
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            FLOOR_PRICE
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION + 10).withGraduationThresholdMps(400e3) // 40% graduation threshold
             .withAuctionStepsData(auctionStepsData);
-        
+
         Auction auctionWithThreshold = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
-        
+
         // Submit a bid for 70% of supply (above threshold)
         uint256 soldAmount = (TOTAL_SUPPLY * 70) / 100;
         uint256 inputAmount = inputAmountForTokens(soldAmount, tickNumberToPriceX96(2));
         auctionWithThreshold.submitBid{value: inputAmount}(
-            tickNumberToPriceX96(2),
-            true,
-            inputAmount,
-            alice,
-            tickNumberToPriceX96(1),
-            bytes('')
+            tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
-        
+
         vm.roll(auctionWithThreshold.endBlock());
-        
+
         // Sweep currency first (should succeed as graduated)
         uint256 expectedCurrencyRaised = inputAmountForTokens(soldAmount, tickNumberToPriceX96(1));
         vm.prank(fundsRecipient);
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.CurrencySwept(fundsRecipient, expectedCurrencyRaised);
         auctionWithThreshold.sweepCurrency();
-        
+
         // Then sweep unsold tokens
         uint256 expectedUnsoldTokens = TOTAL_SUPPLY - soldAmount;
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, expectedUnsoldTokens);
         auctionWithThreshold.sweepUnsoldTokens();
-        
+
         // Verify transfers
         assertEq(fundsRecipient.balance, expectedCurrencyRaised);
         assertEq(token.balanceOf(tokensRecipient), expectedUnsoldTokens);
@@ -1500,47 +1450,35 @@ contract AuctionTest is AuctionBaseTest {
     function test_sweepTokens_notGraduated_cannotSweepCurrency() public {
         // Create an auction with high graduation threshold
         setUpTokens();
-        
+
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 50).addStep(100e3, 50);
-        AuctionParameters memory params = AuctionParamsBuilder.init()
-            .withCurrency(ETH_SENTINEL)
-            .withFloorPrice(FLOOR_PRICE)
-            .withTickSpacing(TICK_SPACING)
-            .withValidationHook(address(0))
-            .withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient)
-            .withStartBlock(block.number)
-            .withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION + 10)
-            .withGraduationThresholdMps(800e3) // 80% graduation threshold
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            FLOOR_PRICE
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION + 10).withGraduationThresholdMps(800e3) // 80% graduation threshold
             .withAuctionStepsData(auctionStepsData);
-        
+
         Auction auctionWithThreshold = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
-        
+
         // Submit a bid for only 20% of supply (below 80% threshold)
         uint256 smallAmount = TOTAL_SUPPLY / 5;
         uint256 inputAmount = inputAmountForTokens(smallAmount, tickNumberToPriceX96(2));
         auctionWithThreshold.submitBid{value: inputAmount}(
-            tickNumberToPriceX96(2),
-            true,
-            inputAmount,
-            alice,
-            tickNumberToPriceX96(1),
-            bytes('')
+            tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
-        
+
         vm.roll(auctionWithThreshold.endBlock());
-        
+
         // Can sweep tokens (returns all since not graduated)
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, TOTAL_SUPPLY);
         auctionWithThreshold.sweepUnsoldTokens();
-        
+
         // Cannot sweep currency (not graduated)
         vm.prank(fundsRecipient);
         vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
         auctionWithThreshold.sweepCurrency();
     }
-    
 }

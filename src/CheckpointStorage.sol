@@ -50,15 +50,15 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     /// @dev This function MUST only be used for checkpoints where the bid's max price is strictly greater than the clearing price
     ///      because it uses lazy accounting to calculate the tokens filled
     /// @param upper The upper checkpoint
-    /// @param lower The lower checkpoint
     /// @param bid The bid
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent
-    function _accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memory lower, Bid memory bid)
+    function _accountFullyFilledCheckpoints(Checkpoint memory upper, Bid memory bid)
         internal
-        pure
+        view
         returns (uint256 tokensFilled, uint256 currencySpent)
     {
+        Checkpoint memory lower = _getCheckpoint(bid.startBlock);
         (tokensFilled, currencySpent) = _calculateFill(
             bid,
             upper.cumulativeMpsPerPrice - lower.cumulativeMpsPerPrice,

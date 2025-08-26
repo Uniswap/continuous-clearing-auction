@@ -1,5 +1,5 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/381b0ae668f577856bcecaebacb52bec6c71bf17/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/4c64e5272f1f7db7bff878add63979a77518e17b/src/CheckpointStorage.sol)
 
 **Inherits:**
 [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
@@ -72,9 +72,9 @@ because it uses lazy accounting to calculate the tokens filled*
 
 
 ```solidity
-function _accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memory lower, Bid memory bid)
+function _accountFullyFilledCheckpoints(Checkpoint memory upper, Bid memory bid)
     internal
-    pure
+    view
     returns (uint256 tokensFilled, uint256 currencySpent);
 ```
 **Parameters**
@@ -82,7 +82,6 @@ function _accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memo
 |Name|Type|Description|
 |----|----|-----------|
 |`upper`|`Checkpoint`|The upper checkpoint|
-|`lower`|`Checkpoint`|The lower checkpoint|
 |`bid`|`Bid`|The bid|
 
 **Returns**

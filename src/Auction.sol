@@ -19,6 +19,7 @@ import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 
+import {console2} from 'forge-std/console2.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
@@ -86,12 +87,12 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         returns (Checkpoint memory)
     {
         // Advance the current step until the current block is within the step
-        // Start at the smaller of the last checkpointed block or the start block of the current step
-        uint256 start = step.startBlock > lastCheckpointedBlock ? lastCheckpointedBlock : step.startBlock;
+        // Start at the larger of the last checkpointed block or the start block of the current step
+        uint256 start = step.startBlock < lastCheckpointedBlock ? lastCheckpointedBlock : step.startBlock;
         uint256 end = step.endBlock;
 
         while (blockNumber > end) {
-            _checkpoint = _checkpoint.transform(end - 1 - start, step.mps);
+            _checkpoint = _checkpoint.transform(end - start, step.mps);
             start = end;
             if (end == endBlock) break;
             _advanceStep();
@@ -127,7 +128,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         _checkpoint = latestCheckpoint();
         if (blockNumber == lastCheckpointedBlock) return _checkpoint;
         if (blockNumber < startBlock) revert AuctionNotStarted();
-        if (blockNumber > endBlock) revert AuctionIsOver();
 
         // Get the supply being sold in this block, accounting for rollovers of past supply
         uint256 supply =
@@ -249,10 +249,12 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
 
     /// @inheritdoc IAuction
     function checkpoint() public returns (Checkpoint memory _checkpoint) {
+        if (block.number >= endBlock) revert AuctionIsOver();
         return _unsafeCheckpoint(block.number);
     }
 
     /// @inheritdoc IAuction
+    /// @dev Bids can be submitted anytime between the startBlock and the endBlock. This is enforced in the `checkpoint` flow
     function submitBid(
         uint256 maxPrice,
         bool exactIn,
@@ -261,7 +263,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         uint256 prevTickPrice,
         bytes calldata hookData
     ) external payable returns (uint256) {
-        if (block.number >= endBlock) revert AuctionIsOver();
         uint256 requiredCurrencyAmount = BidLib.inputAmount(exactIn, amount, maxPrice);
         if (requiredCurrencyAmount == 0) revert InvalidAmount();
         if (currency.isAddressZero()) {
@@ -282,9 +283,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
 
         if (block.number < endBlock || bid.maxPrice <= finalCheckpoint.clearingPrice) revert CannotExitBid();
         /// @dev Bid was fully filled and the auction is now over
-        Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
-        (uint256 tokensFilled, uint256 currencySpent) =
-            _accountFullyFilledCheckpoints(finalCheckpoint, startCheckpoint, bid);
+        (uint256 tokensFilled, uint256 currencySpent) = _accountFullyFilledCheckpoints(finalCheckpoint, bid);
 
         _processExit(bidId, bid, tokensFilled, bid.inputAmount() - currencySpent);
     }
@@ -295,8 +294,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
 
         Checkpoint memory finalCheckpoint = _unsafeCheckpoint(endBlock);
-        // Starting checkpoint must exist because we checkpoint on bid submission
-        Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
         // Outbid checkpoint is the first checkpoint where the clearing price is strictly > bid.maxPrice
         Checkpoint memory outbidCheckpoint = _getCheckpoint(outbidCheckpointBlock);
         // Last valid checkpoint is the last checkpoint where the clearing price is <= bid.maxPrice
@@ -319,11 +316,11 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
             );
             /// Now account for the fully filled checkpoints until the startCheckpoint
             (uint256 _tokensFilled, uint256 _currencySpent) =
-                _accountFullyFilledCheckpoints(_getCheckpoint(nextCheckpointBlock), startCheckpoint, bid);
+                _accountFullyFilledCheckpoints(_getCheckpoint(nextCheckpointBlock), bid);
             tokensFilled += _tokensFilled;
             currencySpent += _currencySpent;
         } else if (block.number >= endBlock && bid.maxPrice == finalCheckpoint.clearingPrice) {
-            (tokensFilled, currencySpent) = _accountFullyFilledCheckpoints(lastValidCheckpoint, startCheckpoint, bid);
+            (tokensFilled, currencySpent) = _accountFullyFilledCheckpoints(lastValidCheckpoint, bid);
             (uint256 partialTokensFilled, uint256 partialCurrencySpent,) = _accountPartiallyFilledCheckpoints(
                 finalCheckpoint, bid.demand(), getTick(bid.maxPrice).demand.resolve(bid.maxPrice), bid.maxPrice
             );

@@ -1,11 +1,65 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/8f0cdceab8341bbaf5daef9ba1cd7a3cb87561d1/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/d200a5546708f64ff0ca4fc019aad142ca33d228/src/Auction.sol)
 
 **Inherits:**
-[BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
+[BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
 
 
 ## State Variables
+### PERMIT2
+Permit2 address
+
+
+```solidity
+address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+```
+
+
+### currency
+The currency of the auction
+
+
+```solidity
+Currency public immutable currency;
+```
+
+
+### token
+The token of the auction
+
+
+```solidity
+IERC20Minimal public immutable token;
+```
+
+
+### totalSupply
+The total supply of token to sell
+
+
+```solidity
+uint256 public immutable totalSupply;
+```
+
+
+### tokensRecipient
+The recipient of any unsold tokens
+
+
+```solidity
+address public immutable tokensRecipient;
+```
+
+
+### fundsRecipient
+The recipient of the funds from the auction
+
+
+```solidity
+address public immutable fundsRecipient;
+```
+
+
 ### claimBlock
 The block at which purchased tokens can be claimed
 
@@ -33,13 +87,6 @@ Demand public sumDemandAboveClearing;
 ```
 
 
-### PERMIT2
-
-```solidity
-address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
-```
-
-
 ## Functions
 ### constructor
 
@@ -47,16 +94,7 @@ address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 ```solidity
 constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
     AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
-    CheckpointStorage(_parameters.floorPrice, _parameters.tickSpacing)
-    TokenCurrencyStorage(
-        _token,
-        _parameters.currency,
-        _totalSupply,
-        _parameters.tokensRecipient,
-        _parameters.fundsRecipient,
-        _parameters.fundsRecipientDeadlineBlock,
-        _parameters.graduationThresholdMps
-    )
+    TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
     PermitSingleForwarder(IAllowanceTransfer(PERMIT2));
 ```
 

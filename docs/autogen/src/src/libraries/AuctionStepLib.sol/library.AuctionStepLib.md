@@ -1,5 +1,5 @@
 # AuctionStepLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/a40941ed6c71ce668b5d7c2923b5830fe9b23869/src/libraries/AuctionStepLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/d200a5546708f64ff0ca4fc019aad142ca33d228/src/libraries/AuctionStepLib.sol)
 
 
 ## State Variables
@@ -40,16 +40,5 @@ Apply mps to a value
 
 ```solidity
 function applyMps(uint256 value, uint24 mps) internal pure returns (uint256);
-```
-
-### applyMpsDenominator
-
-Apply mps to a value with a denominator
-
-*Requires that value is > denominator to avoid loss of precision*
-
-
-```solidity
-function applyMpsDenominator(uint256 value, uint24 mps, uint24 denominator) internal pure returns (uint256);
 ```
 

@@ -22,7 +22,8 @@ abstract contract TickStorage is ITickStorage {
     /// @notice The price of the next initialized tick above the clearing price
     /// @dev This will be equal to the clearingPrice if no ticks have been initialized yet
     uint256 public nextActiveTickPrice;
-
+    /// @notice The minimum price of the auction
+    uint256 public immutable floorPrice;
     /// @notice The tick spacing enforced for bid prices
     uint256 public immutable tickSpacing;
 
@@ -31,6 +32,7 @@ abstract contract TickStorage is ITickStorage {
 
     constructor(uint256 _tickSpacing, uint256 _floorPrice) {
         tickSpacing = _tickSpacing;
+        floorPrice = _floorPrice;
         _unsafeInitializeTick(_floorPrice);
     }
 
@@ -62,6 +64,8 @@ abstract contract TickStorage is ITickStorage {
         if (prevPrice >= price || (nextPrice != MAX_TICK_PRICE && nextPrice < price)) {
             revert TickPriceNotIncreasing();
         }
+
+        if (price % tickSpacing != 0) revert TickPriceNotAtBoundary();
 
         // The tick already exists, early return
         if (nextPrice == price) return;

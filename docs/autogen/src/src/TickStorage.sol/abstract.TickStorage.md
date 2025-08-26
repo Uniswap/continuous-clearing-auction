@@ -1,5 +1,5 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/aaee2fe3d89df4951f429da87be2e5f38bad3fbf/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/d200a5546708f64ff0ca4fc019aad142ca33d228/src/TickStorage.sol)
 
 **Inherits:**
 [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
@@ -23,6 +23,15 @@ The price of the next initialized tick above the clearing price
 
 ```solidity
 uint256 public nextActiveTickPrice;
+```
+
+
+### floorPrice
+The minimum price of the auction
+
+
+```solidity
+uint256 public immutable floorPrice;
 ```
 
 

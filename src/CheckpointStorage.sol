@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {Tick, TickStorage} from './TickStorage.sol';
 import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
@@ -13,24 +12,17 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
 /// @title CheckpointStorage
 /// @notice Abstract contract for managing auction checkpoints and bid fill calculations
-abstract contract CheckpointStorage is TickStorage {
+abstract contract CheckpointStorage {
     using FixedPointMathLib for uint256;
     using AuctionStepLib for *;
     using BidLib for *;
     using SafeCastLib for uint256;
     using DemandLib for Demand;
 
-    /// @notice The starting price of the auction
-    uint256 public immutable floorPrice;
-
     /// @notice Storage of checkpoints
     mapping(uint256 blockNumber => Checkpoint) public checkpoints;
     /// @notice The block number of the last checkpointed block
     uint256 public lastCheckpointedBlock;
-
-    constructor(uint256 _floorPrice, uint256 _tickSpacing) TickStorage(_tickSpacing, _floorPrice) {
-        floorPrice = _floorPrice;
-    }
 
     /// @notice Get the latest checkpoint at the last checkpointed block
     function latestCheckpoint() public view returns (Checkpoint memory) {
@@ -77,35 +69,35 @@ abstract contract CheckpointStorage is TickStorage {
     /// @notice Calculate the tokens sold, proportion of input used, and the block number of the next checkpoint under the bid's max price
     /// @dev This function does an iterative search through the checkpoints and thus is more gas intensive
     /// @param lastValidCheckpoint The last checkpoint where the clearing price is == bid.maxPrice
-    /// @param bid The bid
+    /// @param bidDemand The demand of the bid
+    /// @param tickDemand The demand of the tick
+    /// @param bidMaxPrice The max price of the bid
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent
     /// @return nextCheckpointBlock The block number of the checkpoint under the bid's max price. Will be 0 if it does not exist.
-    function _accountPartiallyFilledCheckpoints(Checkpoint memory lastValidCheckpoint, Bid memory bid)
-        internal
-        view
-        returns (uint256 tokensFilled, uint256 currencySpent, uint256 nextCheckpointBlock)
-    {
-        uint256 bidDemand = bid.demand();
-        uint256 tickDemand = getTick(bid.maxPrice).demand.resolve(bid.maxPrice);
+    function _accountPartiallyFilledCheckpoints(
+        Checkpoint memory lastValidCheckpoint,
+        uint256 bidDemand,
+        uint256 tickDemand,
+        uint256 bidMaxPrice
+    ) internal view returns (uint256 tokensFilled, uint256 currencySpent, uint256 nextCheckpointBlock) {
         while (lastValidCheckpoint.prev != 0) {
             Checkpoint memory _next = _getCheckpoint(lastValidCheckpoint.prev);
-            (uint256 _tokensFilled, uint256 _currencySpent) = _calculatePartialFill(
+            tokensFilled += _calculatePartialFill(
                 bidDemand,
                 tickDemand,
-                bid.maxPrice,
                 lastValidCheckpoint.totalCleared - _next.totalCleared,
                 lastValidCheckpoint.cumulativeMps - _next.cumulativeMps,
                 lastValidCheckpoint.resolvedDemandAboveClearingPrice
             );
-            tokensFilled += _tokensFilled;
-            currencySpent += _currencySpent;
             // Stop searching when the next checkpoint is less than the tick price
-            if (_next.clearingPrice < bid.maxPrice) {
+            if (_next.clearingPrice < bidMaxPrice) {
                 break;
             }
             lastValidCheckpoint = _next;
         }
+        // Round up at the end to avoid rounding too early
+        currencySpent = tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96);
         return (tokensFilled, currencySpent, lastValidCheckpoint.prev);
     }
 
@@ -126,11 +118,11 @@ abstract contract CheckpointStorage is TickStorage {
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
         tokensFilled = bid.exactIn
             ? bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsDenominator)
-            : bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator);
+            : bid.amount * cumulativeMpsDelta / mpsDenominator;
         // If tokensFilled is 0 then currencySpent must be 0
         if (tokensFilled != 0) {
             currencySpent = bid.exactIn
-                ? bid.amount.applyMpsDenominator(cumulativeMpsDelta, mpsDenominator)
+                ? bid.amount * cumulativeMpsDelta / mpsDenominator
                 : tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPriceDelta);
         }
     }
@@ -139,17 +131,14 @@ abstract contract CheckpointStorage is TickStorage {
     function _calculatePartialFill(
         uint256 bidDemand,
         uint256 tickDemand,
-        uint256 price,
         uint256 supplyOverMps,
         uint24 mpsDelta,
         uint256 resolvedDemandAboveClearingPrice
-    ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
+    ) internal pure returns (uint256 tokensFilled) {
         // Round up here to decrease the amount sold to the partial fill tick
         uint256 supplySoldToTick =
             supplyOverMps - resolvedDemandAboveClearingPrice.fullMulDivUp(mpsDelta, AuctionStepLib.MPS);
         // Rounds down for tokensFilled
         tokensFilled = supplySoldToTick.fullMulDiv(bidDemand, tickDemand);
-        // Round up for currencySpent
-        currencySpent = tokensFilled.fullMulDivUp(price, FixedPoint96.Q96);
     }
 }

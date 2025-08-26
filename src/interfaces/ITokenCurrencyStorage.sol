@@ -16,6 +16,8 @@ interface ITokenCurrencyStorage {
     error InvalidGraduationThresholdMps();
     /// @notice Error thrown when the auction has not graduated
     error NotGraduated();
+    /// @notice Error thrown when the funds recipient data cannot be decoded
+    error FundsRecipientCallFailed();
 
     /// @notice Emitted when the tokens are swept
     /// @param tokensRecipient The address of the tokens recipient

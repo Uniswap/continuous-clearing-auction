@@ -1372,8 +1372,6 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(token.balanceOf(tokensRecipient), TOTAL_SUPPLY);
     }
 
-    // Integration tests
-
     function test_sweepCurrency_thenSweepTokens_graduated_succeeds() public {
         // Create an auction with graduation threshold (40%)
         params = params.withGraduationThresholdMps(40e5);

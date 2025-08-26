@@ -11,6 +11,7 @@ import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
 import {TokenHandler} from './TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
+import {MockFundsRecipient} from './MockFundsRecipient.sol';
 
 /// @notice Handler contract for setting up an auction
 abstract contract AuctionBaseTest is TokenHandler, Test {
@@ -27,6 +28,7 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
     address public alice;
     address public tokensRecipient;
     address public fundsRecipient;
+    MockFundsRecipient public mockFundsRecipient;
 
     AuctionParameters public params;
     bytes public auctionStepsData;
@@ -37,6 +39,7 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
         alice = makeAddr('alice');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
+        mockFundsRecipient = new MockFundsRecipient();
 
         auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 50).addStep(100e3, 50);
         params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE).withTickSpacing(

@@ -3,6 +3,7 @@ pragma solidity ^0.8.23;
 
 import {Auction} from '../src/Auction.sol';
 import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
+import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
@@ -93,7 +94,7 @@ contract AuctionInvariantHandler is Test {
             uint256 inputAmount = amount;
             return (inputAmount, maxPrice);
         } else {
-            uint256 inputAmount = amount * maxPrice;
+            uint256 inputAmount = amount.fullMulDivUp(maxPrice, FixedPoint96.Q96);
             return (inputAmount, maxPrice);
         }
     }
@@ -142,10 +143,10 @@ contract AuctionInvariantHandler is Test {
             bidIds.push(nextBidId);
             bidCount++;
         } catch (bytes memory revertData) {
-            if (block.number >= auction.endBlock()) {
-                assertEq(revertData, abi.encodeWithSelector(IAuctionStepStorage.AuctionIsOver.selector));
-            } else if (inputAmount == 0) {
+            if (inputAmount == 0) {
                 assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidAmount.selector));
+            } else if (block.number >= auction.endBlock()) {
+                assertEq(revertData, abi.encodeWithSelector(IAuctionStepStorage.AuctionIsOver.selector));
             } else if (maxPrice <= auction.clearingPrice()) {
                 assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidBidPrice.selector));
             }
@@ -233,7 +234,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
     }
 
     function invariant_canAlwaysCheckpointDuringAuction() public {
-        if (block.number > auction.startBlock() && block.number < auction.endBlock()) {
+        if (block.number >= auction.startBlock() && block.number < auction.endBlock()) {
             auction.checkpoint();
         }
     }

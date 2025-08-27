@@ -19,6 +19,7 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     using BidLib for *;
     using SafeCastLib for uint256;
     using DemandLib for Demand;
+    using CheckpointLib for Checkpoint;
 
     /// @notice Storage of checkpoints
     mapping(uint256 blockNumber => Checkpoint) public checkpoints;
@@ -27,12 +28,17 @@ abstract contract CheckpointStorage is ICheckpointStorage {
 
     /// @inheritdoc ICheckpointStorage
     function latestCheckpoint() public view returns (Checkpoint memory) {
-        return checkpoints[lastCheckpointedBlock];
+        return _getCheckpoint(lastCheckpointedBlock);
     }
 
     /// @inheritdoc ICheckpointStorage
     function clearingPrice() public view returns (uint256) {
-        return checkpoints[lastCheckpointedBlock].clearingPrice;
+        return _getCheckpoint(lastCheckpointedBlock).clearingPrice;
+    }
+
+    /// @inheritdoc ICheckpointStorage
+    function currencyRaised() public view returns (uint128) {
+        return _getCheckpoint(lastCheckpointedBlock).getCurrencyRaised();
     }
 
     /// @notice Get a checkpoint from storage

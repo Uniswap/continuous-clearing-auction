@@ -9,6 +9,8 @@ import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
+
+import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {MockAuction} from './utils/MockAuction.sol';
@@ -19,7 +21,6 @@ import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
-import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 
 contract AuctionTest is AuctionBaseTest {
     using FixedPointMathLib for uint256;

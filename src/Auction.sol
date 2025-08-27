@@ -269,7 +269,7 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    /// @dev Bids can be submitted anytime between the startBlock and the endBlock. This is enforced in the `checkpoint` flow
+    /// @dev Bids can be submitted anytime between the startBlock and the endBlock.
     function submitBid(
         uint256 maxPrice,
         bool exactIn,

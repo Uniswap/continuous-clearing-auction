@@ -17,12 +17,14 @@ import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
+
+import {console2} from 'forge-std/console2.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
-import {console2} from 'forge-std/console2.sol';
 /// @title Auction
+
 contract Auction is
     BidStorage,
     CheckpointStorage,
@@ -181,7 +183,7 @@ contract Auction is
         uint256 newClearingPrice =
             _calculateNewClearingPrice(_sumDemandAboveClearing.applyMps(step.mps), minimumClearingPrice, supply);
         // Reset the cumulative weighted partial fill rate if the clearing price has updated
-        if (newClearingPrice != _checkpoint.clearingPrice) _checkpoint.cumulativeWeightedPartialFillRate = 0;
+        if (newClearingPrice != _checkpoint.clearingPrice) _checkpoint.sumWeightedPartialFillRate = 0;
         // Update the clearing price
         _checkpoint.clearingPrice = newClearingPrice;
 
@@ -199,36 +201,37 @@ contract Auction is
         /// `_checkpoint` is now up to date with the correct clearing price
         /// We can now advance the `step` to the current step for the block
         /// This transforms the `_checkpoint` to ensure the cumulative variables are correctly accounted for
-        Checkpoint memory newCheckpoint = _advanceToCurrentStep(_checkpoint, blockNumber);
+        uint256 _oldTotalCleared = _checkpoint.totalCleared;
+        uint24 _oldCumulativeMps = _checkpoint.cumulativeMps;
+        _checkpoint = _advanceToCurrentStep(_checkpoint, blockNumber);
         // Account for the cumulative weighted partial fill rate
-        uint256 resolvedTickDemand = getTick(newCheckpoint.clearingPrice).demand.resolve(newCheckpoint.clearingPrice);
-        newCheckpoint.cumulativeWeightedPartialFillRate += _calculateWeightedPartialFillRate(
+        uint256 resolvedTickDemand = getTick(_checkpoint.clearingPrice).demand.resolve(_checkpoint.clearingPrice);
+        _checkpoint.sumWeightedPartialFillRate += _calculateSumWeightedPartialFillRate(
             resolvedTickDemand,
-            newCheckpoint.totalCleared - _checkpoint.totalCleared,
+            _checkpoint.totalCleared - _oldTotalCleared,
             resolvedDemandAboveClearing,
-            newCheckpoint.cumulativeMps - _checkpoint.cumulativeMps
+            _checkpoint.cumulativeMps - _oldCumulativeMps
         );
-
         // Account for any time in between this checkpoint and the greater of the start of the step or the last checkpointed block
         uint256 blockDelta =
             blockNumber - (step.startBlock > lastCheckpointedBlock ? step.startBlock : lastCheckpointedBlock);
         uint24 mpsSinceLastCheckpoint = (step.mps * blockDelta).toUint24();
 
-        uint256 supplyDelta = newCheckpoint.blockCleared * blockDelta;
-        newCheckpoint.totalCleared += supplyDelta;
-        newCheckpoint.cumulativeMps += mpsSinceLastCheckpoint;
-        newCheckpoint.cumulativeMpsPerPrice +=
-            CheckpointLib.getMpsPerPrice(mpsSinceLastCheckpoint, newCheckpoint.clearingPrice);
-        newCheckpoint.cumulativeWeightedPartialFillRate += _calculateWeightedPartialFillRate(
+        uint256 supplyDelta = _checkpoint.blockCleared * blockDelta;
+        _checkpoint.totalCleared += supplyDelta;
+        _checkpoint.cumulativeMps += mpsSinceLastCheckpoint;
+        _checkpoint.cumulativeMpsPerPrice +=
+            CheckpointLib.getMpsPerPrice(mpsSinceLastCheckpoint, _checkpoint.clearingPrice);
+        _checkpoint.sumWeightedPartialFillRate += _calculateSumWeightedPartialFillRate(
             resolvedTickDemand, supplyDelta, resolvedDemandAboveClearing, mpsSinceLastCheckpoint
         );
-        newCheckpoint.resolvedDemandAboveClearingPrice = resolvedDemandAboveClearing;
-        newCheckpoint.mps = step.mps;
-        newCheckpoint.prev = lastCheckpointedBlock;
-        _insertCheckpoint(newCheckpoint, blockNumber);
+        _checkpoint.resolvedDemandAboveClearingPrice = resolvedDemandAboveClearing;
+        _checkpoint.mps = step.mps;
+        _checkpoint.prev = lastCheckpointedBlock;
+        _insertCheckpoint(_checkpoint, blockNumber);
 
         emit CheckpointUpdated(
-            blockNumber, newCheckpoint.clearingPrice, newCheckpoint.totalCleared, newCheckpoint.cumulativeMps
+            blockNumber, _checkpoint.clearingPrice, _checkpoint.totalCleared, _checkpoint.cumulativeMps
         );
     }
 
@@ -341,13 +344,13 @@ contract Auction is
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
 
+        Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
         Checkpoint memory finalCheckpoint = _unsafeCheckpoint(endBlock);
         Checkpoint memory lowerCheckpoint = _getCheckpoint(lower);
+        Checkpoint memory lastFullyFilledCheckpoint = _getCheckpoint(lowerCheckpoint.prev);
         // Require that lower checkpoint is the first checkpoint where the clearing price is == bid.maxPrice
-        if (
-            lowerCheckpoint.clearingPrice != bid.maxPrice
-                || _getCheckpoint(lowerCheckpoint.prev).clearingPrice >= bid.maxPrice
-        ) {
+        // And that the last fully filled checkpoint is strictly < bid.maxPrice
+        if (lowerCheckpoint.clearingPrice != bid.maxPrice && lastFullyFilledCheckpoint.clearingPrice >= bid.maxPrice) {
             revert InvalidCheckpointHint();
         }
 
@@ -364,16 +367,29 @@ contract Auction is
             ) {
                 revert InvalidCheckpointHint();
             }
-            (tokensFilled, currencySpent) =
-                _accountPartiallyFilledCheckpoints(upperCheckpoint, lowerCheckpoint, bid.demand(), bid.maxPrice);
+            (tokensFilled, currencySpent) = _accountPartiallyFilledCheckpoints(
+                upperCheckpoint,
+                getTick(bid.maxPrice).demand.resolve(bid.maxPrice),
+                bid.demand(),
+                bid.maxPrice,
+                upperCheckpoint.cumulativeMps - lastFullyFilledCheckpoint.cumulativeMps,
+                AuctionStepLib.MPS - startCheckpoint.cumulativeMps
+            );
             /// Now account for the fully filled checkpoints from lowerCheckpoint
-            (uint256 _tokensFilled, uint256 _currencySpent) = _accountFullyFilledCheckpoints(lowerCheckpoint, bid);
+            (uint256 _tokensFilled, uint256 _currencySpent) =
+                _accountFullyFilledCheckpoints(lastFullyFilledCheckpoint, bid);
             tokensFilled += _tokensFilled;
             currencySpent += _currencySpent;
         } else if (block.number >= endBlock && bid.maxPrice == finalCheckpoint.clearingPrice) {
-            (tokensFilled, currencySpent) = _accountFullyFilledCheckpoints(lowerCheckpoint, bid);
-            (uint256 partialTokensFilled, uint256 partialCurrencySpent) =
-                _accountPartiallyFilledCheckpoints(finalCheckpoint, lowerCheckpoint, bid.demand(), bid.maxPrice);
+            (tokensFilled, currencySpent) = _accountFullyFilledCheckpoints(lastFullyFilledCheckpoint, bid);
+            (uint256 partialTokensFilled, uint256 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
+                finalCheckpoint,
+                bid.demand(),
+                getTick(bid.maxPrice).demand.resolve(bid.maxPrice),
+                bid.maxPrice,
+                finalCheckpoint.cumulativeMps - lastFullyFilledCheckpoint.cumulativeMps,
+                AuctionStepLib.MPS - startCheckpoint.cumulativeMps
+            );
             tokensFilled += partialTokensFilled;
             currencySpent += partialCurrencySpent;
         } else {

@@ -175,7 +175,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
             uint24 mps,
             uint24 cumulativeMps,
             uint256 cumulativeMpsPerPrice,
-            uint256 cumulativeWeightedPartialFillRate,
+            uint256 sumWeightedPartialFillRate,
             uint256 resolvedDemandAboveClearingPrice,
             uint256 prev
         ) = auction.checkpoints(blockNumber);
@@ -186,7 +186,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
             mps: mps,
             cumulativeMps: cumulativeMps,
             cumulativeMpsPerPrice: cumulativeMpsPerPrice,
-            cumulativeWeightedPartialFillRate: cumulativeWeightedPartialFillRate,
+            sumWeightedPartialFillRate: sumWeightedPartialFillRate,
             resolvedDemandAboveClearingPrice: resolvedDemandAboveClearingPrice,
             prev: prev
         });

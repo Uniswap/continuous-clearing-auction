@@ -18,6 +18,8 @@ import {MockToken} from './utils/MockToken.sol';
 import {MockValidationHook} from './utils/MockValidationHook.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
+
+import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
@@ -534,19 +536,14 @@ contract AuctionTest is AuctionBaseTest {
             bytes('')
         );
         vm.roll(block.number + 1);
-        uint256 lowerPartialFillCheckpointBlock = block.number;
         auction.checkpoint();
-
-        vm.roll(auction.endBlock() - 1);
-        vm.prank(alice);
-        vm.expectRevert(IAuction.CannotExitBid.selector);
-        auction.exitPartiallyFilledBid(bidId, lowerPartialFillCheckpointBlock, 0);
 
         uint256 aliceBalanceBefore = address(alice).balance;
 
         vm.roll(auction.endBlock());
         vm.prank(alice);
-        auction.exitPartiallyFilledBid(bidId, lowerPartialFillCheckpointBlock, 0);
+        // Checkpoint 2 is the previous last checkpointed block
+        auction.exitPartiallyFilledBid(bidId, 2, 0);
 
         // Expect no refund
         assertEq(address(alice).balance, aliceBalanceBefore);

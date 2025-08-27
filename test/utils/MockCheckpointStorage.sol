@@ -20,6 +20,7 @@ contract MockCheckpointStorage is CheckpointStorage {
         uint256 resolvedDemandAboveClearingPrice,
         uint24 mpsDelta
     ) external pure returns (uint256 weightedPartialFillRate) {
-        return _calculateWeightedPartialFillRate(tickDemand, supplyOverMps, resolvedDemandAboveClearingPrice, mpsDelta);
+        return
+            _calculateSumWeightedPartialFillRate(tickDemand, supplyOverMps, resolvedDemandAboveClearingPrice, mpsDelta);
     }
 }

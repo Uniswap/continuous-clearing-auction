@@ -7,6 +7,8 @@ import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
+
+import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
@@ -75,29 +77,24 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     /// @notice Calculate the tokens sold, proportion of input used, and the block number of the next checkpoint under the bid's max price
     /// @param upperCheckpoint The first checkpoint where clearing price is greater than or equal to bid.maxPrice
     ///        this will be equal if the bid is partially filled at the end of the auction
-    /// @param lowerCheckpoint The first checkpoint where clearing price is == bid.maxPrice
     /// @param bidDemand The demand of the bid
     /// @param bidMaxPrice The max price of the bid
+    /// @param cumulativeMpsDelta The cumulative sum of mps values across the block range
+    /// @param mpsDenominator The percentage of the auction which the bid was spread over
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent
     function _accountPartiallyFilledCheckpoints(
         Checkpoint memory upperCheckpoint,
-        Checkpoint memory lowerCheckpoint,
+        uint256 tickDemand,
         uint256 bidDemand,
-        uint256 bidMaxPrice
+        uint256 bidMaxPrice,
+        uint24 cumulativeMpsDelta,
+        uint24 mpsDenominator
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
-        require(
-            upperCheckpoint.clearingPrice >= bidMaxPrice,
-            'CheckpointStorage: upperCheckpoint.clearingPrice < bidMaxPrice'
-        );
-        require(
-            lowerCheckpoint.clearingPrice == bidMaxPrice,
-            'CheckpointStorage: lowerCheckpoint.clearingPrice != bidMaxPrice'
-        );
-        tokensFilled = bidDemand.fullMulDiv(
-            upperCheckpoint.cumulativeWeightedPartialFillRate
-                * (upperCheckpoint.cumulativeMps - lowerCheckpoint.cumulativeMps),
-            FixedPoint96.Q96
+        uint256 runningWeightedPartialFillRate =
+            upperCheckpoint.sumWeightedPartialFillRate / ((tickDemand * cumulativeMpsDelta) / mpsDenominator);
+        tokensFilled = ((bidDemand * cumulativeMpsDelta) / mpsDenominator).fullMulDiv(
+            runningWeightedPartialFillRate, FixedPoint96.Q96
         );
         currencySpent = tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96);
     }
@@ -129,16 +126,15 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     }
 
     /// @notice Calculate the tokens filled and proportion of input used for a partially filled bid
-    function _calculateWeightedPartialFillRate(
+    function _calculateSumWeightedPartialFillRate(
         uint256 tickDemand,
         uint256 supplyOverMps,
         uint256 resolvedDemandAboveClearingPrice,
         uint24 mpsDelta
-    ) internal pure returns (uint256 weightedPartialFillRate) {
+    ) internal pure returns (uint256) {
         uint256 tickDemandMps = tickDemand.applyMps(mpsDelta);
         uint256 supplySoldToTick = supplyOverMps - resolvedDemandAboveClearingPrice.applyMps(mpsDelta);
         if (supplySoldToTick == 0 || mpsDelta == 0) return 0;
-        uint256 partialFillRateX96 = tickDemandMps.fullMulDiv(FixedPoint96.Q96, supplySoldToTick);
-        return tickDemandMps.fullMulDiv(partialFillRateX96, mpsDelta * FixedPoint96.Q96);
+        return tickDemandMps * supplySoldToTick.fullMulDiv(FixedPoint96.Q96, tickDemandMps);
     }
 }

@@ -1,6 +1,7 @@
 {
   "checkpoint_advanceToCurrentStep": "183912",
   "checkpoint_noBids": "165938",
+  "exitPartiallyFilledBid": "341015",
   "submitBid": "163203",
   "submitBid_recordStep_updateCheckpoint": "338044",
   "submitBid_recordStep_updateCheckpoint_initializeTick": "338044",

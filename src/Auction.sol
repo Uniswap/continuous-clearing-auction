@@ -348,6 +348,9 @@ contract Auction is
         // Require that lower checkpoint is the first checkpoint where the clearing price is == bid.maxPrice
         // And that the last fully filled checkpoint is strictly < bid.maxPrice
         if (lowerCheckpoint.clearingPrice != bid.maxPrice || lastFullyFilledCheckpoint.clearingPrice >= bid.maxPrice) {
+            console2.log('lowerCheckpoint.clearingPrice', lowerCheckpoint.clearingPrice);
+            console2.log('bid.maxPrice', bid.maxPrice);
+            console2.log('lastFullyFilledCheckpoint.clearingPrice', lastFullyFilledCheckpoint.clearingPrice);
             revert InvalidCheckpointHint();
         }
 
@@ -362,6 +365,9 @@ contract Auction is
                 upperCheckpoint.clearingPrice <= bid.maxPrice
                     || _getCheckpoint(upperCheckpoint.prev).clearingPrice > bid.maxPrice
             ) {
+                console2.log('upperCheckpoint.clearingPrice', upperCheckpoint.clearingPrice);
+                console2.log('bid.maxPrice', bid.maxPrice);
+                console2.log('_getCheckpoint(upperCheckpoint.prev).clearingPrice', _getCheckpoint(upperCheckpoint.prev).clearingPrice);
                 revert InvalidCheckpointHint();
             }
             (tokensFilled, currencySpent) = _accountPartiallyFilledCheckpoints(

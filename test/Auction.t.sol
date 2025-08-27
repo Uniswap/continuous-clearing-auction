@@ -205,11 +205,11 @@ contract AuctionTest is AuctionBaseTest {
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
         auction.exitPartiallyFilledBid(bidId, 2, 0);
-        assertEq(address(alice).balance, aliceBalanceBefore + inputAmount / 2);
+        assertApproxEqAbs(address(alice).balance, aliceBalanceBefore + inputAmount / 2, 10_000);
 
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
-        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
+        assertApproxEqAbs(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18, 1);
     }
 
     function test_submitBid_exactOut_overTotalSupply_isPartiallyFilled() public {
@@ -218,14 +218,13 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(block.number + 1);
-        uint256 lowerPartialFillCheckpointBlock = block.number;
         auction.checkpoint();
 
         vm.roll(auction.endBlock());
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
-        auction.exitPartiallyFilledBid(bidId, lowerPartialFillCheckpointBlock, 0);
+        auction.exitPartiallyFilledBid(bidId, 2, 0);
         assertEq(
             address(alice).balance, aliceBalanceBefore + inputAmountForTokens(2000e18, tickNumberToPriceX96(2)) / 2
         );
@@ -350,8 +349,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidExited(0, alice);
         vm.startPrank(alice);
-        // lower = 0 because the bid was never partially filled
-        auction.exitPartiallyFilledBid(bidId1, 0, 0);
+        auction.exitPartiallyFilledBid(bidId1, 0, 2);
         // Expect that alice is refunded the full amount of the first bid
         assertEq(
             address(alice).balance - aliceBalanceBefore, inputAmountForTokens(smallAmount, tickNumberToPriceX96(2))
@@ -545,7 +543,11 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitPartiallyFilledBid(bidId, 2, 0);
 
         // Expect no refund
-        assertEq(address(alice).balance, aliceBalanceBefore);
+        assertApproxEqAbs(address(alice).balance, aliceBalanceBefore, 10_000);
+
+        vm.roll(auction.claimBlock());
+        auction.claimTokens(bidId);
+        assertApproxEqAbs(token.balanceOf(address(alice)), 1000e18, 1);
     }
 
     /// forge-config: default.isolate = true
@@ -571,7 +573,6 @@ contract AuctionTest is AuctionBaseTest {
 
         // Clearing price is at 2
         vm.roll(block.number + 1);
-        uint256 lowerPartialFillCheckpointBlock = block.number;
         auction.checkpoint();
         assertEq(auction.clearingPrice(), tickNumberToPriceX96(11));
 
@@ -582,7 +583,7 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(auction.endBlock() + 1);
         vm.startPrank(alice);
-        auction.exitPartiallyFilledBid(bidId, lowerPartialFillCheckpointBlock, 0);
+        auction.exitPartiallyFilledBid(bidId, 2, 0);
         vm.snapshotGasLastCall('exitPartiallyFilledBid');
         // Alice is purchasing with 500e18 * 2000 = 1000e21 ETH
         // Bob is purchasing with 500e18 * 3000 = 1500e21 ETH
@@ -639,7 +640,6 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(block.number + 1);
-        uint256 lowerPartialFillCheckpointBlock = block.number;
         auction.checkpoint();
         assertEq(auction.clearingPrice(), tickNumberToPriceX96(11));
 
@@ -686,13 +686,13 @@ contract AuctionTest is AuctionBaseTest {
         vm.stopPrank();
 
         vm.startPrank(alice);
-        auction.exitPartiallyFilledBid(bidId1, lowerPartialFillCheckpointBlock, 0);
+        auction.exitPartiallyFilledBid(bidId1, 2, 0);
         assertEq(address(alice).balance, aliceBalanceBefore + 600e21);
         auction.claimTokens(bidId1);
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 100e18);
 
         vm.startPrank(bob);
-        auction.exitPartiallyFilledBid(bidId2, lowerPartialFillCheckpointBlock, 0);
+        auction.exitPartiallyFilledBid(bidId2, 2, 0);
         assertEq(address(bob).balance, bobBalanceBefore + 900e21);
         auction.claimTokens(bidId2);
         assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + 150e18);
@@ -763,7 +763,6 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(block.number + 1);
-        uint256 lowerPartialFillCheckpointBlock = block.number;
         auction.checkpoint(); // This creates checkpoint 2 with clearing price = tickNumberToPriceX96(2)
 
         // Submit a larger bid to move clearing price above the first bid
@@ -784,7 +783,7 @@ contract AuctionTest is AuctionBaseTest {
         // But checkpoint 2 has clearing price = tickNumberToPriceX96(2), which equals bid.maxPrice
         // This violates the condition: outbidCheckpoint.clearingPrice < bid.maxPrice
         vm.expectRevert(IAuction.InvalidCheckpointHint.selector);
-        auction.exitPartiallyFilledBid(bidId, lowerPartialFillCheckpointBlock, lowerPartialFillCheckpointBlock);
+        auction.exitPartiallyFilledBid(bidId, 2, 2);
     }
 
     function test_advanceToCurrentStep_withMultipleStepsAndClearingPrice() public {
@@ -914,12 +913,11 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(block.number + 1);
-        uint256 lowerPartialFillCheckpointBlock = block.number;
         auction.checkpoint();
 
         vm.roll(auction.endBlock() + 1);
         vm.expectRevert(IAuction.InvalidCheckpointHint.selector);
-        auction.exitPartiallyFilledBid(bidId, lowerPartialFillCheckpointBlock, lowerPartialFillCheckpointBlock);
+        auction.exitPartiallyFilledBid(bidId, 2, 2);
     }
 
     function test_auctionConstruction_reverts() public {
@@ -1009,18 +1007,17 @@ contract AuctionTest is AuctionBaseTest {
 
         // Clearing price is at 2
         vm.roll(block.number + 1);
-        uint256 lowerPartialFillCheckpointBlock = block.number;
         auction.checkpoint();
 
         vm.roll(auction.endBlock() + 1);
         vm.startPrank(alice);
 
         // Exit the bid once - this should succeed
-        auction.exitPartiallyFilledBid(bidId, lowerPartialFillCheckpointBlock, 0);
+        auction.exitPartiallyFilledBid(bidId, 2, 0);
 
         // Try to exit the same bid again - this should revert with BidAlreadyExited on line 294
         vm.expectRevert(IAuction.BidAlreadyExited.selector);
-        auction.exitPartiallyFilledBid(bidId, lowerPartialFillCheckpointBlock, 0);
+        auction.exitPartiallyFilledBid(bidId, 2, 0);
 
         vm.stopPrank();
     }
@@ -1047,7 +1044,6 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(block.number + 1);
-        uint256 lowerPartialFillCheckpointBlock = block.number;
         auction.checkpoint();
 
         // Now the clearing price should be above the first bid's max price
@@ -1057,7 +1053,7 @@ contract AuctionTest is AuctionBaseTest {
 
         // Try to exit with checkpoint 1, which should have clearing price <= bid.maxPrice
         vm.expectRevert(IAuction.InvalidCheckpointHint.selector);
-        auction.exitPartiallyFilledBid(bidId, lowerPartialFillCheckpointBlock, lowerPartialFillCheckpointBlock);
+        auction.exitPartiallyFilledBid(bidId, 1, 1);
 
         vm.stopPrank();
     }

@@ -26,7 +26,6 @@ library CheckpointLib {
     /// @param blockDelta The number of blocks to advance
     /// @param mps The number of mps to add
     /// @return The transformed checkpoint
-
     function transform(Checkpoint memory checkpoint, uint256 blockDelta, uint24 mps)
         internal
         pure

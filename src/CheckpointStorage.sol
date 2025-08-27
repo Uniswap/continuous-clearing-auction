@@ -125,6 +125,21 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         }
     }
 
+    /// @notice Calculate the partial fill rate for a partially filled bid
+    /// @dev All parameters must be over the same number of `mps`
+    /// @param supply The supply of the auction
+    /// @param resolvedDemandAboveClearingPrice The demand above the clearing price
+    /// @param tickDemand The demand of the tick
+    /// @return an X96 fixed point number representing the partial fill rate
+    function _calculatePartialFillRate(
+        uint256 supply,
+        uint256 resolvedDemandAboveClearingPrice,
+        uint256 tickDemand
+    ) internal pure returns (uint256) {
+        if (supply == 0 || tickDemand == 0) return 0;
+        return (supply - resolvedDemandAboveClearingPrice).fullMulDiv(FixedPoint96.Q96, tickDemand);
+    }
+
     /// @notice Calculate the tokens filled and proportion of input used for a partially filled bid
     function _calculateSumWeightedPartialFillRate(
         uint256 tickDemand,
@@ -133,8 +148,6 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         uint24 mpsDelta
     ) internal pure returns (uint256) {
         uint256 tickDemandMps = tickDemand.applyMps(mpsDelta);
-        uint256 supplySoldToTick = supplyOverMps - resolvedDemandAboveClearingPrice.applyMps(mpsDelta);
-        if (supplySoldToTick == 0 || mpsDelta == 0) return 0;
-        return tickDemandMps * supplySoldToTick.fullMulDiv(FixedPoint96.Q96, tickDemandMps);
+        return tickDemandMps * _calculatePartialFillRate(supplyOverMps, resolvedDemandAboveClearingPrice.applyMps(mpsDelta), tickDemandMps);
     }
 }

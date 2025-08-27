@@ -95,7 +95,7 @@ contract Auction is
     }
 
     /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
-    function _isGraduated() internal view returns (bool) {
+    function isGraduated() public view returns (bool) {
         return latestCheckpoint().totalCleared >= ((totalSupply * graduationThresholdMps) / AuctionStepLib.MPS);
     }
 
@@ -301,7 +301,7 @@ contract Auction is
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
         Checkpoint memory finalCheckpoint = _unsafeCheckpoint(endBlock);
-        if (!_isGraduated()) {
+        if (!isGraduated()) {
             // In the case that the auction did not graduate, fully refund the bid
             return _processExit(bidId, bid, 0, bid.inputAmount());
         }
@@ -363,7 +363,7 @@ contract Auction is
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock == 0) revert BidNotExited();
         if (block.number < claimBlock) revert NotClaimable();
-        if (!_isGraduated()) revert NotGraduated();
+        if (!isGraduated()) revert NotGraduated();
 
         uint256 tokensFilled = bid.tokensFilled;
         bid.tokensFilled = 0;
@@ -379,14 +379,14 @@ contract Auction is
         // Cannot sweep if already swept
         if (sweepCurrencyBlock != 0) revert CannotSweepCurrency();
         // Cannot sweep currency if the auction has not graduated, as the Currency must be refunded
-        if (!_isGraduated()) revert NotGraduated();
+        if (!isGraduated()) revert NotGraduated();
         _sweepCurrency(_getFinalCheckpoint().getCurrencyRaised());
     }
 
     /// @inheritdoc IAuction
     function sweepUnsoldTokens() external onlyAfterAuctionIsOver {
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
-        if (_isGraduated()) {
+        if (isGraduated()) {
             _sweepUnsoldTokens(totalSupply - _getFinalCheckpoint().totalCleared);
         } else {
             _sweepUnsoldTokens(totalSupply);

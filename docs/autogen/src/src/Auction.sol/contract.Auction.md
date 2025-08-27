@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/6877021463ff8a5a98768726ae5bcf1b3ddfcaf7/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/996d3ffc8a70f686553bf63f6c0cfe6fd522230d/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -80,13 +80,13 @@ Notify a distribution contract that it has received the tokens to distribute
 function onTokensReceived() external view;
 ```
 
-### _isGraduated
+### isGraduated
 
 Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
 
 
 ```solidity
-function _isGraduated() internal view returns (bool);
+function isGraduated() public view returns (bool);
 ```
 
 ### _advanceToCurrentStep

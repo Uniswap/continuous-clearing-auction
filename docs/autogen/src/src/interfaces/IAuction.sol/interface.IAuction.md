@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/ba0ef575d825ce397bf2f008f0cd27ea57bdbc58/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/996d3ffc8a70f686553bf63f6c0cfe6fd522230d/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -50,6 +50,15 @@ Register a new checkpoint
 
 ```solidity
 function checkpoint() external returns (Checkpoint memory _checkpoint);
+```
+
+### isGraduated
+
+Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
+
+
+```solidity
+function isGraduated() external view returns (bool);
 ```
 
 ### exitBid

@@ -112,6 +112,9 @@ interface IAuction is
     /// @dev This function is called every time a new bid is submitted above the current clearing price
     function checkpoint() external returns (Checkpoint memory _checkpoint);
 
+    /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
+    function isGraduated() external view returns (bool);
+
     /// @notice Exit a bid
     /// @dev This function can only be used for bids where the max price is above the final clearing price after the auction has ended
     /// @param bidId The id of the bid

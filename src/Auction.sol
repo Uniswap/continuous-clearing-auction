@@ -151,8 +151,13 @@ contract Auction is
         // Get the supply being sold since the last checkpoint, accounting for rollovers of past supply
         uint256 supply = _checkpoint.getSupply(totalSupply, step.mps);
 
-        // Cache the active demand above the last checkpoint's clearing price
-        // This will include bids placed in the block of the last checkpoint and afterwards
+        // If there is no supply being sold, try to advance to the next step to update `step.mps`
+        if (step.mps == 0) _advanceToCurrentStep(_checkpoint, blockNumber);
+        // If there is no supply being sold, return the current checkpoint
+        // The next checkpoint with a nonzero supply will update all values
+        if (supply == 0) return _checkpoint;
+
+        // All active demand above the current clearing price
         Demand memory _sumDemandAboveClearing = sumDemandAboveClearing;
         // The clearing price can never be lower than the last checkpoint
         uint256 minimumClearingPrice = _checkpoint.clearingPrice;

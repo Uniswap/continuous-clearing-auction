@@ -50,10 +50,11 @@ library CheckpointLib {
         uint256 supplyDelta = checkpoint.blockCleared * blockDelta;
         checkpoint.totalCleared += supplyDelta;
         checkpoint.cumulativeMps += deltaMps;
-        checkpoint.cumulativeMpsPerPrice += getMpsPerPrice(deltaMps, checkpoint.clearingPrice);
         checkpoint.sumPartialFillRate += calculatePartialFillRate(
             supplyDelta, checkpoint.resolvedDemandAboveClearingPrice, clearingPriceTickDemand, deltaMps
         );
+        checkpoint.cumulativeMpsPerPrice +=
+            checkpoint.clearingPrice == 0 ? 0 : getMpsPerPrice(deltaMps, checkpoint.clearingPrice);
         return checkpoint;
     }
 

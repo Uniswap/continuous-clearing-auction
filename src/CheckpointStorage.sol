@@ -73,38 +73,34 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     }
 
     /// @notice Calculate the tokens sold, proportion of input used, and the block number of the next checkpoint under the bid's max price
-    /// @dev This function does an iterative search through the checkpoints and thus is more gas intensive
-    /// @param lastValidCheckpoint The last checkpoint where the clearing price is == bid.maxPrice
+    /// @param upperCheckpoint The first checkpoint where clearing price is greater than or equal to bid.maxPrice
+    ///        this will be equal if the bid is partially filled at the end of the auction
+    /// @param lowerCheckpoint The first checkpoint where clearing price is == bid.maxPrice
     /// @param bidDemand The demand of the bid
-    /// @param tickDemand The demand of the tick
     /// @param bidMaxPrice The max price of the bid
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent
     /// @return nextCheckpointBlock The block number of the checkpoint under the bid's max price. Will be 0 if it does not exist.
     function _accountPartiallyFilledCheckpoints(
-        Checkpoint memory lastValidCheckpoint,
+        Checkpoint memory upperCheckpoint,
+        Checkpoint memory lowerCheckpoint,
         uint256 bidDemand,
-        uint256 tickDemand,
         uint256 bidMaxPrice
-    ) internal view returns (uint256 tokensFilled, uint256 currencySpent, uint256 nextCheckpointBlock) {
-        while (lastValidCheckpoint.prev != 0) {
-            Checkpoint memory _next = _getCheckpoint(lastValidCheckpoint.prev);
-            tokensFilled += _calculatePartialFill(
-                bidDemand,
-                tickDemand,
-                lastValidCheckpoint.totalCleared - _next.totalCleared,
-                lastValidCheckpoint.cumulativeMps - _next.cumulativeMps,
-                lastValidCheckpoint.resolvedDemandAboveClearingPrice
-            );
-            // Stop searching when the next checkpoint is less than the tick price
-            if (_next.clearingPrice < bidMaxPrice) {
-                break;
-            }
-            lastValidCheckpoint = _next;
-        }
-        // Round up at the end to avoid rounding too early
+    ) internal view returns (uint256 tokensFilled, uint256 currencySpent) {
+        require(
+            upperCheckpoint.clearingPrice >= bidMaxPrice,
+            'CheckpointStorage: upperCheckpoint.clearingPrice < bidMaxPrice'
+        );
+        require(
+            lowerCheckpoint.clearingPrice == bidMaxPrice,
+            'CheckpointStorage: lowerCheckpoint.clearingPrice != bidMaxPrice'
+        );
+        tokensFilled = bidDemand.fullMulDiv(
+            upperCheckpoint.cumulativeWeightedPartialFillRate
+                * (upperCheckpoint.cumulativeMps - lowerCheckpoint.cumulativeMps),
+            FixedPoint96.Q96
+        );
         currencySpent = tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96);
-        return (tokensFilled, currencySpent, lastValidCheckpoint.prev);
     }
 
     /// @notice Calculate the tokens filled and currency spent for a bid
@@ -134,17 +130,16 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     }
 
     /// @notice Calculate the tokens filled and proportion of input used for a partially filled bid
-    function _calculatePartialFill(
-        uint256 bidDemand,
+    function _calculateWeightedPartialFillRate(
         uint256 tickDemand,
         uint256 supplyOverMps,
-        uint24 mpsDelta,
-        uint256 resolvedDemandAboveClearingPrice
-    ) internal pure returns (uint256 tokensFilled) {
-        // Round up here to decrease the amount sold to the partial fill tick
-        uint256 supplySoldToTick =
-            supplyOverMps - resolvedDemandAboveClearingPrice.fullMulDivUp(mpsDelta, AuctionStepLib.MPS);
-        // Rounds down for tokensFilled
-        tokensFilled = supplySoldToTick.fullMulDiv(bidDemand, tickDemand);
+        uint256 resolvedDemandAboveClearingPrice,
+        uint24 mpsDelta
+    ) internal pure returns (uint256 weightedPartialFillRate) {
+        uint256 tickDemandMps = tickDemand.applyMps(mpsDelta);
+        uint256 partialFillRateX96 = tickDemandMps.fullMulDiv(
+            FixedPoint96.Q96, supplyOverMps - resolvedDemandAboveClearingPrice.applyMps(mpsDelta)
+        );
+        return tickDemandMps.fullMulDiv(partialFillRateX96, mpsDelta * FixedPoint96.Q96);
     }
 }

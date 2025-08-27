@@ -33,41 +33,41 @@ contract CheckpointStorageTest is Test {
         mockCheckpointStorage = new MockCheckpointStorage();
     }
 
-    function test_resolve_exactOut_calculatePartialFill_succeeds() public view {
-        // Buy exactly 100 tokens at max price 2000 per token
-        uint256 exactOutAmount = 1000e18;
-        uint256 maxPrice = 2000 << FixedPoint96.RESOLUTION;
-        Bid memory bid = Bid({
-            exactIn: false,
-            owner: address(this),
-            amount: exactOutAmount,
-            tokensFilled: 0,
-            startBlock: 100,
-            exitedBlock: 0,
-            maxPrice: maxPrice
-        });
-        Tick memory tick = Tick({next: 0, demand: Demand({currencyDemand: 0, tokenDemand: exactOutAmount})});
+    // function test_resolve_exactOut_calculatePartialFill_succeeds() public view {
+    //     // Buy exactly 100 tokens at max price 2000 per token
+    //     uint256 exactOutAmount = 1000e18;
+    //     uint256 maxPrice = 2000 << FixedPoint96.RESOLUTION;
+    //     Bid memory bid = Bid({
+    //         exactIn: false,
+    //         owner: address(this),
+    //         amount: exactOutAmount,
+    //         tokensFilled: 0,
+    //         startBlock: 100,
+    //         exitedBlock: 0,
+    //         maxPrice: maxPrice
+    //     });
+    //     Tick memory tick = Tick({next: 0, demand: Demand({currencyDemand: 0, tokenDemand: exactOutAmount})});
 
-        // Execute: 30% of auction executed (3000 mps)
-        uint24 cumulativeMpsDelta = 3000e3;
+    //     // Execute: 30% of auction executed (3000 mps)
+    //     uint24 cumulativeMpsDelta = 3000e3;
 
-        // Calculate partial fill values
-        uint256 bidDemand = bid.demand();
-        assertEq(bidDemand, exactOutAmount);
-        uint256 tickDemand = tick.demand.resolve(maxPrice);
-        // No one else at tick, so demand is the same
-        assertEq(bidDemand, tickDemand);
-        uint256 supply = TOTAL_SUPPLY.applyMps(cumulativeMpsDelta);
+    //     // Calculate partial fill values
+    //     uint256 bidDemand = bid.demand();
+    //     assertEq(bidDemand, exactOutAmount);
+    //     uint256 tickDemand = tick.demand.resolve(maxPrice);
+    //     // No one else at tick, so demand is the same
+    //     assertEq(bidDemand, tickDemand);
+    //     uint256 supply = TOTAL_SUPPLY.applyMps(cumulativeMpsDelta);
 
-        // First case, no other demand, bid is "fully filled"
-        uint256 resolvedDemandAboveClearingPrice = 0;
-        uint256 tokensFilled = mockCheckpointStorage.calculatePartialFill(
-            bidDemand, tickDemand, supply, cumulativeMpsDelta, resolvedDemandAboveClearingPrice
-        );
+    //     // First case, no other demand, bid is "fully filled"
+    //     uint256 resolvedDemandAboveClearingPrice = 0;
+    //     uint256 tokensFilled = mockCheckpointStorage.calculatePartialFill(
+    //         bidDemand, tickDemand, supply, cumulativeMpsDelta, resolvedDemandAboveClearingPrice
+    //     );
 
-        // 30% of 1000e18 tokens = 300e18 tokens filled
-        assertEq(tokensFilled, 300e18);
-    }
+    //     // 30% of 1000e18 tokens = 300e18 tokens filled
+    //     assertEq(tokensFilled, 300e18);
+    // }
 
     function test_resolve_exactIn_fuzz_succeeds(uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
         public

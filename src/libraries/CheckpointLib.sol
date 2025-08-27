@@ -12,6 +12,7 @@ struct Checkpoint {
     uint24 cumulativeMps;
     uint24 mps;
     uint256 cumulativeMpsPerPrice;
+    uint256 cumulativeWeightedPartialFillRate;
     uint256 resolvedDemandAboveClearingPrice;
     uint256 prev;
 }

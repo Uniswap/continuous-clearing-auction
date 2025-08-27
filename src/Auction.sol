@@ -7,22 +7,18 @@ import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
 import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
 import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
-
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
-
 import {TokenCurrencyStorage} from './TokenCurrencyStorage.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
-
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 

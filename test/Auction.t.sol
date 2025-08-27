@@ -3,7 +3,6 @@ pragma solidity ^0.8.23;
 
 import {Auction, AuctionParameters} from '../src/Auction.sol';
 import {IAuction} from '../src/interfaces/IAuction.sol';
-
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
@@ -12,18 +11,14 @@ import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
-
 import {MockAuction} from './utils/MockAuction.sol';
-
 import {MockFundsRecipient} from './utils/MockFundsRecipient.sol';
 import {MockToken} from './utils/MockToken.sol';
 import {MockValidationHook} from './utils/MockValidationHook.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
-
 import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
-
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 
 contract AuctionTest is AuctionBaseTest {

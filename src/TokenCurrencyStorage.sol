@@ -3,7 +3,6 @@ pragma solidity ^0.8.23;
 
 import {ITokenCurrencyStorage} from './interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
-
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 

@@ -5,7 +5,6 @@ import {Checkpoint} from '../libraries/CheckpointLib.sol';
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
 import {ICheckpointStorage} from './ICheckpointStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
-
 import {ITokenCurrencyStorage} from './ITokenCurrencyStorage.sol';
 import {IDistributionContract} from './external/IDistributionContract.sol';
 

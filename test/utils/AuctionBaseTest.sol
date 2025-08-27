@@ -43,7 +43,7 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
             TICK_SPACING
         ).withValidationHook(address(0)).withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient)
             .withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION).withClaimBlock(
-            block.number + AUCTION_DURATION
+            block.number + AUCTION_DURATION + 10
         ).withAuctionStepsData(auctionStepsData);
 
         // Expect the floor price tick to be initialized

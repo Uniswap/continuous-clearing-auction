@@ -198,14 +198,13 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(block.number + 1);
-        uint256 lowerPartialFillCheckpointBlock = block.number;
         auction.checkpoint();
 
         vm.roll(auction.endBlock());
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
-        auction.exitPartiallyFilledBid(bidId, lowerPartialFillCheckpointBlock, 0);
+        auction.exitPartiallyFilledBid(bidId, 2, 0);
         assertEq(address(alice).balance, aliceBalanceBefore + inputAmount / 2);
 
         vm.roll(auction.claimBlock());

@@ -75,8 +75,9 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     }
 
     /// @notice Calculate the tokens sold, proportion of input used, and the block number of the next checkpoint under the bid's max price
+    /// @dev This function is known to lose 1 wei of precicion in the tokensFilled calculation
     /// @param upperCheckpoint The first checkpoint where clearing price is greater than or equal to bid.maxPrice
-    ///        this will be equal if the bid is partially filled at the end of the auction
+    ///        this will be equal to the maxPrice if the bid is partially filled at the end of the auction
     /// @param bidDemand The demand of the bid
     /// @param bidMaxPrice The max price of the bid
     /// @param cumulativeMpsDelta The cumulative sum of mps values across the block range
@@ -85,17 +86,15 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     /// @return currencySpent The amount of currency spent
     function _accountPartiallyFilledCheckpoints(
         Checkpoint memory upperCheckpoint,
-        uint256 tickDemand,
         uint256 bidDemand,
         uint256 bidMaxPrice,
         uint24 cumulativeMpsDelta,
         uint24 mpsDenominator
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
-        uint256 runningWeightedPartialFillRate =
-            upperCheckpoint.sumWeightedPartialFillRate / ((tickDemand * cumulativeMpsDelta) / mpsDenominator);
-        tokensFilled = ((bidDemand * cumulativeMpsDelta) / mpsDenominator).fullMulDiv(
-            runningWeightedPartialFillRate, FixedPoint96.Q96
-        );
+        uint256 runningPartialFillRate =
+            upperCheckpoint.sumPartialFillRate.fullMulDiv(mpsDenominator, cumulativeMpsDelta);
+        tokensFilled =
+            bidDemand.fullMulDiv(runningPartialFillRate * cumulativeMpsDelta, FixedPoint96.Q96 * mpsDenominator);
         currencySpent = tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96);
     }
 
@@ -123,31 +122,5 @@ abstract contract CheckpointStorage is ICheckpointStorage {
                 ? bid.amount * cumulativeMpsDelta / mpsDenominator
                 : tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPriceDelta);
         }
-    }
-
-    /// @notice Calculate the partial fill rate for a partially filled bid
-    /// @dev All parameters must be over the same number of `mps`
-    /// @param supply The supply of the auction
-    /// @param resolvedDemandAboveClearingPrice The demand above the clearing price
-    /// @param tickDemand The demand of the tick
-    /// @return an X96 fixed point number representing the partial fill rate
-    function _calculatePartialFillRate(
-        uint256 supply,
-        uint256 resolvedDemandAboveClearingPrice,
-        uint256 tickDemand
-    ) internal pure returns (uint256) {
-        if (supply == 0 || tickDemand == 0) return 0;
-        return (supply - resolvedDemandAboveClearingPrice).fullMulDiv(FixedPoint96.Q96, tickDemand);
-    }
-
-    /// @notice Calculate the tokens filled and proportion of input used for a partially filled bid
-    function _calculateSumWeightedPartialFillRate(
-        uint256 tickDemand,
-        uint256 supplyOverMps,
-        uint256 resolvedDemandAboveClearingPrice,
-        uint24 mpsDelta
-    ) internal pure returns (uint256) {
-        uint256 tickDemandMps = tickDemand.applyMps(mpsDelta);
-        return tickDemandMps * _calculatePartialFillRate(supplyOverMps, resolvedDemandAboveClearingPrice.applyMps(mpsDelta), tickDemandMps);
     }
 }

@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import {AuctionStepLib} from './AuctionStepLib.sol';
 import {BidLib} from './BidLib.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
+
+import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 struct Checkpoint {
@@ -12,7 +15,7 @@ struct Checkpoint {
     uint24 cumulativeMps;
     uint24 mps;
     uint256 cumulativeMpsPerPrice;
-    uint256 sumWeightedPartialFillRate;
+    uint256 sumPartialFillRate;
     uint256 resolvedDemandAboveClearingPrice;
     uint256 prev;
 }
@@ -20,23 +23,70 @@ struct Checkpoint {
 /// @title CheckpointLib
 library CheckpointLib {
     using FixedPointMathLib for uint256;
+    using AuctionStepLib for uint256;
+    using CheckpointLib for Checkpoint;
+
     /// @notice Return a new checkpoint after advancing the current checkpoint by a number of blocks
     /// @dev The checkpoint must have a non zero clearing price
     /// @param checkpoint The checkpoint to transform
+    /// @param clearingPriceTickDemand The demand of the tick at the clearing price
+    /// @param totalSupply The total supply of the auction
+    /// @param floorPrice The floor price of the auction
     /// @param blockDelta The number of blocks to advance
     /// @param mps The number of mps to add
     /// @return The transformed checkpoint
-    function transform(Checkpoint memory checkpoint, uint256 blockDelta, uint24 mps)
-        internal
-        pure
-        returns (Checkpoint memory)
-    {
+    function transform(
+        Checkpoint memory checkpoint,
+        uint256 clearingPriceTickDemand,
+        uint256 totalSupply,
+        uint256 floorPrice,
+        uint256 blockDelta,
+        uint24 mps
+    ) internal pure returns (Checkpoint memory) {
         // This is an unsafe cast, but we ensure in the construtor that the max blockDelta (end - start) * mps is always less than 1e7 (100%)
         uint24 deltaMps = uint24(mps * blockDelta);
-        checkpoint.totalCleared += checkpoint.blockCleared * blockDelta;
+        checkpoint.blockCleared = checkpoint.getBlockCleared(checkpoint.getSupply(totalSupply, mps), floorPrice);
+
+        uint256 supplyDelta = checkpoint.blockCleared * blockDelta;
+        checkpoint.totalCleared += supplyDelta;
         checkpoint.cumulativeMps += deltaMps;
         checkpoint.cumulativeMpsPerPrice += getMpsPerPrice(deltaMps, checkpoint.clearingPrice);
+        checkpoint.sumPartialFillRate += calculatePartialFillRate(
+            supplyDelta, checkpoint.resolvedDemandAboveClearingPrice, clearingPriceTickDemand, deltaMps
+        );
         return checkpoint;
+    }
+
+    /// @notice Calculate the partial fill rate for a partially filled bid
+    /// @param supplyMps The supply of the auction
+    /// @param resolvedDemandAboveClearingPrice The demand above the clearing price
+    /// @param tickDemand The demand of the tick
+    /// @param mpsDelta The number of mps to add
+    /// @return an X96 fixed point number representing the partial fill rate
+    function calculatePartialFillRate(
+        uint256 supplyMps,
+        uint256 resolvedDemandAboveClearingPrice,
+        uint256 tickDemand,
+        uint24 mpsDelta
+    ) internal pure returns (uint256) {
+        if (supplyMps == 0 || tickDemand == 0) return 0;
+        uint256 supplySoldToTick = (supplyMps - resolvedDemandAboveClearingPrice.applyMps(mpsDelta));
+        return
+            supplySoldToTick.fullMulDiv(FixedPoint96.Q96 * mpsDelta, tickDemand.applyMps(mpsDelta) * AuctionStepLib.MPS);
+    }
+
+    function getSupply(Checkpoint memory checkpoint, uint256 totalSupply, uint24 mps) internal pure returns (uint256) {
+        return ((totalSupply - checkpoint.totalCleared) * mps) / (AuctionStepLib.MPS - checkpoint.cumulativeMps);
+    }
+
+    function getBlockCleared(Checkpoint memory checkpoint, uint256 supply, uint256 floorPrice)
+        internal
+        pure
+        returns (uint256)
+    {
+        return checkpoint.clearingPrice > floorPrice
+            ? supply
+            : checkpoint.resolvedDemandAboveClearingPrice.applyMps(checkpoint.mps);
     }
 
     /// @notice Calculate the supply to price ratio

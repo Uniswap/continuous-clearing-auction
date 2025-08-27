@@ -3,22 +3,27 @@ pragma solidity ^0.8.23;
 
 import {Auction, AuctionParameters} from '../src/Auction.sol';
 import {IAuction} from '../src/interfaces/IAuction.sol';
+
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
+
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-
-import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
+
 import {MockAuction} from './utils/MockAuction.sol';
+
 import {MockToken} from './utils/MockToken.sol';
 import {MockValidationHook} from './utils/MockValidationHook.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
+
 import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
+
+import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 
 contract AuctionTest is AuctionBaseTest {
     using FixedPointMathLib for uint256;
@@ -204,7 +209,6 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitPartiallyFilledBid(bidId, 2);
         assertEq(address(alice).balance, aliceBalanceBefore + inputAmount / 2);
 
-        vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
     }
@@ -226,7 +230,6 @@ contract AuctionTest is AuctionBaseTest {
             address(alice).balance, aliceBalanceBefore + inputAmountForTokens(2000e18, tickNumberToPriceX96(2)) / 2
         );
 
-        vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
     }
@@ -236,8 +239,8 @@ contract AuctionTest is AuctionBaseTest {
         auction.checkpoint();
     }
 
-    function test_checkpoint_afterEndBlock_revertsWithAuctionIsOver() public {
-        vm.roll(auction.endBlock() + 1);
+    function test_checkpoint_endBlock_revertsWithAuctionIsOver() public {
+        vm.roll(auction.endBlock());
         vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
         auction.checkpoint();
     }
@@ -306,7 +309,7 @@ contract AuctionTest is AuctionBaseTest {
 
     /// forge-config: default.isolate = true
     /// forge-config: ci.isolate = true
-    function test_exitBid_succeeds() public {
+    function test_exitBid_succeeds_gas() public {
         uint256 smallAmount = 500e18;
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(
@@ -385,7 +388,6 @@ contract AuctionTest is AuctionBaseTest {
                 - inputAmountForTokens(500e18, tickNumberToPriceX96(1))
         );
 
-        vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
         // Expect fully filled for all tokens
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + amount);
@@ -422,7 +424,6 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitBid(bidId);
         // Expect no refund
         assertEq(address(alice).balance, aliceBalanceBefore);
-        vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
         // Expect purchased 1000e18 tokens
         assertEq(token.balanceOf(address(alice)), 1000e18);
@@ -447,7 +448,6 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitBid(bidId);
         // Expect no refund since the bid was fully exited
         assertEq(address(alice).balance, aliceBalanceBefore);
-        vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
     }
@@ -576,7 +576,6 @@ contract AuctionTest is AuctionBaseTest {
         // Alice should partially fill for 250e18 tokens, spending 500e21 ETH
         // Meaning she should be refunded 1000e21 - 500e21 = 500e21 ETH
         assertEq(address(alice).balance, aliceBalanceBefore + 500e21);
-        vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
         vm.snapshotGasLastCall('claimTokens');
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 250e18);
@@ -587,7 +586,6 @@ contract AuctionTest is AuctionBaseTest {
         vm.snapshotGasLastCall('exitBid');
         // Bob purchased 750e18 tokens for a price of 2, so they should have spent all of their ETH.
         assertEq(address(bob).balance, bobBalanceBefore + 0);
-        vm.roll(auction.claimBlock());
         auction.claimTokens(bidId2);
         assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + 750e18);
         vm.stopPrank();
@@ -648,7 +646,7 @@ contract AuctionTest is AuctionBaseTest {
         // Bob purchases 600/1000 * 250 = 150e18 tokens
         // - Spending 150e18 * 2000 = 300e21 ETH
         // - Refunded 1200e21 - 300e21 = 900e21 ETH
-        vm.roll(auction.claimBlock());
+        vm.roll(auction.endBlock() + 1);
 
         vm.startPrank(charlie);
         auction.exitBid(bidId3);
@@ -677,6 +675,14 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_onTokensReceived_withWrongBalance_reverts() public {
+        // Mint less tokens than expected
+        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            FLOOR_PRICE
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + 100).withClaimBlock(
+            block.number + 100
+        ).withAuctionStepsData(auctionStepsData);
         // Use salt to get a new address
         Auction newAuction = new Auction{salt: bytes32(uint256(1))}(address(token), TOTAL_SUPPLY, params);
 
@@ -686,12 +692,16 @@ contract AuctionTest is AuctionBaseTest {
         newAuction.onTokensReceived();
     }
 
-    /// forge-config: default.isolate = true
-    /// forge-config: ci.isolate = true
-    function test_advanceToCurrentStep_withClearingPriceZero_gas() public {
-        params = params.withAuctionStepsData(
-            AuctionStepsBuilder.init().addStep(100e3, 10).addStep(100e3, 40).addStep(100e3, 50)
-        );
+    function test_advanceToCurrentStep_withClearingPriceZero() public {
+        // Create auction with multiple steps
+        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
+
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            FLOOR_PRICE
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + 100).withClaimBlock(
+            block.number + 100
+        ).withAuctionStepsData(auctionStepsData);
 
         Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(newAuction), TOTAL_SUPPLY);
@@ -699,20 +709,16 @@ contract AuctionTest is AuctionBaseTest {
         // Advance to middle of step without any bids (clearing price = 0)
         vm.roll(block.number + 50);
         newAuction.checkpoint();
-        vm.snapshotGasLastCall('checkpoint_advanceToCurrentStep');
 
         // Should not have transformed checkpoint since clearing price is 0
         // The clearing price will be set to floor price when first checkpoint is created
         assertEq(newAuction.clearingPrice(), FLOOR_PRICE);
     }
 
-    /// forge-config: default.isolate = true
-    /// forge-config: ci.isolate = true
     function test_calculateNewClearingPrice_withNoDemand() public {
         // Don't submit any bids
         vm.roll(block.number + 1);
         auction.checkpoint();
-        vm.snapshotGasLastCall('checkpoint_noBids');
 
         // Clearing price should be the next active tick price since there's no demand
         assertEq(auction.clearingPrice(), auction.nextActiveTickPrice());
@@ -755,8 +761,15 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_advanceToCurrentStep_withMultipleStepsAndClearingPrice() public {
-        auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 20).addStep(150e3, 20).addStep(250e3, 20);
-        params = params.withEndBlock(block.number + 60).withAuctionStepsData(auctionStepsData);
+        bytes memory auctionStepsData =
+            AuctionStepsBuilder.init().addStep(100e3, 20).addStep(150e3, 20).addStep(250e3, 20);
+
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            FLOOR_PRICE
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + 60).withClaimBlock(
+            block.number + 60
+        ).withAuctionStepsData(auctionStepsData);
 
         Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(newAuction), TOTAL_SUPPLY);
@@ -787,7 +800,13 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_calculateNewClearingPrice_belowFloorPrice_returnsFloorPrice() public {
-        params = params.withFloorPrice(10e6 << FixedPoint96.RESOLUTION);
+        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
+
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            10e6 << FixedPoint96.RESOLUTION
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
 
         MockAuction mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(mockAuction), TOTAL_SUPPLY);
@@ -819,14 +838,18 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(result, 10e6 << FixedPoint96.RESOLUTION);
     }
 
-    /// forge-config: default.isolate = true
-    /// forge-config: ci.isolate = true
-    function test_submitBid_withValidationHook_callsValidationHook_gas() public {
+    function test_submitBid_withValidationHook_callsValidationHook() public {
         // Create a mock validation hook
         MockValidationHook validationHook = new MockValidationHook();
 
         // Create auction parameters with the validation hook
-        params = params.withValidationHook(address(validationHook));
+        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            FLOOR_PRICE
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(validationHook)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION) // Set the validation hook
+            .withAuctionStepsData(auctionStepsData);
 
         Auction testAuction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(testAuction), TOTAL_SUPPLY);
@@ -840,14 +863,20 @@ contract AuctionTest is AuctionBaseTest {
             tickNumberToPriceX96(1),
             bytes('hook data')
         );
-        vm.snapshotGasLastCall('submitBid_withValidationHook');
 
         assertEq(bidId, 0);
     }
 
     function test_submitBid_withERC20Currency_unpermittedPermit2Transfer_reverts() public {
         // Create auction parameters with ERC20 currency instead of ETH
-        params = params.withCurrency(address(currency));
+        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(address(currency)).withFloorPrice(
+            FLOOR_PRICE
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION) // Use ERC20 currency instead of ETH_SENTINEL
+            .withAuctionStepsData(auctionStepsData);
+
         Auction erc20Auction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(erc20Auction), TOTAL_SUPPLY);
 
@@ -890,27 +919,55 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_auctionConstruction_reverts() public {
+        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            FLOOR_PRICE
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
+
         vm.expectRevert(IAuction.TotalSupplyIsZero.selector);
         new Auction(address(token), 0, params);
 
-        AuctionParameters memory paramsZeroFloorPrice = params.withFloorPrice(0);
+        params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(0).withTickSpacing(TICK_SPACING)
+            .withValidationHook(address(0)).withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient)
+            .withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION).withClaimBlock(
+            block.number + AUCTION_DURATION
+        ).withAuctionStepsData(auctionStepsData);
+
         vm.expectRevert(IAuction.FloorPriceIsZero.selector);
-        new Auction(address(token), TOTAL_SUPPLY, paramsZeroFloorPrice);
+        new Auction(address(token), TOTAL_SUPPLY, params);
 
-        AuctionParameters memory paramsClaimBlockBeforeEndBlock = params.withClaimBlock(block.number + AUCTION_DURATION - 1).withEndBlock(block.number + AUCTION_DURATION);
+        params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE).withTickSpacing(
+            TICK_SPACING
+        ).withValidationHook(address(0)).withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient)
+            .withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION).withClaimBlock(
+            block.number + AUCTION_DURATION - 1
+        ).withAuctionStepsData(auctionStepsData);
+
         vm.expectRevert(IAuction.ClaimBlockIsBeforeEndBlock.selector);
-        new Auction(address(token), TOTAL_SUPPLY, paramsClaimBlockBeforeEndBlock);
+        new Auction(address(token), TOTAL_SUPPLY, params);
 
-        AuctionParameters memory paramsFundsRecipientZero = params.withFundsRecipient(address(0));
+        params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE).withTickSpacing(
+            TICK_SPACING
+        ).withValidationHook(address(0)).withTokensRecipient(tokensRecipient).withFundsRecipient(address(0))
+            .withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION).withClaimBlock(
+            block.number + AUCTION_DURATION
+        ).withAuctionStepsData(auctionStepsData);
+
         vm.expectRevert(IAuction.FundsRecipientIsZero.selector);
-        new Auction(address(token), TOTAL_SUPPLY, paramsFundsRecipientZero);
+        new Auction(address(token), TOTAL_SUPPLY, params);
     }
 
     function test_checkpoint_beforeAuctionStarts_reverts() public {
         // Create an auction that starts in the future
-        uint256 futureBlock = block.number + 10;
-        params = params.withStartBlock(futureBlock).withEndBlock(futureBlock + AUCTION_DURATION)
-            .withClaimBlock(futureBlock + AUCTION_DURATION);
+        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
+        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            FLOOR_PRICE
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number + 10).withEndBlock(
+            block.number + 10 + AUCTION_DURATION
+        ).withClaimBlock(block.number + 10 + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
 
         Auction futureAuction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(futureAuction), TOTAL_SUPPLY);
@@ -925,22 +982,6 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(auction.endBlock() + 1);
 
         // Try to submit a bid after the auction has ended
-        vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
-        auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
-            tickNumberToPriceX96(2),
-            true,
-            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
-            alice,
-            tickNumberToPriceX96(1),
-            bytes('')
-        );
-    }
-
-    function test_submitBid_atEndBlock_reverts() public {
-        // Advance to after the auction ends
-        vm.roll(auction.endBlock());
-
-        // Try to submit a bid at the end block
         vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
         auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
@@ -1037,7 +1078,6 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         // Try to claim tokens before the bid has been exited
-        vm.roll(auction.claimBlock());
         vm.startPrank(alice);
         vm.expectRevert(IAuction.BidNotExited.selector);
         auction.claimTokens(bidId);

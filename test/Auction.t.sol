@@ -275,7 +275,7 @@ contract AuctionTest is AuctionBaseTest {
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
-        auction.exitPartiallyFilledBid(bidId, auction.startBlock() + 101);
+        auction.exitPartiallyFilledBid(bidId, 2, 0);
         assertEq(address(alice).balance, aliceBalanceBefore + inputAmount / 2);
 
         vm.roll(auction.claimBlock());

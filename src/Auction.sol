@@ -150,9 +150,6 @@ contract Auction is
         Checkpoint memory _checkpoint = latestCheckpoint();
         // Get the supply being sold since the last checkpoint, accounting for rollovers of past supply
         uint256 supply = _checkpoint.getSupply(totalSupply, step.mps);
-
-        // If there is no supply being sold, try to advance to the next step to update `step.mps`
-        if (step.mps == 0) _advanceToCurrentStep(_checkpoint, blockNumber);
         // If there is no supply being sold, return the current checkpoint
         // The next checkpoint with a nonzero supply will update all values
         if (supply == 0) return _checkpoint;

@@ -136,9 +136,9 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         uint24 mpsDelta
     ) internal pure returns (uint256 weightedPartialFillRate) {
         uint256 tickDemandMps = tickDemand.applyMps(mpsDelta);
-        uint256 partialFillRateX96 = tickDemandMps.fullMulDiv(
-            FixedPoint96.Q96, supplyOverMps - resolvedDemandAboveClearingPrice.applyMps(mpsDelta)
-        );
+        uint256 supplySoldToTick = supplyOverMps - resolvedDemandAboveClearingPrice.applyMps(mpsDelta);
+        if (supplySoldToTick == 0 || mpsDelta == 0) return 0;
+        uint256 partialFillRateX96 = tickDemandMps.fullMulDiv(FixedPoint96.Q96, supplySoldToTick);
         return tickDemandMps.fullMulDiv(partialFillRateX96, mpsDelta * FixedPoint96.Q96);
     }
 }

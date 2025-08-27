@@ -94,6 +94,11 @@ contract Auction is
         if (token.balanceOf(address(this)) < totalSupply) revert IDistributionContract__InvalidAmountReceived();
     }
 
+    /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
+    function _isGraduated() internal view returns (bool) {
+        return latestCheckpoint().totalCleared >= ((totalSupply * graduationThresholdMps) / AuctionStepLib.MPS);
+    }
+
     /// @notice Advance the current step until the current block is within the step
     /// @dev The checkpoint must be up to date since `transform` depends on the clearingPrice
     function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint256 blockNumber)
@@ -263,7 +268,7 @@ contract Auction is
 
     /// @inheritdoc IAuction
     function checkpoint() public returns (Checkpoint memory _checkpoint) {
-        if (block.number >= endBlock) revert AuctionIsOver();
+        if (block.number > endBlock) revert AuctionIsOver();
         return _unsafeCheckpoint(block.number);
     }
 
@@ -277,6 +282,8 @@ contract Auction is
         uint256 prevTickPrice,
         bytes calldata hookData
     ) external payable returns (uint256) {
+        // Bids cannot be submitted at the endBlock or after
+        if (block.number >= endBlock) revert AuctionIsOver();
         uint256 requiredCurrencyAmount = BidLib.inputAmount(exactIn, amount, maxPrice);
         if (requiredCurrencyAmount == 0) revert InvalidAmount();
         if (currency.isAddressZero()) {
@@ -294,6 +301,10 @@ contract Auction is
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
         Checkpoint memory finalCheckpoint = _unsafeCheckpoint(endBlock);
+        if (!_isGraduated()) {
+            // In the case that the auction did not graduate, fully refund the bid
+            return _processExit(bidId, bid, 0, bid.inputAmount());
+        }
 
         if (bid.maxPrice <= finalCheckpoint.clearingPrice) revert CannotExitBid();
         /// @dev Bid was fully filled and the auction is now over
@@ -352,6 +363,7 @@ contract Auction is
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock == 0) revert BidNotExited();
         if (block.number < claimBlock) revert NotClaimable();
+        if (!_isGraduated()) revert NotGraduated();
 
         uint256 tokensFilled = bid.tokensFilled;
         bid.tokensFilled = 0;
@@ -364,30 +376,20 @@ contract Auction is
 
     /// @inheritdoc IAuction
     function sweepCurrency() external onlyAfterAuctionIsOver {
-        if (msg.sender != fundsRecipient) revert OnlyFundsRecipient();
-        // Cannot sweep if already swept or if the deadline is passed
-        if (!_canSweepCurrency()) revert CannotSweepCurrency();
-        Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
+        // Cannot sweep if already swept
+        if (sweepCurrencyBlock != 0) revert CannotSweepCurrency();
         // Cannot sweep currency if the auction has not graduated, as the Currency must be refunded
-        if (!_isGraduated(finalCheckpoint.totalCleared)) revert NotGraduated();
-        _sweepCurrency(finalCheckpoint.getCurrencyRaised());
+        if (!_isGraduated()) revert NotGraduated();
+        _sweepCurrency(_getFinalCheckpoint().getCurrencyRaised());
     }
 
     /// @inheritdoc IAuction
     function sweepUnsoldTokens() external onlyAfterAuctionIsOver {
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
-        uint256 _totalCleared = _getFinalCheckpoint().totalCleared;
-        if (_isGraduated(_totalCleared)) {
-            _sweepUnsoldTokens(totalSupply - _totalCleared);
+        if (_isGraduated()) {
+            _sweepUnsoldTokens(totalSupply - _getFinalCheckpoint().totalCleared);
         } else {
             _sweepUnsoldTokens(totalSupply);
         }
-    }
-
-    /// @notice Returns true if the currency can be swept
-    /// @dev If the auction has graduated but the currency is not swept before claimBlock,
-    ///      all bidders will be refunded all of their currency and no tokens will be sold
-    function _canSweepCurrency() internal view returns (bool) {
-        return sweepCurrencyBlock == 0 && block.number < claimBlock;
     }
 }

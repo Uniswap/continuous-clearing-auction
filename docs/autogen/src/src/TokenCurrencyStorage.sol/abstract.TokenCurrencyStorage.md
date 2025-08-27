@@ -1,5 +1,5 @@
 # TokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/3a2a79a8442dc1d66aca4be0c1d531db5a9f8424/src/TokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/6877021463ff8a5a98768726ae5bcf1b3ddfcaf7/src/TokenCurrencyStorage.sol)
 
 **Inherits:**
 [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -102,23 +102,6 @@ constructor(
     bytes memory _fundsRecipientData
 );
 ```
-
-### _isGraduated
-
-Whether the auction has graduated (sold more than the graduation threshold)
-
-*Should only be called after the auction has ended*
-
-
-```solidity
-function _isGraduated(uint256 _totalCleared) internal view returns (bool);
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`_totalCleared`|`uint256`|The total amount of tokens cleared, must be the final checkpoint of the auction|
-
 
 ### _sweepCurrency
 

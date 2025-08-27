@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/3a2a79a8442dc1d66aca4be0c1d531db5a9f8424/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/6877021463ff8a5a98768726ae5bcf1b3ddfcaf7/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -78,6 +78,15 @@ Notify a distribution contract that it has received the tokens to distribute
 
 ```solidity
 function onTokensReceived() external view;
+```
+
+### _isGraduated
+
+Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
+
+
+```solidity
+function _isGraduated() internal view returns (bool);
 ```
 
 ### _advanceToCurrentStep
@@ -278,17 +287,5 @@ Sweep any leftover tokens to the tokens recipient
 
 ```solidity
 function sweepUnsoldTokens() external onlyAfterAuctionIsOver;
-```
-
-### _canSweepCurrency
-
-Returns true if the currency can be swept
-
-*If the auction has graduated but the currency is not swept before claimBlock,
-all bidders will be refunded all of their currency and no tokens will be sold*
-
-
-```solidity
-function _canSweepCurrency() internal view returns (bool);
 ```
 

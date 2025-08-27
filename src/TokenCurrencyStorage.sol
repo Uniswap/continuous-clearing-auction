@@ -53,13 +53,6 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         if (graduationThresholdMps > AuctionStepLib.MPS) revert InvalidGraduationThresholdMps();
     }
 
-    /// @notice Whether the auction has graduated (sold more than the graduation threshold)
-    /// @dev Should only be called after the auction has ended
-    /// @param _totalCleared The total amount of tokens cleared, must be the final checkpoint of the auction
-    function _isGraduated(uint256 _totalCleared) internal view returns (bool) {
-        return _totalCleared >= ((totalSupply * graduationThresholdMps) / AuctionStepLib.MPS);
-    }
-
     function _sweepCurrency(uint256 amount) internal {
         sweepCurrencyBlock = block.number;
         // First transfer the currency to the fundsRecipient

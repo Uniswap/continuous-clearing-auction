@@ -242,9 +242,8 @@ contract AuctionTest is AuctionBaseTest {
         auction.checkpoint();
     }
 
-    function test_checkpoint_endBlock_revertsWithAuctionIsOver() public {
+    function test_checkpoint_endBlock_succeeds() public {
         vm.roll(auction.endBlock());
-        vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
         auction.checkpoint();
     }
 
@@ -1198,25 +1197,6 @@ contract AuctionTest is AuctionBaseTest {
 
     // sweepCurrency tests
 
-    function test_sweepCurrency_notFundsRecipient_reverts() public {
-        // Submit a bid to ensure auction graduates
-        auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
-            tickNumberToPriceX96(2),
-            true,
-            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
-            alice,
-            tickNumberToPriceX96(1),
-            bytes('')
-        );
-
-        vm.roll(auction.endBlock());
-
-        // Try to sweep as alice (not fundsRecipient)
-        vm.prank(alice);
-        vm.expectRevert(ITokenCurrencyStorage.OnlyFundsRecipient.selector);
-        auction.sweepCurrency();
-    }
-
     function test_sweepCurrency_alreadySwept_reverts() public {
         // Submit a bid to ensure auction graduates
         auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
@@ -1235,25 +1215,6 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepCurrency();
 
         // Second sweep should fail
-        vm.prank(auction.fundsRecipient());
-        vm.expectRevert(ITokenCurrencyStorage.CannotSweepCurrency.selector);
-        auction.sweepCurrency();
-    }
-
-    function test_sweepCurrency_afterClaimBlock_reverts() public {
-        // Submit a bid to ensure auction graduates
-        auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
-            tickNumberToPriceX96(2),
-            true,
-            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
-            alice,
-            tickNumberToPriceX96(1),
-            bytes('')
-        );
-
-        // Roll to claimBlock (currency can only be swept before claimBlock)
-        vm.roll(auction.claimBlock());
-
         vm.prank(auction.fundsRecipient());
         vm.expectRevert(ITokenCurrencyStorage.CannotSweepCurrency.selector);
         auction.sweepCurrency();
@@ -1299,6 +1260,8 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithThreshold.endBlock());
+        // Update the lastCheckpoint to register the auction as graduated
+        auctionWithThreshold.checkpoint();
 
         vm.prank(fundsRecipient);
         vm.expectEmit(true, true, true, true);
@@ -1328,6 +1291,8 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithCallback.endBlock());
+        // Update the lastCheckpoint to register the auction as graduated
+        auctionWithCallback.checkpoint();
 
         // Expect the callback to be made with the specified data
         vm.expectCall(address(mockFundsRecipient), callbackData);
@@ -1359,6 +1324,8 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithCallback.endBlock());
+        // Update the lastCheckpoint to register the auction as graduated
+        auctionWithCallback.checkpoint();
 
         // The callback should revert with the custom reason
         vm.prank(address(mockFundsRecipient));
@@ -1382,6 +1349,8 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithCallback.endBlock());
+        // Update the lastCheckpoint to register the auction as graduated
+        auctionWithCallback.checkpoint();
 
         // The callback should revert without a reason
         vm.prank(address(mockFundsRecipient));
@@ -1405,6 +1374,8 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithCallback.endBlock());
+        // Update the lastCheckpoint to register the auction as graduated
+        auctionWithCallback.checkpoint();
 
         // Should succeed without calling the EOA (EOAs have no code)
         vm.prank(fundsRecipient);
@@ -1432,6 +1403,8 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithCallback.endBlock());
+        // Update the lastCheckpoint to register the auction as graduated
+        auctionWithCallback.checkpoint();
 
         // Should succeed without calling the contract (no data provided)
         vm.prank(address(mockFundsRecipient));
@@ -1463,6 +1436,8 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithCallback.endBlock());
+        // Update the lastCheckpoint to register the auction as graduated
+        auctionWithCallback.checkpoint();
 
         // Verify the contract receives funds and the callback is executed
         uint256 balanceBefore = address(contractRecipient).balance;
@@ -1508,6 +1483,12 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(firstAuction.endBlock());
+        // Update the lastCheckpoint to register the auction as graduated
+        firstAuction.checkpoint();
+
+        vm.roll(secondAuction.endBlock());
+        // Update the lastCheckpoint to register the auction as graduated
+        secondAuction.checkpoint();
 
         // First auction should succeed - expect the callback to be made
         vm.expectCall(address(mockFundsRecipient), firstCallData);
@@ -1548,6 +1529,8 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithThreshold.endBlock());
+        // Update the lastCheckpoint to register the auction as graduated
+        auctionWithThreshold.checkpoint();
 
         // Should sweep only unsold tokens (40% of supply)
         uint256 expectedUnsoldTokens = TOTAL_SUPPLY - soldAmount;
@@ -1574,6 +1557,8 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithThreshold.endBlock());
+        // Update the lastCheckpoint
+        auctionWithThreshold.checkpoint();
 
         // Should sweep ALL tokens since auction didn't graduate
         vm.expectEmit(true, true, true, true);
@@ -1599,6 +1584,8 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithThreshold.endBlock());
+        // Update the lastCheckpoint to register the auction as graduated
+        auctionWithThreshold.checkpoint();
 
         // Sweep currency first (should succeed as graduated)
         uint256 expectedCurrencyRaised = inputAmountForTokens(soldAmount, tickNumberToPriceX96(1));
@@ -1633,6 +1620,8 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithThreshold.endBlock());
+        // Update the lastCheckpoint
+        auctionWithThreshold.checkpoint();
 
         // Can sweep tokens (returns all since not graduated)
         vm.expectEmit(true, true, true, true);

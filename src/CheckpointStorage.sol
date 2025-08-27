@@ -80,13 +80,12 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     /// @param bidMaxPrice The max price of the bid
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent
-    /// @return nextCheckpointBlock The block number of the checkpoint under the bid's max price. Will be 0 if it does not exist.
     function _accountPartiallyFilledCheckpoints(
         Checkpoint memory upperCheckpoint,
         Checkpoint memory lowerCheckpoint,
         uint256 bidDemand,
         uint256 bidMaxPrice
-    ) internal view returns (uint256 tokensFilled, uint256 currencySpent) {
+    ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
         require(
             upperCheckpoint.clearingPrice >= bidMaxPrice,
             'CheckpointStorage: upperCheckpoint.clearingPrice < bidMaxPrice'

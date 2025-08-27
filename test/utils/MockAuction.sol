@@ -14,6 +14,6 @@ contract MockAuction is Auction {
         view
         returns (uint256)
     {
-        return _calculateNewClearingPrice(minimumClearingPrice, blockTokenSupply);
+        return _calculateNewClearingPrice(sumDemandAboveClearing, minimumClearingPrice, blockTokenSupply);
     }
 }

@@ -220,10 +220,7 @@ contract Auction is
         newCheckpoint.cumulativeMpsPerPrice +=
             CheckpointLib.getMpsPerPrice(mpsSinceLastCheckpoint, newCheckpoint.clearingPrice);
         newCheckpoint.cumulativeWeightedPartialFillRate += _calculateWeightedPartialFillRate(
-            resolvedTickDemand,
-            supplyDelta,
-            resolvedDemandAboveClearing,
-            mpsSinceLastCheckpoint
+            resolvedTickDemand, supplyDelta, resolvedDemandAboveClearing, mpsSinceLastCheckpoint
         );
         newCheckpoint.resolvedDemandAboveClearingPrice = resolvedDemandAboveClearing;
         newCheckpoint.mps = step.mps;

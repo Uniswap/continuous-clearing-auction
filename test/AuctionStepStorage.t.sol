@@ -29,6 +29,21 @@ contract AuctionStepStorageTest is Test {
         _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7);
     }
 
+    function test_canBeConstructed_withIncreasingMps() public {
+        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(1, 5e6).addStep(2, 25e5);
+        _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 5e6 + 25e5);
+    }
+
+    function test_canBeConstructed_withLeadingZeroMpsStep() public {
+        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(0, 1e7).addStep(1, 1e7);
+        _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 2e7);
+    }
+
+    function test_canBeConstructed_withMiddleZeroMpsStep() public {
+        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(1, 5e6).addStep(0, 1e7).addStep(2, 25e5);
+        _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 5e6 + 1e7 + 25e5);
+    }
+
     function test_advanceStep_initializesFirstStep() public {
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(1, 1e7);
         MockAuctionStepStorage auctionStepStorage =

@@ -144,9 +144,16 @@ contract Auction is
         if (blockNumber == lastCheckpointedBlock) return _checkpoint;
         if (blockNumber < startBlock) revert AuctionNotStarted();
 
-        // Get the supply being sold in this block, accounting for rollovers of past supply
+        // If there is no supply being sold, try to advance to the next step to update `step.mps`
+        if (step.mps == 0) _advanceToCurrentStep(_checkpoint, blockNumber);
+
+        // Get the supply being sold as of the last checkpoint, accounting for rollovers of past supply
         uint256 supply =
             ((totalSupply - _checkpoint.totalCleared) * step.mps) / (AuctionStepLib.MPS - _checkpoint.cumulativeMps);
+
+        // If there is no supply being sold, return the current checkpoint
+        // The next checkpoint with a nonzero supply will update all values
+        if (supply == 0) return _checkpoint;
 
         // All active demand above the current clearing price
         Demand memory _sumDemandAboveClearing = sumDemandAboveClearing;

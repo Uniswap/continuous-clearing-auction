@@ -87,7 +87,7 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         uint256 tickDemand,
         uint256 bidMaxPrice
     ) internal view returns (uint256 tokensFilled, uint256 currencySpent, uint256 nextCheckpointBlock) {
-        while (lastValidCheckpoint.prev != 0) {
+        while (lastValidCheckpoint.clearingPrice == bidMaxPrice) {
             Checkpoint memory _next = _getCheckpoint(lastValidCheckpoint.prev);
             tokensFilled += _calculatePartialFill(
                 bidDemand,
@@ -96,10 +96,6 @@ abstract contract CheckpointStorage is ICheckpointStorage {
                 lastValidCheckpoint.cumulativeMps - _next.cumulativeMps,
                 lastValidCheckpoint.resolvedDemandAboveClearingPrice
             );
-            // Stop searching when the next checkpoint is less than the tick price
-            if (_next.clearingPrice < bidMaxPrice) {
-                break;
-            }
             lastValidCheckpoint = _next;
         }
         // Round up at the end to avoid rounding too early

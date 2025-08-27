@@ -367,7 +367,10 @@ contract Auction is
             ) {
                 console2.log('upperCheckpoint.clearingPrice', upperCheckpoint.clearingPrice);
                 console2.log('bid.maxPrice', bid.maxPrice);
-                console2.log('_getCheckpoint(upperCheckpoint.prev).clearingPrice', _getCheckpoint(upperCheckpoint.prev).clearingPrice);
+                console2.log(
+                    '_getCheckpoint(upperCheckpoint.prev).clearingPrice',
+                    _getCheckpoint(upperCheckpoint.prev).clearingPrice
+                );
                 revert InvalidCheckpointHint();
             }
             (tokensFilled, currencySpent) = _accountPartiallyFilledCheckpoints(

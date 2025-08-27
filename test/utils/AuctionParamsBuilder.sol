@@ -15,7 +15,9 @@ library AuctionParamsBuilder {
             startBlock: 0,
             endBlock: 0,
             claimBlock: 0,
-            auctionStepsData: new bytes(0)
+            graduationThresholdMps: 0,
+            auctionStepsData: new bytes(0),
+            fundsRecipientData: new bytes(0)
         });
     }
 
@@ -133,12 +135,30 @@ library AuctionParamsBuilder {
         return params;
     }
 
+    function withGraduationThresholdMps(AuctionParameters memory params, uint24 graduationThresholdMps)
+        internal
+        pure
+        returns (AuctionParameters memory)
+    {
+        params.graduationThresholdMps = graduationThresholdMps;
+        return params;
+    }
+
     function withAuctionStepsData(AuctionParameters memory params, bytes memory auctionStepsData)
         internal
         pure
         returns (AuctionParameters memory)
     {
         params.auctionStepsData = auctionStepsData;
+        return params;
+    }
+
+    function withFundsRecipientData(AuctionParameters memory params, bytes memory fundsRecipientData)
+        internal
+        pure
+        returns (AuctionParameters memory)
+    {
+        params.fundsRecipientData = fundsRecipientData;
         return params;
     }
 }

@@ -1,8 +1,8 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4c64e5272f1f7db7bff878add63979a77518e17b/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/86cbacb2994063271cf37370fbc9def90e84b8d3/src/Auction.sol)
 
 **Inherits:**
-[BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
+[BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
 
 
 ## State Variables
@@ -12,51 +12,6 @@ Permit2 address
 
 ```solidity
 address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
-```
-
-
-### currency
-The currency of the auction
-
-
-```solidity
-Currency public immutable currency;
-```
-
-
-### token
-The token of the auction
-
-
-```solidity
-IERC20Minimal public immutable token;
-```
-
-
-### totalSupply
-The total supply of token to sell
-
-
-```solidity
-uint256 public immutable totalSupply;
-```
-
-
-### tokensRecipient
-The recipient of any unsold tokens
-
-
-```solidity
-address public immutable tokensRecipient;
-```
-
-
-### fundsRecipient
-The recipient of the funds from the auction
-
-
-```solidity
-address public immutable fundsRecipient;
 ```
 
 
@@ -94,8 +49,26 @@ Demand public sumDemandAboveClearing;
 ```solidity
 constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
     AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
+    TokenCurrencyStorage(
+        _token,
+        _parameters.currency,
+        _totalSupply,
+        _parameters.tokensRecipient,
+        _parameters.fundsRecipient,
+        _parameters.graduationThresholdMps,
+        _parameters.fundsRecipientData
+    )
     TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
     PermitSingleForwarder(IAllowanceTransfer(PERMIT2));
+```
+
+### onlyAfterAuctionIsOver
+
+Modifier for functions which can only be called after the auction is over
+
+
+```solidity
+modifier onlyAfterAuctionIsOver();
 ```
 
 ### onTokensReceived
@@ -105,6 +78,15 @@ Notify a distribution contract that it has received the tokens to distribute
 
 ```solidity
 function onTokensReceived() external view;
+```
+
+### isGraduated
+
+Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
+
+
+```solidity
+function isGraduated() public view returns (bool);
 ```
 
 ### _advanceToCurrentStep
@@ -122,7 +104,7 @@ function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint256 blockNumbe
 
 ### _calculateNewClearingPrice
 
-Calculate the new clearing price
+Calculate the new clearing price, given:
 
 
 ```solidity
@@ -201,7 +183,7 @@ function checkpoint() public returns (Checkpoint memory _checkpoint);
 
 Submit a new bid
 
-*Bids can be submitted anytime between the startBlock and the endBlock. This is enforced in the `checkpoint` flow*
+*Bids can be submitted anytime between the startBlock and the endBlock.*
 
 
 ```solidity
@@ -240,7 +222,7 @@ Exit a bid
 
 
 ```solidity
-function exitBid(uint256 bidId) external;
+function exitBid(uint256 bidId) external onlyAfterAuctionIsOver;
 ```
 **Parameters**
 
@@ -283,4 +265,27 @@ function claimTokens(uint256 bidId) external;
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
 
+
+### sweepCurrency
+
+Withdraw all of the currency raised
+
+*Can only be called by the funds recipient after the auction has ended
+Must be called before the `claimBlock`*
+
+
+```solidity
+function sweepCurrency() external onlyAfterAuctionIsOver;
+```
+
+### sweepUnsoldTokens
+
+Sweep any leftover tokens to the tokens recipient
+
+*This function can only be called after the auction has ended*
+
+
+```solidity
+function sweepUnsoldTokens() external onlyAfterAuctionIsOver;
+```
 

@@ -1,8 +1,8 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/381b0ae668f577856bcecaebacb52bec6c71bf17/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/996d3ffc8a70f686553bf63f6c0cfe6fd522230d/src/interfaces/IAuction.sol)
 
 **Inherits:**
-[IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md)
+[IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
 
 Interface for the Auction contract
 
@@ -50,6 +50,15 @@ Register a new checkpoint
 
 ```solidity
 function checkpoint() external returns (Checkpoint memory _checkpoint);
+```
+
+### isGraduated
+
+Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
+
+
+```solidity
+function isGraduated() external view returns (bool);
 ```
 
 ### exitBid
@@ -105,6 +114,29 @@ function claimTokens(uint256 bidId) external;
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
 
+
+### sweepCurrency
+
+Withdraw all of the currency raised
+
+*Can only be called by the funds recipient after the auction has ended
+Must be called before the `claimBlock`*
+
+
+```solidity
+function sweepCurrency() external;
+```
+
+### sweepUnsoldTokens
+
+Sweep any leftover tokens to the tokens recipient
+
+*This function can only be called after the auction has ended*
+
+
+```solidity
+function sweepUnsoldTokens() external;
+```
 
 ## Events
 ### BidSubmitted
@@ -197,14 +229,6 @@ Error thrown when the auction is not started
 error AuctionNotStarted();
 ```
 
-### TotalSupplyIsZero
-Error thrown when the total supply is zero
-
-
-```solidity
-error TotalSupplyIsZero();
-```
-
 ### FloorPriceIsZero
 Error thrown when the floor price is zero
 
@@ -227,14 +251,6 @@ Error thrown when the claim block is before the end block
 
 ```solidity
 error ClaimBlockIsBeforeEndBlock();
-```
-
-### FundsRecipientIsZero
-Error thrown when the funds recipient is the zero address
-
-
-```solidity
-error FundsRecipientIsZero();
 ```
 
 ### BidAlreadyExited
@@ -277,8 +293,24 @@ Error thrown when the bid has not been exited
 error BidNotExited();
 ```
 
+### TokenTransferFailed
+Error thrown when the token transfer fails
+
+
+```solidity
+error TokenTransferFailed();
+```
+
+### AuctionIsNotOver
+Error thrown when the auction is not over
+
+
+```solidity
+error AuctionIsNotOver();
+```
+
 ### InvalidBidPrice
-Error thrown when the bid price is invalid
+Error thrown when a new bid is less than or equal to the clearing price
 
 
 ```solidity

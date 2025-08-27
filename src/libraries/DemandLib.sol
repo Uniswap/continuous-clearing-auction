@@ -2,7 +2,6 @@
 pragma solidity ^0.8.23;
 
 import {AuctionStepLib} from './AuctionStepLib.sol';
-
 import {FixedPoint96} from './FixedPoint96.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 

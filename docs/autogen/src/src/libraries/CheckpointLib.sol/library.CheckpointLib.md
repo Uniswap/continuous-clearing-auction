@@ -55,3 +55,24 @@ function getMpsPerPrice(uint24 mps, uint256 price) internal pure returns (uint25
 |`<none>`|`uint256`|the ratio|
 
 
+### getCurrencyRaised
+
+Calculate the total currency raised
+
+
+```solidity
+function getCurrencyRaised(Checkpoint memory checkpoint) internal pure returns (uint128);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`checkpoint`|`Checkpoint`|The checkpoint to calculate the currency raised from|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint128`|The total currency raised|
+
+

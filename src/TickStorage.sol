@@ -2,7 +2,6 @@
 pragma solidity ^0.8.23;
 
 import {ITickStorage} from './interfaces/ITickStorage.sol';
-
 import {Bid} from './libraries/BidLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';

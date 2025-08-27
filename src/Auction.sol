@@ -6,14 +6,13 @@ import {BidStorage} from './BidStorage.sol';
 import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
 import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
+import {TokenCurrencyStorage} from './TokenCurrencyStorage.sol';
 import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
-
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
-
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
@@ -24,7 +23,15 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 /// @title Auction
-contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStorage, PermitSingleForwarder, IAuction {
+contract Auction is
+    BidStorage,
+    CheckpointStorage,
+    AuctionStepStorage,
+    TickStorage,
+    PermitSingleForwarder,
+    TokenCurrencyStorage,
+    IAuction
+{
     using FixedPointMathLib for uint256;
     using CurrencyLibrary for Currency;
     using BidLib for Bid;
@@ -35,16 +42,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
 
     /// @notice Permit2 address
     address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
-    /// @notice The currency of the auction
-    Currency public immutable currency;
-    /// @notice The token of the auction
-    IERC20Minimal public immutable token;
-    /// @notice The total supply of token to sell
-    uint256 public immutable totalSupply;
-    /// @notice The recipient of any unsold tokens
-    address public immutable tokensRecipient;
-    /// @notice The recipient of the funds from the auction
-    address public immutable fundsRecipient;
     /// @notice The block at which purchased tokens can be claimed
     uint64 public immutable claimBlock;
     /// @notice An optional hook to be called before a bid is registered
@@ -55,6 +52,15 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
 
     constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
+        TokenCurrencyStorage(
+            _token,
+            _parameters.currency,
+            _totalSupply,
+            _parameters.tokensRecipient,
+            _parameters.fundsRecipient,
+            _parameters.graduationThresholdMps,
+            _parameters.fundsRecipientData
+        )
         TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
         PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
     {
@@ -73,9 +79,20 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         if (fundsRecipient == address(0)) revert FundsRecipientIsZero();
     }
 
+    /// @notice Modifier for functions which can only be called after the auction is over
+    modifier onlyAfterAuctionIsOver() {
+        if (block.number < endBlock) revert AuctionIsNotOver();
+        _;
+    }
+
     /// @inheritdoc IDistributionContract
     function onTokensReceived() external view {
         if (token.balanceOf(address(this)) < totalSupply) revert IDistributionContract__InvalidAmountReceived();
+    }
+
+    /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
+    function isGraduated() public view returns (bool) {
+        return latestCheckpoint().totalCleared >= ((totalSupply * graduationThresholdMps) / AuctionStepLib.MPS);
     }
 
     /// @notice Advance the current step until the current block is within the step
@@ -99,7 +116,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         return _checkpoint;
     }
 
-    /// @notice Calculate the new clearing price
+    /// @notice Calculate the new clearing price, given:
     /// @param minimumClearingPrice The minimum clearing price
     /// @param supply The token supply at or above nextActiveTickPrice in the block
     function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 supply) internal view returns (uint256) {
@@ -268,6 +285,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         uint256 prevTickPrice,
         bytes calldata hookData
     ) external payable returns (uint256) {
+        // Bids cannot be submitted at the endBlock or after
         if (block.number >= endBlock) revert AuctionIsOver();
         uint256 requiredCurrencyAmount = BidLib.inputAmount(exactIn, amount, maxPrice);
         if (requiredCurrencyAmount == 0) revert InvalidAmount();
@@ -282,12 +300,16 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
     }
 
     /// @inheritdoc IAuction
-    function exitBid(uint256 bidId) external {
+    function exitBid(uint256 bidId) external onlyAfterAuctionIsOver {
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
         Checkpoint memory finalCheckpoint = _unsafeCheckpoint(endBlock);
+        if (!isGraduated()) {
+            // In the case that the auction did not graduate, fully refund the bid
+            return _processExit(bidId, bid, 0, bid.inputAmount());
+        }
 
-        if (block.number < endBlock || bid.maxPrice <= finalCheckpoint.clearingPrice) revert CannotExitBid();
+        if (bid.maxPrice <= finalCheckpoint.clearingPrice) revert CannotExitBid();
         /// @dev Bid was fully filled and the auction is now over
         (uint256 tokensFilled, uint256 currencySpent) = _accountFullyFilledCheckpoints(finalCheckpoint, bid);
 
@@ -344,6 +366,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock == 0) revert BidNotExited();
         if (block.number < claimBlock) revert NotClaimable();
+        if (!isGraduated()) revert NotGraduated();
 
         uint256 tokensFilled = bid.tokensFilled;
         bid.tokensFilled = 0;
@@ -352,5 +375,24 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         Currency.wrap(address(token)).transfer(bid.owner, tokensFilled);
 
         emit TokensClaimed(bid.owner, tokensFilled);
+    }
+
+    /// @inheritdoc IAuction
+    function sweepCurrency() external onlyAfterAuctionIsOver {
+        // Cannot sweep if already swept
+        if (sweepCurrencyBlock != 0) revert CannotSweepCurrency();
+        // Cannot sweep currency if the auction has not graduated, as the Currency must be refunded
+        if (!isGraduated()) revert NotGraduated();
+        _sweepCurrency(_getFinalCheckpoint().getCurrencyRaised());
+    }
+
+    /// @inheritdoc IAuction
+    function sweepUnsoldTokens() external onlyAfterAuctionIsOver {
+        if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
+        if (isGraduated()) {
+            _sweepUnsoldTokens(totalSupply - _getFinalCheckpoint().totalCleared);
+        } else {
+            _sweepUnsoldTokens(totalSupply);
+        }
     }
 }

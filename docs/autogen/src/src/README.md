@@ -11,3 +11,4 @@
 - [PermitSingleForwarder](PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md)
 - [Tick](TickStorage.sol/struct.Tick.md)
 - [TickStorage](TickStorage.sol/abstract.TickStorage.md)
+- [TokenCurrencyStorage](TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md)

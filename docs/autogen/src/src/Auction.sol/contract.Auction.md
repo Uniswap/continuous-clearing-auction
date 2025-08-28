@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c0936b6d3aa86b5d6d1a00f9e1bab4d207a57170/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/4c9af76a705eb813cc2e0ec768b3771f7a342ec1/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -47,7 +47,7 @@ Demand public sumDemandAboveClearing;
 
 
 ```solidity
-constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
+constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
     AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
     TokenCurrencyStorage(
         _token,
@@ -97,7 +97,7 @@ Advance the current step until the current block is within the step
 
 
 ```solidity
-function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint256 blockNumber)
+function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint64 blockNumber)
     internal
     returns (Checkpoint memory);
 ```
@@ -111,7 +111,7 @@ Calculate the new clearing price, given:
 function _calculateNewClearingPrice(
     Demand memory blockSumDemandAboveClearing,
     uint256 minimumClearingPrice,
-    uint256 supply
+    uint128 supply
 ) internal view returns (uint256);
 ```
 **Parameters**
@@ -120,7 +120,7 @@ function _calculateNewClearingPrice(
 |----|----|-----------|
 |`blockSumDemandAboveClearing`|`Demand`|The demand above the clearing price in the block|
 |`minimumClearingPrice`|`uint256`|The minimum clearing price|
-|`supply`|`uint256`|The token supply at or above nextActiveTickPrice in the block|
+|`supply`|`uint128`|The token supply at or above nextActiveTickPrice in the block|
 
 
 ### _updateLatestCheckpointToCurrentStep
@@ -131,7 +131,7 @@ Update the latest checkpoint to the current step
 
 
 ```solidity
-function _updateLatestCheckpointToCurrentStep(uint256 blockNumber) internal returns (Checkpoint memory);
+function _updateLatestCheckpointToCurrentStep(uint64 blockNumber) internal returns (Checkpoint memory);
 ```
 
 ### _unsafeCheckpoint
@@ -168,7 +168,7 @@ function _getFinalCheckpoint() internal returns (Checkpoint memory _checkpoint);
 function _submitBid(
     uint256 maxPrice,
     bool exactIn,
-    uint256 amount,
+    uint128 amount,
     address owner,
     uint256 prevTickPrice,
     bytes calldata hookData
@@ -181,7 +181,7 @@ Given a bid, tokens filled and refund, process the transfers and refund
 
 
 ```solidity
-function _processExit(uint256 bidId, Bid memory bid, uint256 tokensFilled, uint256 refund) internal;
+function _processExit(uint256 bidId, Bid memory bid, uint128 tokensFilled, uint128 refund) internal;
 ```
 
 ### checkpoint
@@ -206,7 +206,7 @@ Submit a new bid
 function submitBid(
     uint256 maxPrice,
     bool exactIn,
-    uint256 amount,
+    uint128 amount,
     address owner,
     uint256 prevTickPrice,
     bytes calldata hookData
@@ -218,7 +218,7 @@ function submitBid(
 |----|----|-----------|
 |`maxPrice`|`uint256`|The maximum price the bidder is willing to pay|
 |`exactIn`|`bool`|Whether the bid is exact in|
-|`amount`|`uint256`|The amount of the bid|
+|`amount`|`uint128`|The amount of the bid|
 |`owner`|`address`|The owner of the bid|
 |`prevTickPrice`|`uint256`|The price of the previous tick|
 |`hookData`|`bytes`|Additional data to pass to the hook required for validation|

@@ -17,6 +17,8 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {Tick} from '../src/TickStorage.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
+
+import {console2} from 'forge-std/console2.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 
@@ -86,6 +88,7 @@ contract AuctionInvariantHandler is Test {
         view
         returns (uint128, uint256)
     {
+        tickNumber = _bound(tickNumber, 0, type(uint8).max);
         uint256 tickNumberPrice = auction.floorPrice() + tickNumber * auction.tickSpacing();
         uint256 maxPrice = _bound(tickNumberPrice, BID_MIN_PRICE, BID_MAX_PRICE);
         // Round down to the nearest tick boundary
@@ -95,7 +98,7 @@ contract AuctionInvariantHandler is Test {
             uint128 inputAmount = amount;
             return (inputAmount, maxPrice);
         } else {
-            uint128 inputAmount = uint128(amount.fullMulDivUp(maxPrice, FixedPoint96.Q96));
+            uint128 inputAmount = uint128(uint256(amount).fullMulDivUp(maxPrice, FixedPoint96.Q96));
             return (inputAmount, maxPrice);
         }
     }
@@ -126,8 +129,6 @@ contract AuctionInvariantHandler is Test {
     {
         uint128 amount = uint128(_bound(tickNumber, 1, uint256(auction.totalSupply() * 2)));
         (uint128 inputAmount, uint256 maxPrice) = useAmountMaxPrice(exactIn, amount, tickNumber);
-        // Require that the expected input amount is less than uint128.max
-        vm.assume(uint256(inputAmount).fullMulDivUp(maxPrice, FixedPoint96.Q96) <= type(uint128).max);
 
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
@@ -146,10 +147,10 @@ contract AuctionInvariantHandler is Test {
             bidIds.push(nextBidId);
             bidCount++;
         } catch (bytes memory revertData) {
-            if (inputAmount == 0) {
-                assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidAmount.selector));
-            } else if (block.number >= auction.endBlock()) {
+            if (block.number >= auction.endBlock()) {
                 assertEq(revertData, abi.encodeWithSelector(IAuctionStepStorage.AuctionIsOver.selector));
+            } else if (inputAmount == 0) {
+                assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidAmount.selector));
             } else if (maxPrice <= auction.clearingPrice()) {
                 assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidBidPrice.selector));
             }

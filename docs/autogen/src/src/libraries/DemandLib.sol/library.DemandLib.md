@@ -1,5 +1,5 @@
 # DemandLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/64073dd424d59f4492ba600df76c0af715c909bb/src/libraries/DemandLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/4c9af76a705eb813cc2e0ec768b3771f7a342ec1/src/libraries/DemandLib.sol)
 
 
 ## Functions
@@ -7,21 +7,21 @@
 
 
 ```solidity
-function resolve(Demand memory _demand, uint256 price) internal pure returns (uint256);
+function resolve(Demand memory _demand, uint256 price) internal pure returns (uint128);
 ```
 
 ### resolveCurrencyDemand
 
 
 ```solidity
-function resolveCurrencyDemand(uint256 amount, uint256 price) internal pure returns (uint256);
+function resolveCurrencyDemand(uint128 amount, uint256 price) internal pure returns (uint128);
 ```
 
 ### resolveTokenDemand
 
 
 ```solidity
-function resolveTokenDemand(uint256 amount) internal pure returns (uint256);
+function resolveTokenDemand(uint128 amount) internal pure returns (uint128);
 ```
 
 ### sub
@@ -49,13 +49,13 @@ function applyMps(Demand memory _demand, uint24 mps) internal pure returns (Dema
 
 
 ```solidity
-function addCurrencyAmount(Demand memory _demand, uint256 _amount) internal pure returns (Demand memory);
+function addCurrencyAmount(Demand memory _demand, uint128 _amount) internal pure returns (Demand memory);
 ```
 
 ### addTokenAmount
 
 
 ```solidity
-function addTokenAmount(Demand memory _demand, uint256 _amount) internal pure returns (Demand memory);
+function addTokenAmount(Demand memory _demand, uint128 _amount) internal pure returns (Demand memory);
 ```
 

@@ -1,5 +1,5 @@
 # BidLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/d200a5546708f64ff0ca4fc019aad142ca33d228/src/libraries/BidLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/4c9af76a705eb813cc2e0ec768b3771f7a342ec1/src/libraries/BidLib.sol)
 
 
 ## State Variables
@@ -17,7 +17,7 @@ Resolve the demand of a bid at its maxPrice
 
 
 ```solidity
-function demand(Bid memory bid) internal pure returns (uint256);
+function demand(Bid memory bid) internal pure returns (uint128);
 ```
 **Parameters**
 
@@ -29,7 +29,7 @@ function demand(Bid memory bid) internal pure returns (uint256);
 
 |Name|Type|Description|
 |----|----|-----------|
-|`<none>`|`uint256`|The demand of the bid|
+|`<none>`|`uint128`|The demand of the bid|
 
 
 ### inputAmount
@@ -38,21 +38,21 @@ Calculate the input amount required for an amount and maxPrice
 
 
 ```solidity
-function inputAmount(bool exactIn, uint256 amount, uint256 maxPrice) internal pure returns (uint256);
+function inputAmount(bool exactIn, uint128 amount, uint256 maxPrice) internal pure returns (uint128);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`exactIn`|`bool`|Whether the bid is exact in|
-|`amount`|`uint256`|The amount of the bid|
+|`amount`|`uint128`|The amount of the bid|
 |`maxPrice`|`uint256`|The max price of the bid|
 
 **Returns**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`<none>`|`uint256`|The input amount required for an amount and maxPrice|
+|`<none>`|`uint128`|The input amount required for an amount and maxPrice|
 
 
 ### inputAmount
@@ -61,7 +61,7 @@ Calculate the input amount required to place the bid
 
 
 ```solidity
-function inputAmount(Bid memory bid) internal pure returns (uint256);
+function inputAmount(Bid memory bid) internal pure returns (uint128);
 ```
 **Parameters**
 
@@ -73,6 +73,6 @@ function inputAmount(Bid memory bid) internal pure returns (uint256);
 
 |Name|Type|Description|
 |----|----|-----------|
-|`<none>`|`uint256`|The input amount required to place the bid|
+|`<none>`|`uint128`|The input amount required to place the bid|
 
 

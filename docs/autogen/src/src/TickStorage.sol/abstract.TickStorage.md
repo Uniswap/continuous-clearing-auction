@@ -1,5 +1,5 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/381b0ae668f577856bcecaebacb52bec6c71bf17/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/4c9af76a705eb813cc2e0ec768b3771f7a342ec1/src/TickStorage.sol)
 
 **Inherits:**
 [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
@@ -122,7 +122,7 @@ Internal function to add a bid to a tick and update its values
 
 
 ```solidity
-function _updateTick(uint256 price, bool exactIn, uint256 amount) internal;
+function _updateTick(uint256 price, bool exactIn, uint128 amount) internal;
 ```
 **Parameters**
 
@@ -130,6 +130,6 @@ function _updateTick(uint256 price, bool exactIn, uint256 amount) internal;
 |----|----|-----------|
 |`price`|`uint256`|The price of the tick|
 |`exactIn`|`bool`|Whether the bid is exact in|
-|`amount`|`uint256`|The amount of the bid|
+|`amount`|`uint128`|The amount of the bid|
 
 

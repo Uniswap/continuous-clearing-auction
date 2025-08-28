@@ -1,5 +1,5 @@
 # AuctionStepLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/d200a5546708f64ff0ca4fc019aad142ca33d228/src/libraries/AuctionStepLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/4c9af76a705eb813cc2e0ec768b3771f7a342ec1/src/libraries/AuctionStepLib.sol)
 
 
 ## State Variables
@@ -39,6 +39,6 @@ Apply mps to a value
 
 
 ```solidity
-function applyMps(uint256 value, uint24 mps) internal pure returns (uint256);
+function applyMps(uint128 value, uint24 mps) internal pure returns (uint128);
 ```
 

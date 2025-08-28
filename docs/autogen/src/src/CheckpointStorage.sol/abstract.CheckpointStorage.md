@@ -1,5 +1,5 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c0936b6d3aa86b5d6d1a00f9e1bab4d207a57170/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/4c9af76a705eb813cc2e0ec768b3771f7a342ec1/src/CheckpointStorage.sol)
 
 **Inherits:**
 [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
@@ -95,7 +95,7 @@ because it uses lazy accounting to calculate the tokens filled*
 function _accountFullyFilledCheckpoints(Checkpoint memory upper, Bid memory bid)
     internal
     view
-    returns (uint256 tokensFilled, uint256 currencySpent);
+    returns (uint128 tokensFilled, uint128 currencySpent);
 ```
 **Parameters**
 
@@ -108,8 +108,8 @@ function _accountFullyFilledCheckpoints(Checkpoint memory upper, Bid memory bid)
 
 |Name|Type|Description|
 |----|----|-----------|
-|`tokensFilled`|`uint256`|The tokens sold|
-|`currencySpent`|`uint256`|The amount of currency spent|
+|`tokensFilled`|`uint128`|The tokens sold|
+|`currencySpent`|`uint128`|The amount of currency spent|
 
 
 ### _accountPartiallyFilledCheckpoints
@@ -120,20 +120,20 @@ Calculate the tokens sold, proportion of input used, and the block number of the
 ```solidity
 function _accountPartiallyFilledCheckpoints(
     Checkpoint memory upperCheckpoint,
-    uint256 bidDemand,
-    uint256 tickDemand,
+    uint128 bidDemand,
+    uint128 tickDemand,
     uint256 bidMaxPrice,
     uint24 cumulativeMpsDelta,
     uint24 mpsDenominator
-) internal pure returns (uint256 tokensFilled, uint256 currencySpent);
+) internal pure returns (uint128 tokensFilled, uint128 currencySpent);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`upperCheckpoint`|`Checkpoint`|The last checkpoint where clearing price is equal to bid.maxPrice|
-|`bidDemand`|`uint256`|The demand of the bid|
-|`tickDemand`|`uint256`||
+|`bidDemand`|`uint128`|The demand of the bid|
+|`tickDemand`|`uint128`||
 |`bidMaxPrice`|`uint256`|The max price of the bid|
 |`cumulativeMpsDelta`|`uint24`|The cumulative sum of mps values across the block range|
 |`mpsDenominator`|`uint24`|The percentage of the auction which the bid was spread over|
@@ -142,8 +142,8 @@ function _accountPartiallyFilledCheckpoints(
 
 |Name|Type|Description|
 |----|----|-----------|
-|`tokensFilled`|`uint256`|The tokens sold|
-|`currencySpent`|`uint256`|The amount of currency spent|
+|`tokensFilled`|`uint128`|The tokens sold|
+|`currencySpent`|`uint128`|The amount of currency spent|
 
 
 ### _calculateFill
@@ -160,7 +160,7 @@ function _calculateFill(
     uint256 cumulativeMpsPerPriceDelta,
     uint24 cumulativeMpsDelta,
     uint24 mpsDenominator
-) internal pure returns (uint256 tokensFilled, uint256 currencySpent);
+) internal pure returns (uint128 tokensFilled, uint128 currencySpent);
 ```
 **Parameters**
 
@@ -175,7 +175,7 @@ function _calculateFill(
 
 |Name|Type|Description|
 |----|----|-----------|
-|`tokensFilled`|`uint256`|the amount of tokens filled for this bid|
-|`currencySpent`|`uint256`|the amount of currency spent by this bid|
+|`tokensFilled`|`uint128`|the amount of tokens filled for this bid|
+|`currencySpent`|`uint128`|the amount of currency spent by this bid|
 
 

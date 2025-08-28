@@ -1,11 +1,11 @@
 # Demand
-[Git Source](https://github.com/Uniswap/twap-auction/blob/a40941ed6c71ce668b5d7c2923b5830fe9b23869/src/libraries/DemandLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/4c9af76a705eb813cc2e0ec768b3771f7a342ec1/src/libraries/DemandLib.sol)
 
 
 ```solidity
 struct Demand {
-    uint256 currencyDemand;
-    uint256 tokenDemand;
+    uint128 currencyDemand;
+    uint128 tokenDemand;
 }
 ```
 

@@ -21,7 +21,7 @@ struct Checkpoint {
 
 /// @title CheckpointLib
 library CheckpointLib {
-    using FixedPointMathLib for uint256;
+    using FixedPointMathLib for uint128;
     using AuctionStepLib for uint128;
     using CheckpointLib for Checkpoint;
 
@@ -105,7 +105,7 @@ library CheckpointLib {
     /// @return The total currency raised
     function getCurrencyRaised(Checkpoint memory checkpoint) internal pure returns (uint128) {
         return uint128(
-            uint256(checkpoint.totalCleared).fullMulDiv(
+            checkpoint.totalCleared.fullMulDiv(
                 checkpoint.cumulativeMps * FixedPoint96.Q96, checkpoint.cumulativeMpsPerPrice
             )
         );

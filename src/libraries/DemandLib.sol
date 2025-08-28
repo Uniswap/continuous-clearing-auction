@@ -12,7 +12,7 @@ struct Demand {
 
 library DemandLib {
     using DemandLib for uint128;
-    using FixedPointMathLib for uint256;
+    using FixedPointMathLib for uint128;
     using AuctionStepLib for uint128;
 
     function resolve(Demand memory _demand, uint256 price) internal pure returns (uint128) {
@@ -20,7 +20,7 @@ library DemandLib {
     }
 
     function resolveCurrencyDemand(uint128 amount, uint256 price) internal pure returns (uint128) {
-        return price == 0 ? 0 : uint128(uint256(amount).fullMulDiv(FixedPoint96.Q96, price));
+        return price == 0 ? 0 : uint128(amount.fullMulDiv(FixedPoint96.Q96, price));
     }
 
     function resolveTokenDemand(uint128 amount) internal pure returns (uint128) {

@@ -18,7 +18,6 @@ contract CheckpointStorageTest is Test {
 
     using BidLib for Bid;
     using DemandLib for Demand;
-    using FixedPointMathLib for uint256;
     using FixedPointMathLib for uint128;
     using AuctionStepLib for uint128;
 
@@ -115,9 +114,9 @@ contract CheckpointStorageTest is Test {
 
         uint256 maxPrice = 2000 << FixedPoint96.RESOLUTION;
         uint256 cumulativeMpsPerPrice = CheckpointLib.getMpsPerPrice(cumulativeMpsDelta, maxPrice);
-        uint256 _tokensFilled = TOKEN_AMOUNT.applyMps(cumulativeMpsDelta);
-        uint256 _currencySpent =
-            _tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPrice);
+        uint128 _tokensFilled = TOKEN_AMOUNT.applyMps(cumulativeMpsDelta);
+        uint128 _currencySpent =
+            uint128(_tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPrice));
 
         (uint128 tokensFilled, uint128 currencySpent) =
             mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPrice, cumulativeMpsDelta, MPS);
@@ -139,14 +138,14 @@ contract CheckpointStorageTest is Test {
         mpsArray[2] = 20e3;
         pricesArray[2] = 200 << FixedPoint96.RESOLUTION;
 
-        uint256 _tokensFilled;
-        uint256 _currencySpent;
-        uint256 _totalMps;
+        uint128 _tokensFilled;
+        uint128 _currencySpent;
+        uint24 _totalMps;
         uint256 _cumulativeMpsPerPrice;
 
         for (uint256 i = 0; i < 3; i++) {
-            uint256 currencySpentInBlock = ETH_AMOUNT * mpsArray[i] / MPS;
-            uint256 tokensFilledInBlock = currencySpentInBlock.fullMulDiv(FixedPoint96.Q96, pricesArray[i]);
+            uint128 currencySpentInBlock = ETH_AMOUNT * mpsArray[i] / MPS;
+            uint128 tokensFilledInBlock = uint128(currencySpentInBlock.fullMulDiv(FixedPoint96.Q96, pricesArray[i]));
             _tokensFilled += tokensFilledInBlock;
             _currencySpent += currencySpentInBlock;
 
@@ -180,12 +179,12 @@ contract CheckpointStorageTest is Test {
 
         uint256 _totalMps;
         uint256 _cumulativeMpsPerPrice;
-        uint256 _currencySpent;
+        uint128 _currencySpent;
 
         for (uint256 i = 0; i < 1; i++) {
             _totalMps += mpsArray[i];
             _cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(mpsArray[i], pricesArray[i]);
-            _currencySpent += TOKEN_AMOUNT.fullMulDiv(mpsArray[i] * FixedPoint96.Q96, _cumulativeMpsPerPrice);
+            _currencySpent += uint128(TOKEN_AMOUNT.fullMulDiv(mpsArray[i] * FixedPoint96.Q96, _cumulativeMpsPerPrice));
         }
 
         Bid memory bid = Bid({

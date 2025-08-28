@@ -25,7 +25,6 @@ import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 contract AuctionInvariantHandler is Test {
     using CurrencyLibrary for Currency;
     using FixedPointMathLib for uint128;
-    using FixedPointMathLib for uint256;
 
     Auction public auction;
     IPermit2 public permit2;
@@ -98,7 +97,7 @@ contract AuctionInvariantHandler is Test {
             uint128 inputAmount = amount;
             return (inputAmount, maxPrice);
         } else {
-            uint128 inputAmount = uint128(uint256(amount).fullMulDivUp(maxPrice, FixedPoint96.Q96));
+            uint128 inputAmount = uint128(amount.fullMulDivUp(maxPrice, FixedPoint96.Q96));
             return (inputAmount, maxPrice);
         }
     }

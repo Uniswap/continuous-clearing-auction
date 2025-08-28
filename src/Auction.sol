@@ -33,7 +33,6 @@ contract Auction is
     IAuction
 {
     using FixedPointMathLib for uint128;
-    using FixedPointMathLib for uint256;
     using CurrencyLibrary for Currency;
     using BidLib for Bid;
     using AuctionStepLib for *;

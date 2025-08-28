@@ -14,8 +14,7 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 /// @title CheckpointStorage
 /// @notice Abstract contract for managing auction checkpoints and bid fill calculations
 abstract contract CheckpointStorage is ICheckpointStorage {
-    using FixedPointMathLib for uint128;
-    using FixedPointMathLib for uint256;
+    using FixedPointMathLib for *;
     using AuctionStepLib for *;
     using BidLib for *;
     using SafeCastLib for uint256;

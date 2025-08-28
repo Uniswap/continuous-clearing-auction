@@ -25,7 +25,6 @@ import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 contract AuctionTest is AuctionBaseTest {
     using FixedPointMathLib for uint128;
-    using FixedPointMathLib for uint256;
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
 

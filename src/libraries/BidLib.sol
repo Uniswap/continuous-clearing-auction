@@ -22,7 +22,6 @@ library BidLib {
     using AuctionStepLib for uint128;
     using DemandLib for uint128;
     using BidLib for Bid;
-    using SafeCastLib for uint256;
     using FixedPointMathLib for uint128;
 
     uint256 public constant PRECISION = 1e18;

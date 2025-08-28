@@ -26,6 +26,7 @@ graph TD;
         CheckpointStorage;
         TickStorage;
         PermitSingleForwarder;
+        TokenCurrencyStorage;
     end
 
     subgraph Libraries
@@ -44,6 +45,8 @@ graph TD;
         IAuction;
         IAuctionStepStorage;
         ITickStorage;
+        ICheckpointStorage;
+        ITokenCurrencyStorage;
         IPermitSingleForwarder;
         IValidationHook;
         IDistributionContract;
@@ -59,6 +62,7 @@ graph TD;
     Auction -- inherits from --> BidStorage;
     Auction -- inherits from --> CheckpointStorage;
     Auction -- inherits from --> AuctionStepStorage;
+    Auction -- inherits from --> TokenCurrencyStorage;
     Auction -- implements --> IAuction;
 
     CheckpointStorage -- inherits from --> TickStorage;
@@ -85,9 +89,13 @@ graph TD;
     CheckpointStorage -- uses --> CheckpointLib;
     CheckpointStorage -- uses --> DemandLib;
     CheckpointStorage -- uses --> FixedPoint96;
+    CheckpointStorage -- implements --> ICheckpointStorage;
     TickStorage -- uses --> DemandLib;
     TickStorage -- uses --> FixedPoint96;
     TickStorage -- implements --> ITickStorage;
+    
+    TokenCurrencyStorage -- uses --> CurrencyLibrary;
+    TokenCurrencyStorage -- implements --> ITokenCurrencyStorage;
 
     PermitSingleForwarder -- implements --> IPermitSingleForwarder;
     PermitSingleForwarder -- interacts with --> IAllowanceTransfer;
@@ -102,12 +110,14 @@ classDiagram
     class CheckpointStorage
     class TickStorage
     class AuctionStepStorage
+    class TokenCurrencyStorage
     class IAuction
 
     Auction --|> PermitSingleForwarder
     Auction --|> BidStorage
     Auction --|> CheckpointStorage
     Auction --|> AuctionStepStorage
+    Auction --|> TokenCurrencyStorage
     Auction --|> IAuction
     CheckpointStorage --|> TickStorage
 
@@ -136,13 +146,14 @@ struct AuctionParameters {
     address tokensRecipient; // address to receive leftover tokens
     address fundsRecipient; // address to receive all raised funds
     uint64 startBlock; // Block which the first step starts
-    uint64 endBlock; // When the auction finishes (exclusive)
+    uint64 endBlock; // When the auction finishes
     uint64 claimBlock; // Block when the auction can claimed
+    uint24 graduationThresholdMps; // Minimum percentage of tokens that must be sold to graduate the auction
     uint256 tickSpacing; // Fixed granularity for prices (in Q96 format)
     address validationHook; // Optional hook called before a bid
     uint256 floorPrice; // Starting floor price for the auction (in Q96 format)
-    // Packed bytes describing token issuance schedule
-    bytes auctionStepsData;
+    bytes auctionStepsData; // Packed bytes describing token issuance schedule
+    bytes fundsRecipientData; // Optional data to call the fundsRecipient with after the currency is swept
 }
 
 constructor(
@@ -288,9 +299,49 @@ event BidExited(uint256 indexed bidId, address indexed owner);
 
 **Implementation**: The bid is processed and the user is refunded any unspent currency. Tokens purchased are tracked for claiming.
 
+### Auction Graduation
+
+Auctions have a configurable graduation threshold that determines whether enough tokens were sold for the auction to be considered successful. This enables refund mechanisms for failed auctions.
+
+```solidity
+interface IAuction {
+    /// @notice Whether the auction has graduated (sold more than the graduation threshold)
+    function isGraduated() external view returns (bool);
+}
+```
+
+**Implementation**: The graduation threshold is specified as `graduationThresholdMps` in the auction parameters. An auction graduates if `totalCleared >= (totalSupply * graduationThresholdMps) / 1e7`. Non-graduated auctions refund all currency to bidders.
+
+### Fund Management
+
+After an auction ends, the raised currency and any unsold tokens can be withdrawn by the designated recipients. This includes support for callback functionality.
+
+```solidity
+interface IAuction {
+    /// @notice Withdraw all raised currency (only for graduated auctions)
+    function sweepCurrency() external;
+    
+    /// @notice Withdraw any unsold tokens
+    function sweepUnsoldTokens() external;
+}
+
+event CurrencySwept(address indexed fundsRecipient, uint256 currencyAmount);
+event TokensSwept(address indexed tokensRecipient, uint256 tokensAmount);
+```
+
+**Sweeping Rules:**
+- `sweepCurrency()`: Only callable by funds recipient, only for graduated auctions, must be before claim block
+- `sweepUnsoldTokens()`: Callable by anyone after auction ends
+- For graduated auctions: sweeps `totalSupply - totalCleared` tokens  
+- For non-graduated auctions: sweeps all `totalSupply` tokens
+
+**Callback Support**: The `fundsRecipientData` parameter enables custom logic execution after currency sweeping. If the funds recipient is a contract and callback data is provided, the contract will be called with the specified data after the currency transfer.
+
+**Implementation**: The sweeping functions use the `TokenCurrencyStorage` abstraction to handle fund transfers and emit appropriate events. Safety mechanisms prevent double-sweeping and ensure proper timing constraints.
+
 ### Claiming tokens
 
-Users can claim their purchased tokens after the auction's claim block. The bid must be exited before claiming tokens.
+Users can claim their purchased tokens after the auction's claim block. The bid must be exited before claiming tokens, and the auction must have graduated.
 
 ```solidity
 interface IAuction {
@@ -300,7 +351,7 @@ interface IAuction {
 event TokensClaimed(address indexed owner, uint256 tokensFilled);
 ```
 
-**Implementation**: Transfers the calculated token allocation to the bid owner. Anyone can call this function, but tokens are always sent to the bid owner.
+**Implementation**: Transfers the calculated token allocation to the bid owner. Anyone can call this function, but tokens are always sent to the bid owner. If the auction did not graduate, tokens cannot be claimed as all currency is refunded to bidders.
 
 ### Auction information
 
@@ -313,10 +364,17 @@ interface IAuctionStepStorage {
 
 interface IAuction {
     function totalSupply() external view returns (uint256);
+    function isGraduated() external view returns (bool);
+}
+
+interface ITokenCurrencyStorage {
+    function graduationThresholdMps() external view returns (uint24);
+    function sweepCurrencyBlock() external view returns (uint256);
+    function sweepUnsoldTokensBlock() external view returns (uint256);
 }
 ```
 
-**Implementation**: Current step contains MPS (tokens per block), start/end blocks. Total supply is immutable.
+**Implementation**: Current step contains MPS (tokens per block), start/end blocks. Total supply and graduation threshold are immutable. Sweep block numbers track when fund management operations occurred.
 
 ## Flow Diagrams
 
@@ -397,4 +455,49 @@ sequenceDiagram
     CheckpointStorage->>CheckpointStorage: update checkpoint with new clearing price
     CheckpointStorage-->>Auction: new checkpoint
     Auction->>Auction: emit CheckpointUpdated(...)
+```
+
+### Auction Completion and Fund Management Flow
+
+```mermaid
+sequenceDiagram
+    participant FundsRecipient
+    participant TokensRecipient  
+    participant Bidder
+    participant Auction
+    participant TokenCurrencyStorage
+
+    Note over Auction: Auction ends at endBlock
+    
+    alt Auction Graduated
+        FundsRecipient->>Auction: sweepCurrency()
+        Auction->>Auction: check isGraduated() == true
+        Auction->>Auction: check block.number < claimBlock
+        Auction->>TokenCurrencyStorage: _sweepCurrency(amount)
+        TokenCurrencyStorage->>TokenCurrencyStorage: transfer currency to fundsRecipient
+        opt fundsRecipientData provided and recipient is contract
+            TokenCurrencyStorage->>FundsRecipient: call with fundsRecipientData
+        end
+        TokenCurrencyStorage->>TokenCurrencyStorage: emit CurrencySwept()
+        
+        TokensRecipient->>Auction: sweepUnsoldTokens()
+        Auction->>TokenCurrencyStorage: _sweepUnsoldTokens(totalSupply - totalCleared)
+        TokenCurrencyStorage->>TokenCurrencyStorage: transfer unsold tokens to tokensRecipient
+        TokenCurrencyStorage->>TokenCurrencyStorage: emit TokensSwept()
+        
+        Note over Bidder: After claimBlock
+        Bidder->>Auction: claimTokens(bidId)
+        Auction->>Auction: check bid.exitedBlock != 0
+        Auction->>Auction: check isGraduated() == true
+        Auction->>Bidder: transfer tokens to bid.owner
+        
+    else Auction Not Graduated
+        TokensRecipient->>Auction: sweepUnsoldTokens()
+        Auction->>TokenCurrencyStorage: _sweepUnsoldTokens(totalSupply)
+        TokenCurrencyStorage->>TokenCurrencyStorage: transfer all tokens to tokensRecipient
+        
+        Bidder->>Auction: exitBid(bidId) / exitPartiallyFilledBid(bidId, hint)
+        Auction->>Auction: check isGraduated() == false
+        Auction->>Bidder: refund full currency amount (no tokens)
+    end
 ```

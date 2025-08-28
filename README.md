@@ -93,7 +93,7 @@ graph TD;
     TickStorage -- uses --> DemandLib;
     TickStorage -- uses --> FixedPoint96;
     TickStorage -- implements --> ITickStorage;
-    
+
     TokenCurrencyStorage -- uses --> CurrencyLibrary;
     TokenCurrencyStorage -- implements --> ITokenCurrencyStorage;
 
@@ -320,7 +320,7 @@ After an auction ends, the raised currency and any unsold tokens can be withdraw
 interface IAuction {
     /// @notice Withdraw all raised currency (only for graduated auctions)
     function sweepCurrency() external;
-    
+
     /// @notice Withdraw any unsold tokens
     function sweepUnsoldTokens() external;
 }
@@ -330,9 +330,10 @@ event TokensSwept(address indexed tokensRecipient, uint256 tokensAmount);
 ```
 
 **Sweeping Rules:**
+
 - `sweepCurrency()`: Only callable by funds recipient, only for graduated auctions, must be before claim block
 - `sweepUnsoldTokens()`: Callable by anyone after auction ends
-- For graduated auctions: sweeps `totalSupply - totalCleared` tokens  
+- For graduated auctions: sweeps `totalSupply - totalCleared` tokens
 - For non-graduated auctions: sweeps all `totalSupply` tokens
 
 **Callback Support**: The `fundsRecipientData` parameter enables custom logic execution after currency sweeping. If the funds recipient is a contract and callback data is provided, the contract will be called with the specified data after the currency transfer.
@@ -462,13 +463,13 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant FundsRecipient
-    participant TokensRecipient  
+    participant TokensRecipient
     participant Bidder
     participant Auction
     participant TokenCurrencyStorage
 
     Note over Auction: Auction ends at endBlock
-    
+
     alt Auction Graduated
         FundsRecipient->>Auction: sweepCurrency()
         Auction->>Auction: check isGraduated() == true
@@ -479,23 +480,23 @@ sequenceDiagram
             TokenCurrencyStorage->>FundsRecipient: call with fundsRecipientData
         end
         TokenCurrencyStorage->>TokenCurrencyStorage: emit CurrencySwept()
-        
+
         TokensRecipient->>Auction: sweepUnsoldTokens()
         Auction->>TokenCurrencyStorage: _sweepUnsoldTokens(totalSupply - totalCleared)
         TokenCurrencyStorage->>TokenCurrencyStorage: transfer unsold tokens to tokensRecipient
         TokenCurrencyStorage->>TokenCurrencyStorage: emit TokensSwept()
-        
+
         Note over Bidder: After claimBlock
         Bidder->>Auction: claimTokens(bidId)
         Auction->>Auction: check bid.exitedBlock != 0
         Auction->>Auction: check isGraduated() == true
         Auction->>Bidder: transfer tokens to bid.owner
-        
+
     else Auction Not Graduated
         TokensRecipient->>Auction: sweepUnsoldTokens()
         Auction->>TokenCurrencyStorage: _sweepUnsoldTokens(totalSupply)
         TokenCurrencyStorage->>TokenCurrencyStorage: transfer all tokens to tokensRecipient
-        
+
         Bidder->>Auction: exitBid(bidId) / exitPartiallyFilledBid(bidId, hint)
         Auction->>Auction: check isGraduated() == false
         Auction->>Bidder: refund full currency amount (no tokens)

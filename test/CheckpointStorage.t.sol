@@ -76,6 +76,7 @@ contract CheckpointStorageTest is Test {
         public
         view
     {
+        vm.assume(ETH_AMOUNT * (cumulativeMpsPerPriceDelta >> FixedPoint96.RESOLUTION) <= type(uint128).max);
         vm.assume(cumulativeMpsDelta <= MPS);
         // Setup: User commits 10 ETH to buy tokens
         Bid memory bid = Bid({
@@ -88,7 +89,7 @@ contract CheckpointStorageTest is Test {
             maxPrice: MAX_PRICE // doesn't matter for this test
         });
 
-        (uint256 tokensFilled, uint256 currencySpent) =
+        (uint128 tokensFilled, uint128 currencySpent) =
             mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta, MPS);
 
         assertEq(tokensFilled, ETH_AMOUNT.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * MPS));
@@ -118,7 +119,7 @@ contract CheckpointStorageTest is Test {
         uint256 _currencySpent =
             _tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPrice);
 
-        (uint256 tokensFilled, uint256 currencySpent) =
+        (uint128 tokensFilled, uint128 currencySpent) =
             mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPrice, cumulativeMpsDelta, MPS);
 
         assertEq(tokensFilled, _tokensFilled);
@@ -163,7 +164,7 @@ contract CheckpointStorageTest is Test {
             maxPrice: MAX_PRICE // doesn't matter for this test
         });
 
-        (uint256 tokensFilled, uint256 currencySpent) =
+        (uint128 tokensFilled, uint128 currencySpent) =
             mockCheckpointStorage.calculateFill(bid, _cumulativeMpsPerPrice, uint24(_totalMps), MPS);
 
         assertEq(tokensFilled, _tokensFilled);
@@ -198,7 +199,7 @@ contract CheckpointStorageTest is Test {
         });
 
         // Bid is fully filled since max price is always higher than all prices
-        (uint256 tokensFilled, uint256 currencySpent) =
+        (uint128 tokensFilled, uint128 currencySpent) =
             mockCheckpointStorage.calculateFill(bid, _cumulativeMpsPerPrice, uint24(_totalMps), MPS);
 
         assertEq(_totalMps, 1e7);

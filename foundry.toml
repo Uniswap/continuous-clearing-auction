@@ -22,11 +22,11 @@ remappings = [
 ]
 
 additional_compiler_profiles = [
-  { name = "test", via_ir = true }
+  { name = "test", via_ir = false }
 ]
 
 compilation_restrictions = [
-  { paths = "test/**", via_ir = true }
+  { paths = "test/**", via_ir = false }
 ]
 
 [profile.default.fuzz]

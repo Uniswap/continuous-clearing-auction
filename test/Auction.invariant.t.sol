@@ -84,10 +84,10 @@ contract AuctionInvariantHandler is Test {
     function useAmountMaxPrice(bool exactIn, uint128 amount, uint256 tickNumber)
         public
         view
-        returns (uint128, uint128)
+        returns (uint128, uint256)
     {
-        uint128 tickNumberPrice = uint128(auction.floorPrice() + tickNumber * auction.tickSpacing());
-        uint128 maxPrice = uint128(_bound(tickNumberPrice, BID_MIN_PRICE, BID_MAX_PRICE));
+        uint256 tickNumberPrice = auction.floorPrice() + tickNumber * auction.tickSpacing();
+        uint256 maxPrice = _bound(tickNumberPrice, BID_MIN_PRICE, BID_MAX_PRICE);
         // Round down to the nearest tick boundary
         maxPrice -= (maxPrice % uint128(auction.tickSpacing()));
 
@@ -125,7 +125,9 @@ contract AuctionInvariantHandler is Test {
         validateCheckpoint
     {
         uint128 amount = uint128(_bound(tickNumber, 1, uint256(auction.totalSupply() * 2)));
-        (uint128 inputAmount, uint128 maxPrice) = useAmountMaxPrice(exactIn, amount, tickNumber);
+        (uint128 inputAmount, uint256 maxPrice) = useAmountMaxPrice(exactIn, amount, tickNumber);
+        // Require that the expected input amount is less than uint128.max
+        vm.assume(uint256(inputAmount).fullMulDivUp(maxPrice, FixedPoint96.Q96) <= type(uint128).max);
 
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);

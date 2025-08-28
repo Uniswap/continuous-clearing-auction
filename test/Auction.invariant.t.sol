@@ -167,7 +167,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
         targetContract(address(handler));
     }
 
-    function getCheckpoint(uint256 blockNumber) public view returns (Checkpoint memory) {
+    function getCheckpoint(uint64 blockNumber) public view returns (Checkpoint memory) {
         (
             uint256 clearingPrice,
             uint256 blockCleared,
@@ -175,8 +175,10 @@ contract AuctionInvariantTest is AuctionBaseTest {
             uint24 mps,
             uint24 cumulativeMps,
             uint256 cumulativeMpsPerPrice,
+            uint256 cumulativeSupplySoldToClearingPrice,
             uint256 resolvedDemandAboveClearingPrice,
-            uint256 prev
+            uint64 prev,
+            uint64 next
         ) = auction.checkpoints(blockNumber);
         return Checkpoint({
             clearingPrice: clearingPrice,
@@ -185,8 +187,10 @@ contract AuctionInvariantTest is AuctionBaseTest {
             mps: mps,
             cumulativeMps: cumulativeMps,
             cumulativeMpsPerPrice: cumulativeMpsPerPrice,
+            cumulativeSupplySoldToClearingPrice: cumulativeSupplySoldToClearingPrice,
             resolvedDemandAboveClearingPrice: resolvedDemandAboveClearingPrice,
-            prev: prev
+            prev: prev,
+            next: next
         });
     }
 
@@ -211,26 +215,37 @@ contract AuctionInvariantTest is AuctionBaseTest {
         });
     }
 
-    function getOutbidCheckpointBlock(uint256 maxPrice) public view returns (uint256) {
-        uint256 currentBlock = auction.lastCheckpointedBlock();
-        uint256 previousBlock = 0;
+    function getLowerUpperCheckpointHints(uint256 maxPrice) public view returns (uint64 lower, uint64 upper) {
+        uint64 currentBlock = auction.lastCheckpointedBlock();
 
+        // No checkpoints exist
         if (currentBlock == 0) {
-            return 0;
+            return (0, 0);
         }
 
+        // Traverse checkpoints from most recent to oldest
         while (currentBlock != 0) {
-            (uint256 clearingPrice,,,,,,, uint256 prevBlock) = auction.checkpoints(currentBlock);
+            (uint256 clearingPrice,,,,,,,, uint64 prevBlock,) = auction.checkpoints(currentBlock);
 
-            if (clearingPrice <= maxPrice) {
-                return previousBlock;
+            // Set upper to first checkpoint where clearing price > maxPrice
+            if (clearingPrice > maxPrice && upper == 0) {
+                upper = currentBlock;
             }
 
-            previousBlock = currentBlock;
+            // Set lower to first checkpoint where clearing price == maxPrice
+            if (clearingPrice == maxPrice && lower == 0) {
+                lower = currentBlock;
+            }
+
+            // Early exit if both found
+            if (lower != 0 && upper != 0) {
+                return (lower, upper);
+            }
+
             currentBlock = prevBlock;
         }
 
-        return previousBlock;
+        return (lower, upper);
     }
 
     function invariant_canAlwaysCheckpointDuringAuction() public {
@@ -258,8 +273,8 @@ contract AuctionInvariantTest is AuctionBaseTest {
             if (bid.maxPrice > clearingPrice) {
                 auction.exitBid(i);
             } else {
-                uint256 outbidCheckpointBlock = getOutbidCheckpointBlock(bid.maxPrice);
-                auction.exitPartiallyFilledBid(i, outbidCheckpointBlock);
+                (uint64 lower, uint64 upper) = getLowerUpperCheckpointHints(bid.maxPrice);
+                auction.exitPartiallyFilledBid(i, lower, upper);
             }
 
             // Bid might be deleted if tokensFilled = 0

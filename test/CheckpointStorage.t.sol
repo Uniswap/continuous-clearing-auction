@@ -33,40 +33,42 @@ contract CheckpointStorageTest is Test {
         mockCheckpointStorage = new MockCheckpointStorage();
     }
 
-    function test_resolve_exactOut_calculatePartialFill_succeeds() public view {
-        // Buy exactly 100 tokens at max price 2000 per token
-        uint256 exactOutAmount = 1000e18;
-        uint256 maxPrice = 2000 << FixedPoint96.RESOLUTION;
-        Bid memory bid = Bid({
-            exactIn: false,
-            owner: address(this),
-            amount: exactOutAmount,
-            tokensFilled: 0,
-            startBlock: 100,
-            exitedBlock: 0,
-            maxPrice: maxPrice
-        });
-        Tick memory tick = Tick({next: 0, demand: Demand({currencyDemand: 0, tokenDemand: exactOutAmount})});
+    function test_insertCheckpoint_firstCheckpoint_succeeds() public {
+        Checkpoint memory _checkpoint;
+        mockCheckpointStorage.insertCheckpoint(_checkpoint, 100);
 
-        // Execute: 30% of auction executed (3000 mps)
-        uint24 cumulativeMpsDelta = 3000e3;
+        Checkpoint memory checkpoint = mockCheckpointStorage.getCheckpoint(100);
+        assertEq(checkpoint.prev, 0);
+        assertEq(checkpoint.next, type(uint64).max);
+    }
 
-        // Calculate partial fill values
-        uint256 bidDemand = bid.demand();
-        assertEq(bidDemand, exactOutAmount);
-        uint256 tickDemand = tick.demand.resolve(maxPrice);
-        // No one else at tick, so demand is the same
-        assertEq(bidDemand, tickDemand);
-        uint256 supply = TOTAL_SUPPLY.applyMps(cumulativeMpsDelta);
+    function test_insertCheckpoint_withPrev_succeeds() public {
+        Checkpoint memory _checkpoint;
+        mockCheckpointStorage.insertCheckpoint(_checkpoint, 100);
+        mockCheckpointStorage.insertCheckpoint(_checkpoint, 101);
 
-        // First case, no other demand, bid is "fully filled"
-        uint256 resolvedDemandAboveClearingPrice = 0;
-        uint256 tokensFilled = mockCheckpointStorage.calculatePartialFill(
-            bidDemand, tickDemand, supply, cumulativeMpsDelta, resolvedDemandAboveClearingPrice
-        );
+        Checkpoint memory prevCheckpoint = mockCheckpointStorage.getCheckpoint(100);
+        assertEq(prevCheckpoint.prev, 0);
+        assertEq(prevCheckpoint.next, 101);
 
-        // 30% of 1000e18 tokens = 300e18 tokens filled
-        assertEq(tokensFilled, 300e18);
+        Checkpoint memory checkpoint = mockCheckpointStorage.getCheckpoint(101);
+        assertEq(checkpoint.prev, 100);
+        assertEq(checkpoint.next, type(uint64).max);
+    }
+
+    function test_insertCheckpoint_fuzz_succeeds(uint8 n) public {
+        for (uint8 i = 0; i < n; i++) {
+            Checkpoint memory _checkpoint;
+            mockCheckpointStorage.insertCheckpoint(_checkpoint, i);
+            _checkpoint = mockCheckpointStorage.getCheckpoint(i);
+            if (i > 0) {
+                assertEq(_checkpoint.prev, i - 1);
+                assertEq(_checkpoint.next, type(uint64).max);
+            } else {
+                assertEq(_checkpoint.prev, 0);
+                assertEq(_checkpoint.next, type(uint64).max);
+            }
+        }
     }
 
     function test_resolve_exactIn_fuzz_succeeds(uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)

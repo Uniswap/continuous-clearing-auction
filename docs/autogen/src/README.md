@@ -290,14 +290,66 @@ interface IAuction {
     /// @notice Exit a bid where max price is above final clearing price
     function exitBid(uint256 bidId) external;
 
-    /// @notice Exit a partially filled bid with checkpoint hint for gas efficiency
-    function exitPartiallyFilledBid(uint256 bidId, uint256 outbidCheckpointBlock) external;
+    /// @notice Exit a partially filled bid with optimized checkpoint hints
+    function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 upper) external;
 }
 
 event BidExited(uint256 indexed bidId, address indexed owner);
 ```
 
-**Implementation**: The bid is processed and the user is refunded any unspent currency. Tokens purchased are tracked for claiming.
+**Optimized Partial Fill Algorithm**: The `exitPartiallyFilledBid` function uses dual checkpoint hints (`lower`, `upper`) to eliminate expensive checkpoint iteration:
+
+- `lower`: Last checkpoint where clearing price is strictly < bid.maxPrice
+- `upper`: First checkpoint where clearing price is strictly > bid.maxPrice, or 0 for end-of-auction fills
+
+**Mathematical Optimization**: Uses cumulative supply tracking (`cumulativeSupplySoldToClearingPrice`) for direct partial fill calculation:
+
+```
+partialFillRate = cumulativeSupplySoldToClearingPrice * mpsDenominator / (tickDemand * cumulativeMpsDelta)
+```
+
+**Implementation**: Enhanced checkpoint architecture with linked-list structure (prev/next pointers) enables efficient traversal. Block numbers are stored as `uint64` for gas optimization while maintaining sufficient range (~584 billion years).
+
+### Auction Graduation
+
+Auctions have a configurable graduation threshold that determines whether enough tokens were sold for the auction to be considered successful. This enables refund mechanisms for failed auctions.
+
+```solidity
+interface IAuction {
+    /// @notice Whether the auction has graduated (sold more than the graduation threshold)
+    function isGraduated() external view returns (bool);
+}
+```
+
+**Implementation**: The graduation threshold is specified as `graduationThresholdMps` in the auction parameters. An auction graduates if `totalCleared >= (totalSupply * graduationThresholdMps) / 1e7`. Non-graduated auctions refund all currency to bidders.
+
+### Fund Management
+
+After an auction ends, the raised currency and any unsold tokens can be withdrawn by the designated recipients. This includes support for callback functionality.
+
+```solidity
+interface IAuction {
+    /// @notice Withdraw all raised currency (only for graduated auctions)
+    function sweepCurrency() external;
+
+    /// @notice Withdraw any unsold tokens
+    function sweepUnsoldTokens() external;
+}
+
+event CurrencySwept(address indexed fundsRecipient, uint256 currencyAmount);
+event TokensSwept(address indexed tokensRecipient, uint256 tokensAmount);
+```
+
+**Sweeping Rules:**
+
+- `sweepCurrency()`: Only callable by funds recipient, only for graduated auctions, must be before claim block
+- `sweepUnsoldTokens()`: Callable by anyone after auction ends
+- For graduated auctions: sweeps `totalSupply - totalCleared` tokens
+- For non-graduated auctions: sweeps all `totalSupply` tokens
+
+**Callback Support**: The `fundsRecipientData` parameter enables custom logic execution after currency sweeping. If the funds recipient is a contract and callback data is provided, the contract will be called with the specified data after the currency transfer.
+
+**Implementation**: The sweeping functions use the `TokenCurrencyStorage` abstraction to handle fund transfers and emit appropriate events. Safety mechanisms prevent double-sweeping and ensure proper timing constraints.
 
 ### Auction Graduation
 

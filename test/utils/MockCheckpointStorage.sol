@@ -3,8 +3,17 @@ pragma solidity 0.8.26;
 
 import {CheckpointStorage} from '../../src/CheckpointStorage.sol';
 import {Bid} from '../../src/libraries/BidLib.sol';
+import {Checkpoint} from '../../src/libraries/CheckpointLib.sol';
 
 contract MockCheckpointStorage is CheckpointStorage {
+    function getCheckpoint(uint64 blockNumber) external view returns (Checkpoint memory) {
+        return _getCheckpoint(blockNumber);
+    }
+
+    function insertCheckpoint(Checkpoint memory checkpoint, uint64 blockNumber) external {
+        _insertCheckpoint(checkpoint, blockNumber);
+    }
+
     function calculateFill(
         Bid memory bid,
         uint256 cumulativeMpsPerPriceDelta,
@@ -12,15 +21,5 @@ contract MockCheckpointStorage is CheckpointStorage {
         uint24 mpsDenominator
     ) external pure returns (uint256 tokensFilled, uint256 currencySpent) {
         return _calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta, mpsDenominator);
-    }
-
-    function calculatePartialFill(
-        uint256 bidDemand,
-        uint256 tickDemand,
-        uint256 supply,
-        uint24 mpsDelta,
-        uint256 resolvedDemandAboveClearingPrice
-    ) external pure returns (uint256 tokensFilled) {
-        return _calculatePartialFill(bidDemand, tickDemand, supply, mpsDelta, resolvedDemandAboveClearingPrice);
     }
 }

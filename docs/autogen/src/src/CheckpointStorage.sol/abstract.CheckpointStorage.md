@@ -1,5 +1,5 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/39bc042bc357a460e8df8a890f72fb8718ec14db/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c80b693e5a5d33e8f82791abf78b3e8a0e078948/src/CheckpointStorage.sol)
 
 **Inherits:**
 [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
@@ -8,12 +8,19 @@ Abstract contract for managing auction checkpoints and bid fill calculations
 
 
 ## State Variables
+### MAX_BLOCK_NUMBER
+
+```solidity
+uint64 public constant MAX_BLOCK_NUMBER = type(uint64).max;
+```
+
+
 ### checkpoints
 Storage of checkpoints
 
 
 ```solidity
-mapping(uint256 blockNumber => Checkpoint) public checkpoints;
+mapping(uint64 blockNumber => Checkpoint) public checkpoints;
 ```
 
 
@@ -22,7 +29,7 @@ The block number of the last checkpointed block
 
 
 ```solidity
-uint256 public lastCheckpointedBlock;
+uint64 public lastCheckpointedBlock;
 ```
 
 
@@ -62,17 +69,38 @@ Get a checkpoint from storage
 
 
 ```solidity
-function _getCheckpoint(uint256 blockNumber) internal view returns (Checkpoint memory);
+function _getCheckpoint(uint64 blockNumber) internal view returns (Checkpoint memory);
 ```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`blockNumber`|`uint64`|The block number of the checkpoint to get|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`Checkpoint`|The checkpoint at the given block number|
+
 
 ### _insertCheckpoint
 
 Insert a checkpoint into storage
 
+*This function updates the prev and next pointers of the latest checkpoint and the new checkpoint*
+
 
 ```solidity
-function _insertCheckpoint(Checkpoint memory checkpoint, uint256 blockNumber) internal;
+function _insertCheckpoint(Checkpoint memory checkpoint, uint64 blockNumber) internal;
 ```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`checkpoint`|`Checkpoint`|The fully populated checkpoint to insert|
+|`blockNumber`|`uint64`|The block number of the new checkpoint|
+
 
 ### _accountFullyFilledCheckpoints
 
@@ -107,25 +135,27 @@ function _accountFullyFilledCheckpoints(Checkpoint memory upper, Bid memory bid)
 
 Calculate the tokens sold, proportion of input used, and the block number of the next checkpoint under the bid's max price
 
-*This function does an iterative search through the checkpoints and thus is more gas intensive*
-
 
 ```solidity
 function _accountPartiallyFilledCheckpoints(
-    Checkpoint memory lastValidCheckpoint,
+    Checkpoint memory lastPartiallyFilledCheckpoint,
     uint256 bidDemand,
     uint256 tickDemand,
-    uint256 bidMaxPrice
-) internal view returns (uint256 tokensFilled, uint256 currencySpent, uint256 nextCheckpointBlock);
+    uint256 bidMaxPrice,
+    uint24 cumulativeMpsDelta,
+    uint24 mpsDenominator
+) internal pure returns (uint256 tokensFilled, uint256 currencySpent);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`lastValidCheckpoint`|`Checkpoint`|The last checkpoint where the clearing price is == bid.maxPrice|
+|`lastPartiallyFilledCheckpoint`|`Checkpoint`|The last checkpoint where clearing price is equal to bid.maxPrice|
 |`bidDemand`|`uint256`|The demand of the bid|
 |`tickDemand`|`uint256`|The demand of the tick|
 |`bidMaxPrice`|`uint256`|The max price of the bid|
+|`cumulativeMpsDelta`|`uint24`|The cumulative sum of mps values across the block range|
+|`mpsDenominator`|`uint24`|The percentage of the auction which the bid was spread over|
 
 **Returns**
 
@@ -133,7 +163,6 @@ function _accountPartiallyFilledCheckpoints(
 |----|----|-----------|
 |`tokensFilled`|`uint256`|The tokens sold|
 |`currencySpent`|`uint256`|The amount of currency spent|
-|`nextCheckpointBlock`|`uint256`|The block number of the checkpoint under the bid's max price. Will be 0 if it does not exist.|
 
 
 ### _calculateFill
@@ -168,19 +197,4 @@ function _calculateFill(
 |`tokensFilled`|`uint256`|the amount of tokens filled for this bid|
 |`currencySpent`|`uint256`|the amount of currency spent by this bid|
 
-
-### _calculatePartialFill
-
-Calculate the tokens filled and proportion of input used for a partially filled bid
-
-
-```solidity
-function _calculatePartialFill(
-    uint256 bidDemand,
-    uint256 tickDemand,
-    uint256 supplyOverMps,
-    uint24 mpsDelta,
-    uint256 resolvedDemandAboveClearingPrice
-) internal pure returns (uint256 tokensFilled);
-```
 

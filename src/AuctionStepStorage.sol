@@ -65,7 +65,7 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
 
     /// @notice Advance the current auction step
     /// @dev This function is called on every new bid if the current step is complete
-    function _advanceStep() internal {
+    function _advanceStep() internal returns (AuctionStep memory) {
         if (offset > _length) revert AuctionIsOver();
 
         bytes8 _auctionStep = bytes8(pointer.read(offset, offset + UINT64_SIZE));
@@ -75,12 +75,11 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
         if (_startBlock == 0) _startBlock = startBlock;
         uint64 _endBlock = _startBlock + uint64(blockDelta);
 
-        step.mps = mps;
-        step.startBlock = _startBlock;
-        step.endBlock = _endBlock;
+        step = AuctionStep({startBlock: _startBlock, endBlock: _endBlock, mps: mps});
 
         offset += UINT64_SIZE;
 
         emit AuctionStepRecorded(_startBlock, _endBlock, mps);
+        return step;
     }
 }

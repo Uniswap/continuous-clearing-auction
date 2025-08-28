@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/86cbacb2994063271cf37370fbc9def90e84b8d3/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c80b693e5a5d33e8f82791abf78b3e8a0e078948/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -108,15 +108,31 @@ Calculate the new clearing price, given:
 
 
 ```solidity
-function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 supply) internal view returns (uint256);
+function _calculateNewClearingPrice(
+    Demand memory blockSumDemandAboveClearing,
+    uint256 minimumClearingPrice,
+    uint256 supply
+) internal view returns (uint256);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
+|`blockSumDemandAboveClearing`|`Demand`|The demand above the clearing price in the block|
 |`minimumClearingPrice`|`uint256`|The minimum clearing price|
 |`supply`|`uint256`|The token supply at or above nextActiveTickPrice in the block|
 
+
+### _updateLatestCheckpointToCurrentStep
+
+Update the latest checkpoint to the current step
+
+*This updates the state of the auction accounting for the bids placed after the last checkpoint*
+
+
+```solidity
+function _updateLatestCheckpointToCurrentStep(uint256 blockNumber) internal returns (Checkpoint memory);
+```
 
 ### _unsafeCheckpoint
 
@@ -124,13 +140,13 @@ Internal function for checkpointing at a specific block number
 
 
 ```solidity
-function _unsafeCheckpoint(uint256 blockNumber) internal returns (Checkpoint memory _checkpoint);
+function _unsafeCheckpoint(uint64 blockNumber) internal returns (Checkpoint memory _checkpoint);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`blockNumber`|`uint256`|The block number to checkpoint at|
+|`blockNumber`|`uint64`|The block number to checkpoint at|
 
 
 ### _getFinalCheckpoint
@@ -235,18 +251,20 @@ function exitBid(uint256 bidId) external onlyAfterAuctionIsOver;
 
 Exit a bid which has been partially filled
 
-*This function can only be used for bids where the max price is below the final clearing price*
+*This function can be used for fully filled or partially filled bids. For fully filled bids, `exitBid` is more efficient*
 
 
 ```solidity
-function exitPartiallyFilledBid(uint256 bidId, uint256 outbidCheckpointBlock) external;
+function exitPartiallyFilledBid(uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 firstOutbidCheckpointBlock)
+    external;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
-|`outbidCheckpointBlock`|`uint256`|The block of the first checkpoint where the clearing price is strictly > bid.maxPrice|
+|`lastFullyFilledCheckpointBlock`|`uint64`|The last checkpointed block where the clearing price is strictly < bid.maxPrice|
+|`firstOutbidCheckpointBlock`|`uint64`|The first checkpointed block where the clearing price is strictly > bid.maxPrice this value is not required if the bid is partially filled at the end of the auction (final clearing price == bid.maxPrice) if the bid is fully filled at the end of the auction, it should be set to 0|
 
 
 ### claimTokens

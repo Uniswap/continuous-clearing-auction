@@ -120,11 +120,17 @@ interface IAuction is
     function exitBid(uint256 bidId) external;
 
     /// @notice Exit a bid which has been partially filled
-    /// @dev This function can only be used for bids where the max price is below the final clearing price
+    /// @dev This function can be used for fully filled or partially filled bids. For fully filled bids, `exitBid` is more efficient
     /// @param bidId The id of the bid
     /// @param lower The last checkpointed block where the clearing price is strictly < bid.maxPrice
-    /// @param upper The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction
-    function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 upper) external;
+    /// @param upper The first checkpointed block where the clearing price is strictly > bid.maxPrice
+    ///              this value is not required if the bid is partially filled at the end of the auction (final clearing price == bid.maxPrice)
+    ///              if the bid is fully filled at the end of the auction, it should be set to 0
+    function exitPartiallyFilledBid(
+        uint256 bidId,
+        uint64 lastFullyFilledCheckpointBlock,
+        uint64 firstOutbidCheckpointBlock
+    ) external;
 
     /// @notice Claim tokens after the auction's claim block
     /// @notice The bid must be exited before claiming tokens

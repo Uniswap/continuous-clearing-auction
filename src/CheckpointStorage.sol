@@ -7,7 +7,6 @@ import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
-
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
@@ -44,12 +43,16 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     }
 
     /// @notice Get a checkpoint from storage
+    /// @param blockNumber The block number of the checkpoint to get
+    /// @return The checkpoint at the given block number
     function _getCheckpoint(uint64 blockNumber) internal view returns (Checkpoint memory) {
         return checkpoints[blockNumber];
     }
 
     /// @notice Insert a checkpoint into storage
     /// @dev This function updates the prev and next pointers of the latest checkpoint and the new checkpoint
+    /// @param checkpoint The fully populated checkpoint to insert
+    /// @param blockNumber The block number of the new checkpoint
     function _insertCheckpoint(Checkpoint memory checkpoint, uint64 blockNumber) internal {
         uint64 _lastCheckpointedBlock = lastCheckpointedBlock;
         if (_lastCheckpointedBlock != 0) checkpoints[_lastCheckpointedBlock].next = blockNumber;
@@ -83,6 +86,7 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     /// @notice Calculate the tokens sold, proportion of input used, and the block number of the next checkpoint under the bid's max price
     /// @param upperCheckpoint The last checkpoint where clearing price is equal to bid.maxPrice
     /// @param bidDemand The demand of the bid
+    /// @param tickDemand The demand of the tick
     /// @param bidMaxPrice The max price of the bid
     /// @param cumulativeMpsDelta The cumulative sum of mps values across the block range
     /// @param mpsDenominator The percentage of the auction which the bid was spread over

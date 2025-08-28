@@ -21,8 +21,8 @@ import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol'
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
-/// @title Auction
 
+/// @title Auction
 contract Auction is
     BidStorage,
     CheckpointStorage,

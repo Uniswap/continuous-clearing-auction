@@ -12,12 +12,10 @@ contract AuctionFactory is IAuctionFactory {
     address public constant USE_MSG_SENDER = 0x0000000000000000000000000000000000000001;
     /// @inheritdoc IDistributionStrategy
 
-    function initializeDistribution(address token, uint256 amount, bytes calldata configData, bytes32 salt)
+    function initializeDistribution(address token, uint128 amount, bytes calldata configData, bytes32 salt)
         external
         returns (IDistributionContract distributionContract)
     {
-        if (amount > type(uint128).max) revert IAuctionFactory.TotalSupplyTooLarge(amount);
-
         AuctionParameters memory parameters = abi.decode(configData, (AuctionParameters));
         // If the fundsRecipient is address(1), set it to the msg.sender
         if (parameters.fundsRecipient == USE_MSG_SENDER) parameters.fundsRecipient = msg.sender;

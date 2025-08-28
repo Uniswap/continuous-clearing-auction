@@ -15,6 +15,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     /// @notice The token being sold in the auction
     IERC20Minimal public immutable token;
     /// @notice The total supply of tokens to sell
+    /// @dev The auction does not support selling more than type(uint128).max tokens
     uint128 public immutable totalSupply;
     /// @notice The recipient of any unsold tokens at the end of the auction
     address public immutable tokensRecipient;

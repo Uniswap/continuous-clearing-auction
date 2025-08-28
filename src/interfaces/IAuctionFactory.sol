@@ -5,9 +5,6 @@ import {IDistributionStrategy} from './external/IDistributionStrategy.sol';
 
 /// @title IAuctionFactory
 interface IAuctionFactory is IDistributionStrategy {
-    /// @notice Error thrown when the total supply is greater than type(uint128).max
-    error TotalSupplyTooLarge(uint256 amount);
-
     /// @notice Emitted when an auction is created
     /// @param auction The address of the auction contract
     /// @param token The address of the token

@@ -11,14 +11,12 @@ import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
-import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
+import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
-
-import {console2} from 'forge-std/console2.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
@@ -108,15 +106,16 @@ contract Auction is
         uint256 start = step.startBlock < lastCheckpointedBlock ? lastCheckpointedBlock : step.startBlock;
         uint256 end = step.endBlock;
 
+        uint24 mps = step.mps;
         while (blockNumber > end) {
-            _checkpoint = _checkpoint.transform(totalSupply, floorPrice, end - start, step.mps);
+            _checkpoint = _checkpoint.transform(totalSupply, floorPrice, end - start, mps);
             start = end;
             if (end == endBlock) break;
-            _advanceStep();
+            AuctionStep memory _step = _advanceStep();
             // Update the mps of the checkpoint
-            _checkpoint.mps = step.mps;
-
-            end = step.endBlock;
+            mps = _step.mps;
+            _checkpoint.mps = mps;
+            end = _step.endBlock;
         }
         return _checkpoint;
     }

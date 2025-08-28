@@ -1,5 +1,5 @@
 # AuctionStepStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/a40941ed6c71ce668b5d7c2923b5830fe9b23869/src/AuctionStepStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/234e8323b9dc5c4ff4d3d4843763914a3051a9ce/src/AuctionStepStorage.sol)
 
 **Inherits:**
 [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md)
@@ -98,6 +98,6 @@ Advance the current auction step
 
 
 ```solidity
-function _advanceStep() internal;
+function _advanceStep() internal returns (AuctionStep memory);
 ```
 

@@ -92,7 +92,8 @@ contract Auction is
 
     /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
     function isGraduated() public view returns (bool) {
-        return latestCheckpoint().totalCleared >= ((totalSupply * graduationThresholdMps) / AuctionStepLib.MPS);
+        return latestCheckpoint().totalCleared
+            >= uint128((totalSupply.fullMulDiv(graduationThresholdMps, AuctionStepLib.MPS)));
     }
 
     /// @notice Advance the current step until the current block is within the step

@@ -73,7 +73,9 @@ library CheckpointLib {
     /// @param totalSupply immutable total supply of the auction
     /// @param mps the number of mps, following the auction sale schedule
     function getSupply(Checkpoint memory checkpoint, uint128 totalSupply, uint24 mps) internal pure returns (uint128) {
-        return ((totalSupply - checkpoint.totalCleared) * mps) / (AuctionStepLib.MPS - checkpoint.cumulativeMps);
+        return uint128(
+            (totalSupply - checkpoint.totalCleared).fullMulDiv(mps, AuctionStepLib.MPS - checkpoint.cumulativeMps)
+        );
     }
 
     /// @notice Get the amount of tokens sold in a block at a checkpoint based on its clearing price and the floorPrice

@@ -27,6 +27,9 @@ contract AuctionFactoryTest is TokenHandler, Test {
     address public tokensRecipient;
     address public fundsRecipient;
 
+    AuctionParameters public params;
+    bytes public auctionStepsData;
+
     function setUp() public {
         setUpTokens();
 
@@ -34,17 +37,19 @@ contract AuctionFactoryTest is TokenHandler, Test {
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 
+        // Setup base params
+        auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
+        params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE).withTickSpacing(
+            TICK_SPACING
+        ).withValidationHook(address(0)).withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient)
+            .withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION).withClaimBlock(
+            block.number + AUCTION_DURATION
+        ).withAuctionStepsData(auctionStepsData);
+
         factory = new AuctionFactory();
     }
 
     function test_initializeDistribution_createsAuction() public {
-        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
-        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
-            FLOOR_PRICE
-        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
-
         bytes memory configData = abi.encode(params);
 
         // Expect the AuctionCreated event (don't check the auction address since it's deterministic)
@@ -68,13 +73,6 @@ contract AuctionFactoryTest is TokenHandler, Test {
     }
 
     function test_initializeDistribution_createsUniqueAddresses() public {
-        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
-        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
-            FLOOR_PRICE
-        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
-
         bytes memory configData = abi.encode(params);
 
         // Create first auction
@@ -90,13 +88,6 @@ contract AuctionFactoryTest is TokenHandler, Test {
     }
 
     function test_initializeDistribution_withDifferentTokens() public {
-        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
-        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
-            FLOOR_PRICE
-        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
-
         bytes memory configData = abi.encode(params);
 
         // Create auction with token1
@@ -113,13 +104,6 @@ contract AuctionFactoryTest is TokenHandler, Test {
     }
 
     function test_initializeDistribution_withDifferentAmounts() public {
-        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
-        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
-            FLOOR_PRICE
-        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
-
         bytes memory configData = abi.encode(params);
 
         // Create auction with amount1
@@ -135,19 +119,9 @@ contract AuctionFactoryTest is TokenHandler, Test {
     }
 
     function test_initializeDistribution_withDifferentParameters() public {
-        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
-        AuctionParameters memory params1 = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
-            FLOOR_PRICE
-        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
+        AuctionParameters memory params1 = params.withFloorPrice(FLOOR_PRICE);
 
-        AuctionParameters memory params2 = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
-            FLOOR_PRICE * 2
-        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION) // Different floor price
-            .withAuctionStepsData(auctionStepsData);
+        AuctionParameters memory params2 = params.withFloorPrice(FLOOR_PRICE * 2);
 
         bytes memory configData1 = abi.encode(params1);
         bytes memory configData2 = abi.encode(params2);
@@ -165,13 +139,6 @@ contract AuctionFactoryTest is TokenHandler, Test {
     }
 
     function test_initializeDistribution_implementsIDistributionStrategy() public {
-        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
-        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
-            FLOOR_PRICE
-        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
-
         bytes memory configData = abi.encode(params);
 
         IDistributionStrategy strategy = IDistributionStrategy(address(factory));
@@ -183,13 +150,6 @@ contract AuctionFactoryTest is TokenHandler, Test {
     }
 
     function test_initializeDistribution_createsValidAuction() public {
-        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
-        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
-            FLOOR_PRICE
-        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION).withAuctionStepsData(auctionStepsData);
-
         bytes memory configData = abi.encode(params);
 
         IDistributionContract distributionContract =

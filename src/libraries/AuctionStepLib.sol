@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.0;
 
 struct AuctionStep {
     uint24 mps; // Mps to sell per block in the step

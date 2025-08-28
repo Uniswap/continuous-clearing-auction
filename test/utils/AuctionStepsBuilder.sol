@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.0;
 
 library AuctionStepsBuilder {
     function init() internal pure returns (bytes memory) {

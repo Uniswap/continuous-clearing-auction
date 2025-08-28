@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.0;
 
 import {Auction} from '../../src/Auction.sol';
 import {Tick} from '../../src/TickStorage.sol';

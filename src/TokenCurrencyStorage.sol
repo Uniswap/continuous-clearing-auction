@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity 0.8.26;
 
 import {ITokenCurrencyStorage} from './interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';

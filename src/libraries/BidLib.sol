@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.0;
 
 import {AuctionStepLib} from './AuctionStepLib.sol';
 import {DemandLib} from './DemandLib.sol';

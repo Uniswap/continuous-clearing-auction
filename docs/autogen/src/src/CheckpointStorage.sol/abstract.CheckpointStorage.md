@@ -1,5 +1,5 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c80b693e5a5d33e8f82791abf78b3e8a0e078948/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/3ae5c7802ad9830c8939d6dbff65ade7ca715a97/src/CheckpointStorage.sol)
 
 **Inherits:**
 [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
@@ -71,18 +71,6 @@ Get a checkpoint from storage
 ```solidity
 function _getCheckpoint(uint64 blockNumber) internal view returns (Checkpoint memory);
 ```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`blockNumber`|`uint64`|The block number of the checkpoint to get|
-
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`Checkpoint`|The checkpoint at the given block number|
-
 
 ### _insertCheckpoint
 
@@ -94,13 +82,6 @@ Insert a checkpoint into storage
 ```solidity
 function _insertCheckpoint(Checkpoint memory checkpoint, uint64 blockNumber) internal;
 ```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`checkpoint`|`Checkpoint`|The fully populated checkpoint to insert|
-|`blockNumber`|`uint64`|The block number of the new checkpoint|
-
 
 ### _accountFullyFilledCheckpoints
 
@@ -138,21 +119,21 @@ Calculate the tokens sold, proportion of input used, and the block number of the
 
 ```solidity
 function _accountPartiallyFilledCheckpoints(
-    Checkpoint memory lastPartiallyFilledCheckpoint,
-    uint256 bidDemand,
-    uint256 tickDemand,
+    Checkpoint memory upperCheckpoint,
+    uint128 bidDemand,
+    uint128 tickDemand,
     uint256 bidMaxPrice,
     uint24 cumulativeMpsDelta,
     uint24 mpsDenominator
-) internal pure returns (uint256 tokensFilled, uint256 currencySpent);
+) internal pure returns (uint128 tokensFilled, uint128 currencySpent);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`lastPartiallyFilledCheckpoint`|`Checkpoint`|The last checkpoint where clearing price is equal to bid.maxPrice|
-|`bidDemand`|`uint256`|The demand of the bid|
-|`tickDemand`|`uint256`|The demand of the tick|
+|`upperCheckpoint`|`Checkpoint`|The last checkpoint where clearing price is equal to bid.maxPrice|
+|`bidDemand`|`uint128`|The demand of the bid|
+|`tickDemand`|`uint128`||
 |`bidMaxPrice`|`uint256`|The max price of the bid|
 |`cumulativeMpsDelta`|`uint24`|The cumulative sum of mps values across the block range|
 |`mpsDenominator`|`uint24`|The percentage of the auction which the bid was spread over|
@@ -161,8 +142,8 @@ function _accountPartiallyFilledCheckpoints(
 
 |Name|Type|Description|
 |----|----|-----------|
-|`tokensFilled`|`uint256`|The tokens sold|
-|`currencySpent`|`uint256`|The amount of currency spent|
+|`tokensFilled`|`uint128`|The tokens sold|
+|`currencySpent`|`uint128`|The amount of currency spent|
 
 
 ### _calculateFill

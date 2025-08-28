@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c80b693e5a5d33e8f82791abf78b3e8a0e078948/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/3ae5c7802ad9830c8939d6dbff65ade7ca715a97/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -111,7 +111,7 @@ Calculate the new clearing price, given:
 function _calculateNewClearingPrice(
     Demand memory blockSumDemandAboveClearing,
     uint256 minimumClearingPrice,
-    uint256 supply
+    uint128 supply
 ) internal view returns (uint256);
 ```
 **Parameters**
@@ -131,7 +131,7 @@ Update the latest checkpoint to the current step
 
 
 ```solidity
-function _updateLatestCheckpointToCurrentStep(uint256 blockNumber) internal returns (Checkpoint memory);
+function _updateLatestCheckpointToCurrentStep(uint64 blockNumber) internal returns (Checkpoint memory);
 ```
 
 ### _unsafeCheckpoint
@@ -255,16 +255,15 @@ Exit a bid which has been partially filled
 
 
 ```solidity
-function exitPartiallyFilledBid(uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 firstOutbidCheckpointBlock)
-    external;
+function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 upper) external;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
-|`lastFullyFilledCheckpointBlock`|`uint64`|The last checkpointed block where the clearing price is strictly < bid.maxPrice|
-|`firstOutbidCheckpointBlock`|`uint64`|The first checkpointed block where the clearing price is strictly > bid.maxPrice this value is not required if the bid is partially filled at the end of the auction (final clearing price == bid.maxPrice) if the bid is fully filled at the end of the auction, it should be set to 0|
+|`lower`|`uint64`|The last checkpointed block where the clearing price is strictly < bid.maxPrice|
+|`upper`|`uint64`|The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction|
 
 
 ### claimTokens

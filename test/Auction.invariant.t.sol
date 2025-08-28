@@ -175,7 +175,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
             uint24 mps,
             uint24 cumulativeMps,
             uint256 cumulativeMpsPerPrice,
-            uint256 sumPartialFillRate,
+            uint256 cumulativeSupplySoldToClearingPrice,
             uint256 resolvedDemandAboveClearingPrice,
             uint64 prev,
             uint64 next
@@ -187,7 +187,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
             mps: mps,
             cumulativeMps: cumulativeMps,
             cumulativeMpsPerPrice: cumulativeMpsPerPrice,
-            sumPartialFillRate: sumPartialFillRate,
+            cumulativeSupplySoldToClearingPrice: cumulativeSupplySoldToClearingPrice,
             resolvedDemandAboveClearingPrice: resolvedDemandAboveClearingPrice,
             prev: prev,
             next: next

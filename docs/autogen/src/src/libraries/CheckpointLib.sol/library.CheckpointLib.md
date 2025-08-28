@@ -1,5 +1,5 @@
 # CheckpointLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/eb27273d664d2abec4a7cd52bce21599763066d8/src/libraries/CheckpointLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ca9baa0f4ab5e1713f915e16ec913f5984be79da/src/libraries/CheckpointLib.sol)
 
 
 ## Functions
@@ -13,7 +13,6 @@ Return a new checkpoint after advancing the current checkpoint by a number of bl
 ```solidity
 function transform(
     Checkpoint memory checkpoint,
-    uint256 clearingPriceTickDemand,
     uint256 totalSupply,
     uint256 floorPrice,
     uint256 blockDelta,
@@ -25,7 +24,6 @@ function transform(
 |Name|Type|Description|
 |----|----|-----------|
 |`checkpoint`|`Checkpoint`|The checkpoint to transform|
-|`clearingPriceTickDemand`|`uint256`|The demand of the tick at the clearing price|
 |`totalSupply`|`uint256`|The total supply of the auction|
 |`floorPrice`|`uint256`|The floor price of the auction|
 |`blockDelta`|`uint256`|The number of blocks to advance|
@@ -38,18 +36,16 @@ function transform(
 |`<none>`|`Checkpoint`|The transformed checkpoint|
 
 
-### calculatePartialFillRate
+### getSupplySoldToClearingPrice
 
-Calculate the partial fill rate for a partially filled bid
+Calculate the supply sold to the clearing price
 
 
 ```solidity
-function calculatePartialFillRate(
-    uint256 supplyMps,
-    uint256 resolvedDemandAboveClearingPrice,
-    uint256 tickDemand,
-    uint24 mpsDelta
-) internal pure returns (uint256);
+function getSupplySoldToClearingPrice(uint256 supplyMps, uint256 resolvedDemandAboveClearingPrice, uint24 mpsDelta)
+    internal
+    pure
+    returns (uint256);
 ```
 **Parameters**
 
@@ -57,7 +53,6 @@ function calculatePartialFillRate(
 |----|----|-----------|
 |`supplyMps`|`uint256`|The supply of the auction|
 |`resolvedDemandAboveClearingPrice`|`uint256`|The demand above the clearing price|
-|`tickDemand`|`uint256`|The demand of the tick|
 |`mpsDelta`|`uint24`|The number of mps to add|
 
 **Returns**

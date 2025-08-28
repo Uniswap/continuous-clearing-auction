@@ -15,7 +15,7 @@ struct Checkpoint {
     uint24 cumulativeMps;
     uint24 mps;
     uint256 cumulativeMpsPerPrice;
-    uint256 sumPartialFillRate;
+    uint256 cumulativeSupplySoldToClearingPrice;
     uint256 resolvedDemandAboveClearingPrice;
     uint64 prev;
     uint64 next;
@@ -30,7 +30,6 @@ library CheckpointLib {
     /// @notice Return a new checkpoint after advancing the current checkpoint by a number of blocks
     /// @dev The checkpoint must have a non zero clearing price
     /// @param checkpoint The checkpoint to transform
-    /// @param clearingPriceTickDemand The demand of the tick at the clearing price
     /// @param totalSupply The total supply of the auction
     /// @param floorPrice The floor price of the auction
     /// @param blockDelta The number of blocks to advance
@@ -38,7 +37,6 @@ library CheckpointLib {
     /// @return The transformed checkpoint
     function transform(
         Checkpoint memory checkpoint,
-        uint256 clearingPriceTickDemand,
         uint256 totalSupply,
         uint256 floorPrice,
         uint256 blockDelta,
@@ -51,29 +49,25 @@ library CheckpointLib {
         uint256 supplyDelta = checkpoint.blockCleared * blockDelta;
         checkpoint.totalCleared += supplyDelta;
         checkpoint.cumulativeMps += deltaMps;
-        checkpoint.sumPartialFillRate += calculatePartialFillRate(
-            supplyDelta, checkpoint.resolvedDemandAboveClearingPrice, clearingPriceTickDemand, deltaMps
-        );
+        checkpoint.cumulativeSupplySoldToClearingPrice +=
+            getSupplySoldToClearingPrice(supplyDelta, checkpoint.resolvedDemandAboveClearingPrice, deltaMps);
         checkpoint.cumulativeMpsPerPrice +=
             checkpoint.clearingPrice == 0 ? 0 : getMpsPerPrice(deltaMps, checkpoint.clearingPrice);
         return checkpoint;
     }
 
-    /// @notice Calculate the partial fill rate for a partially filled bid
+    /// @notice Calculate the supply sold to the clearing price
     /// @param supplyMps The supply of the auction
     /// @param resolvedDemandAboveClearingPrice The demand above the clearing price
-    /// @param tickDemand The demand of the tick
     /// @param mpsDelta The number of mps to add
     /// @return an X96 fixed point number representing the partial fill rate
-    function calculatePartialFillRate(
-        uint256 supplyMps,
-        uint256 resolvedDemandAboveClearingPrice,
-        uint256 tickDemand,
-        uint24 mpsDelta
-    ) internal pure returns (uint256) {
-        if (supplyMps == 0 || tickDemand == 0) return 0;
-        uint256 supplySoldToTick = (supplyMps - resolvedDemandAboveClearingPrice.applyMps(mpsDelta));
-        return supplySoldToTick.fullMulDiv(FixedPoint96.Q96, tickDemand);
+    function getSupplySoldToClearingPrice(uint256 supplyMps, uint256 resolvedDemandAboveClearingPrice, uint24 mpsDelta)
+        internal
+        pure
+        returns (uint256)
+    {
+        if (supplyMps == 0) return 0;
+        return (supplyMps - resolvedDemandAboveClearingPrice.applyMps(mpsDelta));
     }
 
     /// @notice Calculate the actualy supply to sell given the total cleared in the auction so far

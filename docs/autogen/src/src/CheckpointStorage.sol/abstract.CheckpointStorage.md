@@ -1,5 +1,5 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/eb27273d664d2abec4a7cd52bce21599763066d8/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ca9baa0f4ab5e1713f915e16ec913f5984be79da/src/CheckpointStorage.sol)
 
 **Inherits:**
 [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
@@ -123,6 +123,7 @@ Calculate the tokens sold, proportion of input used, and the block number of the
 function _accountPartiallyFilledCheckpoints(
     Checkpoint memory upperCheckpoint,
     uint256 bidDemand,
+    uint256 tickDemand,
     uint256 bidMaxPrice,
     uint24 cumulativeMpsDelta,
     uint24 mpsDenominator
@@ -134,6 +135,7 @@ function _accountPartiallyFilledCheckpoints(
 |----|----|-----------|
 |`upperCheckpoint`|`Checkpoint`|The first checkpoint where clearing price is greater than or equal to bid.maxPrice this will be equal to the maxPrice if the bid is partially filled at the end of the auction|
 |`bidDemand`|`uint256`|The demand of the bid|
+|`tickDemand`|`uint256`||
 |`bidMaxPrice`|`uint256`|The max price of the bid|
 |`cumulativeMpsDelta`|`uint24`|The cumulative sum of mps values across the block range|
 |`mpsDenominator`|`uint24`|The percentage of the auction which the bid was spread over|

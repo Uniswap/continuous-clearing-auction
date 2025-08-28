@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/579dd192cb3d6db3d93e95ab513fff830b038a4e/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ca9baa0f4ab5e1713f915e16ec913f5984be79da/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -93,8 +93,8 @@ function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 upper) exter
 |Name|Type|Description|
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
-|`lower`|`uint64`|The checkpointed block where the clearing price is == bid.maxPrice|
-|`upper`|`uint64`|The checkpointed block where the clearing price is strictly greater than bid.maxPrice, or 0 if the bid is partially filled at the end of the auction|
+|`lower`|`uint64`|The last checkpointed block where the clearing price is strictly < bid.maxPrice|
+|`upper`|`uint64`|The last checkpointed block where the clearing price is equal to bid.maxPrice, or 0 if the bid is partially filled at the end of the auction|
 
 
 ### claimTokens

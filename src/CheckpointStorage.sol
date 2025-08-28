@@ -94,12 +94,17 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     function _accountPartiallyFilledCheckpoints(
         Checkpoint memory upperCheckpoint,
         uint256 bidDemand,
+        uint256 tickDemand,
         uint256 bidMaxPrice,
         uint24 cumulativeMpsDelta,
         uint24 mpsDenominator
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
-        uint256 runningPartialFillRate =
-            upperCheckpoint.sumPartialFillRate.fullMulDiv(mpsDenominator, cumulativeMpsDelta);
+        if (cumulativeMpsDelta == 0) return (0, 0);
+
+        uint256 runningPartialFillRate = upperCheckpoint.cumulativeSupplySoldToClearingPrice.fullMulDiv(
+            FixedPoint96.Q96 * mpsDenominator, tickDemand * cumulativeMpsDelta
+        );
+        // Shorthand for (bidDemand * cumulativeMpsDelta / mpsDenominator) * runningPartialFillRate / Q96;
         tokensFilled =
             bidDemand.fullMulDiv(runningPartialFillRate * cumulativeMpsDelta, FixedPoint96.Q96 * mpsDenominator);
         currencySpent = tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96);

@@ -99,7 +99,7 @@ contract Auction is
 
     /// @notice Advance the current step until the current block is within the step
     /// @dev The checkpoint must be up to date since `transform` depends on the clearingPrice
-    function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint256 clearingPriceTickDemand, uint256 blockNumber)
+    function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint256 blockNumber)
         internal
         returns (Checkpoint memory)
     {
@@ -109,7 +109,7 @@ contract Auction is
         uint256 end = step.endBlock;
 
         while (blockNumber > end) {
-            _checkpoint = _checkpoint.transform(clearingPriceTickDemand, totalSupply, floorPrice, end - start, step.mps);
+            _checkpoint = _checkpoint.transform(totalSupply, floorPrice, end - start, step.mps);
             start = end;
             if (end == endBlock) break;
             _advanceStep();
@@ -149,7 +149,7 @@ contract Auction is
     function _updateLatestCheckpointToCurrentStep(uint256 blockNumber) internal returns (Checkpoint memory) {
         Checkpoint memory _checkpoint = latestCheckpoint();
         // If step.mps is 0, advance to the next step to update `step.mps`
-        if (step.mps == 0) _checkpoint = _advanceToCurrentStep(_checkpoint, 0, blockNumber);
+        if (step.mps == 0) _checkpoint = _advanceToCurrentStep(_checkpoint, blockNumber);
         // Get the supply being sold since the last checkpoint, accounting for rollovers of past supply
         uint256 supply = _checkpoint.getSupply(totalSupply, step.mps);
         // If there is no supply being sold, return the current checkpoint
@@ -183,7 +183,7 @@ contract Auction is
         uint256 newClearingPrice =
             _calculateNewClearingPrice(_sumDemandAboveClearing.applyMps(step.mps), minimumClearingPrice, supply);
         // Reset the cumulative weighted partial fill rate if the clearing price has updated
-        if (newClearingPrice != _checkpoint.clearingPrice) _checkpoint.sumPartialFillRate = 0;
+        if (newClearingPrice != _checkpoint.clearingPrice) _checkpoint.cumulativeSupplySoldToClearingPrice = 0;
         // Update the clearing price
         _checkpoint.clearingPrice = newClearingPrice;
         _checkpoint.resolvedDemandAboveClearingPrice = _sumDemandAboveClearing.resolve(_checkpoint.clearingPrice);
@@ -195,9 +195,7 @@ contract Auction is
         /// - clearing price
         /// - blockCleared
         /// - resolvedDemandAboveClearingPrice
-        return _advanceToCurrentStep(
-            _checkpoint, getTick(_checkpoint.clearingPrice).demand.resolve(_checkpoint.clearingPrice), blockNumber
-        );
+        return _advanceToCurrentStep(_checkpoint, blockNumber);
     }
 
     /// @notice Internal function for checkpointing at a specific block number
@@ -224,11 +222,8 @@ contract Auction is
         _checkpoint.cumulativeMpsPerPrice += _checkpoint.clearingPrice == 0
             ? 0
             : CheckpointLib.getMpsPerPrice(mpsSinceLastCheckpoint, _checkpoint.clearingPrice);
-        _checkpoint.sumPartialFillRate += CheckpointLib.calculatePartialFillRate(
-            supplyDelta,
-            _checkpoint.resolvedDemandAboveClearingPrice,
-            getTick(_checkpoint.clearingPrice).demand.resolve(_checkpoint.clearingPrice),
-            mpsSinceLastCheckpoint
+        _checkpoint.cumulativeSupplySoldToClearingPrice += CheckpointLib.getSupplySoldToClearingPrice(
+            supplyDelta, _checkpoint.resolvedDemandAboveClearingPrice, mpsSinceLastCheckpoint
         );
         _insertCheckpoint(_checkpoint, blockNumber);
 
@@ -348,7 +343,7 @@ contract Auction is
 
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
         Checkpoint memory finalCheckpoint = _unsafeCheckpoint(endBlock);
-        // Require that checkpoint immediately before the bid stopped being filled
+        // Require that checkpoint immediately before the bid stopped being fully filled
         // This means that its next checkpoint is strictly > bid.maxPrice
         Checkpoint memory lastFullyFilledCheckpoint = _getCheckpoint(lower);
         if (_getCheckpoint(lastFullyFilledCheckpoint.next).clearingPrice < bid.maxPrice) {
@@ -365,12 +360,15 @@ contract Auction is
         Checkpoint memory upperCheckpoint;
         /// @dev Bid has been outbid
         if (bid.maxPrice < finalCheckpoint.clearingPrice) {
-            upperCheckpoint = _getCheckpoint(upper);
+            // We want the checkpoint before upper, which is the last checkpoint where the bid is partially filled
+            Checkpoint memory outbidCheckpoint = _getCheckpoint(upper);
+            upperCheckpoint = _getCheckpoint(outbidCheckpoint.prev);
             // Require that upper checkpoint is the first checkpoint where the bid is outbid
-            // Which means that the price must be > bid.maxPrice and the previous checkpoint must be <= bid.maxPrice
+            // Which means that the clearing price is strictly > bid max price
+            // Pass in 0 if the bid is fully filled at the end of the auction
             if (
-                upperCheckpoint.clearingPrice <= bid.maxPrice
-                    || _getCheckpoint(upperCheckpoint.prev).clearingPrice > bid.maxPrice
+                // OK if upperCheckpoint is < the bid max price, that just means the bid is never partially filled.
+                outbidCheckpoint.clearingPrice <= bid.maxPrice || upperCheckpoint.clearingPrice > bid.maxPrice
             ) {
                 revert InvalidCheckpointHint();
             }
@@ -385,6 +383,7 @@ contract Auction is
         (uint256 partialTokensFilled, uint256 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
             upperCheckpoint,
             bid.demand(),
+            getTick(bid.maxPrice).demand.resolve(bid.maxPrice),
             bid.maxPrice,
             upperCheckpoint.cumulativeMps - lastFullyFilledCheckpoint.cumulativeMps,
             AuctionStepLib.MPS - startCheckpoint.cumulativeMps

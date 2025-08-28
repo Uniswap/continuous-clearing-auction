@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/1de405fbc26e1c3a6f5b413734244f9a9fe59e87/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/579dd192cb3d6db3d93e95ab513fff830b038a4e/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -140,13 +140,13 @@ Internal function for checkpointing at a specific block number
 
 
 ```solidity
-function _unsafeCheckpoint(uint256 blockNumber) internal returns (Checkpoint memory _checkpoint);
+function _unsafeCheckpoint(uint64 blockNumber) internal returns (Checkpoint memory _checkpoint);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`blockNumber`|`uint256`|The block number to checkpoint at|
+|`blockNumber`|`uint64`|The block number to checkpoint at|
 
 
 ### _getFinalCheckpoint
@@ -255,15 +255,15 @@ Exit a bid which has been partially filled
 
 
 ```solidity
-function exitPartiallyFilledBid(uint256 bidId, uint256 lower, uint256 upper) external;
+function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 upper) external;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
-|`lower`|`uint256`|The checkpointed block where the clearing price is == bid.maxPrice|
-|`upper`|`uint256`|The checkpointed block where the clearing price is strictly greater than bid.maxPrice, or 0 if the bid is partially filled at the end of the auction|
+|`lower`|`uint64`|The checkpointed block where the clearing price is == bid.maxPrice|
+|`upper`|`uint64`|The checkpointed block where the clearing price is strictly greater than bid.maxPrice, or 0 if the bid is partially filled at the end of the auction|
 
 
 ### claimTokens

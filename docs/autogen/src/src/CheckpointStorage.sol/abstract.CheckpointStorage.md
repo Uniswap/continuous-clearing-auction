@@ -1,5 +1,5 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/1de405fbc26e1c3a6f5b413734244f9a9fe59e87/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/579dd192cb3d6db3d93e95ab513fff830b038a4e/src/CheckpointStorage.sol)
 
 **Inherits:**
 [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
@@ -8,12 +8,19 @@ Abstract contract for managing auction checkpoints and bid fill calculations
 
 
 ## State Variables
+### MAX_BLOCK_NUMBER
+
+```solidity
+uint64 public constant MAX_BLOCK_NUMBER = type(uint64).max;
+```
+
+
 ### checkpoints
 Storage of checkpoints
 
 
 ```solidity
-mapping(uint256 blockNumber => Checkpoint) public checkpoints;
+mapping(uint64 blockNumber => Checkpoint) public checkpoints;
 ```
 
 
@@ -22,7 +29,7 @@ The block number of the last checkpointed block
 
 
 ```solidity
-uint256 public lastCheckpointedBlock;
+uint64 public lastCheckpointedBlock;
 ```
 
 
@@ -62,7 +69,7 @@ Get a checkpoint from storage
 
 
 ```solidity
-function _getCheckpoint(uint256 blockNumber) internal view returns (Checkpoint memory);
+function _getCheckpoint(uint64 blockNumber) internal view returns (Checkpoint memory);
 ```
 
 ### _insertCheckpoint
@@ -71,7 +78,7 @@ Insert a checkpoint into storage
 
 
 ```solidity
-function _insertCheckpoint(Checkpoint memory checkpoint, uint256 blockNumber) internal;
+function _insertCheckpoint(Checkpoint memory checkpoint, uint64 blockNumber) internal;
 ```
 
 ### _accountFullyFilledCheckpoints

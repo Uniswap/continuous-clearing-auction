@@ -82,9 +82,7 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     }
 
     /// @notice Calculate the tokens sold, proportion of input used, and the block number of the next checkpoint under the bid's max price
-    /// @dev This function is known to lose 1 wei of precicion in the tokensFilled calculation
-    /// @param upperCheckpoint The first checkpoint where clearing price is greater than or equal to bid.maxPrice
-    ///        this will be equal to the maxPrice if the bid is partially filled at the end of the auction
+    /// @param upperCheckpoint The last checkpoint where clearing price is equal to bid.maxPrice
     /// @param bidDemand The demand of the bid
     /// @param bidMaxPrice The max price of the bid
     /// @param cumulativeMpsDelta The cumulative sum of mps values across the block range
@@ -99,8 +97,8 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         uint24 cumulativeMpsDelta,
         uint24 mpsDenominator
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
-        if (cumulativeMpsDelta == 0) return (0, 0);
-
+        if (cumulativeMpsDelta == 0 || tickDemand == 0) return (0, 0);
+        // Given the sum of the supply sold to the clearing price over time, divide by the tick demand
         uint256 runningPartialFillRate = upperCheckpoint.cumulativeSupplySoldToClearingPrice.fullMulDiv(
             FixedPoint96.Q96 * mpsDenominator, tickDemand * cumulativeMpsDelta
         );

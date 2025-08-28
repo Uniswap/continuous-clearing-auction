@@ -73,8 +73,7 @@ library CheckpointLib {
     ) internal pure returns (uint256) {
         if (supplyMps == 0 || tickDemand == 0) return 0;
         uint256 supplySoldToTick = (supplyMps - resolvedDemandAboveClearingPrice.applyMps(mpsDelta));
-        return
-            supplySoldToTick.fullMulDiv(FixedPoint96.Q96 * mpsDelta, tickDemand.applyMps(mpsDelta) * AuctionStepLib.MPS);
+        return supplySoldToTick.fullMulDiv(FixedPoint96.Q96, tickDemand);
     }
 
     /// @notice Calculate the actualy supply to sell given the total cleared in the auction so far

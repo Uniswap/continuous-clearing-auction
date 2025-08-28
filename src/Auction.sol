@@ -195,8 +195,9 @@ contract Auction is
         /// - clearing price
         /// - blockCleared
         /// - resolvedDemandAboveClearingPrice
-        uint256 resolvedTickDemand = getTick(_checkpoint.clearingPrice).demand.resolve(_checkpoint.clearingPrice);
-        return _advanceToCurrentStep(_checkpoint, resolvedTickDemand, blockNumber);
+        return _advanceToCurrentStep(
+            _checkpoint, getTick(_checkpoint.clearingPrice).demand.resolve(_checkpoint.clearingPrice), blockNumber
+        );
     }
 
     /// @notice Internal function for checkpointing at a specific block number

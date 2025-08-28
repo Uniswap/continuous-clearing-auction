@@ -244,23 +244,21 @@ contract AuctionTest is AuctionBaseTest {
         token.mint(address(auction), TOTAL_SUPPLY);
 
         // Bid over the total supply
-        vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(
-            0, alice, tickNumberToPriceX96(2), true, inputAmountForTokens(2000e18, tickNumberToPriceX96(2))
-        );
         uint256 inputAmount = inputAmountForTokens(2000e18, tickNumberToPriceX96(2));
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.CheckpointUpdated(block.number, 0, 0, 0);
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.BidSubmitted(0, alice, tickNumberToPriceX96(2), true, inputAmount);
         uint256 bidId = auction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
-        // Assert that no checkpoint was made
-        assertEq(auction.lastCheckpointedBlock(), 0);
 
         // Advance to the next block to get the next checkpoint
         vm.roll(block.number + 1);
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.CheckpointUpdated(block.number, 0, 0, 0);
         auction.checkpoint();
         vm.snapshotGasLastCall('checkpoint_zeroSupply');
-        // Assert that no checkpoint was made
-        assertEq(auction.lastCheckpointedBlock(), 0);
 
         // Advance to the end of the first step
         vm.roll(auction.startBlock() + 101);
@@ -290,22 +288,22 @@ contract AuctionTest is AuctionBaseTest {
         auction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auction), TOTAL_SUPPLY);
 
+        uint256 inputAmount = inputAmountForTokens(1000e18, tickNumberToPriceX96(1));
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.CheckpointUpdated(block.number, 0, 0, 0);
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(
             0, alice, tickNumberToPriceX96(2), true, inputAmountForTokens(1000e18, tickNumberToPriceX96(1))
         );
-        uint256 inputAmount = inputAmountForTokens(1000e18, tickNumberToPriceX96(1));
         uint256 bidId = auction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
-        // Assert that no checkpoint was made
-        assertEq(auction.lastCheckpointedBlock(), 0);
 
         // Advance to the next block to get the next checkpoint
         vm.roll(block.number + 1);
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.CheckpointUpdated(block.number, 0, 0, 0);
         auction.checkpoint();
-        // Assert that no checkpoint was made
-        assertEq(auction.lastCheckpointedBlock(), 0);
 
         // Advance to the end of the first step
         vm.roll(auction.startBlock() + 101);

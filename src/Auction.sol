@@ -148,6 +148,8 @@ contract Auction is
     /// @dev This updates the state of the auction accounting for the bids placed after the last checkpoint
     function _updateLatestCheckpointToCurrentStep(uint256 blockNumber) internal returns (Checkpoint memory) {
         Checkpoint memory _checkpoint = latestCheckpoint();
+        // If step.mps is 0, advance to the next step to update `step.mps`
+        if (step.mps == 0) _checkpoint = _advanceToCurrentStep(_checkpoint, 0, blockNumber);
         // Get the supply being sold since the last checkpoint, accounting for rollovers of past supply
         uint256 supply = _checkpoint.getSupply(totalSupply, step.mps);
         // If there is no supply being sold, return the current checkpoint
@@ -218,8 +220,9 @@ contract Auction is
         uint256 supplyDelta = _checkpoint.blockCleared * blockDelta;
         _checkpoint.totalCleared += supplyDelta;
         _checkpoint.cumulativeMps += mpsSinceLastCheckpoint;
-        _checkpoint.cumulativeMpsPerPrice +=
-            CheckpointLib.getMpsPerPrice(mpsSinceLastCheckpoint, _checkpoint.clearingPrice);
+        _checkpoint.cumulativeMpsPerPrice += _checkpoint.clearingPrice == 0
+            ? 0
+            : CheckpointLib.getMpsPerPrice(mpsSinceLastCheckpoint, _checkpoint.clearingPrice);
         _checkpoint.sumPartialFillRate += CheckpointLib.calculatePartialFillRate(
             supplyDelta,
             _checkpoint.resolvedDemandAboveClearingPrice,
@@ -347,60 +350,47 @@ contract Auction is
         Checkpoint memory finalCheckpoint = _unsafeCheckpoint(endBlock);
         Checkpoint memory lowerCheckpoint = _getCheckpoint(lower);
         Checkpoint memory lastFullyFilledCheckpoint = _getCheckpoint(lowerCheckpoint.prev);
-        // Require that lower checkpoint is the first checkpoint where the clearing price is == bid.maxPrice
-        // And that the last fully filled checkpoint is strictly < bid.maxPrice
+        // Require that lower checkpoint is the first checkpoint where the clearing price is == bid.maxPrice or 0
+        // And that the last fully filled checkpoint is strictly < bid.maxPrice or 0
         if (lowerCheckpoint.clearingPrice != bid.maxPrice || lastFullyFilledCheckpoint.clearingPrice >= bid.maxPrice) {
-            console2.log('lowerCheckpoint.clearingPrice', lowerCheckpoint.clearingPrice);
-            console2.log('bid.maxPrice', bid.maxPrice);
-            console2.log('lastFullyFilledCheckpoint.clearingPrice', lastFullyFilledCheckpoint.clearingPrice);
             revert InvalidCheckpointHint();
         }
 
         uint256 tokensFilled;
         uint256 currencySpent;
+        if (lastFullyFilledCheckpoint.clearingPrice > 0) {
+            (tokensFilled, currencySpent) = _accountFullyFilledCheckpoints(lastFullyFilledCheckpoint, bid);
+        }
+
+        Checkpoint memory upperCheckpoint;
         /// @dev Bid has been outbid
         if (bid.maxPrice < finalCheckpoint.clearingPrice) {
-            Checkpoint memory upperCheckpoint = _getCheckpoint(upper);
+            upperCheckpoint = _getCheckpoint(upper);
             // Require that upper checkpoint is the first checkpoint where the bid is outbid
             // Which means that the price must be > bid.maxPrice and the previous checkpoint must be <= bid.maxPrice
             if (
                 upperCheckpoint.clearingPrice <= bid.maxPrice
                     || _getCheckpoint(upperCheckpoint.prev).clearingPrice > bid.maxPrice
             ) {
-                console2.log('upperCheckpoint.clearingPrice', upperCheckpoint.clearingPrice);
-                console2.log('bid.maxPrice', bid.maxPrice);
-                console2.log(
-                    '_getCheckpoint(upperCheckpoint.prev).clearingPrice',
-                    _getCheckpoint(upperCheckpoint.prev).clearingPrice
-                );
                 revert InvalidCheckpointHint();
             }
-            (tokensFilled, currencySpent) = _accountPartiallyFilledCheckpoints(
-                upperCheckpoint,
-                bid.demand(),
-                bid.maxPrice,
-                upperCheckpoint.cumulativeMps - lastFullyFilledCheckpoint.cumulativeMps,
-                AuctionStepLib.MPS - startCheckpoint.cumulativeMps
-            );
-            /// Now account for the fully filled checkpoints from lowerCheckpoint
-            (uint256 _tokensFilled, uint256 _currencySpent) =
-                _accountFullyFilledCheckpoints(lastFullyFilledCheckpoint, bid);
-            tokensFilled += _tokensFilled;
-            currencySpent += _currencySpent;
-        } else if (block.number >= endBlock && bid.maxPrice == finalCheckpoint.clearingPrice) {
-            (tokensFilled, currencySpent) = _accountFullyFilledCheckpoints(lastFullyFilledCheckpoint, bid);
-            (uint256 partialTokensFilled, uint256 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
-                finalCheckpoint,
-                bid.demand(),
-                bid.maxPrice,
-                finalCheckpoint.cumulativeMps - lastFullyFilledCheckpoint.cumulativeMps,
-                AuctionStepLib.MPS - startCheckpoint.cumulativeMps
-            );
-            tokensFilled += partialTokensFilled;
-            currencySpent += partialCurrencySpent;
+        }
+        /// @dev Auction ended and the final price is the bid's max price
+        else if (block.number >= endBlock && bid.maxPrice == finalCheckpoint.clearingPrice) {
+            upperCheckpoint = finalCheckpoint;
         } else {
             revert CannotExitBid();
         }
+
+        (uint256 partialTokensFilled, uint256 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
+            upperCheckpoint,
+            bid.demand(),
+            bid.maxPrice,
+            upperCheckpoint.cumulativeMps - lastFullyFilledCheckpoint.cumulativeMps,
+            AuctionStepLib.MPS - startCheckpoint.cumulativeMps
+        );
+        tokensFilled += partialTokensFilled;
+        currencySpent += partialCurrencySpent;
 
         _processExit(bidId, bid, tokensFilled, bid.inputAmount() - currencySpent);
     }

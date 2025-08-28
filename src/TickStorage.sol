@@ -89,7 +89,7 @@ abstract contract TickStorage is ITickStorage {
     /// @param price The price of the tick
     /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
-    function _updateTick(uint256 price, bool exactIn, uint256 amount) internal {
+    function _updateTick(uint256 price, bool exactIn, uint128 amount) internal {
         Tick storage tick = ticks[price];
 
         if (exactIn) {

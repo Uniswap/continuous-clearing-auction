@@ -19,15 +19,16 @@ contract CheckpointStorageTest is Test {
     using BidLib for Bid;
     using DemandLib for Demand;
     using FixedPointMathLib for uint256;
-    using AuctionStepLib for uint256;
+    using FixedPointMathLib for uint128;
+    using AuctionStepLib for uint128;
 
     uint24 public constant MPS = 1e7;
     uint256 public constant TICK_SPACING = 100;
-    uint256 public constant ETH_AMOUNT = 10 ether;
+    uint128 public constant ETH_AMOUNT = 10 ether;
     uint256 public constant FLOOR_PRICE = 100 << FixedPoint96.RESOLUTION;
     uint256 public constant MAX_PRICE = 500 << FixedPoint96.RESOLUTION;
-    uint256 public constant TOKEN_AMOUNT = 100e18;
-    uint256 public constant TOTAL_SUPPLY = 1000e18;
+    uint128 public constant TOKEN_AMOUNT = 100e18;
+    uint128 public constant TOTAL_SUPPLY = 1000e18;
 
     function setUp() public {
         mockCheckpointStorage = new MockCheckpointStorage();
@@ -213,7 +214,7 @@ contract CheckpointStorageTest is Test {
         pricesArray[0] = MAX_PRICE;
 
         // Setup: Large ETH bid
-        uint256 largeAmount = 100 ether;
+        uint128 largeAmount = 100 ether;
         Bid memory bid = Bid({
             exactIn: true,
             owner: address(this),
@@ -226,11 +227,11 @@ contract CheckpointStorageTest is Test {
 
         uint256 cumulativeMpsPerPriceDelta = CheckpointLib.getMpsPerPrice(mpsArray[0], pricesArray[0]);
         uint24 cumulativeMpsDelta = MPS;
-        uint256 expectedCurrencySpent = largeAmount * cumulativeMpsDelta / MPS;
+        uint128 expectedCurrencySpent = largeAmount * cumulativeMpsDelta / MPS;
 
-        uint256 expectedTokensFilled = expectedCurrencySpent.fullMulDiv(FixedPoint96.Q96, MAX_PRICE);
+        uint128 expectedTokensFilled = uint128(expectedCurrencySpent.fullMulDiv(FixedPoint96.Q96, MAX_PRICE));
 
-        (uint256 tokensFilled, uint256 currencySpent) =
+        (uint128 tokensFilled, uint128 currencySpent) =
             mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta, MPS);
 
         assertEq(tokensFilled, expectedTokensFilled);

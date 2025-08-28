@@ -5,11 +5,11 @@ import {Auction} from '../../src/Auction.sol';
 import {AuctionParameters} from '../../src/Auction.sol';
 
 contract MockAuction is Auction {
-    constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
+    constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
         Auction(_token, _totalSupply, _parameters)
     {}
 
-    function calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 blockTokenSupply)
+    function calculateNewClearingPrice(uint256 minimumClearingPrice, uint128 blockTokenSupply)
         external
         view
         returns (uint256)

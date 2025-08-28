@@ -101,7 +101,7 @@ interface IAuction is
     function submitBid(
         uint256 maxPrice,
         bool exactIn,
-        uint256 amount,
+        uint128 amount,
         address owner,
         uint256 prevTickPrice,
         bytes calldata hookData

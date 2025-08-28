@@ -14,15 +14,15 @@ struct Checkpoint {
     uint24 mps;
     uint64 prev;
     uint64 next;
+    uint128 resolvedDemandAboveClearingPrice;
     uint256 cumulativeMpsPerPrice;
     uint256 cumulativeSupplySoldToClearingPrice;
-    uint256 resolvedDemandAboveClearingPrice;
 }
 
 /// @title CheckpointLib
 library CheckpointLib {
     using FixedPointMathLib for uint256;
-    using AuctionStepLib for uint256;
+    using AuctionStepLib for uint128;
     using CheckpointLib for Checkpoint;
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by a number of blocks
@@ -59,10 +59,10 @@ library CheckpointLib {
     /// @param resolvedDemandAboveClearingPrice The demand above the clearing price
     /// @param mpsDelta The number of mps to add
     /// @return an X96 fixed point number representing the partial fill rate
-    function getSupplySoldToClearingPrice(uint256 supplyMps, uint256 resolvedDemandAboveClearingPrice, uint24 mpsDelta)
+    function getSupplySoldToClearingPrice(uint128 supplyMps, uint128 resolvedDemandAboveClearingPrice, uint24 mpsDelta)
         internal
         pure
-        returns (uint256)
+        returns (uint128)
     {
         if (supplyMps == 0) return 0;
         return (supplyMps - resolvedDemandAboveClearingPrice.applyMps(mpsDelta));
@@ -72,7 +72,7 @@ library CheckpointLib {
     /// @param checkpoint The last checkpointed state of the auction
     /// @param totalSupply immutable total supply of the auction
     /// @param mps the number of mps, following the auction sale schedule
-    function getSupply(Checkpoint memory checkpoint, uint256 totalSupply, uint24 mps) internal pure returns (uint256) {
+    function getSupply(Checkpoint memory checkpoint, uint128 totalSupply, uint24 mps) internal pure returns (uint128) {
         return ((totalSupply - checkpoint.totalCleared) * mps) / (AuctionStepLib.MPS - checkpoint.cumulativeMps);
     }
 
@@ -105,7 +105,7 @@ library CheckpointLib {
     /// @return The total currency raised
     function getCurrencyRaised(Checkpoint memory checkpoint) internal pure returns (uint128) {
         return uint128(
-            checkpoint.totalCleared.fullMulDiv(
+            uint256(checkpoint.totalCleared).fullMulDiv(
                 checkpoint.cumulativeMps * FixedPoint96.Q96, checkpoint.cumulativeMpsPerPrice
             )
         );

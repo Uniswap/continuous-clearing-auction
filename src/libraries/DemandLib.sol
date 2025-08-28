@@ -6,24 +6,24 @@ import {FixedPoint96} from './FixedPoint96.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 struct Demand {
-    uint256 currencyDemand;
-    uint256 tokenDemand;
+    uint128 currencyDemand;
+    uint128 tokenDemand;
 }
 
 library DemandLib {
-    using DemandLib for uint256;
+    using DemandLib for uint128;
     using FixedPointMathLib for uint256;
-    using AuctionStepLib for uint256;
+    using AuctionStepLib for uint128;
 
-    function resolve(Demand memory _demand, uint256 price) internal pure returns (uint256) {
+    function resolve(Demand memory _demand, uint256 price) internal pure returns (uint128) {
         return price == 0 ? 0 : _demand.currencyDemand.resolveCurrencyDemand(price) + _demand.tokenDemand;
     }
 
-    function resolveCurrencyDemand(uint256 amount, uint256 price) internal pure returns (uint256) {
-        return price == 0 ? 0 : amount.fullMulDiv(FixedPoint96.Q96, price);
+    function resolveCurrencyDemand(uint128 amount, uint256 price) internal pure returns (uint128) {
+        return price == 0 ? 0 : uint128(uint256(amount).fullMulDiv(FixedPoint96.Q96, price));
     }
 
-    function resolveTokenDemand(uint256 amount) internal pure returns (uint256) {
+    function resolveTokenDemand(uint128 amount) internal pure returns (uint128) {
         return amount;
     }
 
@@ -48,11 +48,11 @@ library DemandLib {
         });
     }
 
-    function addCurrencyAmount(Demand memory _demand, uint256 _amount) internal pure returns (Demand memory) {
+    function addCurrencyAmount(Demand memory _demand, uint128 _amount) internal pure returns (Demand memory) {
         return Demand({currencyDemand: _demand.currencyDemand + _amount, tokenDemand: _demand.tokenDemand});
     }
 
-    function addTokenAmount(Demand memory _demand, uint256 _amount) internal pure returns (Demand memory) {
+    function addTokenAmount(Demand memory _demand, uint128 _amount) internal pure returns (Demand memory) {
         return Demand({currencyDemand: _demand.currencyDemand, tokenDemand: _demand.tokenDemand + _amount});
     }
 }

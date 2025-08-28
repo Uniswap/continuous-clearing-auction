@@ -14,6 +14,7 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 /// @title CheckpointStorage
 /// @notice Abstract contract for managing auction checkpoints and bid fill calculations
 abstract contract CheckpointStorage is ICheckpointStorage {
+    using FixedPointMathLib for uint128;
     using FixedPointMathLib for uint256;
     using AuctionStepLib for *;
     using BidLib for *;
@@ -69,7 +70,7 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     function _accountFullyFilledCheckpoints(Checkpoint memory upper, Bid memory bid)
         internal
         view
-        returns (uint256 tokensFilled, uint256 currencySpent)
+        returns (uint128 tokensFilled, uint128 currencySpent)
     {
         Checkpoint memory lower = _getCheckpoint(bid.startBlock);
         (tokensFilled, currencySpent) = _calculateFill(
@@ -90,21 +91,22 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     /// @return currencySpent The amount of currency spent
     function _accountPartiallyFilledCheckpoints(
         Checkpoint memory upperCheckpoint,
-        uint256 bidDemand,
-        uint256 tickDemand,
+        uint128 bidDemand,
+        uint128 tickDemand,
         uint256 bidMaxPrice,
         uint24 cumulativeMpsDelta,
         uint24 mpsDenominator
-    ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
+    ) internal pure returns (uint128 tokensFilled, uint128 currencySpent) {
         if (cumulativeMpsDelta == 0 || tickDemand == 0) return (0, 0);
         // Given the sum of the supply sold to the clearing price over time, divide by the tick demand
         uint256 runningPartialFillRate = upperCheckpoint.cumulativeSupplySoldToClearingPrice.fullMulDiv(
             FixedPoint96.Q96 * mpsDenominator, tickDemand * cumulativeMpsDelta
         );
         // Shorthand for (bidDemand * cumulativeMpsDelta / mpsDenominator) * runningPartialFillRate / Q96;
-        tokensFilled =
-            bidDemand.fullMulDiv(runningPartialFillRate * cumulativeMpsDelta, FixedPoint96.Q96 * mpsDenominator);
-        currencySpent = tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96);
+        tokensFilled = uint128(
+            bidDemand.fullMulDiv(runningPartialFillRate * cumulativeMpsDelta, FixedPoint96.Q96 * mpsDenominator)
+        );
+        currencySpent = uint128(tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96));
     }
 
     /// @notice Calculate the tokens filled and currency spent for a bid
@@ -121,15 +123,15 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         uint256 cumulativeMpsPerPriceDelta,
         uint24 cumulativeMpsDelta,
         uint24 mpsDenominator
-    ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
+    ) internal pure returns (uint128 tokensFilled, uint128 currencySpent) {
         tokensFilled = bid.exactIn
-            ? bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsDenominator)
+            ? uint128(bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsDenominator))
             : bid.amount * cumulativeMpsDelta / mpsDenominator;
         // If tokensFilled is 0 then currencySpent must be 0
         if (tokensFilled != 0) {
             currencySpent = bid.exactIn
                 ? bid.amount * cumulativeMpsDelta / mpsDenominator
-                : tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPriceDelta);
+                : uint128(tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPriceDelta));
         }
     }
 }

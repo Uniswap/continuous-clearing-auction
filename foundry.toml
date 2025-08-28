@@ -3,7 +3,7 @@ src = "src"
 out = "out"
 libs = ["lib"]
 optimizer = true
-optimizer_runs = 999999
+optimizer_runs = 1000
 via_ir = true
 solc = "0.8.26"
 verbosity = 2
@@ -26,6 +26,7 @@ additional_compiler_profiles = [
 ]
 
 compilation_restrictions = [
+  { paths = "src/AuctionFactory.sol", via_ir = false, optimizer = false, optimzer_runs = 0 },
   { paths = "test/**", via_ir = false }
 ]
 

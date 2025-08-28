@@ -15,5 +15,5 @@ interface ICheckpointStorage {
     function currencyRaised() external view returns (uint128);
 
     /// @notice Get the number of the last checkpointed block
-    function lastCheckpointedBlock() external view returns (uint256);
+    function lastCheckpointedBlock() external view returns (uint64);
 }

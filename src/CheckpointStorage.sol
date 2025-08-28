@@ -22,10 +22,12 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     using DemandLib for Demand;
     using CheckpointLib for Checkpoint;
 
+    uint64 public constant MAX_BLOCK_NUMBER = type(uint64).max;
+
     /// @notice Storage of checkpoints
-    mapping(uint256 blockNumber => Checkpoint) public checkpoints;
+    mapping(uint64 blockNumber => Checkpoint) public checkpoints;
     /// @notice The block number of the last checkpointed block
-    uint256 public lastCheckpointedBlock;
+    uint64 public lastCheckpointedBlock;
 
     /// @inheritdoc ICheckpointStorage
     function latestCheckpoint() public view returns (Checkpoint memory) {
@@ -43,12 +45,14 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     }
 
     /// @notice Get a checkpoint from storage
-    function _getCheckpoint(uint256 blockNumber) internal view returns (Checkpoint memory) {
+    function _getCheckpoint(uint64 blockNumber) internal view returns (Checkpoint memory) {
         return checkpoints[blockNumber];
     }
 
     /// @notice Insert a checkpoint into storage
-    function _insertCheckpoint(Checkpoint memory checkpoint, uint256 blockNumber) internal {
+    function _insertCheckpoint(Checkpoint memory checkpoint, uint64 blockNumber) internal {
+        if (checkpoint.prev != 0) checkpoints[checkpoint.prev].next = blockNumber;
+        checkpoint.next = MAX_BLOCK_NUMBER;
         checkpoints[blockNumber] = checkpoint;
         lastCheckpointedBlock = blockNumber;
     }

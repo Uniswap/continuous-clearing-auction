@@ -17,7 +17,8 @@ struct Checkpoint {
     uint256 cumulativeMpsPerPrice;
     uint256 sumPartialFillRate;
     uint256 resolvedDemandAboveClearingPrice;
-    uint256 prev;
+    uint64 prev;
+    uint64 next;
 }
 
 /// @title CheckpointLib

@@ -201,7 +201,7 @@ contract Auction is
 
     /// @notice Internal function for checkpointing at a specific block number
     /// @param blockNumber The block number to checkpoint at
-    function _unsafeCheckpoint(uint256 blockNumber) internal returns (Checkpoint memory _checkpoint) {
+    function _unsafeCheckpoint(uint64 blockNumber) internal returns (Checkpoint memory _checkpoint) {
         if (blockNumber == lastCheckpointedBlock) return latestCheckpoint();
         if (blockNumber < startBlock) revert AuctionNotStarted();
 
@@ -297,7 +297,7 @@ contract Auction is
     /// @inheritdoc IAuction
     function checkpoint() public returns (Checkpoint memory _checkpoint) {
         if (block.number > endBlock) revert AuctionIsOver();
-        return _unsafeCheckpoint(block.number);
+        return _unsafeCheckpoint(uint64(block.number));
     }
 
     /// @inheritdoc IAuction
@@ -342,22 +342,22 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function exitPartiallyFilledBid(uint256 bidId, uint256 lower, uint256 upper) external {
+    function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 upper) external {
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
 
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
         Checkpoint memory finalCheckpoint = _unsafeCheckpoint(endBlock);
-        Checkpoint memory lowerCheckpoint = _getCheckpoint(lower);
-        Checkpoint memory lastFullyFilledCheckpoint = _getCheckpoint(lowerCheckpoint.prev);
-        // Require that lower checkpoint is the first checkpoint where the clearing price is == bid.maxPrice or 0
-        // And that the last fully filled checkpoint is strictly < bid.maxPrice or 0
-        if (lowerCheckpoint.clearingPrice != bid.maxPrice || lastFullyFilledCheckpoint.clearingPrice >= bid.maxPrice) {
+        // Require that checkpoint immediately before the bid stopped being filled
+        // This means that its next checkpoint is strictly > bid.maxPrice
+        Checkpoint memory lastFullyFilledCheckpoint = _getCheckpoint(lower);
+        if (_getCheckpoint(lastFullyFilledCheckpoint.next).clearingPrice < bid.maxPrice) {
             revert InvalidCheckpointHint();
         }
 
         uint256 tokensFilled;
         uint256 currencySpent;
+        // If the lastFullyFilledCheckpoint is not 0, account for the fully filled checkpoints from lowerCheckpoint
         if (lastFullyFilledCheckpoint.clearingPrice > 0) {
             (tokensFilled, currencySpent) = _accountFullyFilledCheckpoints(lastFullyFilledCheckpoint, bid);
         }

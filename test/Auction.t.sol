@@ -204,7 +204,7 @@ contract AuctionTest is AuctionBaseTest {
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
-        auction.exitPartiallyFilledBid(bidId, 2, 0);
+        auction.exitPartiallyFilledBid(bidId, 1, 0);
         assertApproxEqAbs(address(alice).balance, aliceBalanceBefore + inputAmount / 2, 10_000);
 
         vm.roll(auction.claimBlock());
@@ -224,7 +224,7 @@ contract AuctionTest is AuctionBaseTest {
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
-        auction.exitPartiallyFilledBid(bidId, 2, 0);
+        auction.exitPartiallyFilledBid(bidId, 1, 0);
         assertEq(
             address(alice).balance, aliceBalanceBefore + inputAmountForTokens(2000e18, tickNumberToPriceX96(2)) / 2
         );
@@ -441,7 +441,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidExited(0, alice);
         vm.startPrank(alice);
-        auction.exitPartiallyFilledBid(bidId1, 0, 2);
+        auction.exitPartiallyFilledBid(bidId1, 1, 2);
         // Expect that alice is refunded the full amount of the first bid
         assertEq(
             address(alice).balance - aliceBalanceBefore, inputAmountForTokens(smallAmount, tickNumberToPriceX96(2))
@@ -632,7 +632,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(auction.endBlock());
         vm.prank(alice);
         // Checkpoint 2 is the previous last checkpointed block
-        auction.exitPartiallyFilledBid(bidId, 2, 0);
+        auction.exitPartiallyFilledBid(bidId, 1, 0);
 
         // Expect no refund
         assertApproxEqAbs(address(alice).balance, aliceBalanceBefore, 10_000);
@@ -675,7 +675,7 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(auction.endBlock() + 1);
         vm.startPrank(alice);
-        auction.exitPartiallyFilledBid(bidId, 2, 0);
+        auction.exitPartiallyFilledBid(bidId, 1, 0);
         vm.snapshotGasLastCall('exitPartiallyFilledBid');
         // Alice is purchasing with 500e18 * 2000 = 1000e21 ETH
         // Bob is purchasing with 500e18 * 3000 = 1500e21 ETH
@@ -778,13 +778,13 @@ contract AuctionTest is AuctionBaseTest {
         vm.stopPrank();
 
         vm.startPrank(alice);
-        auction.exitPartiallyFilledBid(bidId1, 2, 0);
+        auction.exitPartiallyFilledBid(bidId1, 1, 0);
         assertEq(address(alice).balance, aliceBalanceBefore + 600e21);
         auction.claimTokens(bidId1);
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 100e18);
 
         vm.startPrank(bob);
-        auction.exitPartiallyFilledBid(bidId2, 2, 0);
+        auction.exitPartiallyFilledBid(bidId2, 1, 0);
         assertEq(address(bob).balance, bobBalanceBefore + 900e21);
         auction.claimTokens(bidId2);
         assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + 150e18);
@@ -1105,11 +1105,11 @@ contract AuctionTest is AuctionBaseTest {
         vm.startPrank(alice);
 
         // Exit the bid once - this should succeed
-        auction.exitPartiallyFilledBid(bidId, 2, 0);
+        auction.exitPartiallyFilledBid(bidId, 1, 0);
 
         // Try to exit the same bid again - this should revert with BidAlreadyExited on line 294
         vm.expectRevert(IAuction.BidAlreadyExited.selector);
-        auction.exitPartiallyFilledBid(bidId, 2, 0);
+        auction.exitPartiallyFilledBid(bidId, 1, 0);
 
         vm.stopPrank();
     }

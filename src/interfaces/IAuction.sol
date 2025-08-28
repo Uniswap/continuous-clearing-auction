@@ -122,8 +122,8 @@ interface IAuction is
     /// @notice Exit a bid which has been partially filled
     /// @dev This function can be used for fully filled or partially filled bids. For fully filled bids, `exitBid` is more efficient
     /// @param bidId The id of the bid
-    /// @param lower The last checkpointed block where the clearing price is strictly < bid.maxPrice
-    /// @param upper The first checkpointed block where the clearing price is strictly > bid.maxPrice
+    /// @param lastFullyFilledCheckpointBlock The last checkpointed block where the clearing price is strictly < bid.maxPrice
+    /// @param firstOutbidCheckpointBlock The first checkpointed block where the clearing price is strictly > bid.maxPrice
     ///              this value is not required if the bid is partially filled at the end of the auction (final clearing price == bid.maxPrice)
     ///              if the bid is fully filled at the end of the auction, it should be set to 0
     function exitPartiallyFilledBid(

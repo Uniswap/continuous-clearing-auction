@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c0936b6d3aa86b5d6d1a00f9e1bab4d207a57170/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c80b693e5a5d33e8f82791abf78b3e8a0e078948/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -251,19 +251,20 @@ function exitBid(uint256 bidId) external onlyAfterAuctionIsOver;
 
 Exit a bid which has been partially filled
 
-*This function can only be used for bids where the max price is below the final clearing price*
+*This function can be used for fully filled or partially filled bids. For fully filled bids, `exitBid` is more efficient*
 
 
 ```solidity
-function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 upper) external;
+function exitPartiallyFilledBid(uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 firstOutbidCheckpointBlock)
+    external;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
-|`lower`|`uint64`|The last checkpointed block where the clearing price is strictly < bid.maxPrice|
-|`upper`|`uint64`|The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction|
+|`lastFullyFilledCheckpointBlock`|`uint64`|The last checkpointed block where the clearing price is strictly < bid.maxPrice|
+|`firstOutbidCheckpointBlock`|`uint64`|The first checkpointed block where the clearing price is strictly > bid.maxPrice this value is not required if the bid is partially filled at the end of the auction (final clearing price == bid.maxPrice) if the bid is fully filled at the end of the auction, it should be set to 0|
 
 
 ### claimTokens

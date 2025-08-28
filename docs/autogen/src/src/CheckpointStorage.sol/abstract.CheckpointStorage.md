@@ -1,5 +1,5 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c0936b6d3aa86b5d6d1a00f9e1bab4d207a57170/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c80b693e5a5d33e8f82791abf78b3e8a0e078948/src/CheckpointStorage.sol)
 
 **Inherits:**
 [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
@@ -71,6 +71,18 @@ Get a checkpoint from storage
 ```solidity
 function _getCheckpoint(uint64 blockNumber) internal view returns (Checkpoint memory);
 ```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`blockNumber`|`uint64`|The block number of the checkpoint to get|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`Checkpoint`|The checkpoint at the given block number|
+
 
 ### _insertCheckpoint
 
@@ -82,6 +94,13 @@ Insert a checkpoint into storage
 ```solidity
 function _insertCheckpoint(Checkpoint memory checkpoint, uint64 blockNumber) internal;
 ```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`checkpoint`|`Checkpoint`|The fully populated checkpoint to insert|
+|`blockNumber`|`uint64`|The block number of the new checkpoint|
+
 
 ### _accountFullyFilledCheckpoints
 
@@ -119,7 +138,7 @@ Calculate the tokens sold, proportion of input used, and the block number of the
 
 ```solidity
 function _accountPartiallyFilledCheckpoints(
-    Checkpoint memory upperCheckpoint,
+    Checkpoint memory lastPartiallyFilledCheckpoint,
     uint256 bidDemand,
     uint256 tickDemand,
     uint256 bidMaxPrice,
@@ -131,9 +150,9 @@ function _accountPartiallyFilledCheckpoints(
 
 |Name|Type|Description|
 |----|----|-----------|
-|`upperCheckpoint`|`Checkpoint`|The last checkpoint where clearing price is equal to bid.maxPrice|
+|`lastPartiallyFilledCheckpoint`|`Checkpoint`|The last checkpoint where clearing price is equal to bid.maxPrice|
 |`bidDemand`|`uint256`|The demand of the bid|
-|`tickDemand`|`uint256`||
+|`tickDemand`|`uint256`|The demand of the tick|
 |`bidMaxPrice`|`uint256`|The max price of the bid|
 |`cumulativeMpsDelta`|`uint24`|The cumulative sum of mps values across the block range|
 |`mpsDenominator`|`uint24`|The percentage of the auction which the bid was spread over|

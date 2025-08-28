@@ -1,5 +1,5 @@
 # CheckpointLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/1de405fbc26e1c3a6f5b413734244f9a9fe59e87/src/libraries/CheckpointLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/eb27273d664d2abec4a7cd52bce21599763066d8/src/libraries/CheckpointLib.sol)
 
 
 ## Functions
@@ -69,12 +69,24 @@ function calculatePartialFillRate(
 
 ### getSupply
 
+Calculate the actualy supply to sell given the total cleared in the auction so far
+
 
 ```solidity
 function getSupply(Checkpoint memory checkpoint, uint256 totalSupply, uint24 mps) internal pure returns (uint256);
 ```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`checkpoint`|`Checkpoint`|The last checkpointed state of the auction|
+|`totalSupply`|`uint256`|immutable total supply of the auction|
+|`mps`|`uint24`|the number of mps, following the auction sale schedule|
+
 
 ### getBlockCleared
+
+Get the amount of tokens sold in a block at a checkpoint based on its clearing price and the floorPrice
 
 
 ```solidity
@@ -83,6 +95,14 @@ function getBlockCleared(Checkpoint memory checkpoint, uint256 supply, uint256 f
     pure
     returns (uint256);
 ```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`checkpoint`|`Checkpoint`|The last checkpointed state of the auction|
+|`supply`|`uint256`|The supply being sold|
+|`floorPrice`|`uint256`|immutable floor price of the auction|
+
 
 ### getMpsPerPrice
 

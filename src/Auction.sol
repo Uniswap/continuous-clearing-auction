@@ -229,7 +229,6 @@ contract Auction is
             getTick(_checkpoint.clearingPrice).demand.resolve(_checkpoint.clearingPrice),
             mpsSinceLastCheckpoint
         );
-        _checkpoint.prev = lastCheckpointedBlock;
         _insertCheckpoint(_checkpoint, blockNumber);
 
         emit CheckpointUpdated(

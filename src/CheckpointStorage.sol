@@ -50,8 +50,11 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     }
 
     /// @notice Insert a checkpoint into storage
+    /// @dev This function updates the prev and next pointers of the latest checkpoint and the new checkpoint
     function _insertCheckpoint(Checkpoint memory checkpoint, uint64 blockNumber) internal {
-        if (checkpoint.prev != 0) checkpoints[checkpoint.prev].next = blockNumber;
+        uint64 _lastCheckpointedBlock = lastCheckpointedBlock;
+        if (_lastCheckpointedBlock != 0) checkpoints[_lastCheckpointedBlock].next = blockNumber;
+        checkpoint.prev = _lastCheckpointedBlock;
         checkpoint.next = MAX_BLOCK_NUMBER;
         checkpoints[blockNumber] = checkpoint;
         lastCheckpointedBlock = blockNumber;

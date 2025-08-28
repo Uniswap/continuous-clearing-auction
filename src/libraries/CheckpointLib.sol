@@ -77,10 +77,18 @@ library CheckpointLib {
             supplySoldToTick.fullMulDiv(FixedPoint96.Q96 * mpsDelta, tickDemand.applyMps(mpsDelta) * AuctionStepLib.MPS);
     }
 
+    /// @notice Calculate the actualy supply to sell given the total cleared in the auction so far
+    /// @param checkpoint The last checkpointed state of the auction
+    /// @param totalSupply immutable total supply of the auction
+    /// @param mps the number of mps, following the auction sale schedule
     function getSupply(Checkpoint memory checkpoint, uint256 totalSupply, uint24 mps) internal pure returns (uint256) {
         return ((totalSupply - checkpoint.totalCleared) * mps) / (AuctionStepLib.MPS - checkpoint.cumulativeMps);
     }
 
+    /// @notice Get the amount of tokens sold in a block at a checkpoint based on its clearing price and the floorPrice
+    /// @param checkpoint The last checkpointed state of the auction
+    /// @param supply The supply being sold
+    /// @param floorPrice immutable floor price of the auction
     function getBlockCleared(Checkpoint memory checkpoint, uint256 supply, uint256 floorPrice)
         internal
         pure

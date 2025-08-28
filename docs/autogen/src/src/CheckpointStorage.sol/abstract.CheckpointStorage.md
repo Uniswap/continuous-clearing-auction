@@ -1,5 +1,5 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/579dd192cb3d6db3d93e95ab513fff830b038a4e/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/eb27273d664d2abec4a7cd52bce21599763066d8/src/CheckpointStorage.sol)
 
 **Inherits:**
 [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
@@ -75,6 +75,8 @@ function _getCheckpoint(uint64 blockNumber) internal view returns (Checkpoint me
 ### _insertCheckpoint
 
 Insert a checkpoint into storage
+
+*This function updates the prev and next pointers of the latest checkpoint and the new checkpoint*
 
 
 ```solidity

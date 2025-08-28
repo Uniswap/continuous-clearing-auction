@@ -341,7 +341,7 @@ contract Auction is
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
 
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
-        Checkpoint memory finalCheckpoint = _unsafeCheckpoint(endBlock);
+        Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
         // Require that checkpoint immediately before the bid stopped being fully filled
         // This means that its next checkpoint is strictly > bid.maxPrice
         Checkpoint memory lastFullyFilledCheckpoint = _getCheckpoint(lower);

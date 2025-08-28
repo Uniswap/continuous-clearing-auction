@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.0;
 
 interface ITokenCurrencyStorage {
     /// @notice Error thrown when the total supply is zero

@@ -50,7 +50,7 @@ contract Auction is
     /// @notice The sum of demand in ticks above the clearing price
     Demand public sumDemandAboveClearing;
 
-    constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
+    constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
         TokenCurrencyStorage(
             _token,
@@ -103,8 +103,8 @@ contract Auction is
     {
         // Advance the current step until the current block is within the step
         // Start at the larger of the last checkpointed block or the start block of the current step
-        uint256 start = step.startBlock < lastCheckpointedBlock ? lastCheckpointedBlock : step.startBlock;
-        uint256 end = step.endBlock;
+        uint64 start = step.startBlock < lastCheckpointedBlock ? lastCheckpointedBlock : step.startBlock;
+        uint64 end = step.endBlock;
 
         uint24 mps = step.mps;
         while (blockNumber > end) {

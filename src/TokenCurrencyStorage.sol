@@ -15,7 +15,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     /// @notice The token being sold in the auction
     IERC20Minimal public immutable token;
     /// @notice The total supply of tokens to sell
-    uint256 public immutable totalSupply;
+    uint128 public immutable totalSupply;
     /// @notice The recipient of any unsold tokens at the end of the auction
     address public immutable tokensRecipient;
     /// @notice The recipient of the raised Currency from the auction
@@ -33,7 +33,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     constructor(
         address _token,
         address _currency,
-        uint256 _totalSupply,
+        uint128 _totalSupply,
         address _tokensRecipient,
         address _fundsRecipient,
         uint24 _graduationThresholdMps,

@@ -8,15 +8,15 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 struct Checkpoint {
     uint256 clearingPrice;
-    uint256 blockCleared;
-    uint256 totalCleared;
+    uint128 blockCleared;
+    uint128 totalCleared;
     uint24 cumulativeMps;
     uint24 mps;
+    uint64 prev;
+    uint64 next;
     uint256 cumulativeMpsPerPrice;
     uint256 cumulativeSupplySoldToClearingPrice;
     uint256 resolvedDemandAboveClearingPrice;
-    uint64 prev;
-    uint64 next;
 }
 
 /// @title CheckpointLib
@@ -35,16 +35,16 @@ library CheckpointLib {
     /// @return The transformed checkpoint
     function transform(
         Checkpoint memory checkpoint,
-        uint256 totalSupply,
+        uint128 totalSupply,
         uint256 floorPrice,
-        uint256 blockDelta,
+        uint64 blockDelta,
         uint24 mps
     ) internal pure returns (Checkpoint memory) {
         // This is an unsafe cast, but we ensure in the construtor that the max blockDelta (end - start) * mps is always less than 1e7 (100%)
         uint24 deltaMps = uint24(mps * blockDelta);
         checkpoint.blockCleared = checkpoint.getBlockCleared(checkpoint.getSupply(totalSupply, mps), floorPrice);
 
-        uint256 supplyDelta = checkpoint.blockCleared * blockDelta;
+        uint128 supplyDelta = checkpoint.blockCleared * blockDelta;
         checkpoint.totalCleared += supplyDelta;
         checkpoint.cumulativeMps += deltaMps;
         checkpoint.cumulativeSupplySoldToClearingPrice +=
@@ -80,10 +80,10 @@ library CheckpointLib {
     /// @param checkpoint The last checkpointed state of the auction
     /// @param supply The supply being sold
     /// @param floorPrice immutable floor price of the auction
-    function getBlockCleared(Checkpoint memory checkpoint, uint256 supply, uint256 floorPrice)
+    function getBlockCleared(Checkpoint memory checkpoint, uint128 supply, uint256 floorPrice)
         internal
         pure
-        returns (uint256)
+        returns (uint128)
     {
         return checkpoint.clearingPrice > floorPrice
             ? supply

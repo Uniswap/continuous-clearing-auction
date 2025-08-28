@@ -290,14 +290,24 @@ interface IAuction {
     /// @notice Exit a bid where max price is above final clearing price
     function exitBid(uint256 bidId) external;
 
-    /// @notice Exit a partially filled bid with checkpoint hint for gas efficiency
-    function exitPartiallyFilledBid(uint256 bidId, uint256 outbidCheckpointBlock) external;
+    /// @notice Exit a partially filled bid with optimized checkpoint hints
+    function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 upper) external;
 }
 
 event BidExited(uint256 indexed bidId, address indexed owner);
 ```
 
-**Implementation**: The bid is processed and the user is refunded any unspent currency. Tokens purchased are tracked for claiming.
+**Optimized Partial Fill Algorithm**: The `exitPartiallyFilledBid` function uses dual checkpoint hints (`lower`, `upper`) to eliminate expensive checkpoint iteration:
+
+- `lower`: Last checkpoint where clearing price is strictly < bid.maxPrice
+- `upper`: First checkpoint where clearing price is strictly > bid.maxPrice, or 0 for end-of-auction fills
+
+**Mathematical Optimization**: Uses cumulative supply tracking (`cumulativeSupplySoldToClearingPrice`) for direct partial fill calculation:
+```
+partialFillRate = cumulativeSupplySoldToClearingPrice * mpsDenominator / (tickDemand * cumulativeMpsDelta)
+```
+
+**Implementation**: Enhanced checkpoint architecture with linked-list structure (prev/next pointers) enables efficient traversal. Block numbers are stored as `uint64` for gas optimization while maintaining sufficient range (~584 billion years).
 
 ### Auction Graduation
 

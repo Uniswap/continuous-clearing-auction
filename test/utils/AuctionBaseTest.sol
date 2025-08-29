@@ -48,6 +48,9 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
 
     bool public currencyIsNative;
 
+    /// @notice Permit2 address
+    address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+
     // Set core parameters as immutable to avoid accidentally modifying them
     constructor(uint256 _auctionDuration, uint256 _tickSpacing, uint256 _floorPrice, uint128 _totalSupply) {
         AUCTION_DURATION = _auctionDuration;

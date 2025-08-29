@@ -2,7 +2,6 @@
 pragma solidity 0.8.26;
 
 import {Auction, AuctionParameters} from '../../src/Auction.sol';
-
 import {Tick} from '../../src/TickStorage.sol';
 import {IAuction} from '../../src/interfaces/IAuction.sol';
 import {IAuctionStepStorage} from '../../src/interfaces/IAuctionStepStorage.sol';
@@ -23,6 +22,9 @@ import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
+/// @title AuctionBaseTest
+/// @notice Base test suite for auction scenarios
+/// @dev Override to test different combinations of tokens, prices, supply, etc.
 abstract contract AuctionBaseTest is TokenHandler, Test {
     using FixedPointMathLib for uint128;
     using CurrencyLibrary for Currency;
@@ -46,6 +48,7 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
 
     bool public currencyIsNative;
 
+    // Set core parameters as immutable to avoid accidentally modifying them
     constructor(uint256 _auctionDuration, uint256 _tickSpacing, uint256 _floorPrice, uint128 _totalSupply) {
         AUCTION_DURATION = _auctionDuration;
         TICK_SPACING = _tickSpacing;

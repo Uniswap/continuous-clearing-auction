@@ -2,25 +2,27 @@
 pragma solidity 0.8.26;
 
 import {Auction} from '../src/Auction.sol';
-import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
-import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-
-import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
-import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
-import {Bid, BidLib} from '../src/libraries/BidLib.sol';
-
-import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
-import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
-import {Test} from 'forge-std/Test.sol';
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 import {Tick} from '../src/TickStorage.sol';
-import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
-import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
+import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
+import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 
-import {console2} from 'forge-std/console2.sol';
+import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
+import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
+import {Bid, BidLib} from '../src/libraries/BidLib.sol';
+import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
+import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
+import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
+import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
+
+import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
+import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
+import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
+import {TokenHandler} from './utils/TokenHandler.sol';
+import {Test} from 'forge-std/Test.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract AuctionInvariantHandler is Test {
     using CurrencyLibrary for Currency;
@@ -157,11 +159,42 @@ contract AuctionInvariantHandler is Test {
     }
 }
 
-contract AuctionInvariantTest is AuctionBaseTest {
+contract AuctionInvariantTest is TokenHandler, Test {
+    using AuctionParamsBuilder for AuctionParameters;
+    using AuctionStepsBuilder for bytes;
+
     AuctionInvariantHandler public handler;
 
+    Auction public auction;
+    uint256 public constant AUCTION_DURATION = 100;
+    uint256 public constant TICK_SPACING = 100;
+    uint256 public constant FLOOR_PRICE = 1000 << FixedPoint96.RESOLUTION;
+    uint128 public constant TOTAL_SUPPLY = 1000e18;
+
+    address public alice;
+    address public tokensRecipient;
+    address public fundsRecipient;
+
+    AuctionParameters public params;
+    bytes public auctionStepsData;
+
     function setUp() public {
-        setUpAuction();
+        setUpTokens();
+
+        alice = makeAddr('alice');
+        tokensRecipient = makeAddr('tokensRecipient');
+        fundsRecipient = makeAddr('fundsRecipient');
+
+        auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 50).addStep(100e3, 50);
+        params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE).withTickSpacing(
+            TICK_SPACING
+        ).withValidationHook(address(0)).withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient)
+            .withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION).withClaimBlock(
+            block.number + AUCTION_DURATION + 10
+        ).withAuctionStepsData(auctionStepsData);
+
+        auction = new Auction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(auction), TOTAL_SUPPLY);
 
         address[] memory actors = new address[](1);
         actors[0] = alice;

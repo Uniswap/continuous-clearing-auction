@@ -9,6 +9,5 @@
   "submitBid_recordStep_updateCheckpoint": "280981",
   "submitBid_recordStep_updateCheckpoint_initializeTick": "280981",
   "submitBid_updateCheckpoint": "224588",
-  "submitBid_withValidationHook": "268772",
-  "sweepCurrency_eoaFundsRecipient": "65313"
+  "submitBid_withValidationHook": "268772"
 }

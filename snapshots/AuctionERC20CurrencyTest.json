@@ -1,0 +1,12 @@
+{
+  "checkpoint_advanceToCurrentStep": "111042",
+  "checkpoint_noBids": "115100",
+  "claimTokens": "34253",
+  "exitBid": "10833",
+  "exitPartiallyFilledBid": "201485",
+  "submitBid": "104408",
+  "submitBid_recordStep_updateCheckpoint": "322086",
+  "submitBid_recordStep_updateCheckpoint_initializeTick": "322086",
+  "submitBid_updateCheckpoint": "229993",
+  "sweepCurrency_eoaFundsRecipient": "56402"
+}

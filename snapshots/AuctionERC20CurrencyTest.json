@@ -1,6 +1,7 @@
 {
   "checkpoint_advanceToCurrentStep": "111042",
   "checkpoint_noBids": "115100",
+  "checkpoint_zeroSupply": "44156",
   "claimTokens": "34253",
   "exitBid": "10833",
   "exitPartiallyFilledBid": "201485",

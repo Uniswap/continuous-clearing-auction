@@ -2,13 +2,15 @@
 pragma solidity ^0.8.0;
 
 import {Auction} from '../src/Auction.sol';
-import {AuctionParameters} from '../src/interfaces/IAuction.sol';
+import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {MockFundsRecipient} from './utils/MockFundsRecipient.sol';
+
+import {MockValidationHook} from './utils/MockValidationHook.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
 
@@ -39,5 +41,52 @@ contract AuctionNativeCurrencyTest is AuctionBaseTest {
 
         token.mint(address(nativeCurrencyAuction), TOTAL_SUPPLY);
         return nativeCurrencyAuction;
+    }
+
+    function test_submitBid_exactInMsgValue_revertsWithInvalidAmount() public {
+        vm.expectRevert(IAuction.InvalidAmount.selector);
+        // msg.value should be 1000e18
+        auction.submitBid{value: 2000e18}(
+            tickNumberToPriceX96(2), true, 1000e18, alice, tickNumberToPriceX96(1), bytes('')
+        );
+    }
+
+    function test_submitBid_exactInZeroMsgValue_revertsWithInvalidAmount() public {
+        vm.expectRevert(IAuction.InvalidAmount.selector);
+        auction.submitBid{value: 0}(tickNumberToPriceX96(2), true, 1000e18, alice, tickNumberToPriceX96(1), bytes(''));
+    }
+
+    function test_submitBid_exactOutMsgValue_revertsWithInvalidAmount() public {
+        vm.expectRevert(IAuction.InvalidAmount.selector);
+        // msg.value should be 2 * 1000e18
+        auction.submitBid{value: 1000e18}(
+            tickNumberToPriceX96(2), false, 1000e18, alice, tickNumberToPriceX96(1), bytes('')
+        );
+    }
+
+    /// forge-config: default.isolate = true
+    /// forge-config: ci.isolate = true
+    function test_submitBid_withValidationHook_callsValidationHook_gas() public {
+        // Create a mock validation hook
+        MockValidationHook validationHook = new MockValidationHook();
+
+        // Create auction parameters with the validation hook
+        params = params.withValidationHook(address(validationHook));
+
+        Auction testAuction = new Auction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(testAuction), TOTAL_SUPPLY);
+
+        // Submit a bid with hook data to trigger the validation hook
+        uint256 bidId = testAuction.submitBid{value: getMsgValue(inputAmountForTokens(100e18, tickNumberToPriceX96(2)))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('hook data')
+        );
+        vm.snapshotGasLastCall('submitBid_withValidationHook');
+
+        assertEq(bidId, 0);
     }
 }

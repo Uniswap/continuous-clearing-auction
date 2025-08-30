@@ -281,4 +281,21 @@ contract CheckpointStorageTest is Assertions, Test {
         assertEq(tokensFilled, 0);
         assertEq(currencySpent, 0);
     }
+
+    function test_accountPartiallyFilledCheckpoints_zeroCumulativeSupplySoldToClearingPrice_returnsZero() public view {
+        Checkpoint memory _checkpoint = mockCheckpointStorage.latestCheckpoint();
+        _checkpoint.cumulativeSupplySoldToClearingPrice = 0;
+
+        (uint128 tokensFilled, uint128 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
+            _checkpoint,
+            // Normal values for all
+            1e18,
+            1e8,
+            1e6,
+            1e7,
+            1e7
+        );
+        assertEq(tokensFilled, 0);
+        assertEq(currencySpent, 0);
+    }
 }

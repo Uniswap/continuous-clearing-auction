@@ -21,7 +21,7 @@ import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol'
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
-
+import {console2} from 'forge-std/console2.sol';
 /// @title Auction
 contract Auction is
     BidStorage,
@@ -179,15 +179,23 @@ contract Auction is
         // Save state variables
         sumDemandAboveClearing = _sumDemandAboveClearing;
 
+        console2.log("beforeAdvanceAndTransform");
+        console2.log("_sumDemandAboveClearing.applyMps(step.mps).currencyDemand", _sumDemandAboveClearing.applyMps(step.mps).currencyDemand);
+        console2.log("_sumDemandAboveClearing.applyMps(step.mps).currencyDemand", _sumDemandAboveClearing.applyMps(step.mps).currencyDemand);
+        console2.log("minimumClearingPrice", minimumClearingPrice);
+        console2.log("supply", supply);
         // Calculate the new clearing price
         uint256 newClearingPrice =
             _calculateNewClearingPrice(_sumDemandAboveClearing.applyMps(step.mps), minimumClearingPrice, supply);
+        console2.log("newClearingPrice", newClearingPrice);
         // Reset the cumulative weighted partial fill rate if the clearing price has updated
         if (newClearingPrice != _checkpoint.clearingPrice) _checkpoint.cumulativeSupplySoldToClearingPrice = 0;
         // Update the clearing price
         _checkpoint.clearingPrice = newClearingPrice;
         _checkpoint.resolvedDemandAboveClearingPrice = _sumDemandAboveClearing.resolve(_checkpoint.clearingPrice);
+        console2.log("_checkpoint.resolvedDemandAboveClearingPrice", _checkpoint.resolvedDemandAboveClearingPrice);
         _checkpoint.blockCleared = _checkpoint.getBlockCleared(supply, floorPrice);
+        console2.log("_checkpoint.blockCleared", _checkpoint.blockCleared);
 
         /// We can now advance the `step` to the current step for the block
         /// This modifies the `_checkpoint` to ensure the cumulative variables are correctly accounted for
@@ -213,15 +221,18 @@ contract Auction is
             blockNumber - (step.startBlock > lastCheckpointedBlock ? step.startBlock : lastCheckpointedBlock);
         uint24 mpsSinceLastCheckpoint = uint256(_checkpoint.mps * blockDelta).toUint24();
 
+        console2.log('mpsSinceLastCheckpoint', mpsSinceLastCheckpoint);
+
         _checkpoint.blockCleared =
-            _checkpoint.getBlockCleared(_checkpoint.getSupply(totalSupply, _checkpoint.mps), floorPrice);
+            _checkpoint.getBlockCleared(_checkpoint.getSupply(totalSupply, step.mps), floorPrice);
+        
+        console2.log("_checkpoint.blockCleared", _checkpoint.blockCleared);
+        console2.log("_checkpoint.resolvedDemandAboveClearingPrice", _checkpoint.resolvedDemandAboveClearingPrice);
 
         uint128 supplyDelta = _checkpoint.blockCleared * blockDelta;
         _checkpoint.totalCleared += supplyDelta;
         _checkpoint.cumulativeMps += mpsSinceLastCheckpoint;
-        _checkpoint.cumulativeMpsPerPrice += _checkpoint.clearingPrice == 0
-            ? 0
-            : CheckpointLib.getMpsPerPrice(mpsSinceLastCheckpoint, _checkpoint.clearingPrice);
+        _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(mpsSinceLastCheckpoint, _checkpoint.clearingPrice);
         _checkpoint.cumulativeSupplySoldToClearingPrice += CheckpointLib.getSupplySoldToClearingPrice(
             supplyDelta, _checkpoint.resolvedDemandAboveClearingPrice, mpsSinceLastCheckpoint
         );
@@ -323,7 +334,7 @@ contract Auction is
     function exitBid(uint256 bidId) external onlyAfterAuctionIsOver {
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
-        Checkpoint memory finalCheckpoint = _unsafeCheckpoint(endBlock);
+        Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
         if (!isGraduated()) {
             // In the case that the auction did not graduate, fully refund the bid
             return _processExit(bidId, bid, 0, bid.inputAmount());

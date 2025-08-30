@@ -4,20 +4,18 @@ pragma solidity 0.8.26;
 import {Auction} from '../src/Auction.sol';
 import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
+import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
-
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
 import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-
 import {Tick} from '../src/TickStorage.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
+import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
-
 import {console2} from 'forge-std/console2.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
@@ -82,8 +80,8 @@ contract AuctionInvariantHandler is Test {
 
     /// @notice Generate random values for amount and max price given a desired resolved amount of tokens to purchase
     /// @dev Bounded by purchasing the total supply of tokens and some reasonable max price for bids to prevent overflow
-    function useAmountMaxPrice(bool exactIn, uint128 amount, uint256 tickNumber)
-        public
+    function _useAmountMaxPrice(bool exactIn, uint128 amount, uint256 tickNumber)
+        internal
         view
         returns (uint128, uint256)
     {
@@ -103,20 +101,34 @@ contract AuctionInvariantHandler is Test {
     }
 
     /// @notice Return the tick immediately equal to or below the given price
-    function getLowerTick(uint256 price) public view returns (uint256) {
+    function _getLowerTick(uint256 maxPrice) internal view returns (uint256) {
         uint256 _price = auction.floorPrice();
-        while (_price < price) {
-            (_price,) = auction.ticks(_price);
-            if (_price == type(uint256).max) {
-                return _price;
-            }
+        // If the bid price is less than the floor, we won't be able to find a prev pointer
+        // So return 0 here and account for it in the test
+        if(maxPrice <= _price) {
+            return 0;
         }
-        return _price;
+        uint256 _cachedPrice = _price;
+        while (_price < maxPrice) {
+            // Set _price to the next price
+            (_price,) = auction.ticks(_price);
+            // If the next price is >= than our max price, break
+            if (_price >= maxPrice) {
+                break;
+            }
+            _cachedPrice = _price;
+        }
+        return _cachedPrice;
     }
 
     /// @notice Roll the block number
     function handleRoll(uint256 seed) public {
         if (seed % 3 == 0) vm.roll(block.number + 1);
+    }
+
+    function handleCheckpoint() public {
+        if(block.number > auction.endBlock()) vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
+        auction.checkpoint();
     }
 
     /// @notice Handle a bid submission, ensuring that the actor has enough funds and the bid parameters are valid
@@ -127,7 +139,7 @@ contract AuctionInvariantHandler is Test {
         validateCheckpoint
     {
         uint128 amount = uint128(_bound(tickNumber, 1, uint256(auction.totalSupply() * 2)));
-        (uint128 inputAmount, uint256 maxPrice) = useAmountMaxPrice(exactIn, amount, tickNumber);
+        (uint128 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(exactIn, amount, tickNumber);
 
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
@@ -138,7 +150,7 @@ contract AuctionInvariantHandler is Test {
             permit2.approve(Currency.unwrap(currency), address(auction), type(uint160).max, type(uint48).max);
         }
 
-        uint256 prevTickPrice = getLowerTick(maxPrice);
+        uint256 prevTickPrice = _getLowerTick(maxPrice);
         uint256 nextBidId = auction.nextBidId();
         try auction.submitBid{value: currency.isAddressZero() ? inputAmount : 0}(
             maxPrice, exactIn, exactIn ? inputAmount : amount, currentActor, prevTickPrice, bytes('')
@@ -150,8 +162,22 @@ contract AuctionInvariantHandler is Test {
                 assertEq(revertData, abi.encodeWithSelector(IAuctionStepStorage.AuctionIsOver.selector));
             } else if (inputAmount == 0) {
                 assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidAmount.selector));
-            } else if (maxPrice <= auction.clearingPrice()) {
-                assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidBidPrice.selector));
+            } else if (prevTickPrice == 0) {
+                assertEq(revertData, abi.encodeWithSelector(ITickStorage.TickPriceNotIncreasing.selector));
+            } else {
+                // For race conditions or any errors that require additional calls to be made
+                if(bytes4(revertData) == bytes4(abi.encodeWithSelector(IAuction.InvalidBidPrice.selector))) {
+                    // See if we checkpoint, that the bid maxPrice would be at an invalid price
+                    auction.checkpoint();
+                    // Because it reverted from InvalidBidPrice, we must assert that it should have
+                    assertLe(maxPrice, auction.clearingPrice());
+                }
+                else {
+                    // Uncaught error so we bubble up the revert reason
+                    assembly {
+                        revert(add(revertData, 0x20), mload(revertData))
+                    }
+                }
             }
         }
     }
@@ -175,8 +201,8 @@ contract AuctionInvariantTest is AuctionBaseTest {
             uint256 clearingPrice,
             uint128 blockCleared,
             uint128 totalCleared,
-            uint24 mps,
             uint24 cumulativeMps,
+            uint24 mps,
             uint64 prev,
             uint64 next,
             uint128 resolvedDemandAboveClearingPrice,
@@ -187,8 +213,8 @@ contract AuctionInvariantTest is AuctionBaseTest {
             clearingPrice: clearingPrice,
             blockCleared: blockCleared,
             totalCleared: totalCleared,
-            mps: mps,
             cumulativeMps: cumulativeMps,
+            mps: mps,
             prev: prev,
             next: next,
             resolvedDemandAboveClearingPrice: resolvedDemandAboveClearingPrice,
@@ -218,6 +244,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
         });
     }
 
+    /// Helper function to return the correct checkpoint hints for a partiallFilledBid
     function getLowerUpperCheckpointHints(uint256 maxPrice) public view returns (uint64 lower, uint64 upper) {
         uint64 currentBlock = auction.lastCheckpointedBlock();
 
@@ -235,8 +262,8 @@ contract AuctionInvariantTest is AuctionBaseTest {
                 upper = currentBlock;
             }
 
-            // Set lower to first checkpoint where clearing price == maxPrice
-            if (checkpoint.clearingPrice == maxPrice && lower == 0) {
+            // Set lower to first checkpoint where clearing price < maxPrice
+            if (checkpoint.clearingPrice < maxPrice && lower == 0) {
                 lower = currentBlock;
             }
 
@@ -259,8 +286,12 @@ contract AuctionInvariantTest is AuctionBaseTest {
 
     function invariant_canExitAndClaimFullyFilledBids() public {
         // Roll to end of the auction
-        vm.roll(auction.endBlock());
+        vm.roll(auction.endBlock());     
+        auction.checkpoint();
 
+        Checkpoint memory finalCheckpoint = getCheckpoint(uint64(block.number));
+        // Assert the only thing we know for sure is that the schedule must be 100% at the endBlock
+        assertEq(finalCheckpoint.cumulativeMps, AuctionStepLib.MPS, "Final checkpoint must be 1e7");
         uint256 clearingPrice = auction.clearingPrice();
 
         uint256 bidCount = handler.bidCount();

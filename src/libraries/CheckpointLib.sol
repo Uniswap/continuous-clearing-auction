@@ -9,7 +9,6 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 struct Checkpoint {
     uint256 clearingPrice;
-    uint128 blockCleared;
     uint128 totalCleared;
     uint24 cumulativeMps;
     uint24 mps;
@@ -25,34 +24,6 @@ library CheckpointLib {
     using FixedPointMathLib for uint128;
     using AuctionStepLib for uint128;
     using CheckpointLib for Checkpoint;
-
-    /// @notice Return a new checkpoint after advancing the current checkpoint by a number of blocks
-    /// @dev The checkpoint must have a non zero clearing price
-    /// @param checkpoint The checkpoint to transform
-    /// @param totalSupply The total supply of the auction
-    /// @param floorPrice The floor price of the auction
-    /// @param blockDelta The number of blocks to advance
-    /// @param mps The number of mps to add
-    /// @return The transformed checkpoint
-    function transform(
-        Checkpoint memory checkpoint,
-        uint128 totalSupply,
-        uint256 floorPrice,
-        uint64 blockDelta,
-        uint24 mps
-    ) internal pure returns (Checkpoint memory) {
-        // This is an unsafe cast, but we ensure in the construtor that the max blockDelta (end - start) * mps is always less than 1e7 (100%)
-        uint24 deltaMps = uint24(mps * blockDelta);
-        checkpoint.blockCleared = checkpoint.getBlockCleared(checkpoint.getSupply(totalSupply, mps), floorPrice);
-
-        uint128 supplyDelta = checkpoint.blockCleared * blockDelta;
-        checkpoint.totalCleared += supplyDelta;
-        checkpoint.cumulativeMps += deltaMps;
-        checkpoint.cumulativeSupplySoldToClearingPrice +=
-            getSupplySoldToClearingPrice(supplyDelta, checkpoint.resolvedDemandAboveClearingPrice.applyMps(deltaMps));
-        checkpoint.cumulativeMpsPerPrice += getMpsPerPrice(deltaMps, checkpoint.clearingPrice);
-        return checkpoint;
-    }
 
     /// @notice Calculate the supply sold to the clearing price
     /// @param supplyMps The supply of the auction over `mps`

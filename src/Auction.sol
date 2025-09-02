@@ -99,6 +99,27 @@ contract Auction is
             >= uint128((totalSupply.fullMulDiv(graduationThresholdMps, AuctionStepLib.MPS)));
     }
 
+    /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
+    ///         This function updates the cumulative values of the checkpoint, requiring that 
+    ///         `clearingPrice` is up to to date
+    /// @param _checkpoint The checkpoint to transform
+    /// @param deltaMps The number of mps to add
+    /// @return The transformed checkpoint
+    function _transformCheckpoint(Checkpoint memory _checkpoint, uint24 deltaMps) internal view returns (Checkpoint memory) {
+        uint128 supplyCleared = _checkpoint.clearingPrice > floorPrice
+            ? _checkpoint.getSupply(totalSupply, deltaMps)
+            : _checkpoint.resolvedDemandAboveClearingPrice.applyMps(deltaMps);
+        console2.log('supplyCleared', supplyCleared);
+        console2.log('supplySoldToClearingPrice', CheckpointLib.getSupplySoldToClearingPrice(supplyCleared, _checkpoint.resolvedDemandAboveClearingPrice.applyMps(deltaMps)));
+
+        _checkpoint.totalCleared += supplyCleared;
+        _checkpoint.cumulativeMps += deltaMps;
+        _checkpoint.cumulativeSupplySoldToClearingPrice +=
+            CheckpointLib.getSupplySoldToClearingPrice(supplyCleared, _checkpoint.resolvedDemandAboveClearingPrice.applyMps(deltaMps));
+        _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(deltaMps, _checkpoint.clearingPrice);
+        return _checkpoint;
+    }
+
     /// @notice Advance the current step until the current block is within the step
     /// @dev The checkpoint must be up to date since `transform` depends on the clearingPrice
     function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint64 blockNumber)
@@ -112,7 +133,7 @@ contract Auction is
 
         uint24 mps = step.mps;
         while (blockNumber > end) {
-            _checkpoint = _checkpoint.transform(totalSupply, floorPrice, end - start, mps);
+            _checkpoint = _transformCheckpoint(_checkpoint, uint24((end - start) * mps));
             start = end;
             if (end == endBlock) break;
             AuctionStep memory _step = _advanceStep();
@@ -191,7 +212,6 @@ contract Auction is
         /// This modifies the `_checkpoint` to ensure the cumulative variables are correctly accounted for
         /// Checkpoint.transform is dependent on:
         /// - clearing price
-        /// - blockCleared
         /// - resolvedDemandAboveClearingPrice
         return _advanceToCurrentStep(_checkpoint, blockNumber);
     }
@@ -210,17 +230,8 @@ contract Auction is
         uint64 blockDelta =
             blockNumber - (step.startBlock > lastCheckpointedBlock ? step.startBlock : lastCheckpointedBlock);
         uint24 mpsSinceLastCheckpoint = uint256(_checkpoint.mps * blockDelta).toUint24();
-
-        _checkpoint.blockCleared = _checkpoint.getBlockCleared(_checkpoint.getSupply(totalSupply, step.mps), floorPrice);
-
-        uint128 supplyDelta = _checkpoint.blockCleared * blockDelta;
-        _checkpoint.totalCleared += supplyDelta;
-        _checkpoint.cumulativeMps += mpsSinceLastCheckpoint;
-        _checkpoint.cumulativeMpsPerPrice +=
-            CheckpointLib.getMpsPerPrice(mpsSinceLastCheckpoint, _checkpoint.clearingPrice);
-        _checkpoint.cumulativeSupplySoldToClearingPrice += CheckpointLib.getSupplySoldToClearingPrice(
-            supplyDelta, _checkpoint.resolvedDemandAboveClearingPrice.applyMps(mpsSinceLastCheckpoint)
-        );
+        
+        _checkpoint = _transformCheckpoint(_checkpoint, mpsSinceLastCheckpoint);
         _insertCheckpoint(_checkpoint, blockNumber);
 
         emit CheckpointUpdated(

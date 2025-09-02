@@ -201,7 +201,6 @@ contract AuctionInvariantTest is AuctionBaseTest {
     function getCheckpoint(uint64 blockNumber) public view returns (Checkpoint memory) {
         (
             uint256 clearingPrice,
-            uint128 blockCleared,
             uint128 totalCleared,
             uint24 cumulativeMps,
             uint24 mps,
@@ -213,7 +212,6 @@ contract AuctionInvariantTest is AuctionBaseTest {
         ) = auction.checkpoints(blockNumber);
         return Checkpoint({
             clearingPrice: clearingPrice,
-            blockCleared: blockCleared,
             totalCleared: totalCleared,
             cumulativeMps: cumulativeMps,
             mps: mps,

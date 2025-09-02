@@ -37,6 +37,7 @@ contract Auction is
     using FixedPointMathLib for uint128;
     using CurrencyLibrary for Currency;
     using BidLib for Bid;
+    using BidLib for uint128;
     using AuctionStepLib for *;
     using CheckpointLib for Checkpoint;
     using DemandLib for Demand;
@@ -115,9 +116,7 @@ contract Auction is
             start = end;
             if (end == endBlock) break;
             AuctionStep memory _step = _advanceStep();
-            // Update the mps of the checkpoint
             mps = _step.mps;
-            _checkpoint.mps = mps;
             end = _step.endBlock;
         }
         return _checkpoint;
@@ -187,10 +186,7 @@ contract Auction is
         if (newClearingPrice != _checkpoint.clearingPrice) _checkpoint.cumulativeSupplySoldToClearingPrice = 0;
         // Update the clearing price
         _checkpoint.clearingPrice = newClearingPrice;
-        _checkpoint.mps = step.mps;
         _checkpoint.resolvedDemandAboveClearingPrice = _sumDemandAboveClearing.resolve(_checkpoint.clearingPrice);
-        _checkpoint.blockCleared = _checkpoint.getBlockCleared(supply, floorPrice);
-
         /// We can now advance the `step` to the current step for the block
         /// This modifies the `_checkpoint` to ensure the cumulative variables are correctly accounted for
         /// Checkpoint.transform is dependent on:
@@ -247,7 +243,7 @@ contract Auction is
         uint256 prevTickPrice,
         bytes calldata hookData
     ) internal returns (uint256 bidId) {
-        checkpoint();
+        Checkpoint memory _checkpoint = checkpoint();
 
         _initializeTickIfNeeded(prevTickPrice, maxPrice);
 
@@ -255,16 +251,20 @@ contract Auction is
             validationHook.validate(maxPrice, exactIn, amount, owner, msg.sender, hookData);
         }
         // ClearingPrice will be set to floor price in checkpoint() if not set already
-        if (maxPrice <= clearingPrice()) revert InvalidBidPrice();
+        if (maxPrice <= _checkpoint.clearingPrice) revert InvalidBidPrice();
 
-        _updateTick(maxPrice, exactIn, amount);
+        // Scale the amount according to the rest of the supply schedule, accounting for past blocks
+        // This is only used in demand related internal calculations
+        uint128 adjustedDemand = amount.effectiveAmount(AuctionStepLib.MPS - _checkpoint.cumulativeMps);
+
+        _updateTick(maxPrice, exactIn, adjustedDemand);
 
         bidId = _createBid(exactIn, amount, owner, maxPrice);
 
         if (exactIn) {
-            sumDemandAboveClearing = sumDemandAboveClearing.addCurrencyAmount(amount);
+            sumDemandAboveClearing = sumDemandAboveClearing.addCurrencyAmount(adjustedDemand);
         } else {
-            sumDemandAboveClearing = sumDemandAboveClearing.addTokenAmount(amount);
+            sumDemandAboveClearing = sumDemandAboveClearing.addTokenAmount(adjustedDemand);
         }
 
         emit BidSubmitted(bidId, owner, maxPrice, exactIn, amount);
@@ -401,7 +401,7 @@ contract Auction is
         if (upperCheckpoint.clearingPrice == bid.maxPrice) {
             (uint128 partialTokensFilled, uint128 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
                 upperCheckpoint.cumulativeSupplySoldToClearingPrice,
-                bid.demand(),
+                bid.demand(AuctionStepLib.MPS - startCheckpoint.cumulativeMps),
                 getTick(bid.maxPrice).demand.resolve(bid.maxPrice),
                 bid.maxPrice,
                 upperCheckpoint.cumulativeMps - lastFullyFilledCheckpoint.cumulativeMps
@@ -420,7 +420,9 @@ contract Auction is
         if (block.number < claimBlock) revert NotClaimable();
         if (!isGraduated()) revert NotGraduated();
 
-        uint128 tokensFilled = bid.tokensFilled;
+        uint128 tokensFilled = bid.tokensFilled > token.balanceOf(address(this))
+            ? uint128(token.balanceOf(address(this)))
+            : bid.tokensFilled;
         bid.tokensFilled = 0;
         _updateBid(bidId, bid);
 

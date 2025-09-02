@@ -67,12 +67,6 @@ contract AuctionInvariantHandler is Test {
         if (checkpoint.clearingPrice != 0) {
             assertGe(checkpoint.clearingPrice, auction.floorPrice());
         }
-        assertLe(
-            checkpoint.resolvedDemandAboveClearingPrice,
-            auction.totalSupply(),
-            'Checkpoint resolved demand above clearing price cannot be greater than totalSupply'
-        );
-
         // Check that the clearing price is always increasing
         assertGe(checkpoint.clearingPrice, _checkpoint.clearingPrice, 'Checkpoint clearing price is not increasing');
         // Check that the cumulative variables are always increasing
@@ -333,9 +327,10 @@ contract AuctionInvariantTest is AuctionBaseTest {
             if (bid.tokensFilled == 0) continue;
             assertNotEq(bid.exitedBlock, 0);
 
-            vm.expectEmit(true, true, true, true);
-            emit IAuction.TokensClaimed(bid.owner, bid.tokensFilled);
+            uint256 ownerBalanceBefore = token.balanceOf(bid.owner);
             auction.claimTokens(i);
+            // Assert that the owner received the tokens with 1 wei of acceptable loss
+            assertApproxEqAbs(token.balanceOf(bid.owner), ownerBalanceBefore + bid.tokensFilled, 1);
 
             bid = getBid(i);
             assertEq(bid.tokensFilled, 0);

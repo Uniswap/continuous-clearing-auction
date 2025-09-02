@@ -7,7 +7,7 @@ import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
-
+import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
@@ -75,7 +75,8 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         (tokensFilled, currencySpent) = _calculateFill(
             bid,
             upper.cumulativeMpsPerPrice - startCheckpoint.cumulativeMpsPerPrice,
-            upper.cumulativeMps - startCheckpoint.cumulativeMps
+            upper.cumulativeMps - startCheckpoint.cumulativeMps,
+            AuctionStepLib.MPS - startCheckpoint.cumulativeMps
         );
     }
 
@@ -94,14 +95,11 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         uint24 cumulativeMpsDelta
     ) internal pure returns (uint128 tokensFilled, uint128 currencySpent) {
         if (cumulativeMpsDelta == 0 || tickDemand == 0) return (0, 0);
-        // Given the sum of the supply sold to the clearing price over time, divide by the tick demand
-        uint256 runningPartialFillRate = cumulativeSupplySoldToClearingPriceDelta.fullMulDiv(
-            FixedPoint96.Q96 * AuctionStepLib.MPS, tickDemand * cumulativeMpsDelta
-        );
-        // Shorthand for (bidDemand * cumulativeMpsDelta / AuctionStepLib.MPS) * runningPartialFillRate / Q96;
-        tokensFilled = uint128(
-            bidDemand.fullMulDiv(runningPartialFillRate * cumulativeMpsDelta, FixedPoint96.Q96 * AuctionStepLib.MPS)
-        );
+        // tokensFilled = bidDemand * runningPartialFillRate * cumulativeMpsDelta / (MPS * Q96)
+        // tokensFilled = bidDemand * (cumulativeSupply * Q96 * MPS / tickDemand * cumulativeMpsDelta) * cumulativeMpsDelta / (mpsDenominator * Q96)
+        //              = bidDemand * (cumulativeSupply / tickDemand)
+        console2.log('cumulativeSupplySoldToClearingPriceDelta', cumulativeSupplySoldToClearingPriceDelta);
+        tokensFilled = uint128(bidDemand.fullMulDiv(cumulativeSupplySoldToClearingPriceDelta, tickDemand));
         currencySpent = uint128(tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96));
     }
 
@@ -111,20 +109,22 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     /// @param bid the bid to evaluate
     /// @param cumulativeMpsPerPriceDelta the cumulative sum of supply to price ratio
     /// @param cumulativeMpsDelta the cumulative sum of mps values across the block range
+    /// @param mpsDenominator the percentage of the auction which the bid was spread over
     /// @return tokensFilled the amount of tokens filled for this bid
     /// @return currencySpent the amount of currency spent by this bid
-    function _calculateFill(Bid memory bid, uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
-        internal
-        pure
-        returns (uint128 tokensFilled, uint128 currencySpent)
-    {
+    function _calculateFill(
+        Bid memory bid,
+        uint256 cumulativeMpsPerPriceDelta,
+        uint24 cumulativeMpsDelta,
+        uint24 mpsDenominator
+    ) internal pure returns (uint128 tokensFilled, uint128 currencySpent) {
         tokensFilled = bid.exactIn
-            ? uint128(bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * AuctionStepLib.MPS))
-            : uint128(bid.amount.fullMulDiv(cumulativeMpsDelta, AuctionStepLib.MPS));
+            ? uint128(bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsDenominator))
+            : uint128(bid.amount.fullMulDiv(cumulativeMpsDelta, mpsDenominator));
         // If tokensFilled is 0 then currencySpent must be 0
         if (tokensFilled != 0) {
             currencySpent = bid.exactIn
-                ? uint128(bid.amount.fullMulDiv(cumulativeMpsDelta, AuctionStepLib.MPS))
+                ? uint128(bid.amount.fullMulDiv(cumulativeMpsDelta, mpsDenominator))
                 : uint128(tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPriceDelta));
         }
     }

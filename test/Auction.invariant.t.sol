@@ -2,23 +2,26 @@
 pragma solidity 0.8.26;
 
 import {Auction} from '../src/Auction.sol';
+
+import {Tick} from '../src/TickStorage.sol';
 import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
-import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
+
+import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
+import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
-import {Test} from 'forge-std/Test.sol';
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {Tick} from '../src/TickStorage.sol';
-import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
-import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
+import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
+
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
+import {Test} from 'forge-std/Test.sol';
 import {console2} from 'forge-std/console2.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract AuctionInvariantHandler is Test {
     using CurrencyLibrary for Currency;
@@ -64,6 +67,12 @@ contract AuctionInvariantHandler is Test {
         if (checkpoint.clearingPrice != 0) {
             assertGe(checkpoint.clearingPrice, auction.floorPrice());
         }
+        assertLe(
+            checkpoint.resolvedDemandAboveClearingPrice,
+            auction.totalSupply(),
+            'Checkpoint resolved demand above clearing price cannot be greater than totalSupply'
+        );
+
         // Check that the clearing price is always increasing
         assertGe(checkpoint.clearingPrice, _checkpoint.clearingPrice, 'Checkpoint clearing price is not increasing');
         // Check that the cumulative variables are always increasing
@@ -105,7 +114,7 @@ contract AuctionInvariantHandler is Test {
         uint256 _price = auction.floorPrice();
         // If the bid price is less than the floor, we won't be able to find a prev pointer
         // So return 0 here and account for it in the test
-        if(maxPrice <= _price) {
+        if (maxPrice <= _price) {
             return 0;
         }
         uint256 _cachedPrice = _price;
@@ -127,7 +136,7 @@ contract AuctionInvariantHandler is Test {
     }
 
     function handleCheckpoint() public {
-        if(block.number > auction.endBlock()) vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
+        if (block.number > auction.endBlock()) vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
         auction.checkpoint();
     }
 
@@ -166,13 +175,12 @@ contract AuctionInvariantHandler is Test {
                 assertEq(revertData, abi.encodeWithSelector(ITickStorage.TickPriceNotIncreasing.selector));
             } else {
                 // For race conditions or any errors that require additional calls to be made
-                if(bytes4(revertData) == bytes4(abi.encodeWithSelector(IAuction.InvalidBidPrice.selector))) {
+                if (bytes4(revertData) == bytes4(abi.encodeWithSelector(IAuction.InvalidBidPrice.selector))) {
                     // See if we checkpoint, that the bid maxPrice would be at an invalid price
                     auction.checkpoint();
                     // Because it reverted from InvalidBidPrice, we must assert that it should have
                     assertLe(maxPrice, auction.clearingPrice());
-                }
-                else {
+                } else {
                     // Uncaught error so we bubble up the revert reason
                     assembly {
                         revert(add(revertData, 0x20), mload(revertData))
@@ -248,28 +256,18 @@ contract AuctionInvariantTest is AuctionBaseTest {
     function getLowerUpperCheckpointHints(uint256 maxPrice) public view returns (uint64 lower, uint64 upper) {
         uint64 currentBlock = auction.lastCheckpointedBlock();
 
-        // No checkpoints exist
-        if (currentBlock == 0) {
-            return (0, 0);
-        }
-
         // Traverse checkpoints from most recent to oldest
         while (currentBlock != 0) {
             Checkpoint memory checkpoint = getCheckpoint(currentBlock);
 
-            // Set upper to first checkpoint where clearing price > maxPrice
-            if (checkpoint.clearingPrice > maxPrice && upper == 0) {
+            // Find the first checkpoint with price > maxPrice (keep updating as we go backwards to get chronologically first)
+            if (checkpoint.clearingPrice > maxPrice) {
                 upper = currentBlock;
             }
 
-            // Set lower to first checkpoint where clearing price < maxPrice
+            // Find the last checkpoint with price < maxPrice (first one encountered going backwards)
             if (checkpoint.clearingPrice < maxPrice && lower == 0) {
                 lower = currentBlock;
-            }
-
-            // Early exit if both found
-            if (lower != 0 && upper != 0) {
-                return (lower, upper);
             }
 
             currentBlock = checkpoint.prev;
@@ -286,12 +284,12 @@ contract AuctionInvariantTest is AuctionBaseTest {
 
     function invariant_canExitAndClaimFullyFilledBids() public {
         // Roll to end of the auction
-        vm.roll(auction.endBlock());     
+        vm.roll(auction.endBlock());
         auction.checkpoint();
 
         Checkpoint memory finalCheckpoint = getCheckpoint(uint64(block.number));
         // Assert the only thing we know for sure is that the schedule must be 100% at the endBlock
-        assertEq(finalCheckpoint.cumulativeMps, AuctionStepLib.MPS, "Final checkpoint must be 1e7");
+        assertEq(finalCheckpoint.cumulativeMps, AuctionStepLib.MPS, 'Final checkpoint must be 1e7');
         uint256 clearingPrice = auction.clearingPrice();
 
         uint256 bidCount = handler.bidCount();
@@ -302,14 +300,26 @@ contract AuctionInvariantTest is AuctionBaseTest {
             if (bid.exitedBlock != 0) continue;
             if (bid.tokensFilled != 0) continue;
 
-            vm.expectEmit(true, true, true, true);
-            emit IAuction.BidExited(i, bid.owner);
+            uint256 ownerBalanceBefore = address(bid.owner).balance;
+            uint256 bidInputAmount =
+                bid.exactIn ? bid.amount : BidLib.inputAmount(bid.exactIn, bid.amount, bid.maxPrice);
+
+            // Don't check tokensFilled
+            vm.expectEmit(true, true, false, false);
+            emit IAuction.BidExited(i, bid.owner, 0);
             if (bid.maxPrice > clearingPrice) {
                 auction.exitBid(i);
             } else {
                 (uint64 lower, uint64 upper) = getLowerUpperCheckpointHints(bid.maxPrice);
                 auction.exitPartiallyFilledBid(i, lower, upper);
             }
+
+            // can never gain more Currency than provided
+            assertLe(
+                address(bid.owner).balance - ownerBalanceBefore,
+                bidInputAmount,
+                'Bid owner can never be refunded more Currency than provided'
+            );
 
             // Bid might be deleted if tokensFilled = 0
             bid = getBid(i);

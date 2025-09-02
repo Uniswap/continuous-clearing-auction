@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {console2} from 'forge-std/console2.sol';
 import {AuctionStepLib} from './AuctionStepLib.sol';
 import {BidLib} from './BidLib.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
+import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 struct Checkpoint {
@@ -49,28 +49,26 @@ library CheckpointLib {
         checkpoint.totalCleared += supplyDelta;
         checkpoint.cumulativeMps += deltaMps;
         checkpoint.cumulativeSupplySoldToClearingPrice +=
-            getSupplySoldToClearingPrice(supplyDelta, checkpoint.resolvedDemandAboveClearingPrice, deltaMps);
+            getSupplySoldToClearingPrice(supplyDelta, checkpoint.resolvedDemandAboveClearingPrice.applyMps(deltaMps));
         checkpoint.cumulativeMpsPerPrice += getMpsPerPrice(deltaMps, checkpoint.clearingPrice);
         return checkpoint;
     }
 
     /// @notice Calculate the supply sold to the clearing price
-    /// @param supplyMps The supply of the auction
-    /// @param resolvedDemandAboveClearingPrice The demand above the clearing price
-    /// @param mpsDelta The number of mps to add
+    /// @param supplyMps The supply of the auction over `mps`
+    /// @param resolvedDemandAboveClearingPriceMps The demand above the clearing price over `mps`
     /// @return an X96 fixed point number representing the partial fill rate
-    function getSupplySoldToClearingPrice(uint128 supplyMps, uint128 resolvedDemandAboveClearingPrice, uint24 mpsDelta)
+    function getSupplySoldToClearingPrice(uint128 supplyMps, uint128 resolvedDemandAboveClearingPriceMps)
         internal
         pure
         returns (uint128)
     {
         if (supplyMps == 0) return 0;
-        uint128 resolvedDemandAboveClearingPriceMps = resolvedDemandAboveClearingPrice.applyMps(mpsDelta);
         if (supplyMps < resolvedDemandAboveClearingPriceMps) return supplyMps;
         return (supplyMps - resolvedDemandAboveClearingPriceMps);
     }
 
-    /// @notice Calculate the actualy supply to sell given the total cleared in the auction so far
+    /// @notice Calculate the actual supply to sell given the total cleared in the auction so far
     /// @param checkpoint The last checkpointed state of the auction
     /// @param totalSupply immutable total supply of the auction
     /// @param mps the number of mps, following the auction sale schedule
@@ -100,7 +98,7 @@ library CheckpointLib {
     /// @param price The price they were sold at
     /// @return the ratio
     function getMpsPerPrice(uint24 mps, uint256 price) internal pure returns (uint256) {
-        if(price == 0) return 0;
+        if (price == 0) return 0;
         // The bitshift cannot overflow because a uint24 shifted left 96 * 2 will always be less than 2^256
         return (uint256(mps) << (FixedPoint96.RESOLUTION * 2)) / price;
     }

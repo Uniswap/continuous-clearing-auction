@@ -83,7 +83,8 @@ interface IAuction is
     /// @notice Emitted when a bid is exited
     /// @param bidId The id of the bid
     /// @param owner The owner of the bid
-    event BidExited(uint256 indexed bidId, address indexed owner);
+    /// @param tokensFilled The amount of tokens filled
+    event BidExited(uint256 indexed bidId, address indexed owner, uint128 tokensFilled);
 
     /// @notice Emitted when a bid is claimed
     /// @param owner The owner of the bid
@@ -123,8 +124,8 @@ interface IAuction is
     /// @dev This function can be used for fully filled or partially filled bids. For fully filled bids, `exitBid` is more efficient
     /// @param bidId The id of the bid
     /// @param lower The last checkpointed block where the clearing price is strictly < bid.maxPrice
-    /// @param upper The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction
-    function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 upper) external;
+    /// @param outbidBlock The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction
+    function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 outbidBlock) external;
 
     /// @notice Claim tokens after the auction's claim block
     /// @notice The bid must be exited before claiming tokens

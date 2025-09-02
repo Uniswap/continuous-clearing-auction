@@ -89,7 +89,7 @@ contract CheckpointStorageTest is Test {
         });
 
         (uint128 tokensFilled, uint128 currencySpent) =
-            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta, MPS);
+            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
 
         assertEq(tokensFilled, ETH_AMOUNT.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * MPS));
         if (tokensFilled != 0) {
@@ -119,7 +119,7 @@ contract CheckpointStorageTest is Test {
             uint128(_tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPrice));
 
         (uint128 tokensFilled, uint128 currencySpent) =
-            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPrice, cumulativeMpsDelta, MPS);
+            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPrice, cumulativeMpsDelta);
 
         assertEq(tokensFilled, _tokensFilled);
         assertEq(currencySpent, _currencySpent);
@@ -164,7 +164,7 @@ contract CheckpointStorageTest is Test {
         });
 
         (uint128 tokensFilled, uint128 currencySpent) =
-            mockCheckpointStorage.calculateFill(bid, _cumulativeMpsPerPrice, uint24(_totalMps), MPS);
+            mockCheckpointStorage.calculateFill(bid, _cumulativeMpsPerPrice, uint24(_totalMps));
 
         assertEq(tokensFilled, _tokensFilled);
         assertEq(currencySpent, _currencySpent);
@@ -199,7 +199,7 @@ contract CheckpointStorageTest is Test {
 
         // Bid is fully filled since max price is always higher than all prices
         (uint128 tokensFilled, uint128 currencySpent) =
-            mockCheckpointStorage.calculateFill(bid, _cumulativeMpsPerPrice, uint24(_totalMps), MPS);
+            mockCheckpointStorage.calculateFill(bid, _cumulativeMpsPerPrice, uint24(_totalMps));
 
         assertEq(_totalMps, 1e7);
         assertEq(tokensFilled, TOKEN_AMOUNT.applyMps(1e7));
@@ -232,7 +232,7 @@ contract CheckpointStorageTest is Test {
         uint128 expectedTokensFilled = uint128(expectedCurrencySpent.fullMulDiv(FixedPoint96.Q96, MAX_PRICE));
 
         (uint128 tokensFilled, uint128 currencySpent) =
-            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta, MPS);
+            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
 
         assertEq(tokensFilled, expectedTokensFilled);
         assertEq(currencySpent, expectedCurrencySpent);

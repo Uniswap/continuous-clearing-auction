@@ -33,7 +33,6 @@ library CheckpointLib {
         pure
         returns (uint128)
     {
-        if (supplyMps == 0) return 0;
         if (supplyMps < resolvedDemandAboveClearingPriceMps) return supplyMps;
         return (supplyMps - resolvedDemandAboveClearingPriceMps);
     }

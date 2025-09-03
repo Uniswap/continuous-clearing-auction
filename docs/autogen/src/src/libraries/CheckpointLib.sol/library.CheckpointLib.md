@@ -1,45 +1,15 @@
 # CheckpointLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/3ae5c7802ad9830c8939d6dbff65ade7ca715a97/src/libraries/CheckpointLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/e6ae006b4d791723cfa088f0c2d93768cc82ee16/src/libraries/CheckpointLib.sol)
 
 
 ## Functions
-### transform
-
-Return a new checkpoint after advancing the current checkpoint by a number of blocks
-
-*The checkpoint must have a non zero clearing price*
-
-
-```solidity
-function transform(Checkpoint memory checkpoint, uint128 totalSupply, uint256 floorPrice, uint64 blockDelta, uint24 mps)
-    internal
-    pure
-    returns (Checkpoint memory);
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`checkpoint`|`Checkpoint`|The checkpoint to transform|
-|`totalSupply`|`uint128`|The total supply of the auction|
-|`floorPrice`|`uint256`|The floor price of the auction|
-|`blockDelta`|`uint64`|The number of blocks to advance|
-|`mps`|`uint24`|The number of mps to add|
-
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`Checkpoint`|The transformed checkpoint|
-
-
 ### getSupplySoldToClearingPrice
 
 Calculate the supply sold to the clearing price
 
 
 ```solidity
-function getSupplySoldToClearingPrice(uint128 supplyMps, uint128 resolvedDemandAboveClearingPrice, uint24 mpsDelta)
+function getSupplySoldToClearingPrice(uint128 supplyMps, uint128 resolvedDemandAboveClearingPriceMps)
     internal
     pure
     returns (uint128);
@@ -48,9 +18,8 @@ function getSupplySoldToClearingPrice(uint128 supplyMps, uint128 resolvedDemandA
 
 |Name|Type|Description|
 |----|----|-----------|
-|`supplyMps`|`uint128`|The supply of the auction|
-|`resolvedDemandAboveClearingPrice`|`uint128`|The demand above the clearing price|
-|`mpsDelta`|`uint24`|The number of mps to add|
+|`supplyMps`|`uint128`|The supply of the auction over `mps`|
+|`resolvedDemandAboveClearingPriceMps`|`uint128`|The demand above the clearing price over `mps`|
 
 **Returns**
 
@@ -61,7 +30,7 @@ function getSupplySoldToClearingPrice(uint128 supplyMps, uint128 resolvedDemandA
 
 ### getSupply
 
-Calculate the actualy supply to sell given the total cleared in the auction so far
+Calculate the actual supply to sell given the total cleared in the auction so far
 
 
 ```solidity
@@ -98,7 +67,7 @@ function getBlockCleared(Checkpoint memory checkpoint, uint128 supply, uint256 f
 
 ### getMpsPerPrice
 
-Calculate the supply to price ratio
+Calculate the supply to price ratio. Will return zero if `price` is zero
 
 *This function returns a value in Q96 form*
 

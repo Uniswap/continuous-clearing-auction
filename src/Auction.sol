@@ -359,9 +359,9 @@ contract Auction is
         Checkpoint memory finalCheckpoint = _unsafeCheckpoint(endBlock);
         Checkpoint memory lastFullyFilledCheckpoint = _getCheckpoint(lower);
 
-        require(lower >= bid.startBlock, 'lower cannot be < bid.startBlock');
         // Since `lower` points to the last fully filled Checkpoint, its next Checkpoint must be >= bid.maxPrice
-        if (_getCheckpoint(lastFullyFilledCheckpoint.next).clearingPrice < bid.maxPrice) {
+        // It must also cannot be before the bid's startCheckpoint
+        if (_getCheckpoint(lastFullyFilledCheckpoint.next).clearingPrice < bid.maxPrice || lower < bid.startBlock) {
             revert InvalidCheckpointHint();
         }
 

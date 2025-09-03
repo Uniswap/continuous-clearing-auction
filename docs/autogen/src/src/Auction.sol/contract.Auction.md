@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/3ae5c7802ad9830c8939d6dbff65ade7ca715a97/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/e6ae006b4d791723cfa088f0c2d93768cc82ee16/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -88,6 +88,33 @@ Whether the auction has graduated as of the latest checkpoint (sold more than th
 ```solidity
 function isGraduated() public view returns (bool);
 ```
+
+### _transformCheckpoint
+
+Return a new checkpoint after advancing the current checkpoint by some `mps`
+This function updates the cumulative values of the checkpoint, requiring that
+`clearingPrice` is up to to date
+
+
+```solidity
+function _transformCheckpoint(Checkpoint memory _checkpoint, uint24 deltaMps)
+    internal
+    view
+    returns (Checkpoint memory);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`_checkpoint`|`Checkpoint`|The checkpoint to transform|
+|`deltaMps`|`uint24`|The number of mps to add|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`Checkpoint`|The transformed checkpoint|
+
 
 ### _advanceToCurrentStep
 
@@ -255,7 +282,7 @@ Exit a bid which has been partially filled
 
 
 ```solidity
-function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 upper) external;
+function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 outbidBlock) external;
 ```
 **Parameters**
 
@@ -263,7 +290,7 @@ function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 upper) exter
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
 |`lower`|`uint64`|The last checkpointed block where the clearing price is strictly < bid.maxPrice|
-|`upper`|`uint64`|The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction|
+|`outbidBlock`|`uint64`|The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction|
 
 
 ### claimTokens

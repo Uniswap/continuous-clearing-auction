@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/3ae5c7802ad9830c8939d6dbff65ade7ca715a97/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/e6ae006b4d791723cfa088f0c2d93768cc82ee16/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -86,7 +86,7 @@ Exit a bid which has been partially filled
 
 
 ```solidity
-function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 upper) external;
+function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 outbidBlock) external;
 ```
 **Parameters**
 
@@ -94,7 +94,7 @@ function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 upper) exter
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
 |`lower`|`uint64`|The last checkpointed block where the clearing price is strictly < bid.maxPrice|
-|`upper`|`uint64`|The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction|
+|`outbidBlock`|`uint64`|The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction|
 
 
 ### claimTokens
@@ -180,7 +180,7 @@ Emitted when a bid is exited
 
 
 ```solidity
-event BidExited(uint256 indexed bidId, address indexed owner);
+event BidExited(uint256 indexed bidId, address indexed owner, uint128 tokensFilled);
 ```
 
 **Parameters**
@@ -189,6 +189,7 @@ event BidExited(uint256 indexed bidId, address indexed owner);
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
 |`owner`|`address`|The owner of the bid|
+|`tokensFilled`|`uint128`|The amount of tokens filled|
 
 ### TokensClaimed
 Emitted when a bid is claimed

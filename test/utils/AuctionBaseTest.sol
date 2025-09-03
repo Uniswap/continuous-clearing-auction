@@ -14,6 +14,8 @@ import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
 
+import {AuctionStep} from '../../src/libraries/AuctionStepLib.sol';
+import {Bid} from '../../src/libraries/BidLib.sol';
 import {DeployPermit2} from './DeployPermit2.sol';
 import {MockAuction} from './MockAuction.sol';
 import {MockFundsRecipient} from './MockFundsRecipient.sol';
@@ -21,15 +23,14 @@ import {MockToken} from './MockToken.sol';
 import {MockValidationHook} from './MockValidationHook.sol';
 import {TokenHandler} from './TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
+import {console2} from 'forge-std/console2.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
-import {console2} from 'forge-std/console2.sol';
-import {Bid} from '../../src/libraries/BidLib.sol';
-import {AuctionStep} from '../../src/libraries/AuctionStepLib.sol';
 /// @title AuctionBaseTest
 /// @notice Base test suite for auction scenarios
 /// @dev Override to test different combinations of tokens, prices, supply, etc.
+
 abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     using FixedPointMathLib for uint128;
     using CurrencyLibrary for Currency;
@@ -76,23 +77,31 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
         currencyIsNative = auction.currency().isAddressZero();
     }
 
-    // Decode the packed bytes to get individual steps
-function getAuctionSteps() public view returns (AuctionStep[] memory steps) {
-    bytes memory data = auctionStepsData;
-    uint256 stepCount = data.length / 8; // Each step is 8 bytes
-    steps = new AuctionStep[](stepCount);
-    
-    for (uint256 i = 0; i < stepCount; i++) {
-        uint256 offset = i * 8;
-        (uint24 mps, uint40 blockDelta) = AuctionStepLib.get(data, offset);
-        
-        steps[i] = AuctionStep({
-            mps: mps,
-            startBlock: 0, // You'd need to calculate this
-            endBlock: 0    // You'd need to calculate this
-        });
+    struct AuctionStepInfo {
+        uint24 mps;
+        uint40 blockDelta;
+        uint64 startBlock;
+        uint64 endBlock;
     }
-}
+    // Decode the packed bytes to get individual steps
+
+    function getAuctionSteps() public view returns (AuctionStepInfo[] memory steps) {
+        bytes memory data = auctionStepsData;
+        uint256 stepCount = data.length / 8; // Each step is 8 bytes
+        steps = new AuctionStepInfo[](stepCount);
+
+        for (uint256 i = 0; i < stepCount; i++) {
+            uint256 offset = i * 8;
+            (uint24 mps, uint40 blockDelta) = AuctionStepLib.get(data, offset);
+
+            steps[i] = AuctionStepInfo({
+                mps: mps,
+                startBlock: 0, // You'd need to calculate this
+                endBlock: 0, // You'd need to calculate this
+                blockDelta: blockDelta
+            });
+        }
+    }
 
     /// @dev Helper function to convert a tick number to a priceX96
     function tickNumberToPriceX96(uint256 tickNumber) internal view returns (uint256) {
@@ -125,6 +134,7 @@ function getAuctionSteps() public view returns (AuctionStep[] memory steps) {
     function getHalfSupply() internal view returns (uint128) {
         return TOTAL_SUPPLY / 2;
     }
+
     function getPercentageOfSupply(uint128 percentage) internal view returns (uint128) {
         return (TOTAL_SUPPLY * percentage) / 100;
     }
@@ -133,7 +143,7 @@ function getAuctionSteps() public view returns (AuctionStep[] memory steps) {
     /// forge-config: ci.isolate = true
     function test_submitBid_exactIn_succeeds_gas() public {
         vm.expectEmit(true, true, true, true);
-        
+
         emit IAuction.BidSubmitted(
             0, alice, tickNumberToPriceX96(2), true, inputAmountForTokens(100e18, tickNumberToPriceX96(2))
         );
@@ -285,7 +295,13 @@ function getAuctionSteps() public view returns (AuctionStep[] memory steps) {
     }
 
     function test_submitBid_exactIn_overTotalSupply_isPartiallyFilled() public {
-        uint128 inputAmount = inputAmountForTokens(2000e18, tickNumberToPriceX96(2));
+        AuctionStepInfo[] memory steps = getAuctionSteps();
+        uint64 bidPlaced = 1;
+        if (steps.length > 0 && steps[0].mps == 0) {
+            vm.roll(steps[0].blockDelta + 1);
+            bidPlaced = uint64(block.number);
+        }
+        uint128 inputAmount = inputAmountForTokens(getPercentageOfSupply(200), tickNumberToPriceX96(2));
         uint256 bidId = auction.submitBid{value: getMsgValue(inputAmount)}(
             tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
@@ -297,13 +313,15 @@ function getAuctionSteps() public view returns (AuctionStep[] memory steps) {
         uint256 aliceBalanceBefore = getCurrencyBalance(alice);
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
-        auction.exitPartiallyFilledBid(bidId, 1, 0);
+        // For normal auction, use standard hints
+        auction.exitPartiallyFilledBid(bidId, bidPlaced, 0);
+
         assertEq(getCurrencyBalance(alice), aliceBalanceBefore + inputAmount / 2);
 
         vm.roll(auction.claimBlock());
         if (auction.isGraduated()) {
             auction.claimTokens(bidId);
-            assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
+            assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + getPercentageOfSupply(100));
         } else {
             // Expect revert with BidNotExited because we delete the bid if no tokens were filled
             vm.expectRevert(IAuction.BidNotExited.selector);
@@ -559,12 +577,21 @@ function getAuctionSteps() public view returns (AuctionStep[] memory steps) {
     }
 
     function test_exitBid_exactOut_succeeds() public {
-        uint128 amount = 500e18;
-        uint256 maxPrice = tickNumberToPriceX96(2);
-        uint256 bidId = auction.submitBid{value: getMsgValue(inputAmountForTokens(500e18, tickNumberToPriceX96(2)))}(
-            maxPrice, false, 500e18, alice, tickNumberToPriceX96(1), bytes('')
-        );
+        AuctionStepInfo[] memory steps = getAuctionSteps();
 
+        uint128 amount = getPercentageOfSupply(50);
+        uint256 maxPrice = tickNumberToPriceX96(2);
+
+        // For extra steps auction, we need to submit the bid after the zero mps period
+        // to avoid arithmetic overflow issues when clearing price is 0
+        if (steps.length > 0 && steps[0].mps == 0) {
+            // Skip the first 40 blocks where mps=0
+            vm.roll(steps[0].blockDelta + 1);
+        }
+
+        uint256 bidId = auction.submitBid{value: getMsgValue(inputAmountForTokens(amount, tickNumberToPriceX96(2)))}(
+            maxPrice, false, amount, alice, tickNumberToPriceX96(1), bytes('')
+        );
         vm.roll(block.number + 1);
         auction.checkpoint();
 
@@ -576,16 +603,18 @@ function getAuctionSteps() public view returns (AuctionStep[] memory steps) {
 
         vm.roll(auction.endBlock());
         auction.exitBid(bidId);
-        // Alice initially deposited 500e18 * tickNumberToPrice(2e6) = 1000e24 ETH
-        // They only purchased 500e18 tokens at a price of 1e6, so they should be refunded 1000e24 - 500e18 * tickNumberToPrice(1e6) = 500e18 ETH
+
+        // Alice initially deposited amount * tickNumberToPrice(2)
+        // They only purchased amount tokens at floor price, so they should be refunded the difference
         assertEq(
             getCurrencyBalance(alice),
-            aliceBalanceBefore + inputAmountForTokens(500e18, tickNumberToPriceX96(2))
-                - inputAmountForTokens(500e18, tickNumberToPriceX96(1))
+            aliceBalanceBefore + inputAmountForTokens(amount, tickNumberToPriceX96(2))
+                - inputAmountForTokens(amount, tickNumberToPriceX96(1))
         );
 
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
+
         // Expect fully filled for all tokens
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + amount);
     }
@@ -629,9 +658,11 @@ function getAuctionSteps() public view returns (AuctionStep[] memory steps) {
     }
 
     function test_exitBid_joinedLate_succeeds() public {
-        vm.roll(auction.endBlock()-1);
+        vm.roll(auction.endBlock() - 1);
         // Bid at 2 but only provide 1000e18 ETH, such that the auction is only fully filled at 1e6
-        uint256 bidId = auction.submitBid{value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(100), tickNumberToPriceX96(1)))}(
+        uint256 bidId = auction.submitBid{
+            value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(100), tickNumberToPriceX96(1)))
+        }(
             tickNumberToPriceX96(2),
             true,
             inputAmountForTokens(getPercentageOfSupply(100), tickNumberToPriceX96(1)),
@@ -640,12 +671,10 @@ function getAuctionSteps() public view returns (AuctionStep[] memory steps) {
             bytes('')
         );
 
-    
-
         uint256 aliceBalanceBefore = getCurrencyBalance(alice);
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
         vm.roll(auction.endBlock() + 1);
-        
+
         auction.exitBid(bidId);
 
         // Expect no refund since the bid was fully exited
@@ -801,7 +830,9 @@ function getAuctionSteps() public view returns (AuctionStep[] memory steps) {
         address bob = makeAddr('bob');
         address charlie = makeAddr('charlie');
 
-        uint256 bidId1 = auction.submitBid{value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(40), tickNumberToPriceX96(11)))}(
+        uint256 bidId1 = auction.submitBid{
+            value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(40), tickNumberToPriceX96(11)))
+        }(
             tickNumberToPriceX96(11),
             true,
             inputAmountForTokens(getPercentageOfSupply(40), tickNumberToPriceX96(11)),
@@ -809,7 +840,9 @@ function getAuctionSteps() public view returns (AuctionStep[] memory steps) {
             tickNumberToPriceX96(1),
             bytes('')
         );
-        uint256 bidId2 = auction.submitBid{value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(60), tickNumberToPriceX96(11)))}(
+        uint256 bidId2 = auction.submitBid{
+            value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(60), tickNumberToPriceX96(11)))
+        }(
             tickNumberToPriceX96(11),
             true,
             inputAmountForTokens(getPercentageOfSupply(60), tickNumberToPriceX96(11)),
@@ -819,7 +852,9 @@ function getAuctionSteps() public view returns (AuctionStep[] memory steps) {
         );
 
         // Not enough to move the price to 3, but to cause partial fills at 2
-        uint256 bidId3 = auction.submitBid{value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(50), tickNumberToPriceX96(21)))}(
+        uint256 bidId3 = auction.submitBid{
+            value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(50), tickNumberToPriceX96(21)))
+        }(
             tickNumberToPriceX96(21),
             true,
             inputAmountForTokens(getPercentageOfSupply(50), tickNumberToPriceX96(21)),
@@ -830,14 +865,14 @@ function getAuctionSteps() public view returns (AuctionStep[] memory steps) {
 
         vm.roll(block.number + 1);
         auction.checkpoint();
-        
+
         // For AuctionExtraStepsTest, the first step [0, 40] has 0 MPS, so clearing price will be 0
         // We need to handle this case without advancing the auction (which breaks checkpoint hints)
         if (auction.clearingPrice() == 0) {
             vm.roll(block.number + 41); // Move past [0, 40] to [100e3, 20]
-    auction.checkpoint();
+            auction.checkpoint();
         }
-        
+
         // The clearing price will be set later when we reach a step with actual MPS
         uint256 aliceBalanceBefore = getCurrencyBalance(alice);
         uint256 bobBalanceBefore = getCurrencyBalance(bob);
@@ -848,13 +883,13 @@ function getAuctionSteps() public view returns (AuctionStep[] memory steps) {
 
         // Roll to end of auction
         vm.roll(auction.endBlock());
-        
+
         // If there's a graduation threshold, we need to checkpoint to register graduation
 
         if (auction.graduationThresholdMps() > 0) {
             auction.checkpoint();
         }
-        
+
         uint128 expectedCurrencyRaised = inputAmountForTokens(getPercentageOfSupply(75), tickNumberToPriceX96(11))
             + inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(11))
             + inputAmountForTokens(getPercentageOfSupply(15), tickNumberToPriceX96(11));
@@ -866,7 +901,7 @@ function getAuctionSteps() public view returns (AuctionStep[] memory steps) {
             emit ITokenCurrencyStorage.CurrencySwept(auction.fundsRecipient(), expectedCurrencyRaised);
             auction.sweepCurrency();
             vm.stopPrank();
-        } 
+        }
         // Clearing price is at tick 21 = 2000
         // Alice is purchasing with 400e18 * 2000 = 800e21 ETH
         // Bob is purchasing with 600e18 * 2000 = 1200e21 ETH
@@ -894,27 +929,27 @@ function getAuctionSteps() public view returns (AuctionStep[] memory steps) {
         // AuctionExtraStepsTest: (2, 0) for first call, (2, 1) for second call
         vm.startPrank(alice);
         // Try the hints that worked in your trial-and-error testing
-        if (getAuctionSteps().length <= 2)  {
+        if (getAuctionSteps().length <= 2) {
             auction.exitPartiallyFilledBid(bidId1, 1, 0);
         } else {
             // AuctionExtraStepsTest case - use different hints
             auction.exitPartiallyFilledBid(bidId1, 2, 0);
         }
-        assertEq(getCurrencyBalance(alice)/1000, aliceBalanceBefore + getPercentageOfSupply(60));
+        assertEq(getCurrencyBalance(alice) / 1000, aliceBalanceBefore + getPercentageOfSupply(60));
         auction.claimTokens(bidId1);
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + getPercentageOfSupply(10));
         vm.stopPrank();
 
         vm.startPrank(bob);
         // Try the hints that worked in your trial-and-error testing
-         if (getAuctionSteps().length <= 2)  {
-         auction.exitPartiallyFilledBid(bidId2, 1, 0) ;
+        if (getAuctionSteps().length <= 2) {
+            auction.exitPartiallyFilledBid(bidId2, 1, 0);
             // Normal test case - succeeded
         } else {
             // AuctionExtraStepsTest case - use different hints
             auction.exitPartiallyFilledBid(bidId2, 2, 1);
         }
-        assertEq(getCurrencyBalance(bob)/1000, bobBalanceBefore + getPercentageOfSupply(90));
+        assertEq(getCurrencyBalance(bob) / 1000, bobBalanceBefore + getPercentageOfSupply(90));
         auction.claimTokens(bidId2);
         assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + getPercentageOfSupply(15));
         vm.stopPrank();
@@ -1236,7 +1271,7 @@ function getAuctionSteps() public view returns (AuctionStep[] memory steps) {
         );
 
         vm.roll(auction.endBlock());
-        
+
         // If there's a graduation threshold, we need to checkpoint to register graduation
         uint24 graduationThreshold = auction.graduationThresholdMps();
         if (graduationThreshold > 0) {
@@ -1279,7 +1314,7 @@ function getAuctionSteps() public view returns (AuctionStep[] memory steps) {
         // Calculate bid amount based on graduation threshold
         uint24 graduationThreshold = auction.graduationThresholdMps();
         uint128 bidAmount;
-        
+
         if (graduationThreshold == 0) {
             // No threshold, use 50% of supply
             bidAmount = getHalfSupply();
@@ -1288,7 +1323,7 @@ function getAuctionSteps() public view returns (AuctionStep[] memory steps) {
             uint128 thresholdAmount = (TOTAL_SUPPLY * graduationThreshold / 1e7);
             bidAmount = thresholdAmount + (TOTAL_SUPPLY * 5 / 100); // 5% buffer
         }
-        
+
         uint128 inputAmount = inputAmountForTokens(bidAmount, tickNumberToPriceX96(2));
         auction.submitBid{value: getMsgValue(inputAmount)}(
             tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')

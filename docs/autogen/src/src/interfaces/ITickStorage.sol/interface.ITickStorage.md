@@ -1,5 +1,5 @@
 # ITickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/a450d73e56568674f8b5a6a8dd028658f63989fb/src/interfaces/ITickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/67125c85f3326c7fe287a8da9446ecc07698d947/src/interfaces/ITickStorage.sol)
 
 Interface for the TickStorage contract
 
@@ -65,7 +65,7 @@ event NextActiveTickUpdated(uint256 price);
 
 ## Errors
 ### TickPreviousPriceInvalid
-Error thrown when the previous price is invalid
+Error thrown when the previous price hint is invalid (higher than the new price)
 
 
 ```solidity

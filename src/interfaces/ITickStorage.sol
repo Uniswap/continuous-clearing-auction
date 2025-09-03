@@ -6,6 +6,8 @@ import {Tick} from '../TickStorage.sol';
 /// @title ITickStorage
 /// @notice Interface for the TickStorage contract
 interface ITickStorage {
+    /// @notice Error thrown when the previous price is invalid
+    error TickPreviousPriceInvalid();
     /// @notice Error thrown when the tick price is not increasing
     error TickPriceNotIncreasing();
     /// @notice Error thrown when the price is not at a boundary designated by the tick spacing

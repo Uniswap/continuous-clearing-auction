@@ -1,13 +1,13 @@
 {
-  "checkpoint_advanceToCurrentStep": "172169",
-  "checkpoint_noBids": "155381",
-  "checkpoint_zeroSupply": "106957",
-  "claimTokens": "85019",
+  "checkpoint_advanceToCurrentStep": "168289",
+  "checkpoint_noBids": "152192",
+  "checkpoint_zeroSupply": "103769",
+  "claimTokens": "83921",
   "exitBid": "70338",
-  "exitPartiallyFilledBid": "244371",
+  "exitPartiallyFilledBid": "239613",
   "submitBid": "150652",
-  "submitBid_recordStep_updateCheckpoint": "322681",
-  "submitBid_recordStep_updateCheckpoint_initializeTick": "322681",
-  "submitBid_updateCheckpoint": "268199",
-  "submitBid_withValidationHook": "326669"
+  "submitBid_recordStep_updateCheckpoint": "319491",
+  "submitBid_recordStep_updateCheckpoint_initializeTick": "319491",
+  "submitBid_updateCheckpoint": "265009",
+  "submitBid_withValidationHook": "323479"
 }

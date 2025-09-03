@@ -18,7 +18,6 @@ import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 
-import {console2} from 'forge-std/console2.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
@@ -100,22 +99,25 @@ contract Auction is
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
-    ///         This function updates the cumulative values of the checkpoint, requiring that 
+    ///         This function updates the cumulative values of the checkpoint, requiring that
     ///         `clearingPrice` is up to to date
     /// @param _checkpoint The checkpoint to transform
     /// @param deltaMps The number of mps to add
     /// @return The transformed checkpoint
-    function _transformCheckpoint(Checkpoint memory _checkpoint, uint24 deltaMps) internal view returns (Checkpoint memory) {
+    function _transformCheckpoint(Checkpoint memory _checkpoint, uint24 deltaMps)
+        internal
+        view
+        returns (Checkpoint memory)
+    {
         uint128 supplyCleared = _checkpoint.clearingPrice > floorPrice
             ? _checkpoint.getSupply(totalSupply, deltaMps)
             : _checkpoint.resolvedDemandAboveClearingPrice.applyMps(deltaMps);
-        console2.log('supplyCleared', supplyCleared);
-        console2.log('supplySoldToClearingPrice', CheckpointLib.getSupplySoldToClearingPrice(supplyCleared, _checkpoint.resolvedDemandAboveClearingPrice.applyMps(deltaMps)));
 
         _checkpoint.totalCleared += supplyCleared;
         _checkpoint.cumulativeMps += deltaMps;
-        _checkpoint.cumulativeSupplySoldToClearingPrice +=
-            CheckpointLib.getSupplySoldToClearingPrice(supplyCleared, _checkpoint.resolvedDemandAboveClearingPrice.applyMps(deltaMps));
+        _checkpoint.cumulativeSupplySoldToClearingPrice += CheckpointLib.getSupplySoldToClearingPrice(
+            supplyCleared, _checkpoint.resolvedDemandAboveClearingPrice.applyMps(deltaMps)
+        );
         _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(deltaMps, _checkpoint.clearingPrice);
         return _checkpoint;
     }
@@ -230,7 +232,7 @@ contract Auction is
         uint64 blockDelta =
             blockNumber - (step.startBlock > lastCheckpointedBlock ? step.startBlock : lastCheckpointedBlock);
         uint24 mpsSinceLastCheckpoint = uint256(_checkpoint.mps * blockDelta).toUint24();
-        
+
         _checkpoint = _transformCheckpoint(_checkpoint, mpsSinceLastCheckpoint);
         _insertCheckpoint(_checkpoint, blockNumber);
 
@@ -414,8 +416,7 @@ contract Auction is
                 upperCheckpoint.cumulativeSupplySoldToClearingPrice,
                 bid.demand(AuctionStepLib.MPS - startCheckpoint.cumulativeMps),
                 getTick(bid.maxPrice).demand.resolve(bid.maxPrice),
-                bid.maxPrice,
-                upperCheckpoint.cumulativeMps - lastFullyFilledCheckpoint.cumulativeMps
+                bid.maxPrice
             );
             tokensFilled += partialTokensFilled;
             currencySpent += partialCurrencySpent;
@@ -431,9 +432,7 @@ contract Auction is
         if (block.number < claimBlock) revert NotClaimable();
         if (!isGraduated()) revert NotGraduated();
 
-        uint128 tokensFilled = bid.tokensFilled > token.balanceOf(address(this))
-            ? uint128(token.balanceOf(address(this)))
-            : bid.tokensFilled;
+        uint128 tokensFilled = bid.tokensFilled;
         bid.tokensFilled = 0;
         _updateBid(bidId, bid);
 

@@ -18,7 +18,6 @@ import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {Test} from 'forge-std/Test.sol';
-import {console2} from 'forge-std/console2.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -326,6 +325,8 @@ contract AuctionInvariantTest is AuctionBaseTest {
             assertNotEq(bid.exitedBlock, 0);
 
             uint256 ownerBalanceBefore = token.balanceOf(bid.owner);
+            vm.expectEmit(true, true, true, true);
+            emit IAuction.TokensClaimed(bid.owner, bid.tokensFilled);
             auction.claimTokens(i);
             // Assert that the owner received the tokens with 1 wei of acceptable loss
             assertApproxEqAbs(token.balanceOf(bid.owner), ownerBalanceBefore + bid.tokensFilled, 1);

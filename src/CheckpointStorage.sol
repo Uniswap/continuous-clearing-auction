@@ -7,7 +7,6 @@ import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
-import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
@@ -84,21 +83,19 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     /// @param cumulativeSupplySoldToClearingPriceDelta The cumulativeSupplySoldToClearingPrice sold between checkpoints
     /// @param bidDemand The demand of the bid
     /// @param bidMaxPrice The max price of the bid
-    /// @param cumulativeMpsDelta The cumulative sum of mps values across the block range
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent
     function _accountPartiallyFilledCheckpoints(
         uint256 cumulativeSupplySoldToClearingPriceDelta,
         uint128 bidDemand,
         uint128 tickDemand,
-        uint256 bidMaxPrice,
-        uint24 cumulativeMpsDelta
+        uint256 bidMaxPrice
     ) internal pure returns (uint128 tokensFilled, uint128 currencySpent) {
-        if (cumulativeMpsDelta == 0 || tickDemand == 0) return (0, 0);
+        if (tickDemand == 0) return (0, 0);
+        // Expanded version of the math:
         // tokensFilled = bidDemand * runningPartialFillRate * cumulativeMpsDelta / (MPS * Q96)
         // tokensFilled = bidDemand * (cumulativeSupply * Q96 * MPS / tickDemand * cumulativeMpsDelta) * cumulativeMpsDelta / (mpsDenominator * Q96)
         //              = bidDemand * (cumulativeSupply / tickDemand)
-        console2.log('cumulativeSupplySoldToClearingPriceDelta', cumulativeSupplySoldToClearingPriceDelta);
         tokensFilled = uint128(bidDemand.fullMulDiv(cumulativeSupplySoldToClearingPriceDelta, tickDemand));
         currencySpent = uint128(tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96));
     }

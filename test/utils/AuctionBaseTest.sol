@@ -23,8 +23,6 @@ import {MockToken} from './MockToken.sol';
 import {MockValidationHook} from './MockValidationHook.sol';
 import {TokenHandler} from './TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
-
-import {console2} from 'forge-std/console2.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';

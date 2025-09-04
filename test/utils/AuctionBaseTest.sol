@@ -291,15 +291,11 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
         // Bid 1503 ETH to purchase 501 tokens at a price of 3
         // This bid will move the clearing price because now demand > total supply but no checkpoint is made until the next block
         auction.submitBid{
-            value: getMsgValue(
-                inputAmountForTokens(
-                    getPortionOfSupplyMps(5e6) + (getPortionOfSupplyMps(1e5) / 10), tickNumberToPriceX96(3)
-                )
-            )
+            value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(501e4), tickNumberToPriceX96(3)))
         }(
             tickNumberToPriceX96(3),
             true,
-            inputAmountForTokens(getPortionOfSupplyMps(5e6) + getPortionOfSupplyMps(1e5) / 10, tickNumberToPriceX96(3)),
+            inputAmountForTokens(getPortionOfSupplyMps(501e4), tickNumberToPriceX96(3)),
             alice,
             tickNumberToPriceX96(2),
             bytes('')

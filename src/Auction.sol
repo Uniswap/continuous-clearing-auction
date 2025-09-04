@@ -443,9 +443,7 @@ contract Auction is
         if (block.number < claimBlock) revert NotClaimable();
         if (!isGraduated()) revert NotGraduated();
 
-        uint128 tokensFilled = bid.tokensFilled > token.balanceOf(address(this))
-            ? uint128(token.balanceOf(address(this)))
-            : bid.tokensFilled;
+        uint128 tokensFilled = bid.tokensFilled;
         bid.tokensFilled = 0;
         _updateBid(bidId, bid);
 

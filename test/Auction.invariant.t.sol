@@ -15,7 +15,6 @@ import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {Test} from 'forge-std/Test.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
@@ -328,8 +327,8 @@ contract AuctionInvariantTest is AuctionBaseTest {
             vm.expectEmit(true, true, true, true);
             emit IAuction.TokensClaimed(bid.owner, bid.tokensFilled);
             auction.claimTokens(i);
-            // Assert that the owner received the tokens with 1 wei of acceptable loss
-            assertApproxEqAbs(token.balanceOf(bid.owner), ownerBalanceBefore + bid.tokensFilled, 1);
+            // Assert that the owner received the tokens
+            assertEq(token.balanceOf(bid.owner), ownerBalanceBefore + bid.tokensFilled);
 
             bid = getBid(i);
             assertEq(bid.tokensFilled, 0);

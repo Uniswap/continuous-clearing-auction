@@ -1,5 +1,5 @@
 # CheckpointLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/e6ae006b4d791723cfa088f0c2d93768cc82ee16/src/libraries/CheckpointLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/eb1997cae9e49254904b75da348b365b9f8f37de/src/libraries/CheckpointLib.sol)
 
 
 ## Functions
@@ -9,7 +9,7 @@ Calculate the supply sold to the clearing price
 
 
 ```solidity
-function getSupplySoldToClearingPrice(uint128 supplyMps, uint128 resolvedDemandAboveClearingPriceMps)
+function getSupplySoldToClearingPrice(uint128 supplyMps, uint128 resolvedDemandAboveClearingPriceMpsRoundedUp)
     internal
     pure
     returns (uint128);
@@ -19,13 +19,13 @@ function getSupplySoldToClearingPrice(uint128 supplyMps, uint128 resolvedDemandA
 |Name|Type|Description|
 |----|----|-----------|
 |`supplyMps`|`uint128`|The supply of the auction over `mps`|
-|`resolvedDemandAboveClearingPriceMps`|`uint128`|The demand above the clearing price over `mps`|
+|`resolvedDemandAboveClearingPriceMpsRoundedUp`|`uint128`|The demand above the clearing price over `mps`, rounded up|
 
 **Returns**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`<none>`|`uint128`|an X96 fixed point number representing the partial fill rate|
+|`<none>`|`uint128`|the tokens sold to the clearing price|
 
 
 ### getSupply

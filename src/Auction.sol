@@ -17,7 +17,6 @@ import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
-
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
@@ -109,15 +108,27 @@ contract Auction is
         view
         returns (Checkpoint memory)
     {
+        // Calculate the tokens demanded by bidders above the clearing price, and round up to sell more to them and less to the clearingPrice.
+        // This is important to ensure that a bid above the clearing price purchases its full amount
+        uint128 resolvedDemandAboveClearingPriceMpsRoundedUp =
+            uint128(_checkpoint.resolvedDemandAboveClearingPrice.fullMulDivUp(deltaMps, AuctionStepLib.MPS));
         uint128 supplyCleared = _checkpoint.clearingPrice > floorPrice
             ? _checkpoint.getSupply(totalSupply, deltaMps)
-            : _checkpoint.resolvedDemandAboveClearingPrice.applyMps(deltaMps);
-
+            : resolvedDemandAboveClearingPriceMpsRoundedUp;
+        require(
+            supplyCleared
+                == (
+                    resolvedDemandAboveClearingPriceMpsRoundedUp
+                        + CheckpointLib.getSupplySoldToClearingPrice(
+                            supplyCleared, resolvedDemandAboveClearingPriceMpsRoundedUp
+                        )
+                ),
+            'supplyCleared != resolvedDemandAboveClearingPriceMpsRoundedUp + CheckpointLib.getSupplySoldToClearingPrice(supplyCleared, resolvedDemandAboveClearingPriceMpsRoundedUp)'
+        );
         _checkpoint.totalCleared += supplyCleared;
         _checkpoint.cumulativeMps += deltaMps;
-        _checkpoint.cumulativeSupplySoldToClearingPrice += CheckpointLib.getSupplySoldToClearingPrice(
-            supplyCleared, _checkpoint.resolvedDemandAboveClearingPrice.applyMps(deltaMps)
-        );
+        _checkpoint.cumulativeSupplySoldToClearingPrice +=
+            CheckpointLib.getSupplySoldToClearingPrice(supplyCleared, resolvedDemandAboveClearingPriceMpsRoundedUp);
         _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(deltaMps, _checkpoint.clearingPrice);
         return _checkpoint;
     }

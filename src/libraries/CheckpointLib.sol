@@ -21,20 +21,24 @@ struct Checkpoint {
 /// @title CheckpointLib
 library CheckpointLib {
     using FixedPointMathLib for uint128;
+    using FixedPointMathLib for uint256;
     using AuctionStepLib for uint128;
     using CheckpointLib for Checkpoint;
 
     /// @notice Calculate the supply sold to the clearing price
     /// @param supplyMps The supply of the auction over `mps`
-    /// @param resolvedDemandAboveClearingPriceMps The demand above the clearing price over `mps`
-    /// @return an X96 fixed point number representing the partial fill rate
-    function getSupplySoldToClearingPrice(uint128 supplyMps, uint128 resolvedDemandAboveClearingPriceMps)
+    /// @param resolvedDemandAboveClearingPriceMpsRoundedUp The demand above the clearing price over `mps`, rounded up
+    /// @return the tokens sold to the clearing price
+    function getSupplySoldToClearingPrice(uint128 supplyMps, uint128 resolvedDemandAboveClearingPriceMpsRoundedUp)
         internal
         pure
         returns (uint128)
     {
-        if (supplyMps < resolvedDemandAboveClearingPriceMps) return supplyMps;
-        return (supplyMps - resolvedDemandAboveClearingPriceMps);
+        // Due to rounding up it is possible that the supply is less than the demand above the clearing price.
+        // In this case, return the supply
+        return supplyMps < resolvedDemandAboveClearingPriceMpsRoundedUp
+            ? supplyMps
+            : supplyMps - resolvedDemandAboveClearingPriceMpsRoundedUp;
     }
 
     /// @notice Calculate the actual supply to sell given the total cleared in the auction so far
@@ -69,7 +73,7 @@ library CheckpointLib {
     function getMpsPerPrice(uint24 mps, uint256 price) internal pure returns (uint256) {
         if (price == 0) return 0;
         // The bitshift cannot overflow because a uint24 shifted left 96 * 2 will always be less than 2^256
-        return (uint256(mps) << (FixedPoint96.RESOLUTION * 2)) / price;
+        return uint256(mps).fullMulDiv(FixedPoint96.Q96 ** 2, price);
     }
 
     /// @notice Calculate the total currency raised

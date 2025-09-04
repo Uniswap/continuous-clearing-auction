@@ -203,11 +203,11 @@ contract AuctionTest is AuctionBaseTest {
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
         auction.exitPartiallyFilledBid(bidId, 1, 0);
-        assertApproxEqAbs(address(alice).balance, aliceBalanceBefore + inputAmount / 2, 10_000);
+        assertEq(address(alice).balance, aliceBalanceBefore + inputAmount / 2);
 
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
-        assertApproxEqAbs(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18, 1);
+        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
     }
 
     function test_submitBid_exactOut_overTotalSupply_isPartiallyFilled() public {
@@ -451,10 +451,10 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitBid(bidId2);
         vm.stopPrank();
 
-        uint128 expectedCurrentRaised = inputAmountForTokens(largeAmount, tickNumberToPriceX96(3));
+        uint128 expectedCurrencyRaised = inputAmountForTokens(largeAmount, tickNumberToPriceX96(3));
         vm.startPrank(auction.fundsRecipient());
         vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.CurrencySwept(auction.fundsRecipient(), expectedCurrentRaised);
+        emit ITokenCurrencyStorage.CurrencySwept(auction.fundsRecipient(), expectedCurrencyRaised);
         auction.sweepCurrency();
         vm.stopPrank();
 
@@ -633,11 +633,11 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitPartiallyFilledBid(bidId, 1, 0);
 
         // Expect no refund
-        assertApproxEqAbs(address(alice).balance, aliceBalanceBefore, 10_000);
+        assertEq(address(alice).balance, aliceBalanceBefore);
 
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
-        assertApproxEqAbs(token.balanceOf(address(alice)), 1000e18, 1);
+        assertEq(token.balanceOf(address(alice)), 1000e18);
     }
 
     /// forge-config: default.isolate = true

@@ -23,14 +23,13 @@ import {MockToken} from './MockToken.sol';
 import {MockValidationHook} from './MockValidationHook.sol';
 import {TokenHandler} from './TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
-import {console2} from 'forge-std/console2.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
+
 /// @title AuctionBaseTest
 /// @notice Base test suite for auction scenarios
 /// @dev Override to test different combinations of tokens, prices, supply, etc.
-
 abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     using FixedPointMathLib for uint128;
     using CurrencyLibrary for Currency;
@@ -80,12 +79,10 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     struct AuctionStepInfo {
         uint24 mps;
         uint40 blockDelta;
-        uint64 startBlock;
-        uint64 endBlock;
     }
-    // Decode the packed bytes to get individual steps
 
-    function getAuctionSteps() public view returns (AuctionStepInfo[] memory steps) {
+    // Decode the packed bytes to get individual steps
+    function getAuctionSteps() internal view returns (AuctionStepInfo[] memory steps) {
         bytes memory data = auctionStepsData;
         uint256 stepCount = data.length / 8; // Each step is 8 bytes
         steps = new AuctionStepInfo[](stepCount);
@@ -96,11 +93,20 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
 
             steps[i] = AuctionStepInfo({
                 mps: mps,
-                startBlock: 0, // You'd need to calculate this
-                endBlock: 0, // You'd need to calculate this
                 blockDelta: blockDelta
             });
         }
+    }
+    function skipInitialZeroMpsSteps() internal returns (uint64 bidPlaced) {
+        AuctionStepInfo[] memory steps = getAuctionSteps();
+        uint256 i = 0;
+        // Skip any initial 0 mps steps
+        for (steps.length > 0 && steps[i].mps == 0) {
+            vm.roll(steps[i].blockDelta + 1);
+            bidPlaced = uint64(block.number);
+            i++;
+        }
+        return bidPlaced;
     }
 
     /// @dev Helper function to convert a tick number to a priceX96
@@ -130,13 +136,8 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     }
 
     /// Supply functions
-
-    function getHalfSupply() internal view returns (uint128) {
-        return TOTAL_SUPPLY / 2;
-    }
-
-    function getPercentageOfSupply(uint128 percentage) internal view returns (uint128) {
-        return (TOTAL_SUPPLY * percentage) / 100;
+    function getPortionOfSupplyMps(uint128 mps) internal view returns (uint128) {
+        return (TOTAL_SUPPLY * mps) / AuctionStepLib.MPS;
     }
 
     /// forge-config: default.isolate = true
@@ -149,12 +150,12 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
             alice,
             tickNumberToPriceX96(2),
             true,
-            inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(2))
+            inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2))
         );
-        auction.submitBid{value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(2)))}(
+        auction.submitBid{value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2)))}(
             tickNumberToPriceX96(2),
             true,
-            inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(2)),
+            inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -162,20 +163,20 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
         vm.snapshotGasLastCall('submitBid_recordStep_updateCheckpoint');
 
         vm.roll(block.number + 1);
-        auction.submitBid{value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(2)))}(
+        auction.submitBid{value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2)))}(
             tickNumberToPriceX96(2),
             true,
-            inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(2)),
+            inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
         );
         vm.snapshotGasLastCall('submitBid_updateCheckpoint');
 
-        auction.submitBid{value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(2)))}(
+        auction.submitBid{value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2)))}(
             tickNumberToPriceX96(2),
             true,
-            inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(2)),
+            inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -186,14 +187,13 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     /// forge-config: default.isolate = true
     /// forge-config: ci.isolate = true
     function test_submitBid_exactIn_initializesTickAndUpdatesClearingPrice_succeeds_gas() public {
-        AuctionStepInfo[] memory steps = getAuctionSteps();
-        if (steps.length > 0 && steps[0].mps == 0) {
-            vm.roll(steps[0].blockDelta + 1);
-        }
+       skipInitialZeroMpsSteps();
+        
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(
             0, alice, tickNumberToPriceX96(2), true, inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))
         );
+        // Bidding 100% of the supply to move the clearing price
         auction.submitBid{value: getMsgValue(inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)))}(
             tickNumberToPriceX96(2),
             true,
@@ -205,7 +205,7 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
         vm.snapshotGasLastCall('submitBid_recordStep_updateCheckpoint_initializeTick');
 
         vm.roll(block.number + 1);
-        uint128 expectedTotalCleared = getPercentageOfSupply(1); // 100e3 mps * total supply (1000e18)
+        uint128 expectedTotalCleared = getPortionOfSupplyMps(1e5); // 100e3 mps * total supply (1000e18)
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(
@@ -217,19 +217,18 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     }
 
     function test_submitBid_exactOut_initializesTickAndUpdatesClearingPrice_succeeds() public {
-        AuctionStepInfo[] memory steps = getAuctionSteps();
-        if (steps.length > 0 && steps[0].mps == 0) {
-            vm.roll(steps[0].blockDelta + 1);
-        }
+        skipInitialZeroMpsSteps();
+
         vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(0, alice, tickNumberToPriceX96(2), false, getPercentageOfSupply(100));
+        emit IAuction.BidSubmitted(0, alice, tickNumberToPriceX96(2), false, getPortionOfSupplyMps(1e7));
+        // Bidding 100% of the supply to move the clearing price
         // Oversubscribe the auction to increase the clearing price
-        auction.submitBid{value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(100), tickNumberToPriceX96(2)))}(
-            tickNumberToPriceX96(2), false, getPercentageOfSupply(100), alice, tickNumberToPriceX96(1), bytes('')
+        auction.submitBid{value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(1e7), tickNumberToPriceX96(2)))}(
+            tickNumberToPriceX96(2), false, getPortionOfSupplyMps(1e7), alice, tickNumberToPriceX96(1), bytes('')
         );
 
         vm.roll(block.number + 1);
-        uint128 expectedTotalCleared = getPercentageOfSupply(1); // 100e3 mps * total supply (1000e18)
+        uint128 expectedTotalCleared = getPortionOfSupplyMps(1e5); // 100e3 mps * total supply (1000e18)
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(
@@ -244,7 +243,7 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
         vm.expectEmit(true, true, true, true);
         // Expect the checkpoint to be made for the previous block
         emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), 0, 0);
-        // Bid enough to purchase the entire supply (1000e18) at a higher price (2e18)
+        // Bid 100% of the supply to purchase the entire supply at a higher price (2e18)
         auction.submitBid{value: getMsgValue(inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)))}(
             tickNumberToPriceX96(2),
             true,
@@ -265,6 +264,9 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     }
 
     function test_submitBid_multipleTicks_succeeds() public {
+        // This function has combined bidding that adds up to more than the supply to create more demand than supply.
+        // This is to move the clearing price because the demand is greater than the supply but no checkpoint is made until the next block.
+        
         uint128 expectedTotalCleared = 100e3 * TOTAL_SUPPLY / AuctionStepLib.MPS;
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
 
@@ -275,10 +277,10 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
         emit ITickStorage.TickInitialized(tickNumberToPriceX96(2));
 
         // Bid to purchase half the total supply of tokens at a price of 2e6
-        auction.submitBid{value: getMsgValue(inputAmountForTokens(getHalfSupply(), tickNumberToPriceX96(2)))}(
+        auction.submitBid{value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(5e6), tickNumberToPriceX96(2)))}(
             tickNumberToPriceX96(2),
             true,
-            inputAmountForTokens(getHalfSupply(), tickNumberToPriceX96(2)),
+            inputAmountForTokens(getPortionOfSupplyMps(5e6), tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -286,16 +288,17 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
 
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(tickNumberToPriceX96(3));
+
         // Bid 1503 ETH to purchase 501 tokens at a price of 3
         // This bid will move the clearing price because now demand > total supply but no checkpoint is made until the next block
         auction.submitBid{
             value: getMsgValue(
-                inputAmountForTokens(getHalfSupply() + (getPercentageOfSupply(1) / 10), tickNumberToPriceX96(3))
+                inputAmountForTokens(getPortionOfSupplyMps(5e6) + (getPortionOfSupplyMps(1e5) / 10), tickNumberToPriceX96(3))
             )
         }(
             tickNumberToPriceX96(3),
             true,
-            inputAmountForTokens(getHalfSupply() + getPercentageOfSupply(1) / 10, tickNumberToPriceX96(3)),
+            inputAmountForTokens(getPortionOfSupplyMps(5e6) + getPortionOfSupplyMps(1e5) / 10, tickNumberToPriceX96(3)),
             alice,
             tickNumberToPriceX96(2),
             bytes('')
@@ -311,13 +314,9 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     }
 
     function test_submitBid_exactIn_overTotalSupply_isPartiallyFilled() public {
-        AuctionStepInfo[] memory steps = getAuctionSteps();
-        uint64 bidPlaced = 1;
-        if (steps.length > 0 && steps[0].mps == 0) {
-            vm.roll(steps[0].blockDelta + 1);
-            bidPlaced = uint64(block.number);
-        }
-        uint128 inputAmount = inputAmountForTokens(getPercentageOfSupply(200), tickNumberToPriceX96(2));
+        uint64 bidPlaced = skipInitialZeroMpsSteps();
+        // Bidding double the total supply to create a bid that cannot be fully filled.
+        uint128 inputAmount = inputAmountForTokens(getPortionOfSupplyMps(2e7), tickNumberToPriceX96(2));
         uint256 bidId = auction.submitBid{value: getMsgValue(inputAmount)}(
             tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
@@ -329,7 +328,6 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
         uint256 aliceBalanceBefore = getCurrencyBalance(alice);
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
-        // For normal auction, use standard hints
         auction.exitPartiallyFilledBid(bidId, bidPlaced, 0);
 
         assertEq(getCurrencyBalance(alice), aliceBalanceBefore + inputAmount / 2);
@@ -337,7 +335,7 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
         vm.roll(auction.claimBlock());
         if (auction.isGraduated()) {
             auction.claimTokens(bidId);
-            assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + getPercentageOfSupply(100));
+            assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + getPortionOfSupplyMps(1e7));
         } else {
             // Expect revert with BidNotExited because we delete the bid if no tokens were filled
             vm.expectRevert(IAuction.BidNotExited.selector);
@@ -346,15 +344,12 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     }
 
     function test_submitBid_exactOut_overTotalSupply_isPartiallyFilled() public {
-        AuctionStepInfo[] memory steps = getAuctionSteps();
-        uint64 bidPlaced = 1;
-        if (steps.length > 0 && steps[0].mps == 0) {
-            vm.roll(steps[0].blockDelta + 1);
-            bidPlaced = uint64(block.number);
-        }
+        uint64 bidPlaced = skipInitialZeroMpsSteps();
+
+        // Bidding double the total supply to partially fill the bid while taking the entire supply.
         uint256 bidId = auction.submitBid{
-            value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(200), tickNumberToPriceX96(2)))
-        }(tickNumberToPriceX96(2), false, getPercentageOfSupply(200), alice, tickNumberToPriceX96(1), bytes(''));
+            value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(2e7), tickNumberToPriceX96(2)))
+        }(tickNumberToPriceX96(2), false, getPortionOfSupplyMps(2e7), alice, tickNumberToPriceX96(1), bytes(''));
 
         vm.roll(block.number + 1);
         auction.checkpoint();
@@ -366,12 +361,12 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
         auction.exitPartiallyFilledBid(bidId, bidPlaced, 0);
         assertEq(
             getCurrencyBalance(alice),
-            aliceBalanceBefore + inputAmountForTokens(getPercentageOfSupply(200), tickNumberToPriceX96(2)) / 2
+            aliceBalanceBefore + inputAmountForTokens(getPortionOfSupplyMps(2e7), tickNumberToPriceX96(2)) / 2
         );
 
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
-        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + getPercentageOfSupply(100));
+        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + getPortionOfSupplyMps(1e7));
     }
 
     /// forge-config: default.isolate = true
@@ -388,8 +383,9 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
             currency.mint(address(this), type(uint128).max);
         }
 
+        // Bidding double the total supply to partially fill the bid while taking the entire supply.
         // Bid over the total supply
-        uint128 inputAmount = inputAmountForTokens(getPercentageOfSupply(200), tickNumberToPriceX96(2));
+        uint128 inputAmount = inputAmountForTokens(getPortionOfSupplyMps(2e7), tickNumberToPriceX96(2));
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(block.number, 0, 0, 0);
         vm.expectEmit(true, true, true, true);
@@ -423,7 +419,7 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
 
         vm.roll(_auction.claimBlock());
         _auction.claimTokens(bidId);
-        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
+        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + TOTAL_SUPPLY);
     }
 
     function test_submitBid_zeroSupply_exitBid_succeeds() public {
@@ -438,15 +434,16 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
             currency.mint(address(this), type(uint128).max);
         }
 
-        uint128 inputAmount = inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(1));
+       
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(block.number, 0, 0, 0);
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(
             0, alice, tickNumberToPriceX96(2), true, inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(1))
         );
-        uint256 bidId = _auction.submitBid{value: getMsgValue(inputAmount)}(
-            tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
+         // Bidding the entire supply to take all the tokens in one fully-filled bid.
+        uint256 bidId = _auction.submitBid{value: getMsgValue(inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(1)))}(
+            tickNumberToPriceX96(2), true, inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(1)), alice, tickNumberToPriceX96(1), bytes('')
         );
 
         // Advance to the next block to get the next checkpoint
@@ -473,7 +470,7 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
 
         vm.roll(_auction.claimBlock());
         _auction.claimTokens(bidId);
-        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
+        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + TOTAL_SUPPLY);
     }
 
     function test_checkpoint_startBlock_succeeds() public {
@@ -493,11 +490,12 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     }
 
     function test_submitBid_exactIn_atFloorPrice_reverts() public {
+        // Bidding 1% of the supply simply as a nominal value.
         vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
-        auction.submitBid{value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(1), tickNumberToPriceX96(1)))}(
+        auction.submitBid{value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(1e5), tickNumberToPriceX96(1)))}(
             tickNumberToPriceX96(1),
             true,
-            inputAmountForTokens(getPercentageOfSupply(1), tickNumberToPriceX96(1)),
+            inputAmountForTokens(getPortionOfSupplyMps(1e5), tickNumberToPriceX96(1)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -505,38 +503,38 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     }
 
     function test_submitBid_exactOut_atFloorPrice_reverts() public {
+         // Bidding 1% of the supply simply as a nominal value.
         vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
-        auction.submitBid{value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(1), tickNumberToPriceX96(1)))}(
-            tickNumberToPriceX96(1), false, getPercentageOfSupply(1), alice, tickNumberToPriceX96(1), bytes('')
+        auction.submitBid{value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(1e5), tickNumberToPriceX96(1)))}(
+            tickNumberToPriceX96(1), false, getPortionOfSupplyMps(1e5), alice, tickNumberToPriceX96(1), bytes('')
         );
     }
 
     function test_submitBid_exactInZeroAmount_revertsWithInvalidAmount() public {
+        // Bidding 0 amount to mismatch with value.
         vm.expectRevert(IAuction.InvalidAmount.selector);
-        auction.submitBid{value: 1000e18}(tickNumberToPriceX96(2), true, 0, alice, tickNumberToPriceX96(1), bytes(''));
+        auction.submitBid{value: TOTAL_SUPPLY}(tickNumberToPriceX96(2), true, 0, alice, tickNumberToPriceX96(1), bytes(''));
     }
 
     function test_submitBid_exactOutZeroAmount_revertsWithInvalidAmount() public {
+        // Bidding 0 amount to mismatch with value.
         vm.expectRevert(IAuction.InvalidAmount.selector);
-        auction.submitBid{value: 1000e18}(tickNumberToPriceX96(2), false, 0, alice, tickNumberToPriceX96(1), bytes(''));
+        auction.submitBid{value: TOTAL_SUPPLY}(tickNumberToPriceX96(2), false, 0, alice, tickNumberToPriceX96(1), bytes(''));
     }
 
     function test_submitBid_endBlock_reverts() public {
+        // Bid amount is arbitrary.
         vm.roll(auction.endBlock());
         vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
-        auction.submitBid{value: 1000e18}(tickNumberToPriceX96(2), true, 1000e18, alice, 1, bytes(''));
+        auction.submitBid{value: TOTAL_SUPPLY}(tickNumberToPriceX96(2), true, TOTAL_SUPPLY, alice, 1, bytes(''));
     }
 
     /// forge-config: default.isolate = true
     /// forge-config: ci.isolate = true
     function test_exitBid_succeeds() public {
-        AuctionStepInfo[] memory steps = getAuctionSteps();
-        uint64 bidPlaced = 1;
-        if (steps.length > 0 && steps[0].mps == 0) {
-            vm.roll(steps[0].blockDelta + 1);
-            bidPlaced = uint64(block.number);
-        }
-        uint128 smallAmount = getHalfSupply();
+        uint64 bidPlaced = skipInitialZeroMpsSteps();
+        // Bidding 50% of the supply to move the clearing price to 2
+        uint128 smallAmount = getPortionOfSupplyMps(5e6);
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(
             0, alice, tickNumberToPriceX96(2), true, inputAmountForTokens(smallAmount, tickNumberToPriceX96(2))
@@ -552,7 +550,7 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
             bytes('')
         );
 
-        // Bid enough tokens to move the clearing price to 3
+        // Bidding enough to ensure we move the clearing price to 3
         uint128 largeAmount = TOTAL_SUPPLY;
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(
@@ -603,22 +601,15 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(auction.tokensRecipient(), 0);
         auction.sweepUnsoldTokens();
-        console2.log('3');
     }
 
     function test_exitBid_exactOut_succeeds() public {
-        AuctionStepInfo[] memory steps = getAuctionSteps();
+        skipInitialZeroMpsSteps();
 
-        uint128 amount = getPercentageOfSupply(50);
+        uint128 amount = getPortionOfSupplyMps(5e6);
         uint256 maxPrice = tickNumberToPriceX96(2);
 
-        // For extra steps auction, we need to submit the bid after the zero mps period
-        // to avoid arithmetic overflow issues when clearing price is 0
-        if (steps.length > 0 && steps[0].mps == 0) {
-            // Skip the first 40 blocks where mps=0
-            vm.roll(steps[0].blockDelta + 1);
-        }
-
+        // Bidding 50% of the supply to avoid moving the clearing price above the previously defined max price.
         uint256 bidId = auction.submitBid{value: getMsgValue(inputAmountForTokens(amount, tickNumberToPriceX96(2)))}(
             maxPrice, false, amount, alice, tickNumberToPriceX96(1), bytes('')
         );
@@ -650,11 +641,8 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     }
 
     function test_exitBid_afterEndBlock_succeeds() public {
-        AuctionStepInfo[] memory steps = getAuctionSteps();
-        if (steps.length > 0 && steps[0].mps == 0) {
-            vm.roll(steps[0].blockDelta + 1);
-        }
-        // Bid at 3 but only provide 1000e18 ETH, such that the auction is only fully filled at 1e6
+        skipInitialZeroMpsSteps();
+        // Bid at 3 but only provide an amount that only fully fills at a price of 1
         uint256 bidId = auction.submitBid{
             value: getMsgValue(inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(1)))
         }(
@@ -688,7 +676,7 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
         assertEq(getCurrencyBalance(alice), aliceBalanceBefore);
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
-        // Expect purchased 1000e18 tokens
+        // Expect purchased total supply of tokens
         assertEq(token.balanceOf(address(alice)), TOTAL_SUPPLY);
         vm.stopPrank();
     }
@@ -696,13 +684,13 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     function test_exitBid_joinedLate_succeeds() public {
         vm.roll(auction.endBlock() - 1);
 
-        // Bid at 2 but only provide 1000e18 ETH, such that the auction is only fully filled at 1e6
+        // Bid at 2 but only provide an amount that only fully fills at a price of 1
         uint256 bidId = auction.submitBid{
-            value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(100), tickNumberToPriceX96(1)))
+            value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(1e7), tickNumberToPriceX96(1)))
         }(
             tickNumberToPriceX96(2),
             true,
-            inputAmountForTokens(getPercentageOfSupply(100), tickNumberToPriceX96(1)),
+            inputAmountForTokens(getPortionOfSupplyMps(1e7), tickNumberToPriceX96(1)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -717,10 +705,11 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
         assertEq(getCurrencyBalance(alice), aliceBalanceBefore);
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
-        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + getPercentageOfSupply(100));
+        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + getPortionOfSupplyMps(1e7));
     }
 
     function test_exitBid_beforeEndBlock_revertsWithCannotExitBid() public {
+        // Bidding 100% of the supply as an arbitrary amount.
         uint256 bidId = auction.submitBid{
             value: getMsgValue(inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3)))
         }(
@@ -739,12 +728,13 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     }
 
     function test_exitBid_alreadyExited_revertsWithBidAlreadyExited() public {
+        // Bidding 50% of the supply as an arbitrary amount.
         uint256 bidId = auction.submitBid{
-            value: getMsgValue(inputAmountForTokens(getHalfSupply(), tickNumberToPriceX96(3)))
+            value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(5e6), tickNumberToPriceX96(3)))
         }(
             tickNumberToPriceX96(3),
             true,
-            inputAmountForTokens(getHalfSupply(), tickNumberToPriceX96(3)),
+            inputAmountForTokens(getPortionOfSupplyMps(5e6), tickNumberToPriceX96(3)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -760,10 +750,8 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     }
 
     function test_exitBid_maxPriceAtClearingPrice_revertsWithCannotExitBid() public {
-        AuctionStepInfo[] memory steps = getAuctionSteps();
-        if (steps.length > 0 && steps[0].mps == 0) {
-            vm.roll(steps[0].blockDelta + 1);
-        }
+        skipInitialZeroMpsSteps();
+        // Bidding 100% of the supply as an arbitrary amount.
         uint256 bidId = auction.submitBid{
             value: getMsgValue(inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)))
         }(
@@ -787,12 +775,8 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
 
     /// Simple test for a bid that partially fills at the clearing price but is the only bid at that price, functionally fully filled
     function test_exitPartiallyFilledBid_noOtherBidsAtClearingPrice_succeeds() public {
-        AuctionStepInfo[] memory steps = getAuctionSteps();
-        uint64 bidPlaced = 1;
-        if (steps.length > 0 && steps[0].mps == 0) {
-            vm.roll(steps[0].blockDelta + 1);
-            bidPlaced = uint64(block.number);
-        }
+        uint64 bidPlaced = skipInitialZeroMpsSteps();
+        // Bidding 100% of the supply to ensure bid is only partially filled.
         uint256 bidId = auction.submitBid{
             value: getMsgValue(inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)))
         }(
@@ -826,27 +810,33 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     function test_exitPartiallyFilledBid_succeeds_gas() public {
         AuctionStepInfo[] memory steps = getAuctionSteps();
         uint64 bidPlaced = 1;
-        if (steps.length > 0 && steps[0].mps == 0) {
-            vm.roll(steps[0].blockDelta + 1);
+        uint256 i = 0;
+        // Skip any initial 0 mps steps
+        while (steps.length > 0 && steps[i].mps == 0) {
+            vm.roll(steps[i].blockDelta + 1);
             bidPlaced = uint64(block.number);
+            i++;
         }
         address bob = makeAddr('bob');
+        // Bidding for 50% of the supply at 11, they should only receive 25% of the supply.
         uint256 bidId = auction.submitBid{
-            value: getMsgValue(inputAmountForTokens(getHalfSupply(), tickNumberToPriceX96(11)))
+            value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(5e6), tickNumberToPriceX96(11)))
         }(
             tickNumberToPriceX96(11),
             true,
-            inputAmountForTokens(getHalfSupply(), tickNumberToPriceX96(11)),
+            inputAmountForTokens(getPortionOfSupplyMps(5e6), tickNumberToPriceX96(11)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
         );
+
+        // Bidding for 50% at a high price to receive the remainder of the supply, 75%
         uint256 bidId2 = auction.submitBid{
-            value: getMsgValue(inputAmountForTokens(getHalfSupply(), tickNumberToPriceX96(21)))
+            value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(5e6), tickNumberToPriceX96(21)))
         }(
             tickNumberToPriceX96(21),
             true,
-            inputAmountForTokens(getHalfSupply(), tickNumberToPriceX96(21)),
+            inputAmountForTokens(getPortionOfSupplyMps(5e6), tickNumberToPriceX96(21)),
             bob,
             tickNumberToPriceX96(11),
             bytes('')
@@ -866,17 +856,19 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
         vm.startPrank(alice);
         auction.exitPartiallyFilledBid(bidId, bidPlaced, 0);
         vm.snapshotGasLastCall('exitPartiallyFilledBid');
+
+        // Example:
         // Alice is purchasing with 500e18 * 2000 = 1000e21 ETH
         // Bob is purchasing with 500e18 * 3000 = 1500e21 ETH
         // At a clearing price of 2e6
         // Since the supply is only 1000e18, that means that bob should fully fill for 750e18 tokens, and
         // Alice should partially fill for 250e18 tokens, spending 500e21 ETH
         // Meaning she should be refunded 1000e21 - 500e21 = 500e21 ETH
-        assertEq(getCurrencyBalance(alice), aliceBalanceBefore + getHalfSupply() * 1000);
+        assertEq(getCurrencyBalance(alice), aliceBalanceBefore + getPortionOfSupplyMps(5e6) * 1000);
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
         vm.snapshotGasLastCall('claimTokens');
-        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + getPercentageOfSupply(25));
+        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + getPortionOfSupplyMps(25e5));
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -886,48 +878,46 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
         assertEq(getCurrencyBalance(bob), bobBalanceBefore + 0);
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId2);
-        assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + getPercentageOfSupply(75));
+        assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + getPortionOfSupplyMps(75e5));
         vm.stopPrank();
     }
 
     function test_exitPartiallyFilledBid_multipleBidders_succeeds() public {
-        AuctionStepInfo[] memory steps = getAuctionSteps();
-        uint64 bidPlaced = 1;
-        if (steps.length > 0 && steps[0].mps == 0) {
-            vm.roll(steps[0].blockDelta + 1);
-            bidPlaced = uint64(block.number);
-        }
+        uint64 bidPlaced = skipInitialZeroMpsSteps();
         address bob = makeAddr('bob');
         address charlie = makeAddr('charlie');
 
+        // Bidding enough to avoid being fully filled.
         uint256 bidId1 = auction.submitBid{
-            value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(40), tickNumberToPriceX96(11)))
+            value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(4e6), tickNumberToPriceX96(11)))
         }(
             tickNumberToPriceX96(11),
             true,
-            inputAmountForTokens(getPercentageOfSupply(40), tickNumberToPriceX96(11)),
+            inputAmountForTokens(getPortionOfSupplyMps(4e6), tickNumberToPriceX96(11)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
         );
+
+        // Bidding enough to avoid being fully filled.
         uint256 bidId2 = auction.submitBid{
-            value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(60), tickNumberToPriceX96(11)))
+            value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(6e6), tickNumberToPriceX96(11)))
         }(
             tickNumberToPriceX96(11),
             true,
-            inputAmountForTokens(getPercentageOfSupply(60), tickNumberToPriceX96(11)),
+            inputAmountForTokens(getPortionOfSupplyMps(6e6), tickNumberToPriceX96(11)),
             bob,
             tickNumberToPriceX96(1),
             bytes('')
         );
 
-        // Not enough to move the price to 3, but to cause partial fills at 2
+        // Bidding 50% at 21 because it is Not enough to move the price to 3, but to cause partial fills at 2
         uint256 bidId3 = auction.submitBid{
-            value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(50), tickNumberToPriceX96(21)))
+            value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(5e6), tickNumberToPriceX96(21)))
         }(
             tickNumberToPriceX96(21),
             true,
-            inputAmountForTokens(getPercentageOfSupply(50), tickNumberToPriceX96(21)),
+            inputAmountForTokens(getPortionOfSupplyMps(5e6), tickNumberToPriceX96(21)),
             charlie,
             tickNumberToPriceX96(11),
             bytes('')
@@ -953,9 +943,9 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
             auction.checkpoint();
         }
 
-        uint128 expectedCurrencyRaised = inputAmountForTokens(getPercentageOfSupply(75), tickNumberToPriceX96(11))
-            + inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(11))
-            + inputAmountForTokens(getPercentageOfSupply(15), tickNumberToPriceX96(11));
+        uint128 expectedCurrencyRaised = inputAmountForTokens(getPortionOfSupplyMps(75e5), tickNumberToPriceX96(11))
+            + inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(11))
+            + inputAmountForTokens(getPortionOfSupplyMps(15e5), tickNumberToPriceX96(11));
 
         // Only sweep currency if there's actually currency to sweep (clearing price > 0)
         if (auction.clearingPrice() > 0) {
@@ -985,7 +975,7 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
         auction.exitBid(bidId3);
         assertEq(getCurrencyBalance(charlie), charlieBalanceBefore + 0);
         auction.claimTokens(bidId3);
-        assertEq(token.balanceOf(address(charlie)), charlieTokenBalanceBefore + getPercentageOfSupply(75));
+        assertEq(token.balanceOf(address(charlie)), charlieTokenBalanceBefore + getPortionOfSupplyMps(75e5));
         vm.stopPrank();
         // For AuctionExtraStepsTest, we need different checkpoint hints due to its step structure
         // Normal tests: (1, 0) for both calls
@@ -993,17 +983,17 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
         vm.startPrank(alice);
         // Try the hints that worked in your trial-and-error testing
         auction.exitPartiallyFilledBid(bidId1, bidPlaced, 0);
-        assertEq(getCurrencyBalance(alice) / 1000, aliceBalanceBefore + getPercentageOfSupply(60));
+        assertEq(getCurrencyBalance(alice) / 1000, aliceBalanceBefore + getPortionOfSupplyMps(6e6));
         auction.claimTokens(bidId1);
-        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + getPercentageOfSupply(10));
+        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + getPortionOfSupplyMps(1e6));
         vm.stopPrank();
 
         vm.startPrank(bob);
         // Try the hints that worked in your trial-and-error testing
         auction.exitPartiallyFilledBid(bidId2, bidPlaced, 0);
-        assertEq(getCurrencyBalance(bob) / 1000, bobBalanceBefore + getPercentageOfSupply(90));
+        assertEq(getCurrencyBalance(bob) / 1000, bobBalanceBefore + getPortionOfSupplyMps(9e6));
         auction.claimTokens(bidId2);
-        assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + getPercentageOfSupply(15));
+        assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + getPortionOfSupplyMps(15e5));
         vm.stopPrank();
 
         // All tokens were sold
@@ -1050,10 +1040,7 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     /// forge-config: default.isolate = true
     /// forge-config: ci.isolate = true
     function test_calculateNewClearingPrice_withNoDemand() public {
-        AuctionStepInfo[] memory steps = getAuctionSteps();
-        if (steps.length > 0 && steps[0].mps == 0) {
-            vm.roll(steps[0].blockDelta + 1);
-        }
+        skipInitialZeroMpsSteps();
         // Don't submit any bids
         vm.roll(block.number + 1);
         auction.checkpoint();
@@ -1064,13 +1051,13 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     }
 
     function test_exitPartiallyFilledBid_withInvalidCheckpointHint_reverts() public {
-        // Submit a bid at price 2
+        // Submit a bid with 10% of the supply, as a nominal amount, at price 2
         uint256 bidId = auction.submitBid{
-            value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(2)))
+            value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2)))
         }(
             tickNumberToPriceX96(2),
             true,
-            inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(2)),
+            inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -1101,12 +1088,13 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     }
 
     function test_exitPartiallyFilledBid_withInvalidCheckpointHint_atEndBlock_reverts() public {
+        // Submit a bid with 10% of the supply, as a nominal amount, at price 2
         uint256 bidId = auction.submitBid{
-            value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(2)))
+            value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2)))
         }(
             tickNumberToPriceX96(2),
             true,
-            inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(2)),
+            inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -1159,10 +1147,11 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
 
         // Try to submit a bid after the auction has ended
         vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
-        auction.submitBid{value: getMsgValue(inputAmountForTokens(100e18, tickNumberToPriceX96(2)))}(
+        // Bidding 10% as a nominal amount.
+        auction.submitBid{value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2)))}(
             tickNumberToPriceX96(2),
             true,
-            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -1175,10 +1164,11 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
 
         // Try to submit a bid at the end block
         vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
-        auction.submitBid{value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(2)))}(
+        // Bidding 10% as a nominal amount.
+        auction.submitBid{value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2)))}(
             tickNumberToPriceX96(2),
             true,
-            inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(2)),
+            inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -1186,27 +1176,24 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     }
 
     function test_exitPartiallyFilledBid_alreadyExited_reverts() public {
-        AuctionStepInfo[] memory steps = getAuctionSteps();
-        uint64 bidPlaced = 1;
-        if (steps.length > 0 && steps[0].mps == 0) {
-            vm.roll(steps[0].blockDelta + 1);
-            bidPlaced = uint64(block.number);
-        }
+        uint64 bidPlaced = skipInitialZeroMpsSteps();
         address bob = makeAddr('bob');
+        // Bidding 50% of the supply to cause a partial fill.
         uint256 bidId = auction.submitBid{
-            value: getMsgValue(inputAmountForTokens(getHalfSupply(), tickNumberToPriceX96(2)))
+            value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(5e6), tickNumberToPriceX96(2)))
         }(
             tickNumberToPriceX96(2),
             true,
-            inputAmountForTokens(getHalfSupply(), tickNumberToPriceX96(2)),
+            inputAmountForTokens(getPortionOfSupplyMps(5e6), tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
         );
-        auction.submitBid{value: getMsgValue(inputAmountForTokens(getHalfSupply(), tickNumberToPriceX96(3)))}(
+        // Bidding 50% of the supply as an arbitrary amount.
+        auction.submitBid{value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(5e6), tickNumberToPriceX96(3)))}(
             tickNumberToPriceX96(3),
             true,
-            inputAmountForTokens(getHalfSupply(), tickNumberToPriceX96(3)),
+            inputAmountForTokens(getPortionOfSupplyMps(5e6), tickNumberToPriceX96(3)),
             bob,
             tickNumberToPriceX96(2),
             bytes('')
@@ -1230,19 +1217,19 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     }
 
     function test_exitPartiallyFilledBid_withInvalidCheckpointHint_onLine308_reverts() public {
-        // Submit a bid at a lower price
+        // Submit a bid with 10% of the supply, as a nominal amount, at price 2
         uint256 bidId = auction.submitBid{
-            value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(2)))
+            value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2)))
         }(
             tickNumberToPriceX96(2),
             true,
-            inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(2)),
+            inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
         );
 
-        // Submit a much larger bid to move the clearing price above the first bid
+        // Submit a bid with 100% of the supply to make a much larger bid to move the clearing price above the first bid
         auction.submitBid{value: getMsgValue(inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3)))}(
             tickNumberToPriceX96(3),
             true,
@@ -1270,11 +1257,11 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     function test_claimTokens_beforeBidExited_reverts() public {
         // Submit a bid but don't exit it
         uint256 bidId = auction.submitBid{
-            value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(2)))
+            value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2)))
         }(
             tickNumberToPriceX96(2),
             true,
-            inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(2)),
+            inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -1289,12 +1276,13 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     }
 
     function test_claimTokens_beforeClaimBlock_reverts() public {
+        // Submit a bid with 10% of the supply, as a nominal amount, at price 2
         uint256 bidId = auction.submitBid{
-            value: getMsgValue(inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(2)))
+            value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2)))
         }(
             tickNumberToPriceX96(2),
             true,
-            inputAmountForTokens(getPercentageOfSupply(10), tickNumberToPriceX96(2)),
+            inputAmountForTokens(getPortionOfSupplyMps(1e6), tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -1333,7 +1321,7 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
     // sweepCurrency tests
 
     function test_sweepCurrency_alreadySwept_reverts() public {
-        // Submit a bid to ensure auction graduates
+        // Submit a bid with 100% of the supply to ensure auction graduates
         auction.submitBid{value: getMsgValue(inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)))}(
             tickNumberToPriceX96(2),
             true,
@@ -1390,7 +1378,7 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
 
         if (graduationThreshold == 0) {
             // No threshold, use 50% of supply
-            bidAmount = getHalfSupply();
+            bidAmount = getPortionOfSupplyMps(5e6);
         } else {
             // Calculate amount above threshold (add 5% buffer to ensure graduation)
             uint128 thresholdAmount = (TOTAL_SUPPLY * graduationThreshold / 1e7);
@@ -1429,7 +1417,7 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
 
     function test_sweepUnsoldTokens_graduated_sweepsUnsold() public {
         // Submit a bid for 60% of supply
-        uint128 soldAmount = (TOTAL_SUPPLY * 60) / 100;
+        uint128 soldAmount = getPortionOfSupplyMps(6e6);
         uint128 inputAmount = inputAmountForTokens(soldAmount, tickNumberToPriceX96(1));
         auction.submitBid{value: getMsgValue(inputAmount)}(
             tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')

@@ -12,7 +12,6 @@ import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {MockFundsRecipient} from './utils/MockFundsRecipient.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
-import {console2} from 'forge-std/console2.sol';
 
 contract AuctionWithGraduationTest is AuctionBaseTest {
     using AuctionParamsBuilder for AuctionParameters;
@@ -21,7 +20,6 @@ contract AuctionWithGraduationTest is AuctionBaseTest {
     constructor() AuctionBaseTest(100, 100, 1000 << FixedPoint96.RESOLUTION, 1000e18) {}
 
     function _createAuction() internal override returns (Auction) {
-        console2.log("Creating auction with graduation");
         alice = makeAddr('alice');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');

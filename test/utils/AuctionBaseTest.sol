@@ -23,6 +23,8 @@ import {MockToken} from './MockToken.sol';
 import {MockValidationHook} from './MockValidationHook.sol';
 import {TokenHandler} from './TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
+
+import {console2} from 'forge-std/console2.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
@@ -78,6 +80,8 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
 
     struct AuctionStepInfo {
         uint24 mps;
+        uint64 startBlock;
+        uint64 endBlock;
         uint40 blockDelta;
     }
 
@@ -86,12 +90,17 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
         bytes memory data = auctionStepsData;
         uint256 stepCount = data.length / 8; // Each step is 8 bytes
         steps = new AuctionStepInfo[](stepCount);
-
+        uint64 currentBlock = auction.startBlock();
         for (uint256 i = 0; i < stepCount; i++) {
             uint256 offset = i * 8;
             (uint24 mps, uint40 blockDelta) = AuctionStepLib.get(data, offset);
-
-            steps[i] = AuctionStepInfo({mps: mps, blockDelta: blockDelta});
+            steps[i] = AuctionStepInfo({
+                mps: mps,
+                startBlock: currentBlock,
+                endBlock: (currentBlock + blockDelta) - 1,
+                blockDelta: blockDelta
+            });
+            currentBlock += blockDelta;
         }
     }
 
@@ -101,7 +110,7 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
         uint256 i = 0;
         // Skip any initial 0 mps steps
         while (steps.length > 0 && steps[i].mps == 0) {
-            vm.roll(steps[i].blockDelta + 1);
+            vm.roll(steps[i].endBlock + 1);
             bidPlaced = uint64(block.number);
             i++;
         }

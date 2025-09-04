@@ -115,6 +115,8 @@ contract Auction is
 
         uint128 supplyCleared;
         uint128 supplySoldToClearingPrice;
+        // If the clearing price is above the floor price we can sell the available supply
+        // Otherwise, we can only sell the demand above the clearing price
         if (_checkpoint.clearingPrice > floorPrice) {
             supplyCleared = _checkpoint.getSupply(totalSupply, deltaMps);
             supplySoldToClearingPrice = supplyCleared - resolvedDemandAboveClearingPriceMpsRoundedUp;
@@ -122,10 +124,6 @@ contract Auction is
             supplyCleared = resolvedDemandAboveClearingPriceMpsRoundedUp;
             // supplySoldToClearing price is zero here
         }
-        require(
-            supplyCleared == (resolvedDemandAboveClearingPriceMpsRoundedUp + supplySoldToClearingPrice),
-            'supplyCleared != resolvedDemandAboveClearingPriceMpsRoundedUp + supplySoldToClearingPrice'
-        );
         _checkpoint.totalCleared += supplyCleared;
         _checkpoint.cumulativeMps += deltaMps;
         _checkpoint.cumulativeSupplySoldToClearingPrice += supplySoldToClearingPrice;

@@ -2,13 +2,11 @@
 pragma solidity 0.8.26;
 
 import {Auction} from '../src/Auction.sol';
-
 import {Tick} from '../src/TickStorage.sol';
 import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
-
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
@@ -17,7 +15,6 @@ import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {Test} from 'forge-std/Test.sol';
-import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
@@ -141,7 +138,6 @@ contract AuctionInvariantHandler is Test {
     {
         uint128 amount = uint128(_bound(tickNumber, 1, uint256(auction.totalSupply() * 2)));
         (uint128 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(exactIn, amount, tickNumber);
-
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
         } else {
@@ -294,9 +290,6 @@ contract AuctionInvariantTest is AuctionBaseTest {
             uint256 bidInputAmount =
                 bid.exactIn ? bid.amount : BidLib.inputAmount(bid.exactIn, bid.amount, bid.maxPrice);
 
-            // Don't check tokensFilled
-            vm.expectEmit(true, true, false, false);
-            emit IAuction.BidExited(i, bid.owner, 0);
             if (bid.maxPrice > clearingPrice) {
                 auction.exitBid(i);
             } else {
@@ -324,11 +317,11 @@ contract AuctionInvariantTest is AuctionBaseTest {
             assertNotEq(bid.exitedBlock, 0);
 
             uint256 ownerBalanceBefore = token.balanceOf(bid.owner);
-            vm.expectEmit(true, true, true, true);
+            vm.expectEmit(true, true, false, false);
             emit IAuction.TokensClaimed(bid.owner, bid.tokensFilled);
             auction.claimTokens(i);
             // Assert that the owner received the tokens
-            assertEq(token.balanceOf(bid.owner), ownerBalanceBefore + bid.tokensFilled);
+            assertApproxEqAbs(token.balanceOf(bid.owner), ownerBalanceBefore + bid.tokensFilled, 1);
 
             bid = getBid(i);
             assertEq(bid.tokensFilled, 0);

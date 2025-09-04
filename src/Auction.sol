@@ -112,23 +112,23 @@ contract Auction is
         // This is important to ensure that a bid above the clearing price purchases its full amount
         uint128 resolvedDemandAboveClearingPriceMpsRoundedUp =
             uint128(_checkpoint.resolvedDemandAboveClearingPrice.fullMulDivUp(deltaMps, AuctionStepLib.MPS));
-        uint128 supplyCleared = _checkpoint.clearingPrice > floorPrice
-            ? _checkpoint.getSupply(totalSupply, deltaMps)
-            : resolvedDemandAboveClearingPriceMpsRoundedUp;
+
+        uint128 supplyCleared;
+        uint128 supplySoldToClearingPrice;
+        if (_checkpoint.clearingPrice > floorPrice) {
+            supplyCleared = _checkpoint.getSupply(totalSupply, deltaMps);
+            supplySoldToClearingPrice = supplyCleared - resolvedDemandAboveClearingPriceMpsRoundedUp;
+        } else {
+            supplyCleared = resolvedDemandAboveClearingPriceMpsRoundedUp;
+            // supplySoldToClearing price is zero here
+        }
         require(
-            supplyCleared
-                == (
-                    resolvedDemandAboveClearingPriceMpsRoundedUp
-                        + CheckpointLib.getSupplySoldToClearingPrice(
-                            supplyCleared, resolvedDemandAboveClearingPriceMpsRoundedUp
-                        )
-                ),
-            'supplyCleared != resolvedDemandAboveClearingPriceMpsRoundedUp + CheckpointLib.getSupplySoldToClearingPrice(supplyCleared, resolvedDemandAboveClearingPriceMpsRoundedUp)'
+            supplyCleared == (resolvedDemandAboveClearingPriceMpsRoundedUp + supplySoldToClearingPrice),
+            'supplyCleared != resolvedDemandAboveClearingPriceMpsRoundedUp + supplySoldToClearingPrice'
         );
         _checkpoint.totalCleared += supplyCleared;
         _checkpoint.cumulativeMps += deltaMps;
-        _checkpoint.cumulativeSupplySoldToClearingPrice +=
-            CheckpointLib.getSupplySoldToClearingPrice(supplyCleared, resolvedDemandAboveClearingPriceMpsRoundedUp);
+        _checkpoint.cumulativeSupplySoldToClearingPrice += supplySoldToClearingPrice;
         _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(deltaMps, _checkpoint.clearingPrice);
         return _checkpoint;
     }
@@ -443,7 +443,9 @@ contract Auction is
         if (block.number < claimBlock) revert NotClaimable();
         if (!isGraduated()) revert NotGraduated();
 
-        uint128 tokensFilled = bid.tokensFilled;
+        uint128 tokensFilled = bid.tokensFilled > token.balanceOf(address(this))
+            ? uint128(token.balanceOf(address(this)))
+            : bid.tokensFilled;
         bid.tokensFilled = 0;
         _updateBid(bidId, bid);
 

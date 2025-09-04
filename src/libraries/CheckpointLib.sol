@@ -25,22 +25,6 @@ library CheckpointLib {
     using AuctionStepLib for uint128;
     using CheckpointLib for Checkpoint;
 
-    /// @notice Calculate the supply sold to the clearing price
-    /// @param supplyMps The supply of the auction over `mps`
-    /// @param resolvedDemandAboveClearingPriceMpsRoundedUp The demand above the clearing price over `mps`, rounded up
-    /// @return the tokens sold to the clearing price
-    function getSupplySoldToClearingPrice(uint128 supplyMps, uint128 resolvedDemandAboveClearingPriceMpsRoundedUp)
-        internal
-        pure
-        returns (uint128)
-    {
-        // Due to rounding up it is possible that the supply is less than the demand above the clearing price.
-        // In this case, return the supply
-        return supplyMps < resolvedDemandAboveClearingPriceMpsRoundedUp
-            ? supplyMps
-            : supplyMps - resolvedDemandAboveClearingPriceMpsRoundedUp;
-    }
-
     /// @notice Calculate the actual supply to sell given the total cleared in the auction so far
     /// @param checkpoint The last checkpointed state of the auction
     /// @param totalSupply immutable total supply of the auction

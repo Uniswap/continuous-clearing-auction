@@ -35,20 +35,6 @@ library CheckpointLib {
         );
     }
 
-    /// @notice Get the amount of tokens sold in a block at a checkpoint based on its clearing price and the floorPrice
-    /// @param checkpoint The last checkpointed state of the auction
-    /// @param supply The supply being sold
-    /// @param floorPrice immutable floor price of the auction
-    function getBlockCleared(Checkpoint memory checkpoint, uint128 supply, uint256 floorPrice)
-        internal
-        pure
-        returns (uint128)
-    {
-        return checkpoint.clearingPrice > floorPrice
-            ? supply
-            : checkpoint.resolvedDemandAboveClearingPrice.applyMps(checkpoint.mps);
-    }
-
     /// @notice Calculate the supply to price ratio. Will return zero if `price` is zero
     /// @dev This function returns a value in Q96 form
     /// @param mps The number of supply mps sold

@@ -5,9 +5,9 @@
   "claimTokens": "34253",
   "exitBid": "10833",
   "exitPartiallyFilledBid": "204480",
-  "submitBid": "99003",
-  "submitBid_recordStep_updateCheckpoint": "254376",
-  "submitBid_recordStep_updateCheckpoint_initializeTick": "254376",
-  "submitBid_updateCheckpoint": "139932",
+  "submitBid": "98996",
+  "submitBid_recordStep_updateCheckpoint": "254369",
+  "submitBid_recordStep_updateCheckpoint_initializeTick": "254369",
+  "submitBid_updateCheckpoint": "139925",
   "sweepCurrency_eoaFundsRecipient": "65313"
 }

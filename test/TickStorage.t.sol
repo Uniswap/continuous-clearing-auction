@@ -104,12 +104,12 @@ contract TickStorageTest is Test {
     }
 
     function test_initializeTickWithWrongPrice_reverts() public {
-        vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
+        vm.expectRevert(ITickStorage.TickPreviousPriceInvalid.selector);
         tickStorage.initializeTickIfNeeded(FLOOR_PRICE, 0);
     }
 
     function test_initializeTickAtFloorPrice_reverts() public {
-        vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
+        vm.expectRevert(ITickStorage.TickPreviousPriceInvalid.selector);
         tickStorage.initializeTickIfNeeded(FLOOR_PRICE, FLOOR_PRICE);
     }
 

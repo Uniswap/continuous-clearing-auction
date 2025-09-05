@@ -508,7 +508,7 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
 
     function test_submitBid_exactIn_atFloorPrice_reverts() public {
         // Bidding 1% of the supply simply as a nominal value.
-        vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
+        vm.expectRevert(ITickStorage.TickPreviousPriceInvalid.selector);
         auction.submitBid{value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(1e5), tickNumberToPriceX96(1)))}(
             tickNumberToPriceX96(1),
             true,
@@ -521,7 +521,7 @@ abstract contract AuctionBaseTest is TokenHandler, DeployPermit2, Test {
 
     function test_submitBid_exactOut_atFloorPrice_reverts() public {
         // Bidding 1% of the supply simply as a nominal value.
-        vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
+        vm.expectRevert(ITickStorage.TickPreviousPriceInvalid.selector);
         auction.submitBid{value: getMsgValue(inputAmountForTokens(getPortionOfSupplyMps(1e5), tickNumberToPriceX96(1)))}(
             tickNumberToPriceX96(1), false, getPortionOfSupplyMps(1e5), alice, tickNumberToPriceX96(1), bytes('')
         );

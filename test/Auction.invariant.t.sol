@@ -321,7 +321,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
             emit IAuction.TokensClaimed(bid.owner, bid.tokensFilled);
             auction.claimTokens(i);
             // Assert that the owner received the tokens
-            assertApproxEqAbs(token.balanceOf(bid.owner), ownerBalanceBefore + bid.tokensFilled, 1);
+            assertEq(token.balanceOf(bid.owner), ownerBalanceBefore + bid.tokensFilled);
 
             bid = getBid(i);
             assertEq(bid.tokensFilled, 0);

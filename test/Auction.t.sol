@@ -324,28 +324,37 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
     }
 
-    function test_submitBid_afterStartBlock_overTotalSupply_isPartiallyFilled() public {
+    function test_submitBid_afterStartBlock_isPartiallyFilled() public {
         // Advance by one such that the auction is already started
         vm.roll(block.number + 1);
-
-        uint128 inputAmount = inputAmountForTokens(2000e18, tickNumberToPriceX96(2));
+        uint128 inputAmount = inputAmountForTokens(500e18, tickNumberToPriceX96(2));
         uint256 bidId = auction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        uint128 inputAmount2 = inputAmountForTokens(500e18, tickNumberToPriceX96(2));
+        uint256 bidId2 = auction.submitBid{value: inputAmount2}(
+            tickNumberToPriceX96(2), true, inputAmount2, alice, tickNumberToPriceX96(1), bytes('')
         );
 
         vm.roll(block.number + 1);
         auction.checkpoint();
 
         vm.roll(auction.endBlock());
-        uint256 aliceBalanceBefore = address(alice).balance;
+        // Partially exit the first bid
+        auction.exitPartiallyFilledBid(bidId, 3, 0);
+        auction.exitPartiallyFilledBid(bidId2, 3, 0);
+
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
-
-        auction.exitPartiallyFilledBid(bidId, 2, 0);
-        assertEq(address(alice).balance, aliceBalanceBefore + inputAmount / 2);
-
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
-        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
+        // Assert that bid1 purchased more than 50% of the tokens (since it participated for one more block than bid2)
+        assertGt(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 500e18);
+        aliceTokenBalanceBefore = token.balanceOf(address(alice));
+        auction.claimTokens(bidId2);
+        // Assert that bid2 purchased less than 50% of the tokens
+        assertLt(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 500e18);
     }
 
     function test_checkpoint_startBlock_succeeds() public {

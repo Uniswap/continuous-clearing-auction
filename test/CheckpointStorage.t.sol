@@ -8,8 +8,9 @@ import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {CheckpointLib} from '../src/libraries/CheckpointLib.sol';
 import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {MockCheckpointStorage} from './utils/MockCheckpointStorage.sol';
+
 import {Assertions} from './utils/Assertions.sol';
+import {MockCheckpointStorage} from './utils/MockCheckpointStorage.sol';
 import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 

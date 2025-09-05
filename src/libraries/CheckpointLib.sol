@@ -20,8 +20,7 @@ struct Checkpoint {
 
 /// @title CheckpointLib
 library CheckpointLib {
-    using FixedPointMathLib for uint128;
-    using FixedPointMathLib for uint256;
+    using FixedPointMathLib for *;
     using AuctionStepLib for uint128;
     using CheckpointLib for Checkpoint;
 

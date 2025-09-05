@@ -21,16 +21,27 @@ struct Bid {
 library BidLib {
     using AuctionStepLib for uint128;
     using DemandLib for uint128;
-    using BidLib for Bid;
+    using BidLib for *;
     using FixedPointMathLib for uint128;
 
     uint256 public constant PRECISION = 1e18;
 
+    /// @notice Calculate the effective amount of a bid based on the mps denominator
+    /// @param amount The amount of the bid
+    /// @param mpsDenominator The percentage of the auction which the bid was spread over
+    /// @return The effective amount of the bid
+    function effectiveAmount(uint128 amount, uint24 mpsDenominator) internal pure returns (uint128) {
+        return amount * AuctionStepLib.MPS / mpsDenominator;
+    }
+
     /// @notice Resolve the demand of a bid at its maxPrice
     /// @param bid The bid
+    /// @param mpsDenominator The percentage of the auction which the bid was spread over
     /// @return The demand of the bid
-    function demand(Bid memory bid) internal pure returns (uint128) {
-        return bid.exactIn ? bid.amount.resolveCurrencyDemand(bid.maxPrice) : bid.amount;
+    function demand(Bid memory bid, uint24 mpsDenominator) internal pure returns (uint128) {
+        return bid.exactIn
+            ? bid.amount.effectiveAmount(mpsDenominator).resolveCurrencyDemand(bid.maxPrice)
+            : bid.amount.effectiveAmount(mpsDenominator);
     }
 
     /// @notice Calculate the input amount required for an amount and maxPrice

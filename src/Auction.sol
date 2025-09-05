@@ -21,8 +21,11 @@ import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol'
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
-/// @title Auction
 
+/// @title Auction
+/// @notice Implements a time weighted uniform clearing price auction
+/// @dev Can be constructed directly or through the AuctionFactory. In either case, users must validate
+///      that the auction parameters are correct and it has sufficient token balance.
 contract Auction is
     BidStorage,
     CheckpointStorage,
@@ -34,8 +37,7 @@ contract Auction is
 {
     using FixedPointMathLib for uint128;
     using CurrencyLibrary for Currency;
-    using BidLib for Bid;
-    using BidLib for uint128;
+    using BidLib for *;
     using AuctionStepLib for *;
     using CheckpointLib for Checkpoint;
     using DemandLib for Demand;

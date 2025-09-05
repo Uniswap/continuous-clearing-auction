@@ -1,8 +1,13 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/e6ae006b4d791723cfa088f0c2d93768cc82ee16/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/566864fe6cf6cd6f7ab70058700c80aa6682b4c8/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
+
+Implements a time weighted uniform clearing price auction
+
+*Can be constructed directly or through the AuctionFactory. In either case, users must validate
+that the auction parameters are correct and it has sufficient token balance.*
 
 
 ## State Variables

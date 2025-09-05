@@ -324,6 +324,30 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
     }
 
+    function test_submitBid_afterStartBlock_overTotalSupply_isPartiallyFilled() public {
+        // Advance by one such that the auction is already started
+        vm.roll(block.number + 1);
+
+        uint128 inputAmount = inputAmountForTokens(2000e18, tickNumberToPriceX96(2));
+        uint256 bidId = auction.submitBid{value: inputAmount}(
+            tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+
+        vm.roll(auction.endBlock());
+        uint256 aliceBalanceBefore = address(alice).balance;
+        uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
+
+        auction.exitPartiallyFilledBid(bidId, 2, 0);
+        assertEq(address(alice).balance, aliceBalanceBefore + inputAmount / 2);
+
+        vm.roll(auction.claimBlock());
+        auction.claimTokens(bidId);
+        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
+    }
+
     function test_checkpoint_startBlock_succeeds() public {
         vm.roll(auction.startBlock());
         auction.checkpoint();

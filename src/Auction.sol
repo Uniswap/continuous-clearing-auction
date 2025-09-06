@@ -167,9 +167,11 @@ contract Auction is
     ) internal view returns (uint256) {
         // Calculate the clearing price by first subtracting the exactOut tokenDemand then dividing by the currencyDemand
         // Follows the formula ~ ETH / tokens = price
-        uint256 _clearingPrice = blockSumDemandAboveClearing.currencyDemand.fullMulDiv(
-            FixedPoint96.Q96, (supply - blockSumDemandAboveClearing.tokenDemand)
-        );
+        uint256 _clearingPrice = supply > 0
+            ? blockSumDemandAboveClearing.currencyDemand.fullMulDiv(
+                FixedPoint96.Q96, (supply - blockSumDemandAboveClearing.tokenDemand)
+            )
+            : 0;
 
         // If the new clearing price is below the minimum clearing price return the minimum clearing price
         if (_clearingPrice < minimumClearingPrice) return minimumClearingPrice;
@@ -181,15 +183,18 @@ contract Auction is
 
     /// @notice Update the latest checkpoint to the current step
     /// @dev This updates the state of the auction accounting for the bids placed after the last checkpoint
+    ///      Checkpoints are created at the top of each block with a new bid and does NOT include that bid
+    ///      Because of this, we need to calculate what the new state of the Auction should be before updating
+    ///      purely on the supply we will sell to the potentially updated `sumDemandAboveClearing` value
+    ///
+    ///      After the checkpoint is made up to date we can use those values to update the cumulative values
+    ///      depending on how much time has passed since the last checkpoint
     function _updateLatestCheckpointToCurrentStep(uint64 blockNumber) internal returns (Checkpoint memory) {
         Checkpoint memory _checkpoint = latestCheckpoint();
-        // If step.mps is 0, advance to the next step to update `step.mps`
-        if (step.mps == 0) _checkpoint = _advanceToCurrentStep(_checkpoint, blockNumber);
+        // If step.mps is 0, advance to the current step before calculating the supply
+        if (step.mps == 0) _advanceToCurrentStep(_checkpoint, blockNumber);
         // Get the supply being sold since the last checkpoint, accounting for rollovers of past supply
         uint128 supply = _checkpoint.getSupply(totalSupply, step.mps);
-        // If there is no supply being sold, return the current checkpoint
-        // The next checkpoint with a nonzero supply will update all values
-        if (supply == 0) return _checkpoint;
 
         // All active demand above the current clearing price
         Demand memory _sumDemandAboveClearing = sumDemandAboveClearing;
@@ -200,7 +205,7 @@ contract Auction is
 
         // Iterate to find the tick where the demand at and above it is NOT enough to fill the supply
         // Sets nextActiveTickPrice to MAX_TICK_PRICE if the highest tick in the book is reached
-        while (_sumDemandAboveClearing.resolve(nextActiveTickPrice).applyMps(step.mps) >= supply) {
+        while (_sumDemandAboveClearing.resolve(nextActiveTickPrice).applyMps(step.mps) >= supply && supply > 0) {
             // Subtract the demand at `nextActiveTickPrice`
             _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_nextActiveTick.demand);
             // The `nextActiveTickPrice` is now the minimum clearing price because there was enough demand to fill the supply

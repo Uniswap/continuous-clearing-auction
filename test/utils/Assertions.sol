@@ -8,7 +8,6 @@ abstract contract Assertions {
         return keccak256(
             abi.encode(
                 _checkpoint.clearingPrice,
-                _checkpoint.blockCleared,
                 _checkpoint.totalCleared,
                 _checkpoint.cumulativeMps,
                 _checkpoint.mps,

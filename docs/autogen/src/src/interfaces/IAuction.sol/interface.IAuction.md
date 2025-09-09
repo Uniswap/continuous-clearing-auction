@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/3ae5c7802ad9830c8939d6dbff65ade7ca715a97/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/eb1997cae9e49254904b75da348b365b9f8f37de/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -86,7 +86,7 @@ Exit a bid which has been partially filled
 
 
 ```solidity
-function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 upper) external;
+function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 outbidBlock) external;
 ```
 **Parameters**
 
@@ -94,7 +94,7 @@ function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 upper) exter
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
 |`lower`|`uint64`|The last checkpointed block where the clearing price is strictly < bid.maxPrice|
-|`upper`|`uint64`|The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction|
+|`outbidBlock`|`uint64`|The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction|
 
 
 ### claimTokens
@@ -145,7 +145,7 @@ Emitted when a bid is submitted
 
 
 ```solidity
-event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, bool exactIn, uint256 amount);
+event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, bool exactIn, uint128 amount);
 ```
 
 **Parameters**
@@ -156,14 +156,14 @@ event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, boo
 |`owner`|`address`|The owner of the bid|
 |`price`|`uint256`|The price of the bid|
 |`exactIn`|`bool`|Whether the bid is exact in|
-|`amount`|`uint256`|The amount of the bid|
+|`amount`|`uint128`|The amount of the bid|
 
 ### CheckpointUpdated
 Emitted when a new checkpoint is created
 
 
 ```solidity
-event CheckpointUpdated(uint256 indexed blockNumber, uint256 clearingPrice, uint256 totalCleared, uint24 cumulativeMps);
+event CheckpointUpdated(uint256 indexed blockNumber, uint256 clearingPrice, uint128 totalCleared, uint24 cumulativeMps);
 ```
 
 **Parameters**
@@ -172,7 +172,7 @@ event CheckpointUpdated(uint256 indexed blockNumber, uint256 clearingPrice, uint
 |----|----|-----------|
 |`blockNumber`|`uint256`|The block number of the checkpoint|
 |`clearingPrice`|`uint256`|The clearing price of the checkpoint|
-|`totalCleared`|`uint256`|The total amount of tokens cleared|
+|`totalCleared`|`uint128`|The total amount of tokens cleared|
 |`cumulativeMps`|`uint24`|The cumulative percentage of total tokens allocated across all previous steps, represented in ten-millionths of the total supply (1e7 = 100%)|
 
 ### BidExited
@@ -180,7 +180,7 @@ Emitted when a bid is exited
 
 
 ```solidity
-event BidExited(uint256 indexed bidId, address indexed owner);
+event BidExited(uint256 indexed bidId, address indexed owner, uint128 tokensFilled);
 ```
 
 **Parameters**
@@ -189,13 +189,14 @@ event BidExited(uint256 indexed bidId, address indexed owner);
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
 |`owner`|`address`|The owner of the bid|
+|`tokensFilled`|`uint128`|The amount of tokens filled|
 
 ### TokensClaimed
 Emitted when a bid is claimed
 
 
 ```solidity
-event TokensClaimed(address indexed owner, uint256 tokensFilled);
+event TokensClaimed(address indexed owner, uint128 tokensFilled);
 ```
 
 **Parameters**
@@ -203,7 +204,7 @@ event TokensClaimed(address indexed owner, uint256 tokensFilled);
 |Name|Type|Description|
 |----|----|-----------|
 |`owner`|`address`|The owner of the bid|
-|`tokensFilled`|`uint256`|The amount of tokens claimed|
+|`tokensFilled`|`uint128`|The amount of tokens claimed|
 
 ## Errors
 ### IDistributionContract__InvalidAmountReceived

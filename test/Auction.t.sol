@@ -18,8 +18,6 @@ import {MockToken} from './utils/MockToken.sol';
 import {MockValidationHook} from './utils/MockValidationHook.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
-
-import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
@@ -205,11 +203,11 @@ contract AuctionTest is AuctionBaseTest {
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
         auction.exitPartiallyFilledBid(bidId, 1, 0);
-        assertApproxEqAbs(address(alice).balance, aliceBalanceBefore + inputAmount / 2, 10_000);
+        assertEq(address(alice).balance, aliceBalanceBefore + inputAmount / 2);
 
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
-        assertApproxEqAbs(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18, 1);
+        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
     }
 
     function test_submitBid_exactOut_overTotalSupply_isPartiallyFilled() public {
@@ -326,6 +324,39 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
     }
 
+    function test_submitBid_afterStartBlock_isPartiallyFilled() public {
+        // Advance by one such that the auction is already started
+        vm.roll(block.number + 1);
+        uint128 inputAmount = inputAmountForTokens(500e18, tickNumberToPriceX96(2));
+        uint256 bidId = auction.submitBid{value: inputAmount}(
+            tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        uint128 inputAmount2 = inputAmountForTokens(500e18, tickNumberToPriceX96(2));
+        uint256 bidId2 = auction.submitBid{value: inputAmount2}(
+            tickNumberToPriceX96(2), true, inputAmount2, alice, tickNumberToPriceX96(1), bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+
+        vm.roll(auction.endBlock());
+        // Partially exit the first bid
+        auction.exitPartiallyFilledBid(bidId, 3, 0);
+        auction.exitPartiallyFilledBid(bidId2, 3, 0);
+
+        uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
+        vm.roll(auction.claimBlock());
+        auction.claimTokens(bidId);
+        // Assert that bid1 purchased more than 50% of the tokens (since it participated for one more block than bid2)
+        assertGt(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 500e18);
+        aliceTokenBalanceBefore = token.balanceOf(address(alice));
+        auction.claimTokens(bidId2);
+        // Assert that bid2 purchased less than 50% of the tokens
+        assertLt(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 500e18);
+    }
+
     function test_checkpoint_startBlock_succeeds() public {
         vm.roll(auction.startBlock());
         auction.checkpoint();
@@ -438,8 +469,8 @@ contract AuctionTest is AuctionBaseTest {
 
         uint256 aliceBalanceBefore = address(alice).balance;
         // Expect that the first bid can be exited, since the clearing price is now above its max price
-        vm.expectEmit(true, true, true, true);
-        emit IAuction.BidExited(0, alice);
+        vm.expectEmit(true, true, false, false);
+        emit IAuction.BidExited(0, alice, 0);
         vm.startPrank(alice);
         auction.exitPartiallyFilledBid(bidId1, 1, 2);
         // Expect that alice is refunded the full amount of the first bid
@@ -453,10 +484,10 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitBid(bidId2);
         vm.stopPrank();
 
-        uint128 expectedCurrentRaised = inputAmountForTokens(largeAmount, tickNumberToPriceX96(3));
+        uint128 expectedCurrencyRaised = inputAmountForTokens(largeAmount, tickNumberToPriceX96(3));
         vm.startPrank(auction.fundsRecipient());
         vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.CurrencySwept(auction.fundsRecipient(), expectedCurrentRaised);
+        emit ITokenCurrencyStorage.CurrencySwept(auction.fundsRecipient(), expectedCurrencyRaised);
         auction.sweepCurrency();
         vm.stopPrank();
 
@@ -635,11 +666,11 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitPartiallyFilledBid(bidId, 1, 0);
 
         // Expect no refund
-        assertApproxEqAbs(address(alice).balance, aliceBalanceBefore, 10_000);
+        assertEq(address(alice).balance, aliceBalanceBefore);
 
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
-        assertApproxEqAbs(token.balanceOf(address(alice)), 1000e18, 1);
+        assertEq(token.balanceOf(address(alice)), 1000e18);
     }
 
     /// forge-config: default.isolate = true

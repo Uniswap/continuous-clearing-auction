@@ -318,7 +318,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
 
             uint256 ownerBalanceBefore = token.balanceOf(bid.owner);
             vm.expectEmit(true, true, false, false);
-            emit IAuction.TokensClaimed(bid.owner, bid.tokensFilled);
+            emit IAuction.TokensClaimed(i, bid.owner, bid.tokensFilled);
             auction.claimTokens(i);
             // Assert that the owner received the tokens
             assertEq(token.balanceOf(bid.owner), ownerBalanceBefore + bid.tokensFilled);

@@ -316,7 +316,7 @@ contract Auction is
             currency.transfer(_owner, refund);
         }
 
-        emit BidExited(bidId, _owner, tokensFilled);
+        emit BidExited(bidId, _owner, tokensFilled, refund);
     }
 
     /// @inheritdoc IAuction
@@ -455,7 +455,7 @@ contract Auction is
 
         Currency.wrap(address(token)).transfer(bid.owner, tokensFilled);
 
-        emit TokensClaimed(bid.owner, tokensFilled);
+        emit TokensClaimed(bidId, bid.owner, tokensFilled);
     }
 
     /// @inheritdoc IAuction

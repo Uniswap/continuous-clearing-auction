@@ -165,8 +165,9 @@ contract Auction is
         uint256 minimumClearingPrice,
         uint128 supply
     ) internal view returns (uint256) {
-        // Calculate the clearing price by first subtracting the exactOut tokenDemand then dividing by the currencyDemand
-        // Follows the formula ~ ETH / tokens = price
+        // Calculate the clearing price by first subtracting the exactOut tokenDemand then dividing by the currencyDemand, following `currency / tokens = price`
+        // If the supply is zero, set clearing price to 0 to prevent division by zero.
+        // If the minimum clearing price is non zero, it will be returned. Otherwise, the floor price will be returned.
         uint256 _clearingPrice = supply > 0
             ? blockSumDemandAboveClearing.currencyDemand.fullMulDiv(
                 FixedPoint96.Q96, (supply - blockSumDemandAboveClearing.tokenDemand)
@@ -203,7 +204,7 @@ contract Auction is
         // The next price tick initialized with demand is the `nextActiveTickPrice`
         Tick memory _nextActiveTick = getTick(nextActiveTickPrice);
 
-        // Iterate to find the tick where the demand at and above it is NOT enough to fill the supply
+        // For a non-zero supply, iterate to find the tick where the demand at and above it is strictly less than the supply
         // Sets nextActiveTickPrice to MAX_TICK_PRICE if the highest tick in the book is reached
         while (_sumDemandAboveClearing.resolve(nextActiveTickPrice).applyMps(step.mps) >= supply && supply > 0) {
             // Subtract the demand at `nextActiveTickPrice`

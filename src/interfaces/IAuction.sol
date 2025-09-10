@@ -88,6 +88,7 @@ interface IAuction is
     event BidExited(uint256 indexed bidId, address indexed owner, uint128 tokensFilled, uint128 currencyRefunded);
 
     /// @notice Emitted when a bid is claimed
+    /// @param bidId The id of the bid
     /// @param owner The owner of the bid
     /// @param tokensFilled The amount of tokens claimed
     event TokensClaimed(uint256 indexed bidId, address indexed owner, uint128 tokensFilled);

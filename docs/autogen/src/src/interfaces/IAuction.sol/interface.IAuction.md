@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/ae9d0a1cf9b4a3b4f4865896810150e99fe0ae3d/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/9da615e4f441c99154d16cbdf5be6df13224576b/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -204,7 +204,7 @@ event TokensClaimed(uint256 indexed bidId, address indexed owner, uint128 tokens
 
 |Name|Type|Description|
 |----|----|-----------|
-|`bidId`|`uint256`||
+|`bidId`|`uint256`|The id of the bid|
 |`owner`|`address`|The owner of the bid|
 |`tokensFilled`|`uint128`|The amount of tokens claimed|
 

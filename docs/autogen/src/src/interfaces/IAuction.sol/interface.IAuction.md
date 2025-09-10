@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/eb1997cae9e49254904b75da348b365b9f8f37de/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/414113f91a2e49216a1882a209160ebdfc11acee/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -180,7 +180,7 @@ Emitted when a bid is exited
 
 
 ```solidity
-event BidExited(uint256 indexed bidId, address indexed owner, uint128 tokensFilled);
+event BidExited(uint256 indexed bidId, address indexed owner, uint128 tokensFilled, uint128 currencyRefunded);
 ```
 
 **Parameters**
@@ -190,19 +190,21 @@ event BidExited(uint256 indexed bidId, address indexed owner, uint128 tokensFill
 |`bidId`|`uint256`|The id of the bid|
 |`owner`|`address`|The owner of the bid|
 |`tokensFilled`|`uint128`|The amount of tokens filled|
+|`currencyRefunded`|`uint128`|The amount of currency refunded|
 
 ### TokensClaimed
 Emitted when a bid is claimed
 
 
 ```solidity
-event TokensClaimed(address indexed owner, uint128 tokensFilled);
+event TokensClaimed(uint256 indexed bidId, address indexed owner, uint128 tokensFilled);
 ```
 
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
+|`bidId`|`uint256`|The id of the bid|
 |`owner`|`address`|The owner of the bid|
 |`tokensFilled`|`uint128`|The amount of tokens claimed|
 

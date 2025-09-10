@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/566864fe6cf6cd6f7ab70058700c80aa6682b4c8/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/414113f91a2e49216a1882a209160ebdfc11acee/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -159,7 +159,12 @@ function _calculateNewClearingPrice(
 
 Update the latest checkpoint to the current step
 
-*This updates the state of the auction accounting for the bids placed after the last checkpoint*
+*This updates the state of the auction accounting for the bids placed after the last checkpoint
+Checkpoints are created at the top of each block with a new bid and does NOT include that bid
+Because of this, we need to calculate what the new state of the Auction should be before updating
+purely on the supply we will sell to the potentially updated `sumDemandAboveClearing` value
+After the checkpoint is made up to date we can use those values to update the cumulative values
+depending on how much time has passed since the last checkpoint*
 
 
 ```solidity

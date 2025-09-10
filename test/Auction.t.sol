@@ -244,7 +244,7 @@ contract AuctionTest is AuctionBaseTest {
         // Bid over the total supply
         uint128 inputAmount = inputAmountForTokens(2000e18, tickNumberToPriceX96(2));
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, 0, 0, 0);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), 0, 0);
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(0, alice, tickNumberToPriceX96(2), true, inputAmount);
         uint256 bidId = auction.submitBid{value: inputAmount}(
@@ -254,7 +254,7 @@ contract AuctionTest is AuctionBaseTest {
         // Advance to the next block to get the next checkpoint
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, 0, 0, 0);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), 0, 0);
         auction.checkpoint();
         vm.snapshotGasLastCall('checkpoint_zeroSupply');
 
@@ -288,7 +288,7 @@ contract AuctionTest is AuctionBaseTest {
 
         uint128 inputAmount = inputAmountForTokens(1000e18, tickNumberToPriceX96(1));
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, 0, 0, 0);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), 0, 0);
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(
             0, alice, tickNumberToPriceX96(2), true, inputAmountForTokens(1000e18, tickNumberToPriceX96(1))
@@ -300,7 +300,7 @@ contract AuctionTest is AuctionBaseTest {
         // Advance to the next block to get the next checkpoint
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, 0, 0, 0);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), 0, 0);
         auction.checkpoint();
 
         // Advance to the end of the first step
@@ -470,7 +470,7 @@ contract AuctionTest is AuctionBaseTest {
         uint256 aliceBalanceBefore = address(alice).balance;
         // Expect that the first bid can be exited, since the clearing price is now above its max price
         vm.expectEmit(true, true, false, false);
-        emit IAuction.BidExited(0, alice, 0);
+        emit IAuction.BidExited(0, alice, 0, 0);
         vm.startPrank(alice);
         auction.exitPartiallyFilledBid(bidId1, 1, 2);
         // Expect that alice is refunded the full amount of the first bid

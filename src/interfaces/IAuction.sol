@@ -84,12 +84,14 @@ interface IAuction is
     /// @param bidId The id of the bid
     /// @param owner The owner of the bid
     /// @param tokensFilled The amount of tokens filled
-    event BidExited(uint256 indexed bidId, address indexed owner, uint128 tokensFilled);
+    /// @param currencyRefunded The amount of currency refunded
+    event BidExited(uint256 indexed bidId, address indexed owner, uint128 tokensFilled, uint128 currencyRefunded);
 
     /// @notice Emitted when a bid is claimed
+    /// @param bidId The id of the bid
     /// @param owner The owner of the bid
     /// @param tokensFilled The amount of tokens claimed
-    event TokensClaimed(address indexed owner, uint128 tokensFilled);
+    event TokensClaimed(uint256 indexed bidId, address indexed owner, uint128 tokensFilled);
 
     /// @notice Submit a new bid
     /// @param maxPrice The maximum price the bidder is willing to pay

@@ -1025,6 +1025,30 @@ contract AuctionTest is AuctionBaseTest {
         );
     }
 
+    function test_submitBid_withERC20Currency_nonZeroMsgValue_reverts() public {
+        // Create auction parameters with ERC20 currency instead of ETH
+        params = params.withCurrency(address(currency));
+        Auction erc20Auction = new Auction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(erc20Auction), TOTAL_SUPPLY);
+
+        // Mint currency tokens to alice
+        currency.mint(alice, 1000e18);
+
+        // For now, let's just verify that the currency is set correctly
+        assertEq(Currency.unwrap(erc20Auction.currency()), address(currency));
+        assertFalse(erc20Auction.currency().isAddressZero());
+
+        vm.expectRevert(IAuction.CannotReceiveETHAndCurrency.selector);
+        erc20Auction.submitBid{value: 100e18}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+    }
+
     function test_exitPartiallyFilledBid_withInvalidCheckpointHint_atEndBlock_reverts() public {
         uint256 bidId = auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),

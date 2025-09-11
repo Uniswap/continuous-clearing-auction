@@ -1337,8 +1337,6 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithThreshold.endBlock());
-        // Update the lastCheckpoint to register the auction as graduated
-        auctionWithThreshold.checkpoint();
 
         vm.prank(fundsRecipient);
         vm.expectEmit(true, true, true, true);
@@ -1368,8 +1366,6 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithCallback.endBlock());
-        // Update the lastCheckpoint to register the auction as graduated
-        auctionWithCallback.checkpoint();
 
         // Expect the callback to be made with the specified data
         vm.expectCall(address(mockFundsRecipient), callbackData);
@@ -1401,8 +1397,6 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithCallback.endBlock());
-        // Update the lastCheckpoint to register the auction as graduated
-        auctionWithCallback.checkpoint();
 
         // The callback should revert with the custom reason
         vm.prank(address(mockFundsRecipient));
@@ -1426,8 +1420,6 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithCallback.endBlock());
-        // Update the lastCheckpoint to register the auction as graduated
-        auctionWithCallback.checkpoint();
 
         // The callback should revert without a reason
         vm.prank(address(mockFundsRecipient));
@@ -1451,8 +1443,6 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithCallback.endBlock());
-        // Update the lastCheckpoint to register the auction as graduated
-        auctionWithCallback.checkpoint();
 
         // Should succeed without calling the EOA (EOAs have no code)
         vm.prank(fundsRecipient);
@@ -1480,8 +1470,6 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithCallback.endBlock());
-        // Update the lastCheckpoint to register the auction as graduated
-        auctionWithCallback.checkpoint();
 
         // Should succeed without calling the contract (no data provided)
         vm.prank(address(mockFundsRecipient));
@@ -1513,8 +1501,6 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithCallback.endBlock());
-        // Update the lastCheckpoint to register the auction as graduated
-        auctionWithCallback.checkpoint();
 
         // Verify the contract receives funds and the callback is executed
         uint256 balanceBefore = address(contractRecipient).balance;
@@ -1560,12 +1546,7 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(firstAuction.endBlock());
-        // Update the lastCheckpoint to register the auction as graduated
-        firstAuction.checkpoint();
-
         vm.roll(secondAuction.endBlock());
-        // Update the lastCheckpoint to register the auction as graduated
-        secondAuction.checkpoint();
 
         // First auction should succeed - expect the callback to be made
         vm.expectCall(address(mockFundsRecipient), firstCallData);
@@ -1606,8 +1587,6 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithThreshold.endBlock());
-        // Update the lastCheckpoint to register the auction as graduated
-        auctionWithThreshold.checkpoint();
 
         // Should sweep only unsold tokens (40% of supply)
         uint128 expectedUnsoldTokens = TOTAL_SUPPLY - soldAmount;
@@ -1661,8 +1640,6 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithThreshold.endBlock());
-        // Update the lastCheckpoint to register the auction as graduated
-        auctionWithThreshold.checkpoint();
 
         // Sweep currency first (should succeed as graduated)
         uint128 expectedCurrencyRaised = inputAmountForTokens(soldAmount, tickNumberToPriceX96(1));

@@ -27,10 +27,16 @@ abstract contract TickStorage is ITickStorage {
 
     /// @notice Sentinel value for the next value of the highest tick in the book
     uint256 public constant MAX_TICK_PRICE = type(uint256).max;
+    /// @notice The maximum allowable price for a bid, which is equal to the MAX_SQRT_PRICE defined in Uniswap V4's TickMath Library squared
+    uint256 public constant MAX_BID_PRICE =
+        26_957_920_004_054_754_506_022_898_809_067_591_261_277_585_227_686_421_694_841_721_768_917;
+    /// @notice The minimum floor price such that a Uniswap V4 pool can be created with the auction proceeds
+    uint256 public constant MIN_FLOOR_PRICE = 18_448_130_884_583_730_121;
 
     constructor(uint256 _tickSpacing, uint256 _floorPrice) {
         tickSpacing = _tickSpacing;
         floorPrice = _floorPrice;
+        if (_floorPrice < MIN_FLOOR_PRICE) revert FloorPriceTooLow();
         _unsafeInitializeTick(_floorPrice);
     }
 

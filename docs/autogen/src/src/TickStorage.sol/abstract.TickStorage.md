@@ -1,5 +1,5 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4c9af76a705eb813cc2e0ec768b3771f7a342ec1/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/9b332e9ae711433b888783601b4b8b92cce6d905/src/TickStorage.sol)
 
 **Inherits:**
 [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
@@ -50,6 +50,25 @@ Sentinel value for the next value of the highest tick in the book
 
 ```solidity
 uint256 public constant MAX_TICK_PRICE = type(uint256).max;
+```
+
+
+### MAX_BID_PRICE
+The maximum allowable price for a bid, which is equal to the MAX_SQRT_PRICE defined in Uniswap V4's TickMath Library squared
+
+
+```solidity
+uint256 public constant MAX_BID_PRICE =
+    26_957_920_004_054_754_506_022_898_809_067_591_261_277_585_227_686_421_694_841_721_768_917;
+```
+
+
+### MIN_FLOOR_PRICE
+The minimum floor price such that a Uniswap V4 pool can be created with the auction proceeds
+
+
+```solidity
+uint256 public constant MIN_FLOOR_PRICE = 18_448_130_884_583_730_121;
 ```
 
 

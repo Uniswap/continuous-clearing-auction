@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {Tick, TickStorage} from '../src/TickStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
-
+import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {Test} from 'forge-std/Test.sol';
 
 contract MockTickStorage is TickStorage {
@@ -26,7 +26,7 @@ contract MockTickStorage is TickStorage {
 contract TickStorageTest is Test {
     MockTickStorage public tickStorage;
     uint256 public constant TICK_SPACING = 100;
-    uint256 public constant FLOOR_PRICE = 100e6; // 100 in X96 format
+    uint256 public constant FLOOR_PRICE = 100 << FixedPoint96.RESOLUTION; // 100 in X96 format
 
     function setUp() public {
         tickStorage = new MockTickStorage(TICK_SPACING, FLOOR_PRICE);
@@ -39,7 +39,6 @@ contract TickStorageTest is Test {
 
     function test_initializeTick_succeeds() public {
         uint256 prev = FLOOR_PRICE;
-        // 2e18 << FixedPoint96.RESOLUTION
         uint256 price = tickNumberToPriceX96(2);
         tickStorage.initializeTickIfNeeded(prev, price);
         Tick memory tick = tickStorage.getTick(price);
@@ -99,8 +98,8 @@ contract TickStorageTest is Test {
         vm.store(address(tickStorage), bytes32(uint256(1)), bytes32(maxTickPrice));
 
         // When we call initializeTickIfNeeded, the new tick should update nextActiveTickPrice
-        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, 200e6);
-        assertEq(tickStorage.nextActiveTickPrice(), 200e6);
+        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, tickNumberToPriceX96(2));
+        assertEq(tickStorage.nextActiveTickPrice(), tickNumberToPriceX96(2));
     }
 
     function test_initializeTickWithWrongPrice_reverts() public {
@@ -128,17 +127,17 @@ contract TickStorageTest is Test {
     }
 
     function test_initializeTickIfNeeded_withNextIdLessThanId_reverts() public {
-        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, 2e18);
+        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, tickNumberToPriceX96(2));
 
         // Then try to initialize a tick at price 3 with prevId=1, but nextId=2 is less than id=3
         // This should revert because nextId < id
         vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
-        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, 3e18);
+        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, tickNumberToPriceX96(3));
     }
 
     function test_initializeTickIfNeeded_withPrevIdGreaterThanId_reverts() public {
         // Try to initialize a tick at price 1 with prevId=2, but prevId > id
         vm.expectRevert(ITickStorage.TickPriceNotIncreasing.selector);
-        tickStorage.initializeTickIfNeeded(2, 1e18);
+        tickStorage.initializeTickIfNeeded(2, tickNumberToPriceX96(1));
     }
 }

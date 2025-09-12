@@ -54,6 +54,8 @@ interface IAuction is
     error InvalidCheckpointHint();
     /// @notice Error thrown when the bid is not claimable
     error NotClaimable();
+    /// @notice Error thrown when the bids are not owned by the same owner
+    error BatchClaimDifferentOwner(address expectedOwner, address receivedOwner);
     /// @notice Error thrown when the bid has not been exited
     error BidNotExited();
     /// @notice Error thrown when the token transfer fails
@@ -134,6 +136,13 @@ interface IAuction is
     /// @dev Anyone can claim tokens for any bid, the tokens are transferred to the bid owner
     /// @param bidId The id of the bid
     function claimTokens(uint256 bidId) external;
+
+    /// @notice Claim tokens for multiple bids
+    /// @dev Anyone can claim tokens for any bid, the tokens are transferred to the bid owner
+    /// @dev All tokens are transferred in a single transfer
+    /// @param owner The owner of the bids
+    /// @param bidIds The ids of the bids
+    function claimTokensBatch(address owner, uint256[] calldata bidIds) external;
 
     /// @notice Withdraw all of the currency raised
     /// @dev Can only be called by the funds recipient after the auction has ended

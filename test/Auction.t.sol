@@ -14,12 +14,13 @@ import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {MockAuction} from './utils/MockAuction.sol';
 import {MockFundsRecipient} from './utils/MockFundsRecipient.sol';
-import {MockToken} from './utils/MockToken.sol';
 import {MockValidationHook} from './utils/MockValidationHook.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
+
+import {Checkpoint} from 'src/CheckpointStorage.sol';
 
 contract AuctionTest is AuctionBaseTest {
     using FixedPointMathLib for uint128;
@@ -1225,18 +1226,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_claimTokens_tokenTransferFails_reverts() public {
-        MockToken failingToken = new MockToken();
-
-        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
-        AuctionParameters memory params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
-            FLOOR_PRICE
-        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION + 10).withAuctionStepsData(auctionStepsData);
-
-        Auction failingAuction = new Auction(address(failingToken), TOTAL_SUPPLY, params);
-
-        failingToken.mint(address(failingAuction), TOTAL_SUPPLY);
+        Auction failingAuction = helper__deployAuctionWithFailingToken();
 
         uint256 bidId = failingAuction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
@@ -1256,6 +1246,135 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectRevert(CurrencyLibrary.ERC20TransferFailed.selector);
         failingAuction.claimTokens(bidId);
         vm.stopPrank();
+    }
+
+    function helper__submitBid(Auction _auction, address _owner, uint128 _amount) internal returns (uint256) {
+        return _auction.submitBid{value: inputAmountForTokens(_amount, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(_amount, tickNumberToPriceX96(2)),
+            _owner,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+    }
+
+    function helper__submitNBids(Auction _auction, address _owner, uint128 _numberOfBids)
+        internal
+        returns (uint256[] memory)
+    {
+        // Split the amount between the bids
+        uint128 totalAmount = 100e18;
+        uint128 amountPerBid = totalAmount / _numberOfBids;
+
+        uint256[] memory bids = new uint256[](_numberOfBids);
+        for (uint256 i = 0; i < _numberOfBids; i++) {
+            bids[i] = helper__submitBid(_auction, _owner, amountPerBid);
+        }
+        return bids;
+    }
+
+    function test_claimTokensBatch_notGraduated_reverts(uint128 _numberOfBids) public {
+        // Dont do too many bids
+        _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
+
+        uint256[] memory bids = helper__submitNBids(auction, alice, _numberOfBids);
+
+        // Exit the bid
+        vm.roll(auction.endBlock());
+        for (uint256 i = 0; i < _numberOfBids; i++) {
+            auction.exitBid(bids[i]);
+        }
+
+        // Go back to before the claim block
+        vm.roll(auction.claimBlock() - 1);
+
+        // Try to claim tokens before the claim block
+        vm.expectRevert(IAuction.NotClaimable.selector);
+        auction.claimTokensBatch(alice, bids);
+    }
+
+    function test_claimTokensBatch_notSameOwner_reverts() public {
+        uint256 bidId0 = helper__submitBid(auction, alice, 100e18);
+        uint256 bidId1 = helper__submitBid(auction, bob, 100e18);
+
+        vm.roll(auction.endBlock());
+        auction.exitBid(bidId0);
+        auction.exitBid(bidId1);
+
+        uint256[] memory bids = new uint256[](2);
+        bids[0] = bidId0;
+        bids[1] = bidId1;
+
+        vm.roll(auction.claimBlock());
+        vm.expectRevert(abi.encodeWithSelector(IAuction.BatchClaimDifferentOwner.selector, alice, bob));
+        auction.claimTokensBatch(alice, bids);
+    }
+
+    function test_claimTokensBatch_beforeBidExited_reverts(uint128 _numberOfBids) public {
+        _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
+
+        uint256[] memory bids = helper__submitNBids(auction, alice, _numberOfBids);
+
+        vm.roll(auction.claimBlock());
+        vm.expectRevert(IAuction.BidNotExited.selector);
+        auction.claimTokensBatch(alice, bids);
+    }
+
+    function test_claimTokensBatch_beforeClaimBlock_reverts(uint128 _numberOfBids) public {
+        _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
+
+        uint256[] memory bids = helper__submitNBids(auction, alice, _numberOfBids);
+
+        vm.roll(auction.endBlock());
+        for (uint256 i = 0; i < _numberOfBids; i++) {
+            auction.exitBid(bids[i]);
+        }
+
+        vm.roll(auction.claimBlock() - 1);
+        vm.expectRevert(IAuction.NotClaimable.selector);
+        auction.claimTokensBatch(alice, bids);
+    }
+
+    function test_claimTokensBatch_tokenTransferFails_reverts(uint128 _numberOfBids) public {
+        _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
+
+        Auction failingAuction = helper__deployAuctionWithFailingToken();
+
+        uint256[] memory bids = helper__submitNBids(failingAuction, alice, _numberOfBids);
+
+        vm.roll(failingAuction.endBlock() + 1);
+        for (uint256 i = 0; i < _numberOfBids; i++) {
+            failingAuction.exitBid(bids[i]);
+        }
+
+        vm.roll(failingAuction.claimBlock());
+        vm.expectRevert(CurrencyLibrary.ERC20TransferFailed.selector);
+        failingAuction.claimTokensBatch(alice, bids);
+    }
+
+    function test_claimTokensBatch_succeeds(uint128 _numberOfBids) public {
+        _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
+
+        uint256[] memory bids = helper__submitNBids(auction, alice, _numberOfBids);
+
+        vm.roll(auction.endBlock());
+        for (uint256 i = 0; i < _numberOfBids; i++) {
+            auction.exitBid(bids[i]);
+        }
+
+        // The amount cleared will be the total cleared / the _numberOfBids
+        Checkpoint memory lastCheckpoint = auction.latestCheckpoint();
+        uint128 amountClearedPerBid = lastCheckpoint.totalCleared / _numberOfBids;
+
+        vm.roll(auction.claimBlock());
+        vm.expectEmit(true, true, true, true);
+        for (uint256 i = 0; i < _numberOfBids; i++) {
+            emit IAuction.TokensClaimed(bids[i], alice, amountClearedPerBid);
+        }
+        auction.claimTokensBatch(alice, bids);
+
+        assertEq(token.balanceOf(alice), amountClearedPerBid * _numberOfBids);
     }
 
     function test_sweepCurrency_beforeAuctionEnds_reverts() public {

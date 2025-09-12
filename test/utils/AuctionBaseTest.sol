@@ -9,6 +9,7 @@ import {Demand} from '../../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
+import {MockToken} from './MockToken.sol';
 
 import {MockFundsRecipient} from './MockFundsRecipient.sol';
 import {TokenHandler} from './TokenHandler.sol';
@@ -27,6 +28,7 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
     uint128 public constant TOTAL_SUPPLY = 1000e18;
 
     address public alice;
+    address public bob;
     address public tokensRecipient;
     address public fundsRecipient;
     MockFundsRecipient public mockFundsRecipient;
@@ -38,6 +40,7 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
         setUpTokens();
 
         alice = makeAddr('alice');
+        bob = makeAddr('bob');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
         mockFundsRecipient = new MockFundsRecipient();
@@ -56,6 +59,23 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
         auction = new Auction(address(token), TOTAL_SUPPLY, params);
 
         token.mint(address(auction), TOTAL_SUPPLY);
+    }
+
+    function helper__deployAuctionWithFailingToken() internal returns (Auction) {
+        MockToken failingToken = new MockToken();
+
+        bytes memory failingAuctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
+        AuctionParameters memory failingParams = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            FLOOR_PRICE
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION + 10).withAuctionStepsData(failingAuctionStepsData);
+
+        Auction failingAuction = new Auction(address(failingToken), TOTAL_SUPPLY, failingParams);
+
+        failingToken.mint(address(failingAuction), TOTAL_SUPPLY);
+
+        return failingAuction;
     }
 
     /// @dev Helper function to convert a tick number to a priceX96

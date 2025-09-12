@@ -444,8 +444,8 @@ contract Auction is
 
     /// @inheritdoc IAuction
     function claimTokens(uint256 _bidId) external {
-        if (!isGraduated()) revert NotGraduated();
         if (block.number < claimBlock) revert NotClaimable();
+        if (!isGraduated()) revert NotGraduated();
 
         (address owner, uint128 tokensFilled) = _internalClaimTokens(_bidId);
         Currency.wrap(address(token)).transfer(owner, tokensFilled);
@@ -455,8 +455,8 @@ contract Auction is
 
     /// @inheritdoc IAuction
     function claimTokensBatch(address _owner, uint256[] calldata _bidIds) external {
-        if (!isGraduated()) revert NotGraduated();
         if (block.number < claimBlock) revert NotClaimable();
+        if (!isGraduated()) revert NotGraduated();
 
         uint256 tokensFilled = 0;
         for (uint256 i = 0; i < _bidIds.length; i++) {

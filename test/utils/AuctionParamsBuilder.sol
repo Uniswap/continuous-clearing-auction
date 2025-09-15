@@ -16,8 +16,7 @@ library AuctionParamsBuilder {
             endBlock: 0,
             claimBlock: 0,
             graduationThresholdMps: 0,
-            auctionStepsData: new bytes(0),
-            fundsRecipientData: new bytes(0)
+            auctionStepsData: new bytes(0)
         });
     }
 
@@ -150,15 +149,6 @@ library AuctionParamsBuilder {
         returns (AuctionParameters memory)
     {
         params.auctionStepsData = auctionStepsData;
-        return params;
-    }
-
-    function withFundsRecipientData(AuctionParameters memory params, bytes memory fundsRecipientData)
-        internal
-        pure
-        returns (AuctionParameters memory)
-    {
-        params.fundsRecipientData = fundsRecipientData;
         return params;
     }
 }

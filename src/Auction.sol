@@ -61,8 +61,7 @@ contract Auction is
             _totalSupply,
             _parameters.tokensRecipient,
             _parameters.fundsRecipient,
-            _parameters.graduationThresholdMps,
-            _parameters.fundsRecipientData
+            _parameters.graduationThresholdMps
         )
         TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
         PermitSingleForwarder(IAllowanceTransfer(PERMIT2))

@@ -22,7 +22,6 @@ struct AuctionParameters {
     address validationHook; // Optional hook called before a bid
     uint256 floorPrice; // Starting floor price for the auction
     bytes auctionStepsData; // Packed bytes describing token issuance schedule
-    bytes fundsRecipientData; // Optional data to call the fundsRecipient with after the currency is swept
 }
 
 /// @notice Interface for the Auction contract

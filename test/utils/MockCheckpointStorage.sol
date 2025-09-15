@@ -16,7 +16,7 @@ contract MockCheckpointStorage is CheckpointStorage {
 
     function accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memory startCheckpoint, Bid memory bid)
         public
-        view
+        pure
         returns (uint128 tokensFilled, uint128 currencySpent)
     {
         return _accountFullyFilledCheckpoints(upper, startCheckpoint, bid);

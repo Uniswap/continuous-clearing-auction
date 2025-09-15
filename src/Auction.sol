@@ -280,7 +280,7 @@ contract Auction is
             validationHook.validate(maxPrice, exactIn, amount, owner, msg.sender, hookData);
         }
         // ClearingPrice will be set to floor price in checkpoint() if not set already
-        if (maxPrice <= _checkpoint.clearingPrice || maxPrice >= MAX_BID_PRICE) revert InvalidBidPrice();
+        if (maxPrice <= _checkpoint.clearingPrice || maxPrice >= BidLib.MAX_BID_PRICE) revert InvalidBidPrice();
 
         // Scale the amount according to the rest of the supply schedule, accounting for past blocks
         // This is only used in demand related internal calculations

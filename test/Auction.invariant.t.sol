@@ -31,9 +31,7 @@ contract AuctionInvariantHandler is Test {
     Currency public currency;
     IERC20Minimal public token;
 
-    /// @dev copied from TickStorage.MAX_BID_PRICE
-    uint256 public constant BID_MAX_PRICE =
-        26_957_920_004_054_754_506_022_898_809_067_591_261_277_585_227_686_421_694_841_721_768_917;
+    uint256 public constant BID_MAX_PRICE = BidLib.MAX_BID_PRICE;
     uint256 public BID_MIN_PRICE;
 
     // Ghost variables

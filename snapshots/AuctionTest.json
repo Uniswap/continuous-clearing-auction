@@ -5,9 +5,9 @@
     "claimTokens": "82969",
     "exitBid": "67986",
     "exitPartiallyFilledBid": "237753",
-    "submitBid": "148501",
-    "submitBid_recordStep_updateCheckpoint": "297111",
-    "submitBid_recordStep_updateCheckpoint_initializeTick": "297111",
-    "submitBid_updateCheckpoint": "262427",
-    "submitBid_withValidationHook": "301252"
+    "submitBid": "148517",
+    "submitBid_recordStep_updateCheckpoint": "297138",
+    "submitBid_recordStep_updateCheckpoint_initializeTick": "297138",
+    "submitBid_updateCheckpoint": "262443",
+    "submitBid_withValidationHook": "301279"
 }

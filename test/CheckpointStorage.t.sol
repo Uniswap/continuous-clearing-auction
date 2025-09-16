@@ -8,12 +8,13 @@ import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {CheckpointLib} from '../src/libraries/CheckpointLib.sol';
 import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {MockCheckpointStorage} from './utils/MockCheckpointStorage.sol';
 
+import {Assertions} from './utils/Assertions.sol';
+import {MockCheckpointStorage} from './utils/MockCheckpointStorage.sol';
 import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
-contract CheckpointStorageTest is Test {
+contract CheckpointStorageTest is Assertions, Test {
     MockCheckpointStorage public mockCheckpointStorage;
 
     using BidLib for Bid;
@@ -71,7 +72,23 @@ contract CheckpointStorageTest is Test {
         }
     }
 
-    function test_resolve_exactIn_fuzz_succeeds(uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
+    function test_latestCheckpoint_returnsCheckpoint() public {
+        // Initially, there should be no checkpoint (lastCheckpointedBlock = 0)
+        Checkpoint memory checkpoint = mockCheckpointStorage.latestCheckpoint();
+
+        // The checkpoint should be empty (all fields default to 0)
+        assertEq(checkpoint.clearingPrice, 0);
+        assertEq(checkpoint.totalCleared, 0);
+        assertEq(checkpoint.cumulativeMps, 0);
+
+        checkpoint.clearingPrice = 1;
+        mockCheckpointStorage.insertCheckpoint(checkpoint, 1);
+        Checkpoint memory _checkpoint = mockCheckpointStorage.getCheckpoint(1);
+        assertEq(_checkpoint.clearingPrice, 1);
+        assertEq(mockCheckpointStorage.latestCheckpoint(), _checkpoint);
+    }
+
+    function test_calculateFill_exactIn_fuzz_succeeds(uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
         public
         view
     {
@@ -125,7 +142,7 @@ contract CheckpointStorageTest is Test {
         assertEq(currencySpent, _currencySpent);
     }
 
-    function test_resolve_exactIn_iterative() public view {
+    function test_calculateFill_exactIn_iterative() public view {
         uint24[] memory mpsArray = new uint24[](3);
         uint256[] memory pricesArray = new uint256[](3);
 
@@ -170,7 +187,7 @@ contract CheckpointStorageTest is Test {
         assertEq(currencySpent, _currencySpent);
     }
 
-    function test_resolve_exactOut() public view {
+    function test_calculateFill_exactOut() public view {
         uint24[] memory mpsArray = new uint24[](1);
         uint256[] memory pricesArray = new uint256[](1);
 
@@ -206,7 +223,7 @@ contract CheckpointStorageTest is Test {
         assertEq(currencySpent, _currencySpent);
     }
 
-    function test_resolve_exactIn_maxPrice() public view {
+    function test_calculateFill_exactIn_maxPrice() public view {
         uint24[] memory mpsArray = new uint24[](1);
         uint256[] memory pricesArray = new uint256[](1);
 
@@ -238,15 +255,26 @@ contract CheckpointStorageTest is Test {
         assertEq(currencySpent, expectedCurrencySpent);
     }
 
-    function test_latestCheckpoint_returnsCheckpoint() public view {
-        // Since MockCheckpointStorage inherits from CheckpointStorage, it has the latestCheckpoint() function
+    function test_accountPartiallyFilledCheckpoints_zeroCumulativeSupplySoldToClearingPrice_returnsZero() public view {
+        Checkpoint memory _checkpoint = mockCheckpointStorage.latestCheckpoint();
+        (uint128 tokensFilled, uint128 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
+            _checkpoint.cumulativeSupplySoldToClearingPrice, 1e18, 1e18, 1e6
+        );
+        assertEq(tokensFilled, 0);
+        assertEq(currencySpent, 0);
+    }
 
-        // Initially, there should be no checkpoint (lastCheckpointedBlock = 0)
-        Checkpoint memory checkpoint = mockCheckpointStorage.latestCheckpoint();
+    function test_accountPartiallyFilledCheckpoints_zeroTickDemand_returnsZero() public view {
+        Checkpoint memory _checkpoint = mockCheckpointStorage.latestCheckpoint();
+        _checkpoint.cumulativeSupplySoldToClearingPrice = 1e18;
 
-        // The checkpoint should be empty (all fields default to 0)
-        assertEq(checkpoint.clearingPrice, 0);
-        assertEq(checkpoint.totalCleared, 0);
-        assertEq(checkpoint.cumulativeMps, 0);
+        (uint128 tokensFilled, uint128 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
+            _checkpoint.cumulativeSupplySoldToClearingPrice,
+            0, // bid demand
+            0, // tick demand
+            1e6
+        );
+        assertEq(tokensFilled, 0);
+        assertEq(currencySpent, 0);
     }
 }

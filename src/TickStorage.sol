@@ -59,7 +59,12 @@ abstract contract TickStorage is ITickStorage {
     function _initializeTickIfNeeded(uint256 prevPrice, uint256 price) internal {
         // No previous price can be greater than or equal to the new price
         uint256 nextPrice = ticks[prevPrice].next;
-        if (prevPrice >= price || (nextPrice != MAX_TICK_PRICE && nextPrice < price)) {
+
+        if (prevPrice >= price) {
+            revert TickPreviousPriceInvalid();
+        }
+
+        if (nextPrice != MAX_TICK_PRICE && nextPrice < price) {
             revert TickPriceNotIncreasing();
         }
 

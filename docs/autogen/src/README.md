@@ -153,7 +153,6 @@ struct AuctionParameters {
     address validationHook; // Optional hook called before a bid
     uint256 floorPrice; // Starting floor price for the auction (in Q96 format)
     bytes auctionStepsData; // Packed bytes describing token issuance schedule
-    bytes fundsRecipientData; // Optional data to call the fundsRecipient with after the currency is swept
 }
 
 constructor(
@@ -347,8 +346,6 @@ event TokensSwept(address indexed tokensRecipient, uint256 tokensAmount);
 - For graduated auctions: sweeps `totalSupply - totalCleared` tokens
 - For non-graduated auctions: sweeps all `totalSupply` tokens
 
-**Callback Support**: The `fundsRecipientData` parameter enables custom logic execution after currency sweeping. If the funds recipient is a contract and callback data is provided, the contract will be called with the specified data after the currency transfer.
-
 **Implementation**: The sweeping functions use the `TokenCurrencyStorage` abstraction to handle fund transfers and emit appropriate events. Safety mechanisms prevent double-sweeping and ensure proper timing constraints.
 
 ### Claiming tokens
@@ -487,9 +484,6 @@ sequenceDiagram
         Auction->>Auction: check block.number < claimBlock
         Auction->>TokenCurrencyStorage: _sweepCurrency(amount)
         TokenCurrencyStorage->>TokenCurrencyStorage: transfer currency to fundsRecipient
-        opt fundsRecipientData provided and recipient is contract
-            TokenCurrencyStorage->>FundsRecipient: call with fundsRecipientData
-        end
         TokenCurrencyStorage->>TokenCurrencyStorage: emit CurrencySwept()
 
         TokensRecipient->>Auction: sweepUnsoldTokens()

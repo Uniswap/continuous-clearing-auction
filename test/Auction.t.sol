@@ -20,6 +20,7 @@ import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
+import {console2} from 'forge-std/console2.sol';
 
 contract AuctionTest is AuctionBaseTest {
     using FixedPointMathLib for uint128;
@@ -819,6 +820,82 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(address(bob).balance, bobBalanceBefore + 900e21);
         auction.claimTokens(bidId2);
         assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + 150e18);
+        vm.stopPrank();
+
+        // All tokens were sold
+        vm.expectEmit(true, true, true, true);
+        emit ITokenCurrencyStorage.TokensSwept(auction.tokensRecipient(), 0);
+        auction.sweepUnsoldTokens();
+    }
+
+    function test_exitPartiallyFilledBid_roundingError_succeeds() public {
+        address bob = makeAddr('bob');
+        address charlie = makeAddr('charlie');
+
+        vm.roll(block.number + 1);
+        uint256 bidId1 = auction.submitBid{value: inputAmountForTokens(400e18, tickNumberToPriceX96(5))}(
+            tickNumberToPriceX96(5),
+            true,
+            inputAmountForTokens(400e18, tickNumberToPriceX96(5)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        uint256 bidId2 = auction.submitBid{value: inputAmountForTokens(600e18, tickNumberToPriceX96(5))}(
+            tickNumberToPriceX96(5),
+            true,
+            inputAmountForTokens(600e18, tickNumberToPriceX96(5)),
+            bob,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        // Not enough to move the price to 3, but to cause partial fills at 2
+        uint256 bidId3 = auction.submitBid{value: inputAmountForTokens(500e18, tickNumberToPriceX96(6))}(
+            tickNumberToPriceX96(6),
+            true,
+            inputAmountForTokens(500e18, tickNumberToPriceX96(6)),
+            charlie,
+            tickNumberToPriceX96(5),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        uint256 bidId4 = auction.submitBid{value: inputAmountForTokens(1, tickNumberToPriceX96(6))}(
+            tickNumberToPriceX96(6), false, 1, charlie, tickNumberToPriceX96(5), bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+        assertEq(auction.clearingPrice(), tickNumberToPriceX96(5));
+
+        // Roll to end of auction
+        vm.roll(auction.endBlock());
+
+        vm.startPrank(auction.fundsRecipient());
+        auction.sweepCurrency();
+        vm.stopPrank();
+
+        vm.roll(auction.claimBlock());
+
+        vm.startPrank(charlie);
+        auction.exitBid(bidId3);
+        auction.claimTokens(bidId3);
+        auction.exitBid(bidId4);
+        auction.claimTokens(bidId4);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        auction.exitPartiallyFilledBid(bidId1, 3, 0);
+        auction.claimTokens(bidId1);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        auction.exitPartiallyFilledBid(bidId2, 3, 0);
+        auction.claimTokens(bidId2);
         vm.stopPrank();
 
         // All tokens were sold

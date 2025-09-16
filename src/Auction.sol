@@ -21,6 +21,7 @@ import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol'
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
+import {console2} from 'forge-std/console2.sol';
 
 /// @title Auction
 /// @notice Implements a time weighted uniform clearing price auction
@@ -109,10 +110,9 @@ contract Auction is
         view
         returns (Checkpoint memory)
     {
-        // Calculate the tokens demanded by bidders above the clearing price, and round up to sell more to them and less to the clearingPrice.
-        // This is important to ensure that a bid above the clearing price purchases its full amount
-        uint128 resolvedDemandAboveClearingPriceMpsRoundedUp =
-            uint128(_checkpoint.resolvedDemandAboveClearingPrice.fullMulDivUp(deltaMps, AuctionStepLib.MPS));
+        // Calculate the tokens demanded by bidders above the clearing price
+        uint128 resolvedDemandAboveClearingPriceMps =
+            uint128(_checkpoint.resolvedDemandAboveClearingPrice.fullMulDiv(deltaMps, AuctionStepLib.MPS));
 
         uint128 supplyCleared;
         uint128 supplySoldToClearingPrice;
@@ -120,9 +120,12 @@ contract Auction is
         // Otherwise, we can only sell the demand above the clearing price
         if (_checkpoint.clearingPrice > floorPrice) {
             supplyCleared = _checkpoint.getSupply(totalSupply, deltaMps);
-            supplySoldToClearingPrice = supplyCleared - resolvedDemandAboveClearingPriceMpsRoundedUp;
+            console2.log('supplyCleared', supplyCleared);
+            console2.log('resolvedDemandAboveClearingPriceMps', resolvedDemandAboveClearingPriceMps);
+            supplySoldToClearingPrice = supplyCleared - resolvedDemandAboveClearingPriceMps;
+            console2.log('supplySoldToClearingPrice', supplySoldToClearingPrice);
         } else {
-            supplyCleared = resolvedDemandAboveClearingPriceMpsRoundedUp;
+            supplyCleared = resolvedDemandAboveClearingPriceMps;
             // supplySoldToClearing price is zero here
         }
         _checkpoint.totalCleared += supplyCleared;
@@ -195,6 +198,7 @@ contract Auction is
         if (step.mps == 0) _advanceToCurrentStep(_checkpoint, blockNumber);
         // Get the supply being sold since the last checkpoint, accounting for rollovers of past supply
         uint128 supply = _checkpoint.getSupply(totalSupply, step.mps);
+        console2.log('supply', supply);
 
         // All active demand above the current clearing price
         Demand memory _sumDemandAboveClearing = sumDemandAboveClearing;

@@ -909,6 +909,52 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitPartiallyFilledBid(bidId, 2, 2);
     }
 
+    function test_exitPartiallyFilledBid_finalCheckpointPriceEqual_revertsWithCannotPartiallyExitBidBeforeEndBlock()
+        public
+    {
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(auction.endBlock() - 1);
+        auction.checkpoint();
+
+        vm.expectRevert(IAuction.CannotPartiallyExitBidBeforeEndBlock.selector);
+        // Checkpoint hints are:
+        // - lower: 1 (last fully filled checkpoint)
+        // - upper: 0 because the bid was never outbid
+        auction.exitPartiallyFilledBid(bidId, 1, 0);
+    }
+
+    function test_exitPartiallyFilledBid_finalCheckpointPriceEqual_succeeds() public {
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        // We need to checkpoint after the bid is submitted since otherwise the check on lastFullyFilledCheckpoint.next will revert
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+
+        vm.roll(auction.endBlock());
+        // Expect the final checkpoint to be made
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), TOTAL_SUPPLY, AuctionStepLib.MPS);
+        // Checkpoint hints are:
+        // - lower: 1 (last fully filled checkpoint)
+        // - upper: 0 because the bid was never outbid
+        auction.exitPartiallyFilledBid(bidId, 1, 0);
+    }
+
     function test_advanceToCurrentStep_withMultipleStepsAndClearingPrice() public {
         auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 20).addStep(150e3, 20).addStep(250e3, 20);
         params = params.withEndBlock(block.number + 60).withAuctionStepsData(auctionStepsData);

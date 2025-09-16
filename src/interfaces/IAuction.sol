@@ -49,6 +49,8 @@ interface IAuction is
     error BidAlreadyExited();
     /// @notice Error thrown when the bid is higher than the clearing price
     error CannotExitBid();
+    /// @notice Error thrown when the bid cannot be partially exited before the end block
+    error CannotPartiallyExitBidBeforeEndBlock();
     /// @notice Error thrown when the checkpoint hint is invalid
     error InvalidCheckpointHint();
     /// @notice Error thrown when the bid is not claimable

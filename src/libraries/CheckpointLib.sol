@@ -5,6 +5,7 @@ import {AuctionStepLib} from './AuctionStepLib.sol';
 import {BidLib} from './BidLib.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {console2} from 'forge-std/console2.sol';
 
 struct Checkpoint {
     uint256 clearingPrice;
@@ -29,6 +30,7 @@ library CheckpointLib {
     /// @param totalSupply immutable total supply of the auction
     /// @param mps the number of mps, following the auction sale schedule
     function getSupply(Checkpoint memory checkpoint, uint128 totalSupply, uint24 mps) internal pure returns (uint128) {
+        console2.log('getSupply numerator and denominator', (totalSupply - checkpoint.totalCleared) * mps, AuctionStepLib.MPS - checkpoint.cumulativeMps);
         return uint128(
             (totalSupply - checkpoint.totalCleared).fullMulDiv(mps, AuctionStepLib.MPS - checkpoint.cumulativeMps)
         );

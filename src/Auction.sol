@@ -111,21 +111,16 @@ contract Auction is
         returns (Checkpoint memory)
     {
         // Calculate the tokens demanded by bidders above the clearing price
-        uint128 resolvedDemandAboveClearingPriceMps =
-            uint128(_checkpoint.resolvedDemandAboveClearingPrice.fullMulDiv(deltaMps, AuctionStepLib.MPS));
-
         uint128 supplyCleared;
         uint128 supplySoldToClearingPrice;
         // If the clearing price is above the floor price we can sell the available supply
         // Otherwise, we can only sell the demand above the clearing price
         if (_checkpoint.clearingPrice > floorPrice) {
             supplyCleared = _checkpoint.getSupply(totalSupply, deltaMps);
-            console2.log('supplyCleared', supplyCleared);
-            console2.log('resolvedDemandAboveClearingPriceMps', resolvedDemandAboveClearingPriceMps);
-            supplySoldToClearingPrice = supplyCleared - resolvedDemandAboveClearingPriceMps;
-            console2.log('supplySoldToClearingPrice', supplySoldToClearingPrice);
+            supplySoldToClearingPrice = (supplyCleared * AuctionStepLib.MPS - _checkpoint.resolvedDemandAboveClearingPrice * deltaMps) / AuctionStepLib.MPS;
         } else {
-            supplyCleared = resolvedDemandAboveClearingPriceMps;
+            console2.log('resolvedDemandAboveClearingPrice numerator and denominator', _checkpoint.resolvedDemandAboveClearingPrice * deltaMps, AuctionStepLib.MPS);
+            supplyCleared = (_checkpoint.resolvedDemandAboveClearingPrice * deltaMps) / AuctionStepLib.MPS;
             // supplySoldToClearing price is zero here
         }
         _checkpoint.totalCleared += supplyCleared;
@@ -441,6 +436,10 @@ contract Auction is
             tokensFilled += partialTokensFilled;
             currencySpent += partialCurrencySpent;
         }
+
+        console2.log('tokensFilled', tokensFilled);
+        console2.log('bid.inputAmount()', bid.inputAmount());
+        console2.log('currencySpent', currencySpent);
 
         _processExit(bidId, bid, tokensFilled, bid.inputAmount() - currencySpent);
     }

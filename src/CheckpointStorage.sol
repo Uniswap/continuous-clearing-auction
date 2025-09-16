@@ -7,6 +7,8 @@ import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
+
+import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
@@ -96,7 +98,8 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         // tokensFilled = bidDemand * runningPartialFillRate * cumulativeMpsDelta / (MPS * Q96)
         // tokensFilled = bidDemand * (cumulativeSupply * Q96 * MPS / tickDemand * cumulativeMpsDelta) * cumulativeMpsDelta / (mpsDenominator * Q96)
         //              = bidDemand * (cumulativeSupply / tickDemand)
-        tokensFilled = uint128(bidDemand.fullMulDiv(cumulativeSupplySoldToClearingPrice, tickDemand));
+        tokensFilled =
+            uint128(bidDemand.fullMulDiv(cumulativeSupplySoldToClearingPrice, AuctionStepLib.MPS * tickDemand));
         currencySpent = uint128(tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96));
     }
 
@@ -115,9 +118,17 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         uint24 cumulativeMpsDelta,
         uint24 mpsDenominator
     ) internal pure returns (uint128 tokensFilled, uint128 currencySpent) {
+        console2.log('cumulativeMpsPerPriceDelta', cumulativeMpsPerPriceDelta);
+        console2.log('cumulativeMpsDelta', cumulativeMpsDelta);
+        console2.log('mpsDenominator', mpsDenominator);
+        console2.log('bid.amount', bid.amount);
+        console2.log('bid.exactIn', bid.exactIn);
         tokensFilled = bid.exactIn
-            ? uint128(bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsDenominator))
+            ? uint128(
+                bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, AuctionStepLib.MPS * FixedPoint96.Q96 * mpsDenominator)
+            )
             : uint128(bid.amount.fullMulDiv(cumulativeMpsDelta, mpsDenominator));
+        console2.log('tokensFilled', tokensFilled);
         // If tokensFilled is 0 then currencySpent must be 0
         if (tokensFilled != 0) {
             currencySpent = bid.exactIn

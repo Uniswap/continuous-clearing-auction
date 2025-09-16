@@ -17,11 +17,12 @@ import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
+
+import {console2} from 'forge-std/console2.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
-import {console2} from 'forge-std/console2.sol';
 
 /// @title Auction
 /// @notice Implements a time weighted uniform clearing price auction
@@ -117,9 +118,13 @@ contract Auction is
         // Otherwise, we can only sell the demand above the clearing price
         if (_checkpoint.clearingPrice > floorPrice) {
             supplyCleared = _checkpoint.getSupply(totalSupply, deltaMps);
-            supplySoldToClearingPrice = (supplyCleared * AuctionStepLib.MPS - _checkpoint.resolvedDemandAboveClearingPrice * deltaMps) / AuctionStepLib.MPS;
+            console2.log('supplyCleared', supplyCleared);
+            console2.log(
+                'resolvedDemandAboveClearingPrice * deltaMps', _checkpoint.resolvedDemandAboveClearingPrice * deltaMps
+            );
+            supplySoldToClearingPrice = supplyCleared - _checkpoint.resolvedDemandAboveClearingPrice * deltaMps;
         } else {
-            supplyCleared = (_checkpoint.resolvedDemandAboveClearingPrice * deltaMps) / AuctionStepLib.MPS;
+            supplyCleared = _checkpoint.resolvedDemandAboveClearingPrice * deltaMps;
             // supplySoldToClearing price is zero here
         }
         _checkpoint.totalCleared += supplyCleared;
@@ -203,7 +208,7 @@ contract Auction is
 
         // For a non-zero supply, iterate to find the tick where the demand at and above it is strictly less than the supply
         // Sets nextActiveTickPrice to MAX_TICK_PRICE if the highest tick in the book is reached
-        while (_sumDemandAboveClearing.resolve(nextActiveTickPrice).applyMps(step.mps) >= supply && supply > 0) {
+        while (_sumDemandAboveClearing.resolve(nextActiveTickPrice) * step.mps >= supply && supply > 0) {
             // Subtract the demand at `nextActiveTickPrice`
             _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_nextActiveTick.demand);
             // The `nextActiveTickPrice` is now the minimum clearing price because there was enough demand to fill the supply
@@ -216,9 +221,12 @@ contract Auction is
 
         // Save state variables
         sumDemandAboveClearing = _sumDemandAboveClearing;
+        Demand memory blockSumDemandAboveClearing = Demand({
+            currencyDemand: _sumDemandAboveClearing.currencyDemand * step.mps,
+            tokenDemand: _sumDemandAboveClearing.tokenDemand * step.mps
+        });
         // Calculate the new clearing price
-        uint256 newClearingPrice =
-            _calculateNewClearingPrice(_sumDemandAboveClearing.applyMps(step.mps), minimumClearingPrice, supply);
+        uint256 newClearingPrice = _calculateNewClearingPrice(blockSumDemandAboveClearing, minimumClearingPrice, supply);
         // Reset the cumulative weighted partial fill rate if the clearing price has updated
         if (newClearingPrice != _checkpoint.clearingPrice) _checkpoint.cumulativeSupplySoldToClearingPrice = 0;
         // Update the clearing price
@@ -435,6 +443,10 @@ contract Auction is
             tokensFilled += partialTokensFilled;
             currencySpent += partialCurrencySpent;
         }
+
+        console2.log('tokensFilled', tokensFilled);
+        console2.log('bid.inputAmount()', bid.inputAmount());
+        console2.log('currencySpent', currencySpent);
 
         _processExit(bidId, bid, tokensFilled, bid.inputAmount() - currencySpent);
     }

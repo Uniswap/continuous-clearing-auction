@@ -41,13 +41,6 @@ library DemandLib {
         });
     }
 
-    function applyMps(Demand memory _demand, uint24 mps) internal pure returns (Demand memory) {
-        return Demand({
-            currencyDemand: _demand.currencyDemand.applyMps(mps),
-            tokenDemand: _demand.tokenDemand.applyMps(mps)
-        });
-    }
-
     function addCurrencyAmount(Demand memory _demand, uint128 _amount) internal pure returns (Demand memory) {
         return Demand({currencyDemand: _demand.currencyDemand + _amount, tokenDemand: _demand.tokenDemand});
     }

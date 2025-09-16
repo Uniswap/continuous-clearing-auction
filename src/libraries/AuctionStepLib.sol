@@ -27,10 +27,4 @@ library AuctionStepLib {
             blockDelta := and(packedValue, 0xFFFFFFFFFF)
         }
     }
-
-    /// @notice Apply mps to a value
-    /// @dev Requires that value is > MPS to avoid loss of precision
-    function applyMps(uint128 value, uint24 mps) internal pure returns (uint128) {
-        return mps * value / MPS;
-    }
 }

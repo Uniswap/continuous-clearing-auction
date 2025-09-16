@@ -18,9 +18,10 @@ import {MockToken} from './utils/MockToken.sol';
 import {MockValidationHook} from './utils/MockValidationHook.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
+
+import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
-import {console2} from 'forge-std/console2.sol';
 
 contract AuctionTest is AuctionBaseTest {
     using FixedPointMathLib for uint128;
@@ -908,12 +909,12 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(2);
         vm.roll(3);
         vm.roll(4);
-        auction.submitBid{value: 16951001}(
-            79228162514264337593543950341500,
+        auction.submitBid{value: 16_951_001}(
+            79_228_162_514_264_337_593_543_950_341_500,
             false,
-            16951,
+            16_951,
             alice,
-            79228162514264337593543950336000,
+            79_228_162_514_264_337_593_543_950_336_000,
             bytes('')
         );
 
@@ -921,12 +922,12 @@ contract AuctionTest is AuctionBaseTest {
         auction.checkpoint();
 
         vm.roll(6);
-        auction.submitBid{value: 1938195602430274713814001}(
-            79228162514264337593543950357400,
+        auction.submitBid{value: 1_938_195_602_430_274_713_814_001}(
+            79_228_162_514_264_337_593_543_950_357_400,
             false,
-            1938195602430274713814,
+            1_938_195_602_430_274_713_814,
             alice,
-            79228162514264337593543950341500,
+            79_228_162_514_264_337_593_543_950_341_500,
             bytes('')
         );
 
@@ -939,6 +940,48 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(auction.claimBlock());
         auction.claimTokens(0);
         auction.claimTokens(1);
+    }
+
+    function test_manual2() public {
+        vm.roll(2);
+        auction.submitBid{value: 305_286_001}(
+            79_228_162_514_264_337_593_543_950_349_400,
+            false,
+            305_286,
+            alice,
+            79_228_162_514_264_337_593_543_950_336_000,
+            bytes('')
+        );
+
+        auction.submitBid{value: 233_715_034_573_585_010_487_001}(
+            79_228_162_514_264_337_593_543_950_341_500,
+            false,
+            233_715_034_573_585_010_487,
+            alice,
+            79_228_162_514_264_337_593_543_950_336_000,
+            bytes('')
+        );
+
+        auction.submitBid{value: 894_591_511_812_533_175_189_001}(
+            79_228_162_514_264_337_593_543_950_350_900,
+            false,
+            894_591_511_812_533_175_189,
+            alice,
+            79_228_162_514_264_337_593_543_950_349_400,
+            bytes('')
+        );
+
+        vm.roll(101);
+        auction.checkpoint();
+
+        auction.exitBid(0);
+        auction.exitPartiallyFilledBid(1, 2, 0);
+        auction.exitBid(2);
+
+        vm.roll(auction.claimBlock());
+        auction.claimTokens(0);
+        auction.claimTokens(1);
+        auction.claimTokens(2);
     }
 
     function test_onTokensReceived_withCorrectTokenAndAmount_succeeds() public view {

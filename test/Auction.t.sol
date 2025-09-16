@@ -904,6 +904,43 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepUnsoldTokens();
     }
 
+    function test_manual() public {
+        vm.roll(2);
+        vm.roll(3);
+        vm.roll(4);
+        auction.submitBid{value: 16951001}(
+            79228162514264337593543950341500,
+            false,
+            16951,
+            alice,
+            79228162514264337593543950336000,
+            bytes('')
+        );
+
+        vm.roll(5);
+        auction.checkpoint();
+
+        vm.roll(6);
+        auction.submitBid{value: 1938195602430274713814001}(
+            79228162514264337593543950357400,
+            false,
+            1938195602430274713814,
+            alice,
+            79228162514264337593543950341500,
+            bytes('')
+        );
+
+        vm.roll(101);
+        auction.checkpoint();
+
+        auction.exitPartiallyFilledBid(0, 6, 101);
+        auction.exitPartiallyFilledBid(1, 6, 101);
+
+        vm.roll(auction.claimBlock());
+        auction.claimTokens(0);
+        auction.claimTokens(1);
+    }
+
     function test_onTokensReceived_withCorrectTokenAndAmount_succeeds() public view {
         // Should not revert since tokens are already minted in setUp()
         auction.onTokensReceived();

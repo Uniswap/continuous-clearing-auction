@@ -119,7 +119,6 @@ contract Auction is
             supplyCleared = _checkpoint.getSupply(totalSupply, deltaMps);
             supplySoldToClearingPrice = (supplyCleared * AuctionStepLib.MPS - _checkpoint.resolvedDemandAboveClearingPrice * deltaMps) / AuctionStepLib.MPS;
         } else {
-            console2.log('resolvedDemandAboveClearingPrice numerator and denominator', _checkpoint.resolvedDemandAboveClearingPrice * deltaMps, AuctionStepLib.MPS);
             supplyCleared = (_checkpoint.resolvedDemandAboveClearingPrice * deltaMps) / AuctionStepLib.MPS;
             // supplySoldToClearing price is zero here
         }
@@ -436,10 +435,6 @@ contract Auction is
             tokensFilled += partialTokensFilled;
             currencySpent += partialCurrencySpent;
         }
-
-        console2.log('tokensFilled', tokensFilled);
-        console2.log('bid.inputAmount()', bid.inputAmount());
-        console2.log('currencySpent', currencySpent);
 
         _processExit(bidId, bid, tokensFilled, bid.inputAmount() - currencySpent);
     }

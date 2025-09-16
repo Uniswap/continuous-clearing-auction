@@ -1055,7 +1055,7 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(auction.clearingPrice(), auction.nextActiveTickPrice());
     }
 
-    function test_exitPartiallyFilledBid_withInvalidCheckpointHint_reverts() public {
+    function test_exitPartiallyFilledBid_withInvalidOutbidBlockCheckpointHint_reverts() public {
         // Submit a bid at price 2
         uint256 bidId = auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
@@ -1086,8 +1086,78 @@ contract AuctionTest is AuctionBaseTest {
         // Try to exit with checkpoint 2 as the outbid checkpoint
         // But checkpoint 2 has clearing price = tickNumberToPriceX96(2), which equals bid.maxPrice
         // This violates the condition: outbidCheckpoint.clearingPrice < bid.maxPrice
-        vm.expectRevert(IAuction.InvalidCheckpointHint.selector);
+        vm.expectRevert(IAuction.InvalidOutbidBlockCheckpointHint.selector);
         auction.exitPartiallyFilledBid(bidId, 2, 2);
+    }
+
+    function test_exitPartiallyfilledBid_outbid_succeeds() public {
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(1, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(1, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3))}(
+            tickNumberToPriceX96(3),
+            true,
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3)),
+            alice,
+            tickNumberToPriceX96(2),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+
+        // Bid 1 should be immediately exitable because it has been outbid
+        auction.exitPartiallyFilledBid(bidId, 2, 3);
+    }
+
+    function test_exitPartiallyfilledBid_withHigherOutbidBlockHint_reverts() public {
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(1, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(1, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3))}(
+            tickNumberToPriceX96(3),
+            true,
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3)),
+            alice,
+            tickNumberToPriceX96(2),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        // Block 3 is the correct first outbid block
+        auction.checkpoint();
+
+        vm.roll(block.number + 1);
+        // While the bid is outbid as of block 4, it is an incorrect hint
+        auction.checkpoint();
+
+        vm.expectRevert(IAuction.InvalidOutbidBlockCheckpointHint.selector);
+        auction.exitPartiallyFilledBid(bidId, 2, uint64(block.number));
+
+        // Expect the revert to still happen at the endBlock
+        vm.roll(auction.endBlock());
+        vm.expectRevert(IAuction.InvalidOutbidBlockCheckpointHint.selector);
+        auction.exitPartiallyFilledBid(bidId, 2, uint64(block.number));
+
+        // As well as after the endBlock
+        vm.roll(auction.endBlock() + 1);
+        uint64 endBlock = uint64(auction.endBlock());
+        vm.expectRevert(IAuction.InvalidOutbidBlockCheckpointHint.selector);
+        auction.exitPartiallyFilledBid(bidId, 2, endBlock);
     }
 
     function test_exitPartiallyFilledBid_finalCheckpointPriceEqual_revertsWithCannotPartiallyExitBidBeforeEndBlock()
@@ -1254,7 +1324,7 @@ contract AuctionTest is AuctionBaseTest {
         );
     }
 
-    function test_exitPartiallyFilledBid_withInvalidCheckpointHint_atEndBlock_reverts() public {
+    function test_exitPartiallyFilledBid_withInvalidLowerCheckpointHint_atEndBlock_reverts() public {
         uint256 bidId = auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
             true,
@@ -1268,7 +1338,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.checkpoint();
 
         vm.roll(auction.endBlock() + 1);
-        vm.expectRevert(IAuction.InvalidCheckpointHint.selector);
+        vm.expectRevert(IAuction.InvalidLowerCheckpointHint.selector);
         auction.exitPartiallyFilledBid(bidId, 2, 2);
     }
 
@@ -1370,42 +1440,6 @@ contract AuctionTest is AuctionBaseTest {
         // Try to exit the same bid again - this should revert with BidAlreadyExited on line 294
         vm.expectRevert(IAuction.BidAlreadyExited.selector);
         auction.exitPartiallyFilledBid(bidId, 1, 0);
-
-        vm.stopPrank();
-    }
-
-    function test_exitPartiallyFilledBid_withInvalidCheckpointHint_onLine308_reverts() public {
-        // Submit a bid at a lower price
-        uint256 bidId = auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
-            tickNumberToPriceX96(2),
-            true,
-            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
-            alice,
-            tickNumberToPriceX96(1),
-            bytes('')
-        );
-
-        // Submit a much larger bid to move the clearing price above the first bid
-        auction.submitBid{value: inputAmountForTokens(1000e18, tickNumberToPriceX96(3))}(
-            tickNumberToPriceX96(3),
-            true,
-            inputAmountForTokens(1000e18, tickNumberToPriceX96(3)),
-            alice,
-            tickNumberToPriceX96(2),
-            bytes('')
-        );
-
-        vm.roll(block.number + 1);
-        auction.checkpoint();
-
-        // Now the clearing price should be above the first bid's max price
-        // But we'll try to exit with a checkpoint hint that points to a checkpoint
-        // where the clearing price is not strictly greater than the bid's max price
-        vm.startPrank(alice);
-
-        // Try to exit with checkpoint 1, which should have clearing price <= bid.maxPrice
-        vm.expectRevert(IAuction.InvalidCheckpointHint.selector);
-        auction.exitPartiallyFilledBid(bidId, 1, 1);
 
         vm.stopPrank();
     }

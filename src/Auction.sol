@@ -377,7 +377,7 @@ contract Auction is
         // Since `lower` points to the last fully filled Checkpoint, its next Checkpoint must be >= bid.maxPrice
         // It must also cannot be before the bid's startCheckpoint
         if (_getCheckpoint(lastFullyFilledCheckpoint.next).clearingPrice < bid.maxPrice || lower < bid.startBlock) {
-            revert InvalidCheckpointHint();
+            revert InvalidLowerCheckpointHint();
         }
 
         uint128 tokensFilled;
@@ -397,7 +397,7 @@ contract Auction is
             upperCheckpoint = _getCheckpoint(outbidCheckpoint.prev);
             /// We require that the outbid checkpoint is > bid max price AND the upper checkpoint is <= bid max price, revert if either of these conditions are not met
             if (outbidCheckpoint.clearingPrice <= bid.maxPrice || upperCheckpoint.clearingPrice > bid.maxPrice) {
-                revert InvalidCheckpointHint();
+                revert InvalidOutbidBlockCheckpointHint();
             }
         } else {
             /// The only other partially exitable case is if the auction ends with the clearing price equal to the bid's max price

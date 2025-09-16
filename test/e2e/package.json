@@ -1,0 +1,30 @@
+{
+  "name": "twap-auction-e2e",
+  "version": "1.0.0",
+  "description": "End-to-end test suite for TWAP Auction system",
+  "main": "index.js",
+  "scripts": {
+    "test": "hardhat test",
+    "test:setup": "hardhat test --grep 'Setup'",
+    "test:interaction": "hardhat test --grep 'Interaction'",
+    "test:combined": "hardhat test --grep 'Combined'",
+    "test:all": "hardhat test",
+    "e2e": "node scripts/run-combinations.js",
+    "e2e:all": "node scripts/run-combinations.js --all",
+    "e2e:shell": "./run-e2e-tests.sh",
+    "compile": "hardhat compile",
+    "clean": "hardhat clean"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.8",
+    "hardhat": "^2.19.0",
+    "chai": "^4.3.7",
+    "mocha": "^10.2.0",
+    "ajv": "^8.12.0",
+    "ajv-formats": "^2.1.1"
+  },
+  "dependencies": {
+    "ethers": "^6.8.0"
+  }
+}

@@ -1,0 +1,95 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "testSetupSchema",
+    "title": "Auction Test Setup Schema",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["env", "auctionParameters", "token"],
+    "properties": {
+      "env": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["startBlock"],
+        "properties": {
+          "chainId": { "type": "integer", "enum": [1, 5, 11155111, 42161, 8453] },
+          "startBlock": { "$ref": "#/$defs/U64" },
+          "blockTimeSec": { "type": "integer", "minimum": 0 },
+          "blockGasLimit": { "$ref": "#/$defs/U256", "default": "30000000" },
+          "txGasLimit": { "$ref": "#/$defs/U256", "default": "30000000" },
+          "baseFeePerGasWei": { "$ref": "#/$defs/U256", "default": "0" },
+          "fork": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["rpcUrl"],
+            "properties": {
+              "rpcUrl": { "type": "string", "minLength": 1 },
+              "blockNumber": { "$ref": "#/$defs/U64" }
+            }
+          },
+          "balances": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/BalanceItem" },
+            "default": []
+          }
+        }
+      },
+  
+      "auctionParameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "currency",
+          "tokensRecipient",
+          "fundsRecipient",
+          "startOffsetBlocks",
+          "auctionDurationBlocks",
+          "claimDelayBlocks",
+          "graduationThresholdMps",
+          "tickSpacing",
+          "validationHook",
+          "floorPrice"
+        ],
+        "properties": {
+          "currency": { "$ref": "#/$defs/Address" },
+          "tokensRecipient": { "$ref": "#/$defs/Address" },
+          "fundsRecipient": { "$ref": "#/$defs/Address" },
+          "startOffsetBlocks": { "type": "integer", "minimum": 0 },
+          "auctionDurationBlocks": { "type": "integer", "minimum": 1 },
+          "claimDelayBlocks": { "type": "integer", "minimum": 0 },
+          "graduationThresholdMps": { "$ref": "#/$defs/U256" },
+          "tickSpacing": { "type": "integer", "minimum": 1 },
+          "validationHook": { "$ref": "#/$defs/Address" },
+          "floorPrice": { "$ref": "#/$defs/U256" }
+        }
+      },
+  
+      "token": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["decimals", "name", "totalSupply", "percentAuctioned"],
+        "properties": {
+          "decimals": { "$ref": "#/$defs/U64" },
+          "name": { "type": "string", "minLength": 1 },
+          "totalSupply": { "$ref": "#/$defs/U256" },
+          "percentAuctioned": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?$" }
+        }
+      }
+    },
+  
+    "$defs": {
+      "Address": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+      "U64": { "type": "string", "pattern": "^[0-9]+$" },
+      "U256": { "type": "string", "pattern": "^[0-9]+$" },
+      "BalanceItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["address", "token", "amount"],
+        "properties": {
+          "address": { "$ref": "#/$defs/Address" },
+          "token": { "$ref": "#/$defs/Address" },
+          "amount": { "$ref": "#/$defs/U256" }
+        }
+      }
+    }
+  }
+  

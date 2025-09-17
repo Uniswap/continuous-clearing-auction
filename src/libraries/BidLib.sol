@@ -31,7 +31,7 @@ library BidLib {
     /// @param mpsDenominator The percentage of the auction which the bid was spread over
     /// @return The effective amount of the bid
     function effectiveAmount(uint128 amount, uint24 mpsDenominator) internal pure returns (uint128) {
-        return amount * AuctionStepLib.MPS / mpsDenominator;
+        return amount * AuctionStepLib.MPS * AuctionStepLib.MPS / mpsDenominator;
     }
 
     /// @notice Resolve the demand of a bid at its maxPrice

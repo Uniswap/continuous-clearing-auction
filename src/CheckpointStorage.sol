@@ -118,17 +118,11 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         uint24 cumulativeMpsDelta,
         uint24 mpsDenominator
     ) internal pure returns (uint128 tokensFilled, uint128 currencySpent) {
-        console2.log('cumulativeMpsPerPriceDelta', cumulativeMpsPerPriceDelta);
-        console2.log('cumulativeMpsDelta', cumulativeMpsDelta);
-        console2.log('mpsDenominator', mpsDenominator);
-        console2.log('bid.amount', bid.amount);
-        console2.log('bid.exactIn', bid.exactIn);
         tokensFilled = bid.exactIn
             ? uint128(
                 bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, AuctionStepLib.MPS * FixedPoint96.Q96 * mpsDenominator)
             )
             : uint128(bid.amount.fullMulDiv(cumulativeMpsDelta, mpsDenominator));
-        console2.log('tokensFilled', tokensFilled);
         // If tokensFilled is 0 then currencySpent must be 0
         if (tokensFilled != 0) {
             currencySpent = bid.exactIn

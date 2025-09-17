@@ -70,7 +70,7 @@ contract Auction is
     {
         currency = Currency.wrap(_parameters.currency);
         token = IERC20Minimal(_token);
-        totalSupply = _totalSupply;
+        totalSupply = _totalSupply * AuctionStepLib.MPS;
         tokensRecipient = _parameters.tokensRecipient;
         fundsRecipient = _parameters.fundsRecipient;
         claimBlock = _parameters.claimBlock;
@@ -122,9 +122,11 @@ contract Auction is
             console2.log(
                 'resolvedDemandAboveClearingPrice * deltaMps', _checkpoint.resolvedDemandAboveClearingPrice * deltaMps
             );
-            supplySoldToClearingPrice = supplyCleared - _checkpoint.resolvedDemandAboveClearingPrice * deltaMps;
+            supplySoldToClearingPrice = (
+                (supplyCleared * AuctionStepLib.MPS) - _checkpoint.resolvedDemandAboveClearingPrice * deltaMps
+            ) / AuctionStepLib.MPS;
         } else {
-            supplyCleared = _checkpoint.resolvedDemandAboveClearingPrice * deltaMps;
+            supplyCleared = (_checkpoint.resolvedDemandAboveClearingPrice * deltaMps) / AuctionStepLib.MPS;
             // supplySoldToClearing price is zero here
         }
         _checkpoint.totalCleared += supplyCleared;
@@ -208,7 +210,9 @@ contract Auction is
 
         // For a non-zero supply, iterate to find the tick where the demand at and above it is strictly less than the supply
         // Sets nextActiveTickPrice to MAX_TICK_PRICE if the highest tick in the book is reached
-        while (_sumDemandAboveClearing.resolve(nextActiveTickPrice) * step.mps >= supply && supply > 0) {
+        while (
+            _sumDemandAboveClearing.resolve(nextActiveTickPrice) * step.mps >= supply * AuctionStepLib.MPS && supply > 0
+        ) {
             // Subtract the demand at `nextActiveTickPrice`
             _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_nextActiveTick.demand);
             // The `nextActiveTickPrice` is now the minimum clearing price because there was enough demand to fill the supply
@@ -226,7 +230,8 @@ contract Auction is
             tokenDemand: _sumDemandAboveClearing.tokenDemand * step.mps
         });
         // Calculate the new clearing price
-        uint256 newClearingPrice = _calculateNewClearingPrice(blockSumDemandAboveClearing, minimumClearingPrice, supply);
+        uint256 newClearingPrice =
+            _calculateNewClearingPrice(blockSumDemandAboveClearing, minimumClearingPrice, supply * AuctionStepLib.MPS);
         // Reset the cumulative weighted partial fill rate if the clearing price has updated
         if (newClearingPrice != _checkpoint.clearingPrice) _checkpoint.cumulativeSupplySoldToClearingPrice = 0;
         // Update the clearing price
@@ -445,8 +450,8 @@ contract Auction is
         }
 
         console2.log('tokensFilled', tokensFilled);
-        console2.log('bid.inputAmount()', bid.inputAmount());
         console2.log('currencySpent', currencySpent);
+        console2.log('bid.inputAmount()', bid.inputAmount());
 
         _processExit(bidId, bid, tokensFilled, bid.inputAmount() - currencySpent);
     }

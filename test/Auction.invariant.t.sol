@@ -136,7 +136,7 @@ contract AuctionInvariantHandler is Test {
         useActor(actorIndexSeed)
         validateCheckpoint
     {
-        uint128 amount = uint128(_bound(tickNumber, 1, uint256(auction.totalSupply() * 2)));
+        uint128 amount = uint128(_bound(tickNumber, 1, uint256(auction.totalSupply() * 2 / AuctionStepLib.MPS)));
         (uint128 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(exactIn, amount, tickNumber);
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);

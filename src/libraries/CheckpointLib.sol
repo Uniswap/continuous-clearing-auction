@@ -31,10 +31,9 @@ library CheckpointLib {
     /// @param totalSupply immutable total supply of the auction
     /// @param mps the number of mps, following the auction sale schedule
     function getSupply(Checkpoint memory checkpoint, uint128 totalSupply, uint24 mps) internal pure returns (uint128) {
+        console2.log('totalSupply - checkpoint.totalCleared', totalSupply - checkpoint.totalCleared);
         return uint128(
-            (totalSupply * AuctionStepLib.MPS - checkpoint.totalCleared).fullMulDiv(
-                mps, AuctionStepLib.MPS - checkpoint.cumulativeMps
-            )
+            (totalSupply - checkpoint.totalCleared).fullMulDiv(mps, AuctionStepLib.MPS - checkpoint.cumulativeMps)
         );
     }
 

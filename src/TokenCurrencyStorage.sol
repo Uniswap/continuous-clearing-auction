@@ -46,7 +46,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         fundsRecipient = _fundsRecipient;
         graduationThresholdMps = _graduationThresholdMps;
 
-        if (totalSupply.eq(ValueX7.wrap(0))) revert TotalSupplyIsZero();
+        if (totalSupply.eq(0)) revert TotalSupplyIsZero();
         if (fundsRecipient == address(0)) revert FundsRecipientIsZero();
         if (graduationThresholdMps > MPSLib.MPS) revert InvalidGraduationThresholdMps();
     }

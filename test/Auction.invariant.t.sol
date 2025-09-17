@@ -201,23 +201,23 @@ contract AuctionInvariantTest is AuctionBaseTest {
             uint256 clearingPrice,
             ValueX7 totalCleared,
             ValueX7 resolvedDemandAboveClearingPrice,
+            uint256 cumulativeMpsPerPrice,
+            ValueX7 cumulativeSupplySoldToClearingPrice,
             uint24 cumulativeMps,
             uint24 mps,
             uint64 prev,
-            uint64 next,
-            uint256 cumulativeMpsPerPrice,
-            ValueX7 cumulativeSupplySoldToClearingPrice
+            uint64 next
         ) = auction.checkpoints(blockNumber);
         return Checkpoint({
             clearingPrice: clearingPrice,
             totalCleared: totalCleared,
             resolvedDemandAboveClearingPrice: resolvedDemandAboveClearingPrice,
+            cumulativeMpsPerPrice: cumulativeMpsPerPrice,
+            cumulativeSupplySoldToClearingPrice: cumulativeSupplySoldToClearingPrice,
             cumulativeMps: cumulativeMps,
             mps: mps,
             prev: prev,
-            next: next,
-            cumulativeMpsPerPrice: cumulativeMpsPerPrice,
-            cumulativeSupplySoldToClearingPrice: cumulativeSupplySoldToClearingPrice
+            next: next
         });
     }
 

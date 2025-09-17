@@ -93,7 +93,7 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         ValueX7 tickDemand,
         uint256 bidMaxPrice
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
-        if (tickDemand.eq(ValueX7.wrap(0))) return (0, 0);
+        if (tickDemand.eq(0)) return (0, 0);
         // Expanded version of the math:
         // tokensFilled = bidDemand * runningPartialFillRate * cumulativeMpsDelta / (MPS * Q96)
         // tokensFilled = bidDemand * (cumulativeSupply * Q96 * MPS / tickDemand * cumulativeMpsDelta) * cumulativeMpsDelta / (mpsDenominator * Q96)

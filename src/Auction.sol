@@ -78,7 +78,7 @@ contract Auction is
         claimBlock = _parameters.claimBlock;
         validationHook = IValidationHook(_parameters.validationHook);
 
-        if (totalSupply.eq(ValueX7.wrap(0))) revert TotalSupplyIsZero();
+        if (totalSupply.eq(0)) revert TotalSupplyIsZero();
         if (floorPrice == 0) revert FloorPriceIsZero();
         if (tickSpacing == 0) revert TickSpacingIsZero();
         if (claimBlock < endBlock) revert ClaimBlockIsBeforeEndBlock();
@@ -100,7 +100,7 @@ contract Auction is
 
     /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
     function isGraduated() public view returns (bool) {
-        return latestCheckpoint().totalCleared.gte(totalSupply.applyMps(graduationThresholdMps));
+        return latestCheckpoint().totalCleared.gte(ValueX7.unwrap(totalSupply.applyMps(graduationThresholdMps)));
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
@@ -170,7 +170,7 @@ contract Auction is
         // Calculate the clearing price by first subtracting the exactOut tokenDemand then dividing by the currencyDemand, following `currency / tokens = price`
         // If the supply is zero, set clearing price to 0 to prevent division by zero.
         // If the minimum clearing price is non zero, it will be returned. Otherwise, the floor price will be returned.
-        uint256 _clearingPrice = supply.gt(ValueX7.wrap(0))
+        uint256 _clearingPrice = supply.gt(0)
             ? ValueX7.unwrap(blockSumDemandAboveClearing.currencyDemand).fullMulDiv(
                 FixedPoint96.Q96, ValueX7.unwrap(supply.sub(blockSumDemandAboveClearing.tokenDemand))
             )
@@ -208,10 +208,7 @@ contract Auction is
 
         // For a non-zero supply, iterate to find the tick where the demand at and above it is strictly less than the supply
         // Sets nextActiveTickPrice to MAX_TICK_PRICE if the highest tick in the book is reached
-        while (
-            _sumDemandAboveClearing.resolve(nextActiveTickPrice).applyMps(step.mps).gte(supply)
-                && supply.gt(ValueX7.wrap(0))
-        ) {
+        while (_sumDemandAboveClearing.resolve(nextActiveTickPrice).applyMps(step.mps).gte(ValueX7.unwrap(supply)) && supply.gt(0)) {
             // Subtract the demand at `nextActiveTickPrice`
             _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_nextActiveTick.demand);
             // The `nextActiveTickPrice` is now the minimum clearing price because there was enough demand to fill the supply

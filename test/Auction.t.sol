@@ -905,7 +905,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepUnsoldTokens();
     }
 
-    function test_manual() public {
+    function test_fuzzReplay_roundingErrors_succeeds() public {
         vm.roll(2);
         vm.roll(3);
         vm.roll(4);
@@ -942,7 +942,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.claimTokens(1);
     }
 
-    function test_manual2() public {
+    function test_fuzzReplay_supplyCausingRoundingErrors_succeeds() public {
         vm.roll(2);
         auction.submitBid{value: 305_286_001}(
             79_228_162_514_264_337_593_543_950_349_400,

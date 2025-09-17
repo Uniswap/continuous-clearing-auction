@@ -49,11 +49,10 @@ library CheckpointLib {
     /// @param checkpoint The checkpoint to calculate the currency raised from
     /// @return The total currency raised
     function getCurrencyRaised(Checkpoint memory checkpoint) internal pure returns (uint256) {
-        return  
-            checkpoint.totalCleared.scaleDown().fullMulDiv(
-                // Divide by MPS since totalCleared is scaled up by MPS
-                checkpoint.cumulativeMps * FixedPoint96.Q96,
-                checkpoint.cumulativeMpsPerPrice
-            );
+        return checkpoint.totalCleared.scaleDown().fullMulDiv(
+            // Divide by MPS since totalCleared is scaled up by MPS
+            checkpoint.cumulativeMps * FixedPoint96.Q96,
+            checkpoint.cumulativeMpsPerPrice
+        );
     }
 }

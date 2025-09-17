@@ -1,18 +1,18 @@
 # Checkpoint
-[Git Source](https://github.com/Uniswap/twap-auction/blob/53d58176f6e0d9cd2a209fdc23933a60c6638f06/src/libraries/CheckpointLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ce0cdcca7cbcb44361047d64c159d39b69b75e36/src/libraries/CheckpointLib.sol)
 
 
 ```solidity
 struct Checkpoint {
     uint256 clearingPrice;
-    uint128 totalCleared;
-    uint128 resolvedDemandAboveClearingPrice;
+    ValueX7 totalCleared;
+    ValueX7 resolvedDemandAboveClearingPrice;
     uint24 cumulativeMps;
     uint24 mps;
     uint64 prev;
     uint64 next;
     uint256 cumulativeMpsPerPrice;
-    uint256 cumulativeSupplySoldToClearingPrice;
+    ValueX7 cumulativeSupplySoldToClearingPrice;
 }
 ```
 

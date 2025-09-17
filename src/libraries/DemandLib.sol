@@ -23,9 +23,7 @@ library DemandLib {
     }
 
     function resolveCurrencyDemand(ValueX7 amount, uint256 price) internal pure returns (ValueX7) {
-        return price == 0
-            ? ValueX7.wrap(0)
-            : ValueX7.wrap(ValueX7.unwrap(amount).fullMulDiv(FixedPoint96.Q96, price));
+        return price == 0 ? ValueX7.wrap(0) : ValueX7.wrap(ValueX7.unwrap(amount).fullMulDiv(FixedPoint96.Q96, price));
     }
 
     function add(Demand memory _demand, Demand memory _other) internal pure returns (Demand memory) {

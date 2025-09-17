@@ -1,5 +1,5 @@
 # AuctionStepLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4c9af76a705eb813cc2e0ec768b3771f7a342ec1/src/libraries/AuctionStepLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ce0cdcca7cbcb44361047d64c159d39b69b75e36/src/libraries/AuctionStepLib.sol)
 
 
 ## State Variables
@@ -29,16 +29,5 @@ Load a word at `offset` from data and parse it into mps and blockDelta
 
 ```solidity
 function get(bytes memory data, uint256 offset) internal pure returns (uint24 mps, uint40 blockDelta);
-```
-
-### applyMps
-
-Apply mps to a value
-
-*Requires that value is > MPS to avoid loss of precision*
-
-
-```solidity
-function applyMps(uint128 value, uint24 mps) internal pure returns (uint128);
 ```
 

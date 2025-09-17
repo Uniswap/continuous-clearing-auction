@@ -1,5 +1,5 @@
 # Bid
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4c9af76a705eb813cc2e0ec768b3771f7a342ec1/src/libraries/BidLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ce0cdcca7cbcb44361047d64c159d39b69b75e36/src/libraries/BidLib.sol)
 
 
 ```solidity
@@ -9,8 +9,8 @@ struct Bid {
     uint64 exitedBlock;
     uint256 maxPrice;
     address owner;
-    uint128 amount;
-    uint128 tokensFilled;
+    uint256 amount;
+    uint256 tokensFilled;
 }
 ```
 

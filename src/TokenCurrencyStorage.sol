@@ -45,7 +45,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         graduationThresholdMps = _graduationThresholdMps;
 
         if (_totalSupply == 0) revert TotalSupplyIsZero();
-        if (Currency.wrap(_token).isAddressZero()) revert TokenIsNativeCurrency();
+        if (Currency.wrap(_token).isAddressZero()) revert TokenIsAddressZero();
         if (_token == _currency) revert TokenAndCurrencyCannotBeTheSame();
         if (_fundsRecipient == address(0)) revert FundsRecipientIsZero();
         if (_graduationThresholdMps > AuctionStepLib.MPS) revert InvalidGraduationThresholdMps();

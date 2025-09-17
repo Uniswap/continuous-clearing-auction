@@ -122,7 +122,7 @@ contract Auction is
         if (_checkpoint.clearingPrice > floorPrice) {
             supplyCleared = _checkpoint.getSupply(totalSupply, deltaMps);
             supplySoldToClearingPrice =
-                (supplyCleared.sub(_checkpoint.resolvedDemandAboveClearingPrice.applyMps(deltaMps)));
+                supplyCleared.sub(_checkpoint.resolvedDemandAboveClearingPrice.applyMps(deltaMps));
         } else {
             supplyCleared = _checkpoint.resolvedDemandAboveClearingPrice.applyMps(deltaMps);
             // supplySoldToClearing price is zero here

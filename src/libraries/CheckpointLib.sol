@@ -32,7 +32,7 @@ library CheckpointLib {
     /// @param mps the number of mps, following the auction sale schedule
     function getSupply(Checkpoint memory checkpoint, ValueX7 totalSupply, uint24 mps) internal pure returns (ValueX7) {
         return
-            (totalSupply.sub(checkpoint.totalCleared)).mulUint256(mps).divUint256(MPSLib.MPS - checkpoint.cumulativeMps);
+            totalSupply.sub(checkpoint.totalCleared).mulUint256(mps).divUint256(MPSLib.MPS - checkpoint.cumulativeMps);
     }
 
     /// @notice Calculate the supply to price ratio. Will return zero if `price` is zero
@@ -50,8 +50,10 @@ library CheckpointLib {
     /// @param checkpoint The checkpoint to calculate the currency raised from
     /// @return The total currency raised
     function getCurrencyRaised(Checkpoint memory checkpoint) internal pure returns (uint256) {
-        return checkpoint.totalCleared.scaleDown().fullMulDiv(
-            checkpoint.cumulativeMps * FixedPoint96.Q96, checkpoint.cumulativeMpsPerPrice
-        );
+        return ValueX7.wrap(
+            ValueX7.unwrap(checkpoint.totalCleared).fullMulDiv(
+                checkpoint.cumulativeMps * FixedPoint96.Q96, checkpoint.cumulativeMpsPerPrice
+            )
+        ).scaleDown();
     }
 }

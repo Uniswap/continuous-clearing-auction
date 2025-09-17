@@ -13,6 +13,6 @@ lcov.info
 .solhint.json
 
 node_modules/
-
+*/artifacts/
 broadcast/*/31337
 deployments/**/31337.*

@@ -2,8 +2,10 @@
 pragma solidity ^0.8.0;
 
 import {AuctionStepLib} from './AuctionStepLib.sol';
-import {DemandLib} from './DemandLib.sol';
+import {Demand, DemandLib} from './DemandLib.sol';
+
 import {FixedPoint96} from './FixedPoint96.sol';
+import {MPSLib, ValueX7} from './MPSLib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
@@ -20,7 +22,8 @@ struct Bid {
 /// @title BidLib
 library BidLib {
     using AuctionStepLib for uint128;
-    using DemandLib for uint128;
+    using DemandLib for ValueX7;
+    using MPSLib for *;
     using BidLib for *;
     using FixedPointMathLib for uint128;
 
@@ -30,18 +33,16 @@ library BidLib {
     /// @param amount The amount of the bid
     /// @param mpsDenominator The percentage of the auction which the bid was spread over
     /// @return The effective amount of the bid
-    function effectiveAmount(uint128 amount, uint24 mpsDenominator) internal pure returns (uint128) {
-        return amount * AuctionStepLib.MPS * AuctionStepLib.MPS / mpsDenominator;
+    function effectiveAmount(uint128 amount, uint24 mpsDenominator) internal pure returns (ValueX7) {
+        return amount.scaleUp().mul(AuctionStepLib.MPS).div(mpsDenominator);
     }
 
-    /// @notice Resolve the demand of a bid at its maxPrice
-    /// @param bid The bid
-    /// @param mpsDenominator The percentage of the auction which the bid was spread over
-    /// @return The demand of the bid
-    function demand(Bid memory bid, uint24 mpsDenominator) internal pure returns (uint128) {
-        return bid.exactIn
-            ? bid.amount.effectiveAmount(mpsDenominator).resolveCurrencyDemand(bid.maxPrice)
-            : bid.amount.effectiveAmount(mpsDenominator);
+    /// @notice Convert a bid to a demand
+    function toDemand(Bid memory bid, uint24 mpsDenominator) internal pure returns (Demand memory) {
+        return Demand({
+            currencyDemand: bid.exactIn ? bid.amount.effectiveAmount(mpsDenominator) : ValueX7.wrap(0),
+            tokenDemand: bid.exactIn ? ValueX7.wrap(0) : bid.amount.effectiveAmount(mpsDenominator)
+        });
     }
 
     /// @notice Calculate the input amount required for an amount and maxPrice

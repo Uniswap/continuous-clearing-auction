@@ -3,39 +3,41 @@ pragma solidity ^0.8.0;
 
 import {AuctionStepLib} from './AuctionStepLib.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
+
+import {MPSLib, ValueX7} from './MPSLib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 struct Demand {
-    uint128 currencyDemand;
-    uint128 tokenDemand;
+    ValueX7 currencyDemand;
+    ValueX7 tokenDemand;
 }
 
 library DemandLib {
-    using DemandLib for uint128;
+    using DemandLib for ValueX7;
+    using MPSLib for *;
     using FixedPointMathLib for uint128;
     using AuctionStepLib for uint128;
 
-    function resolve(Demand memory _demand, uint256 price) internal pure returns (uint128) {
-        return _demand.currencyDemand.resolveCurrencyDemand(price) + _demand.tokenDemand;
+    function resolve(Demand memory _demand, uint256 price) internal pure returns (ValueX7) {
+        return _demand.currencyDemand.resolveCurrencyDemand(price).add(_demand.tokenDemand);
     }
 
-    function resolveCurrencyDemand(uint128 amount, uint256 price) internal pure returns (uint128) {
-        return price == 0 ? 0 : uint128(amount.fullMulDiv(FixedPoint96.Q96, price));
+    function resolveCurrencyDemand(ValueX7 amount, uint256 price) internal pure returns (ValueX7) {
+        return price == 0 ? ValueX7.wrap(0) : ValueX7.wrap(uint128(amount.unwrap().fullMulDiv(FixedPoint96.Q96, price)));
+    }
+
+    function add(Demand memory _demand, Demand memory _other) internal pure returns (Demand memory) {
+        return Demand({
+            currencyDemand: _demand.currencyDemand.add(_other.currencyDemand),
+            tokenDemand: _demand.tokenDemand.add(_other.tokenDemand)
+        });
     }
 
     function sub(Demand memory _demand, Demand memory _other) internal pure returns (Demand memory) {
         return Demand({
-            currencyDemand: _demand.currencyDemand - _other.currencyDemand,
-            tokenDemand: _demand.tokenDemand - _other.tokenDemand
+            currencyDemand: _demand.currencyDemand.sub(_other.currencyDemand),
+            tokenDemand: _demand.tokenDemand.sub(_other.tokenDemand)
         });
-    }
-
-    function addCurrencyAmount(Demand memory _demand, uint128 _amount) internal pure returns (Demand memory) {
-        return Demand({currencyDemand: _demand.currencyDemand + _amount, tokenDemand: _demand.tokenDemand});
-    }
-
-    function addTokenAmount(Demand memory _demand, uint128 _amount) internal pure returns (Demand memory) {
-        return Demand({currencyDemand: _demand.currencyDemand, tokenDemand: _demand.tokenDemand + _amount});
     }
 
     /// @notice Apply mps to demand

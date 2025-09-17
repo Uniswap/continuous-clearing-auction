@@ -13,14 +13,18 @@ import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
+import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
+
+import {Assertions} from './utils/Assertions.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {Test} from 'forge-std/Test.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
-contract AuctionInvariantHandler is Test {
+contract AuctionInvariantHandler is Test, Assertions {
     using CurrencyLibrary for Currency;
     using FixedPointMathLib for uint128;
+    using MPSLib for *;
 
     Auction public auction;
     IPermit2 public permit2;
@@ -136,7 +140,8 @@ contract AuctionInvariantHandler is Test {
         useActor(actorIndexSeed)
         validateCheckpoint
     {
-        uint128 amount = uint128(_bound(tickNumber, 1, uint256(auction.totalSupply() * 2 / AuctionStepLib.MPS)));
+        uint128 amount =
+            uint128(_bound(tickNumber, 1, uint256(auction.totalSupply().mul(2).div(AuctionStepLib.MPS).unwrap())));
         (uint128 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(exactIn, amount, tickNumber);
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
@@ -195,14 +200,14 @@ contract AuctionInvariantTest is AuctionBaseTest {
     function getCheckpoint(uint64 blockNumber) public view returns (Checkpoint memory) {
         (
             uint256 clearingPrice,
-            uint128 totalCleared,
-            uint128 resolvedDemandAboveClearingPrice,
+            ValueX7 totalCleared,
+            ValueX7 resolvedDemandAboveClearingPrice,
             uint24 cumulativeMps,
             uint24 mps,
             uint64 prev,
             uint64 next,
             uint256 cumulativeMpsPerPrice,
-            uint256 cumulativeSupplySoldToClearingPrice
+            ValueX7 cumulativeSupplySoldToClearingPrice
         ) = auction.checkpoints(blockNumber);
         return Checkpoint({
             clearingPrice: clearingPrice,

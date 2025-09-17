@@ -21,12 +21,13 @@ abstract contract BidStorage {
     /// @param amount The amount of the bid
     /// @param owner The owner of the bid
     /// @param maxPrice The maximum price for the bid
+    /// @return bid The created bid
     /// @return bidId The id of the created bid
     function _createBid(bool exactIn, uint128 amount, address owner, uint256 maxPrice)
         internal
-        returns (uint256 bidId)
+        returns (Bid memory bid, uint256 bidId)
     {
-        Bid memory bid = Bid({
+        bid = Bid({
             exactIn: exactIn,
             startBlock: uint64(block.number),
             exitedBlock: 0,

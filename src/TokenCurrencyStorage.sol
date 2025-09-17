@@ -5,10 +5,12 @@ import {ITokenCurrencyStorage} from './interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
+import {MPSLib, ValueX7} from './libraries/MPSLib.sol';
 
 /// @title TokenCurrencyStorage
 abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     using CurrencyLibrary for Currency;
+    using MPSLib for uint128;
 
     /// @notice The currency being raised in the auction
     Currency public immutable currency;
@@ -16,7 +18,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     IERC20Minimal public immutable token;
     /// @notice The total supply of tokens to sell
     /// @dev The auction does not support selling more than type(uint128).max tokens
-    uint128 public immutable totalSupply;
+    ValueX7 public immutable totalSupply;
     /// @notice The recipient of any unsold tokens at the end of the auction
     address public immutable tokensRecipient;
     /// @notice The recipient of the raised Currency from the auction
@@ -38,24 +40,24 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         uint24 _graduationThresholdMps
     ) {
         token = IERC20Minimal(_token);
-        totalSupply = _totalSupply;
+        totalSupply = _totalSupply.scaleUp();
         currency = Currency.wrap(_currency);
         tokensRecipient = _tokensRecipient;
         fundsRecipient = _fundsRecipient;
         graduationThresholdMps = _graduationThresholdMps;
 
-        if (totalSupply == 0) revert TotalSupplyIsZero();
+        if (totalSupply.eq(ValueX7.wrap(0))) revert TotalSupplyIsZero();
         if (fundsRecipient == address(0)) revert FundsRecipientIsZero();
         if (graduationThresholdMps > AuctionStepLib.MPS) revert InvalidGraduationThresholdMps();
     }
 
-    function _sweepCurrency(uint256 amount) internal {
+    function _sweepCurrency(uint128 amount) internal {
         sweepCurrencyBlock = block.number;
         currency.transfer(fundsRecipient, amount);
         emit CurrencySwept(fundsRecipient, amount);
     }
 
-    function _sweepUnsoldTokens(uint256 amount) internal {
+    function _sweepUnsoldTokens(uint128 amount) internal {
         sweepUnsoldTokensBlock = block.number;
         if (amount > 0) {
             Currency.wrap(address(token)).transfer(tokensRecipient, amount);

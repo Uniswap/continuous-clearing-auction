@@ -3,18 +3,23 @@ pragma solidity 0.8.26;
 
 import {Auction, AuctionParameters} from '../src/Auction.sol';
 import {AuctionFactory} from '../src/AuctionFactory.sol';
-import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
+
 import {IAuctionFactory} from '../src/interfaces/IAuctionFactory.sol';
 import {IDistributionContract} from '../src/interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
+import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
+import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
+
+import {Assertions} from './utils/Assertions.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
 
-contract AuctionFactoryTest is TokenHandler, Test {
+contract AuctionFactoryTest is TokenHandler, Test, Assertions {
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
+    using MPSLib for *;
 
     AuctionFactory factory;
     Auction auction;
@@ -63,7 +68,7 @@ contract AuctionFactoryTest is TokenHandler, Test {
         // Verify the auction was created correctly
         auction = Auction(payable(address(distributionContract)));
         assertEq(address(auction.token()), address(token));
-        assertEq(auction.totalSupply(), TOTAL_SUPPLY * AuctionStepLib.MPS);
+        assertEq(auction.totalSupply(), TOTAL_SUPPLY.scaleUp());
         assertEq(auction.floorPrice(), FLOOR_PRICE);
         assertEq(auction.tickSpacing(), TICK_SPACING);
         assertEq(auction.tokensRecipient(), tokensRecipient);

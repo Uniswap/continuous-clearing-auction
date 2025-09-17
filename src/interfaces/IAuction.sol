@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
+import {ValueX7} from '../libraries/MPSLib.sol';
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
 import {ICheckpointStorage} from './ICheckpointStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
@@ -76,7 +77,7 @@ interface IAuction is
     /// @param totalCleared The total amount of tokens cleared
     /// @param cumulativeMps The cumulative percentage of total tokens allocated across all previous steps, represented in ten-millionths of the total supply (1e7 = 100%)
     event CheckpointUpdated(
-        uint256 indexed blockNumber, uint256 clearingPrice, uint128 totalCleared, uint24 cumulativeMps
+        uint256 indexed blockNumber, uint256 clearingPrice, ValueX7 totalCleared, uint24 cumulativeMps
     );
 
     /// @notice Emitted when a bid is exited

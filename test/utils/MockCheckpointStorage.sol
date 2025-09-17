@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 import {CheckpointStorage} from '../../src/CheckpointStorage.sol';
 import {Bid} from '../../src/libraries/BidLib.sol';
 import {Checkpoint} from '../../src/libraries/CheckpointLib.sol';
+import {ValueX7} from '../../src/libraries/MPSLib.sol';
 
 contract MockCheckpointStorage is CheckpointStorage {
     function getCheckpoint(uint64 blockNumber) external view returns (Checkpoint memory) {
@@ -16,16 +17,16 @@ contract MockCheckpointStorage is CheckpointStorage {
 
     function accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memory startCheckpoint, Bid memory bid)
         public
-        view
+        pure
         returns (uint128 tokensFilled, uint128 currencySpent)
     {
         return _accountFullyFilledCheckpoints(upper, startCheckpoint, bid);
     }
 
     function accountPartiallyFilledCheckpoints(
-        uint256 cumulativeSupplySoldToClearingPrice,
-        uint128 bidDemand,
-        uint128 tickDemand,
+        ValueX7 cumulativeSupplySoldToClearingPrice,
+        ValueX7 bidDemand,
+        ValueX7 tickDemand,
         uint256 bidMaxPrice
     ) public pure returns (uint128 tokensFilled, uint128 currencySpent) {
         return

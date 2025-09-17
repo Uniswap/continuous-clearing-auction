@@ -1,15 +1,5 @@
 # AuctionStepLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/ce0cdcca7cbcb44361047d64c159d39b69b75e36/src/libraries/AuctionStepLib.sol)
-
-
-## State Variables
-### MPS
-we use milli-bips, or one thousandth of a basis point
-
-
-```solidity
-uint24 public constant MPS = 1e7;
-```
+[Git Source](https://github.com/Uniswap/twap-auction/blob/8ff641518f712786eeaa4d68467339757c589570/src/libraries/AuctionStepLib.sol)
 
 
 ## Functions

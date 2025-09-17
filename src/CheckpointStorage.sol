@@ -77,7 +77,7 @@ abstract contract CheckpointStorage is ICheckpointStorage {
             bid,
             upper.cumulativeMpsPerPrice - startCheckpoint.cumulativeMpsPerPrice,
             upper.cumulativeMps - startCheckpoint.cumulativeMps,
-            AuctionStepLib.MPS - startCheckpoint.cumulativeMps
+            MPSLib.MPS - startCheckpoint.cumulativeMps
         );
     }
 

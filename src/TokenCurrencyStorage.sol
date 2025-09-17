@@ -48,7 +48,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
 
         if (totalSupply.eq(ValueX7.wrap(0))) revert TotalSupplyIsZero();
         if (fundsRecipient == address(0)) revert FundsRecipientIsZero();
-        if (graduationThresholdMps > AuctionStepLib.MPS) revert InvalidGraduationThresholdMps();
+        if (graduationThresholdMps > MPSLib.MPS) revert InvalidGraduationThresholdMps();
     }
 
     function _sweepCurrency(uint256 amount) internal {

@@ -100,9 +100,7 @@ contract Auction is
 
     /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
     function isGraduated() public view returns (bool) {
-        return ValueX7.unwrap(latestCheckpoint().totalCleared)
-        // Use fullMulDiv to operate in uint256 since it's possible that totalSupply * graduationThresholdMps overflows uint256
-        >= (ValueX7.unwrap(totalSupply).fullMulDiv(graduationThresholdMps, AuctionStepLib.MPS));
+        return latestCheckpoint().totalCleared.gte(totalSupply.applyMps(graduationThresholdMps));
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
@@ -123,11 +121,10 @@ contract Auction is
         // Otherwise, we can only sell the demand above the clearing price
         if (_checkpoint.clearingPrice > floorPrice) {
             supplyCleared = _checkpoint.getSupply(totalSupply, deltaMps);
-            supplySoldToClearingPrice = (
-                (supplyCleared).sub(_checkpoint.resolvedDemandAboveClearingPrice.mul(deltaMps).div(AuctionStepLib.MPS))
-            );
+            supplySoldToClearingPrice =
+                (supplyCleared.sub(_checkpoint.resolvedDemandAboveClearingPrice.applyMps(deltaMps)));
         } else {
-            supplyCleared = (_checkpoint.resolvedDemandAboveClearingPrice.mul(deltaMps)).div(AuctionStepLib.MPS);
+            supplyCleared = _checkpoint.resolvedDemandAboveClearingPrice.applyMps(deltaMps);
             // supplySoldToClearing price is zero here
         }
         _checkpoint.totalCleared = _checkpoint.totalCleared.add(supplyCleared);
@@ -297,7 +294,7 @@ contract Auction is
         // This is only used in demand related internal calculations
         Bid memory bid;
         (bid, bidId) = _createBid(exactIn, amount, owner, maxPrice);
-        Demand memory bidDemand = bid.toDemand(AuctionStepLib.MPS - _checkpoint.cumulativeMps);
+        Demand memory bidDemand = bid.toDemand(MPSLib.MPS - _checkpoint.cumulativeMps);
 
         _updateTick(maxPrice, bidDemand);
 
@@ -437,7 +434,7 @@ contract Auction is
         if (upperCheckpoint.clearingPrice == bid.maxPrice) {
             (uint256 partialTokensFilled, uint256 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
                 upperCheckpoint.cumulativeSupplySoldToClearingPrice,
-                bid.toDemand(AuctionStepLib.MPS - startCheckpoint.cumulativeMps).resolve(bid.maxPrice),
+                bid.toDemand(MPSLib.MPS - startCheckpoint.cumulativeMps).resolve(bid.maxPrice),
                 getTick(bid.maxPrice).demand.resolve(bid.maxPrice),
                 bid.maxPrice
             );

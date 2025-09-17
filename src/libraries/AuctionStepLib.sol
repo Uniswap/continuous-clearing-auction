@@ -10,9 +10,6 @@ struct AuctionStep {
 library AuctionStepLib {
     using AuctionStepLib for *;
 
-    /// @notice we use milli-bips, or one thousandth of a basis point
-    uint24 public constant MPS = 1e7;
-
     /// @notice Unpack the mps and block delta from the auction steps data
     function parse(bytes8 data) internal pure returns (uint24 mps, uint40 blockDelta) {
         mps = uint24(bytes3(data));

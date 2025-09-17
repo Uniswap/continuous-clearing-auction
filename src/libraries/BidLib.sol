@@ -34,7 +34,7 @@ library BidLib {
     /// @param mpsDenominator The percentage of the auction which the bid was spread over
     /// @return The effective amount of the bid
     function effectiveAmount(uint256 amount, uint24 mpsDenominator) internal pure returns (ValueX7) {
-        return amount.scaleUp().mul(AuctionStepLib.MPS).div(mpsDenominator);
+        return amount.scaleUp().mul(MPSLib.MPS).div(mpsDenominator);
     }
 
     /// @notice Convert a bid to a demand

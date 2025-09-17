@@ -140,7 +140,7 @@ contract AuctionInvariantHandler is Test, Assertions {
         useActor(actorIndexSeed)
         validateCheckpoint
     {
-        uint256 amount = _bound(tickNumber, 1, ValueX7.unwrap(auction.totalSupply().mul(2).div(AuctionStepLib.MPS)));
+        uint256 amount = _bound(tickNumber, 1, ValueX7.unwrap(auction.totalSupply().mul(2).div(MPSLib.MPS)));
         (uint256 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(exactIn, amount, tickNumber);
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
@@ -279,7 +279,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
 
         Checkpoint memory finalCheckpoint = getCheckpoint(uint64(block.number));
         // Assert the only thing we know for sure is that the schedule must be 100% at the endBlock
-        assertEq(finalCheckpoint.cumulativeMps, AuctionStepLib.MPS, 'Final checkpoint must be 1e7');
+        assertEq(finalCheckpoint.cumulativeMps, MPSLib.MPS, 'Final checkpoint must be 1e7');
         uint256 clearingPrice = auction.clearingPrice();
 
         uint256 bidCount = handler.bidCount();

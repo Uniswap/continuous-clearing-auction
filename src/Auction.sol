@@ -68,11 +68,6 @@ contract Auction is
         TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
         PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
     {
-        currency = Currency.wrap(_parameters.currency);
-        token = IERC20Minimal(_token);
-        // Multiply the total supply by 1e7 (MPS) to avoid loss of precision in calculations
-        // This means that the max total supply is uint256.max / 1e7
-        totalSupply = _totalSupply.scaleUp();
         tokensRecipient = _parameters.tokensRecipient;
         fundsRecipient = _parameters.fundsRecipient;
         claimBlock = _parameters.claimBlock;

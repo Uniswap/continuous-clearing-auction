@@ -9,6 +9,7 @@ import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStr
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
+import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Test} from 'forge-std/Test.sol';
 
 contract AuctionFactoryTest is TokenHandler, Test {
@@ -163,5 +164,66 @@ contract AuctionFactoryTest is TokenHandler, Test {
 
         // Verify the auction has the correct token balance
         assertEq(token.balanceOf(address(auction)), TOTAL_SUPPLY);
+    }
+
+    function helper__assumeValidDeploymentParams(
+        address _token,
+        uint128 _totalSupply,
+        bytes32 _salt,
+        AuctionParameters memory _params,
+        uint8 _numberOfSteps
+    ) public pure {
+        vm.assume(_totalSupply > 0);
+        vm.assume(_token != address(0));
+
+        vm.assume(_params.currency != address(0));
+        vm.assume(_params.tokensRecipient != address(0));
+        vm.assume(_params.fundsRecipient != address(0));
+        vm.assume(_params.startBlock != 0);
+        vm.assume(_params.claimBlock != 0);
+        vm.assume(_params.endBlock > _params.startBlock);
+        vm.assume(_params.claimBlock > _params.endBlock);
+        vm.assume(_params.graduationThresholdMps != 0);
+        vm.assume(_params.tickSpacing != 0);
+        vm.assume(_params.validationHook != address(0));
+        vm.assume(_params.floorPrice != 0);
+        vm.assume(_salt != bytes32(0));
+
+        vm.assume(_numberOfSteps > 0);
+        vm.assume(AuctionStepLib.MPS % _numberOfSteps == 0); // such that it is divisible
+
+        // Replace auction steps data with a valid one
+        // Divide steps by number of bips
+        uint256 _numberOfBips = AuctionStepLib.MPS / _numberOfSteps;
+        bytes memory _auctionStepsData = new bytes(0);
+        for (uint8 i = 0; i < _numberOfSteps; i++) {
+            _auctionStepsData = AuctionStepsBuilder.addStep(_auctionStepsData, uint24(_numberOfBips), uint40(1));
+        }
+        _params.auctionStepsData = _auctionStepsData;
+        _params.endBlock = _params.startBlock + uint64(_numberOfSteps);
+
+        // Bound graduation threshold mps
+        _params.graduationThresholdMps = uint24(bound(_params.graduationThresholdMps, 1, uint24(AuctionStepLib.MPS)));
+    }
+
+    function test_getAuctionAddress(
+        address _token,
+        uint128 _totalSupply,
+        bytes32 _salt,
+        uint8 _numberOfSteps,
+        AuctionParameters memory _params
+    ) public {
+        helper__assumeValidDeploymentParams(_token, _totalSupply, _salt, _params, _numberOfSteps);
+
+        bytes memory configData = abi.encode(_params);
+
+        // Predict the auction address
+        address auctionAddress = factory.getAuctionAddress(_token, _totalSupply, configData, _salt);
+
+        // Create the actual auction
+        IDistributionContract distributionContract =
+            factory.initializeDistribution(_token, _totalSupply, configData, _salt);
+
+        assertEq(auctionAddress, address(distributionContract));
     }
 }

@@ -95,12 +95,15 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
         if (tickDemand.eq(0)) return (0, 0);
         // Expanded version of the math:
-        // tokensFilled = bidDemand * runningPartialFillRate * cumulativeMpsDelta / (MPS * Q96)
-        // tokensFilled = bidDemand * (cumulativeSupply * Q96 * MPS / tickDemand * cumulativeMpsDelta) * cumulativeMpsDelta / (mpsDenominator * Q96)
-        //              = bidDemand * (cumulativeSupply / tickDemand)
-        tokensFilled = ValueX7.unwrap(bidDemand).fullMulDiv(
-            cumulativeSupplySoldToClearingPrice.scaleDown(), ValueX7.unwrap(tickDemand)
-        );
+        // tokensFilled = bidDemandX7 * runningPartialFillRate * cumulativeMpsDelta / (MPS * Q96)
+        // tokensFilled = bidDemandX7 * (cumulativeSupplyX7 * Q96 * MPS / tickDemandX7 * cumulativeMpsDelta) * cumulativeMpsDelta / (mpsDenominator * Q96)
+        //              = bidDemandX7 * (cumulativeSupplyX7 / tickDemandX7)
+        // BidDemand and tickDemand are both ValueX7 values, so the X7 cancels out. However, we need to scale down the result due to cumulativeSupplySoldToClearingPrice being a ValueX7 value
+        tokensFilled = ValueX7.wrap(
+            ValueX7.unwrap(bidDemand).fullMulDiv(
+                ValueX7.unwrap(cumulativeSupplySoldToClearingPrice), ValueX7.unwrap(tickDemand)
+            )
+        ).scaleDown();
         currencySpent = tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96);
     }
 
@@ -110,7 +113,7 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     /// @param bid the bid to evaluate
     /// @param cumulativeMpsPerPriceDelta the cumulative sum of supply to price ratio
     /// @param cumulativeMpsDelta the cumulative sum of mps values across the block range
-    /// @param mpsDenominator the percentage of the auction which the bid was spread over
+    /// @param mpsDenominator the portion of the auction (in mps) which the bid was spread over
     /// @return tokensFilled the amount of tokens filled for this bid
     /// @return currencySpent the amount of currency spent by this bid
     function _calculateFill(

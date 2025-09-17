@@ -17,13 +17,13 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     /// @notice The token being sold in the auction
     IERC20Minimal public immutable token;
     /// @notice The total supply of tokens to sell
-    /// @dev The auction does not support selling more than type(uint256).max tokens
+    /// @dev The auction does not support selling more than type(uint256).max / MPSLib.MPS (1e7) tokens
     ValueX7 public immutable totalSupply;
     /// @notice The recipient of any unsold tokens at the end of the auction
     address public immutable tokensRecipient;
     /// @notice The recipient of the raised Currency from the auction
     address public immutable fundsRecipient;
-    /// @notice The minimum percentage of the total supply that must be sold
+    /// @notice The minimum portion (in MPS) of the total supply that must be sold
     uint24 public immutable graduationThresholdMps;
 
     /// @notice The block at which the currency was swept

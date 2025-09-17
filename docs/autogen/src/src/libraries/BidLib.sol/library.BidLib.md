@@ -1,5 +1,5 @@
 # BidLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/ce0cdcca7cbcb44361047d64c159d39b69b75e36/src/libraries/BidLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/b7bb337742591b0d157183bdfc59e877aeaad6e7/src/libraries/BidLib.sol)
 
 
 ## State Variables
@@ -24,7 +24,7 @@ function effectiveAmount(uint256 amount, uint24 mpsDenominator) internal pure re
 |Name|Type|Description|
 |----|----|-----------|
 |`amount`|`uint256`|The amount of the bid|
-|`mpsDenominator`|`uint24`|The percentage of the auction which the bid was spread over|
+|`mpsDenominator`|`uint24`|The portion of the auction (in mps) which the bid was spread over|
 
 **Returns**
 

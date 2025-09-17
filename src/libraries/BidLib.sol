@@ -31,7 +31,7 @@ library BidLib {
 
     /// @notice Calculate the effective amount of a bid based on the mps denominator
     /// @param amount The amount of the bid
-    /// @param mpsDenominator The percentage of the auction which the bid was spread over
+    /// @param mpsDenominator The portion of the auction (in mps) which the bid was spread over
     /// @return The effective amount of the bid
     function effectiveAmount(uint256 amount, uint24 mpsDenominator) internal pure returns (ValueX7) {
         return amount.scaleUp().mul(MPSLib.MPS).div(mpsDenominator);

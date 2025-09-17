@@ -114,7 +114,7 @@ contract Auction is
         view
         returns (Checkpoint memory)
     {
-        // Calculate the tokens demanded by bidders above the clearing price
+        // Calculate the supply to be cleared based on demand above the clearing price
         ValueX7 supplyCleared;
         ValueX7 supplySoldToClearingPrice;
         // If the clearing price is above the floor price we can sell the available supply
@@ -161,15 +161,14 @@ contract Auction is
     /// @notice Calculate the new clearing price, given:
     /// @param blockSumDemandAboveClearing The demand above the clearing price in the block
     /// @param minimumClearingPrice The minimum clearing price
-    /// @param supply The token supply at or above nextActiveTickPrice in the block
+    /// @param supply The token supply (as ValueX7) at or above nextActiveTickPrice in the block
     function _calculateNewClearingPrice(
         Demand memory blockSumDemandAboveClearing,
         uint256 minimumClearingPrice,
         ValueX7 supply
     ) internal view returns (uint256) {
-        // Calculate the clearing price by first subtracting the exactOut tokenDemand then dividing by the currencyDemand, following `currency / tokens = price`
-        // If the supply is zero, set clearing price to 0 to prevent division by zero.
-        // If the minimum clearing price is non zero, it will be returned. Otherwise, the floor price will be returned.
+        // Calculate the clearing price by dividing the currencyDemand by the supply subtracted by the tokenDemand, following `currency / tokens = price`
+        // If the supply is zero set this to zero to prevent division by zero. If the minimum clearing price is non zero, it will be returned. Otherwise, the floor price will be returned.
         uint256 _clearingPrice = supply.gt(0)
             ? ValueX7.unwrap(blockSumDemandAboveClearing.currencyDemand).fullMulDiv(
                 FixedPoint96.Q96, ValueX7.unwrap(supply.sub(blockSumDemandAboveClearing.tokenDemand))
@@ -208,7 +207,10 @@ contract Auction is
 
         // For a non-zero supply, iterate to find the tick where the demand at and above it is strictly less than the supply
         // Sets nextActiveTickPrice to MAX_TICK_PRICE if the highest tick in the book is reached
-        while (_sumDemandAboveClearing.resolve(nextActiveTickPrice).applyMps(step.mps).gte(ValueX7.unwrap(supply)) && supply.gt(0)) {
+        while (
+            _sumDemandAboveClearing.resolve(nextActiveTickPrice).applyMps(step.mps).gte(ValueX7.unwrap(supply))
+                && supply.gt(0)
+        ) {
             // Subtract the demand at `nextActiveTickPrice`
             _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_nextActiveTick.demand);
             // The `nextActiveTickPrice` is now the minimum clearing price because there was enough demand to fill the supply

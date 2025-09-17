@@ -1,20 +1,39 @@
 # DemandLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/ce0cdcca7cbcb44361047d64c159d39b69b75e36/src/libraries/DemandLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/b7bb337742591b0d157183bdfc59e877aeaad6e7/src/libraries/DemandLib.sol)
 
 
 ## Functions
 ### resolve
 
+Resolve the demand at a given price
+
+*"Resolving" means converting all demand into token terms, which requires dividing the currency demand by a price*
+
 
 ```solidity
 function resolve(Demand memory _demand, uint256 price) internal pure returns (ValueX7);
 ```
+**Parameters**
 
-### resolveCurrencyDemand
+|Name|Type|Description|
+|----|----|-----------|
+|`_demand`|`Demand`|The demand to resolve|
+|`price`|`uint256`|The price to resolve the demand at|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`ValueX7`|The resolved demand as a ValueX7|
+
+
+### _resolveCurrencyDemand
+
+Resolve the currency demand at a given price
 
 
 ```solidity
-function resolveCurrencyDemand(ValueX7 amount, uint256 price) internal pure returns (ValueX7);
+function _resolveCurrencyDemand(ValueX7 amount, uint256 price) private pure returns (ValueX7);
 ```
 
 ### add
@@ -33,9 +52,9 @@ function sub(Demand memory _demand, Demand memory _other) internal pure returns 
 
 ### applyMps
 
-Apply mps to demand
+Apply mps to a Demand struct
 
-*Requires both currencyDemand and tokenDemand to be > MPS to avoid loss of precision*
+*Shorthand for calling `applyMps` on both currencyDemand and tokenDemand*
 
 
 ```solidity

@@ -18,7 +18,7 @@ struct AuctionParameters {
     uint64 startBlock; // Block which the first step starts
     uint64 endBlock; // When the auction finishes
     uint64 claimBlock; // Block when the auction can claimed
-    uint24 graduationThresholdMps; // Minimum percentage of tokens that must be sold to graduate the auction
+    uint24 graduationThresholdMps; // Minimum MPS (milli-bips) of tokens that must be sold to graduate the auction
     uint256 tickSpacing; // Fixed granularity for prices
     address validationHook; // Optional hook called before a bid
     uint256 floorPrice; // Starting floor price for the auction

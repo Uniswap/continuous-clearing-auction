@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/ce0cdcca7cbcb44361047d64c159d39b69b75e36/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/b7bb337742591b0d157183bdfc59e877aeaad6e7/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -151,7 +151,7 @@ function _calculateNewClearingPrice(
 |----|----|-----------|
 |`blockSumDemandAboveClearing`|`Demand`|The demand above the clearing price in the block|
 |`minimumClearingPrice`|`uint256`|The minimum clearing price|
-|`supply`|`ValueX7`|The token supply at or above nextActiveTickPrice in the block|
+|`supply`|`ValueX7`|The token supply (as ValueX7) at or above nextActiveTickPrice in the block|
 
 
 ### _updateLatestCheckpointToCurrentStep

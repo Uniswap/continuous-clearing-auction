@@ -18,11 +18,17 @@ library DemandLib {
     using FixedPointMathLib for uint256;
     using AuctionStepLib for uint256;
 
+    /// @notice Resolve the demand at a given price
+    /// @dev "Resolving" means converting all demand into token terms, which requires dividing the currency demand by a price
+    /// @param _demand The demand to resolve
+    /// @param price The price to resolve the demand at
+    /// @return The resolved demand as a ValueX7
     function resolve(Demand memory _demand, uint256 price) internal pure returns (ValueX7) {
-        return _demand.currencyDemand.resolveCurrencyDemand(price).add(_demand.tokenDemand);
+        return _resolveCurrencyDemand(_demand.currencyDemand, price).add(_demand.tokenDemand);
     }
 
-    function resolveCurrencyDemand(ValueX7 amount, uint256 price) internal pure returns (ValueX7) {
+    /// @notice Resolve the currency demand at a given price
+    function _resolveCurrencyDemand(ValueX7 amount, uint256 price) private pure returns (ValueX7) {
         return price == 0 ? ValueX7.wrap(0) : ValueX7.wrap(ValueX7.unwrap(amount).fullMulDiv(FixedPoint96.Q96, price));
     }
 
@@ -40,8 +46,8 @@ library DemandLib {
         });
     }
 
-    /// @notice Apply mps to demand
-    /// @dev Requires both currencyDemand and tokenDemand to be > MPS to avoid loss of precision
+    /// @notice Apply mps to a Demand struct
+    /// @dev Shorthand for calling `applyMps` on both currencyDemand and tokenDemand
     function applyMps(Demand memory _demand, uint24 mps) internal pure returns (Demand memory) {
         return Demand({
             currencyDemand: _demand.currencyDemand.applyMps(mps),

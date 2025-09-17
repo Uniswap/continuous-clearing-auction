@@ -1,5 +1,5 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/ce0cdcca7cbcb44361047d64c159d39b69b75e36/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/b7bb337742591b0d157183bdfc59e877aeaad6e7/src/CheckpointStorage.sol)
 
 **Inherits:**
 [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
@@ -166,7 +166,7 @@ function _calculateFill(
 |`bid`|`Bid`|the bid to evaluate|
 |`cumulativeMpsPerPriceDelta`|`uint256`|the cumulative sum of supply to price ratio|
 |`cumulativeMpsDelta`|`uint24`|the cumulative sum of mps values across the block range|
-|`mpsDenominator`|`uint24`|the percentage of the auction which the bid was spread over|
+|`mpsDenominator`|`uint24`|the portion of the auction (in mps) which the bid was spread over|
 
 **Returns**
 

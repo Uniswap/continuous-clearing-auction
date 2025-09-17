@@ -1048,7 +1048,7 @@ contract AuctionTest is AuctionBaseTest {
         new Auction(address(token), 0, params);
 
         AuctionParameters memory paramsZeroFloorPrice = params.withFloorPrice(0);
-        vm.expectRevert(IAuction.FloorPriceIsZero.selector);
+        vm.expectRevert(ITickStorage.FloorPriceIsZero.selector);
         new Auction(address(token), TOTAL_SUPPLY, paramsZeroFloorPrice);
 
         AuctionParameters memory paramsClaimBlockBeforeEndBlock =

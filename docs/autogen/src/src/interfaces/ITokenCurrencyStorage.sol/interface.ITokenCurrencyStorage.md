@@ -1,5 +1,5 @@
 # ITokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/3a2a79a8442dc1d66aca4be0c1d531db5a9f8424/src/interfaces/ITokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/112a0fea9b4fad64c513488ce5945ab8f444c9ad/src/interfaces/ITokenCurrencyStorage.sol)
 
 
 ## Events
@@ -34,6 +34,22 @@ event CurrencySwept(address indexed fundsRecipient, uint256 currencyAmount);
 |`currencyAmount`|`uint256`|The amount of currency swept|
 
 ## Errors
+### TokenIsNativeCurrency
+Error thrown when the token is the native currency
+
+
+```solidity
+error TokenIsNativeCurrency();
+```
+
+### TokenAndCurrencyCannotBeTheSame
+Error thrown when the token and currency are the same
+
+
+```solidity
+error TokenAndCurrencyCannotBeTheSame();
+```
+
 ### TotalSupplyIsZero
 Error thrown when the total supply is zero
 

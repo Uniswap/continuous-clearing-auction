@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/414113f91a2e49216a1882a209160ebdfc11acee/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/112a0fea9b4fad64c513488ce5945ab8f444c9ad/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -231,22 +231,6 @@ Error thrown when the auction is not started
 
 ```solidity
 error AuctionNotStarted();
-```
-
-### FloorPriceIsZero
-Error thrown when the floor price is zero
-
-
-```solidity
-error FloorPriceIsZero();
-```
-
-### TickSpacingIsZero
-Error thrown when the tick spacing is zero
-
-
-```solidity
-error TickSpacingIsZero();
 ```
 
 ### ClaimBlockIsBeforeEndBlock

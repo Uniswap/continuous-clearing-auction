@@ -6,10 +6,11 @@ import {AuctionFactory} from '../src/AuctionFactory.sol';
 import {IAuctionFactory} from '../src/interfaces/IAuctionFactory.sol';
 import {IDistributionContract} from '../src/interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
+
+import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
-import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Test} from 'forge-std/Test.sol';
 
 contract AuctionFactoryTest is TokenHandler, Test {

@@ -24,7 +24,7 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
     uint256 public constant AUCTION_DURATION = 100;
     uint256 public constant TICK_SPACING = 100;
     uint256 public constant FLOOR_PRICE = 1000 << FixedPoint96.RESOLUTION;
-    uint128 public constant TOTAL_SUPPLY = 1000e18;
+    uint256 public constant TOTAL_SUPPLY = 1000e18;
 
     address public alice;
     address public tokensRecipient;

@@ -23,7 +23,7 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract AuctionInvariantHandler is Test, Assertions {
     using CurrencyLibrary for Currency;
-    using FixedPointMathLib for uint128;
+    using FixedPointMathLib for uint256;
     using MPSLib for *;
 
     Auction public auction;
@@ -50,7 +50,7 @@ contract AuctionInvariantHandler is Test, Assertions {
         token = auction.token();
         actors = _actors;
 
-        BID_MIN_PRICE = uint256(auction.floorPrice() + auction.tickSpacing());
+        BID_MIN_PRICE = auction.floorPrice() + auction.tickSpacing();
     }
 
     modifier useActor(uint256 actorIndexSeed) {
@@ -82,22 +82,22 @@ contract AuctionInvariantHandler is Test, Assertions {
 
     /// @notice Generate random values for amount and max price given a desired resolved amount of tokens to purchase
     /// @dev Bounded by purchasing the total supply of tokens and some reasonable max price for bids to prevent overflow
-    function _useAmountMaxPrice(bool exactIn, uint128 amount, uint256 tickNumber)
+    function _useAmountMaxPrice(bool exactIn, uint256 amount, uint256 tickNumber)
         internal
         view
-        returns (uint128, uint256)
+        returns (uint256, uint256)
     {
         tickNumber = _bound(tickNumber, 0, type(uint8).max);
         uint256 tickNumberPrice = auction.floorPrice() + tickNumber * auction.tickSpacing();
         uint256 maxPrice = _bound(tickNumberPrice, BID_MIN_PRICE, BID_MAX_PRICE);
         // Round down to the nearest tick boundary
-        maxPrice -= (maxPrice % uint128(auction.tickSpacing()));
+        maxPrice -= (maxPrice % auction.tickSpacing());
 
         if (exactIn) {
-            uint128 inputAmount = amount;
+            uint256 inputAmount = amount;
             return (inputAmount, maxPrice);
         } else {
-            uint128 inputAmount = uint128(amount.fullMulDivUp(maxPrice, FixedPoint96.Q96));
+            uint256 inputAmount = amount.fullMulDivUp(maxPrice, FixedPoint96.Q96);
             return (inputAmount, maxPrice);
         }
     }
@@ -140,9 +140,9 @@ contract AuctionInvariantHandler is Test, Assertions {
         useActor(actorIndexSeed)
         validateCheckpoint
     {
-        uint128 amount =
-            uint128(_bound(tickNumber, 1, uint256(auction.totalSupply().mul(2).div(AuctionStepLib.MPS).unwrap())));
-        (uint128 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(exactIn, amount, tickNumber);
+        uint256 amount = 
+            _bound(tickNumber, 1, ValueX7.unwrap(auction.totalSupply().mul(2).div(AuctionStepLib.MPS)));
+        (uint256 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(exactIn, amount, tickNumber);
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
         } else {
@@ -229,8 +229,8 @@ contract AuctionInvariantTest is AuctionBaseTest {
             uint64 exitedBlock,
             uint256 maxPrice,
             address owner,
-            uint128 amount,
-            uint128 tokensFilled
+            uint256 amount,
+            uint256 tokensFilled
         ) = auction.bids(bidId);
         return Bid({
             exactIn: exactIn,

@@ -10,14 +10,14 @@ import {MPSLib, ValueX7} from './libraries/MPSLib.sol';
 /// @title TokenCurrencyStorage
 abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     using CurrencyLibrary for Currency;
-    using MPSLib for uint128;
+    using MPSLib for uint256;
 
     /// @notice The currency being raised in the auction
     Currency public immutable currency;
     /// @notice The token being sold in the auction
     IERC20Minimal public immutable token;
     /// @notice The total supply of tokens to sell
-    /// @dev The auction does not support selling more than type(uint128).max tokens
+    /// @dev The auction does not support selling more than type(uint256).max tokens
     ValueX7 public immutable totalSupply;
     /// @notice The recipient of any unsold tokens at the end of the auction
     address public immutable tokensRecipient;
@@ -34,7 +34,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     constructor(
         address _token,
         address _currency,
-        uint128 _totalSupply,
+        uint256 _totalSupply,
         address _tokensRecipient,
         address _fundsRecipient,
         uint24 _graduationThresholdMps
@@ -51,13 +51,13 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         if (graduationThresholdMps > AuctionStepLib.MPS) revert InvalidGraduationThresholdMps();
     }
 
-    function _sweepCurrency(uint128 amount) internal {
+    function _sweepCurrency(uint256 amount) internal {
         sweepCurrencyBlock = block.number;
         currency.transfer(fundsRecipient, amount);
         emit CurrencySwept(fundsRecipient, amount);
     }
 
-    function _sweepUnsoldTokens(uint128 amount) internal {
+    function _sweepUnsoldTokens(uint256 amount) internal {
         sweepUnsoldTokensBlock = block.number;
         if (amount > 0) {
             Currency.wrap(address(token)).transfer(tokensRecipient, amount);

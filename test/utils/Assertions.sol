@@ -28,26 +28,26 @@ abstract contract Assertions {
     }
 
     function assertEq(ValueX7 a, ValueX7 b) internal pure returns (bool) {
-        return (a.unwrap() == b.unwrap());
+        return (ValueX7.unwrap(a) == ValueX7.unwrap(b));
     }
 
     function assertGt(ValueX7 a, ValueX7 b) internal pure returns (bool) {
-        return (a.unwrap() > b.unwrap());
+        return (ValueX7.unwrap(a) > ValueX7.unwrap(b));
     }
 
     function assertGe(ValueX7 a, ValueX7 b) internal pure returns (bool) {
-        return (a.unwrap() >= b.unwrap());
+        return (ValueX7.unwrap(a) >= ValueX7.unwrap(b));
     }
 
     function assertGe(ValueX7 a, ValueX7 b, string memory err) internal pure returns (bool, string memory) {
-        return (a.unwrap() >= b.unwrap(), err);
+        return (ValueX7.unwrap(a) >= ValueX7.unwrap(b), err);
     }
 
     function assertLt(ValueX7 a, ValueX7 b) internal pure returns (bool) {
-        return (a.unwrap() < b.unwrap());
+        return (ValueX7.unwrap(a) < ValueX7.unwrap(b));
     }
 
     function assertLe(ValueX7 a, ValueX7 b) internal pure returns (bool) {
-        return (a.unwrap() <= b.unwrap());
+        return (ValueX7.unwrap(a) <= ValueX7.unwrap(b));
     }
 }

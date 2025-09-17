@@ -26,8 +26,8 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
 
     uint256 public constant AUCTION_DURATION = 100;
     uint256 public constant TICK_SPACING = 1e6;
-    uint128 public constant FLOOR_PRICE = 1e6;
-    uint128 public constant TOTAL_SUPPLY = 1000e18;
+    uint256 public constant FLOOR_PRICE = 1e6;
+    uint256 public constant TOTAL_SUPPLY = 1000e18;
 
     address public alice;
     address public tokensRecipient;

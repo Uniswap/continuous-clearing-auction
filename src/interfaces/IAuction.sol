@@ -69,7 +69,7 @@ interface IAuction is
     /// @param price The price of the bid
     /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
-    event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, bool exactIn, uint128 amount);
+    event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, bool exactIn, uint256 amount);
 
     /// @notice Emitted when a new checkpoint is created
     /// @param blockNumber The block number of the checkpoint
@@ -85,13 +85,13 @@ interface IAuction is
     /// @param owner The owner of the bid
     /// @param tokensFilled The amount of tokens filled
     /// @param currencyRefunded The amount of currency refunded
-    event BidExited(uint256 indexed bidId, address indexed owner, uint128 tokensFilled, uint128 currencyRefunded);
+    event BidExited(uint256 indexed bidId, address indexed owner, uint256 tokensFilled, uint256 currencyRefunded);
 
     /// @notice Emitted when a bid is claimed
     /// @param bidId The id of the bid
     /// @param owner The owner of the bid
     /// @param tokensFilled The amount of tokens claimed
-    event TokensClaimed(uint256 indexed bidId, address indexed owner, uint128 tokensFilled);
+    event TokensClaimed(uint256 indexed bidId, address indexed owner, uint256 tokensFilled);
 
     /// @notice Submit a new bid
     /// @param maxPrice The maximum price the bidder is willing to pay
@@ -104,7 +104,7 @@ interface IAuction is
     function submitBid(
         uint256 maxPrice,
         bool exactIn,
-        uint128 amount,
+        uint256 amount,
         address owner,
         uint256 prevTickPrice,
         bytes calldata hookData

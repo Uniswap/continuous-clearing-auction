@@ -15,15 +15,17 @@ struct Demand {
 library DemandLib {
     using DemandLib for ValueX7;
     using MPSLib for *;
-    using FixedPointMathLib for uint128;
-    using AuctionStepLib for uint128;
+    using FixedPointMathLib for uint256;
+    using AuctionStepLib for uint256;
 
     function resolve(Demand memory _demand, uint256 price) internal pure returns (ValueX7) {
         return _demand.currencyDemand.resolveCurrencyDemand(price).add(_demand.tokenDemand);
     }
 
     function resolveCurrencyDemand(ValueX7 amount, uint256 price) internal pure returns (ValueX7) {
-        return price == 0 ? ValueX7.wrap(0) : ValueX7.wrap(uint128(amount.unwrap().fullMulDiv(FixedPoint96.Q96, price)));
+        return price == 0
+            ? ValueX7.wrap(0)
+            : ValueX7.wrap(ValueX7.unwrap(amount).fullMulDiv(FixedPoint96.Q96, price));
     }
 
     function add(Demand memory _demand, Demand memory _other) internal pure returns (Demand memory) {

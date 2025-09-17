@@ -19,13 +19,11 @@ import {MockToken} from './utils/MockToken.sol';
 import {MockValidationHook} from './utils/MockValidationHook.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
-
-import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 contract AuctionTest is AuctionBaseTest {
-    using FixedPointMathLib for uint128;
+    using FixedPointMathLib for uint256;
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
     using MPSLib for *;
@@ -35,8 +33,8 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice
-    function inputAmountForTokens(uint128 tokens, uint256 maxPrice) internal pure returns (uint128) {
-        return uint128(tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96));
+    function inputAmountForTokens(uint256 tokens, uint256 maxPrice) internal pure returns (uint256) {
+        return tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96);
     }
 
     /// forge-config: default.isolate = true
@@ -194,7 +192,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_submitBid_exactIn_overTotalSupply_isPartiallyFilled() public {
-        uint128 inputAmount = inputAmountForTokens(2000e18, tickNumberToPriceX96(2));
+        uint256 inputAmount = inputAmountForTokens(2000e18, tickNumberToPriceX96(2));
         uint256 bidId = auction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
@@ -246,7 +244,7 @@ contract AuctionTest is AuctionBaseTest {
         token.mint(address(auction), TOTAL_SUPPLY);
 
         // Bid over the total supply
-        uint128 inputAmount = inputAmountForTokens(2000e18, tickNumberToPriceX96(2));
+        uint256 inputAmount = inputAmountForTokens(2000e18, tickNumberToPriceX96(2));
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7.wrap(0), 0);
         vm.expectEmit(true, true, true, true);
@@ -290,7 +288,7 @@ contract AuctionTest is AuctionBaseTest {
         auction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auction), TOTAL_SUPPLY);
 
-        uint128 inputAmount = inputAmountForTokens(1000e18, tickNumberToPriceX96(1));
+        uint256 inputAmount = inputAmountForTokens(1000e18, tickNumberToPriceX96(1));
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7.wrap(0), 0);
         vm.expectEmit(true, true, true, true);
@@ -331,13 +329,13 @@ contract AuctionTest is AuctionBaseTest {
     function test_submitBid_afterStartBlock_isPartiallyFilled() public {
         // Advance by one such that the auction is already started
         vm.roll(block.number + 1);
-        uint128 inputAmount = inputAmountForTokens(500e18, tickNumberToPriceX96(2));
+        uint256 inputAmount = inputAmountForTokens(500e18, tickNumberToPriceX96(2));
         uint256 bidId = auction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
 
         vm.roll(block.number + 1);
-        uint128 inputAmount2 = inputAmountForTokens(500e18, tickNumberToPriceX96(2));
+        uint256 inputAmount2 = inputAmountForTokens(500e18, tickNumberToPriceX96(2));
         uint256 bidId2 = auction.submitBid{value: inputAmount2}(
             tickNumberToPriceX96(2), true, inputAmount2, alice, tickNumberToPriceX96(1), bytes('')
         );
@@ -436,7 +434,7 @@ contract AuctionTest is AuctionBaseTest {
     /// forge-config: default.isolate = true
     /// forge-config: ci.isolate = true
     function test_exitBid_succeeds() public {
-        uint128 smallAmount = 500e18;
+        uint256 smallAmount = 500e18;
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(
             0, alice, tickNumberToPriceX96(2), true, inputAmountForTokens(smallAmount, tickNumberToPriceX96(2))
@@ -451,7 +449,7 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         // Bid enough tokens to move the clearing price to 3
-        uint128 largeAmount = 1000e18;
+        uint256 largeAmount = 1000e18;
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(
             1, alice, tickNumberToPriceX96(3), true, inputAmountForTokens(largeAmount, tickNumberToPriceX96(3))
@@ -488,7 +486,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitBid(bidId2);
         vm.stopPrank();
 
-        uint128 expectedCurrencyRaised = inputAmountForTokens(largeAmount, tickNumberToPriceX96(3));
+        uint256 expectedCurrencyRaised = inputAmountForTokens(largeAmount, tickNumberToPriceX96(3));
         vm.startPrank(auction.fundsRecipient());
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.CurrencySwept(auction.fundsRecipient(), expectedCurrencyRaised);
@@ -502,7 +500,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_exitBid_exactOut_succeeds() public {
-        uint128 amount = 500e18;
+        uint256 amount = 500e18;
         uint256 maxPrice = tickNumberToPriceX96(2);
         uint256 bidId = auction.submitBid{value: inputAmountForTokens(500e18, tickNumberToPriceX96(2))}(
             maxPrice, false, 500e18, alice, tickNumberToPriceX96(1), bytes('')
@@ -779,7 +777,7 @@ contract AuctionTest is AuctionBaseTest {
 
         // Roll to end of auction
         vm.roll(auction.endBlock());
-        uint128 expectedCurrencyRaised = inputAmountForTokens(750e18, tickNumberToPriceX96(11))
+        uint256 expectedCurrencyRaised = inputAmountForTokens(750e18, tickNumberToPriceX96(11))
             + inputAmountForTokens(100e18, tickNumberToPriceX96(11))
             + inputAmountForTokens(150e18, tickNumberToPriceX96(11));
 
@@ -1464,7 +1462,7 @@ contract AuctionTest is AuctionBaseTest {
         token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
 
         // Submit a small bid (only 10% of supply, below 50% threshold)
-        uint128 smallAmount = TOTAL_SUPPLY / 10;
+        uint256 smallAmount = TOTAL_SUPPLY / 10;
         auctionWithThreshold.submitBid{value: inputAmountForTokens(smallAmount, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
             true,
@@ -1489,8 +1487,8 @@ contract AuctionTest is AuctionBaseTest {
         token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
 
         // Submit a bid for 50% of supply (above 30% threshold)
-        uint128 halfSupply = TOTAL_SUPPLY / 2;
-        uint128 inputAmount = inputAmountForTokens(halfSupply, tickNumberToPriceX96(2));
+        uint256 halfSupply = TOTAL_SUPPLY / 2;
+        uint256 inputAmount = inputAmountForTokens(halfSupply, tickNumberToPriceX96(2));
         auctionWithThreshold.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
@@ -1529,8 +1527,8 @@ contract AuctionTest is AuctionBaseTest {
         token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
 
         // Submit a bid for 60% of supply (above 30% threshold, so graduated)
-        uint128 soldAmount = (TOTAL_SUPPLY * 60) / 100;
-        uint128 inputAmount = inputAmountForTokens(soldAmount, tickNumberToPriceX96(1));
+        uint256 soldAmount = (TOTAL_SUPPLY * 60) / 100;
+        uint256 inputAmount = inputAmountForTokens(soldAmount, tickNumberToPriceX96(1));
         auctionWithThreshold.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
@@ -1540,7 +1538,7 @@ contract AuctionTest is AuctionBaseTest {
         auctionWithThreshold.checkpoint();
 
         // Should sweep only unsold tokens (40% of supply)
-        uint128 expectedUnsoldTokens = TOTAL_SUPPLY - soldAmount;
+        uint256 expectedUnsoldTokens = TOTAL_SUPPLY - soldAmount;
 
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, expectedUnsoldTokens);
@@ -1557,8 +1555,8 @@ contract AuctionTest is AuctionBaseTest {
         token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
 
         // Submit a small bid for 10% of supply (below 50% threshold, so not graduated)
-        uint128 smallAmount = TOTAL_SUPPLY / 10;
-        uint128 inputAmount = inputAmountForTokens(smallAmount, tickNumberToPriceX96(1));
+        uint256 smallAmount = TOTAL_SUPPLY / 10;
+        uint256 inputAmount = inputAmountForTokens(smallAmount, tickNumberToPriceX96(1));
         auctionWithThreshold.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
@@ -1584,8 +1582,8 @@ contract AuctionTest is AuctionBaseTest {
         token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
 
         // Submit a bid for 70% of supply (above threshold)
-        uint128 soldAmount = (TOTAL_SUPPLY * 70) / 100;
-        uint128 inputAmount = inputAmountForTokens(soldAmount, tickNumberToPriceX96(1));
+        uint256 soldAmount = (TOTAL_SUPPLY * 70) / 100;
+        uint256 inputAmount = inputAmountForTokens(soldAmount, tickNumberToPriceX96(1));
         auctionWithThreshold.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
@@ -1595,14 +1593,14 @@ contract AuctionTest is AuctionBaseTest {
         auctionWithThreshold.checkpoint();
 
         // Sweep currency first (should succeed as graduated)
-        uint128 expectedCurrencyRaised = inputAmountForTokens(soldAmount, tickNumberToPriceX96(1));
+        uint256 expectedCurrencyRaised = inputAmountForTokens(soldAmount, tickNumberToPriceX96(1));
         vm.prank(fundsRecipient);
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.CurrencySwept(fundsRecipient, expectedCurrencyRaised);
         auctionWithThreshold.sweepCurrency();
 
         // Then sweep unsold tokens
-        uint128 expectedUnsoldTokens = TOTAL_SUPPLY - soldAmount;
+        uint256 expectedUnsoldTokens = TOTAL_SUPPLY - soldAmount;
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, expectedUnsoldTokens);
         auctionWithThreshold.sweepUnsoldTokens();
@@ -1620,8 +1618,8 @@ contract AuctionTest is AuctionBaseTest {
         token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
 
         // Submit a bid for only 20% of supply (below 80% threshold)
-        uint128 smallAmount = TOTAL_SUPPLY / 5;
-        uint128 inputAmount = inputAmountForTokens(smallAmount, tickNumberToPriceX96(1));
+        uint256 smallAmount = TOTAL_SUPPLY / 5;
+        uint256 inputAmount = inputAmountForTokens(smallAmount, tickNumberToPriceX96(1));
         auctionWithThreshold.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );

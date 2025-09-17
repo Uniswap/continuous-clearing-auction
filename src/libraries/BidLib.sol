@@ -15,17 +15,17 @@ struct Bid {
     uint64 exitedBlock; // Block number when the bid was exited
     uint256 maxPrice; // The max price of the bid
     address owner; // Who is allowed to exit the bid
-    uint128 amount; // User's demand
-    uint128 tokensFilled; // Amount of tokens filled
+    uint256 amount; // User's demand
+    uint256 tokensFilled; // Amount of tokens filled
 }
 
 /// @title BidLib
 library BidLib {
-    using AuctionStepLib for uint128;
+    using AuctionStepLib for uint256;
     using DemandLib for ValueX7;
     using MPSLib for *;
     using BidLib for *;
-    using FixedPointMathLib for uint128;
+    using FixedPointMathLib for *;
 
     uint256 public constant PRECISION = 1e18;
 
@@ -33,7 +33,7 @@ library BidLib {
     /// @param amount The amount of the bid
     /// @param mpsDenominator The percentage of the auction which the bid was spread over
     /// @return The effective amount of the bid
-    function effectiveAmount(uint128 amount, uint24 mpsDenominator) internal pure returns (ValueX7) {
+    function effectiveAmount(uint256 amount, uint24 mpsDenominator) internal pure returns (ValueX7) {
         return amount.scaleUp().mul(AuctionStepLib.MPS).div(mpsDenominator);
     }
 
@@ -50,14 +50,14 @@ library BidLib {
     /// @param amount The amount of the bid
     /// @param maxPrice The max price of the bid
     /// @return The input amount required for an amount and maxPrice
-    function inputAmount(bool exactIn, uint128 amount, uint256 maxPrice) internal pure returns (uint128) {
-        return exactIn ? amount : uint128(amount.fullMulDivUp(maxPrice, FixedPoint96.Q96));
+    function inputAmount(bool exactIn, uint256 amount, uint256 maxPrice) internal pure returns (uint256) {
+        return exactIn ? amount : amount.fullMulDivUp(maxPrice, FixedPoint96.Q96);
     }
 
     /// @notice Calculate the input amount required to place the bid
     /// @param bid The bid
     /// @return The input amount required to place the bid
-    function inputAmount(Bid memory bid) internal pure returns (uint128) {
+    function inputAmount(Bid memory bid) internal pure returns (uint256) {
         return inputAmount(bid.exactIn, bid.amount, bid.maxPrice);
     }
 }

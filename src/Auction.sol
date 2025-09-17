@@ -18,7 +18,6 @@ import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {MPSLib, ValueX7} from './libraries/MPSLib.sol';
-import {console2} from 'forge-std/console2.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
@@ -37,7 +36,7 @@ contract Auction is
     TokenCurrencyStorage,
     IAuction
 {
-    using FixedPointMathLib for uint128;
+    using FixedPointMathLib for uint256;
     using CurrencyLibrary for Currency;
     using BidLib for *;
     using AuctionStepLib for *;
@@ -56,7 +55,7 @@ contract Auction is
     /// @notice The sum of demand in ticks above the clearing price
     Demand public sumDemandAboveClearing;
 
-    constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
+    constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
         TokenCurrencyStorage(
             _token,
@@ -72,7 +71,7 @@ contract Auction is
         currency = Currency.wrap(_parameters.currency);
         token = IERC20Minimal(_token);
         // Multiply the total supply by 1e7 (MPS) to avoid loss of precision in calculations
-        // This means that the max total supply is uint128.max / 1e7
+        // This means that the max total supply is uint256.max / 1e7
         totalSupply = _totalSupply.scaleUp();
         tokensRecipient = _parameters.tokensRecipient;
         fundsRecipient = _parameters.fundsRecipient;
@@ -101,9 +100,9 @@ contract Auction is
 
     /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
     function isGraduated() public view returns (bool) {
-        return latestCheckpoint().totalCleared.unwrap()
-        // Use fullMulDiv to operate in uint256 since it's possible that totalSupply * graduationThresholdMps overflows uint128
-        >= uint128((totalSupply.unwrap().fullMulDiv(graduationThresholdMps, AuctionStepLib.MPS)));
+        return ValueX7.unwrap(latestCheckpoint().totalCleared)
+        // Use fullMulDiv to operate in uint256 since it's possible that totalSupply * graduationThresholdMps overflows uint256
+        >= (ValueX7.unwrap(totalSupply).fullMulDiv(graduationThresholdMps, AuctionStepLib.MPS));
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
@@ -125,8 +124,8 @@ contract Auction is
         if (_checkpoint.clearingPrice > floorPrice) {
             supplyCleared = _checkpoint.getSupply(totalSupply, deltaMps);
             supplySoldToClearingPrice = (
-                (supplyCleared.mul(AuctionStepLib.MPS)).sub(_checkpoint.resolvedDemandAboveClearingPrice.mul(deltaMps))
-            ).div(AuctionStepLib.MPS);
+                (supplyCleared).sub(_checkpoint.resolvedDemandAboveClearingPrice.mul(deltaMps).div(AuctionStepLib.MPS))
+            );
         } else {
             supplyCleared = (_checkpoint.resolvedDemandAboveClearingPrice.mul(deltaMps)).div(AuctionStepLib.MPS);
             // supplySoldToClearing price is zero here
@@ -175,8 +174,8 @@ contract Auction is
         // If the supply is zero, set clearing price to 0 to prevent division by zero.
         // If the minimum clearing price is non zero, it will be returned. Otherwise, the floor price will be returned.
         uint256 _clearingPrice = supply.gt(ValueX7.wrap(0))
-            ? blockSumDemandAboveClearing.currencyDemand.unwrap().fullMulDiv(
-                FixedPoint96.Q96, (supply.sub(blockSumDemandAboveClearing.tokenDemand).unwrap())
+            ? ValueX7.unwrap(blockSumDemandAboveClearing.currencyDemand).fullMulDiv(
+                FixedPoint96.Q96, ValueX7.unwrap(supply.sub(blockSumDemandAboveClearing.tokenDemand))
             )
             : 0;
 
@@ -279,7 +278,7 @@ contract Auction is
     function _submitBid(
         uint256 maxPrice,
         bool exactIn,
-        uint128 amount,
+        uint256 amount,
         address owner,
         uint256 prevTickPrice,
         bytes calldata hookData
@@ -308,7 +307,7 @@ contract Auction is
     }
 
     /// @notice Given a bid, tokens filled and refund, process the transfers and refund
-    function _processExit(uint256 bidId, Bid memory bid, uint128 tokensFilled, uint128 refund) internal {
+    function _processExit(uint256 bidId, Bid memory bid, uint256 tokensFilled, uint256 refund) internal {
         address _owner = bid.owner;
 
         if (tokensFilled == 0) {
@@ -337,14 +336,14 @@ contract Auction is
     function submitBid(
         uint256 maxPrice,
         bool exactIn,
-        uint128 amount,
+        uint256 amount,
         address owner,
         uint256 prevTickPrice,
         bytes calldata hookData
     ) external payable returns (uint256) {
         // Bids cannot be submitted at the endBlock or after
         if (block.number >= endBlock) revert AuctionIsOver();
-        uint128 requiredCurrencyAmount = BidLib.inputAmount(exactIn, amount, maxPrice);
+        uint256 requiredCurrencyAmount = BidLib.inputAmount(exactIn, amount, maxPrice);
         if (requiredCurrencyAmount == 0) revert InvalidAmount();
         if (currency.isAddressZero()) {
             if (msg.value != requiredCurrencyAmount) revert InvalidAmount();
@@ -368,7 +367,7 @@ contract Auction is
 
         if (bid.maxPrice <= finalCheckpoint.clearingPrice) revert CannotExitBid();
         /// @dev Bid was fully filled and the auction is now over
-        (uint128 tokensFilled, uint128 currencySpent) =
+        (uint256 tokensFilled, uint256 currencySpent) =
             _accountFullyFilledCheckpoints(finalCheckpoint, _getCheckpoint(bid.startBlock), bid);
 
         _processExit(bidId, bid, tokensFilled, bid.inputAmount() - currencySpent);
@@ -389,8 +388,8 @@ contract Auction is
             revert InvalidCheckpointHint();
         }
 
-        uint128 tokensFilled;
-        uint128 currencySpent;
+        uint256 tokensFilled;
+        uint256 currencySpent;
         // If the lastFullyFilledCheckpoint is not 0, account for the fully filled checkpoints
         if (lastFullyFilledCheckpoint.clearingPrice > 0) {
             (tokensFilled, currencySpent) =
@@ -436,7 +435,7 @@ contract Auction is
          *
          */
         if (upperCheckpoint.clearingPrice == bid.maxPrice) {
-            (uint128 partialTokensFilled, uint128 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
+            (uint256 partialTokensFilled, uint256 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
                 upperCheckpoint.cumulativeSupplySoldToClearingPrice,
                 bid.toDemand(AuctionStepLib.MPS - startCheckpoint.cumulativeMps).resolve(bid.maxPrice),
                 getTick(bid.maxPrice).demand.resolve(bid.maxPrice),
@@ -445,10 +444,6 @@ contract Auction is
             tokensFilled += partialTokensFilled;
             currencySpent += partialCurrencySpent;
         }
-
-        console2.log('tokensFilled', tokensFilled);
-        console2.log('currencySpent', currencySpent);
-        console2.log('bid.inputAmount()', bid.inputAmount());
 
         _processExit(bidId, bid, tokensFilled, bid.inputAmount() - currencySpent);
     }
@@ -460,7 +455,7 @@ contract Auction is
         if (block.number < claimBlock) revert NotClaimable();
         if (!isGraduated()) revert NotGraduated();
 
-        uint128 tokensFilled = bid.tokensFilled;
+        uint256 tokensFilled = bid.tokensFilled;
         bid.tokensFilled = 0;
         _updateBid(bidId, bid);
 

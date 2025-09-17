@@ -5,7 +5,6 @@ import {AuctionStepLib} from './AuctionStepLib.sol';
 import {BidLib} from './BidLib.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
 import {MPSLib, ValueX7} from './MPSLib.sol';
-import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 struct Checkpoint {
@@ -23,7 +22,7 @@ struct Checkpoint {
 /// @title CheckpointLib
 library CheckpointLib {
     using FixedPointMathLib for *;
-    using AuctionStepLib for uint128;
+    using AuctionStepLib for uint256;
     using MPSLib for *;
     using CheckpointLib for Checkpoint;
 
@@ -49,13 +48,12 @@ library CheckpointLib {
     /// @notice Calculate the total currency raised
     /// @param checkpoint The checkpoint to calculate the currency raised from
     /// @return The total currency raised
-    function getCurrencyRaised(Checkpoint memory checkpoint) internal pure returns (uint128) {
-        return uint128(
+    function getCurrencyRaised(Checkpoint memory checkpoint) internal pure returns (uint256) {
+        return  
             checkpoint.totalCleared.scaleDown().fullMulDiv(
                 // Divide by MPS since totalCleared is scaled up by MPS
                 checkpoint.cumulativeMps * FixedPoint96.Q96,
                 checkpoint.cumulativeMpsPerPrice
-            )
-        );
+            );
     }
 }

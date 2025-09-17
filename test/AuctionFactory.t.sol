@@ -207,7 +207,7 @@ contract AuctionFactoryTest is TokenHandler, Test {
         _params.graduationThresholdMps = uint24(bound(_params.graduationThresholdMps, 1, uint24(AuctionStepLib.MPS)));
     }
 
-    function test_getAuctionAddress(
+    function testFuzz_getAuctionAddress(
         address _token,
         uint128 _totalSupply,
         bytes32 _salt,

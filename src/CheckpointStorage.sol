@@ -120,7 +120,7 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     ) internal pure returns (uint128 tokensFilled, uint128 currencySpent) {
         tokensFilled = bid.exactIn
             ? uint128(
-                bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, AuctionStepLib.MPS * FixedPoint96.Q96 * mpsDenominator)
+                bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsDenominator)
             )
             : uint128(bid.amount.fullMulDiv(cumulativeMpsDelta, mpsDenominator));
         // If tokensFilled is 0 then currencySpent must be 0

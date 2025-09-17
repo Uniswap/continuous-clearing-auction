@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import {Auction, AuctionParameters} from '../src/Auction.sol';
 import {AuctionFactory} from '../src/AuctionFactory.sol';
+import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {IAuctionFactory} from '../src/interfaces/IAuctionFactory.sol';
 import {IDistributionContract} from '../src/interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
@@ -62,7 +63,7 @@ contract AuctionFactoryTest is TokenHandler, Test {
         // Verify the auction was created correctly
         auction = Auction(payable(address(distributionContract)));
         assertEq(address(auction.token()), address(token));
-        assertEq(auction.totalSupply(), TOTAL_SUPPLY);
+        assertEq(auction.totalSupply(), TOTAL_SUPPLY * AuctionStepLib.MPS);
         assertEq(auction.floorPrice(), FLOOR_PRICE);
         assertEq(auction.tickSpacing(), TICK_SPACING);
         assertEq(auction.tokensRecipient(), tokensRecipient);

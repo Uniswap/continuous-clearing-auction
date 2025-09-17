@@ -23,21 +23,10 @@ library DemandLib {
         return price == 0 ? 0 : uint128(amount.fullMulDiv(FixedPoint96.Q96, price));
     }
 
-    function resolveTokenDemand(uint128 amount) internal pure returns (uint128) {
-        return amount;
-    }
-
     function sub(Demand memory _demand, Demand memory _other) internal pure returns (Demand memory) {
         return Demand({
             currencyDemand: _demand.currencyDemand - _other.currencyDemand,
             tokenDemand: _demand.tokenDemand - _other.tokenDemand
-        });
-    }
-
-    function add(Demand memory _demand, Demand memory _other) internal pure returns (Demand memory) {
-        return Demand({
-            currencyDemand: _demand.currencyDemand + _other.currencyDemand,
-            tokenDemand: _demand.tokenDemand + _other.tokenDemand
         });
     }
 
@@ -47,5 +36,14 @@ library DemandLib {
 
     function addTokenAmount(Demand memory _demand, uint128 _amount) internal pure returns (Demand memory) {
         return Demand({currencyDemand: _demand.currencyDemand, tokenDemand: _demand.tokenDemand + _amount});
+    }
+
+    /// @notice Apply mps to demand
+    /// @dev Requires both currencyDemand and tokenDemand to be > MPS to avoid loss of precision
+    function applyMps(Demand memory _demand, uint24 mps) internal pure returns (Demand memory) {
+        return Demand({
+            currencyDemand: _demand.currencyDemand.applyMps(mps),
+            tokenDemand: _demand.tokenDemand.applyMps(mps)
+        });
     }
 }

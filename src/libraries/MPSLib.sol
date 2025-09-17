@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 /// @notice A ValueX7 is a uint256 value that has been multiplied by MPS
 type ValueX7 is uint256;
 
-using {add, sub, eq, mul, div, gt, gte} for ValueX7 global;
+using {add, sub, eq, mulUint256, divUint256, gt, gte} for ValueX7 global;
 
 /// @notice Add two ValueX7 values
 function add(ValueX7 a, ValueX7 b) pure returns (ValueX7) {
@@ -32,12 +32,12 @@ function gte(ValueX7 a, uint256 b) pure returns (bool) {
 }
 
 /// @notice Multiply a ValueX7 value by a uint256
-function mul(ValueX7 a, uint256 b) pure returns (ValueX7) {
+function mulUint256(ValueX7 a, uint256 b) pure returns (ValueX7) {
     return ValueX7.wrap(ValueX7.unwrap(a) * b);
 }
 
 /// @notice Divide a ValueX7 value by a uint256
-function div(ValueX7 a, uint256 b) pure returns (ValueX7) {
+function divUint256(ValueX7 a, uint256 b) pure returns (ValueX7) {
     return ValueX7.wrap(ValueX7.unwrap(a) / b);
 }
 
@@ -68,6 +68,6 @@ library MPSLib {
     /// @param mps The number of mps to apply
     /// @return The result as a ValueX7
     function applyMps(ValueX7 value, uint24 mps) internal pure returns (ValueX7) {
-        return value.mul(mps).div(MPS);
+        return value.mulUint256(mps).divUint256(MPS);
     }
 }

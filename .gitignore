@@ -8,6 +8,11 @@ lcov.info
 .env
 .vscode
 .password
+.gas-snapshot
+.solhint.json
+
+test/e2e/node_modules/
+test/e2e/artifacts/
 
 broadcast/*/31337
 deployments/**/31337.*

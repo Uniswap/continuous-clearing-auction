@@ -1,5 +1,3 @@
-const { ethers } = require('hardhat');
-
 class AssertionEngine {
   constructor(auction, token, currency) {
     this.auction = auction;

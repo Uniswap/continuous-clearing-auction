@@ -1,6 +1,15 @@
 #!/usr/bin/env node
 
-const TestCombinationRunner = require('../src/TestCombinationRunner');
+const { HardhatPluginError } = require('hardhat/plugins');
+const { TASK_COMPILE } = require('hardhat/builtin-tasks/task-names');
+const { HardhatConfig, HardhatUserConfig } = require('hardhat/types');
+const { HardhatRuntimeEnvironment } = require('hardhat/types');
+
+async function main() {
+  // Import hardhat programmatically
+  const hre = await require('hardhat').run(TASK_COMPILE);
+  
+  const TestCombinationRunner = require('../test/e2e/src/TestCombinationRunner');
 
 // Define the combinations you want to run
 const COMBINATIONS_TO_RUN = [
@@ -11,7 +20,7 @@ const COMBINATIONS_TO_RUN = [
 ];
 
 async function main() {
-  const runner = new TestCombinationRunner();
+  const runner = new TestCombinationRunner(hre);
   
   console.log('🚀 TWAP Auction E2E Test Runner');
   console.log('================================');
@@ -51,7 +60,7 @@ async function main() {
 if (process.argv.includes('--all')) {
   // Run all possible combinations
   async function runAll() {
-    const runner = new TestCombinationRunner();
+    const runner = new TestCombinationRunner(hre);
     const results = await runner.runAllPossibleCombinations();
     
     const passed = results.filter(r => r.success).length;

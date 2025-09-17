@@ -1,4 +1,5 @@
-require("@nomicfoundation/hardhat-toolbox");
+require("@nomicfoundation/hardhat-foundry");
+require("@nomicfoundation/hardhat-ethers");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -14,11 +15,6 @@ module.exports = {
   },
   networks: {
     hardhat: {
-      chainId: 1,
-      forking: {
-        url: "http://localhost:8545",
-        blockNumber: 20999999
-      },
       accounts: {
         count: 20,
         initialIndex: 0,
@@ -29,10 +25,10 @@ module.exports = {
     }
   },
   paths: {
-    sources: "../../src",
-    tests: "./tests",
-    cache: "./cache",
-    artifacts: "./artifacts"
+    sources: "./src",
+    tests: "./test/e2e/tests",
+    cache: "./test/e2e/cache",
+    artifacts: "./test/e2e/artifacts"
   },
   mocha: {
     timeout: 300000 // 5 minutes for complex e2e tests

@@ -5,7 +5,10 @@ const addFormats = require('ajv-formats');
 
 class TestRunner {
   constructor() {
-    this.ajv = new Ajv({ allErrors: true });
+    this.ajv = new Ajv({ 
+      allErrors: true,
+      strict: false  // Allow draft-2020-12 schemas
+    });
     addFormats(this.ajv);
     this.loadSchemas();
   }

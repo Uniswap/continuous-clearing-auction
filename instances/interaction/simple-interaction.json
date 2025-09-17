@@ -1,0 +1,40 @@
+{
+  "$schema": "tokenInteractionSchema",
+  "$id": "simple-interaction",
+  "title": "Simple Interaction - Just One Bid",
+  "type": "object",
+
+  "timeBase": "auctionStart",
+
+  "namedBidders": [
+    {
+      "address": "0x1111111111111111111111111111111111111111",
+      "label": "SimpleBidder",
+      "bids": [
+        {
+          "atBlock": 10,
+          "amount": { "side": "input", "type": "raw", "value": "1000000000000000000" },
+          "price": { "type": "raw", "value": "2000000000000000000" }
+        }
+      ],
+      "recurringBids": []
+    }
+  ],
+  
+  "groups": [],
+
+  "actions": [],
+
+  "checkpoints": [
+    {
+      "atBlock": 20,
+      "reason": "Check bidder USDC balance after auction",
+      "assert": {
+        "type": "balance",
+        "address": "0x1111111111111111111111111111111111111111",
+        "token": "USDC",
+        "expected": "1000000000000"
+      }
+    }
+  ]
+}

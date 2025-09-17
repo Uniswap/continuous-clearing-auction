@@ -1,8 +1,10 @@
 const CombinedTestRunner = require('./CombinedTestRunner');
 
 class TestCombinationRunner {
-  constructor() {
-    this.combinedRunner = new CombinedTestRunner();
+  constructor(hre, ethers) {
+    this.hre = hre;
+    this.ethers = ethers;
+    this.combinedRunner = new CombinedTestRunner(hre, ethers);
   }
 
   /**

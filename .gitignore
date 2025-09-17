@@ -3,6 +3,7 @@
 /cache
 /coverage
 /report
+remappings.txt
 lcov.info
 .DS_Store
 .env
@@ -11,8 +12,7 @@ lcov.info
 .gas-snapshot
 .solhint.json
 
-test/e2e/node_modules/
-test/e2e/artifacts/
+node_modules/
 
 broadcast/*/31337
 deployments/**/31337.*

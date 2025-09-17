@@ -1,8 +1,8 @@
-const { ethers } = require('hardhat');
-const { network } = require('hardhat');
-
 class BidSimulator {
-  constructor(auction, token, currency) {
+  constructor(hre, auction, token, currency) {
+    this.hre = hre;
+    this.ethers = hre.ethers;
+    this.network = hre.network;
     this.auction = auction;
     this.token = token;
     this.currency = currency;
@@ -32,7 +32,7 @@ class BidSimulator {
     for (const group of groups) {
       const bidders = [];
       for (let i = 0; i < group.count; i++) {
-        const address = ethers.Wallet.createRandom().address;
+        const address = this.ethers.Wallet.createRandom().address;
         bidders.push(address);
         this.labelMap.set(`${group.labelPrefix}${i}`, address);
       }
@@ -97,7 +97,7 @@ class BidSimulator {
 
   async executeBid(bid) {
     // Advance to the target block
-    await network.provider.send('hardhat_mine', [bid.atBlock.toString()]);
+    await this.network.provider.send('hardhat_mine', [bid.atBlock.toString()]);
 
     const amount = await this.calculateAmount(bid.amount);
     const price = await this.calculatePrice(bid.price);
@@ -155,7 +155,7 @@ class BidSimulator {
   async executeTransfers(transferInteractions) {
     for (const interactionGroup of transferInteractions) {
       for (const interaction of interactionGroup) {
-        await network.provider.send('hardhat_mine', [interaction.atBlock.toString()]);
+        await this.network.provider.send('hardhat_mine', [interaction.atBlock.toString()]);
         
         const { from, to, token, amount } = interaction.value;
         const toAddress = this.labelMap.get(to) || to;
@@ -170,7 +170,7 @@ class BidSimulator {
   async executeAdminActions(adminInteractions) {
     for (const interactionGroup of adminInteractions) {
       for (const interaction of interactionGroup) {
-        await network.provider.send('hardhat_mine', [interaction.atBlock.toString()]);
+        await this.network.provider.send('hardhat_mine', [interaction.atBlock.toString()]);
         
         const { kind } = interaction.value;
         if (kind === 'sweepCurrency') {

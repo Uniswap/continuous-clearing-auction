@@ -1,13 +1,14 @@
-const { network } = require('hardhat');
 const TestRunner = require('./TestRunner');
 const AuctionDeployer = require('./AuctionDeployer');
 const BidSimulator = require('./BidSimulator');
 const AssertionEngine = require('./AssertionEngine');
 
 class CombinedTestRunner {
-  constructor() {
+  constructor(hre, ethers) {
+    this.hre = hre;
+    this.ethers = ethers;
     this.testRunner = new TestRunner();
-    this.deployer = new AuctionDeployer();
+    this.deployer = new AuctionDeployer(hre, ethers);
   }
 
   /**
@@ -30,17 +31,17 @@ class CombinedTestRunner {
     
     // PHASE 1: Setup the auction environment
     console.log('🏗️  Phase 1: Setting up auction environment...');
-    const token = await this.deployer.deployToken(setupData.token);
+    const auction = await this.deployer.createAuction(setupData);
     await this.deployer.setupBalances(setupData);
-    const auction = await this.deployer.createAuction(setupData, token);
     
-    console.log(`   📄 Token deployed: ${await token.getAddress()}`);
     console.log(`   🏛️  Auction deployed: ${await auction.getAddress()}`);
     
     // PHASE 2: Execute interactions on the configured auction
     console.log('🎯 Phase 2: Executing interaction scenario...');
-    const bidSimulator = new BidSimulator(auction, token, null);
-    const assertionEngine = new AssertionEngine(auction, token, null);
+    const auctionedToken = this.deployer.getTokenByName(setupData.auctionParameters.auctionedToken);
+    const currencyToken = this.deployer.getTokenByName(setupData.auctionParameters.currency);
+    const bidSimulator = new BidSimulator(this.hre, auction, auctionedToken, currencyToken);
+    const assertionEngine = new AssertionEngine(auction, auctionedToken, currencyToken);
     
     // Setup labels and execute the interaction scenario
     await bidSimulator.setupLabels(setupData, interactionData);
@@ -60,7 +61,8 @@ class CombinedTestRunner {
       setupData,
       interactionData,
       auction,
-      token,
+      auctionedToken,
+      currencyToken,
       finalState,
       success: true
     };

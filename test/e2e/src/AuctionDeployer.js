@@ -128,8 +128,8 @@ class AuctionDeployer {
     if (currency.startsWith('0x')) {
       return currency;
     }
-    // Special case for ETH
-    if (currency === 'ETH') {
+    // Special case for native currency (ETH, MATIC, BNB, etc.)
+    if (currency === 'Native') {
       return '0x0000000000000000000000000000000000000000';
     }
     // Otherwise, look up the token by name
@@ -179,38 +179,41 @@ class AuctionDeployer {
     const { env } = setupData;
     if (!env.balances) return;
 
+    console.log('   💰 Setting up balances...');
+
     for (const balance of env.balances) {
-      if (balance.token === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') {
-        // ETH balance
+      if (balance.token === 'Native') {
+        // Native currency balance - set native currency balance (ETH, MATIC, BNB, etc.)
         const hexAmount = '0x' + BigInt(balance.amount).toString(16);
-                await this.hre.network.provider.send('hardhat_setBalance', [
-                  balance.address,
-                  hexAmount
-                ]);
-      } else if (balance.token === '0x0000000000000000000000000000000000000001') {
-        // Special case for currency token - mint to the address
-        const currencyToken = this.getTokenByName(setupData.auctionParameters.currency);
-        if (currencyToken) {
-          await currencyToken.mint(balance.address, balance.amount);
-        }
-      } else {
-        // Look up token by name or address
-        let token;
-        if (balance.token.startsWith('0x')) {
-          // It's an address - find the token by address
-          for (const [name, tokenContract] of this.tokens) {
-            if (await tokenContract.getAddress() === balance.token) {
-              token = tokenContract;
-              break;
-            }
+        await this.hre.network.provider.send('hardhat_setBalance', [
+          balance.address,
+          hexAmount
+        ]);
+        console.log(`   ✅ Set native currency balance: ${balance.address} = ${balance.amount} wei`);
+      } else if (balance.token.startsWith('0x')) {
+        // It's an address - find the token by address
+        let token = null;
+        for (const [name, tokenContract] of this.tokens) {
+          if (await tokenContract.getAddress() === balance.token) {
+            token = tokenContract;
+            break;
           }
-        } else {
-          // It's a token name
-          token = this.getTokenByName(balance.token);
         }
         
         if (token) {
           await token.mint(balance.address, balance.amount);
+          console.log(`   ✅ Minted ${balance.amount} tokens to ${balance.address} (${await token.getAddress()})`);
+        } else {
+          console.warn(`   ⚠️  Token not found for address: ${balance.token}`);
+        }
+      } else {
+        // It's a token name - look up by name
+        const token = this.getTokenByName(balance.token);
+        if (token) {
+          await token.mint(balance.address, balance.amount);
+          console.log(`   ✅ Minted ${balance.amount} ${balance.token} to ${balance.address}`);
+        } else {
+          console.warn(`   ⚠️  Token not found: ${balance.token}`);
         }
       }
     }

@@ -115,31 +115,59 @@ class BidSimulator {
     console.log('   🔍   requiredCurrencyAmount:', requiredCurrencyAmount.toString());
     console.log('   🔍   bidder:', bid.bidder);
 
-    // For ETH currency, we don't need to transfer beforehand
-    // The auction will receive the ETH via msg.value
-    if (this.currency) {
-      console.log('   🔍 Using ERC20 currency - would need permit2 setup');
-      // For ERC20 tokens, we would need permit2 setup
-      // For now, we'll skip this and let the auction handle it
-    }
-
     try {
       // For the first bid, use tick 1 as prevTickPrice (floor price)
       // For subsequent bids, we'd need to track the previous tick
       const prevTickPrice = this.tickNumberToPriceX96(1); // Floor price tick
       
-      const tx = await this.auction.submitBid(
-        price,
-        bid.amount.side === 'input',
-        amount,
-        bid.bidder,
-        prevTickPrice,
-        bid.hookData || '0x',
-        { value: requiredCurrencyAmount } // Send ETH as msg.value
-      );
+      // Impersonate the bidder account to send the transaction from their address
+      await this.network.provider.send('hardhat_impersonateAccount', [bid.bidder]);
+      
+      // Get a signer for the bidder address
+      const bidderSigner = await this.ethers.getSigner(bid.bidder);
+      
+      // Connect the auction contract to the bidder signer
+      const auctionWithBidder = this.auction.connect(bidderSigner);
+      
+      let tx;
+      if (this.currency) {
+        console.log('   🔍 Using ERC20 currency - would need permit2 setup');
+        // For ERC20 tokens, we would need permit2 setup
+        // For now, we'll skip this and let the auction handle it
+        tx = await auctionWithBidder.submitBid(
+          price,
+          bid.amount.side === 'input',
+          amount,
+          bid.bidder,
+          prevTickPrice,
+          bid.hookData || '0x'
+        );
+      } else {
+        // For ETH currency, send the required amount as msg.value
+        tx = await auctionWithBidder.submitBid(
+          price,
+          bid.amount.side === 'input',
+          amount,
+          bid.bidder,
+          prevTickPrice,
+          bid.hookData || '0x',
+          { value: requiredCurrencyAmount }
+        );
+      }
 
       await tx.wait();
+      
+      // Stop impersonating the account
+      await this.network.provider.send('hardhat_stopImpersonatingAccount', [bid.bidder]);
+      
     } catch (error) {
+      // Stop impersonating the account even if there's an error
+      try {
+        await this.network.provider.send('hardhat_stopImpersonatingAccount', [bid.bidder]);
+      } catch (stopError) {
+        // Ignore stop impersonation errors
+      }
+      
       if (bid.expectRevert) {
         // Expected revert - this is fine
         return;

@@ -17,14 +17,14 @@
     "balances": [
       { 
         "address": "0x1111111111111111111111111111111111111111", 
-        "token": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", 
-        "amount": "1000000000000000000" 
+        "token": "Native", 
+        "amount": "2000000000000000000" 
       }
     ]
   },
 
   "auctionParameters": {
-    "currency": "ETH",
+    "currency": "Native",
     "auctionedToken": "SimpleToken",
     "tokensRecipient": "0x2222222222222222222222222222222222222222",
     "fundsRecipient": "0x3333333333333333333333333333333333333333",

@@ -261,8 +261,11 @@
             "description": "Address to check balance for"
           },
           "token": {
-            "type": "string",
-            "description": "Token name to check balance for"
+            "oneOf": [
+              { "type": "string", "const": "Native" },
+              { "type": "string", "minLength": 1, "pattern": "^[A-Za-z][A-Za-z0-9_]*$", "not": { "const": "Native" } }
+            ],
+            "description": "Token name to check balance for ('Native' for native currency, or token name like 'USDC')"
           },
           "expected": {
             "type": "string",

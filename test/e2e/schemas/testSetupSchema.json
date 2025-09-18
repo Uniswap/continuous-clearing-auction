@@ -52,9 +52,10 @@
         "currency": { 
           "oneOf": [
             { "$ref": "#/$defs/Address" },
-            { "type": "string", "minLength": 1 }
+            { "type": "string", "const": "Native" },
+            { "type": "string", "minLength": 1, "pattern": "^[A-Za-z][A-Za-z0-9_]*$", "not": { "const": "Native" } }
           ],
-          "description": "Either an address or a token name reference"
+          "description": "Either an address, 'Native' for native currency (ETH, MATIC, BNB, etc.), or a token name reference"
         },
         "auctionedToken": { 
           "type": "string", 
@@ -102,9 +103,10 @@
         "token": {
           "oneOf": [
             { "$ref": "#/$defs/Address" },
-            { "type": "string", "minLength": 1, "pattern": "^[A-Za-z][A-Za-z0-9_]*$" }
+            { "type": "string", "const": "Native" },
+            { "type": "string", "minLength": 1, "pattern": "^[A-Za-z][A-Za-z0-9_]*$", "not": { "const": "Native" } }
           ],
-          "description": "Either an address or a token name reference (e.g., 'CURRENCY_TOKEN')"
+          "description": "Either an address, 'Native' for native currency (ETH, MATIC, BNB, etc.), or a token name reference (e.g., 'USDC', 'SimpleToken')"
         },
         "amount": { "$ref": "#/$defs/U256" }
       }

@@ -28,12 +28,12 @@
   "checkpoints": [
     {
       "atBlock": 20,
-      "reason": "Check bidder USDC balance after auction",
+      "reason": "Check bidder native currency balance after bid",
       "assert": {
         "type": "balance",
         "address": "0x1111111111111111111111111111111111111111",
-        "token": "ETH",
-        "expected": "0"
+        "token": "Native",
+        "expected": "999565480506353636"
       }
     }
   ]

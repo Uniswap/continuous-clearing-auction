@@ -33,30 +33,29 @@ class AssertionEngine {
   async validateBalanceAssertion(assertion) {
     const { address, token, expected } = assertion;
     
-    // Get the token contract based on the token name
-    let tokenContract;
-    if (token === 'USDC') {
-      tokenContract = this.currency; // USDC is our currency token
+    let actualBalance;
+    let expectedBalance = BigInt(expected);
+    
+    if (token === 'Native') {
+      // Check native currency balance (ETH, MATIC, BNB, etc.)
+      actualBalance = await this.ethers.provider.getBalance(address);
+      console.log(`   💰 Native currency balance check: ${address} has ${actualBalance.toString()} wei, expected ${expectedBalance.toString()}`);
     } else {
-      tokenContract = this.token; // Default to auctioned token
-    }
-    
-    // Handle ETH case - currency is address(0)
-    if (!tokenContract) {
-      console.log(`   💰 Balance check: ${address} has 0 ${token} (ETH), expected ${expected}`);
-      const expectedBalance = BigInt(expected);
-      if (expectedBalance !== 0n) {
-        throw new Error(
-          `Balance assertion failed for ${address}: expected ${expectedBalance} ${token}, got 0 (ETH)`
-        );
+      // Get the token contract based on the token name
+      let tokenContract;
+      if (token === 'USDC') {
+        tokenContract = this.currency; // USDC is our currency token
+      } else {
+        tokenContract = this.token; // Default to auctioned token
       }
-      return;
+      
+      if (!tokenContract) {
+        throw new Error(`Token contract not found for token: ${token}`);
+      }
+      
+      actualBalance = await tokenContract.balanceOf(address);
+      console.log(`   💰 Token Balance check: ${address} has ${actualBalance.toString()} ${token}, expected ${expectedBalance.toString()}`);
     }
-    
-    const actualBalance = await tokenContract.balanceOf(address);
-    const expectedBalance = BigInt(expected);
-    
-    console.log(`   💰 Balance check: ${address} has ${actualBalance.toString()} ${token}, expected ${expectedBalance.toString()}`);
     
     if (actualBalance !== expectedBalance) {
       throw new Error(

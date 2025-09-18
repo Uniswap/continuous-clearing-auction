@@ -1,4 +1,5 @@
 import { SetupData, InteractionData } from './SchemaValidator';
+import hre from "hardhat";
 
 export interface BidData {
   atBlock: number;
@@ -34,26 +35,21 @@ export interface Group {
 }
 
 export class BidSimulator {
-  private hre: any;
   private ethers: any;
   private network: any;
   private auction: any;
-  private token: any;
   private currency: any;
   private labelMap: Map<string, string> = new Map();
   private groupBidders: Map<string, string[]> = new Map();
 
   constructor(
-    hre: any, 
     auction: any, 
     token: any, 
     currency: any
   ) {
-    this.hre = hre;
     this.ethers = hre.ethers;
     this.network = hre.network;
     this.auction = auction;
-    this.token = token;
     this.currency = currency;
   }
 
@@ -224,11 +220,25 @@ export class BidSimulator {
       }
       
       if (bid.expectRevert) {
-        // Expected revert - this is fine
+        // Expected revert - validate the revert data if specified
+        await this.validateExpectedRevert(error, bid.expectRevert);
         return;
       }
       throw error;
     }
+    // TODO: check transaction receipt for revert
+  }
+
+  async validateExpectedRevert(error: any, expectedRevert: string): Promise<void> {
+    // TODO: decode data from revert
+    // Extract the revert data string from the error
+    const actualRevertData = error?.data || error?.error?.data || error?.info?.data || '';
+    
+    // Check if the revert data contains the expected string
+    if (!actualRevertData.includes(expectedRevert)) {
+      throw new Error(`Expected revert data to contain "${expectedRevert}", but got: ${actualRevertData}`);
+    }
+    console.log(`   ✅ Expected revert validated: ${expectedRevert}`);
   }
 
   async calculateAmount(amountConfig: any): Promise<bigint> {
@@ -266,7 +276,6 @@ export class BidSimulator {
     //   if (value < 0n) value = 0n;
     // }
     
-    // Add other amount calculation logic here
     return BigInt(amountConfig.value);
   }
 

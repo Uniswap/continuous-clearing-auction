@@ -29,7 +29,9 @@ export class AuctionDeployer {
     console.log('   🪙 Deploying additional tokens...');
     
     for (const tokenConfig of additionalTokens) {
-      const Token = await this.ethers.getContractFactory('WorkingCustomMockToken');
+      // Load artifact directly from Foundry's out directory
+      const tokenArtifact = require('../../../out/WorkingCustomMockToken.sol/WorkingCustomMockToken.json');
+      const Token = await this.ethers.getContractFactory('WorkingCustomMockToken', tokenArtifact);
       const token = await Token.deploy(
         tokenConfig.name,
         tokenConfig.name.substring(0, Math.min(4, tokenConfig.name.length)).toUpperCase(), // Use first 4 chars as symbol
@@ -52,7 +54,9 @@ export class AuctionDeployer {
   }
 
   async deployAuctionFactory(): Promise<any> {
-    const AuctionFactory = await this.ethers.getContractFactory('AuctionFactory');
+    // Load artifact directly from Foundry's out directory
+    const auctionFactoryArtifact = require('../../../out/AuctionFactory.sol/AuctionFactory.json');
+    const AuctionFactory = await this.ethers.getContractFactory('AuctionFactory', auctionFactoryArtifact);
     this.auctionFactory = await AuctionFactory.deploy();
     return this.auctionFactory!;
   }

@@ -1,4 +1,5 @@
 import { InteractionData } from './SchemaValidator';
+import hre from "hardhat";
 
 export interface BalanceAssertion {
   type: 'balance';
@@ -22,11 +23,24 @@ export interface EventAssertion {
   signature: string;
 }
 
+export interface Checkpoint {
+  clearingPrice: bigint;
+  totalCleared: bigint;
+  resolvedDemandAboveClearingPrice: bigint;
+  cumulativeMps: number;
+  mps: number;
+  prev: bigint;
+  next: bigint;
+  cumulativeMpsPerPrice: bigint;
+  cumulativeSupplySoldToClearingPrice: bigint;
+}
+
 export interface AuctionState {
   currentBlock: number;
   isGraduated: boolean;
   clearingPrice: bigint;
   currencyRaised: bigint;
+  latestCheckpoint: Checkpoint;
 }
 
 export interface BidderState {
@@ -44,8 +58,7 @@ export class AssertionEngine {
   constructor(
     auction: any, 
     token: any, 
-    currency: any, 
-    hre: any
+    currency: any,
   ) {
     this.auction = auction;
     this.token = token;
@@ -57,7 +70,7 @@ export class AssertionEngine {
     if (!interactionData.checkpoints) return;
 
     for (const checkpoint of interactionData.checkpoints) {
-      // Note: Block mining is now handled at the block level in CombinedTestRunner
+      // Note: Block mining is handled at the block level in CombinedTestRunner
       // This method just validates the assertion
       
       if (checkpoint.assert) {
@@ -189,11 +202,26 @@ export class AssertionEngine {
   }
 
   async getAuctionState(): Promise<AuctionState> {
+    const [
+      currentBlock,
+      isGraduated,
+      clearingPrice,
+      currencyRaised,
+      latestCheckpoint
+    ] = await Promise.all([
+      this.ethers.provider.getBlockNumber(),
+      this.auction.isGraduated(),
+      this.auction.clearingPrice(),
+      this.auction.currencyRaised(),
+      this.auction.latestCheckpoint()
+    ]);
+    
     return {
-      currentBlock: await this.ethers.provider.getBlockNumber(),
-      isGraduated: await this.auction.isGraduated(),
-      clearingPrice: await this.auction.clearingPrice(),
-      currencyRaised: await this.auction.currencyRaised()
+      currentBlock,
+      isGraduated,
+      clearingPrice,
+      currencyRaised,
+      latestCheckpoint,
     };
   }
 

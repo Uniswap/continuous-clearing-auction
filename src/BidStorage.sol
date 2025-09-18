@@ -21,15 +21,17 @@ abstract contract BidStorage {
     /// @param amount The amount of the bid
     /// @param owner The owner of the bid
     /// @param maxPrice The maximum price for the bid
+    /// @param startCumulativeMps The cumulative mps at the start of the bid
     /// @return bid The created bid
     /// @return bidId The id of the created bid
-    function _createBid(bool exactIn, uint256 amount, address owner, uint256 maxPrice)
+    function _createBid(bool exactIn, uint256 amount, address owner, uint256 maxPrice, uint24 startCumulativeMps)
         internal
         returns (Bid memory bid, uint256 bidId)
     {
         bid = Bid({
             exactIn: exactIn,
             startBlock: uint64(block.number),
+            startCumulativeMps: startCumulativeMps,
             exitedBlock: 0,
             maxPrice: maxPrice,
             amount: amount,

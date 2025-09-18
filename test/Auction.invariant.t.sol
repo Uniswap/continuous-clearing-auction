@@ -140,8 +140,8 @@ contract AuctionInvariantHandler is Test, Assertions {
         useActor(actorIndexSeed)
         validateCheckpoint
     {
-        uint256 amount =
-            _bound(tickNumber, 1, ValueX7.unwrap(auction.totalSupply().mulUint256(2).divUint256(MPSLib.MPS)));
+        // Bid requests for anything between 1 and 2x the total supply of tokens
+        uint256 amount = _bound(tickNumber, 1, auction.totalSupply() * 2);
         (uint256 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(exactIn, amount, tickNumber);
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
@@ -203,7 +203,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
             ValueX7 totalCleared,
             ValueX7 resolvedDemandAboveClearingPrice,
             uint256 cumulativeMpsPerPrice,
-            ValueX7 cumulativeSupplySoldToClearingPrice,
+            ValueX7 cumulativeSupplySoldToClearingPriceX7,
             uint24 cumulativeMps,
             uint24 mps,
             uint64 prev,
@@ -214,7 +214,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
             totalCleared: totalCleared,
             resolvedDemandAboveClearingPrice: resolvedDemandAboveClearingPrice,
             cumulativeMpsPerPrice: cumulativeMpsPerPrice,
-            cumulativeSupplySoldToClearingPrice: cumulativeSupplySoldToClearingPrice,
+            cumulativeSupplySoldToClearingPriceX7: cumulativeSupplySoldToClearingPriceX7,
             cumulativeMps: cumulativeMps,
             mps: mps,
             prev: prev,
@@ -226,6 +226,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
         (
             bool exactIn,
             uint64 startBlock,
+            uint24 startCumulativeMps,
             uint64 exitedBlock,
             uint256 maxPrice,
             address owner,
@@ -236,6 +237,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
             exactIn: exactIn,
             startBlock: startBlock,
             exitedBlock: exitedBlock,
+            startCumulativeMps: startCumulativeMps,
             maxPrice: maxPrice,
             owner: owner,
             amount: amount,

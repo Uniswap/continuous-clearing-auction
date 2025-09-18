@@ -18,7 +18,7 @@ abstract contract Assertions {
                 _checkpoint.next,
                 _checkpoint.resolvedDemandAboveClearingPrice,
                 _checkpoint.cumulativeMpsPerPrice,
-                _checkpoint.cumulativeSupplySoldToClearingPrice
+                _checkpoint.cumulativeSupplySoldToClearingPriceX7
             )
         );
     }

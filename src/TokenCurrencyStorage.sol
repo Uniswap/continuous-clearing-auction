@@ -17,8 +17,9 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     /// @notice The token being sold in the auction
     IERC20Minimal internal immutable TOKEN;
     /// @notice The total supply of tokens to sell
-    /// @dev The auction does not support selling more than type(uint256).max / MPSLib.MPS (1e7) tokens
-    ValueX7 internal immutable TOTAL_SUPPLY;
+    uint256 internal immutable TOTAL_SUPPLY;
+    /// @notice The total supply of tokens to sell, scaled up to a ValueX7
+    ValueX7 internal immutable TOTAL_SUPPLY_X7;
     /// @notice The recipient of any unsold tokens at the end of the auction
     address internal immutable TOKENS_RECIPIENT;
     /// @notice The recipient of the raised Currency from the auction
@@ -40,13 +41,14 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         uint24 _graduationThresholdMps
     ) {
         TOKEN = IERC20Minimal(_token);
-        TOTAL_SUPPLY = _totalSupply.scaleUp();
+        TOTAL_SUPPLY = _totalSupply;
+        TOTAL_SUPPLY_X7 = _totalSupply.scaleUpToX7();
         CURRENCY = Currency.wrap(_currency);
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;
         GRADUATION_THRESHOLD_MPS = _graduationThresholdMps;
 
-        if (TOTAL_SUPPLY.eq(0)) revert TotalSupplyIsZero();
+        if (TOTAL_SUPPLY == 0) revert TotalSupplyIsZero();
         if (FUNDS_RECIPIENT == address(0)) revert FundsRecipientIsZero();
         if (GRADUATION_THRESHOLD_MPS > MPSLib.MPS) revert InvalidGraduationThresholdMps();
     }
@@ -77,7 +79,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     }
 
     /// @inheritdoc ITokenCurrencyStorage
-    function totalSupply() external view override(ITokenCurrencyStorage) returns (ValueX7) {
+    function totalSupply() external view override(ITokenCurrencyStorage) returns (uint256) {
         return TOTAL_SUPPLY;
     }
 

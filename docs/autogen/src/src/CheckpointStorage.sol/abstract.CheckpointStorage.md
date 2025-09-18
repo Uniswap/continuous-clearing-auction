@@ -1,5 +1,5 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/b7bb337742591b0d157183bdfc59e877aeaad6e7/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c484a619b57e8cdba6726e41eefe57b0876affbb/src/CheckpointStorage.sol)
 
 **Inherits:**
 [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
@@ -120,9 +120,9 @@ Calculate the tokens sold, proportion of input used, and the block number of the
 
 ```solidity
 function _accountPartiallyFilledCheckpoints(
-    ValueX7 cumulativeSupplySoldToClearingPrice,
-    ValueX7 bidDemand,
-    ValueX7 tickDemand,
+    ValueX7 cumulativeSupplySoldToClearingPriceX7,
+    ValueX7 bidDemandX7,
+    ValueX7 tickDemandX7,
     uint256 bidMaxPrice
 ) internal pure returns (uint256 tokensFilled, uint256 currencySpent);
 ```
@@ -130,9 +130,9 @@ function _accountPartiallyFilledCheckpoints(
 
 |Name|Type|Description|
 |----|----|-----------|
-|`cumulativeSupplySoldToClearingPrice`|`ValueX7`|The cumulative supply sold to the clearing price|
-|`bidDemand`|`ValueX7`|The demand of the bid|
-|`tickDemand`|`ValueX7`||
+|`cumulativeSupplySoldToClearingPriceX7`|`ValueX7`|The cumulative supply sold to the clearing price|
+|`bidDemandX7`|`ValueX7`|The demand of the bid|
+|`tickDemandX7`|`ValueX7`|The demand of the tick|
 |`bidMaxPrice`|`uint256`|The max price of the bid|
 
 **Returns**
@@ -152,12 +152,10 @@ It MUST only be used when the bid's max price is strictly greater than the clear
 
 
 ```solidity
-function _calculateFill(
-    Bid memory bid,
-    uint256 cumulativeMpsPerPriceDelta,
-    uint24 cumulativeMpsDelta,
-    uint24 mpsDenominator
-) internal pure returns (uint256 tokensFilled, uint256 currencySpent);
+function _calculateFill(Bid memory bid, uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
+    internal
+    pure
+    returns (uint256 tokensFilled, uint256 currencySpent);
 ```
 **Parameters**
 
@@ -166,7 +164,6 @@ function _calculateFill(
 |`bid`|`Bid`|the bid to evaluate|
 |`cumulativeMpsPerPriceDelta`|`uint256`|the cumulative sum of supply to price ratio|
 |`cumulativeMpsDelta`|`uint24`|the cumulative sum of mps values across the block range|
-|`mpsDenominator`|`uint24`|the portion of the auction (in mps) which the bid was spread over|
 
 **Returns**
 

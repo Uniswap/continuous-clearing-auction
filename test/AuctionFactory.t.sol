@@ -68,7 +68,7 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         // Verify the auction was created correctly
         auction = Auction(payable(address(distributionContract)));
         assertEq(address(auction.token()), address(token));
-        assertEq(auction.totalSupply(), TOTAL_SUPPLY.scaleUp());
+        assertEq(auction.totalSupply(), TOTAL_SUPPLY);
         assertEq(auction.floorPrice(), FLOOR_PRICE);
         assertEq(auction.tickSpacing(), TICK_SPACING);
         assertEq(auction.tokensRecipient(), tokensRecipient);

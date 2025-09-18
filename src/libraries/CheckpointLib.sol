@@ -12,7 +12,7 @@ struct Checkpoint {
     ValueX7 totalCleared;
     ValueX7 resolvedDemandAboveClearingPrice;
     uint256 cumulativeMpsPerPrice;
-    ValueX7 cumulativeSupplySoldToClearingPrice;
+    ValueX7 cumulativeSupplySoldToClearingPriceX7;
     uint24 cumulativeMps;
     uint24 mps;
     uint64 prev;
@@ -28,11 +28,15 @@ library CheckpointLib {
 
     /// @notice Calculate the actual supply to sell given the total cleared in the auction so far
     /// @param checkpoint The last checkpointed state of the auction
-    /// @param totalSupply immutable total supply of the auction
+    /// @param totalSupplyX7 immutable total supply of the auction
     /// @param mps the number of mps, following the auction sale schedule
-    function getSupply(Checkpoint memory checkpoint, ValueX7 totalSupply, uint24 mps) internal pure returns (ValueX7) {
-        return
-            totalSupply.sub(checkpoint.totalCleared).mulUint256(mps).divUint256(MPSLib.MPS - checkpoint.cumulativeMps);
+    function getSupply(Checkpoint memory checkpoint, ValueX7 totalSupplyX7, uint24 mps)
+        internal
+        pure
+        returns (ValueX7)
+    {
+        uint24 mpsRemainingInAuction = MPSLib.MPS - checkpoint.cumulativeMps;
+        return totalSupplyX7.sub(checkpoint.totalCleared).mulUint256(mps).divUint256(mpsRemainingInAuction);
     }
 
     /// @notice Calculate the supply to price ratio. Will return zero if `price` is zero
@@ -50,10 +54,8 @@ library CheckpointLib {
     /// @param checkpoint The checkpoint to calculate the currency raised from
     /// @return The total currency raised
     function getCurrencyRaised(Checkpoint memory checkpoint) internal pure returns (uint256) {
-        return ValueX7.wrap(
-            ValueX7.unwrap(checkpoint.totalCleared).fullMulDiv(
-                checkpoint.cumulativeMps * FixedPoint96.Q96, checkpoint.cumulativeMpsPerPrice
-            )
-        ).scaleDown();
+        return checkpoint.totalCleared.fullMulDiv(
+            ValueX7.wrap(checkpoint.cumulativeMps * FixedPoint96.Q96), ValueX7.wrap(checkpoint.cumulativeMpsPerPrice)
+        ).scaleDownToUint256();
     }
 }

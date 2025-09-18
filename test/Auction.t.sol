@@ -94,7 +94,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.snapshotGasLastCall('submitBid_recordStep_updateCheckpoint_initializeTick');
 
         vm.roll(block.number + 1);
-        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUp().mulUint256(100e3).divUint256(MPSLib.MPS);
+        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().mulUint256(100e3).divUint256(MPSLib.MPS);
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(
@@ -114,7 +114,7 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(block.number + 1);
-        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUp().mulUint256(100e3).divUint256(MPSLib.MPS);
+        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().mulUint256(100e3).divUint256(MPSLib.MPS);
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(
@@ -141,7 +141,7 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(block.number + 1);
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
-        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUp().mulUint256(100e3).divUint256(MPSLib.MPS);
+        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().mulUint256(100e3).divUint256(MPSLib.MPS);
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(
             block.number, tickNumberToPriceX96(2), expectedTotalCleared, expectedCumulativeMps
@@ -150,7 +150,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_submitBid_multipleTicks_succeeds() public {
-        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUp().mulUint256(100e3).divUint256(MPSLib.MPS);
+        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().mulUint256(100e3).divUint256(MPSLib.MPS);
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
 
         vm.expectEmit(true, true, true, true);
@@ -263,7 +263,7 @@ contract AuctionTest is AuctionBaseTest {
         // Advance to the end of the first step
         vm.roll(auction.startBlock() + 101);
 
-        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUp().mulUint256(100e3).divUint256(MPSLib.MPS);
+        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().mulUint256(100e3).divUint256(MPSLib.MPS);
         // Now the auction should start clearing
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), expectedTotalCleared, 100e3);
@@ -308,7 +308,7 @@ contract AuctionTest is AuctionBaseTest {
         // Advance to the end of the first step
         vm.roll(auction.startBlock() + 101);
 
-        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUp().mulUint256(100e3).divUint256(MPSLib.MPS);
+        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().mulUint256(100e3).divUint256(MPSLib.MPS);
         // Now the auction should start clearing
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), expectedTotalCleared, 100e3);
@@ -462,7 +462,7 @@ contract AuctionTest is AuctionBaseTest {
             tickNumberToPriceX96(2),
             bytes('')
         );
-        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUp().mulUint256(100e3).divUint256(MPSLib.MPS);
+        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().mulUint256(100e3).divUint256(MPSLib.MPS);
 
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
@@ -547,7 +547,7 @@ contract AuctionTest is AuctionBaseTest {
         emit IAuction.CheckpointUpdated(
             block.number,
             tickNumberToPriceX96(1),
-            TOTAL_SUPPLY.scaleUp().mulUint256(100e3).divUint256(MPSLib.MPS),
+            TOTAL_SUPPLY.scaleUpToX7().mulUint256(100e3).divUint256(MPSLib.MPS),
             100e3
         );
         auction.checkpoint();
@@ -1121,10 +1121,10 @@ contract AuctionTest is AuctionBaseTest {
         uint256 minimumClearingPrice = 1e1 << FixedPoint96.RESOLUTION; // Much much smaller than floor price (10e6 << 96)
 
         // Use a blockTokenSupply that will give a calculated price between minimumClearingPrice and floorPrice
-        // The formula is: clearingPrice = currencyDemand * Q96 / (blockTokenSupply - tokenDemand)
+        // The formula is: clearingPrice = currencyDemandX7 * Q96 / (blockTokenSupply - tokenDemandX7)
         // We want: minimumClearingPrice < calculated_price < floorPrice
-        // With currencyDemand = 120e18 and tokenDemand = 100e18, we need to find the right blockTokenSupply
-        ValueX7 blockTokenSupply = MPSLib.scaleUp(1e22); // Even larger supply to get a smaller calculated price
+        // With currencyDemandX7 = 120e18 and tokenDemandX7 = 100e18, we need to find the right blockTokenSupply
+        ValueX7 blockTokenSupply = MPSLib.scaleUpToX7(1e22); // Even larger supply to get a smaller calculated price
 
         uint256 result = mockAuction.calculateNewClearingPrice(
             minimumClearingPrice, // minimumClearingPrice in X96 (below floor price)

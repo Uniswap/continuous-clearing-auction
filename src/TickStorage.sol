@@ -89,11 +89,10 @@ abstract contract TickStorage is ITickStorage {
         emit TickInitialized(price);
     }
 
-    /// @notice Internal function to add a bid to a tick and update its values
-    /// @dev Requires the tick to be initialized
+    /// @notice Internal function to add demand to a tick
     /// @param price The price of the tick
-    /// @param demand The demand of the bid
-    function _updateTick(uint256 price, Demand memory demand) internal {
+    /// @param demand The demand to add
+    function _updateTickDemand(uint256 price, Demand memory demand) internal {
         Tick storage tick = ticks[price];
         tick.demand = tick.demand.add(demand);
     }

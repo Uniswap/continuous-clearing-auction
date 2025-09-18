@@ -27,3 +27,4 @@ repos:
     hooks:
       - id: prettier
         name: Format non solidity files with prettier
+        exclude: "^docs/autogen"

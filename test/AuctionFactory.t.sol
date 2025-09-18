@@ -3,25 +3,31 @@ pragma solidity 0.8.26;
 
 import {Auction, AuctionParameters} from '../src/Auction.sol';
 import {AuctionFactory} from '../src/AuctionFactory.sol';
+
 import {IAuctionFactory} from '../src/interfaces/IAuctionFactory.sol';
 import {IDistributionContract} from '../src/interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
+import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
+import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
+
+import {Assertions} from './utils/Assertions.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
 
-contract AuctionFactoryTest is TokenHandler, Test {
+contract AuctionFactoryTest is TokenHandler, Test, Assertions {
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
+    using MPSLib for *;
 
     AuctionFactory factory;
     Auction auction;
 
     uint256 public constant AUCTION_DURATION = 100;
     uint256 public constant TICK_SPACING = 1e6;
-    uint128 public constant FLOOR_PRICE = 1e6;
-    uint128 public constant TOTAL_SUPPLY = 1000e18;
+    uint256 public constant FLOOR_PRICE = 1e6;
+    uint256 public constant TOTAL_SUPPLY = 1000e18;
 
     address public alice;
     address public tokensRecipient;

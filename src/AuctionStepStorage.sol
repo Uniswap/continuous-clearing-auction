@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import {IAuctionStepStorage} from './interfaces/IAuctionStepStorage.sol';
 import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
+import {MPSLib} from './libraries/MPSLib.sol';
 import {SSTORE2} from 'solady/utils/SSTORE2.sol';
 
 /// @title AuctionStepStorage
@@ -59,7 +60,7 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
             sumMps += mps * blockDelta;
             sumBlockDelta += blockDelta;
         }
-        if (sumMps != AuctionStepLib.MPS) revert InvalidMps();
+        if (sumMps != MPSLib.MPS) revert InvalidMps();
         if (sumBlockDelta + startBlock != endBlock) revert InvalidEndBlock();
     }
 

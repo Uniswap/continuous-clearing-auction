@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
+import {ValueX7} from '../libraries/MPSLib.sol';
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
 import {ICheckpointStorage} from './ICheckpointStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
@@ -17,7 +18,7 @@ struct AuctionParameters {
     uint64 startBlock; // Block which the first step starts
     uint64 endBlock; // When the auction finishes
     uint64 claimBlock; // Block when the auction can claimed
-    uint24 graduationThresholdMps; // Minimum percentage of tokens that must be sold to graduate the auction
+    uint24 graduationThresholdMps; // Minimum MPS (milli-bips) of tokens that must be sold to graduate the auction
     uint256 tickSpacing; // Fixed granularity for prices
     address validationHook; // Optional hook called before a bid
     uint256 floorPrice; // Starting floor price for the auction
@@ -68,7 +69,7 @@ interface IAuction is
     /// @param price The price of the bid
     /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
-    event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, bool exactIn, uint128 amount);
+    event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, bool exactIn, uint256 amount);
 
     /// @notice Emitted when a new checkpoint is created
     /// @param blockNumber The block number of the checkpoint
@@ -76,7 +77,7 @@ interface IAuction is
     /// @param totalCleared The total amount of tokens cleared
     /// @param cumulativeMps The cumulative percentage of total tokens allocated across all previous steps, represented in ten-millionths of the total supply (1e7 = 100%)
     event CheckpointUpdated(
-        uint256 indexed blockNumber, uint256 clearingPrice, uint128 totalCleared, uint24 cumulativeMps
+        uint256 indexed blockNumber, uint256 clearingPrice, ValueX7 totalCleared, uint24 cumulativeMps
     );
 
     /// @notice Emitted when a bid is exited
@@ -84,13 +85,13 @@ interface IAuction is
     /// @param owner The owner of the bid
     /// @param tokensFilled The amount of tokens filled
     /// @param currencyRefunded The amount of currency refunded
-    event BidExited(uint256 indexed bidId, address indexed owner, uint128 tokensFilled, uint128 currencyRefunded);
+    event BidExited(uint256 indexed bidId, address indexed owner, uint256 tokensFilled, uint256 currencyRefunded);
 
     /// @notice Emitted when a bid is claimed
     /// @param bidId The id of the bid
     /// @param owner The owner of the bid
     /// @param tokensFilled The amount of tokens claimed
-    event TokensClaimed(uint256 indexed bidId, address indexed owner, uint128 tokensFilled);
+    event TokensClaimed(uint256 indexed bidId, address indexed owner, uint256 tokensFilled);
 
     /// @notice Submit a new bid
     /// @param maxPrice The maximum price the bidder is willing to pay
@@ -103,7 +104,7 @@ interface IAuction is
     function submitBid(
         uint256 maxPrice,
         bool exactIn,
-        uint128 amount,
+        uint256 amount,
         address owner,
         uint256 prevTickPrice,
         bytes calldata hookData

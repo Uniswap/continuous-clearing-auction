@@ -17,10 +17,16 @@ contract MockRevertingValidationHookWithCustomError is IValidationHook {
     }
 }
 
-contract MockRevertingValidationHookWithString is IValidationHook {
+contract MockRevertingValidationHookCustomErrorWithString is IValidationHook {
     error StringError(string reason);
 
     function validate(uint256, bool, uint128, address, address, bytes calldata) external pure {
         revert StringError('reason');
+    }
+}
+
+contract MockRevertingValidationHookErrorWithString is IValidationHook {
+    function validate(uint256, bool, uint128, address, address, bytes calldata) external pure {
+        require(false, 'reason');
     }
 }

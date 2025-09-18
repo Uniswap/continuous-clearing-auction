@@ -4,7 +4,8 @@ pragma solidity ^0.8.0;
 import {ValidationHookLib} from '../src/libraries/ValidationHookLib.sol';
 import {MockRevertingValidationHook} from './utils/MockRevertingValidationHook.sol';
 import {MockRevertingValidationHookWithCustomError} from './utils/MockRevertingValidationHook.sol';
-import {MockRevertingValidationHookWithString} from './utils/MockRevertingValidationHook.sol';
+import {MockRevertingValidationHookCustomErrorWithString} from './utils/MockRevertingValidationHook.sol';
+import {MockRevertingValidationHookErrorWithString} from './utils/MockRevertingValidationHook.sol';
 
 import {MockValidationHook} from './utils/MockValidationHook.sol';
 import {MockValidationHookLib} from './utils/MockValidationHookLib.sol';
@@ -15,14 +16,16 @@ contract ValidationHookLibTest is Test {
     MockValidationHook validationHook;
     MockRevertingValidationHook revertingValidationHook;
     MockRevertingValidationHookWithCustomError revertingValidationHookWithCustomError;
-    MockRevertingValidationHookWithString revertingValidationHookWithString;
+    MockRevertingValidationHookCustomErrorWithString revertingValidationHookWithString;
+    MockRevertingValidationHookErrorWithString revertingValidationHookWithErrorWithString;
 
     function setUp() public {
         validationHookLib = new MockValidationHookLib();
         validationHook = new MockValidationHook();
         revertingValidationHook = new MockRevertingValidationHook();
         revertingValidationHookWithCustomError = new MockRevertingValidationHookWithCustomError();
-        revertingValidationHookWithString = new MockRevertingValidationHookWithString();
+        revertingValidationHookWithString = new MockRevertingValidationHookCustomErrorWithString();
+        revertingValidationHookWithErrorWithString = new MockRevertingValidationHookErrorWithString();
     }
 
     function test_handleValidate_withValidationHook_doesNotRevert() public {
@@ -48,11 +51,23 @@ contract ValidationHookLibTest is Test {
     function test_handleValidate_withRevertingValidationHookWithString_reverts() public {
         bytes memory revertData = abi.encodeWithSelector(
             ValidationHookLib.ValidationHookCallFailed.selector,
-            abi.encodeWithSelector(MockRevertingValidationHookWithString.StringError.selector, 'reason')
+            abi.encodeWithSelector(MockRevertingValidationHookCustomErrorWithString.StringError.selector, 'reason')
         );
         vm.expectRevert(revertData);
         validationHookLib.handleValidate(
             revertingValidationHookWithString, 1, true, 1, address(0), address(0), bytes('')
+        );
+    }
+
+    function test_handleValidate_withRevertingValidationHookWithErrorWithString_reverts() public {
+        bytes memory revertData = abi.encodeWithSelector(
+            ValidationHookLib.ValidationHookCallFailed.selector,
+            // bytes4(keccak256("Error(string)"))
+            abi.encodeWithSelector(0x08c379a0, 'reason')
+        );
+        vm.expectRevert(revertData);
+        validationHookLib.handleValidate(
+            revertingValidationHookWithErrorWithString, 1, true, 1, address(0), address(0), bytes('')
         );
     }
 }

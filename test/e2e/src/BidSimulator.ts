@@ -363,22 +363,7 @@ export class BidSimulator {
           await this.auction.sweepCurrency();
         } else if (kind === 'sweepUnsoldTokens') {
           await this.auction.sweepUnsoldTokens();
-        } else if (kind === 'pause') {
-          // TODO: Implement pause functionality
-          console.log(`   ⏸️  Admin action: pause`);
-        } else if (kind === 'unpause') {
-          // TODO: Implement unpause functionality
-          console.log(`   ▶️  Admin action: unpause`);
-        } else if (kind === 'setFee') {
-          // TODO: Implement setFee functionality
-          console.log(`   💰 Admin action: setFee`);
-        } else if (kind === 'setParam') {
-          // TODO: Implement setParam functionality
-          console.log(`   ⚙️  Admin action: setParam`);
-        } else if (kind === 'setValidationHook') {
-          // TODO: Implement setValidationHook functionality
-          console.log(`   🪝 Admin action: setValidationHook`);
-        }
+        } 
       }
     }
   }

@@ -197,9 +197,7 @@
                     "additionalProperties": false,
                     "required": ["kind"],
                     "properties": {
-                      "kind":  { "type": "string", "enum": ["pause", "unpause", "setFee", "setParam", "setValidationHook"] },
-                      "param": { "type": "string" },
-                      "value": { "type": ["string", "number", "integer", "boolean"] }
+                      "kind":  { "type": "string", "enum": ["sweepCurrency", "sweepUnsoldTokens"] }
                     }
                   }
                 }

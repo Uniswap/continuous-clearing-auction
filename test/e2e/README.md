@@ -15,7 +15,10 @@ The following features are defined in the schemas but not yet implemented. These
   - `basisPoints` - Calculate basis points (1/10000) of total supply
   - `percentOfGroup` - Calculate percentage of group total
 
-### Allow arbitary addresses to start auctions
+### ⚙️ Allow arbitary addresses to start auctions
+- **Arbitrary Address Auction Creation** - Allow any address to start auctions through the factory
+- **Instance Specification** - Add the ability to specify which addresses to start the auction
+
 
 ### 🔄 Transfer Actions
 - **Token Transfers** - Execute transfers between addresses during test execution

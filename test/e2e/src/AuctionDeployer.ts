@@ -1,17 +1,35 @@
-class AuctionDeployer {
-  constructor(hre, ethers) {
+import { SetupData } from './SchemaValidator';
+
+export interface TokenConfig {
+  name: string;
+  decimals: string;
+  totalSupply: string;
+  percentAuctioned: string;
+}
+
+export interface BalanceItem {
+  address: string;
+  token: string;
+  amount: string;
+}
+
+export class AuctionDeployer {
+  private hre: any;
+  private ethers: any;
+  private auctionFactory: any = null;
+  private auction: any = null;
+  private tokens: Map<string, any> = new Map(); // Map of token name -> contract instance
+
+  constructor(hre: any) {
     this.hre = hre;
-    this.ethers = ethers;
-    this.auctionFactory = null;
-    this.auction = null;
-    this.tokens = new Map(); // Map of token name -> contract instance
+    this.ethers = hre.ethers;
   }
 
-  async deployAdditionalTokens(additionalTokens) {
+  async deployAdditionalTokens(additionalTokens: TokenConfig[]): Promise<void> {
     console.log('   🪙 Deploying additional tokens...');
     
     for (const tokenConfig of additionalTokens) {
-      let Token;
+      let Token: any;
       if (tokenConfig.name === 'USDC') {
         Token = await this.ethers.getContractFactory('USDCMock');
         const token = await Token.deploy(
@@ -36,23 +54,22 @@ class AuctionDeployer {
     }
   }
 
-  getTokenByName(tokenName) {
+  getTokenByName(tokenName: string): any {
     return this.tokens.get(tokenName);
   }
 
-  async getTokenAddress(tokenName) {
+  async getTokenAddress(tokenName: string): Promise<string | null> {
     const token = this.tokens.get(tokenName);
     return token ? await token.getAddress() : null;
   }
 
-  async deployAuctionFactory() {
+  async deployAuctionFactory(): Promise<any> {
     const AuctionFactory = await this.ethers.getContractFactory('AuctionFactory');
     this.auctionFactory = await AuctionFactory.deploy();
-    return this.auctionFactory;
+    return this.auctionFactory!;
   }
 
-  async createAuction(setupData) {
-    
+  async createAuction(setupData: SetupData): Promise<any> {
     if (!this.auctionFactory) {
       await this.deployAuctionFactory();
     }
@@ -62,6 +79,10 @@ class AuctionDeployer {
 
     // Get the auctioned token and currency
     const auctionedToken = this.getTokenByName(setupData.auctionParameters.auctionedToken);
+    if (!auctionedToken) {
+      throw new Error(`Auctioned token ${setupData.auctionParameters.auctionedToken} not found`);
+    }
+
     const currencyAddress = await this.resolveCurrencyAddress(setupData.auctionParameters.currency);
     const { auctionParameters, env } = setupData;
     const startBlock = BigInt(env.startBlock) + BigInt(auctionParameters.startOffsetBlocks);
@@ -99,15 +120,15 @@ class AuctionDeployer {
 
       console.log('   📦 Config data length:', configData.length);
 
-              const auctionAddress = await this.auctionFactory.initializeDistribution.staticCall(
-                await auctionedToken.getAddress(),
-                auctionAmount,
-                configData,
-                this.ethers.keccak256(this.ethers.toUtf8Bytes("test-salt"))
-              );
+      const auctionAddress = await this.auctionFactory!.initializeDistribution.staticCall(
+        await auctionedToken.getAddress(),
+        auctionAmount,
+        configData,
+        this.ethers.keccak256(this.ethers.toUtf8Bytes("test-salt"))
+      );
       
       // Now execute the actual transaction
-      const tx = await this.auctionFactory.initializeDistribution(
+      const tx = await this.auctionFactory!.initializeDistribution(
         await auctionedToken.getAddress(),
         auctionAmount,
         configData,
@@ -116,14 +137,14 @@ class AuctionDeployer {
       await tx.wait();
       
       this.auction = await this.ethers.getContractAt('Auction', auctionAddress);
-      return this.auction;
-    } catch (error) {
+      return this.auction!;
+    } catch (error: any) {
       console.error('   ❌ Auction creation failed:', error.message);
       throw error;
     }
   }
 
-  async resolveCurrencyAddress(currency) {
+  async resolveCurrencyAddress(currency: string): Promise<string> {
     // If it's an address, return it directly
     if (currency.startsWith('0x')) {
       return currency;
@@ -133,10 +154,14 @@ class AuctionDeployer {
       return '0x0000000000000000000000000000000000000000';
     }
     // Otherwise, look up the token by name
-    return await this.getTokenAddress(currency);
+    const address = await this.getTokenAddress(currency);
+    if (!address) {
+      throw new Error(`Token ${currency} not found`);
+    }
+    return address;
   }
 
-  calculateAuctionAmount(tokenName, additionalTokens) {
+  calculateAuctionAmount(tokenName: string, additionalTokens: TokenConfig[]): bigint {
     const tokenConfig = additionalTokens.find(t => t.name === tokenName);
     if (!tokenConfig) {
       throw new Error(`Token ${tokenName} not found in additionalTokens`);
@@ -147,13 +172,13 @@ class AuctionDeployer {
     return totalSupply * BigInt(Math.floor(percentAuctioned * 100)) / BigInt(10000);
   }
 
-  createSimpleAuctionStepsData(auctionDurationBlocks) {
+  createSimpleAuctionStepsData(auctionDurationBlocks: number): string {
     // Create a simple auction steps data that satisfies the validation
     // Format: each step is 8 bytes (uint64): 3 bytes mps + 5 bytes blockDelta
     // We need: sumMps = 1e7 (MPS constant) and sumBlockDelta = auctionDurationBlocks
     
     const MPS = 10000000; // 1e7
-    const blockDelta = parseInt(auctionDurationBlocks);
+    const blockDelta = parseInt(auctionDurationBlocks.toString());
     const mps = Math.floor(MPS / blockDelta); // mps * blockDelta should equal MPS
     
     console.log('   🔍 Creating auction steps data:');
@@ -175,7 +200,7 @@ class AuctionDeployer {
     return result;
   }
 
-  async setupBalances(setupData) {
+  async setupBalances(setupData: SetupData): Promise<void> {
     const { env } = setupData;
     if (!env.balances) return;
 
@@ -192,7 +217,7 @@ class AuctionDeployer {
         console.log(`   ✅ Set native currency balance: ${balance.address} = ${balance.amount} wei`);
       } else if (balance.token.startsWith('0x')) {
         // It's an address - find the token by address
-        let token = null;
+        let token: any = null;
         for (const [name, tokenContract] of this.tokens) {
           if (await tokenContract.getAddress() === balance.token) {
             token = tokenContract;
@@ -219,5 +244,3 @@ class AuctionDeployer {
     }
   }
 }
-
-module.exports = AuctionDeployer;

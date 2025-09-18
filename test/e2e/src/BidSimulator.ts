@@ -1,16 +1,63 @@
-class BidSimulator {
-  constructor(hre, auction, token, currency) {
+import { SetupData, InteractionData } from './SchemaValidator';
+
+export interface BidData {
+  atBlock: number;
+  amount: {
+    side: 'input' | 'output';
+    type: 'raw' | 'percentOfSupply' | 'basisPoints' | 'percentOfGroup';
+    value: string | number;
+    variation?: string | number;
+    token?: string;
+  };
+  price: {
+    type: 'raw' | 'tick';
+    value: string | number;
+    variation?: string | number;
+  };
+  hookData?: string;
+  expectRevert?: string;
+  bidder: string;
+  type: 'named' | 'group';
+  group?: string;
+}
+
+export interface Group {
+  labelPrefix: string;
+  count: number;
+  startOffsetBlocks: number;
+  amount: any;
+  price: any;
+  rotationIntervalBlocks: number;
+  betweenRoundsBlocks: number;
+  rounds: number;
+  hookData?: string;
+}
+
+export class BidSimulator {
+  private hre: any;
+  private ethers: any;
+  private network: any;
+  private auction: any;
+  private token: any;
+  private currency: any;
+  private labelMap: Map<string, string> = new Map();
+  private groupBidders: Map<string, string[]> = new Map();
+
+  constructor(
+    hre: any, 
+    auction: any, 
+    token: any, 
+    currency: any
+  ) {
     this.hre = hre;
     this.ethers = hre.ethers;
     this.network = hre.network;
     this.auction = auction;
     this.token = token;
     this.currency = currency;
-    this.labelMap = new Map();
-    this.groupBidders = new Map();
   }
 
-  async setupLabels(setupData, interactionData) {
+  async setupLabels(setupData: SetupData, interactionData: InteractionData): Promise<void> {
     // Map symbolic labels to actual addresses
     this.labelMap.set('Pool', await this.auction.getAddress());
     this.labelMap.set('Auction', await this.auction.getAddress());
@@ -28,9 +75,9 @@ class BidSimulator {
     }
   }
 
-  async generateGroupBidders(groups) {
+  async generateGroupBidders(groups: Group[]): Promise<void> {
     for (const group of groups) {
-      const bidders = [];
+      const bidders: string[] = [];
       for (let i = 0; i < group.count; i++) {
         const address = this.ethers.Wallet.createRandom().address;
         bidders.push(address);
@@ -40,7 +87,7 @@ class BidSimulator {
     }
   }
 
-  async executeBids(interactionData, timeBase) {
+  async executeBids(interactionData: InteractionData, timeBase: string): Promise<void> {
     const allBids = this.collectAllBids(interactionData, timeBase);
     
     // Sort bids by block number
@@ -51,8 +98,8 @@ class BidSimulator {
     }
   }
 
-  collectAllBids(interactionData, timeBase) {
-    const bids = [];
+  collectAllBids(interactionData: InteractionData, timeBase: string): BidData[] {
+    const bids: BidData[] = [];
 
     // Named bidders
     if (interactionData.namedBidders) {
@@ -71,22 +118,24 @@ class BidSimulator {
     if (interactionData.groups) {
       interactionData.groups.forEach(group => {
         const bidders = this.groupBidders.get(group.labelPrefix);
-        for (let round = 0; round < group.rounds; round++) {
-          for (let i = 0; i < group.count; i++) {
-            const bidder = bidders[i];
-            const blockOffset = group.startOffsetBlocks + 
-              (round * (group.rotationIntervalBlocks + group.betweenRoundsBlocks)) +
-              (i * group.rotationIntervalBlocks);
-            
-            bids.push({
-              atBlock: blockOffset,
-              amount: group.amount,
-              price: group.price,
-              hookData: group.hookData,
-              bidder,
-              type: 'group',
-              group: group.labelPrefix
-            });
+        if (bidders) {
+          for (let round = 0; round < group.rounds; round++) {
+            for (let i = 0; i < group.count; i++) {
+              const bidder = bidders[i];
+              const blockOffset = group.startOffsetBlocks + 
+                (round * (group.rotationIntervalBlocks + group.betweenRoundsBlocks)) +
+                (i * group.rotationIntervalBlocks);
+              
+              bids.push({
+                atBlock: blockOffset,
+                amount: group.amount,
+                price: group.price,
+                hookData: group.hookData,
+                bidder,
+                type: 'group',
+                group: group.labelPrefix
+              });
+            }
           }
         }
       });
@@ -95,7 +144,7 @@ class BidSimulator {
     return bids;
   }
 
-  async executeBid(bid) {
+  async executeBid(bid: BidData): Promise<void> {
     // Note: Block mining is handled at the block level in CombinedTestRunner
     // This method just executes the bid transaction
 
@@ -129,12 +178,12 @@ class BidSimulator {
       // Connect the auction contract to the bidder signer
       const auctionWithBidder = this.auction.connect(bidderSigner);
       
-      let tx;
+      let tx: any;
       if (this.currency) {
         console.log('   🔍 Using ERC20 currency - would need permit2 setup');
         // For ERC20 tokens, we would need permit2 setup
         // For now, we'll skip this and let the auction handle it
-        tx = await auctionWithBidder.submitBid(
+        tx = await (auctionWithBidder as any).submitBid(
           price,
           bid.amount.side === 'input',
           amount,
@@ -144,7 +193,7 @@ class BidSimulator {
         );
       } else {
         // For ETH currency, send the required amount as msg.value
-        tx = await auctionWithBidder.submitBid(
+        tx = await (auctionWithBidder as any).submitBid(
           price,
           bid.amount.side === 'input',
           amount,
@@ -160,7 +209,7 @@ class BidSimulator {
       // Stop impersonating the account
       await this.network.provider.send('hardhat_stopImpersonatingAccount', [bid.bidder]);
       
-    } catch (error) {
+    } catch (error: any) {
       // Stop impersonating the account even if there's an error
       try {
         await this.network.provider.send('hardhat_stopImpersonatingAccount', [bid.bidder]);
@@ -176,7 +225,7 @@ class BidSimulator {
     }
   }
 
-  async calculateAmount(amountConfig) {
+  async calculateAmount(amountConfig: any): Promise<bigint> {
     // Implementation depends on amount type (raw, percentOfSupply, etc.)
     // This is a simplified version
     if (amountConfig.type === 'raw') {
@@ -186,15 +235,15 @@ class BidSimulator {
     return BigInt(amountConfig.value);
   }
 
-  async calculatePrice(priceConfig) {
+  async calculatePrice(priceConfig: any): Promise<bigint> {
     if (priceConfig.type === 'tick') {
       // Convert tick to actual price using the same logic as the Foundry tests
-      return this.tickNumberToPriceX96(parseInt(priceConfig.value));
+      return this.tickNumberToPriceX96(parseInt(priceConfig.value.toString()));
     }
     return BigInt(priceConfig.value);
   }
 
-  tickNumberToPriceX96(tickNumber) {
+  tickNumberToPriceX96(tickNumber: number): bigint {
     // This mirrors the logic from AuctionBaseTest.sol
     const FLOOR_PRICE = 1000n * (2n ** 96n); // 1000 * 2^96
     const TICK_SPACING = 100n; // From our setup (matches Foundry test)
@@ -202,7 +251,7 @@ class BidSimulator {
     return ((FLOOR_PRICE >> 96n) + (BigInt(tickNumber) - 1n) * TICK_SPACING) << 96n;
   }
 
-  async calculateRequiredCurrencyAmount(exactIn, amount, maxPrice) {
+  async calculateRequiredCurrencyAmount(exactIn: boolean, amount: bigint, maxPrice: bigint): Promise<bigint> {
     // This mirrors the BidLib.inputAmount logic
     if (exactIn) {
       // For exactIn bids, the amount is in token units
@@ -216,7 +265,7 @@ class BidSimulator {
     }
   }
 
-  async executeActions(interactionData, timeBase) {
+  async executeActions(interactionData: InteractionData, timeBase: string): Promise<void> {
     if (!interactionData.actions) return;
 
     for (const action of interactionData.actions) {
@@ -228,7 +277,7 @@ class BidSimulator {
     }
   }
 
-  async executeTransfers(transferInteractions) {
+  async executeTransfers(transferInteractions: any[]): Promise<void> {
     for (const interactionGroup of transferInteractions) {
       for (const interaction of interactionGroup) {
         // Note: Block mining is handled at the block level in CombinedTestRunner
@@ -243,7 +292,7 @@ class BidSimulator {
     }
   }
 
-  async executeAdminActions(adminInteractions) {
+  async executeAdminActions(adminInteractions: any[]): Promise<void> {
     for (const interactionGroup of adminInteractions) {
       for (const interaction of interactionGroup) {
         // Note: Block mining is handled at the block level in CombinedTestRunner
@@ -258,5 +307,3 @@ class BidSimulator {
     }
   }
 }
-
-module.exports = BidSimulator;

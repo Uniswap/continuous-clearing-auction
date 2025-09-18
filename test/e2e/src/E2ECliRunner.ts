@@ -1,19 +1,70 @@
 #!/usr/bin/env node
 
-const hre = require('hardhat');
-const { ethers } = require('hardhat');
-const TestCombinationRunner = require('./TestCombinationRunner');
+import { MultiTestRunner, CombinationResult } from './MultiTestRunner';
 
 // Define the combinations you want to run
 const COMBINATIONS_TO_RUN = [
   { setup: 'simple-setup.json', interaction: 'simple-interaction.json' }
-  // Add more combinations here as you create them:
+  // TODO: Add more combinations here as they are created:
   // { setup: 'setup02.json', interaction: 'interaction02.json' },
   // { setup: 'setup03.json', interaction: 'interaction01.json' },
 ];
 
-async function main() {
-  const runner = new TestCombinationRunner(hre, ethers);
+interface CombinationToRun {
+  setup: string;
+  interaction: string;
+}
+
+interface AvailableFiles {
+  setup: string[];
+  interaction: string[];
+}
+
+class E2ECliRunner {
+  private runner: MultiTestRunner;
+
+  constructor(hre: any) {
+    this.runner = new MultiTestRunner(hre, hre.ethers);
+  }
+
+  getAvailableFiles(): AvailableFiles {
+    const setupInstances = this.runner['singleTestRunner']['schemaValidator'].getAllTestInstances('setup');
+    const interactionInstances = this.runner['singleTestRunner']['schemaValidator'].getAllTestInstances('interaction');
+    
+    return {
+      setup: setupInstances.map(instance => instance.filename),
+      interaction: interactionInstances.map(instance => instance.filename)
+    };
+  }
+
+  async runAllCombinations(combinations: CombinationToRun[]): Promise<CombinationResult[]> {
+    const results: CombinationResult[] = [];
+    
+    for (const combination of combinations) {
+      try {
+        console.log(`\n🧪 Running: ${combination.setup} + ${combination.interaction}`);
+        const result = await this.runner.runCombination(combination.setup, combination.interaction);
+        results.push(result);
+        console.log(`✅ Success: ${combination.setup} + ${combination.interaction}`);
+      } catch (error: any) {
+        console.error(`❌ Failed: ${combination.setup} + ${combination.interaction}`);
+        console.error(`   Error: ${error.message}`);
+        results.push({
+          setupFile: combination.setup,
+          interactionFile: combination.interaction,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+    
+    return results;
+  }
+}
+
+async function main(): Promise<void> {
+  const hre = require('hardhat');
+  const runner = new E2ECliRunner(hre);
   
   console.log('🚀 TWAP Auction E2E Test Runner');
   console.log('================================');
@@ -71,13 +122,16 @@ async function main() {
 // Show usage information
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
   console.log('\n📖 Usage:');
-  console.log('  node test/e2e/src/CombinationRunner.js');
-  console.log('  node test/e2e/src/CombinationRunner.js --setup <setup-file> --interaction <interaction-file>');
+  console.log('  npx ts-node test/e2e/src/CombinationRunner.ts');
+  console.log('  npx ts-node test/e2e/src/CombinationRunner.ts --setup <setup-file> --interaction <interaction-file>');
   console.log('\n📁 Examples:');
-  console.log('  node test/e2e/src/CombinationRunner.js');
-  console.log('  node test/e2e/src/CombinationRunner.js --setup simple-setup.json --interaction simple-interaction.json');
+  console.log('  npx ts-node test/e2e/src/CombinationRunner.ts');
+  console.log('  npx ts-node test/e2e/src/CombinationRunner.ts --setup simple-setup.json --interaction simple-interaction.json');
   console.log('\n💡 Note: Only run compatible setup/interaction combinations!');
   process.exit(0);
 }
 
-main();
+main().catch((error) => {
+  console.error('Fatal error:', error);
+  process.exit(1);
+});

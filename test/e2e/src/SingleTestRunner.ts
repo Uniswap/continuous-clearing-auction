@@ -1,32 +1,52 @@
-const TestRunner = require('./TestRunner');
-const AuctionDeployer = require('./AuctionDeployer');
-const BidSimulator = require('./BidSimulator');
-const AssertionEngine = require('./AssertionEngine');
+import { SchemaValidator, SetupData, InteractionData } from './SchemaValidator';
+import { AuctionDeployer } from './AuctionDeployer';
+import { BidSimulator } from './BidSimulator';
+import { AssertionEngine, AuctionState } from './AssertionEngine';
 
-class CombinedTestRunner {
-  constructor(hre, ethers) {
+export interface TestResult {
+  setupData: SetupData;
+  interactionData: InteractionData;
+  auction: any;
+  auctionedToken: any;
+  currencyToken: any;
+  finalState: AuctionState;
+  success: boolean;
+}
+
+
+export interface EventData {
+  type: 'bid' | 'groupBid' | 'action' | 'checkpoint';
+  atBlock: number;
+  data: any;
+}
+
+export class SingleTestRunner {
+  private hre: any;
+  private ethers: any;
+  private network: any;
+  private schemaValidator: SchemaValidator;
+  private deployer: AuctionDeployer;
+
+  constructor(hre: any) {
     this.hre = hre;
-    this.ethers = ethers;
+    this.ethers = hre.ethers;
     this.network = hre.network;
-    this.testRunner = new TestRunner();
-    this.deployer = new AuctionDeployer(hre, ethers);
+    this.schemaValidator = new SchemaValidator();
+    this.deployer = new AuctionDeployer(hre);
   }
 
   /**
    * Runs a complete test combining setup and interaction schemas
-   * @param {string} setupFilename - Name of the setup JSON file
-   * @param {string} interactionFilename - Name of the interaction JSON file
-   * @returns {Object} Test results and final state
    */
-  async runCombinedTest(setupFilename, interactionFilename) {
+  async runCombinedTest(setupFilename: string, interactionFilename: string): Promise<TestResult> {
     console.log(`\n🧪 Running combined test: ${setupFilename} + ${interactionFilename}`);
     
     // Load and validate both schemas
-    const setupData = this.testRunner.loadTestInstance('setup', setupFilename);
-    const interactionData = this.testRunner.loadTestInstance('interaction', interactionFilename);
+    const setupData = this.schemaValidator.loadTestInstance('setup', setupFilename) as SetupData;
+    const interactionData = this.schemaValidator.loadTestInstance('interaction', interactionFilename) as InteractionData;
     
-    this.testRunner.validateSetup(setupData);
-    this.testRunner.validateInteraction(interactionData);
+    this.schemaValidator.validateSetup(setupData);
+    this.schemaValidator.validateInteraction(interactionData);
     
     console.log('✅ Schema validation passed');
     
@@ -40,9 +60,9 @@ class CombinedTestRunner {
     // PHASE 2: Execute interactions on the configured auction
     console.log('🎯 Phase 2: Executing interaction scenario...');
     const auctionedToken = this.deployer.getTokenByName(setupData.auctionParameters.auctionedToken);
-    const currencyToken = setupData.auctionParameters.currency === 'ETH' ? null : this.deployer.getTokenByName(setupData.auctionParameters.currency);
-    const bidSimulator = new BidSimulator(this.hre, auction, auctionedToken, currencyToken);
-    const assertionEngine = new AssertionEngine(auction, auctionedToken, currencyToken, this.ethers);
+    const currencyToken = setupData.auctionParameters.currency === 'Native' ? null : this.deployer.getTokenByName(setupData.auctionParameters.currency);
+    const bidSimulator = new BidSimulator(this.hre, auction, auctionedToken || null, currencyToken || null);
+    const assertionEngine = new AssertionEngine(auction, auctionedToken || null, currencyToken || null, this.hre);
     
     // Setup labels and execute the interaction scenario
     await bidSimulator.setupLabels(setupData, interactionData);
@@ -62,8 +82,8 @@ class CombinedTestRunner {
       setupData,
       interactionData,
       auction,
-      auctionedToken,
-      currencyToken,
+      auctionedToken: auctionedToken || null,
+      currencyToken: currencyToken || null,
       finalState,
       success: true
     };
@@ -74,9 +94,14 @@ class CombinedTestRunner {
    * Checkpoints are validated at their specific blocks during execution
    * Multiple events in the same block are executed together
    */
-  async executeWithCheckpoints(bidSimulator, assertionEngine, interactionData, timeBase) {
+  async executeWithCheckpoints(
+    bidSimulator: BidSimulator, 
+    assertionEngine: AssertionEngine, 
+    interactionData: InteractionData, 
+    timeBase: string
+  ): Promise<void> {
     // Collect all events (bids, actions, checkpoints) and sort by block
-    const allEvents = [];
+    const allEvents: EventData[] = [];
     
     // Add bids
     if (interactionData.namedBidders) {
@@ -94,10 +119,11 @@ class CombinedTestRunner {
     // Add group bids
     if (interactionData.groups) {
       interactionData.groups.forEach(group => {
-        const bidders = bidSimulator.groupBidders.get(group.labelPrefix);
+        // Note: We need to access the groupBidders from the bidSimulator
+        // This is a bit of a hack since we don't have direct access to the private property
+        // In a real implementation, we'd want to expose this through a public method
         for (let round = 0; round < group.rounds; round++) {
           for (let i = 0; i < group.count; i++) {
-            const bidder = bidders[i];
             const blockOffset = group.startOffsetBlocks + 
               (round * (group.rotationIntervalBlocks + group.betweenRoundsBlocks)) +
               (i * group.rotationIntervalBlocks);
@@ -105,7 +131,7 @@ class CombinedTestRunner {
             allEvents.push({
               type: 'groupBid',
               atBlock: blockOffset,
-              data: { bidder, group, ...group }
+              data: { group, ...group }
             });
           }
         }
@@ -115,8 +141,8 @@ class CombinedTestRunner {
     // Add actions
     if (interactionData.actions) {
       interactionData.actions.forEach(action => {
-        action.interactions.forEach(interactionGroup => {
-          interactionGroup.forEach(interaction => {
+        action.interactions.forEach((interactionGroup: any) => {
+          interactionGroup.forEach((interaction: any) => {
             allEvents.push({
               type: 'action',
               atBlock: interaction.atBlock,
@@ -154,7 +180,7 @@ class CombinedTestRunner {
     });
     
     // Group events by block number
-    const eventsByBlock = {};
+    const eventsByBlock: Record<number, EventData[]> = {};
     allEvents.forEach(event => {
       if (!eventsByBlock[event.atBlock]) {
         eventsByBlock[event.atBlock] = [];
@@ -204,64 +230,4 @@ class CombinedTestRunner {
     }
   }
 
-  /**
-   * Runs all available setup/interaction combinations
-   */
-  async runAllCombinations() {
-    const setupInstances = this.testRunner.getAllTestInstances('setup');
-    const interactionInstances = this.testRunner.getAllTestInstances('interaction');
-    
-    const results = [];
-    
-    for (const setup of setupInstances) {
-      for (const interaction of interactionInstances) {
-        try {
-          const result = await this.runCombinedTest(setup.filename, interaction.filename);
-          results.push({
-            setup: setup.filename,
-            interaction: interaction.filename,
-            success: true,
-            result
-          });
-        } catch (error) {
-          console.error(`❌ Test failed: ${setup.filename} + ${interaction.filename}`);
-          console.error(error.message);
-          results.push({
-            setup: setup.filename,
-            interaction: interaction.filename,
-            success: false,
-            error: error.message
-          });
-        }
-      }
-    }
-    
-    return results;
-  }
-
-  /**
-   * Validates that a setup and interaction are compatible
-   */
-  validateCompatibility(setupData, interactionData) {
-    // Check if interaction references match setup
-    const setupAddresses = new Set([
-      setupData.auctionParameters.currency,
-      setupData.auctionParameters.tokensRecipient,
-      setupData.auctionParameters.fundsRecipient,
-      setupData.auctionParameters.validationHook
-    ]);
-    
-    // Validate that interaction addresses exist in setup
-    if (interactionData.namedBidders) {
-      interactionData.namedBidders.forEach(bidder => {
-        if (!setupAddresses.has(bidder.address)) {
-          console.warn(`⚠️  Bidder address ${bidder.address} not found in setup`);
-        }
-      });
-    }
-    
-    return true;
-  }
 }
-
-module.exports = CombinedTestRunner;

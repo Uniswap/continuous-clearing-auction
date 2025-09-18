@@ -1,14 +1,13 @@
-const { expect } = require('chai');
-const { ethers } = require('hardhat');
-const TestCombinationRunner = require('../src/TestCombinationRunner');
+import { expect } from 'chai';
+import { MultiTestRunner } from '../src/MultiTestRunner';
 
 describe('E2E Tests', function() {
-  let runner;
+  let runner: MultiTestRunner;
 
   before(async function() {
-    console.log('🔍 Test: ethers available?', !!ethers);
+    const hre = require('hardhat');
     console.log('🔍 Test: hre.ethers available?', !!hre.ethers);
-    runner = new TestCombinationRunner(hre, ethers);
+    runner = new MultiTestRunner(hre, hre.ethers);
   });
 
   it('should run simple setup and interaction', async function() {

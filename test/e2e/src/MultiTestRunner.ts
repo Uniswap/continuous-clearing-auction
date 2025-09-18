@@ -1,26 +1,45 @@
-const CombinedTestRunner = require('./CombinedTestRunner');
+import { SingleTestRunner, TestResult } from './SingleTestRunner';
 
-class TestCombinationRunner {
-  constructor(hre, ethers) {
+export interface CombinationResult {
+  success: boolean;
+  result?: TestResult;
+  error?: string;
+  setupFile: string;
+  interactionFile: string;
+}
+
+export interface AvailableFiles {
+  setup: string[];
+  interaction: string[];
+}
+
+export interface Combination {
+  setup: string;
+  interaction: string;
+}
+
+export class MultiTestRunner {
+  private hre: any;
+  private ethers: any;
+  private singleTestRunner: SingleTestRunner;
+
+  constructor(hre: any, ethers: any) {
     this.hre = hre;
     this.ethers = ethers;
-    this.combinedRunner = new CombinedTestRunner(hre, ethers);
+    this.singleTestRunner = new SingleTestRunner(hre);
   }
 
   /**
    * Run a specific setup + interaction combination
-   * @param {string} setupFile - Setup JSON filename
-   * @param {string} interactionFile - Interaction JSON filename
-   * @returns {Object} Test result
    */
-  async runCombination(setupFile, interactionFile) {
+  async runCombination(setupFile: string, interactionFile: string): Promise<CombinationResult> {
     console.log(`\n🎯 Running combination: ${setupFile} + ${interactionFile}`);
     
     try {
-      const result = await this.combinedRunner.runCombinedTest(setupFile, interactionFile);
+      const result = await this.singleTestRunner.runCombinedTest(setupFile, interactionFile);
       console.log(`✅ ${setupFile} + ${interactionFile} - PASSED`);
       return { success: true, result, setupFile, interactionFile };
-    } catch (error) {
+    } catch (error: any) {
       console.error(`❌ ${setupFile} + ${interactionFile} - FAILED`);
       console.error(`   Error: ${error.message}`);
       return { success: false, error: error.message, setupFile, interactionFile };
@@ -29,13 +48,11 @@ class TestCombinationRunner {
 
   /**
    * Run all predefined combinations
-   * @param {Array} combinations - Array of {setup, interaction} objects
-   * @returns {Array} Results array
    */
-  async runAllCombinations(combinations) {
+  async runAllCombinations(combinations: Combination[]): Promise<CombinationResult[]> {
     console.log(`\n🧪 Running ${combinations.length} test combinations...`);
     
-    const results = [];
+    const results: CombinationResult[] = [];
     let passed = 0;
     let failed = 0;
 
@@ -60,11 +77,10 @@ class TestCombinationRunner {
 
   /**
    * Get all available setup and interaction files
-   * @returns {Object} Available files
    */
-  getAvailableFiles() {
-    const setupFiles = this.combinedRunner.testRunner.getAllTestInstances('setup');
-    const interactionFiles = this.combinedRunner.testRunner.getAllTestInstances('interaction');
+  getAvailableFiles(): AvailableFiles {
+    const setupFiles = this.singleTestRunner['schemaValidator'].getAllTestInstances('setup');
+    const interactionFiles = this.singleTestRunner['schemaValidator'].getAllTestInstances('interaction');
     
     return {
       setup: setupFiles.map(f => f.filename),
@@ -74,11 +90,10 @@ class TestCombinationRunner {
 
   /**
    * Generate all possible combinations of setup + interaction files
-   * @returns {Array} All possible combinations
    */
-  generateAllCombinations() {
+  generateAllCombinations(): Combination[] {
     const files = this.getAvailableFiles();
-    const combinations = [];
+    const combinations: Combination[] = [];
     
     for (const setup of files.setup) {
       for (const interaction of files.interaction) {
@@ -91,12 +106,9 @@ class TestCombinationRunner {
 
   /**
    * Run all possible combinations
-   * @returns {Array} Results array
    */
-  async runAllPossibleCombinations() {
+  async runAllPossibleCombinations(): Promise<CombinationResult[]> {
     const combinations = this.generateAllCombinations();
     return await this.runAllCombinations(combinations);
   }
 }
-
-module.exports = TestCombinationRunner;

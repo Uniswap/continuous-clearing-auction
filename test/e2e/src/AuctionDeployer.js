@@ -1,0 +1,220 @@
+class AuctionDeployer {
+  constructor(hre, ethers) {
+    this.hre = hre;
+    this.ethers = ethers;
+    this.auctionFactory = null;
+    this.auction = null;
+    this.tokens = new Map(); // Map of token name -> contract instance
+  }
+
+  async deployAdditionalTokens(additionalTokens) {
+    console.log('   🪙 Deploying additional tokens...');
+    
+    for (const tokenConfig of additionalTokens) {
+      let Token;
+      if (tokenConfig.name === 'USDC') {
+        Token = await this.ethers.getContractFactory('USDCMock');
+        const token = await Token.deploy(
+          tokenConfig.name,
+          tokenConfig.name,
+          parseInt(tokenConfig.decimals),
+          tokenConfig.totalSupply
+        );
+        this.tokens.set(tokenConfig.name, token);
+        console.log(`   ✅ Deployed ${tokenConfig.name}: ${await token.getAddress()}`);
+      } else {
+        Token = await this.ethers.getContractFactory('ERC20Mock');
+        const token = await Token.deploy(
+          tokenConfig.name,
+          tokenConfig.name,
+          parseInt(tokenConfig.decimals),
+          tokenConfig.totalSupply
+        );
+        this.tokens.set(tokenConfig.name, token);
+        console.log(`   ✅ Deployed ${tokenConfig.name}: ${await token.getAddress()}`);
+      }
+    }
+  }
+
+  getTokenByName(tokenName) {
+    return this.tokens.get(tokenName);
+  }
+
+  async getTokenAddress(tokenName) {
+    const token = this.tokens.get(tokenName);
+    return token ? await token.getAddress() : null;
+  }
+
+  async deployAuctionFactory() {
+    const AuctionFactory = await this.ethers.getContractFactory('AuctionFactory');
+    this.auctionFactory = await AuctionFactory.deploy();
+    return this.auctionFactory;
+  }
+
+  async createAuction(setupData) {
+    
+    if (!this.auctionFactory) {
+      await this.deployAuctionFactory();
+    }
+
+    // Deploy additional tokens
+    await this.deployAdditionalTokens(setupData.additionalTokens);
+
+    // Get the auctioned token and currency
+    const auctionedToken = this.getTokenByName(setupData.auctionParameters.auctionedToken);
+    const currencyAddress = await this.resolveCurrencyAddress(setupData.auctionParameters.currency);
+    const { auctionParameters, env } = setupData;
+    const startBlock = BigInt(env.startBlock) + BigInt(auctionParameters.startOffsetBlocks);
+    const endBlock = startBlock + BigInt(auctionParameters.auctionDurationBlocks);
+    const claimBlock = endBlock + BigInt(auctionParameters.claimDelayBlocks);
+    
+    const auctionAmount = this.calculateAuctionAmount(setupData.auctionParameters.auctionedToken, setupData.additionalTokens);
+    
+    console.log('   💰 Auction amount:', auctionAmount.toString());
+    console.log('   💵 Currency address:', currencyAddress);
+    console.log('   🪙 Auctioned token address:', await auctionedToken.getAddress());
+    
+    try {
+      // Encode AuctionParameters struct
+      const auctionParams = {
+        currency: currencyAddress,
+        tokensRecipient: auctionParameters.tokensRecipient,
+        fundsRecipient: auctionParameters.fundsRecipient,
+        startBlock: Number(startBlock),
+        endBlock: Number(endBlock),
+        claimBlock: Number(claimBlock),
+        graduationThresholdMps: Number(auctionParameters.graduationThresholdMps),
+        tickSpacing: Number(auctionParameters.tickSpacing),
+        validationHook: auctionParameters.validationHook,
+        floorPrice: auctionParameters.floorPrice,
+        auctionStepsData: this.createSimpleAuctionStepsData(auctionParameters.auctionDurationBlocks)
+      };
+
+      const configData = this.ethers.AbiCoder.defaultAbiCoder().encode(
+        [
+          "tuple(address currency, address tokensRecipient, address fundsRecipient, uint64 startBlock, uint64 endBlock, uint64 claimBlock, uint24 graduationThresholdMps, uint256 tickSpacing, address validationHook, uint256 floorPrice, bytes auctionStepsData)"
+        ],
+        [auctionParams]
+      );
+
+      console.log('   📦 Config data length:', configData.length);
+
+              const auctionAddress = await this.auctionFactory.initializeDistribution.staticCall(
+                await auctionedToken.getAddress(),
+                auctionAmount,
+                configData,
+                this.ethers.keccak256(this.ethers.toUtf8Bytes("test-salt"))
+              );
+      
+      // Now execute the actual transaction
+      const tx = await this.auctionFactory.initializeDistribution(
+        await auctionedToken.getAddress(),
+        auctionAmount,
+        configData,
+        this.ethers.keccak256(this.ethers.toUtf8Bytes("test-salt"))
+      );
+      await tx.wait();
+      
+      this.auction = await this.ethers.getContractAt('Auction', auctionAddress);
+      return this.auction;
+    } catch (error) {
+      console.error('   ❌ Auction creation failed:', error.message);
+      throw error;
+    }
+  }
+
+  async resolveCurrencyAddress(currency) {
+    // If it's an address, return it directly
+    if (currency.startsWith('0x')) {
+      return currency;
+    }
+    // Special case for ETH
+    if (currency === 'ETH') {
+      return '0x0000000000000000000000000000000000000000';
+    }
+    // Otherwise, look up the token by name
+    return await this.getTokenAddress(currency);
+  }
+
+  calculateAuctionAmount(tokenName, additionalTokens) {
+    const tokenConfig = additionalTokens.find(t => t.name === tokenName);
+    if (!tokenConfig) {
+      throw new Error(`Token ${tokenName} not found in additionalTokens`);
+    }
+    
+    const totalSupply = BigInt(tokenConfig.totalSupply);
+    const percentAuctioned = parseFloat(tokenConfig.percentAuctioned);
+    return totalSupply * BigInt(Math.floor(percentAuctioned * 100)) / BigInt(10000);
+  }
+
+  createSimpleAuctionStepsData(auctionDurationBlocks) {
+    // Create a simple auction steps data that satisfies the validation
+    // Format: each step is 8 bytes (uint64): 3 bytes mps + 5 bytes blockDelta
+    // We need: sumMps = 1e7 (MPS constant) and sumBlockDelta = auctionDurationBlocks
+    
+    const MPS = 10000000; // 1e7
+    const blockDelta = parseInt(auctionDurationBlocks);
+    const mps = Math.floor(MPS / blockDelta); // mps * blockDelta should equal MPS
+    
+    console.log('   🔍 Creating auction steps data:');
+    console.log('   🔍   MPS:', MPS);
+    console.log('   🔍   blockDelta:', blockDelta);
+    console.log('   🔍   mps:', mps);
+    
+    // Pack mps (24 bits) and blockDelta (40 bits) into 8 bytes
+    // mps goes in the upper 24 bits, blockDelta in the lower 40 bits
+    const packed = (BigInt(mps) << 40n) | BigInt(blockDelta);
+    
+    // Convert to hex string with proper padding (8 bytes = 16 hex chars)
+    const hex = packed.toString(16).padStart(16, '0');
+    const result = '0x' + hex;
+    
+    console.log('   🔍   packed:', packed.toString());
+    console.log('   🔍   hex:', result);
+    
+    return result;
+  }
+
+  async setupBalances(setupData) {
+    const { env } = setupData;
+    if (!env.balances) return;
+
+    for (const balance of env.balances) {
+      if (balance.token === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') {
+        // ETH balance
+        const hexAmount = '0x' + BigInt(balance.amount).toString(16);
+                await this.hre.network.provider.send('hardhat_setBalance', [
+                  balance.address,
+                  hexAmount
+                ]);
+      } else if (balance.token === '0x0000000000000000000000000000000000000001') {
+        // Special case for currency token - mint to the address
+        const currencyToken = this.getTokenByName(setupData.auctionParameters.currency);
+        if (currencyToken) {
+          await currencyToken.mint(balance.address, balance.amount);
+        }
+      } else {
+        // Look up token by name or address
+        let token;
+        if (balance.token.startsWith('0x')) {
+          // It's an address - find the token by address
+          for (const [name, tokenContract] of this.tokens) {
+            if (await tokenContract.getAddress() === balance.token) {
+              token = tokenContract;
+              break;
+            }
+          }
+        } else {
+          // It's a token name
+          token = this.getTokenByName(balance.token);
+        }
+        
+        if (token) {
+          await token.mint(balance.address, balance.amount);
+        }
+      }
+    }
+  }
+}
+
+module.exports = AuctionDeployer;

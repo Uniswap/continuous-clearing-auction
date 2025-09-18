@@ -1,0 +1,320 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "tokenInteractionSchema",
+    "title": "Token Interaction Schema (Blocks-only)",
+    "type": "object",
+    "additionalProperties": true,
+  
+    "properties": {
+      "timeBase": { "type": "string", "enum": ["auctionStart", "genesisBlock"] },
+  
+      "namedBidders": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/NamedBidder" },
+        "default": []
+      },
+  
+      "groups": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/Group" },
+        "default": []
+      },
+  
+      "actions": {
+        "type": "array",
+        "items": {
+          "oneOf": [
+            { "$ref": "#/$defs/AdminAction" },
+            { "$ref": "#/$defs/TransferAction" }
+          ]
+        },
+        "default": []
+      },
+  
+      "checkpoints": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/Checkpoint" },
+        "default": []
+      }
+    },
+  
+    "required": ["timeBase"],
+  
+    "$defs": {
+      "Address":  { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+      "HexBytes": { "type": "string", "pattern": "^0x(?:[0-9a-fA-F]{2})*$" },
+      "Uint":     { "type": "string", "pattern": "^(?:[0-9]+|0x[0-9a-fA-F]+)$" },
+      "U256":     { "type": "string", "pattern": "^(?:[0-9]+|0x[0-9a-fA-F]+)$" },
+  
+      "Label": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[A-Za-z0-9 _.-]+$",
+        "description": "A symbolic label that your runner resolves (e.g., 'Pool', 'Auction', or a named bidder/group label)."
+      },
+  
+      "AddressOrLabel": {
+        "oneOf": [
+          { "$ref": "#/$defs/Address" },
+          { "$ref": "#/$defs/Label" }
+        ],
+        "description": "Either a concrete address or a symbolic label (resolved by the test harness)."
+      },
+  
+      "Amount": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["side", "type", "value"],
+        "properties": {
+          "side":       { "type": "string", "enum": ["input", "output"] },
+          "type":       { "type": "string", "enum": ["raw", "percentOfSupply", "basisPoints", "percentOfGroup"] },
+          "value":      { "type": ["number", "string"] },
+          "variation":  { "type": ["number", "string"] },
+          "token":      { "$ref": "#/$defs/Address" }
+        },
+        "description": "If present, variation is a non-negative delta; actual value is sampled uniformly from [value-variation, value+variation] (bounded below by 0 as applicable)."
+      },
+  
+      "Price": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["value"],
+        "properties": {
+          "type":      { "type": "string", "enum": ["raw", "tick"], "default": "raw", "description": "raw = fixed-point price in base units; tick = integer tick index." },
+          "value":     { "$ref": "#/$defs/U256" },
+          "variation": { "$ref": "#/$defs/U256" }
+        },
+        "allOf": [
+          {
+            "if":   { "properties": { "type": { "const": "tick" } } },
+            "then": { "properties": { "value": { "type": "integer" }, "variation": { "type": "integer" } } }
+          }
+        ],
+        "description": "If present, variation is a non-negative delta; actual value is sampled uniformly from [value-variation, value+variation] (non-negative; integers for tick)."
+      },
+  
+      "Bid": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["atBlock", "amount", "price"],
+        "properties": {
+          "atBlock": { "type": "integer", "minimum": 0 },
+          "amount":  { "$ref": "#/$defs/Amount" },
+          "price":   { "$ref": "#/$defs/Price" },
+          "hookData": { "$ref": "#/$defs/HexBytes", "default": "0x" },
+          "expectRevert": { "type": "string" }
+        }
+      },
+  
+      "RecurringBid": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["startBlock", "intervalBlocks", "occurrences", "amount", "price"],
+        "properties": {
+          "startBlock":     { "type": "integer", "minimum": 0 },
+          "intervalBlocks": { "type": "integer", "minimum": 1 },
+          "occurrences":    { "type": "integer", "minimum": 1 },
+          "amount":         { "$ref": "#/$defs/Amount" },
+          "price":          { "$ref": "#/$defs/Price" },
+          "growth": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "amountFactor": { "type": "number", "default": 1.0 },
+              "priceFactor":  { "type": "number", "default": 1.0 }
+            },
+            "default": { "amountFactor": 1.0, "priceFactor": 1.0 }
+          }
+        }
+      },
+  
+      "NamedBidder": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["address"],
+        "properties": {
+          "address": { "$ref": "#/$defs/Address" },
+          "label":   { "type": "string" },
+          "bids": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/Bid" },
+            "default": []
+          },
+          "recurringBids": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/RecurringBid" },
+            "default": []
+          }
+        }
+      },
+  
+      "Group": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["labelPrefix", "count", "startOffsetBlocks", "amount", "price", "rotationIntervalBlocks", "rounds"],
+        "properties": {
+          "labelPrefix": { "type": "string" },
+          "count": { "type": "integer", "minimum": 1 },
+          "startOffsetBlocks":     { "type": "integer", "minimum": 0 },
+          "amount":                { "$ref": "#/$defs/Amount" },
+          "price":                 { "$ref": "#/$defs/Price" },
+          "rotationIntervalBlocks":{ "type": "integer", "minimum": 1 },
+          "betweenRoundsBlocks":   { "type": "integer", "minimum": 0 },
+          "rounds":                { "type": "integer", "minimum": 1 },
+          "hookData":              { "$ref": "#/$defs/HexBytes", "default": "0x" }
+        }
+      },
+  
+      "Interaction": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["atBlock", "value"],
+        "properties": {
+          "atBlock": { "type": "integer", "minimum": 0 },
+          "value": {}
+        }
+      },
+  
+      "AdminAction": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "interactions"],
+        "properties": {
+          "type": { "const": "AdminAction" },
+          "interactions": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["atBlock", "value"],
+                "properties": {
+                  "atBlock": { "type": "integer", "minimum": 0 },
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["kind"],
+                    "properties": {
+                      "kind":  { "type": "string", "enum": ["pause", "unpause", "setFee", "setParam", "setValidationHook"] },
+                      "param": { "type": "string" },
+                      "value": { "type": ["string", "number", "integer", "boolean"] }
+                    }
+                  }
+                }
+              },
+              "minItems": 1
+            },
+            "default": []
+          }
+        }
+      },
+  
+      "TransferAction": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "interactions"],
+        "properties": {
+          "type": { "const": "Transfer" },
+          "interactions": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["atBlock", "value"],
+                "properties": {
+                  "atBlock": { "type": "integer", "minimum": 0 },
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["from", "to", "token", "amount"],
+                    "properties": {
+                      "from":  { "$ref": "#/$defs/Address" },
+                      "to":    { "$ref": "#/$defs/AddressOrLabel" },
+                      "token": { "$ref": "#/$defs/Address" },
+                      "amount":{ "$ref": "#/$defs/Amount" }
+                    }
+                  }
+                }
+              },
+              "minItems": 1
+            },
+            "default": []
+          }
+        }
+      },
+  
+      "Assertion": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["balance"],
+            "description": "Type of assertion"
+          },
+          "address": {
+            "type": "string",
+            "description": "Address to check balance for"
+          },
+          "token": {
+            "type": "string",
+            "description": "Token name to check balance for"
+          },
+          "expected": {
+            "type": "string",
+            "description": "Expected balance amount"
+          },
+          "events": {
+            "type": "array",
+            "items": { "type": "object", "required": ["signature"], "properties": { "signature": { "type": "string" } }, "additionalProperties": false },
+            "default": []
+          },
+          "pool": {
+            "type": "object",
+            "properties": {
+              "tick": { "type": "integer" },
+              "sqrtPriceX96": { "type": ["string", "number"] },
+              "liquidity": { "type": ["string", "number"] }
+            },
+            "additionalProperties": false
+          }
+        },
+        "oneOf": [
+          {
+            "required": ["type", "address", "token", "expected"]
+          },
+          {
+            "properties": {
+              "events": {},
+              "pool": {},
+              "address": {
+                "type": "object",
+                "properties": {
+                  "address": { "type": "string" },
+                  "balance": { "type": ["string", "number"] }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        ]
+      },
+  
+      "Checkpoint": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["atBlock"],
+        "properties": {
+          "atBlock": { "type": "integer", "minimum": 0 },
+          "reason":  { "type": "string" },
+          "assert":  { "$ref": "#/$defs/Assertion" }
+        }
+      }
+    }
+  }
+  
+  

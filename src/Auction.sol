@@ -87,14 +87,14 @@ contract Auction is
 
     /// @inheritdoc IDistributionContract
     function onTokensReceived() external view {
-        if (token.balanceOf(address(this)) < totalSupply.scaleDown()) {
+        if (token.balanceOf(address(this)) < totalSupplyX7.scaleDown()) {
             revert IDistributionContract__InvalidAmountReceived();
         }
     }
 
     /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
     function isGraduated() public view returns (bool) {
-        return latestCheckpoint().totalCleared.gte(ValueX7.unwrap(totalSupply.scaleByMps(graduationThresholdMps)));
+        return latestCheckpoint().totalCleared.gte(ValueX7.unwrap(totalSupplyX7.scaleByMps(graduationThresholdMps)));
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
@@ -114,7 +114,7 @@ contract Auction is
         // If the clearing price is above the floor price we can sell the available supply
         // Otherwise, we can only sell the demand above the clearing price
         if (_checkpoint.clearingPrice > floorPrice) {
-            supplyCleared = _checkpoint.getSupply(totalSupply, deltaMps);
+            supplyCleared = _checkpoint.getSupply(totalSupplyX7, deltaMps);
             supplySoldToClearingPrice =
                 supplyCleared.sub(_checkpoint.resolvedDemandAboveClearingPrice.scaleByMps(deltaMps));
         } else {
@@ -190,7 +190,7 @@ contract Auction is
         // If step.mps is 0, advance to the current step before calculating the supply
         if (step.mps == 0) _advanceToCurrentStep(_checkpoint, blockNumber);
         // Get the supply being sold since the last checkpoint, accounting for rollovers of past supply
-        ValueX7 supply = _checkpoint.getSupply(totalSupply, step.mps);
+        ValueX7 supply = _checkpoint.getSupply(totalSupplyX7, step.mps);
 
         // All active demand above the current clearing price
         Demand memory _sumDemandAboveClearing = sumDemandAboveClearing;
@@ -467,9 +467,9 @@ contract Auction is
     function sweepUnsoldTokens() external onlyAfterAuctionIsOver {
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
         if (isGraduated()) {
-            _sweepUnsoldTokens((totalSupply.sub(_getFinalCheckpoint().totalCleared)).scaleDown());
+            _sweepUnsoldTokens((totalSupplyX7.sub(_getFinalCheckpoint().totalCleared)).scaleDown());
         } else {
-            _sweepUnsoldTokens(totalSupply.scaleDown());
+            _sweepUnsoldTokens(totalSupplyX7.scaleDown());
         }
     }
 }

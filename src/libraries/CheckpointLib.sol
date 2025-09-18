@@ -28,11 +28,15 @@ library CheckpointLib {
 
     /// @notice Calculate the actual supply to sell given the total cleared in the auction so far
     /// @param checkpoint The last checkpointed state of the auction
-    /// @param totalSupply immutable total supply of the auction
+    /// @param totalSupplyX7 immutable total supply of the auction
     /// @param mps the number of mps, following the auction sale schedule
-    function getSupply(Checkpoint memory checkpoint, ValueX7 totalSupply, uint24 mps) internal pure returns (ValueX7) {
+    function getSupply(Checkpoint memory checkpoint, ValueX7 totalSupplyX7, uint24 mps)
+        internal
+        pure
+        returns (ValueX7)
+    {
         return
-            totalSupply.sub(checkpoint.totalCleared).mulUint256(mps).divUint256(MPSLib.MPS - checkpoint.cumulativeMps);
+            totalSupplyX7.sub(checkpoint.totalCleared).mulUint256(mps).divUint256(MPSLib.MPS - checkpoint.cumulativeMps);
     }
 
     /// @notice Calculate the supply to price ratio. Will return zero if `price` is zero

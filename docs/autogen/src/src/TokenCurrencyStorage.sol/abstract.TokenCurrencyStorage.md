@@ -1,5 +1,5 @@
 # TokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/b7bb337742591b0d157183bdfc59e877aeaad6e7/src/TokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/22aee9729c26f2abf42c6308fcc6d9c57d106074/src/TokenCurrencyStorage.sol)
 
 **Inherits:**
 [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -27,11 +27,20 @@ IERC20Minimal public immutable token;
 ### totalSupply
 The total supply of tokens to sell
 
+
+```solidity
+uint256 public immutable totalSupply;
+```
+
+
+### totalSupplyX7
+The total supply of tokens to sell, scaled up to a ValueX7
+
 *The auction does not support selling more than type(uint256).max / MPSLib.MPS (1e7) tokens*
 
 
 ```solidity
-ValueX7 public immutable totalSupply;
+ValueX7 internal immutable totalSupplyX7;
 ```
 
 

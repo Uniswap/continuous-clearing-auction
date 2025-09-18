@@ -29,28 +29,16 @@ export class AuctionDeployer {
     console.log('   🪙 Deploying additional tokens...');
     
     for (const tokenConfig of additionalTokens) {
-      let Token: any;
-      if (tokenConfig.name === 'USDC') {
-        Token = await this.ethers.getContractFactory('USDCMock');
-        const token = await Token.deploy(
-          tokenConfig.name,
-          tokenConfig.name,
-          parseInt(tokenConfig.decimals),
-          tokenConfig.totalSupply
-        );
-        this.tokens.set(tokenConfig.name, token);
-        console.log(`   ✅ Deployed ${tokenConfig.name}: ${await token.getAddress()}`);
-      } else {
-        Token = await this.ethers.getContractFactory('ERC20Mock');
-        const token = await Token.deploy(
-          tokenConfig.name,
-          tokenConfig.name,
-          parseInt(tokenConfig.decimals),
-          tokenConfig.totalSupply
-        );
-        this.tokens.set(tokenConfig.name, token);
-        console.log(`   ✅ Deployed ${tokenConfig.name}: ${await token.getAddress()}`);
-      }
+      const Token = await this.ethers.getContractFactory('WorkingCustomMockToken');
+      const token = await Token.deploy(
+        tokenConfig.name,
+        tokenConfig.name.substring(0, Math.min(4, tokenConfig.name.length)).toUpperCase(), // Use first 4 chars as symbol
+        parseInt(tokenConfig.decimals),
+        tokenConfig.totalSupply || '0'
+      );
+      
+      this.tokens.set(tokenConfig.name, token);
+      console.log(`   ✅ Deployed ${tokenConfig.name}: ${await token.getAddress()}`);
     }
   }
 

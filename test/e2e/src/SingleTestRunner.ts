@@ -2,6 +2,7 @@ import { SchemaValidator, SetupData, InteractionData } from './SchemaValidator';
 import { AuctionDeployer } from './AuctionDeployer';
 import { BidSimulator } from './BidSimulator';
 import { AssertionEngine, AuctionState } from './AssertionEngine';
+import hre from "hardhat";
 
 export interface TestResult {
   setupData: SetupData;
@@ -21,18 +22,14 @@ export interface EventData {
 }
 
 export class SingleTestRunner {
-  private hre: any;
-  private ethers: any;
   private network: any;
   private schemaValidator: SchemaValidator;
   private deployer: AuctionDeployer;
 
-  constructor(hre: any) {
-    this.hre = hre;
-    this.ethers = hre.ethers;
+  constructor() {
     this.network = hre.network;
     this.schemaValidator = new SchemaValidator();
-    this.deployer = new AuctionDeployer(hre);
+    this.deployer = new AuctionDeployer();
   }
 
   /**

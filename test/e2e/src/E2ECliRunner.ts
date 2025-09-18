@@ -24,8 +24,8 @@ interface AvailableFiles {
 class E2ECliRunner {
   private runner: MultiTestRunner;
 
-  constructor(hre: any) {
-    this.runner = new MultiTestRunner(hre, hre.ethers);
+  constructor() {
+    this.runner = new MultiTestRunner();
   }
 
   getAvailableFiles(): AvailableFiles {
@@ -64,8 +64,7 @@ class E2ECliRunner {
 }
 
 async function main(): Promise<void> {
-  const { default: hre } = await import('hardhat');
-  const runner = new E2ECliRunner(hre);
+  const runner = new E2ECliRunner();
   
   console.log('🚀 TWAP Auction E2E Test Runner');
   console.log('================================');

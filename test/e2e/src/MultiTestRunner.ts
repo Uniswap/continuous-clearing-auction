@@ -19,14 +19,10 @@ export interface Combination {
 }
 
 export class MultiTestRunner {
-  private hre: any;
-  private ethers: any;
   private singleTestRunner: SingleTestRunner;
 
-  constructor(hre: any, ethers: any) {
-    this.hre = hre;
-    this.ethers = ethers;
-    this.singleTestRunner = new SingleTestRunner(hre);
+  constructor() {
+    this.singleTestRunner = new SingleTestRunner();
   }
 
   /**

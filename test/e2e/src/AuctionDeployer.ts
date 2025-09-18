@@ -1,4 +1,5 @@
 import { SetupData } from './SchemaValidator';
+import hre from "hardhat";
 
 export interface TokenConfig {
   name: string;
@@ -14,14 +15,12 @@ export interface BalanceItem {
 }
 
 export class AuctionDeployer {
-  private hre: any;
   private ethers: any;
   private auctionFactory: any = null;
   private auction: any = null;
   private tokens: Map<string, any> = new Map(); // Map of token name -> contract instance
 
-  constructor(hre: any) {
-    this.hre = hre;
+  constructor() {
     this.ethers = hre.ethers;
   }
 
@@ -202,7 +201,7 @@ export class AuctionDeployer {
       if (balance.token === '0x0000000000000000000000000000000000000000') {
         // Native currency balance - set native currency balance (ETH, MATIC, BNB, etc.)
         const hexAmount = '0x' + BigInt(balance.amount).toString(16);
-        await this.hre.network.provider.send('hardhat_setBalance', [
+        await hre.network.provider.send('hardhat_setBalance', [
           balance.address,
           hexAmount
         ]);

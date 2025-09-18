@@ -27,6 +27,7 @@
     - [Demand](src/libraries/DemandLib.sol/struct.Demand.md)
     - [DemandLib](src/libraries/DemandLib.sol/library.DemandLib.md)
     - [FixedPoint96](src/libraries/FixedPoint96.sol/library.FixedPoint96.md)
+    - [ValidationHookLib](src/libraries/ValidationHookLib.sol/library.ValidationHookLib.md)
   - [Auction](src/Auction.sol/contract.Auction.md)
   - [AuctionFactory](src/AuctionFactory.sol/contract.AuctionFactory.md)
   - [AuctionStepStorage](src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md)

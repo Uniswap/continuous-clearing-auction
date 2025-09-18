@@ -10,8 +10,8 @@
     "test:combined": "hardhat test --grep 'Combined'",
     "test:all": "hardhat test",
     "e2e": "hardhat test test/e2e/tests/e2e.test.js",
-    "e2e:all": "node scripts/run-combinations.js --all",
-    "e2e:shell": "./run-e2e-tests.sh",
+    "e2e:run": "node test/e2e/src/CombinationRunner.js",
+    "e2e:shell": "./script/test/run-e2e-tests.sh",
     "compile": "hardhat compile",
     "clean": "hardhat clean"
   },

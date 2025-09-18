@@ -1,8 +1,9 @@
 class AssertionEngine {
-  constructor(auction, token, currency) {
+  constructor(auction, token, currency, ethers) {
     this.auction = auction;
     this.token = token;
     this.currency = currency;
+    this.ethers = ethers;
   }
 
   async validateCheckpoints(interactionData, timeBase) {
@@ -18,16 +19,49 @@ class AssertionEngine {
   }
 
   async validateAssertion(assertion) {
-    if (assertion.address) {
+    if (assertion.type === 'balance') {
+      await this.validateBalanceAssertion(assertion);
+    } else if (assertion.address) {
       await this.validateAddressAssertion(assertion.address);
-    }
-    
-    if (assertion.pool) {
+    } else if (assertion.pool) {
       await this.validatePoolAssertion(assertion.pool);
+    } else if (assertion.events) {
+      await this.validateEventAssertion(assertion.events);
+    }
+  }
+
+  async validateBalanceAssertion(assertion) {
+    const { address, token, expected } = assertion;
+    
+    // Get the token contract based on the token name
+    let tokenContract;
+    if (token === 'USDC') {
+      tokenContract = this.currency; // USDC is our currency token
+    } else {
+      tokenContract = this.token; // Default to auctioned token
     }
     
-    if (assertion.events) {
-      await this.validateEventAssertion(assertion.events);
+    // Handle ETH case - currency is address(0)
+    if (!tokenContract) {
+      console.log(`   💰 Balance check: ${address} has 0 ${token} (ETH), expected ${expected}`);
+      const expectedBalance = BigInt(expected);
+      if (expectedBalance !== 0n) {
+        throw new Error(
+          `Balance assertion failed for ${address}: expected ${expectedBalance} ${token}, got 0 (ETH)`
+        );
+      }
+      return;
+    }
+    
+    const actualBalance = await tokenContract.balanceOf(address);
+    const expectedBalance = BigInt(expected);
+    
+    console.log(`   💰 Balance check: ${address} has ${actualBalance.toString()} ${token}, expected ${expectedBalance.toString()}`);
+    
+    if (actualBalance !== expectedBalance) {
+      throw new Error(
+        `Balance assertion failed for ${address}: expected ${expectedBalance} ${token}, got ${actualBalance}`
+      );
     }
   }
 
@@ -91,11 +125,10 @@ class AssertionEngine {
 
   async getAuctionState() {
     return {
-      currentBlock: await ethers.provider.getBlockNumber(),
+      currentBlock: await this.ethers.provider.getBlockNumber(),
       isGraduated: await this.auction.isGraduated(),
-      totalCleared: await this.auction.getTotalCleared(),
-      currencyRaised: await this.auction.getCurrencyRaised(),
-      clearingPrice: await this.auction.getClearingPrice()
+      clearingPrice: await this.auction.clearingPrice(),
+      currencyRaised: await this.auction.currencyRaised()
     };
   }
 

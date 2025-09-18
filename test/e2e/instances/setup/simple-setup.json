@@ -17,14 +17,14 @@
     "balances": [
       { 
         "address": "0x1111111111111111111111111111111111111111", 
-        "token": "0x0000000000000000000000000000000000000001", 
-        "amount": "1000000000000" 
+        "token": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", 
+        "amount": "1000000000000000000" 
       }
     ]
   },
 
   "auctionParameters": {
-    "currency": "USDC",
+    "currency": "ETH",
     "auctionedToken": "SimpleToken",
     "tokensRecipient": "0x2222222222222222222222222222222222222222",
     "fundsRecipient": "0x3333333333333333333333333333333333333333",
@@ -32,9 +32,9 @@
     "auctionDurationBlocks": 50,
     "claimDelayBlocks": 10,
     "graduationThresholdMps": "1000",
-    "tickSpacing": 60,
+    "tickSpacing": 100,
     "validationHook": "0x0000000000000000000000000000000000000000",
-    "floorPrice": "1000000000000000000"
+    "floorPrice": "79228162514264337593543950336000"
   },
 
   "additionalTokens": [

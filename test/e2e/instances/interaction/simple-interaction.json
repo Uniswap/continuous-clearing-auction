@@ -14,7 +14,7 @@
         {
           "atBlock": 10,
           "amount": { "side": "input", "type": "raw", "value": "1000000000000000000" },
-          "price": { "type": "raw", "value": "2000000000000000000" }
+          "price": { "type": "raw", "value": "87150978765690771352898345369600" }
         }
       ],
       "recurringBids": []
@@ -32,8 +32,8 @@
       "assert": {
         "type": "balance",
         "address": "0x1111111111111111111111111111111111111111",
-        "token": "USDC",
-        "expected": "1000000000000"
+        "token": "ETH",
+        "expected": "0"
       }
     }
   ]

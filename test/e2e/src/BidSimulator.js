@@ -96,20 +96,46 @@ class BidSimulator {
   }
 
   async executeBid(bid) {
-    // Advance to the target block
-    await this.network.provider.send('hardhat_mine', [bid.atBlock.toString()]);
+    // Note: Block mining is handled at the block level in CombinedTestRunner
+    // This method just executes the bid transaction
 
     const amount = await this.calculateAmount(bid.amount);
     const price = await this.calculatePrice(bid.price);
 
+    // Calculate required currency amount for the bid
+    const requiredCurrencyAmount = await this.calculateRequiredCurrencyAmount(
+      bid.amount.side === 'input',
+      amount,
+      price
+    );
+
+    console.log('   🔍 Bid details:');
+    console.log('   🔍   amount:', amount.toString());
+    console.log('   🔍   price:', price.toString());
+    console.log('   🔍   requiredCurrencyAmount:', requiredCurrencyAmount.toString());
+    console.log('   🔍   bidder:', bid.bidder);
+
+    // For ETH currency, we don't need to transfer beforehand
+    // The auction will receive the ETH via msg.value
+    if (this.currency) {
+      console.log('   🔍 Using ERC20 currency - would need permit2 setup');
+      // For ERC20 tokens, we would need permit2 setup
+      // For now, we'll skip this and let the auction handle it
+    }
+
     try {
+      // For the first bid, use tick 1 as prevTickPrice (floor price)
+      // For subsequent bids, we'd need to track the previous tick
+      const prevTickPrice = this.tickNumberToPriceX96(1); // Floor price tick
+      
       const tx = await this.auction.submitBid(
         price,
         bid.amount.side === 'input',
         amount,
         bid.bidder,
-        0, // prevTickPrice
-        bid.hookData || '0x'
+        prevTickPrice,
+        bid.hookData || '0x',
+        { value: requiredCurrencyAmount } // Send ETH as msg.value
       );
 
       await tx.wait();
@@ -134,10 +160,32 @@ class BidSimulator {
 
   async calculatePrice(priceConfig) {
     if (priceConfig.type === 'tick') {
-      // Convert tick to actual price
-      return BigInt(priceConfig.value);
+      // Convert tick to actual price using the same logic as the Foundry tests
+      return this.tickNumberToPriceX96(parseInt(priceConfig.value));
     }
     return BigInt(priceConfig.value);
+  }
+
+  tickNumberToPriceX96(tickNumber) {
+    // This mirrors the logic from AuctionBaseTest.sol
+    const FLOOR_PRICE = 1000n * (2n ** 96n); // 1000 * 2^96
+    const TICK_SPACING = 100n; // From our setup (matches Foundry test)
+    
+    return ((FLOOR_PRICE >> 96n) + (BigInt(tickNumber) - 1n) * TICK_SPACING) << 96n;
+  }
+
+  async calculateRequiredCurrencyAmount(exactIn, amount, maxPrice) {
+    // This mirrors the BidLib.inputAmount logic
+    if (exactIn) {
+      // For exactIn bids, the amount is in token units
+      // For ETH currency, both token and currency have 18 decimals, so no conversion needed
+      // For ERC20 currency, we would need to convert from token decimals to currency decimals
+      return amount;
+    } else {
+      // For non-exactIn bids, calculate amount * maxPrice / Q96
+      const Q96 = BigInt(2) ** BigInt(96);
+      return (amount * maxPrice) / Q96;
+    }
   }
 
   async executeActions(interactionData, timeBase) {
@@ -155,7 +203,7 @@ class BidSimulator {
   async executeTransfers(transferInteractions) {
     for (const interactionGroup of transferInteractions) {
       for (const interaction of interactionGroup) {
-        await this.network.provider.send('hardhat_mine', [interaction.atBlock.toString()]);
+        // Note: Block mining is handled at the block level in CombinedTestRunner
         
         const { from, to, token, amount } = interaction.value;
         const toAddress = this.labelMap.get(to) || to;
@@ -170,7 +218,7 @@ class BidSimulator {
   async executeAdminActions(adminInteractions) {
     for (const interactionGroup of adminInteractions) {
       for (const interaction of interactionGroup) {
-        await this.network.provider.send('hardhat_mine', [interaction.atBlock.toString()]);
+        // Note: Block mining is handled at the block level in CombinedTestRunner
         
         const { kind } = interaction.value;
         if (kind === 'sweepCurrency') {

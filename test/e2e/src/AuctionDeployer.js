@@ -128,6 +128,10 @@ class AuctionDeployer {
     if (currency.startsWith('0x')) {
       return currency;
     }
+    // Special case for ETH
+    if (currency === 'ETH') {
+      return '0x0000000000000000000000000000000000000000';
+    }
     // Otherwise, look up the token by name
     return await this.getTokenAddress(currency);
   }

@@ -10,7 +10,7 @@ echo "================================"
 
 # Check if we're in the right directory
 if [ ! -f "package.json" ]; then
-    echo "❌ Error: Please run this script from the test/e2e directory"
+    echo "❌ Error: Please run this script from the project root directory"
     exit 1
 fi
 
@@ -29,7 +29,7 @@ echo "🚀 Running E2E tests..."
 echo ""
 
 # Run all combined tests
-npx hardhat test tests/CombinedTests.js --grep "Should run.*combination"
+npx hardhat test test/e2e/tests/e2e.test.js
 
 echo ""
 echo "✅ E2E tests completed!"
@@ -38,12 +38,12 @@ echo "✅ E2E tests completed!"
 if [ "$1" = "--verbose" ]; then
     echo ""
     echo "🔍 Running with verbose output..."
-    npx hardhat test tests/CombinedTests.js --grep "Should run.*combination" --verbose
+    npx hardhat test test/e2e/tests/e2e.test.js --verbose
 fi
 
 # Optional: Run specific combination
 if [ "$1" = "--setup" ] && [ "$2" ] && [ "$3" = "--interaction" ] && [ "$4" ]; then
     echo ""
     echo "🎯 Running specific combination: $2 + $4"
-    npx hardhat test tests/CombinedTests.js --grep "Should run $2 \\+ $4 combination"
+    npx hardhat test test/e2e/tests/e2e.test.js --grep "Should run $2 \\+ $4 combination"
 fi

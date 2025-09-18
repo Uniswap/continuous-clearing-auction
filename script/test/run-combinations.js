@@ -1,15 +1,7 @@
 #!/usr/bin/env node
 
-const { HardhatPluginError } = require('hardhat/plugins');
-const { TASK_COMPILE } = require('hardhat/builtin-tasks/task-names');
-const { HardhatConfig, HardhatUserConfig } = require('hardhat/types');
-const { HardhatRuntimeEnvironment } = require('hardhat/types');
-
-async function main() {
-  // Import hardhat programmatically
-  const hre = await require('hardhat').run(TASK_COMPILE);
-  
-  const TestCombinationRunner = require('../test/e2e/src/TestCombinationRunner');
+const hre = require('hardhat');
+const TestCombinationRunner = require('../../test/e2e/src/TestCombinationRunner');
 
 // Define the combinations you want to run
 const COMBINATIONS_TO_RUN = [

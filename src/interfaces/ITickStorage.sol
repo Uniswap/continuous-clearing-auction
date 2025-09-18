@@ -26,8 +26,8 @@ interface ITickStorage {
     function nextActiveTickPrice() external view returns (uint256);
 
     /// @notice Get the floor price of the auction
-    function floorPrice() external view returns (uint256);
+    function FLOOR_PRICE() external view returns (uint256);
 
     /// @notice Get the tick spacing enforced for bid prices
-    function tickSpacing() external view returns (uint256);
+    function TICK_SPACING() external view returns (uint256);
 }

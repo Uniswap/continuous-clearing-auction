@@ -13,18 +13,18 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     using MPSLib for uint256;
 
     /// @notice The currency being raised in the auction
-    Currency public immutable currency;
+    Currency public immutable CURRENCY;
     /// @notice The token being sold in the auction
-    IERC20Minimal public immutable token;
+    IERC20Minimal public immutable TOKEN;
     /// @notice The total supply of tokens to sell
     /// @dev The auction does not support selling more than type(uint256).max / MPSLib.MPS (1e7) tokens
-    ValueX7 public immutable totalSupply;
+    ValueX7 internal immutable TOTAL_SUPPLY;
     /// @notice The recipient of any unsold tokens at the end of the auction
-    address public immutable tokensRecipient;
+    address internal immutable TOKENS_RECIPIENT;
     /// @notice The recipient of the raised Currency from the auction
-    address public immutable fundsRecipient;
+    address internal immutable FUNDS_RECIPIENT;
     /// @notice The minimum portion (in MPS) of the total supply that must be sold
-    uint24 public immutable graduationThresholdMps;
+    uint24 internal immutable GRADUATION_THRESHOLD_MPS;
 
     /// @notice The block at which the currency was swept
     uint256 public sweepCurrencyBlock;
@@ -39,29 +39,29 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         address _fundsRecipient,
         uint24 _graduationThresholdMps
     ) {
-        token = IERC20Minimal(_token);
-        totalSupply = _totalSupply.scaleUp();
-        currency = Currency.wrap(_currency);
-        tokensRecipient = _tokensRecipient;
-        fundsRecipient = _fundsRecipient;
-        graduationThresholdMps = _graduationThresholdMps;
+        TOKEN = IERC20Minimal(_token);
+        TOTAL_SUPPLY = _totalSupply.scaleUp();
+        CURRENCY = Currency.wrap(_currency);
+        TOKENS_RECIPIENT = _tokensRecipient;
+        FUNDS_RECIPIENT = _fundsRecipient;
+        GRADUATION_THRESHOLD_MPS = _graduationThresholdMps;
 
-        if (totalSupply.eq(0)) revert TotalSupplyIsZero();
-        if (fundsRecipient == address(0)) revert FundsRecipientIsZero();
-        if (graduationThresholdMps > MPSLib.MPS) revert InvalidGraduationThresholdMps();
+        if (TOTAL_SUPPLY.eq(0)) revert TotalSupplyIsZero();
+        if (FUNDS_RECIPIENT == address(0)) revert FundsRecipientIsZero();
+        if (GRADUATION_THRESHOLD_MPS > MPSLib.MPS) revert InvalidGraduationThresholdMps();
     }
 
     function _sweepCurrency(uint256 amount) internal {
         sweepCurrencyBlock = block.number;
-        currency.transfer(fundsRecipient, amount);
-        emit CurrencySwept(fundsRecipient, amount);
+        CURRENCY.transfer(FUNDS_RECIPIENT, amount);
+        emit CurrencySwept(FUNDS_RECIPIENT, amount);
     }
 
     function _sweepUnsoldTokens(uint256 amount) internal {
         sweepUnsoldTokensBlock = block.number;
         if (amount > 0) {
-            Currency.wrap(address(token)).transfer(tokensRecipient, amount);
+            Currency.wrap(address(TOKEN)).transfer(TOKENS_RECIPIENT, amount);
         }
-        emit TokensSwept(tokensRecipient, amount);
+        emit TokensSwept(TOKENS_RECIPIENT, amount);
     }
 }

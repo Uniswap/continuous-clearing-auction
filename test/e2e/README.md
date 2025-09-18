@@ -111,7 +111,7 @@ npm run e2e
 npx hardhat test test/e2e/tests/e2e.test.ts
 
 # Or use the shell script
-./script/test/run-e2e-tests.sh
+./test/e2e/run-e2e-tests.sh
 ```
 
 ### Available Scripts
@@ -133,7 +133,7 @@ npx ts-node test/e2e/src/E2ECliRunner.ts --setup simple-setup.json --interaction
 npx ts-node test/e2e/src/E2ECliRunner.ts --help
 
 # Verbose output
-./script/test/run-e2e-tests.sh --verbose
+./test/e2e/run-e2e-tests.sh --verbose
 ```
 
 ## 📋 Test Structure
@@ -365,6 +365,7 @@ test/e2e/
 │   └── tokenInteractionSchema.json
 ├── tests/                    # Test files
 │   └── e2e.test.ts          # Main E2E test
+├── run-e2e-tests.sh         # Shell script for running tests
 ├── artifacts/                # Compiled contracts
 └── cache/                    # Hardhat cache
 ```

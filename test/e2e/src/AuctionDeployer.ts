@@ -74,6 +74,10 @@ export class AuctionDeployer {
       await this.deployAuctionFactory();
     }
 
+    // TODO: Implement environment configuration
+    // Should handle: chainId, blockTimeSec, blockGasLimit, txGasLimit, baseFeePerGasWei
+    // Should handle: fork configuration (rpcUrl, blockNumber)
+
     // Deploy additional tokens
     await this.deployAdditionalTokens(setupData.additionalTokens);
 

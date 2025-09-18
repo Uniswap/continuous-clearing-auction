@@ -72,8 +72,14 @@ export class AssertionEngine {
     } else if (assertion.address) {
       await this.validateAddressAssertion(assertion as AddressAssertion);
     } else if (assertion.pool) {
+      // TODO: Implement pool state assertions
+      // Should validate tick, sqrtPriceX96, liquidity values
+      console.log(`   🏊 Pool assertion: tick=${assertion.pool.tick}, sqrtPriceX96=${assertion.pool.sqrtPriceX96}, liquidity=${assertion.pool.liquidity}`);
       await this.validatePoolAssertion(assertion.pool as PoolAssertion);
     } else if (assertion.events) {
+      // TODO: Implement event assertions
+      // Should validate that specific events were emitted
+      console.log(`   📝 Event assertion: ${assertion.events.length} events to validate`);
       await this.validateEventAssertion(assertion.events as EventAssertion[]);
     }
   }

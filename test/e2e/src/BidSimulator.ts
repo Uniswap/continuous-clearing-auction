@@ -111,6 +111,12 @@ export class BidSimulator {
             type: 'named'
           });
         });
+        
+        // TODO: Implement recurring bids support
+        // bidder.recurringBids.forEach(recurringBid => {
+        //   // Generate multiple bids based on startBlock, intervalBlocks, occurrences
+        //   // Apply growth factors (amountFactor, priceFactor) to each occurrence
+        // });
       });
     }
 
@@ -231,6 +237,35 @@ export class BidSimulator {
     if (amountConfig.type === 'raw') {
       return BigInt(amountConfig.value);
     }
+    
+    // TODO: Implement percentOfSupply calculation
+    // Should calculate percentage of total token supply
+    if (amountConfig.type === 'percentOfSupply') {
+      // const totalSupply = await this.token.totalSupply();
+      // return (totalSupply * BigInt(amountConfig.value)) / 100n;
+    }
+    
+    // TODO: Implement basisPoints calculation
+    // Should calculate basis points (1/10000) of total supply
+    if (amountConfig.type === 'basisPoints') {
+      // const totalSupply = await this.token.totalSupply();
+      // return (totalSupply * BigInt(amountConfig.value)) / 10000n;
+    }
+    
+    // TODO: Implement percentOfGroup calculation
+    // Should calculate percentage of group total
+    if (amountConfig.type === 'percentOfGroup') {
+      // Implementation depends on group context
+    }
+    
+    // TODO: Implement amount variation
+    // if (amountConfig.variation) {
+    //   const variation = BigInt(amountConfig.variation);
+    //   const randomVariation = Math.floor(Math.random() * (2 * Number(variation) + 1)) - Number(variation);
+    //   value = value + BigInt(randomVariation);
+    //   if (value < 0n) value = 0n;
+    // }
+    
     // Add other amount calculation logic here
     return BigInt(amountConfig.value);
   }
@@ -240,6 +275,15 @@ export class BidSimulator {
       // Convert tick to actual price using the same logic as the Foundry tests
       return this.tickNumberToPriceX96(parseInt(priceConfig.value.toString()));
     }
+    
+    // TODO: Implement price variation
+    // if (priceConfig.variation) {
+    //   const variation = BigInt(priceConfig.variation);
+    //   const randomVariation = Math.floor(Math.random() * (2 * Number(variation) + 1)) - Number(variation);
+    //   value = value + BigInt(randomVariation);
+    //   if (value < 0n) value = 0n;
+    // }
+    
     return BigInt(priceConfig.value);
   }
 
@@ -278,6 +322,11 @@ export class BidSimulator {
   }
 
   async executeTransfers(transferInteractions: any[]): Promise<void> {
+    // TODO: Implement transfer actions
+    // This should handle token transfers between addresses
+    // Support for both ERC20 tokens and native currency
+    // Should resolve label references for 'to' addresses
+    
     for (const interactionGroup of transferInteractions) {
       for (const interaction of interactionGroup) {
         // Note: Block mining is handled at the block level in CombinedTestRunner
@@ -286,13 +335,19 @@ export class BidSimulator {
         const toAddress = this.labelMap.get(to) || to;
         const amountValue = await this.calculateAmount(amount);
 
-        // Execute the transfer
+        // TODO: Execute the transfer
         // Implementation depends on token type (ERC20 vs ETH)
+        // Need to handle token name references vs addresses
+        console.log(`   🔄 Transfer action: ${amountValue} from ${from} to ${toAddress} (token: ${token})`);
       }
     }
   }
 
   async executeAdminActions(adminInteractions: any[]): Promise<void> {
+    // TODO: Implement full admin actions support
+    // Currently only supports sweepCurrency and sweepUnsoldTokens
+    // Need to implement: pause, unpause, setFee, setParam, setValidationHook
+    
     for (const interactionGroup of adminInteractions) {
       for (const interaction of interactionGroup) {
         // Note: Block mining is handled at the block level in CombinedTestRunner
@@ -302,6 +357,21 @@ export class BidSimulator {
           await this.auction.sweepCurrency();
         } else if (kind === 'sweepUnsoldTokens') {
           await this.auction.sweepUnsoldTokens();
+        } else if (kind === 'pause') {
+          // TODO: Implement pause functionality
+          console.log(`   ⏸️  Admin action: pause`);
+        } else if (kind === 'unpause') {
+          // TODO: Implement unpause functionality
+          console.log(`   ▶️  Admin action: unpause`);
+        } else if (kind === 'setFee') {
+          // TODO: Implement setFee functionality
+          console.log(`   💰 Admin action: setFee`);
+        } else if (kind === 'setParam') {
+          // TODO: Implement setParam functionality
+          console.log(`   ⚙️  Admin action: setParam`);
+        } else if (kind === 'setValidationHook') {
+          // TODO: Implement setValidationHook functionality
+          console.log(`   🪝 Admin action: setValidationHook`);
         }
       }
     }

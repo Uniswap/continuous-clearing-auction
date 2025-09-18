@@ -2,6 +2,47 @@
 
 This directory contains the end-to-end (E2E) test suite for the TWAP Auction system. The test suite allows you to define complex auction scenarios using JSON schemas and validate the entire auction lifecycle from deployment to completion.
 
+## 🚧 TODO: Unimplemented Features
+
+The following features are defined in the schemas but not yet implemented. These represent the roadmap for expanding the e2e test capabilities:
+
+### 🎯 Bid System Enhancements
+- **Recurring Bids** - Support for `recurringBids` with `startBlock`, `intervalBlocks`, `occurrences`
+- **Growth Factors** - `amountFactor` and `priceFactor` for recurring bid progression
+- **Amount Variations** - Random sampling for amount and price variations
+- **Advanced Amount Types**:
+  - `percentOfSupply` - Calculate percentage of total token supply
+  - `basisPoints` - Calculate basis points (1/10000) of total supply
+  - `percentOfGroup` - Calculate percentage of group total
+
+### ⚙️ Admin Actions
+- **Pause/Unpause** - Auction pause and unpause functionality
+- **Parameter Management** - `setFee`, `setParam`, `setValidationHook` operations
+- **Enhanced Admin Control** - Full admin action suite beyond current `sweepCurrency`/`sweepUnsoldTokens`
+
+### 🔄 Transfer Actions
+- **Token Transfers** - Execute transfers between addresses during test execution
+- **Multi-Token Support** - Handle both ERC20 tokens and native currency transfers
+- **Label Resolution** - Resolve symbolic labels to concrete addresses for transfer destinations
+
+### 📊 Advanced Assertions
+- **Event Assertions** - Validate that specific events were emitted during execution
+- **Pool State Assertions** - Check tick, sqrtPriceX96, and liquidity values
+- **Complex State Validation** - Beyond current balance checking capabilities
+
+### 🌐 Environment Configuration
+- **Chain Configuration** - `chainId`, `blockTimeSec`, `blockGasLimit`, `txGasLimit`
+- **Gas Management** - `baseFeePerGasWei` configuration
+- **Fork Support** - `rpcUrl` and `blockNumber` for testing against specific blockchain states
+
+### 🔧 Infrastructure Improvements
+- **Enhanced Error Handling** - Better error messages and debugging capabilities
+- **Performance Optimization** - Parallel execution and caching improvements
+
+---
+
+*These features are documented with TODO comments throughout the codebase. Each TODO includes implementation guidance and context.*
+
 ## ✨ Key Features
 
 - **🎯 Targeted Testing** - Run only compatible setup/interaction combinations
@@ -18,13 +59,13 @@ The E2E test suite is built on top of Hardhat and consists of several key compon
 
 ### Core Components
 
-- **`src/TestRunner.js`** - Loads and validates JSON schemas
-- **`src/AuctionDeployer.js`** - Deploys auction contracts and sets up the environment
-- **`src/BidSimulator.js`** - Simulates bids and interactions with the auction
-- **`src/AssertionEngine.js`** - Validates checkpoints and assertions
-- **`src/CombinedTestRunner.js`** - Orchestrates the complete test execution
-- **`src/TestCombinationRunner.js`** - Manages multiple test combinations
-- **`src/CombinationRunner.js`** - Command-line interface for running specific combinations
+- **`src/SchemaValidator.ts`** - Loads and validates JSON schemas
+- **`src/AuctionDeployer.ts`** - Deploys auction contracts and sets up the environment
+- **`src/BidSimulator.ts`** - Simulates bids and interactions with the auction
+- **`src/AssertionEngine.ts`** - Validates checkpoints and assertions
+- **`src/SingleTestRunner.ts`** - Orchestrates the complete test execution
+- **`src/MultiTestRunner.ts`** - Manages multiple test combinations
+- **`src/E2ECliRunner.ts`** - Command-line interface for running specific combinations
 
 ### Test Data
 
@@ -67,7 +108,7 @@ The test suite follows a structured execution flow:
 npm run e2e
 
 # Or run directly with Hardhat
-npx hardhat test test/e2e/tests/e2e.test.js
+npx hardhat test test/e2e/tests/e2e.test.ts
 
 # Or use the shell script
 ./script/test/run-e2e-tests.sh
@@ -86,10 +127,10 @@ npx hardhat test test/e2e/tests/e2e.test.js
 npm run e2e:run
 
 # Run specific combination
-node test/e2e/src/CombinationRunner.js --setup simple-setup.json --interaction simple-interaction.json
+npx ts-node test/e2e/src/E2ECliRunner.ts --setup simple-setup.json --interaction simple-interaction.json
 
 # Show help
-node test/e2e/src/CombinationRunner.js --help
+npx ts-node test/e2e/src/E2ECliRunner.ts --help
 
 # Verbose output
 ./script/test/run-e2e-tests.sh --verbose
@@ -279,7 +320,7 @@ The test suite provides detailed logging:
 Run tests with verbose output for more detailed information:
 
 ```bash
-npx hardhat test test/e2e/tests/e2e.test.js --verbose
+npx hardhat test test/e2e/tests/e2e.test.ts --verbose
 ```
 
 ## 📁 File Structure
@@ -287,14 +328,15 @@ npx hardhat test test/e2e/tests/e2e.test.js --verbose
 ```
 test/e2e/
 ├── README.md                 # This file
-├── hardhat.config.js         # Hardhat configuration
+├── hardhat.config.ts         # Hardhat configuration
 ├── src/                      # Core test components
-│   ├── TestRunner.js         # Schema validation
-│   ├── AuctionDeployer.js    # Contract deployment
-│   ├── BidSimulator.js       # Bid simulation
-│   ├── AssertionEngine.js    # Checkpoint validation
-│   ├── CombinedTestRunner.js # Test orchestration
-│   └── TestCombinationRunner.js # Multi-test management
+│   ├── SchemaValidator.ts    # Schema validation
+│   ├── AuctionDeployer.ts    # Contract deployment
+│   ├── BidSimulator.ts       # Bid simulation
+│   ├── AssertionEngine.ts    # Checkpoint validation
+│   ├── SingleTestRunner.ts   # Test orchestration
+│   ├── MultiTestRunner.ts    # Multi-test management
+│   └── E2ECliRunner.ts       # CLI interface
 ├── instances/                # Test data
 │   ├── setup/               # Auction setup schemas
 │   └── interaction/         # Interaction schemas
@@ -302,7 +344,7 @@ test/e2e/
 │   ├── testSetupSchema.json
 │   └── tokenInteractionSchema.json
 ├── tests/                    # Test files
-│   └── e2e.test.js          # Main E2E test
+│   └── e2e.test.ts          # Main E2E test
 ├── artifacts/                # Compiled contracts
 └── cache/                    # Hardhat cache
 ```
@@ -321,7 +363,7 @@ When adding new test scenarios:
 
 ### Adding New Combinations
 
-To add new test combinations, edit `test/e2e/src/CombinationRunner.js`:
+To add new test combinations, edit `test/e2e/src/E2ECliRunner.ts`:
 
 ```javascript
 const COMBINATIONS_TO_RUN = [
@@ -337,4 +379,4 @@ const COMBINATIONS_TO_RUN = [
 
 - [Foundry Test Documentation](../test/README.md)
 - [Auction Contract Interface](../../src/interfaces/IAuction.sol)
-- [Hardhat Configuration](../../hardhat.config.js)
+- [Hardhat Configuration](../../hardhat.config.ts)

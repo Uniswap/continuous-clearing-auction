@@ -29,7 +29,7 @@ echo "🚀 Running E2E tests..."
 echo ""
 
 # Run all combined tests
-npx hardhat test test/e2e/tests/e2e.test.js
+npx hardhat test test/e2e/tests/e2e.test.ts
 
 echo ""
 echo "✅ E2E tests completed!"
@@ -38,12 +38,12 @@ echo "✅ E2E tests completed!"
 if [ "$1" = "--verbose" ]; then
     echo ""
     echo "🔍 Running with verbose output..."
-    npx hardhat test test/e2e/tests/e2e.test.js --verbose
+    npx hardhat test test/e2e/tests/e2e.test.ts --verbose
 fi
 
 # Optional: Run specific combination
 if [ "$1" = "--setup" ] && [ "$2" ] && [ "$3" = "--interaction" ] && [ "$4" ]; then
     echo ""
     echo "🎯 Running specific combination: $2 + $4"
-    npx hardhat test test/e2e/tests/e2e.test.js --grep "Should run $2 \\+ $4 combination"
+    npx hardhat test test/e2e/tests/e2e.test.ts --grep "Should run $2 \\+ $4 combination"
 fi

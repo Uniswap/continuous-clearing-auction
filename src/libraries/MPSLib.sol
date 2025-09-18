@@ -48,17 +48,17 @@ library MPSLib {
 
     /// @notice we use milli-bips, or one thousandth of a basis point
     uint24 public constant MPS = 1e7;
-
+    
     /// @notice Multiply a uint256 value by MPS
     /// @dev This ensures that future operations (ex. scaleByMps) will not lose precision
     /// @return The result as a ValueX7
-    function scaleUp(uint256 value) internal pure returns (ValueX7) {
+    function scaleUpToX7(uint256 value) internal pure returns (ValueX7) {
         return ValueX7.wrap(value * MPS);
     }
 
     /// @notice Divide a ValueX7 value by MPS
     /// @return The result as a uint256
-    function scaleDown(ValueX7 value) internal pure returns (uint256) {
+    function scaleDownToUint256(ValueX7 value) internal pure returns (uint256) {
         return ValueX7.unwrap(value) / MPS;
     }
 

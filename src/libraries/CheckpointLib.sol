@@ -12,7 +12,7 @@ struct Checkpoint {
     ValueX7 totalCleared;
     ValueX7 resolvedDemandAboveClearingPrice;
     uint256 cumulativeMpsPerPrice;
-    ValueX7 cumulativeSupplySoldToClearingPrice;
+    ValueX7 cumulativeSupplySoldToClearingPriceX7;
     uint24 cumulativeMps;
     uint24 mps;
     uint64 prev;
@@ -35,8 +35,9 @@ library CheckpointLib {
         pure
         returns (ValueX7)
     {
+        uint24 mpsRemainingInAuction = MPSLib.MPS - checkpoint.cumulativeMps;
         return
-            totalSupplyX7.sub(checkpoint.totalCleared).mulUint256(mps).divUint256(MPSLib.MPS - checkpoint.cumulativeMps);
+            totalSupplyX7.sub(checkpoint.totalCleared).mulUint256(mps).divUint256(mpsRemainingInAuction);
     }
 
     /// @notice Calculate the supply to price ratio. Will return zero if `price` is zero
@@ -58,6 +59,6 @@ library CheckpointLib {
             ValueX7.unwrap(checkpoint.totalCleared).fullMulDiv(
                 checkpoint.cumulativeMps * FixedPoint96.Q96, checkpoint.cumulativeMpsPerPrice
             )
-        ).scaleDown();
+        ).scaleDownToUint256();
     }
 }

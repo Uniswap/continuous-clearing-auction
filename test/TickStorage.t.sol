@@ -22,7 +22,7 @@ contract MockTickStorage is TickStorage {
     }
 
     function updateTick(uint256 price, Demand memory demand) external {
-        super._updateTick(price, demand);
+        super._updateTickDemand(price, demand);
     }
 }
 
@@ -46,8 +46,8 @@ contract TickStorageTest is Test, Assertions {
         uint256 price = tickNumberToPriceX96(2);
         tickStorage.initializeTickIfNeeded(prev, price);
         Tick memory tick = tickStorage.getTick(price);
-        assertEq(tick.demand.currencyDemand, ValueX7.wrap(0));
-        assertEq(tick.demand.tokenDemand, ValueX7.wrap(0));
+        assertEq(tick.demand.currencyDemandX7, ValueX7.wrap(0));
+        assertEq(tick.demand.tokenDemandX7, ValueX7.wrap(0));
         // Assert there is no next tick (type(uint256).max)
         assertEq(tick.next, type(uint256).max);
         // Assert the nextActiveTick is unchanged

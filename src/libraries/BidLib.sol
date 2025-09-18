@@ -34,15 +34,17 @@ library BidLib {
     /// @param mpsDenominator The portion of the auction (in mps) which the bid was spread over
     /// @return The effective amount of the bid
     function effectiveAmount(uint256 amount, uint24 mpsDenominator) internal pure returns (ValueX7) {
-        return amount.scaleUp().mulUint256(MPSLib.MPS).divUint256(mpsDenominator);
+        return amount.scaleUpToX7().mulUint256(MPSLib.MPS).divUint256(mpsDenominator);
     }
 
     /// @notice Convert a bid to a demand
-    function toDemand(Bid memory bid, uint24 mpsDenominator) internal pure returns (Demand memory) {
-        return Demand({
-            currencyDemand: bid.exactIn ? bid.amount.effectiveAmount(mpsDenominator) : ValueX7.wrap(0),
-            tokenDemand: bid.exactIn ? ValueX7.wrap(0) : bid.amount.effectiveAmount(mpsDenominator)
-        });
+    function toDemand(Bid memory bid, uint24 mpsDenominator) internal pure returns (Demand memory demand) {
+        ValueX7 bidDemandOverRemainingAuctionX7 = bid.amount.effectiveAmount(mpsDenominator);
+        if(bid.exactIn) {
+            demand.currencyDemandX7 = bidDemandOverRemainingAuctionX7;
+        } else {
+            demand.tokenDemandX7 = bidDemandOverRemainingAuctionX7;
+        }
     }
 
     /// @notice Calculate the input amount required for an amount and maxPrice

@@ -87,7 +87,7 @@ contract Auction is
 
     /// @inheritdoc IDistributionContract
     function onTokensReceived() external view {
-        if (token.balanceOf(address(this)) < totalSupplyX7.scaleDown()) {
+        if (token.balanceOf(address(this)) < totalSupplyX7.scaleDownToUint256()) {
             revert IDistributionContract__InvalidAmountReceived();
         }
     }
@@ -109,22 +109,22 @@ contract Auction is
         returns (Checkpoint memory)
     {
         // Calculate the supply to be cleared based on demand above the clearing price
-        ValueX7 supplyCleared;
-        ValueX7 supplySoldToClearingPrice;
+        ValueX7 supplyClearedX7;
+        ValueX7 supplySoldToClearingPriceX7;
         // If the clearing price is above the floor price we can sell the available supply
         // Otherwise, we can only sell the demand above the clearing price
         if (_checkpoint.clearingPrice > floorPrice) {
-            supplyCleared = _checkpoint.getSupply(totalSupplyX7, deltaMps);
-            supplySoldToClearingPrice =
-                supplyCleared.sub(_checkpoint.resolvedDemandAboveClearingPrice.scaleByMps(deltaMps));
+            supplyClearedX7 = _checkpoint.getSupply(totalSupplyX7, deltaMps);
+            supplySoldToClearingPriceX7 =
+                supplyClearedX7.sub(_checkpoint.resolvedDemandAboveClearingPrice.scaleByMps(deltaMps));
         } else {
-            supplyCleared = _checkpoint.resolvedDemandAboveClearingPrice.scaleByMps(deltaMps);
+            supplyClearedX7 = _checkpoint.resolvedDemandAboveClearingPrice.scaleByMps(deltaMps);
             // supplySoldToClearing price is zero here
         }
-        _checkpoint.totalCleared = _checkpoint.totalCleared.add(supplyCleared);
+        _checkpoint.totalCleared = _checkpoint.totalCleared.add(supplyClearedX7);
         _checkpoint.cumulativeMps += deltaMps;
-        _checkpoint.cumulativeSupplySoldToClearingPrice =
-            _checkpoint.cumulativeSupplySoldToClearingPrice.add(supplySoldToClearingPrice);
+        _checkpoint.cumulativeSupplySoldToClearingPriceX7 =
+            _checkpoint.cumulativeSupplySoldToClearingPriceX7.add(supplySoldToClearingPriceX7);
         _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(deltaMps, _checkpoint.clearingPrice);
         return _checkpoint;
     }
@@ -155,17 +155,17 @@ contract Auction is
     /// @notice Calculate the new clearing price, given:
     /// @param blockSumDemandAboveClearing The demand above the clearing price in the block
     /// @param minimumClearingPrice The minimum clearing price
-    /// @param supply The token supply (as ValueX7) at or above nextActiveTickPrice in the block
+    /// @param supplyX7 The token supply (as ValueX7) at or above nextActiveTickPrice in the block
     function _calculateNewClearingPrice(
         Demand memory blockSumDemandAboveClearing,
         uint256 minimumClearingPrice,
-        ValueX7 supply
+        ValueX7 supplyX7
     ) internal view returns (uint256) {
-        // Calculate the clearing price by dividing the currencyDemand by the supply subtracted by the tokenDemand, following `currency / tokens = price`
+        // Calculate the clearing price by dividing the currencyDemandX7 by the supply subtracted by the tokenDemandX7, following `currency / tokens = price`
         // If the supply is zero set this to zero to prevent division by zero. If the minimum clearing price is non zero, it will be returned. Otherwise, the floor price will be returned.
-        uint256 _clearingPrice = supply.gt(0)
-            ? ValueX7.unwrap(blockSumDemandAboveClearing.currencyDemand).fullMulDiv(
-                FixedPoint96.Q96, ValueX7.unwrap(supply.sub(blockSumDemandAboveClearing.tokenDemand))
+        uint256 _clearingPrice = supplyX7.gt(0)
+            ? ValueX7.unwrap(blockSumDemandAboveClearing.currencyDemandX7).fullMulDiv(
+                FixedPoint96.Q96, ValueX7.unwrap(supplyX7.sub(blockSumDemandAboveClearing.tokenDemandX7))
             )
             : 0;
 
@@ -222,7 +222,7 @@ contract Auction is
             _calculateNewClearingPrice(_sumDemandAboveClearing.scaleByMps(step.mps), minimumClearingPrice, supply);
         // Reset the cumulative supply sold to clearing price if the clearing price is different now
         if (newClearingPrice != _checkpoint.clearingPrice) {
-            _checkpoint.cumulativeSupplySoldToClearingPrice = ValueX7.wrap(0);
+            _checkpoint.cumulativeSupplySoldToClearingPriceX7 = ValueX7.wrap(0);
         }
         // Set the new clearing price
         _checkpoint.clearingPrice = newClearingPrice;
@@ -287,9 +287,10 @@ contract Auction is
         // This is only used in demand related internal calculations
         Bid memory bid;
         (bid, bidId) = _createBid(exactIn, amount, owner, maxPrice);
-        Demand memory bidDemand = bid.toDemand(MPSLib.MPS - _checkpoint.cumulativeMps);
+        uint24 mpsRemainingInAuction = MPSLib.MPS - _checkpoint.cumulativeMps;
+        Demand memory bidDemand = bid.toDemand(mpsRemainingInAuction);
 
-        _updateTick(maxPrice, bidDemand);
+        _updateTickDemand(maxPrice, bidDemand);
 
         sumDemandAboveClearing = sumDemandAboveClearing.add(bidDemand);
 
@@ -426,7 +427,7 @@ contract Auction is
          */
         if (upperCheckpoint.clearingPrice == bid.maxPrice) {
             (uint256 partialTokensFilled, uint256 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
-                upperCheckpoint.cumulativeSupplySoldToClearingPrice,
+                upperCheckpoint.cumulativeSupplySoldToClearingPriceX7,
                 bid.toDemand(MPSLib.MPS - startCheckpoint.cumulativeMps).resolve(bid.maxPrice),
                 getTick(bid.maxPrice).demand.resolve(bid.maxPrice),
                 bid.maxPrice
@@ -467,9 +468,9 @@ contract Auction is
     function sweepUnsoldTokens() external onlyAfterAuctionIsOver {
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
         if (isGraduated()) {
-            _sweepUnsoldTokens((totalSupplyX7.sub(_getFinalCheckpoint().totalCleared)).scaleDown());
+            _sweepUnsoldTokens((totalSupplyX7.sub(_getFinalCheckpoint().totalCleared)).scaleDownToUint256());
         } else {
-            _sweepUnsoldTokens(totalSupplyX7.scaleDown());
+            _sweepUnsoldTokens(totalSupplyX7.scaleDownToUint256());
         }
     }
 }

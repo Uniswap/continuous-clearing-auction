@@ -43,7 +43,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     ) {
         token = IERC20Minimal(_token);
         totalSupply = _totalSupply;
-        totalSupplyX7 = _totalSupply.scaleUp();
+        totalSupplyX7 = _totalSupply.scaleUpToX7();
         currency = Currency.wrap(_currency);
         tokensRecipient = _tokensRecipient;
         fundsRecipient = _fundsRecipient;

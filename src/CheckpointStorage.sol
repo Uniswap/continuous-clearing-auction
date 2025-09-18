@@ -82,28 +82,29 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     }
 
     /// @notice Calculate the tokens sold, proportion of input used, and the block number of the next checkpoint under the bid's max price
-    /// @param cumulativeSupplySoldToClearingPrice The cumulative supply sold to the clearing price
-    /// @param bidDemand The demand of the bid
+    /// @param cumulativeSupplySoldToClearingPriceX7 The cumulative supply sold to the clearing price
+    /// @param bidDemandX7 The demand of the bid
+    /// @param tickDemandX7 The demand of the tick
     /// @param bidMaxPrice The max price of the bid
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent
     function _accountPartiallyFilledCheckpoints(
-        ValueX7 cumulativeSupplySoldToClearingPrice,
-        ValueX7 bidDemand,
-        ValueX7 tickDemand,
+        ValueX7 cumulativeSupplySoldToClearingPriceX7,
+        ValueX7 bidDemandX7,
+        ValueX7 tickDemandX7,
         uint256 bidMaxPrice
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
-        if (tickDemand.eq(0)) return (0, 0);
+        if (tickDemandX7.eq(0)) return (0, 0);
         // Expanded version of the math:
         // tokensFilled = bidDemandX7 * runningPartialFillRate * cumulativeMpsDelta / (MPS * Q96)
         // tokensFilled = bidDemandX7 * (cumulativeSupplyX7 * Q96 * MPS / tickDemandX7 * cumulativeMpsDelta) * cumulativeMpsDelta / (mpsDenominator * Q96)
         //              = bidDemandX7 * (cumulativeSupplyX7 / tickDemandX7)
-        // BidDemand and tickDemand are both ValueX7 values, so the X7 cancels out. However, we need to scale down the result due to cumulativeSupplySoldToClearingPrice being a ValueX7 value
+        // BidDemand and tickDemand are both ValueX7 values, so the X7 cancels out. However, we need to scale down the result due to cumulativeSupplySoldToClearingPriceX7 being a ValueX7 value
         tokensFilled = ValueX7.wrap(
-            ValueX7.unwrap(bidDemand).fullMulDiv(
-                ValueX7.unwrap(cumulativeSupplySoldToClearingPrice), ValueX7.unwrap(tickDemand)
+            ValueX7.unwrap(bidDemandX7).fullMulDiv(
+                ValueX7.unwrap(cumulativeSupplySoldToClearingPriceX7), ValueX7.unwrap(tickDemandX7)
             )
-        ).scaleDown();
+        ).scaleDownToUint256();
         currencySpent = tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96);
     }
 

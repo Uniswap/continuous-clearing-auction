@@ -1,5 +1,5 @@
 # BidLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/3f93841df89124f8b3dcf887da46cb2c78bfe137/src/libraries/BidLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/d1e7b82f3777bade51fea369dcee7819652c8bdc/src/libraries/BidLib.sol)
 
 
 ## State Variables
@@ -11,36 +11,28 @@ uint256 public constant PRECISION = 1e18;
 
 
 ## Functions
-### effectiveAmount
+### toDemand
 
-Calculate the effective amount of a bid based on the mps denominator
+Convert a bid to a demand
+
+*The demand is scaled based on the remaining mps such that it is fully allocated over the remaining parts of the auction*
 
 
 ```solidity
-function effectiveAmount(uint256 amount, uint24 mpsDenominator) internal pure returns (ValueX7);
+function toDemand(Bid memory bid) internal pure returns (Demand memory demand);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`amount`|`uint256`|The amount of the bid|
-|`mpsDenominator`|`uint24`|The portion of the auction (in mps) which the bid was spread over|
+|`bid`|`Bid`|The bid to convert|
 
 **Returns**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`<none>`|`ValueX7`|The effective amount of the bid|
+|`demand`|`Demand`|The demand struct representing the bid|
 
-
-### toDemand
-
-Convert a bid to a demand
-
-
-```solidity
-function toDemand(Bid memory bid, uint24 mpsDenominator) internal pure returns (Demand memory demand);
-```
 
 ### inputAmount
 

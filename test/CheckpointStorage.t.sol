@@ -102,6 +102,7 @@ contract CheckpointStorageTest is Assertions, Test {
             amount: ETH_AMOUNT,
             tokensFilled: 0,
             startBlock: 100,
+            startCumulativeMps: 0,
             exitedBlock: 0,
             maxPrice: MAX_PRICE // doesn't matter for this test
         });
@@ -126,6 +127,7 @@ contract CheckpointStorageTest is Assertions, Test {
             amount: TOKEN_AMOUNT,
             tokensFilled: 0,
             startBlock: 100,
+            startCumulativeMps: 0,
             exitedBlock: 0,
             maxPrice: MAX_PRICE // doesn't matter for this test
         });
@@ -177,6 +179,7 @@ contract CheckpointStorageTest is Assertions, Test {
             amount: ETH_AMOUNT,
             tokensFilled: 0,
             startBlock: 100,
+            startCumulativeMps: 0,
             exitedBlock: 0,
             maxPrice: MAX_PRICE // doesn't matter for this test
         });
@@ -211,6 +214,7 @@ contract CheckpointStorageTest is Assertions, Test {
             amount: TOKEN_AMOUNT,
             tokensFilled: 0,
             startBlock: 100,
+            startCumulativeMps: 0,
             exitedBlock: 0,
             maxPrice: MAX_PRICE // doesn't matter for this test
         });
@@ -239,6 +243,7 @@ contract CheckpointStorageTest is Assertions, Test {
             amount: largeAmount,
             tokensFilled: 0,
             startBlock: 100,
+            startCumulativeMps: 0,
             exitedBlock: 0,
             maxPrice: MAX_PRICE // doesn't matter for this test
         });

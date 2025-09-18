@@ -12,6 +12,7 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 struct Bid {
     bool exactIn; // If amount below is denoted in currency or tokens
     uint64 startBlock; // Block number when the bid was first made in
+    uint24 startCumulativeMps; // Cumulative mps at the start of the bid
     uint64 exitedBlock; // Block number when the bid was exited
     uint256 maxPrice; // The max price of the bid
     address owner; // Who is allowed to exit the bid
@@ -29,17 +30,14 @@ library BidLib {
 
     uint256 public constant PRECISION = 1e18;
 
-    /// @notice Calculate the effective amount of a bid based on the mps denominator
-    /// @param amount The amount of the bid
-    /// @param mpsDenominator The portion of the auction (in mps) which the bid was spread over
-    /// @return The effective amount of the bid
-    function effectiveAmount(uint256 amount, uint24 mpsDenominator) internal pure returns (ValueX7) {
-        return amount.scaleUpToX7().mulUint256(MPSLib.MPS).divUint256(mpsDenominator);
-    }
-
     /// @notice Convert a bid to a demand
-    function toDemand(Bid memory bid, uint24 mpsDenominator) internal pure returns (Demand memory demand) {
-        ValueX7 bidDemandOverRemainingAuctionX7 = bid.amount.effectiveAmount(mpsDenominator);
+    /// @dev The demand is scaled based on the remaining mps such that it is fully allocated over the remaining parts of the auction
+    /// @param bid The bid to convert
+    /// @return demand The demand struct representing the bid
+    function toDemand(Bid memory bid) internal pure returns (Demand memory demand) {
+        uint24 mpsRemainingInAuction = MPSLib.MPS - bid.startCumulativeMps;
+        ValueX7 bidDemandOverRemainingAuctionX7 =
+            bid.amount.scaleUpToX7().mulUint256(MPSLib.MPS).divUint256(mpsRemainingInAuction);
         if (bid.exactIn) {
             demand.currencyDemandX7 = bidDemandOverRemainingAuctionX7;
         } else {

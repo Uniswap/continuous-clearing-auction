@@ -286,9 +286,8 @@ contract Auction is
         // Scale the amount according to the rest of the supply schedule, accounting for past blocks
         // This is only used in demand related internal calculations
         Bid memory bid;
-        (bid, bidId) = _createBid(exactIn, amount, owner, maxPrice);
-        uint24 mpsRemainingInAuction = MPSLib.MPS - _checkpoint.cumulativeMps;
-        Demand memory bidDemand = bid.toDemand(mpsRemainingInAuction);
+        (bid, bidId) = _createBid(exactIn, amount, owner, maxPrice, _checkpoint.cumulativeMps);
+        Demand memory bidDemand = bid.toDemand();
 
         _updateTickDemand(maxPrice, bidDemand);
 
@@ -428,7 +427,7 @@ contract Auction is
         if (upperCheckpoint.clearingPrice == bid.maxPrice) {
             (uint256 partialTokensFilled, uint256 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
                 upperCheckpoint.cumulativeSupplySoldToClearingPriceX7,
-                bid.toDemand(MPSLib.MPS - startCheckpoint.cumulativeMps).resolve(bid.maxPrice),
+                bid.toDemand().resolve(bid.maxPrice),
                 getTick(bid.maxPrice).demand.resolve(bid.maxPrice),
                 bid.maxPrice
             );

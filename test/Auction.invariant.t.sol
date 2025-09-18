@@ -226,6 +226,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
         (
             bool exactIn,
             uint64 startBlock,
+            uint24 startCumulativeMps,
             uint64 exitedBlock,
             uint256 maxPrice,
             address owner,
@@ -236,6 +237,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
             exactIn: exactIn,
             startBlock: startBlock,
             exitedBlock: exitedBlock,
+            startCumulativeMps: startCumulativeMps,
             maxPrice: maxPrice,
             owner: owner,
             amount: amount,

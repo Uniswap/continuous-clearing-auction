@@ -1,5 +1,5 @@
 # BidLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/d1e7b82f3777bade51fea369dcee7819652c8bdc/src/libraries/BidLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c484a619b57e8cdba6726e41eefe57b0876affbb/src/libraries/BidLib.sol)
 
 
 ## State Variables
@@ -11,6 +11,27 @@ uint256 public constant PRECISION = 1e18;
 
 
 ## Functions
+### mpsRemainingInAuction
+
+Calculate the number of mps remaining in the auction since the bid was submitted
+
+
+```solidity
+function mpsRemainingInAuction(Bid memory bid) internal pure returns (uint24);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`bid`|`Bid`|The bid to calculate the remaining mps for|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint24`|The number of mps remaining in the auction|
+
+
 ### toDemand
 
 Convert a bid to a demand

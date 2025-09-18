@@ -1,5 +1,5 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/3f93841df89124f8b3dcf887da46cb2c78bfe137/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c484a619b57e8cdba6726e41eefe57b0876affbb/src/CheckpointStorage.sol)
 
 **Inherits:**
 [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
@@ -152,12 +152,10 @@ It MUST only be used when the bid's max price is strictly greater than the clear
 
 
 ```solidity
-function _calculateFill(
-    Bid memory bid,
-    uint256 cumulativeMpsPerPriceDelta,
-    uint24 cumulativeMpsDelta,
-    uint24 mpsDenominator
-) internal pure returns (uint256 tokensFilled, uint256 currencySpent);
+function _calculateFill(Bid memory bid, uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
+    internal
+    pure
+    returns (uint256 tokensFilled, uint256 currencySpent);
 ```
 **Parameters**
 
@@ -166,7 +164,6 @@ function _calculateFill(
 |`bid`|`Bid`|the bid to evaluate|
 |`cumulativeMpsPerPriceDelta`|`uint256`|the cumulative sum of supply to price ratio|
 |`cumulativeMpsDelta`|`uint24`|the cumulative sum of mps values across the block range|
-|`mpsDenominator`|`uint24`|the portion of the auction (in mps) which the bid was spread over|
 
 **Returns**
 

@@ -108,7 +108,7 @@ contract CheckpointStorageTest is Assertions, Test {
         });
 
         (uint256 tokensFilled, uint256 currencySpent) =
-            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta, MPS);
+            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
 
         assertEq(tokensFilled, ETH_AMOUNT.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * MPS));
         if (tokensFilled != 0) {
@@ -139,7 +139,7 @@ contract CheckpointStorageTest is Assertions, Test {
             uint256(_tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPrice));
 
         (uint256 tokensFilled, uint256 currencySpent) =
-            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPrice, cumulativeMpsDelta, MPS);
+            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPrice, cumulativeMpsDelta);
 
         assertEq(tokensFilled, _tokensFilled);
         assertEq(currencySpent, _currencySpent);
@@ -185,7 +185,7 @@ contract CheckpointStorageTest is Assertions, Test {
         });
 
         (uint256 tokensFilled, uint256 currencySpent) =
-            mockCheckpointStorage.calculateFill(bid, _cumulativeMpsPerPrice, uint24(_totalMps), MPS);
+            mockCheckpointStorage.calculateFill(bid, _cumulativeMpsPerPrice, uint24(_totalMps));
 
         assertEq(tokensFilled, _tokensFilled);
         assertEq(currencySpent, _currencySpent);
@@ -221,7 +221,7 @@ contract CheckpointStorageTest is Assertions, Test {
 
         // Bid is fully filled since max price is always higher than all prices
         (uint256 tokensFilled, uint256 currencySpent) =
-            mockCheckpointStorage.calculateFill(bid, _cumulativeMpsPerPrice, uint24(_totalMps), MPS);
+            mockCheckpointStorage.calculateFill(bid, _cumulativeMpsPerPrice, uint24(_totalMps));
 
         assertEq(_totalMps, 1e7);
         assertEq(tokensFilled, TOKEN_AMOUNT * 1e7 / MPS);
@@ -255,7 +255,7 @@ contract CheckpointStorageTest is Assertions, Test {
         uint256 expectedTokensFilled = uint256(expectedCurrencySpent.fullMulDiv(FixedPoint96.Q96, MAX_PRICE));
 
         (uint256 tokensFilled, uint256 currencySpent) =
-            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta, MPS);
+            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
 
         assertEq(tokensFilled, expectedTokensFilled);
         assertEq(currencySpent, expectedCurrencySpent);

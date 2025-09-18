@@ -76,8 +76,7 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         (tokensFilled, currencySpent) = _calculateFill(
             bid,
             upper.cumulativeMpsPerPrice - startCheckpoint.cumulativeMpsPerPrice,
-            upper.cumulativeMps - startCheckpoint.cumulativeMps,
-            MPSLib.MPS - startCheckpoint.cumulativeMps
+            upper.cumulativeMps - startCheckpoint.cumulativeMps
         );
     }
 
@@ -114,22 +113,21 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     /// @param bid the bid to evaluate
     /// @param cumulativeMpsPerPriceDelta the cumulative sum of supply to price ratio
     /// @param cumulativeMpsDelta the cumulative sum of mps values across the block range
-    /// @param mpsDenominator the portion of the auction (in mps) which the bid was spread over
     /// @return tokensFilled the amount of tokens filled for this bid
     /// @return currencySpent the amount of currency spent by this bid
-    function _calculateFill(
-        Bid memory bid,
-        uint256 cumulativeMpsPerPriceDelta,
-        uint24 cumulativeMpsDelta,
-        uint24 mpsDenominator
-    ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
+    function _calculateFill(Bid memory bid, uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
+        internal
+        pure
+        returns (uint256 tokensFilled, uint256 currencySpent)
+    {
+        uint24 mpsRemainingInAuction = bid.mpsRemainingInAuction();
         tokensFilled = bid.exactIn
-            ? bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsDenominator)
-            : bid.amount.fullMulDiv(cumulativeMpsDelta, mpsDenominator);
+            ? bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsRemainingInAuction)
+            : bid.amount.fullMulDiv(cumulativeMpsDelta, mpsRemainingInAuction);
         // If tokensFilled is 0 then currencySpent must be 0
         if (tokensFilled != 0) {
             currencySpent = bid.exactIn
-                ? bid.amount.fullMulDivUp(cumulativeMpsDelta, mpsDenominator)
+                ? bid.amount.fullMulDivUp(cumulativeMpsDelta, mpsRemainingInAuction)
                 : tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPriceDelta);
         }
     }

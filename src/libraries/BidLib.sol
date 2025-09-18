@@ -30,14 +30,20 @@ library BidLib {
 
     uint256 public constant PRECISION = 1e18;
 
+    /// @notice Calculate the number of mps remaining in the auction since the bid was submitted
+    /// @param bid The bid to calculate the remaining mps for
+    /// @return The number of mps remaining in the auction
+    function mpsRemainingInAuction(Bid memory bid) internal pure returns (uint24) {
+        return MPSLib.MPS - bid.startCumulativeMps;
+    }
+
     /// @notice Convert a bid to a demand
     /// @dev The demand is scaled based on the remaining mps such that it is fully allocated over the remaining parts of the auction
     /// @param bid The bid to convert
     /// @return demand The demand struct representing the bid
     function toDemand(Bid memory bid) internal pure returns (Demand memory demand) {
-        uint24 mpsRemainingInAuction = MPSLib.MPS - bid.startCumulativeMps;
         ValueX7 bidDemandOverRemainingAuctionX7 =
-            bid.amount.scaleUpToX7().mulUint256(MPSLib.MPS).divUint256(mpsRemainingInAuction);
+            bid.amount.scaleUpToX7().mulUint256(MPSLib.MPS).divUint256(bid.mpsRemainingInAuction());
         if (bid.exactIn) {
             demand.currencyDemandX7 = bidDemandOverRemainingAuctionX7;
         } else {

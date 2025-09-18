@@ -14,12 +14,12 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
 
     /// @notice The size of a uint64 in bytes
     uint256 public constant UINT64_SIZE = 8;
-    /// @inheritdoc IAuctionStepStorage
-    uint64 public immutable START_BLOCK;
-    /// @inheritdoc IAuctionStepStorage
-    uint64 public immutable END_BLOCK;
+    /// @notice The block at which the auction starts
+    uint64 internal immutable START_BLOCK;
+    /// @notice The block at which the auction ends
+    uint64 internal immutable END_BLOCK;
     /// @notice Cached length of the auction steps data provided in the constructor
-    uint256 private immutable _LENGTH;
+    uint256 internal immutable _LENGTH;
 
     /// @notice The address pointer to the contract deployed by SSTORE2
     address public pointer;
@@ -82,5 +82,16 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
 
         emit AuctionStepRecorded(_startBlock, _endBlock, mps);
         return step;
+    }
+
+    // Getters
+    /// @inheritdoc IAuctionStepStorage
+    function startBlock() external view returns (uint64) {
+        return START_BLOCK;
+    }
+
+    /// @inheritdoc IAuctionStepStorage
+    function endBlock() external view returns (uint64) {
+        return END_BLOCK;
     }
 }

@@ -48,9 +48,9 @@ contract Auction is
     /// @notice Permit2 address
     address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     /// @notice The block at which purchased tokens can be claimed
-    uint64 public immutable CLAIM_BLOCK;
+    uint64 internal immutable CLAIM_BLOCK;
     /// @notice An optional hook to be called before a bid is registered
-    IValidationHook public immutable VALIDATION_HOOK;
+    IValidationHook internal immutable VALIDATION_HOOK;
 
     /// @notice The sum of demand in ticks above the clearing price
     Demand public sumDemandAboveClearing;
@@ -477,5 +477,16 @@ contract Auction is
         } else {
             _sweepUnsoldTokens(TOTAL_SUPPLY.scaleDown());
         }
+    }
+
+    // Getters
+    /// @inheritdoc IAuction
+    function claimBlock() external view override(IAuction) returns (uint64) {
+        return CLAIM_BLOCK;
+    }
+
+    /// @inheritdoc IAuction
+    function validationHook() external view override(IAuction) returns (IValidationHook) {
+        return VALIDATION_HOOK;
     }
 }

@@ -13,9 +13,9 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     using MPSLib for uint256;
 
     /// @notice The currency being raised in the auction
-    Currency public immutable CURRENCY;
+    Currency internal immutable CURRENCY;
     /// @notice The token being sold in the auction
-    IERC20Minimal public immutable TOKEN;
+    IERC20Minimal internal immutable TOKEN;
     /// @notice The total supply of tokens to sell
     /// @dev The auction does not support selling more than type(uint256).max / MPSLib.MPS (1e7) tokens
     ValueX7 internal immutable TOTAL_SUPPLY;
@@ -63,5 +63,36 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
             Currency.wrap(address(TOKEN)).transfer(TOKENS_RECIPIENT, amount);
         }
         emit TokensSwept(TOKENS_RECIPIENT, amount);
+    }
+
+    // Getters
+    /// @inheritdoc ITokenCurrencyStorage
+    function currency() external view override(ITokenCurrencyStorage) returns (Currency) {
+        return CURRENCY;
+    }
+
+    /// @inheritdoc ITokenCurrencyStorage
+    function token() external view override(ITokenCurrencyStorage) returns (IERC20Minimal) {
+        return TOKEN;
+    }
+
+    /// @inheritdoc ITokenCurrencyStorage
+    function totalSupply() external view override(ITokenCurrencyStorage) returns (ValueX7) {
+        return TOTAL_SUPPLY;
+    }
+
+    /// @inheritdoc ITokenCurrencyStorage
+    function tokensRecipient() external view override(ITokenCurrencyStorage) returns (address) {
+        return TOKENS_RECIPIENT;
+    }
+
+    /// @inheritdoc ITokenCurrencyStorage
+    function fundsRecipient() external view override(ITokenCurrencyStorage) returns (address) {
+        return FUNDS_RECIPIENT;
+    }
+
+    /// @inheritdoc ITokenCurrencyStorage
+    function graduationThresholdMps() external view override(ITokenCurrencyStorage) returns (uint24) {
+        return GRADUATION_THRESHOLD_MPS;
     }
 }

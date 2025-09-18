@@ -14,9 +14,9 @@ interface IAuctionStepStorage {
     error InvalidEndBlock();
 
     /// @notice The block at which the auction starts
-    function START_BLOCK() external view returns (uint64);
+    function startBlock() external view returns (uint64);
     /// @notice The block at which the auction ends
-    function END_BLOCK() external view returns (uint64);
+    function endBlock() external view returns (uint64);
 
     /// @notice Emitted when an auction step is recorded
     /// @param startBlock The start block of the auction step

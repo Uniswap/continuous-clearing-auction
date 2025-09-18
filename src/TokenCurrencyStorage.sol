@@ -3,7 +3,6 @@ pragma solidity 0.8.26;
 
 import {ITokenCurrencyStorage} from './interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
-import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {MPSLib, ValueX7} from './libraries/MPSLib.sol';
 
@@ -17,7 +16,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     /// @notice The token being sold in the auction
     IERC20Minimal public immutable token;
     /// @notice The total supply of tokens to sell
-    uint256 public immutable totalSupply;
+    uint128 public immutable totalSupply;
     /// @notice The total supply of tokens to sell, scaled up to a ValueX7
     /// @dev The auction does not support selling more than type(uint256).max / MPSLib.MPS (1e7) tokens
     ValueX7 internal immutable totalSupplyX7;
@@ -36,14 +35,14 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     constructor(
         address _token,
         address _currency,
-        uint256 _totalSupply,
+        uint128 _totalSupply,
         address _tokensRecipient,
         address _fundsRecipient,
         uint24 _graduationThresholdMps
     ) {
         token = IERC20Minimal(_token);
         totalSupply = _totalSupply;
-        totalSupplyX7 = _totalSupply.scaleUpToX7();
+        totalSupplyX7 = uint256(_totalSupply).scaleUpToX7();
         currency = Currency.wrap(_currency);
         tokensRecipient = _tokensRecipient;
         fundsRecipient = _fundsRecipient;

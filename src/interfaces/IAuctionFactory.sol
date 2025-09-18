@@ -5,6 +5,9 @@ import {IDistributionStrategy} from './external/IDistributionStrategy.sol';
 
 /// @title IAuctionFactory
 interface IAuctionFactory is IDistributionStrategy {
+    /// @notice Error thrown when the total supply is too large to fit in a uint128
+    error TotalSupplyOverUint128Max();
+
     /// @notice Emitted when an auction is created
     /// @param auction The address of the auction contract
     /// @param token The address of the token

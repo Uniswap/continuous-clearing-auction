@@ -16,12 +16,14 @@ contract AuctionFactory is IAuctionFactory {
         external
         returns (IDistributionContract distributionContract)
     {
+        if (amount > type(uint128).max) revert TotalSupplyOverUint128Max();
+
         AuctionParameters memory parameters = abi.decode(configData, (AuctionParameters));
         // If the fundsRecipient is address(1), set it to the msg.sender
         if (parameters.fundsRecipient == USE_MSG_SENDER) parameters.fundsRecipient = msg.sender;
 
         distributionContract = IDistributionContract(
-            address(new Auction{salt: keccak256(abi.encode(msg.sender, salt))}(token, amount, parameters))
+            address(new Auction{salt: keccak256(abi.encode(msg.sender, salt))}(token, uint128(amount), parameters))
         );
 
         emit AuctionCreated(address(distributionContract), token, amount, configData);

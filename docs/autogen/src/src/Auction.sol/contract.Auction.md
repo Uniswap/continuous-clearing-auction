@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/3f93841df89124f8b3dcf887da46cb2c78bfe137/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c759e43fae42070cf9e95f131465e97b1a9613f7/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -52,7 +52,7 @@ Demand public sumDemandAboveClearing;
 
 
 ```solidity
-constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
+constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
     AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
     TokenCurrencyStorage(
         _token,

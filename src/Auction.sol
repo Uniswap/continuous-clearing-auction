@@ -87,7 +87,8 @@ contract Auction is
 
     /// @inheritdoc IDistributionContract
     function onTokensReceived() external view {
-        if (token.balanceOf(address(this)) < totalSupplyX7.scaleDownToUint256()) {
+        // Use the normal totalSupply value instead of the scaled up X7 value
+        if (token.balanceOf(address(this)) < totalSupply) {
             revert IDistributionContract__InvalidAmountReceived();
         }
     }
@@ -469,7 +470,8 @@ contract Auction is
         if (isGraduated()) {
             _sweepUnsoldTokens((totalSupplyX7.sub(_getFinalCheckpoint().totalCleared)).scaleDownToUint256());
         } else {
-            _sweepUnsoldTokens(totalSupplyX7.scaleDownToUint256());
+            // Use the uint256 totalSupply value instead of the scaled up X7 value
+            _sweepUnsoldTokens(totalSupply);
         }
     }
 }

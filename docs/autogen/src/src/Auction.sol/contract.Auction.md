@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/3f93841df89124f8b3dcf887da46cb2c78bfe137/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/f66249e6bb5ebf3be6698edff5f27719f8f33c6e/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -20,21 +20,21 @@ address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 ```
 
 
-### claimBlock
+### CLAIM_BLOCK
 The block at which purchased tokens can be claimed
 
 
 ```solidity
-uint64 public immutable claimBlock;
+uint64 internal immutable CLAIM_BLOCK;
 ```
 
 
-### validationHook
+### VALIDATION_HOOK
 An optional hook to be called before a bid is registered
 
 
 ```solidity
-IValidationHook public immutable validationHook;
+IValidationHook internal immutable VALIDATION_HOOK;
 ```
 
 
@@ -340,5 +340,23 @@ Sweep any leftover tokens to the tokens recipient
 
 ```solidity
 function sweepUnsoldTokens() external onlyAfterAuctionIsOver;
+```
+
+### claimBlock
+
+The block at which the auction can be claimed
+
+
+```solidity
+function claimBlock() external view override(IAuction) returns (uint64);
+```
+
+### validationHook
+
+The address of the validation hook for the auction
+
+
+```solidity
+function validationHook() external view override(IAuction) returns (IValidationHook);
 ```
 

@@ -1,5 +1,5 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/3f93841df89124f8b3dcf887da46cb2c78bfe137/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/f66249e6bb5ebf3be6698edff5f27719f8f33c6e/src/TickStorage.sol)
 
 **Inherits:**
 [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
@@ -26,21 +26,21 @@ uint256 public nextActiveTickPrice;
 ```
 
 
-### floorPrice
-Get the floor price of the auction
+### FLOOR_PRICE
+The floor price of the auction
 
 
 ```solidity
-uint256 public immutable floorPrice;
+uint256 internal immutable FLOOR_PRICE;
 ```
 
 
-### tickSpacing
-Get the tick spacing enforced for bid prices
+### TICK_SPACING
+The tick spacing of the auction - bids must be placed at discrete tick intervals
 
 
 ```solidity
-uint256 public immutable tickSpacing;
+uint256 internal immutable TICK_SPACING;
 ```
 
 
@@ -129,4 +129,22 @@ function _updateTickDemand(uint256 price, Demand memory demand) internal;
 |`price`|`uint256`|The price of the tick|
 |`demand`|`Demand`|The demand to add|
 
+
+### floorPrice
+
+Get the floor price of the auction
+
+
+```solidity
+function floorPrice() external view override(ITickStorage) returns (uint256);
+```
+
+### tickSpacing
+
+Get the tick spacing enforced for bid prices
+
+
+```solidity
+function tickSpacing() external view override(ITickStorage) returns (uint256);
+```
 

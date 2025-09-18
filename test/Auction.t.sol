@@ -1642,7 +1642,6 @@ contract AuctionTest is AuctionBaseTest {
         auctionWithThreshold.sweepCurrency();
     }
 
-
     // Test that all of the state getters for constants / immutable variables are correct
     function test_constructor_immuatble_getters() public {
         assertEq(Currency.unwrap(auction.currency()), ETH_SENTINEL);

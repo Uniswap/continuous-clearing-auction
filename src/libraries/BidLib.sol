@@ -40,7 +40,7 @@ library BidLib {
     /// @notice Convert a bid to a demand
     function toDemand(Bid memory bid, uint24 mpsDenominator) internal pure returns (Demand memory demand) {
         ValueX7 bidDemandOverRemainingAuctionX7 = bid.amount.effectiveAmount(mpsDenominator);
-        if(bid.exactIn) {
+        if (bid.exactIn) {
             demand.currencyDemandX7 = bidDemandOverRemainingAuctionX7;
         } else {
             demand.tokenDemandX7 = bidDemandOverRemainingAuctionX7;

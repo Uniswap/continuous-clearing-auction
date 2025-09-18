@@ -1,5 +1,5 @@
 # MPSLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/22aee9729c26f2abf42c6308fcc6d9c57d106074/src/libraries/MPSLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/3f93841df89124f8b3dcf887da46cb2c78bfe137/src/libraries/MPSLib.sol)
 
 Library for working with MPS related values
 
@@ -15,7 +15,7 @@ uint24 public constant MPS = 1e7;
 
 
 ## Functions
-### scaleUp
+### scaleUpToX7
 
 Multiply a uint256 value by MPS
 
@@ -23,7 +23,7 @@ Multiply a uint256 value by MPS
 
 
 ```solidity
-function scaleUp(uint256 value) internal pure returns (ValueX7);
+function scaleUpToX7(uint256 value) internal pure returns (ValueX7);
 ```
 **Returns**
 
@@ -32,13 +32,13 @@ function scaleUp(uint256 value) internal pure returns (ValueX7);
 |`<none>`|`ValueX7`|The result as a ValueX7|
 
 
-### scaleDown
+### scaleDownToUint256
 
 Divide a ValueX7 value by MPS
 
 
 ```solidity
-function scaleDown(ValueX7 value) internal pure returns (uint256);
+function scaleDownToUint256(ValueX7 value) internal pure returns (uint256);
 ```
 **Returns**
 

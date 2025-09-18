@@ -1,5 +1,5 @@
 # BidLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/b7bb337742591b0d157183bdfc59e877aeaad6e7/src/libraries/BidLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/3f93841df89124f8b3dcf887da46cb2c78bfe137/src/libraries/BidLib.sol)
 
 
 ## State Variables
@@ -39,7 +39,7 @@ Convert a bid to a demand
 
 
 ```solidity
-function toDemand(Bid memory bid, uint24 mpsDenominator) internal pure returns (Demand memory);
+function toDemand(Bid memory bid, uint24 mpsDenominator) internal pure returns (Demand memory demand);
 ```
 
 ### inputAmount

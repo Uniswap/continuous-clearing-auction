@@ -48,7 +48,7 @@ library MPSLib {
 
     /// @notice we use milli-bips, or one thousandth of a basis point
     uint24 public constant MPS = 1e7;
-    
+
     /// @notice Multiply a uint256 value by MPS
     /// @dev This ensures that future operations (ex. scaleByMps) will not lose precision
     /// @return The result as a ValueX7

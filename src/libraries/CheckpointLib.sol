@@ -36,8 +36,7 @@ library CheckpointLib {
         returns (ValueX7)
     {
         uint24 mpsRemainingInAuction = MPSLib.MPS - checkpoint.cumulativeMps;
-        return
-            totalSupplyX7.sub(checkpoint.totalCleared).mulUint256(mps).divUint256(mpsRemainingInAuction);
+        return totalSupplyX7.sub(checkpoint.totalCleared).mulUint256(mps).divUint256(mpsRemainingInAuction);
     }
 
     /// @notice Calculate the supply to price ratio. Will return zero if `price` is zero

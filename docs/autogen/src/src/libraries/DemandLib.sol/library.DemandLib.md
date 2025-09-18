@@ -1,5 +1,5 @@
 # DemandLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/22aee9729c26f2abf42c6308fcc6d9c57d106074/src/libraries/DemandLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/3f93841df89124f8b3dcf887da46cb2c78bfe137/src/libraries/DemandLib.sol)
 
 
 ## Functions
@@ -54,7 +54,7 @@ function sub(Demand memory _demand, Demand memory _other) internal pure returns 
 
 Apply mps to a Demand struct
 
-*Shorthand for calling `scaleByMps` on both currencyDemand and tokenDemand*
+*Shorthand for calling `scaleByMps` on both currencyDemandX7 and tokenDemandX7*
 
 
 ```solidity

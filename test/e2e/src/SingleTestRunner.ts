@@ -58,11 +58,11 @@ export class SingleTestRunner {
     console.log('🎯 Phase 2: Executing interaction scenario...');
     const auctionedToken = this.deployer.getTokenByName(setupData.auctionParameters.auctionedToken);
     const currencyToken = setupData.auctionParameters.currency === '0x0000000000000000000000000000000000000000' ? null : this.deployer.getTokenByName(setupData.auctionParameters.currency);
-    const bidSimulator = new BidSimulator(auction, auctionedToken || null, currencyToken || null);
+    const bidSimulator = new BidSimulator(auction, currencyToken || null);
     const assertionEngine = new AssertionEngine(auction, auctionedToken || null, currencyToken || null);
     
     // Setup labels and execute the interaction scenario
-    await bidSimulator.setupLabels(setupData, interactionData);
+    await bidSimulator.setupLabels(interactionData);
     
     // Execute bids and actions with integrated checkpoint validation
     await this.executeWithCheckpoints(bidSimulator, assertionEngine, interactionData, interactionData.timeBase);

@@ -44,7 +44,6 @@ export class BidSimulator {
 
   constructor(
     auction: any, 
-    token: any, 
     currency: any
   ) {
     this.ethers = hre.ethers;
@@ -53,7 +52,7 @@ export class BidSimulator {
     this.currency = currency;
   }
 
-  async setupLabels(setupData: SetupData, interactionData: InteractionData): Promise<void> {
+  async setupLabels(interactionData: InteractionData): Promise<void> {
     // Map symbolic labels to actual addresses
     this.labelMap.set('Pool', await this.auction.getAddress());
     this.labelMap.set('Auction', await this.auction.getAddress());

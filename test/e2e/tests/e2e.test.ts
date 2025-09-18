@@ -7,7 +7,7 @@ describe('E2E Tests', function() {
 
   before(async function() {
     console.log('🔍 Test: hre.ethers available?', !!hre.ethers);
-    runner = new MultiTestRunner(hre, hre.ethers);
+    runner = new MultiTestRunner();
   });
 
   it('should run simple setup and interaction', async function() {

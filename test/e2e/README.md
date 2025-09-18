@@ -15,10 +15,7 @@ The following features are defined in the schemas but not yet implemented. These
   - `basisPoints` - Calculate basis points (1/10000) of total supply
   - `percentOfGroup` - Calculate percentage of group total
 
-### ⚙️ Admin Actions
-- **Pause/Unpause** - Auction pause and unpause functionality
-- **Parameter Management** - `setFee`, `setParam`, `setValidationHook` operations
-- **Enhanced Admin Control** - Full admin action suite beyond current `sweepCurrency`/`sweepUnsoldTokens`
+### Allow arbitary addresses to start auctions
 
 ### 🔄 Transfer Actions
 - **Token Transfers** - Execute transfers between addresses during test execution
@@ -150,13 +147,13 @@ The setup schema defines the auction environment:
     "balances": [
       {
         "address": "0x1111111111111111111111111111111111111111",
-        "token": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "token": "0x0000000000000000000000000000000000000000",
         "amount": "1000000000000000000000"
       }
     ]
   },
   "auctionParameters": {
-    "currency": "ETH",
+    "currency": "0x0000000000000000000000000000000000000000",
     "auctionedToken": "SimpleToken",
     "tokensRecipient": "0x2222222222222222222222222222222222222222",
     "fundsRecipient": "0x3333333333333333333333333333333333333333",
@@ -194,7 +191,8 @@ The interaction schema defines bid scenarios and checkpoints:
         {
           "atBlock": 10,
           "amount": { "side": "input", "type": "raw", "value": "1000000000000000000" },
-          "price": { "type": "raw", "value": "87150978765690771352898345369600" }
+          "price": { "type": "raw", "value": "87150978765690771352898345369600" },
+          "expectRevert": "InsufficientBalance"
         }
       ]
     }
@@ -206,7 +204,7 @@ The interaction schema defines bid scenarios and checkpoints:
       "assert": {
         "type": "balance",
         "address": "0x1111111111111111111111111111111111111111",
-        "token": "ETH",
+        "token": "0x0000000000000000000000000000000000000000",
         "expected": "0"
       }
     }
@@ -231,8 +229,10 @@ The test suite integrates with the real Foundry auction contracts:
 
 - **`AuctionFactory`** - Deploys new auction instances
 - **`Auction`** - The main auction contract
-- **`ERC20Mock`** - Mock ERC20 tokens for testing
+- **`WorkingCustomMockToken`** - Custom mock ERC20 tokens for testing
 - **`USDCMock`** - Mock USDC token with 6 decimals
+
+The test suite loads contract artifacts directly from Foundry's `out` directory, ensuring compatibility with the latest compiled contracts. The `forge build` command is automatically run before tests to ensure artifacts are up to date.
 
 ## 🧪 Writing Tests
 
@@ -280,6 +280,21 @@ The test suite supports multiple transactions in the same block, which is useful
 
 **Execution Order**: Queries/checkpoints execute before transactions in the same block.
 
+### Expected Reverts
+
+You can test that certain operations should fail by adding an `expectRevert` field to your bids:
+
+```json
+{
+  "atBlock": 10,
+  "amount": { "side": "input", "type": "raw", "value": "1000000000000000000" },
+  "price": { "type": "raw", "value": "87150978765690771352898345369600" },
+  "expectRevert": "InsufficientBalance"
+}
+```
+
+The `expectRevert` field accepts a string that should be contained in the revert data. The test will pass if the transaction reverts and the revert data contains the specified string.
+
 ### Adding Checkpoints
 
 Checkpoints allow you to validate auction state at specific blocks:
@@ -304,6 +319,8 @@ Checkpoints allow you to validate auction state at specific blocks:
 1. **Tick Price Validation Errors** - Ensure floor price and tick spacing match the Foundry tests
 2. **Balance Assertion Failures** - Check that expected balances account for bid amounts
 3. **Contract Deployment Issues** - Verify that all required contracts are properly imported
+4. **Expected Revert Failures** - Ensure the `expectRevert` string matches the actual revert data
+5. **Native Currency Issues** - Use `0x0000000000000000000000000000000000000000` for native currency
 
 ### Debug Output
 

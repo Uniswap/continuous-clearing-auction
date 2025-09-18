@@ -13,14 +13,18 @@ import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
+import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
+
+import {Assertions} from './utils/Assertions.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {Test} from 'forge-std/Test.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
-contract AuctionInvariantHandler is Test {
+contract AuctionInvariantHandler is Test, Assertions {
     using CurrencyLibrary for Currency;
-    using FixedPointMathLib for uint128;
+    using FixedPointMathLib for uint256;
+    using MPSLib for *;
 
     Auction public auction;
     IPermit2 public permit2;
@@ -46,7 +50,7 @@ contract AuctionInvariantHandler is Test {
         token = auction.token();
         actors = _actors;
 
-        BID_MIN_PRICE = uint256(auction.floorPrice() + auction.tickSpacing());
+        BID_MIN_PRICE = auction.floorPrice() + auction.tickSpacing();
     }
 
     modifier useActor(uint256 actorIndexSeed) {
@@ -78,22 +82,22 @@ contract AuctionInvariantHandler is Test {
 
     /// @notice Generate random values for amount and max price given a desired resolved amount of tokens to purchase
     /// @dev Bounded by purchasing the total supply of tokens and some reasonable max price for bids to prevent overflow
-    function _useAmountMaxPrice(bool exactIn, uint128 amount, uint256 tickNumber)
+    function _useAmountMaxPrice(bool exactIn, uint256 amount, uint256 tickNumber)
         internal
         view
-        returns (uint128, uint256)
+        returns (uint256, uint256)
     {
         tickNumber = _bound(tickNumber, 0, type(uint8).max);
         uint256 tickNumberPrice = auction.floorPrice() + tickNumber * auction.tickSpacing();
         uint256 maxPrice = _bound(tickNumberPrice, BID_MIN_PRICE, BID_MAX_PRICE);
         // Round down to the nearest tick boundary
-        maxPrice -= (maxPrice % uint128(auction.tickSpacing()));
+        maxPrice -= (maxPrice % auction.tickSpacing());
 
         if (exactIn) {
-            uint128 inputAmount = amount;
+            uint256 inputAmount = amount;
             return (inputAmount, maxPrice);
         } else {
-            uint128 inputAmount = uint128(amount.fullMulDivUp(maxPrice, FixedPoint96.Q96));
+            uint256 inputAmount = amount.fullMulDivUp(maxPrice, FixedPoint96.Q96);
             return (inputAmount, maxPrice);
         }
     }
@@ -136,8 +140,9 @@ contract AuctionInvariantHandler is Test {
         useActor(actorIndexSeed)
         validateCheckpoint
     {
-        uint128 amount = uint128(_bound(tickNumber, 1, uint256(auction.totalSupply() * 2)));
-        (uint128 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(exactIn, amount, tickNumber);
+        // Bid requests for anything between 1 and 2x the total supply of tokens
+        uint256 amount = _bound(tickNumber, 1, auction.totalSupply() * 2);
+        (uint256 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(exactIn, amount, tickNumber);
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
         } else {
@@ -195,25 +200,25 @@ contract AuctionInvariantTest is AuctionBaseTest {
     function getCheckpoint(uint64 blockNumber) public view returns (Checkpoint memory) {
         (
             uint256 clearingPrice,
-            uint128 totalCleared,
-            uint128 resolvedDemandAboveClearingPrice,
+            ValueX7 totalCleared,
+            ValueX7 resolvedDemandAboveClearingPrice,
+            uint256 cumulativeMpsPerPrice,
+            ValueX7 cumulativeSupplySoldToClearingPriceX7,
             uint24 cumulativeMps,
             uint24 mps,
             uint64 prev,
-            uint64 next,
-            uint256 cumulativeMpsPerPrice,
-            uint256 cumulativeSupplySoldToClearingPrice
+            uint64 next
         ) = auction.checkpoints(blockNumber);
         return Checkpoint({
             clearingPrice: clearingPrice,
             totalCleared: totalCleared,
             resolvedDemandAboveClearingPrice: resolvedDemandAboveClearingPrice,
+            cumulativeMpsPerPrice: cumulativeMpsPerPrice,
+            cumulativeSupplySoldToClearingPriceX7: cumulativeSupplySoldToClearingPriceX7,
             cumulativeMps: cumulativeMps,
             mps: mps,
             prev: prev,
-            next: next,
-            cumulativeMpsPerPrice: cumulativeMpsPerPrice,
-            cumulativeSupplySoldToClearingPrice: cumulativeSupplySoldToClearingPrice
+            next: next
         });
     }
 
@@ -221,16 +226,18 @@ contract AuctionInvariantTest is AuctionBaseTest {
         (
             bool exactIn,
             uint64 startBlock,
+            uint24 startCumulativeMps,
             uint64 exitedBlock,
             uint256 maxPrice,
             address owner,
-            uint128 amount,
-            uint128 tokensFilled
+            uint256 amount,
+            uint256 tokensFilled
         ) = auction.bids(bidId);
         return Bid({
             exactIn: exactIn,
             startBlock: startBlock,
             exitedBlock: exitedBlock,
+            startCumulativeMps: startCumulativeMps,
             maxPrice: maxPrice,
             owner: owner,
             amount: amount,
@@ -275,7 +282,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
 
         Checkpoint memory finalCheckpoint = getCheckpoint(uint64(block.number));
         // Assert the only thing we know for sure is that the schedule must be 100% at the endBlock
-        assertEq(finalCheckpoint.cumulativeMps, AuctionStepLib.MPS, 'Final checkpoint must be 1e7');
+        assertEq(finalCheckpoint.cumulativeMps, MPSLib.MPS, 'Final checkpoint must be 1e7');
         uint256 clearingPrice = auction.clearingPrice();
 
         uint256 bidCount = handler.bidCount();

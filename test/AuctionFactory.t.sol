@@ -7,14 +7,18 @@ import {IAuctionFactory} from '../src/interfaces/IAuctionFactory.sol';
 import {IDistributionContract} from '../src/interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
+import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
+import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
+import {Assertions} from './utils/Assertions.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
 
-contract AuctionFactoryTest is TokenHandler, Test {
+contract AuctionFactoryTest is TokenHandler, Test, Assertions {
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
+    using MPSLib for *;
 
     AuctionFactory factory;
     Auction auction;

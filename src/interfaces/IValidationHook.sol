@@ -15,7 +15,7 @@ interface IValidationHook {
     function validate(
         uint256 maxPrice,
         bool exactIn,
-        uint128 amount,
+        uint256 amount,
         address owner,
         address sender,
         bytes calldata hookData

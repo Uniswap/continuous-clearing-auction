@@ -301,10 +301,10 @@ event BidExited(uint256 indexed bidId, address indexed owner);
 - `lower`: Last checkpoint where clearing price is strictly < bid.maxPrice
 - `upper`: First checkpoint where clearing price is strictly > bid.maxPrice, or 0 for end-of-auction fills
 
-**Mathematical Optimization**: Uses cumulative supply tracking (`cumulativeSupplySoldToClearingPrice`) for direct partial fill calculation:
+**Mathematical Optimization**: Uses cumulative supply tracking (`cumulativeSupplySoldToClearingPriceX7`) for direct partial fill calculation:
 
 ```
-partialFillRate = cumulativeSupplySoldToClearingPrice * mpsDenominator / (tickDemand * cumulativeMpsDelta)
+partialFillRate = cumulativeSupplySoldToClearingPriceX7 * mpsDenominator / (tickDemand * cumulativeMpsDelta)
 ```
 
 **Implementation**: Enhanced checkpoint architecture with linked-list structure (prev/next pointers) enables efficient traversal. Block numbers are stored as `uint64` for gas optimization while maintaining sufficient range (~584 billion years).
@@ -431,7 +431,7 @@ sequenceDiagram
     alt Validation Hook Configured
         Auction->>IValidationHook: validate(maxPrice, exactIn, amount, owner, sender, hookData)
     end
-    Auction->>TickStorage: _updateTick(...)
+    Auction->>TickStorage: _updateTickDemand(...)
     Auction->>BidStorage: _createBid(...)
     Auction->>Auction: update sumDemandAboveClearing
     Auction-->>User: bidId
@@ -448,7 +448,7 @@ sequenceDiagram
 
     Bidder->>Auction: submitBid(highPrice, ...)
     Auction->>TickStorage: _initializeTickIfNeeded()
-    Auction->>TickStorage: _updateTick()
+    Auction->>TickStorage: _updateTickDemand()
     TickStorage->>TickStorage: aggregate demand at price level
     Auction->>CheckpointStorage: checkpoint()
     CheckpointStorage->>CheckpointStorage: _advanceToCurrentStep()

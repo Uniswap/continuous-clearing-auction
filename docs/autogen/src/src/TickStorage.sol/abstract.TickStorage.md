@@ -1,5 +1,5 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/9b332e9ae711433b888783601b4b8b92cce6d905/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/1f618d7d1f435e5c11d16741e6d44c82977306ba/src/TickStorage.sol)
 
 **Inherits:**
 [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
@@ -50,16 +50,6 @@ Sentinel value for the next value of the highest tick in the book
 
 ```solidity
 uint256 public constant MAX_TICK_PRICE = type(uint256).max;
-```
-
-
-### MAX_BID_PRICE
-The maximum allowable price for a bid, which is equal to the MAX_SQRT_PRICE defined in Uniswap V4's TickMath Library squared
-
-
-```solidity
-uint256 public constant MAX_BID_PRICE =
-    26_957_920_004_054_754_506_022_898_809_067_591_261_277_585_227_686_421_694_841_721_768_917;
 ```
 
 
@@ -133,22 +123,19 @@ function _initializeTickIfNeeded(uint256 prevPrice, uint256 price) internal;
 |`price`|`uint256`|The price of the tick|
 
 
-### _updateTick
+### _updateTickDemand
 
-Internal function to add a bid to a tick and update its values
-
-*Requires the tick to be initialized*
+Internal function to add demand to a tick
 
 
 ```solidity
-function _updateTick(uint256 price, bool exactIn, uint128 amount) internal;
+function _updateTickDemand(uint256 price, Demand memory demand) internal;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`price`|`uint256`|The price of the tick|
-|`exactIn`|`bool`|Whether the bid is exact in|
-|`amount`|`uint128`|The amount of the bid|
+|`demand`|`Demand`|The demand to add|
 
 

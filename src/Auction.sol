@@ -165,8 +165,10 @@ contract Auction is
         // Calculate the clearing price by dividing the currencyDemandX7 by the supply subtracted by the tokenDemandX7, following `currency / tokens = price`
         // If the supply is zero set this to zero to prevent division by zero. If the minimum clearing price is non zero, it will be returned. Otherwise, the floor price will be returned.
         uint256 _clearingPrice = supplyX7.gt(0)
-            ? ValueX7.unwrap(blockSumDemandAboveClearing.currencyDemandX7).fullMulDiv(
-                FixedPoint96.Q96, ValueX7.unwrap(supplyX7.sub(blockSumDemandAboveClearing.tokenDemandX7))
+            ? ValueX7.unwrap(
+                blockSumDemandAboveClearing.currencyDemandX7.fullMulDiv(
+                    ValueX7.wrap(FixedPoint96.Q96), supplyX7.sub(blockSumDemandAboveClearing.tokenDemandX7)
+                )
             )
             : 0;
 

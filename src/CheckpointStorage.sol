@@ -99,11 +99,8 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         // tokensFilled = bidDemandX7 * (cumulativeSupplyX7 * Q96 * MPS / tickDemandX7 * cumulativeMpsDelta) * cumulativeMpsDelta / (mpsDenominator * Q96)
         //              = bidDemandX7 * (cumulativeSupplyX7 / tickDemandX7)
         // BidDemand and tickDemand are both ValueX7 values, so the X7 cancels out. However, we need to scale down the result due to cumulativeSupplySoldToClearingPriceX7 being a ValueX7 value
-        tokensFilled = ValueX7.wrap(
-            ValueX7.unwrap(bidDemandX7).fullMulDiv(
-                ValueX7.unwrap(cumulativeSupplySoldToClearingPriceX7), ValueX7.unwrap(tickDemandX7)
-            )
-        ).scaleDownToUint256();
+        tokensFilled =
+            (bidDemandX7.fullMulDiv(cumulativeSupplySoldToClearingPriceX7, tickDemandX7)).scaleDownToUint256();
         currencySpent = tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96);
     }
 

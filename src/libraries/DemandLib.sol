@@ -32,7 +32,7 @@ library DemandLib {
 
     /// @notice Resolve the currency demand at a given price
     function _resolveCurrencyDemand(ValueX7 amount, uint256 price) private pure returns (ValueX7) {
-        return price == 0 ? ValueX7.wrap(0) : ValueX7.wrap(ValueX7.unwrap(amount).fullMulDiv(FixedPoint96.Q96, price));
+        return price == 0 ? ValueX7.wrap(0) : amount.fullMulDiv(ValueX7.wrap(FixedPoint96.Q96), ValueX7.wrap(price));
     }
 
     function add(Demand memory _demand, Demand memory _other) internal pure returns (Demand memory) {

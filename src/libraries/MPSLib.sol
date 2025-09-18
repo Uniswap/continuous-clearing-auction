@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+
 /// @notice A ValueX7 is a uint256 value that has been multiplied by MPS
 type ValueX7 is uint256;
 
-using {add, sub, eq, mulUint256, divUint256, gt, gte} for ValueX7 global;
+using {add, sub, eq, mulUint256, divUint256, gt, gte, fullMulDiv} for ValueX7 global;
 
 /// @notice Add two ValueX7 values
 function add(ValueX7 a, ValueX7 b) pure returns (ValueX7) {
@@ -39,6 +41,11 @@ function mulUint256(ValueX7 a, uint256 b) pure returns (ValueX7) {
 /// @notice Divide a ValueX7 value by a uint256
 function divUint256(ValueX7 a, uint256 b) pure returns (ValueX7) {
     return ValueX7.wrap(ValueX7.unwrap(a) / b);
+}
+
+/// @notice Wrapper around FixedPointMathLib.fullMulDiv to support ValueX7 values
+function fullMulDiv(ValueX7 a, ValueX7 b, ValueX7 c) pure returns (ValueX7) {
+    return ValueX7.wrap(FixedPointMathLib.fullMulDiv(ValueX7.unwrap(a), ValueX7.unwrap(b), ValueX7.unwrap(c)));
 }
 
 /// @title MPSLib

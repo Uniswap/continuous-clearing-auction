@@ -1,5 +1,5 @@
 # ValidationHookLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/112a0fea9b4fad64c513488ce5945ab8f444c9ad/src/libraries/ValidationHookLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/bf1124a41ba81c13d64378010d4c51fecdc8b246/src/libraries/ValidationHookLib.sol)
 
 Library for handling calls to validation hooks and bubbling up the revert reason
 

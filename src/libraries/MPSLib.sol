@@ -50,7 +50,7 @@ library MPSLib {
     uint24 public constant MPS = 1e7;
 
     /// @notice Multiply a uint256 value by MPS
-    /// @dev This ensures that future operations (ex. applyMps) will not lose precision
+    /// @dev This ensures that future operations (ex. scaleByMps) will not lose precision
     /// @return The result as a ValueX7
     function scaleUp(uint256 value) internal pure returns (ValueX7) {
         return ValueX7.wrap(value * MPS);
@@ -67,7 +67,7 @@ library MPSLib {
     /// @param value The ValueX7 value to apply `mps` to
     /// @param mps The number of mps to apply
     /// @return The result as a ValueX7
-    function applyMps(ValueX7 value, uint24 mps) internal pure returns (ValueX7) {
+    function scaleByMps(ValueX7 value, uint24 mps) internal pure returns (ValueX7) {
         return value.mulUint256(mps).divUint256(MPS);
     }
 }

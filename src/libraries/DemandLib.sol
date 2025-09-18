@@ -47,11 +47,11 @@ library DemandLib {
     }
 
     /// @notice Apply mps to a Demand struct
-    /// @dev Shorthand for calling `applyMps` on both currencyDemand and tokenDemand
-    function applyMps(Demand memory _demand, uint24 mps) internal pure returns (Demand memory) {
+    /// @dev Shorthand for calling `scaleByMps` on both currencyDemand and tokenDemand
+    function scaleByMps(Demand memory _demand, uint24 mps) internal pure returns (Demand memory) {
         return Demand({
-            currencyDemand: _demand.currencyDemand.applyMps(mps),
-            tokenDemand: _demand.tokenDemand.applyMps(mps)
+            currencyDemand: _demand.currencyDemand.scaleByMps(mps),
+            tokenDemand: _demand.tokenDemand.scaleByMps(mps)
         });
     }
 }

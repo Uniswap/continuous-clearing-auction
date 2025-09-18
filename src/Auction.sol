@@ -73,7 +73,6 @@ contract Auction is
         claimBlock = _parameters.claimBlock;
         validationHook = IValidationHook(_parameters.validationHook);
 
-        if (totalSupply.eq(0)) revert TotalSupplyIsZero();
         if (floorPrice == 0) revert FloorPriceIsZero();
         if (tickSpacing == 0) revert TickSpacingIsZero();
         if (claimBlock < endBlock) revert ClaimBlockIsBeforeEndBlock();
@@ -95,7 +94,7 @@ contract Auction is
 
     /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
     function isGraduated() public view returns (bool) {
-        return latestCheckpoint().totalCleared.gte(ValueX7.unwrap(totalSupply.applyMps(graduationThresholdMps)));
+        return latestCheckpoint().totalCleared.gte(ValueX7.unwrap(totalSupply.scaleByMps(graduationThresholdMps)));
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
@@ -117,9 +116,9 @@ contract Auction is
         if (_checkpoint.clearingPrice > floorPrice) {
             supplyCleared = _checkpoint.getSupply(totalSupply, deltaMps);
             supplySoldToClearingPrice =
-                supplyCleared.sub(_checkpoint.resolvedDemandAboveClearingPrice.applyMps(deltaMps));
+                supplyCleared.sub(_checkpoint.resolvedDemandAboveClearingPrice.scaleByMps(deltaMps));
         } else {
-            supplyCleared = _checkpoint.resolvedDemandAboveClearingPrice.applyMps(deltaMps);
+            supplyCleared = _checkpoint.resolvedDemandAboveClearingPrice.scaleByMps(deltaMps);
             // supplySoldToClearing price is zero here
         }
         _checkpoint.totalCleared = _checkpoint.totalCleared.add(supplyCleared);
@@ -203,7 +202,7 @@ contract Auction is
         // For a non-zero supply, iterate to find the tick where the demand at and above it is strictly less than the supply
         // Sets nextActiveTickPrice to MAX_TICK_PRICE if the highest tick in the book is reached
         while (
-            _sumDemandAboveClearing.resolve(nextActiveTickPrice).applyMps(step.mps).gte(ValueX7.unwrap(supply))
+            _sumDemandAboveClearing.resolve(nextActiveTickPrice).scaleByMps(step.mps).gte(ValueX7.unwrap(supply))
                 && supply.gt(0)
         ) {
             // Subtract the demand at `nextActiveTickPrice`
@@ -220,7 +219,7 @@ contract Auction is
         sumDemandAboveClearing = _sumDemandAboveClearing;
         // Calculate the new clearing price
         uint256 newClearingPrice =
-            _calculateNewClearingPrice(_sumDemandAboveClearing.applyMps(step.mps), minimumClearingPrice, supply);
+            _calculateNewClearingPrice(_sumDemandAboveClearing.scaleByMps(step.mps), minimumClearingPrice, supply);
         // Reset the cumulative supply sold to clearing price if the clearing price is different now
         if (newClearingPrice != _checkpoint.clearingPrice) {
             _checkpoint.cumulativeSupplySoldToClearingPrice = ValueX7.wrap(0);

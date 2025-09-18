@@ -16,7 +16,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     /// @notice The token being sold in the auction
     IERC20Minimal public immutable token;
     /// @notice The total supply of tokens to sell
-    uint128 public immutable totalSupply;
+    uint256 public immutable totalSupply;
     /// @notice The total supply of tokens to sell, scaled up to a ValueX7
     /// @dev The auction does not support selling more than type(uint256).max / MPSLib.MPS (1e7) tokens
     ValueX7 internal immutable totalSupplyX7;
@@ -35,7 +35,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     constructor(
         address _token,
         address _currency,
-        uint128 _totalSupply,
+        uint256 _totalSupply,
         address _tokensRecipient,
         address _fundsRecipient,
         uint24 _graduationThresholdMps

@@ -138,81 +138,96 @@ npx ts-node test/e2e/src/E2ECliRunner.ts --help
 
 ## 📋 Test Structure
 
+The E2E test suite now uses **TypeScript interfaces** instead of JSON schemas for better type safety, IDE support, and maintainability.
+
+### Benefits of TypeScript Schemas
+
+- **Type Safety**: Compile-time validation of test data structure
+- **IDE Support**: Auto-completion, refactoring, and error detection
+- **Maintainability**: Easier to update and extend test scenarios
+- **Runtime Validation**: Built-in type guards for runtime checks
+- **Documentation**: Self-documenting interfaces with clear type definitions
+
 ### Setup Schema
 
-The setup schema defines the auction environment:
+The setup schema defines the auction environment using TypeScript interfaces:
 
-```json
-{
-  "env": {
-    "chainId": 31337,
-    "startBlock": "1",
-    "balances": [
+```typescript
+import { TestSetupData } from '../schemas/TestSetupSchema';
+
+export const simpleSetup: TestSetupData = {
+  env: {
+    chainId: 31337,
+    startBlock: "1",
+    balances: [
       {
-        "address": "0x1111111111111111111111111111111111111111",
-        "token": "0x0000000000000000000000000000000000000000",
-        "amount": "1000000000000000000000"
+        address: "0x1111111111111111111111111111111111111111",
+        token: "0x0000000000000000000000000000000000000000",
+        amount: "1000000000000000000000"
       }
     ]
   },
-  "auctionParameters": {
-    "currency": "0x0000000000000000000000000000000000000000",
-    "auctionedToken": "SimpleToken",
-    "tokensRecipient": "0x2222222222222222222222222222222222222222",
-    "fundsRecipient": "0x3333333333333333333333333333333333333333",
-    "startOffsetBlocks": 0,
-    "auctionDurationBlocks": 50,
-    "claimDelayBlocks": 10,
-    "graduationThresholdMps": "1000",
-    "tickSpacing": 100,
-    "validationHook": "0x0000000000000000000000000000000000000000",
-    "floorPrice": "79228162514264337593543950336000"
+  auctionParameters: {
+    currency: "0x0000000000000000000000000000000000000000",
+    auctionedToken: "SimpleToken",
+    tokensRecipient: "0x2222222222222222222222222222222222222222",
+    fundsRecipient: "0x3333333333333333333333333333333333333333",
+    startOffsetBlocks: 0,
+    auctionDurationBlocks: 50,
+    claimDelayBlocks: 10,
+    graduationThresholdMps: "1000",
+    tickSpacing: 100,
+    validationHook: "0x0000000000000000000000000000000000000000",
+    floorPrice: "79228162514264337593543950336000"
   },
-  "additionalTokens": [
+  additionalTokens: [
     {
-      "name": "SimpleToken",
-      "decimals": "18",
-      "totalSupply": "1000000000000000000000000",
-      "percentAuctioned": "10"
+      name: "SimpleToken",
+      decimals: "18",
+      totalSupply: "1000000000000000000000000",
+      percentAuctioned: "10"
     }
   ]
-}
+};
 ```
 
 ### Interaction Schema
 
-The interaction schema defines bid scenarios and checkpoints:
+The interaction schema defines bid scenarios and checkpoints using TypeScript interfaces:
 
-```json
-{
-  "timeBase": "auctionStart",
-  "namedBidders": [
+```typescript
+import { TokenInteractionData } from '../schemas/TokenInteractionSchema';
+
+export const simpleInteraction: TokenInteractionData = {
+  timeBase: "auctionStart",
+  namedBidders: [
     {
-      "address": "0x1111111111111111111111111111111111111111",
-      "label": "SimpleBidder",
-      "bids": [
+      address: "0x1111111111111111111111111111111111111111",
+      label: "SimpleBidder",
+      bids: [
         {
-          "atBlock": 10,
-          "amount": { "side": "input", "type": "raw", "value": "1000000000000000000" },
-          "price": { "type": "raw", "value": "87150978765690771352898345369600" },
-          "expectRevert": "InsufficientBalance"
+          atBlock: 10,
+          amount: { side: "input", type: "raw", value: "1000000000000000000" },
+          price: { type: "raw", value: "87150978765690771352898345369600" },
+          expectRevert: "InsufficientBalance"
         }
-      ]
+      ],
+      recurringBids: []
     }
   ],
-  "checkpoints": [
+  checkpoints: [
     {
-      "atBlock": 20,
-      "reason": "Check bidder balance after auction",
-      "assert": {
-        "type": "balance",
-        "address": "0x1111111111111111111111111111111111111111",
-        "token": "0x0000000000000000000000000000000000000000",
-        "expected": "0"
+      atBlock: 20,
+      reason: "Check bidder balance after auction",
+      assert: {
+        type: "balance",
+        address: "0x1111111111111111111111111111111111111111",
+        token: "0x0000000000000000000000000000000000000000",
+        expected: "0"
       }
     }
   ]
-}
+};
 ```
 
 ## 🔧 Configuration
@@ -358,11 +373,13 @@ test/e2e/
 │   ├── MultiTestRunner.ts    # Multi-test management
 │   └── E2ECliRunner.ts       # CLI interface
 ├── instances/                # Test data
-│   ├── setup/               # Auction setup schemas
-│   └── interaction/         # Interaction schemas
-├── schemas/                  # JSON validation schemas
-│   ├── testSetupSchema.json
-│   └── tokenInteractionSchema.json
+│   ├── setup/               # Auction setup TypeScript files
+│   │   └── simple-setup.ts
+│   └── interaction/         # Interaction TypeScript files
+│       └── simple-interaction.ts
+├── schemas/                  # TypeScript interface definitions
+│   ├── TestSetupSchema.ts
+│   └── TokenInteractionSchema.ts
 ├── tests/                    # Test files
 │   └── e2e.test.ts          # Main E2E test
 ├── run-e2e-tests.sh         # Shell script for running tests
@@ -374,13 +391,14 @@ test/e2e/
 
 When adding new test scenarios:
 
-1. Follow the existing JSON schema patterns
-2. Use descriptive names for setup and interaction files
-3. Add appropriate checkpoints to validate expected behavior
-4. Test with both ETH and ERC20 token currencies
-5. Document any new assertion types or validation logic
-6. Test same-block scenarios for MEV and gas optimization
-7. Use the command-line interface for targeted testing
+1. Follow the existing TypeScript interface patterns
+2. Use descriptive names for setup and interaction files (`.ts` extension)
+3. Import the appropriate interfaces from `schemas/` directory
+4. Add appropriate checkpoints to validate expected behavior
+5. Test with both native currency (0x000...000) and ERC20 token currencies
+6. Document any new assertion types or validation logic
+7. Test same-block scenarios for MEV and gas optimization
+8. Use the command-line interface for targeted testing
 
 ### Adding New Combinations
 

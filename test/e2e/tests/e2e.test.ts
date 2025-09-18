@@ -12,7 +12,7 @@ describe('E2E Tests', function() {
 
   it('should run simple setup and interaction', async function() {
     const combinations = [
-      { setup: 'simple-setup.json', interaction: 'simple-interaction.json' }
+      { setup: 'simple-setup.ts', interaction: 'simple-interaction.ts' }
     ];
     
     console.log('🚀 TWAP Auction E2E Test Runner');

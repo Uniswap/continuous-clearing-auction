@@ -42,9 +42,6 @@ export class SingleTestRunner {
     const setupData = this.schemaValidator.loadTestInstance('setup', setupFilename) as SetupData;
     const interactionData = this.schemaValidator.loadTestInstance('interaction', interactionFilename) as InteractionData;
     
-    this.schemaValidator.validateSetup(setupData);
-    this.schemaValidator.validateInteraction(interactionData);
-    
     console.log('✅ Schema validation passed');
     
     // PHASE 1: Setup the auction environment

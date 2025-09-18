@@ -1,85 +1,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import Ajv, { JSONSchemaType, ValidateFunction } from 'ajv';
+import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
+import { TestSetupData } from '../schemas/TestSetupSchema';
+import { TokenInteractionData } from '../schemas/TokenInteractionSchema';
 
-// Type definitions for our schemas
-export interface SetupData {
-  env: {
-    chainId: number;
-    startBlock: string;
-    blockTimeSec?: number;
-    blockGasLimit?: string;
-    txGasLimit?: string;
-    baseFeePerGasWei?: string;
-    fork?: {
-      rpcUrl: string;
-      blockNumber: string;
-    };
-    balances?: Array<{
-      address: string;
-      token: string;
-      amount: string;
-    }>;
-  };
-  auctionParameters: {
-    currency: string;
-    auctionedToken: string;
-    tokensRecipient: string;
-    fundsRecipient: string;
-    startOffsetBlocks: number;
-    auctionDurationBlocks: number;
-    claimDelayBlocks: number;
-    graduationThresholdMps: string;
-    tickSpacing: number;
-    validationHook: string;
-    floorPrice: string;
-  };
-  additionalTokens: Array<{
-    name: string;
-    decimals: string;
-    totalSupply: string;
-    percentAuctioned: string;
-  }>;
-}
-
-export interface InteractionData {
-  timeBase: 'auctionStart' | 'genesisBlock';
-  namedBidders?: Array<{
-    address: string;
-    label?: string;
-    bids: Array<{
-      atBlock: number;
-      amount: {
-        side: 'input' | 'output';
-        type: 'raw' | 'percentOfSupply' | 'basisPoints' | 'percentOfGroup';
-        value: string | number;
-        variation?: string | number;
-        token?: string;
-      };
-      price: {
-        type: 'raw' | 'tick';
-        value: string | number;
-        variation?: string | number;
-      };
-      hookData?: string;
-      expectRevert?: string;
-    }>;
-    recurringBids?: Array<any>;
-  }>;
-  groups?: Array<any>;
-  actions?: Array<any>;
-  checkpoints?: Array<{
-    atBlock: number;
-    reason: string;
-    assert: {
-      type: 'balance';
-      address: string;
-      token: string;
-      expected: string;
-    };
-  }>;
-}
+// Re-export the TypeScript types for backward compatibility
+export type SetupData = TestSetupData;
+export type InteractionData = TokenInteractionData;
 
 export interface TestInstance {
   filename: string;
@@ -131,16 +59,96 @@ export class SchemaValidator {
   }
 
   loadTestInstance(type: 'setup' | 'interaction', filename: string): SetupData | InteractionData {
+    // Only load TypeScript files
+    if (filename.endsWith('.ts')) {
+      const baseName = filename.replace('.ts', '');
+      return this.loadTypeScriptInstance(type, baseName);
+    } else {
+      // Try to find .ts version
+      const tsFilePath = path.join(__dirname, `../instances/${type}/${filename}.ts`);
+      
+      if (fs.existsSync(tsFilePath)) {
+        return this.loadTypeScriptInstance(type, filename);
+      } else {
+        throw new Error(`TypeScript test instance file not found: ${tsFilePath}`);
+      }
+    }
+  }
+
+  private loadTypeScriptInstance(type: 'setup' | 'interaction', filename: string): SetupData | InteractionData {
+    try {
+      if (type === 'setup') {
+        // Use ts-node to load TypeScript files directly
+        const modulePath = path.join(__dirname, `../instances/setup/${filename}.ts`);
+        delete require.cache[modulePath];
+        
+        // Register ts-node
+        require('ts-node').register();
+        
+        const module = require(modulePath);
+        
+        // Try different export patterns - convert filename to camelCase
+        const camelCaseFilename = filename.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+        const data = module[filename] || module[camelCaseFilename] || module.default || module[`${filename}Setup`] || module[`${filename}Data`];
+        
+        if (!data) {
+          throw new Error(`No export found in ${filename}.ts. Available exports: ${Object.keys(module).join(', ')}`);
+        }
+        
+        return data;
+      } else {
+        // Use ts-node to load TypeScript files directly
+        const modulePath = path.join(__dirname, `../instances/interaction/${filename}.ts`);
+        delete require.cache[modulePath];
+        
+        // Register ts-node
+        require('ts-node').register();
+        
+        const module = require(modulePath);
+        
+        // Try different export patterns - convert filename to camelCase
+        const camelCaseFilename = filename.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+        const data = module[filename] || module[camelCaseFilename] || module.default || module[`${filename}Interaction`] || module[`${filename}Data`];
+        
+        if (!data) {
+          throw new Error(`No export found in ${filename}.ts. Available exports: ${Object.keys(module).join(', ')}`);
+        }
+        
+        return data;
+      }
+    } catch (error) {
+      throw new Error(`Failed to load TypeScript instance ${filename}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private loadJsonInstance(type: 'setup' | 'interaction', filename: string): SetupData | InteractionData {
     const filePath = path.join(__dirname, `../instances/${type}/${filename}`);
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Test instance file not found: ${filePath}`);
+    }
+    
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    
+    // Validate the data
+    if (type === 'setup') {
+      this.validateSetup(data as SetupData);
+    } else {
+      this.validateInteraction(data as InteractionData);
+    }
+    
+    return data;
   }
 
   getAllTestInstances(type: 'setup' | 'interaction'): TestInstance[] {
     const instancesDir = path.join(__dirname, `../instances/${type}`);
     if (!fs.existsSync(instancesDir)) return [];
     
-    return fs.readdirSync(instancesDir)
-      .filter(file => file.endsWith('.json'))
+    const files = fs.readdirSync(instancesDir);
+    
+    // Only look for TypeScript files
+    return files
+      .filter(file => file.endsWith('.ts'))
       .map(file => ({
         filename: file,
         data: this.loadTestInstance(type, file)

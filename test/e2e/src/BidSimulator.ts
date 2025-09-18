@@ -319,7 +319,7 @@ export class BidSimulator {
     if (!interactionData.actions) return;
 
     for (const action of interactionData.actions) {
-      if (action.type === 'Transfer') {
+      if (action.type === 'TransferAction') {
         await this.executeTransfers(action.interactions);
       } else if (action.type === 'AdminAction') {
         await this.executeAdminActions(action.interactions);

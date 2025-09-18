@@ -1,5 +1,6 @@
 require("@nomicfoundation/hardhat-foundry");
 require("@nomicfoundation/hardhat-ethers");
+require("ts-node/register");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -32,5 +33,9 @@ module.exports = {
   },
   mocha: {
     timeout: 300000 // 5 minutes for complex e2e tests
+  },
+  typechain: {
+    outDir: "typechain-types",
+    target: "ethers-v6"
   }
 };

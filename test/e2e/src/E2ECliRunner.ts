@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { MultiTestRunner, CombinationResult } from './MultiTestRunner';
+import { HardhatRuntimeEnvironment } from 'hardhat/types';
 
 // Define the combinations you want to run
 const COMBINATIONS_TO_RUN = [
@@ -63,7 +64,7 @@ class E2ECliRunner {
 }
 
 async function main(): Promise<void> {
-  const hre = require('hardhat');
+  const { default: hre } = await import('hardhat');
   const runner = new E2ECliRunner(hre);
   
   console.log('🚀 TWAP Auction E2E Test Runner');

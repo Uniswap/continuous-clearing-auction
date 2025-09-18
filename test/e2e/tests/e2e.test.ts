@@ -1,11 +1,11 @@
 import { expect } from 'chai';
 import { MultiTestRunner } from '../src/MultiTestRunner';
+import hre from "hardhat";
 
 describe('E2E Tests', function() {
   let runner: MultiTestRunner;
 
   before(async function() {
-    const hre = require('hardhat');
     console.log('🔍 Test: hre.ethers available?', !!hre.ethers);
     runner = new MultiTestRunner(hre, hre.ethers);
   });

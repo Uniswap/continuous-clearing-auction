@@ -1,5 +1,5 @@
 # TokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/9b332e9ae711433b888783601b4b8b92cce6d905/src/TokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/45bab3c8875b0df2a6d4a56c26add6ec4f6a45f5/src/TokenCurrencyStorage.sol)
 
 **Inherits:**
 [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -27,11 +27,20 @@ IERC20Minimal public immutable token;
 ### totalSupply
 The total supply of tokens to sell
 
-*The auction does not support selling more than type(uint128).max tokens*
+
+```solidity
+uint256 public immutable totalSupply;
+```
+
+
+### totalSupplyX7
+The total supply of tokens to sell, scaled up to a ValueX7
+
+*The auction does not support selling more than type(uint256).max / MPSLib.MPS (1e7) tokens*
 
 
 ```solidity
-uint128 public immutable totalSupply;
+ValueX7 internal immutable totalSupplyX7;
 ```
 
 
@@ -54,7 +63,7 @@ address public immutable fundsRecipient;
 
 
 ### graduationThresholdMps
-The minimum percentage of the total supply that must be sold
+The minimum portion (in MPS) of the total supply that must be sold
 
 
 ```solidity
@@ -88,7 +97,7 @@ uint256 public sweepUnsoldTokensBlock;
 constructor(
     address _token,
     address _currency,
-    uint128 _totalSupply,
+    uint256 _totalSupply,
     address _tokensRecipient,
     address _fundsRecipient,
     uint24 _graduationThresholdMps

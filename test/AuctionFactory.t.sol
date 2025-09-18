@@ -6,8 +6,9 @@ import {AuctionFactory} from '../src/AuctionFactory.sol';
 import {IAuctionFactory} from '../src/interfaces/IAuctionFactory.sol';
 import {IDistributionContract} from '../src/interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
-import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
+
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
+import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';

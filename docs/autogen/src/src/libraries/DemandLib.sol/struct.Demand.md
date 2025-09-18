@@ -1,11 +1,15 @@
 # Demand
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4c9af76a705eb813cc2e0ec768b3771f7a342ec1/src/libraries/DemandLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/45bab3c8875b0df2a6d4a56c26add6ec4f6a45f5/src/libraries/DemandLib.sol)
+
+Struct containing currency demand and token demand
+
+*All values are in ValueX7 format*
 
 
 ```solidity
 struct Demand {
-    uint128 currencyDemand;
-    uint128 tokenDemand;
+    ValueX7 currencyDemandX7;
+    ValueX7 tokenDemandX7;
 }
 ```
 

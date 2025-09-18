@@ -298,9 +298,7 @@ export class BidSimulator {
   async calculateRequiredCurrencyAmount(exactIn: boolean, amount: bigint, maxPrice: bigint): Promise<bigint> {
     // This mirrors the BidLib.inputAmount logic
     if (exactIn) {
-      // For exactIn bids, the amount is in token units
-      // For ETH currency, both token and currency have 18 decimals, so no conversion needed
-      // For ERC20 currency, we would need to convert from token decimals to currency decimals
+      // For exactIn bids, the amount is in currency units
       return amount;
     } else {
       // For non-exactIn bids, calculate amount * maxPrice / Q96

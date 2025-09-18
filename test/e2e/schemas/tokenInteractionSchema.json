@@ -262,10 +262,10 @@
           },
           "token": {
             "oneOf": [
-              { "type": "string", "const": "Native" },
-              { "type": "string", "minLength": 1, "pattern": "^[A-Za-z][A-Za-z0-9_]*$", "not": { "const": "Native" } }
+              { "$ref": "#/$defs/Address" },
+              { "type": "string", "minLength": 1, "pattern": "^[A-Za-z][A-Za-z0-9_]*$" }
             ],
-            "description": "Token name to check balance for ('Native' for native currency, or token name like 'USDC')"
+            "description": "Either an address (including 0x0000000000000000000000000000000000000000 for native currency), or token name like 'TestToken'"
           },
           "expected": {
             "type": "string",

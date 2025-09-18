@@ -141,10 +141,6 @@ export class AuctionDeployer {
     if (currency.startsWith('0x')) {
       return currency;
     }
-    // Special case for native currency (ETH, MATIC, BNB, etc.)
-    if (currency === 'Native') {
-      return '0x0000000000000000000000000000000000000000';
-    }
     // Otherwise, look up the token by name
     const address = await this.getTokenAddress(currency);
     if (!address) {
@@ -199,7 +195,7 @@ export class AuctionDeployer {
     console.log('   💰 Setting up balances...');
 
     for (const balance of env.balances) {
-      if (balance.token === 'Native') {
+      if (balance.token === '0x0000000000000000000000000000000000000000') {
         // Native currency balance - set native currency balance (ETH, MATIC, BNB, etc.)
         const hexAmount = '0x' + BigInt(balance.amount).toString(16);
         await this.hre.network.provider.send('hardhat_setBalance', [

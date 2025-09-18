@@ -90,7 +90,7 @@ export class AssertionEngine {
     let actualBalance: bigint;
     const expectedBalance = BigInt(expected);
     
-    if (token === 'Native') {
+    if (token === '0x0000000000000000000000000000000000000000') {
       // Check native currency balance (ETH, MATIC, BNB, etc.)
       actualBalance = await this.ethers.provider.getBalance(address);
       console.log(`   💰 Native currency balance check: ${address} has ${actualBalance.toString()} wei, expected ${expectedBalance.toString()}`);

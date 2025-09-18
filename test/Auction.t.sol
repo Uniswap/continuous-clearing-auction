@@ -1647,7 +1647,7 @@ contract AuctionTest is AuctionBaseTest {
     function test_constructor_immuatble_getters() public {
         assertEq(Currency.unwrap(auction.currency()), ETH_SENTINEL);
         assertEq(address(auction.token()), address(token));
-        assertEq(auction.totalSupply().scaleDown(), TOTAL_SUPPLY);
+        assertEq(auction.totalSupply(), TOTAL_SUPPLY);
         assertEq(auction.tokensRecipient(), tokensRecipient);
         assertEq(auction.fundsRecipient(), fundsRecipient);
         assertEq(auction.graduationThresholdMps(), params.graduationThresholdMps);

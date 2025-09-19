@@ -17,7 +17,9 @@ import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
+
 import {MPSLib, ValueX7} from './libraries/MPSLib.sol';
+import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
@@ -43,6 +45,7 @@ contract Auction is
     using CheckpointLib for Checkpoint;
     using DemandLib for Demand;
     using SafeCastLib for uint256;
+    using ValidationHookLib for IValidationHook;
     using MPSLib for *;
 
     /// @notice Permit2 address
@@ -280,9 +283,7 @@ contract Auction is
 
         _initializeTickIfNeeded(prevTickPrice, maxPrice);
 
-        if (address(VALIDATION_HOOK) != address(0)) {
-            VALIDATION_HOOK.validate(maxPrice, exactIn, amount, owner, msg.sender, hookData);
-        }
+        VALIDATION_HOOK.handleValidate(maxPrice, exactIn, amount, owner, msg.sender, hookData);
         // ClearingPrice will be set to floor price in checkpoint() if not set already
         if (maxPrice <= _checkpoint.clearingPrice) revert InvalidBidPrice();
 

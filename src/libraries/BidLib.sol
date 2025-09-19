@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import {AuctionStepLib} from './AuctionStepLib.sol';
 import {Demand, DemandLib} from './DemandLib.sol';
-
 import {FixedPoint96} from './FixedPoint96.sol';
 import {MPSLib, ValueX7} from './MPSLib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';

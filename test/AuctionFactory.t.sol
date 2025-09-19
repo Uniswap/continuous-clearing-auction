@@ -8,7 +8,6 @@ import {IAuctionFactory} from '../src/interfaces/IAuctionFactory.sol';
 import {IDistributionContract} from '../src/interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
 
-import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
 
 import {Assertions} from './utils/Assertions.sol';
@@ -187,8 +186,12 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         vm.assume(_params.fundsRecipient != address(0));
         vm.assume(_params.startBlock != 0);
         vm.assume(_params.claimBlock != 0);
-        vm.assume(_params.endBlock > _params.startBlock);
-        vm.assume(_params.claimBlock > _params.endBlock);
+
+        // -2 because we need to account for the endBlock and claimBlock
+        vm.assume(_params.startBlock <= type(uint64).max - _numberOfSteps - 2);
+        _params.endBlock = _params.startBlock + uint64(_numberOfSteps);
+        _params.claimBlock = _params.endBlock + 1;
+
         vm.assume(_params.graduationThresholdMps != 0);
         vm.assume(_params.tickSpacing != 0);
         vm.assume(_params.validationHook != address(0));
@@ -196,20 +199,20 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         vm.assume(_salt != bytes32(0));
 
         vm.assume(_numberOfSteps > 0);
-        vm.assume(AuctionStepLib.MPS % _numberOfSteps == 0); // such that it is divisible
+        vm.assume(MPSLib.MPS % _numberOfSteps == 0); // such that it is divisible
 
         // Replace auction steps data with a valid one
         // Divide steps by number of bips
-        uint256 _numberOfBips = AuctionStepLib.MPS / _numberOfSteps;
+        uint256 _numberOfBips = MPSLib.MPS / _numberOfSteps;
         bytes memory _auctionStepsData = new bytes(0);
         for (uint8 i = 0; i < _numberOfSteps; i++) {
             _auctionStepsData = AuctionStepsBuilder.addStep(_auctionStepsData, uint24(_numberOfBips), uint40(1));
         }
         _params.auctionStepsData = _auctionStepsData;
-        _params.endBlock = _params.startBlock + uint64(_numberOfSteps);
+        vm.assume(_params.claimBlock > _params.endBlock);
 
         // Bound graduation threshold mps
-        _params.graduationThresholdMps = uint24(bound(_params.graduationThresholdMps, 1, uint24(AuctionStepLib.MPS)));
+        _params.graduationThresholdMps = uint24(bound(_params.graduationThresholdMps, 1, uint24(MPSLib.MPS)));
     }
 
     function testFuzz_getAuctionAddress(

@@ -2,10 +2,11 @@
  * Configuration constants for E2E tests
  * Centralizes hardcoded values for better maintainability
  */
+import { Address } from '../schemas/TestSetupSchema';
 
 // Network and blockchain constants
-export const NATIVE_CURRENCY_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
-export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
+export const NATIVE_CURRENCY_ADDRESS = '0x0000000000000000000000000000000000000000' as Address;
+export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Address;
 
 // Hardhat network methods
 export const HARDHAT_METHODS = {

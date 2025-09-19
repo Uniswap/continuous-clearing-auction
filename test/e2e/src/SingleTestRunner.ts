@@ -5,8 +5,8 @@ import { AuctionDeployer } from './AuctionDeployer';
 import { BidSimulator, InternalBidData } from './BidSimulator';
 import { AssertionEngine, AuctionState } from './AssertionEngine';
 import { Contract } from 'ethers';
-import hre from "hardhat";
 import { Network } from 'hardhat/types';
+import hre from "hardhat";
 
 export interface TestResult {
   setupData: TestSetupData;

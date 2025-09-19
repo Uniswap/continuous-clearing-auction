@@ -10,6 +10,7 @@ lcov.info
 .password
 
 node_modules/
+typechain-types/
 
 broadcast/*/31337
 deployments/**/31337.*

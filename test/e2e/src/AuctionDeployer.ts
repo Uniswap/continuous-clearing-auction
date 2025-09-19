@@ -1,8 +1,8 @@
 import { TestSetupData, Address } from '../schemas/TestSetupSchema';
-import { Contract } from "ethers";
 import mockTokenArtifact from '../../../out/WorkingCustomMockToken.sol/WorkingCustomMockToken.json';
 import auctionArtifact from '../../../out/Auction.sol/Auction.json';
-import hre from "hardhat";
+import auctionFactoryArtifact from '../../../out/AuctionFactory.sol/AuctionFactory.json';
+import { AuctionParametersStruct } from '../../../typechain-types/out/Auction';
 import { 
   NATIVE_CURRENCY_ADDRESS, 
   MPS,
@@ -20,6 +20,7 @@ import {
   AuctionConfig,
   AuctionDeploymentError 
 } from './types';
+import hre from "hardhat";
 
 export interface TokenConfig {
   name: string;
@@ -87,7 +88,6 @@ export class AuctionDeployer {
 
   async deployAuctionFactory(): Promise<AuctionFactoryContract> {
     // Load artifact directly from Foundry's out directory
-    const auctionFactoryArtifact = require('../../../out/AuctionFactory.sol/AuctionFactory.json');
     const AuctionFactory = await this.ethers.getContractFactory(auctionFactoryArtifact.abi, auctionFactoryArtifact.bytecode.object);
     this.auctionFactory = await AuctionFactory.deploy() as AuctionFactoryContract;
     return this.auctionFactory;
@@ -195,9 +195,23 @@ export class AuctionDeployer {
     ).join(', ');
     const tupleType = `tuple(${components})`;
     
+    const auctionParameters: AuctionParametersStruct = {
+      currency: config.currency,
+      tokensRecipient: config.tokensRecipient,
+      fundsRecipient: config.fundsRecipient,
+      startBlock: config.startBlock,
+      endBlock: config.endBlock,
+      claimBlock: config.claimBlock,
+      graduationThresholdMps: config.graduationThresholdMps,
+      tickSpacing: config.tickSpacing,
+      validationHook: config.validationHook,
+      floorPrice: config.floorPrice,
+      auctionStepsData: config.auctionStepsData
+    }
+
     const configData = this.ethers.AbiCoder.defaultAbiCoder().encode(
       [tupleType],
-      [config]
+      [auctionParameters]
     );
 
     logger.info(LOG_PREFIXES.CONFIG, 'Config data length:', configData.length);

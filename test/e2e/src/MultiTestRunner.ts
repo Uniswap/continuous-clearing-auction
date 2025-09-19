@@ -1,4 +1,5 @@
 import { SingleTestRunner, TestResult } from './SingleTestRunner';
+import { TestInstance } from './SchemaValidator';
 
 export interface CombinationResult {
   success: boolean;
@@ -80,8 +81,8 @@ export class MultiTestRunner {
     const interactionFiles = this.singleTestRunner['schemaValidator'].getAllTestInstances('interaction');
     
     return {
-      setup: setupFiles.map(f => f.filename),
-      interaction: interactionFiles.map(f => f.filename)
+      setup: setupFiles.map((f: TestInstance) => f.filename),
+      interaction: interactionFiles.map((f: TestInstance) => f.filename)
     };
   }
 }

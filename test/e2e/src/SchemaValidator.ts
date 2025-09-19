@@ -43,6 +43,7 @@ export class SchemaValidator {
         // Register ts-node
         register();
         
+        // TODO: find a way to avoid require
         const module = require(modulePath);
         
         // Try different export patterns - convert filename to camelCase and PascalCase

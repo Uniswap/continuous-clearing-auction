@@ -1,4 +1,3 @@
-import { expect } from 'chai';
 import { MultiTestRunner } from '../src/MultiTestRunner';
 import hre from "hardhat";
 

@@ -2,20 +2,9 @@ import { AssertionInterfaceType, BalanceAssertion, PoolAssertion, EventAssertion
 import { Contract } from "ethers";
 import { TokenContract } from './types';
 import { AuctionDeployer } from './AuctionDeployer';
+import { ZERO_ADDRESS } from './constants';
+import { CheckpointStruct } from '../../../typechain-types/out/Auction';
 import hre from "hardhat";
-
-// NOTE: Uses bigint since this comes directly from the contract
-export interface Checkpoint {
-  clearingPrice: bigint;
-  totalCleared: bigint;
-  resolvedDemandAboveClearingPrice: bigint;
-  cumulativeMps: number;
-  mps: number;
-  prev: bigint;
-  next: bigint;
-  cumulativeMpsPerPrice: bigint;
-  cumulativeSupplySoldToClearingPrice: bigint;
-}
 
 // NOTE: Uses bigint since this comes directly from the contract
 export interface AuctionState {
@@ -23,7 +12,7 @@ export interface AuctionState {
   isGraduated: boolean;
   clearingPrice: bigint;
   currencyRaised: bigint;
-  latestCheckpoint: Checkpoint;
+  latestCheckpoint: CheckpointStruct;
 }
 
 export interface BidderState {
@@ -80,7 +69,7 @@ export class AssertionEngine {
     
     const resolvedTokenAddress = await this.resolveTokenAddress(token);
     
-    if (resolvedTokenAddress === '0x0000000000000000000000000000000000000000') {
+    if (resolvedTokenAddress === ZERO_ADDRESS) {
       // Native currency
       actualBalance = await hre.ethers.provider.getBalance(address);
       console.log(`   💰 Native currency balance check: ${address} has ${actualBalance} wei, expected ${expectedBalance}`);

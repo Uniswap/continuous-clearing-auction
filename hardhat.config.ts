@@ -1,6 +1,7 @@
 // hardhat.config.ts
 import "@nomicfoundation/hardhat-foundry";
 import "@nomicfoundation/hardhat-ethers";
+import "@typechain/hardhat";
 
 import type { HardhatUserConfig } from "hardhat/config";
 import { subtask } from "hardhat/config";
@@ -42,6 +43,13 @@ const config: HardhatUserConfig = {
   },
   mocha: {
     timeout: 300000, // 5 minutes for complex e2e tests
+  },
+  typechain: {
+    outDir: "typechain-types",
+    target: "ethers-v6",
+    alwaysGenerateOverloads: false,
+    externalArtifacts: ["out/Auction.sol/Auction.json", "out/AuctionFactory.sol/AuctionFactory.json", "out/WorkingCustomMockToken.sol/WorkingCustomMockToken.json"], // Specific Foundry artifacts
+    dontOverrideCompile: false, // Let it compile if needed
   },
 };
 

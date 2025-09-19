@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { MultiTestRunner, CombinationResult } from './MultiTestRunner';
-import { HardhatRuntimeEnvironment } from 'hardhat/types';
+import { TestInstance } from './SchemaValidator';
 
 // Define the combinations you want to run
 const COMBINATIONS_TO_RUN = [
@@ -33,8 +33,8 @@ class E2ECliRunner {
     const interactionInstances = this.runner['singleTestRunner']['schemaValidator'].getAllTestInstances('interaction');
     
     return {
-      setup: setupInstances.map(instance => instance.filename),
-      interaction: interactionInstances.map(instance => instance.filename)
+      setup: setupInstances.map((instance: TestInstance) => instance.filename),
+      interaction: interactionInstances.map((instance: TestInstance) => instance.filename)
     };
   }
 

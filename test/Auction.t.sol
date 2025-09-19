@@ -1641,4 +1641,17 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
         auctionWithThreshold.sweepCurrency();
     }
+
+    // Test that all of the state getters for constants / immutable variables are correct
+    function test_constructor_immuatble_getters() public {
+        assertEq(Currency.unwrap(auction.currency()), ETH_SENTINEL);
+        assertEq(address(auction.token()), address(token));
+        assertEq(auction.totalSupply(), TOTAL_SUPPLY);
+        assertEq(auction.tokensRecipient(), tokensRecipient);
+        assertEq(auction.fundsRecipient(), fundsRecipient);
+        assertEq(auction.graduationThresholdMps(), params.graduationThresholdMps);
+        assertEq(auction.tickSpacing(), TICK_SPACING);
+        assertEq(address(auction.validationHook()), address(0));
+        assertEq(auction.floorPrice(), FLOOR_PRICE);
+    }
 }

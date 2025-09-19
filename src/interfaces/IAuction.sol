@@ -4,9 +4,11 @@ pragma solidity ^0.8.0;
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
 import {ValueX7} from '../libraries/MPSLib.sol';
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
+
 import {ICheckpointStorage} from './ICheckpointStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
 import {ITokenCurrencyStorage} from './ITokenCurrencyStorage.sol';
+import {IValidationHook} from './IValidationHook.sol';
 import {IDistributionContract} from './external/IDistributionContract.sol';
 
 /// @notice Parameters for the auction
@@ -139,6 +141,12 @@ interface IAuction is
     /// @dev Can only be called by the funds recipient after the auction has ended
     ///      Must be called before the `claimBlock`
     function sweepCurrency() external;
+
+    /// @notice The block at which the auction can be claimed
+    function claimBlock() external view returns (uint64);
+
+    /// @notice The address of the validation hook for the auction
+    function validationHook() external view returns (IValidationHook);
 
     /// @notice Sweep any leftover tokens to the tokens recipient
     /// @dev This function can only be called after the auction has ended

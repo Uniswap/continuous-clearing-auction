@@ -1,5 +1,5 @@
 # AuctionFactory
-[Git Source](https://github.com/Uniswap/twap-auction/blob/a8bb3dc6deb61548bd1eda83ac102fe6839199b4/src/AuctionFactory.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/97df8abdd84b2d8d31974f6b1e0ea7970d42b479/src/AuctionFactory.sol)
 
 **Inherits:**
 [IAuctionFactory](/src/interfaces/IAuctionFactory.sol/interface.IAuctionFactory.md)

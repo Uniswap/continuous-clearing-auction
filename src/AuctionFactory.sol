@@ -9,14 +9,17 @@ import {IDistributionStrategy} from './interfaces/external/IDistributionStrategy
 
 /// @title AuctionFactory
 contract AuctionFactory is IAuctionFactory {
+    /// @notice Sentinel value to use for msg.sender
     address public constant USE_MSG_SENDER = 0x0000000000000000000000000000000000000001;
-    /// @inheritdoc IDistributionStrategy
 
+    /// @inheritdoc IDistributionStrategy
     function initializeDistribution(address token, uint256 amount, bytes calldata configData, bytes32 salt)
         external
         returns (IDistributionContract distributionContract)
     {
         AuctionParameters memory parameters = abi.decode(configData, (AuctionParameters));
+        // If the tokensRecipient is address(1), set it to the msg.sender
+        if (parameters.tokensRecipient == USE_MSG_SENDER) parameters.tokensRecipient = msg.sender;
         // If the fundsRecipient is address(1), set it to the msg.sender
         if (parameters.fundsRecipient == USE_MSG_SENDER) parameters.fundsRecipient = msg.sender;
 

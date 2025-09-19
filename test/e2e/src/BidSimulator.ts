@@ -57,10 +57,6 @@ export class BidSimulator {
     }
   }
 
-  getGroupBidders(labelPrefix: string): string[] | undefined {
-    return this.groupBidders.get(labelPrefix);
-  }
-
   async executeBids(interactionData: TestInteractionData): Promise<void> {
     const allBids = this.collectAllBids(interactionData);
     
@@ -72,7 +68,7 @@ export class BidSimulator {
     }
   }
 
-  collectAllBids(interactionData: TestInteractionData): InternalBidData[] {
+  public collectAllBids(interactionData: TestInteractionData): InternalBidData[] {
     const bids: InternalBidData[] = [];
 
     // Named bidders

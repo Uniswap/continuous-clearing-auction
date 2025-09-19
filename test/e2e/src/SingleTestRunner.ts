@@ -19,7 +19,6 @@ export interface TestResult {
 
 export enum EventType {
   BID = 'bid',
-  GROUP_BID = 'groupBid',
   ACTION = 'action',
   ASSERTION = 'assertion'
 }
@@ -93,7 +92,8 @@ export class SingleTestRunner {
   }
 
   /**
-   * Execute bids and actions with integrated assertion validation
+   * Execute all events (bids, actions, assertions) with integrated validation
+   * All events are collected and sorted by block to ensure proper chronological order
    * Assertions are validated at their specific blocks during execution
    * Multiple events in the same block are executed together
    */
@@ -105,56 +105,15 @@ export class SingleTestRunner {
     // Collect all events (bids, actions, assertions) and sort by block
     const allEvents: EventData[] = [];
     
-    // Add bids
-    if (interactionData.namedBidders) {
-      interactionData.namedBidders.forEach(bidder => {
-        bidder.bids.forEach(bid => {
-          allEvents.push({
-            type: EventType.BID,
-            atBlock: bid.atBlock,
-            data: {
-              bidData: bid,
-              bidder: bidder.address,
-              type: 'named' as const
-            }
-          });
-        });
+    // Add bids using BidSimulator's collection logic
+    const allBids = bidSimulator.collectAllBids(interactionData);
+    allBids.forEach(bid => {
+      allEvents.push({
+        type: EventType.BID,
+        atBlock: bid.bidData.atBlock,
+        data: bid
       });
-    }
-    
-    // Add group bids
-    if (interactionData.groups) {
-      interactionData.groups.forEach(group => {
-        const bidders = bidSimulator.getGroupBidders(group.labelPrefix);
-        if (bidders) {
-          for (let round = 0; round < group.rounds; round++) {
-            for (let i = 0; i < group.count; i++) {
-              const bidder = bidders[i];
-              const atBlock = group.startBlock + 
-                (round * (group.rotationIntervalBlocks + group.betweenRoundsBlocks)) +
-                (i * group.rotationIntervalBlocks);
-              
-              allEvents.push({
-                type: EventType.GROUP_BID,
-                atBlock: atBlock,
-                data: {
-                  bidData: {
-                    atBlock: atBlock,
-                    amount: group.amount,
-                    price: group.price,
-                    previousTick: group.previousTick,
-                    hookData: group.hookData
-                  },
-                  bidder: bidder,
-                  type: 'group' as const,
-                  group: group.labelPrefix
-                }
-              });
-            }
-          }
-        }
-      });
-    }
+    });
     
     // Add actions
     if (interactionData.actions) {
@@ -226,9 +185,6 @@ export class SingleTestRunner {
         // Execute the event
         switch (event.type) {
           case EventType.BID:
-            await bidSimulator.executeBid(event.data);
-            break;
-          case EventType.GROUP_BID:
             await bidSimulator.executeBid(event.data);
             break;
           case EventType.ACTION:

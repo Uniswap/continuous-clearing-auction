@@ -203,16 +203,16 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
 
         // Replace auction steps data with a valid one
         // Divide steps by number of bips
-        uint256 _numberOfBips = MPSLib.MPS / _numberOfSteps;
+        uint256 _numberOfMps = MPSLib.MPS / _numberOfSteps;
         bytes memory _auctionStepsData = new bytes(0);
         for (uint8 i = 0; i < _numberOfSteps; i++) {
-            _auctionStepsData = AuctionStepsBuilder.addStep(_auctionStepsData, uint24(_numberOfBips), uint40(1));
+            _auctionStepsData = AuctionStepsBuilder.addStep(_auctionStepsData, uint24(_numberOfMps), uint40(1));
         }
         _params.auctionStepsData = _auctionStepsData;
         vm.assume(_params.claimBlock > _params.endBlock);
 
         // Bound graduation threshold mps
-        _params.graduationThresholdMps = uint24(bound(_params.graduationThresholdMps, 1, uint24(MPSLib.MPS)));
+        _params.graduationThresholdMps = uint24(bound(_params.graduationThresholdMps, 0, uint24(MPSLib.MPS)));
     }
 
     function testFuzz_getAuctionAddress(

@@ -2,10 +2,15 @@ import { ActionType, TestInteractionData, Group, BidData, Side, AmountType, Pric
 import { Contract } from "ethers";
 import hre from "hardhat";
 
+export enum BiddersType {
+  NAMED = 'named',
+  GROUP = 'group'
+}
+
 export interface InternalBidData {
   bidData: BidData;
   bidder: string;
-  type: 'named' | 'group';
+  type: BiddersType;
   group?: string;
 }
 
@@ -25,7 +30,6 @@ export class BidSimulator {
 
   async setupLabels(interactionData: TestInteractionData): Promise<void> {
     // Map symbolic labels to actual addresses
-    this.labelMap.set('Pool', await this.auction.getAddress());
     this.labelMap.set('Auction', await this.auction.getAddress());
     
     // Add named bidders
@@ -74,7 +78,7 @@ export class BidSimulator {
           const internalBid = {
             bidData: bid,
             bidder: bidder.address,
-            type: 'named' as const
+            type: BiddersType.NAMED,
           };
           bids.push(internalBid);
         });
@@ -107,7 +111,7 @@ export class BidSimulator {
                   hookData: group.hookData
                 },
                 bidder,
-                type: 'group' as const,
+                type: BiddersType.GROUP,
                 group: group.labelPrefix
               });
             }

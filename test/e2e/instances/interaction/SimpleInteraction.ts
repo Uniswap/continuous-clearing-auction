@@ -9,7 +9,8 @@ export const simpleInteraction: TestInteractionData = {
         {
           atBlock: 10,
           amount: { side: Side.INPUT, type: AmountType.RAW, value: "1000000000000000000" },
-          price: { type: PriceType.RAW, value: "87150978765690771352898345369600" }
+          price: { type: PriceType.RAW, value: "87150978765690771352898345369600" },
+          previousTick: 1
         }
       ],
       recurringBids: []

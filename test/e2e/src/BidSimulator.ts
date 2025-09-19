@@ -19,7 +19,6 @@ export class BidSimulator {
   private currency: Contract;
   private labelMap: Map<string, string> = new Map();
   private groupBidders: Map<string, string[]> = new Map();
-  private previousPrice: bigint;
 
   constructor(
     auction: Contract, 
@@ -27,7 +26,6 @@ export class BidSimulator {
   ) {
     this.auction = auction;
     this.currency = currency;
-    this.previousPrice = this.tickNumberToPriceX96(1); // Floor price tick
   }
 
   async setupLabels(interactionData: TestInteractionData): Promise<void> {
@@ -57,6 +55,10 @@ export class BidSimulator {
       }
       this.groupBidders.set(group.labelPrefix, bidders);
     }
+  }
+
+  getGroupBidders(labelPrefix: string): string[] | undefined {
+    return this.groupBidders.get(labelPrefix);
   }
 
   async executeBids(interactionData: TestInteractionData): Promise<void> {
@@ -101,16 +103,17 @@ export class BidSimulator {
           for (let round = 0; round < group.rounds; round++) {
             for (let i = 0; i < group.count; i++) {
               const bidder = bidders[i];
-              const blockOffset = group.startOffsetBlocks + 
+              const atBlock = group.startBlock + 
                 (round * (group.rotationIntervalBlocks + group.betweenRoundsBlocks)) +
                 (i * group.rotationIntervalBlocks);
               
               bids.push({
                 bidData: {
-                  atBlock: blockOffset,
+                  atBlock: atBlock,
                   amount: group.amount,
                   price: group.price,
-                  hookData: group.hookData
+                  hookData: group.hookData,
+                  previousTick: group.previousTick
                 },
                 bidder,
                 type: BiddersType.GROUP,
@@ -125,27 +128,17 @@ export class BidSimulator {
     return bids;
   }
 
-  async executeBid(bid: InternalBidData | any): Promise<void> {
+  async executeBid(bid: InternalBidData): Promise<void> {
     // Note: Block mining is handled at the block level in CombinedTestRunner
     // This method just executes the bid transaction
 
-    // Handle both old flat structure and new InternalBidData structure
-    let bidData: any;
-    let bidder: string;
+    const bidData = bid.bidData;
+    const bidder = bid.bidder;
+
     // For the first bid, use tick 1 as prevTickPrice (floor price)
     // For subsequent bids, we use the previous tick
-    let previousPrice: bigint = this.previousPrice; // Floor price tick
+    let previousTickPrice: bigint = this.tickNumberToPriceX96(bidData.previousTick);
     
-    if (bid.bidData) {
-      // New InternalBidData structure
-      bidData = bid.bidData;
-      bidder = bid.bidder;
-    } else {
-      // Old flat structure - convert to InternalBidData
-      bidData = bid;
-      bidder = bid.bidder;
-    }
-
     const amount = await this.calculateAmount(bidData.amount);
     const price = await this.calculatePrice(bidData.price);
 
@@ -163,8 +156,6 @@ export class BidSimulator {
     console.log('   🔍   bidder:', bidder);
 
     try {
-      this.previousPrice = price;
-      
       // Impersonate the bidder account to send the transaction from their address
       await hre.network.provider.send('hardhat_impersonateAccount', [bidder]);
       
@@ -183,7 +174,7 @@ export class BidSimulator {
           bidData.amount.side === Side.INPUT,
           amount,
           bidder,
-          previousPrice,
+          previousTickPrice,
           bidData.hookData || '0x'
         );
       } else {
@@ -193,7 +184,7 @@ export class BidSimulator {
           bidData.amount.side === Side.INPUT,
           amount,
           bidder,
-          previousPrice,
+          previousTickPrice,
           bidData.hookData || '0x',
           { value: requiredCurrencyAmount }
         );
@@ -221,7 +212,6 @@ export class BidSimulator {
       throw error;
     }
     // TODO: check transaction receipt for revert
-    this.previousPrice = price;
   }
 
   async validateExpectedRevert(error: any, expectedRevert: string): Promise<void> {

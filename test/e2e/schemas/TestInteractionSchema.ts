@@ -54,6 +54,7 @@ export interface BidData {
   atBlock: number;
   amount: AmountConfig;
   price: PriceConfig;
+  previousTick: number;
   hookData?: string;
   expectRevert?: string;
 }
@@ -79,9 +80,10 @@ export interface NamedBidder {
 export interface Group {
   labelPrefix: string;
   count: number;
-  startOffsetBlocks: number;
+  startBlock: number;
   amount: AmountConfig;
   price: PriceConfig;
+  previousTick: number;
   rotationIntervalBlocks: number;
   betweenRoundsBlocks: number;
   rounds: number;

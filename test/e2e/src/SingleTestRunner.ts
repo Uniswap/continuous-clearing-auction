@@ -112,7 +112,11 @@ export class SingleTestRunner {
           allEvents.push({
             type: EventType.BID,
             atBlock: bid.atBlock,
-            data: { bidder: bidder.address, ...bid }
+            data: {
+              bidData: bid,
+              bidder: bidder.address,
+              type: 'named' as const
+            }
           });
         });
       });
@@ -121,20 +125,32 @@ export class SingleTestRunner {
     // Add group bids
     if (interactionData.groups) {
       interactionData.groups.forEach(group => {
-        // Note: We need to access the groupBidders from the bidSimulator
-        // This is a bit of a hack since we don't have direct access to the private property
-        // In a real implementation, we'd want to expose this through a public method
-        for (let round = 0; round < group.rounds; round++) {
-          for (let i = 0; i < group.count; i++) {
-            const blockOffset = group.startOffsetBlocks + 
-              (round * (group.rotationIntervalBlocks + group.betweenRoundsBlocks)) +
-              (i * group.rotationIntervalBlocks);
-            
-            allEvents.push({
-              type: EventType.GROUP_BID,
-              atBlock: blockOffset,
-              data: { group, ...group }
-            });
+        const bidders = bidSimulator.getGroupBidders(group.labelPrefix);
+        if (bidders) {
+          for (let round = 0; round < group.rounds; round++) {
+            for (let i = 0; i < group.count; i++) {
+              const bidder = bidders[i];
+              const atBlock = group.startBlock + 
+                (round * (group.rotationIntervalBlocks + group.betweenRoundsBlocks)) +
+                (i * group.rotationIntervalBlocks);
+              
+              allEvents.push({
+                type: EventType.GROUP_BID,
+                atBlock: atBlock,
+                data: {
+                  bidData: {
+                    atBlock: atBlock,
+                    amount: group.amount,
+                    price: group.price,
+                    previousTick: group.previousTick,
+                    hookData: group.hookData
+                  },
+                  bidder: bidder,
+                  type: 'group' as const,
+                  group: group.labelPrefix
+                }
+              });
+            }
           }
         }
       });
@@ -206,7 +222,7 @@ export class SingleTestRunner {
       // Execute all events in this block
       for (const event of blockEvents) {
         console.log(`      📝 ${event.type}`);
-        
+        console.log(event.data);
         // Execute the event
         switch (event.type) {
           case EventType.BID:

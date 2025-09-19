@@ -1,5 +1,5 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4c9af76a705eb813cc2e0ec768b3771f7a342ec1/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/4967de5a0312d620dba4bcfa654c49c4c495aad3/src/TickStorage.sol)
 
 **Inherits:**
 [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
@@ -114,22 +114,19 @@ function _initializeTickIfNeeded(uint256 prevPrice, uint256 price) internal;
 |`price`|`uint256`|The price of the tick|
 
 
-### _updateTick
+### _updateTickDemand
 
-Internal function to add a bid to a tick and update its values
-
-*Requires the tick to be initialized*
+Internal function to add demand to a tick
 
 
 ```solidity
-function _updateTick(uint256 price, bool exactIn, uint128 amount) internal;
+function _updateTickDemand(uint256 price, Demand memory demand) internal;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`price`|`uint256`|The price of the tick|
-|`exactIn`|`bool`|Whether the bid is exact in|
-|`amount`|`uint128`|The amount of the bid|
+|`demand`|`Demand`|The demand to add|
 
 

@@ -24,7 +24,7 @@ could merely set up initial state and provide additional entrypoints to handle t
 
 
 ```solidity
-function initializeDistribution(address token, uint128 amount, bytes calldata configData, bytes32 salt)
+function initializeDistribution(address token, uint256 amount, bytes calldata configData, bytes32 salt)
     external
     returns (IDistributionContract distributionContract);
 ```
@@ -33,7 +33,7 @@ function initializeDistribution(address token, uint128 amount, bytes calldata co
 |Name|Type|Description|
 |----|----|-----------|
 |`token`|`address`|The address of the token to be distributed.|
-|`amount`|`uint128`|The amount of tokens intended for distribution.|
+|`amount`|`uint256`|The amount of tokens intended for distribution.|
 |`configData`|`bytes`|Arbitrary, strategy-specific parameters.|
 |`salt`|`bytes32`|The salt to use for the deterministic deployment.|
 

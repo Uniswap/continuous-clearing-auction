@@ -47,14 +47,15 @@ class E2ECliRunner {
         const result = await this.runner.runCombination(combination.setup, combination.interaction);
         results.push(result);
         console.log(`✅ Success: ${combination.setup} + ${combination.interaction}`);
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(`❌ Failed: ${combination.setup} + ${combination.interaction}`);
-        console.error(`   Error: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`   Error: ${errorMessage}`);
         results.push({
           setupFile: combination.setup,
           interactionFile: combination.interaction,
           success: false,
-          error: error.message
+          error: errorMessage
         });
       }
     }

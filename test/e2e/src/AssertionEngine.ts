@@ -1,5 +1,7 @@
 import { AssertionInterfaceType, BalanceAssertion, PoolAssertion, EventAssertion, TotalSupplyAssertion, Assertion, Address } from '../schemas/TestInteractionSchema';
 import { Contract } from "ethers";
+import { TokenContract } from './types';
+import { AuctionDeployer } from './AuctionDeployer';
 import hre from "hardhat";
 
 // NOTE: Uses bigint since this comes directly from the contract
@@ -32,15 +34,15 @@ export interface BidderState {
 
 export class AssertionEngine {
   private auction: Contract;
-  private token: Contract | any; // Contract or Native currency
-  private currency: Contract | any; // Contract or Native currency
-  private auctionDeployer: any;
+  private token: TokenContract | null; // Contract or Native currency
+  private currency: TokenContract | null; // Contract or Native currency
+  private auctionDeployer: AuctionDeployer;
 
   constructor(
     auction: Contract, 
-    token: Contract | any, 
-    currency: Contract | any,
-    auctionDeployer: any,
+    token: TokenContract | null, 
+    currency: TokenContract | null,
+    auctionDeployer: AuctionDeployer,
   ) {
     this.auction = auction;
     this.token = token;

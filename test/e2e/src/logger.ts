@@ -31,7 +31,7 @@ class Logger {
     return level >= this.config.level;
   }
 
-  private formatMessage(level: LogLevel, prefix: string, message: string, ...args: any[]): string {
+  private formatMessage(level: LogLevel, prefix: string, message: string, ...args: unknown[]): string {
     const timestamp = this.config.enableTimestamps ? `[${new Date().toISOString()}] ` : '';
     const levelStr = LogLevel[level];
     const formattedArgs = args.length > 0 ? ' ' + args.map(arg => 
@@ -41,25 +41,25 @@ class Logger {
     return `${timestamp}${prefix} ${message}${formattedArgs}`;
   }
 
-  debug(prefix: string, message: string, ...args: any[]): void {
+  debug(prefix: string, message: string, ...args: unknown[]): void {
     if (this.shouldLog(LogLevel.DEBUG)) {
       console.log(this.formatMessage(LogLevel.DEBUG, prefix, message, ...args));
     }
   }
 
-  info(prefix: string, message: string, ...args: any[]): void {
+  info(prefix: string, message: string, ...args: unknown[]): void {
     if (this.shouldLog(LogLevel.INFO)) {
       console.log(this.formatMessage(LogLevel.INFO, prefix, message, ...args));
     }
   }
 
-  warn(prefix: string, message: string, ...args: any[]): void {
+  warn(prefix: string, message: string, ...args: unknown[]): void {
     if (this.shouldLog(LogLevel.WARN)) {
       console.warn(this.formatMessage(LogLevel.WARN, prefix, message, ...args));
     }
   }
 
-  error(prefix: string, message: string, ...args: any[]): void {
+  error(prefix: string, message: string, ...args: unknown[]): void {
     if (this.shouldLog(LogLevel.ERROR)) {
       console.error(this.formatMessage(LogLevel.ERROR, prefix, message, ...args));
     }

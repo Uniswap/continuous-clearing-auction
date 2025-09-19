@@ -75,16 +75,14 @@ export interface AssertionEventData {
   };
 }
 
-export type EventData = BidEventData | ActionEventData | AssertionEventData;
 
 // Network types
 export interface NetworkProvider {
-  send(method: string, params: any[]): Promise<any>;
+  send(method: string, params: unknown[]): Promise<unknown>;
 }
 
-export interface HardhatNetwork {
-  provider: NetworkProvider;
-}
+
+
 
 // Test result types
 export interface TestExecutionResult {

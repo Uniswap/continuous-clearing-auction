@@ -35,10 +35,11 @@ export class MultiTestRunner {
       const result = await this.singleTestRunner.runCombinedTest(setupFile, interactionFile);
       console.log(`✅ ${setupFile} + ${interactionFile} - PASSED`);
       return { success: true, result, setupFile, interactionFile };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`❌ ${setupFile} + ${interactionFile} - FAILED`);
-      console.error(`   Error: ${error.message}`);
-      return { success: false, error: error.message, setupFile, interactionFile };
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`   Error: ${errorMessage}`);
+      return { success: false, error: errorMessage, setupFile, interactionFile };
     }
   }
 

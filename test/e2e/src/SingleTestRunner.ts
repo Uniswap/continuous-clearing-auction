@@ -1,11 +1,12 @@
 import { SchemaValidator } from './SchemaValidator';
 import { Address, TestSetupData } from '../schemas/TestSetupSchema';
-import { ActionType, TestInteractionData } from '../schemas/TestInteractionSchema';
+import { ActionType, TestInteractionData, AdminAction, TransferAction, AssertionInfo } from '../schemas/TestInteractionSchema';
 import { AuctionDeployer } from './AuctionDeployer';
-import { BidSimulator } from './BidSimulator';
+import { BidSimulator, InternalBidData } from './BidSimulator';
 import { AssertionEngine, AuctionState } from './AssertionEngine';
 import { Contract } from 'ethers';
 import hre from "hardhat";
+import { Network } from 'hardhat/types';
 
 export interface TestResult {
   setupData: TestSetupData;
@@ -23,14 +24,22 @@ export enum EventType {
   ASSERTION = 'assertion'
 }
 
+export type ActionData = { actionType: ActionType } & (AdminAction | TransferAction);
+
+// Union type for all possible event data types
+export type EventInternalData = 
+  | InternalBidData 
+  | ActionData
+  | AssertionInfo;
+
 export interface EventData {
   type: EventType;
   atBlock: number;
-  data: any;
+  data: EventInternalData;
 }
 
 export class SingleTestRunner {
-  private network: any;
+  private network: Network; // Hardhat network type is complex, using any for now
   private schemaValidator: SchemaValidator;
   private deployer: AuctionDeployer;
 
@@ -125,8 +134,8 @@ export class SingleTestRunner {
     // Add actions
     if (interactionData.actions) {
       interactionData.actions.forEach(action => {
-        action.interactions.forEach((interactionGroup: any) => {
-          interactionGroup.forEach((interaction: any) => {
+        action.interactions.forEach((interactionGroup: AdminAction[] | TransferAction[]) => {
+          interactionGroup.forEach((interaction: AdminAction | TransferAction) => {
             allEvents.push({
               type: EventType.ACTION,
               atBlock: interaction.atBlock,
@@ -192,18 +201,20 @@ export class SingleTestRunner {
         // Execute the event
         switch (event.type) {
           case EventType.BID:
-            await bidSimulator.executeBid(event.data);
+            await bidSimulator.executeBid(event.data as InternalBidData);
             break;
           case EventType.ACTION:
-            if (event.data.actionType === ActionType.TRANSFER_ACTION) {
-              await bidSimulator.executeTransfers([[event.data]]);
-            } else if (event.data.actionType === ActionType.ADMIN_ACTION) {
-              await bidSimulator.executeAdminActions([[event.data]]);
+            const actionData = event.data as ActionData;
+            if (actionData.actionType === ActionType.TRANSFER_ACTION) {
+              await bidSimulator.executeTransfers([[actionData]]);
+            } else if (actionData.actionType === ActionType.ADMIN_ACTION) {
+              await bidSimulator.executeAdminActions([[actionData]]);
             }
             break;
           case EventType.ASSERTION:
-            console.log(`         🔍 Validating checkpoint: ${event.data.reason}`);
-            await assertionEngine.validateAssertion(event.data.assert);
+            const assertionData = event.data as AssertionInfo;
+            console.log(`         🔍 Validating checkpoint: ${assertionData.reason}`);
+            await assertionEngine.validateAssertion(assertionData.assert);
             console.log(`         ✅ Assertion validated`);
             break;
         }

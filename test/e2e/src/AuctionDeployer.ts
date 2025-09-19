@@ -122,8 +122,9 @@ export class AuctionDeployer {
       
       this.auction = await this.ethers.getContractAt(auctionArtifact.abi, auctionAddress) as AuctionContract;
       return this.auction;
-    } catch (error: any) {
-      logger.error(LOG_PREFIXES.ERROR, 'Auction creation failed:', error.message);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(LOG_PREFIXES.ERROR, 'Auction creation failed:', errorMessage);
       throw new AuctionDeploymentError('Auction creation failed', { originalError: error });
     }
   }
@@ -178,10 +179,10 @@ export class AuctionDeployer {
    */
   private encodeAuctionParameters(config: AuctionConfig): string {
     // Extract AuctionParameters struct definition from the auction artifact
-    const auctionParametersType = auctionArtifact.abi.find((item: any) => 
-      item.type === 'constructor' && 
-      item.inputs && 
-      item.inputs.some((input: any) => input.internalType === 'struct AuctionParameters')
+    const auctionParametersType = auctionArtifact.abi.find((item: unknown) => 
+      (item as any).type === 'constructor' && 
+      (item as any).inputs && 
+      (item as any).inputs.some((input: any) => input.internalType === 'struct AuctionParameters')
     )?.inputs.find((input: any) => input.internalType === 'struct AuctionParameters');
 
     if (!auctionParametersType) {

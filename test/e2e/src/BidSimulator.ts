@@ -1,4 +1,4 @@
-import { ActionType, TestInteractionData, Group, BidData, Side, AmountType, PriceType, AdminActionMethod, Address } from '../schemas/TestInteractionSchema';
+import { ActionType, TestInteractionData, Group, BidData, Side, AmountType, PriceType, AdminActionMethod, Address, AmountConfig, PriceConfig } from '../schemas/TestInteractionSchema';
 import { Contract } from "ethers";
 import hre from "hardhat";
 
@@ -161,7 +161,7 @@ export class BidSimulator {
       // Connect the auction contract to the bidder signer
       const auctionWithBidder = this.auction.connect(bidderSigner);
       
-      let tx: any;
+      let tx: any; // Transaction response type varies
       if (this.currency) {
         console.log('   🔍 Using ERC20 currency - would need permit2 setup');
         // TODO: permit2 setup
@@ -191,7 +191,7 @@ export class BidSimulator {
       // Stop impersonating the account
       await hre.network.provider.send('hardhat_stopImpersonatingAccount', [bidder]);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Stop impersonating the account even if there's an error
       try {
         await hre.network.provider.send('hardhat_stopImpersonatingAccount', [bidder]);
@@ -210,10 +210,11 @@ export class BidSimulator {
     // TODO: check transaction receipt for revert
   }
 
-  async validateExpectedRevert(error: any, expectedRevert: string): Promise<void> {
+  async validateExpectedRevert(error: unknown, expectedRevert: string): Promise<void> {
     // TODO: decode reason from revert data
     // Extract the revert data string from the error
-    const actualRevertData = error?.data || error?.error?.data || error?.info?.data || '';
+    const errorObj = error as any;
+    const actualRevertData = errorObj?.data || errorObj?.error?.data || errorObj?.info?.data || '';
     
     // Check if the revert data contains the expected string
     if (!actualRevertData.includes(expectedRevert)) {
@@ -222,7 +223,7 @@ export class BidSimulator {
     console.log(`   ✅ Expected revert validated: ${expectedRevert}`);
   }
 
-  async calculateAmount(amountConfig: any): Promise<bigint> {
+  async calculateAmount(amountConfig: AmountConfig): Promise<bigint> {
     // Implementation depends on amount type (raw, percentOfSupply, etc.)
     // This is a simplified version
     if (amountConfig.type === AmountType.RAW) {
@@ -260,7 +261,7 @@ export class BidSimulator {
     return BigInt(amountConfig.value);
   }
 
-  async calculatePrice(priceConfig: any): Promise<bigint> {
+  async calculatePrice(priceConfig: PriceConfig): Promise<bigint> {
     if (priceConfig.type === PriceType.TICK) {
       // Convert tick to actual price using the same logic as the Foundry tests
       return this.tickNumberToPriceX96(parseInt(priceConfig.value.toString()));

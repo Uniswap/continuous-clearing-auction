@@ -29,7 +29,7 @@ export const simpleInteraction: TestInteractionData = {
         type: AssertionInterfaceType.BALANCE,
         address: "0x1111111111111111111111111111111111111111" as Address,
         token: "0x0000000000000000000000000000000000000000" as Address,
-        expected: "999565480572954296"
+        expected: "999564488891352473"
       }
     }
   ]

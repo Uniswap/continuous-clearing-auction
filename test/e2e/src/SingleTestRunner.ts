@@ -11,8 +11,8 @@ export interface TestResult {
   setupData: TestSetupData;
   interactionData: TestInteractionData;
   auction: Contract;
-  auctionedToken: Address;
-  currencyToken: Address;
+  auctionedToken: Address | null;
+  currencyToken: Address | null;
   finalState: AuctionState;
   success: boolean;
 }
@@ -63,8 +63,8 @@ export class SingleTestRunner {
     console.log('🎯 Phase 2: Executing interaction scenario...');
     const auctionedToken = this.deployer.getTokenByName(setupData.auctionParameters.auctionedToken);
     const currencyToken = setupData.auctionParameters.currency === '0x0000000000000000000000000000000000000000' ? null : this.deployer.getTokenByName(setupData.auctionParameters.currency);
-    const bidSimulator = new BidSimulator(auction, currencyToken || null);
-    const assertionEngine = new AssertionEngine(auction, auctionedToken || null, currencyToken || null, this.deployer);
+    const bidSimulator = new BidSimulator(auction, currencyToken as Contract);
+    const assertionEngine = new AssertionEngine(auction, auctionedToken as any, currencyToken as any, this.deployer);
     
     // Setup labels and execute the interaction scenario
     await bidSimulator.setupLabels(interactionData);
@@ -84,8 +84,8 @@ export class SingleTestRunner {
       setupData,
       interactionData,
       auction,
-      auctionedToken: auctionedToken || null,
-      currencyToken: currencyToken || null,
+      auctionedToken: auctionedToken ? await auctionedToken.getAddress() as Address : null,
+      currencyToken: currencyToken ? await currencyToken.getAddress() as Address : null,
       finalState,
       success: true
     };

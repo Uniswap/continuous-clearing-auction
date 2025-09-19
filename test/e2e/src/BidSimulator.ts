@@ -19,6 +19,7 @@ export class BidSimulator {
   private currency: Contract;
   private labelMap: Map<string, string> = new Map();
   private groupBidders: Map<string, string[]> = new Map();
+  private previousPrice: bigint;
 
   constructor(
     auction: Contract, 
@@ -26,6 +27,7 @@ export class BidSimulator {
   ) {
     this.auction = auction;
     this.currency = currency;
+    this.previousPrice = this.tickNumberToPriceX96(1); // Floor price tick
   }
 
   async setupLabels(interactionData: TestInteractionData): Promise<void> {
@@ -130,6 +132,9 @@ export class BidSimulator {
     // Handle both old flat structure and new InternalBidData structure
     let bidData: any;
     let bidder: string;
+    // For the first bid, use tick 1 as prevTickPrice (floor price)
+    // For subsequent bids, we use the previous tick
+    let previousPrice: bigint = this.previousPrice; // Floor price tick
     
     if (bid.bidData) {
       // New InternalBidData structure
@@ -158,9 +163,7 @@ export class BidSimulator {
     console.log('   🔍   bidder:', bidder);
 
     try {
-      // For the first bid, use tick 1 as prevTickPrice (floor price)
-      // For subsequent bids, we'd need to track the previous tick
-      const prevTickPrice = this.tickNumberToPriceX96(1); // Floor price tick
+      this.previousPrice = price;
       
       // Impersonate the bidder account to send the transaction from their address
       await hre.network.provider.send('hardhat_impersonateAccount', [bidder]);
@@ -180,7 +183,7 @@ export class BidSimulator {
           bidData.amount.side === Side.INPUT,
           amount,
           bidder,
-          prevTickPrice,
+          previousPrice,
           bidData.hookData || '0x'
         );
       } else {
@@ -190,7 +193,7 @@ export class BidSimulator {
           bidData.amount.side === Side.INPUT,
           amount,
           bidder,
-          prevTickPrice,
+          previousPrice,
           bidData.hookData || '0x',
           { value: requiredCurrencyAmount }
         );
@@ -207,6 +210,7 @@ export class BidSimulator {
         await hre.network.provider.send('hardhat_stopImpersonatingAccount', [bidder]);
       } catch (stopError) {
         // Ignore stop impersonation errors
+        console.error('   ❌ Error stopping impersonation:', stopError);
       }
       
       if (bidData.expectRevert) {
@@ -217,6 +221,7 @@ export class BidSimulator {
       throw error;
     }
     // TODO: check transaction receipt for revert
+    this.previousPrice = price;
   }
 
   async validateExpectedRevert(error: any, expectedRevert: string): Promise<void> {

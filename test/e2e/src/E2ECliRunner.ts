@@ -5,7 +5,7 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types';
 
 // Define the combinations you want to run
 const COMBINATIONS_TO_RUN = [
-  { setup: 'simple-setup.json', interaction: 'simple-interaction.json' }
+  { setup: 'SimpleSetup.ts', interaction: 'SimpleInteraction.ts' }
   // TODO: Add more combinations here as they are created:
   // { setup: 'setup02.json', interaction: 'interaction02.json' },
   // { setup: 'setup03.json', interaction: 'interaction01.json' },
@@ -126,7 +126,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
   console.log('  npx ts-node test/e2e/src/CombinationRunner.ts --setup <setup-file> --interaction <interaction-file>');
   console.log('\n📁 Examples:');
   console.log('  npx ts-node test/e2e/src/CombinationRunner.ts');
-  console.log('  npx ts-node test/e2e/src/CombinationRunner.ts --setup simple-setup.json --interaction simple-interaction.json');
+  console.log('  npx ts-node test/e2e/src/CombinationRunner.ts --setup SimpleSetup.ts --interaction SimpleInteraction.ts');
   console.log('\n💡 Note: Only run compatible setup/interaction combinations!');
   process.exit(0);
 }

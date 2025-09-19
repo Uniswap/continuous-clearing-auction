@@ -1,4 +1,4 @@
-import { TestSetupData } from '../../schemas/TestSetupSchema';
+import { TestSetupData, Address } from '../../schemas/TestSetupSchema';
 
 export const simpleSetup: TestSetupData = {
   env: {
@@ -10,11 +10,11 @@ export const simpleSetup: TestSetupData = {
     baseFeePerGasWei: "0",
     fork: {
       rpcUrl: "http://localhost:8545",
-      blockNumber: "20999999"
+      blockNumber: "1"
     },
     balances: [
       { 
-        address: "0x1111111111111111111111111111111111111111", 
+        address: "0x1111111111111111111111111111111111111111" as Address, 
         token: "0x0000000000000000000000000000000000000000", 
         amount: "2000000000000000000" 
       }
@@ -22,16 +22,16 @@ export const simpleSetup: TestSetupData = {
   },
 
   auctionParameters: {
-    currency: "0x0000000000000000000000000000000000000000",
+    currency: "0x0000000000000000000000000000000000000000" as Address,
     auctionedToken: "SimpleToken",
-    tokensRecipient: "0x2222222222222222222222222222222222222222",
-    fundsRecipient: "0x3333333333333333333333333333333333333333",
+    tokensRecipient: "0x2222222222222222222222222222222222222222" as Address,
+    fundsRecipient: "0x3333333333333333333333333333333333333333" as Address,
     startOffsetBlocks: 0,
     auctionDurationBlocks: 50,
     claimDelayBlocks: 10,
     graduationThresholdMps: "1000",
     tickSpacing: 100,
-    validationHook: "0x0000000000000000000000000000000000000000",
+    validationHook: "0x0000000000000000000000000000000000000000" as Address,
     floorPrice: "79228162514264337593543950336000"
   },
 

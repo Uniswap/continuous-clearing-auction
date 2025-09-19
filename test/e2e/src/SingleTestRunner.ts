@@ -1,22 +1,31 @@
-import { SchemaValidator, SetupData, InteractionData } from './SchemaValidator';
+import { SchemaValidator } from './SchemaValidator';
+import { Address, TestSetupData } from '../schemas/TestSetupSchema';
+import { ActionType, TestInteractionData } from '../schemas/TestInteractionSchema';
 import { AuctionDeployer } from './AuctionDeployer';
 import { BidSimulator } from './BidSimulator';
 import { AssertionEngine, AuctionState } from './AssertionEngine';
+import { Contract } from 'ethers';
 import hre from "hardhat";
 
 export interface TestResult {
-  setupData: SetupData;
-  interactionData: InteractionData;
-  auction: any;
-  auctionedToken: any;
-  currencyToken: any;
+  setupData: TestSetupData;
+  interactionData: TestInteractionData;
+  auction: Contract;
+  auctionedToken: Address;
+  currencyToken: Address;
   finalState: AuctionState;
   success: boolean;
 }
 
+export enum EventType {
+  BID = 'bid',
+  GROUP_BID = 'groupBid',
+  ACTION = 'action',
+  ASSERTION = 'assertion'
+}
 
 export interface EventData {
-  type: 'bid' | 'groupBid' | 'action' | 'checkpoint';
+  type: EventType;
   atBlock: number;
   data: any;
 }
@@ -39,14 +48,14 @@ export class SingleTestRunner {
     console.log(`\n🧪 Running combined test: ${setupFilename} + ${interactionFilename}`);
     
     // Load and validate both schemas
-    const setupData = this.schemaValidator.loadTestInstance('setup', setupFilename) as SetupData;
-    const interactionData = this.schemaValidator.loadTestInstance('interaction', interactionFilename) as InteractionData;
+    const setupData = this.schemaValidator.loadTestInstance('setup', setupFilename) as TestSetupData;
+    const interactionData = this.schemaValidator.loadTestInstance('interaction', interactionFilename) as TestInteractionData;
     
     console.log('✅ Schema validation passed');
     
     // PHASE 1: Setup the auction environment
     console.log('🏗️  Phase 1: Setting up auction environment...');
-    const auction = await this.deployer.createAuction(setupData);
+    const auction: Contract = await this.deployer.createAuction(setupData);
     await this.deployer.setupBalances(setupData);
     
     console.log(`   🏛️  Auction deployed: ${await auction.getAddress()}`);
@@ -56,15 +65,15 @@ export class SingleTestRunner {
     const auctionedToken = this.deployer.getTokenByName(setupData.auctionParameters.auctionedToken);
     const currencyToken = setupData.auctionParameters.currency === '0x0000000000000000000000000000000000000000' ? null : this.deployer.getTokenByName(setupData.auctionParameters.currency);
     const bidSimulator = new BidSimulator(auction, currencyToken || null);
-    const assertionEngine = new AssertionEngine(auction, auctionedToken || null, currencyToken || null);
+    const assertionEngine = new AssertionEngine(auction, auctionedToken || null, currencyToken || null, this.deployer);
     
     // Setup labels and execute the interaction scenario
     await bidSimulator.setupLabels(interactionData);
     
     // Execute bids and actions with integrated checkpoint validation
-    await this.executeWithCheckpoints(bidSimulator, assertionEngine, interactionData, interactionData.timeBase);
+    await this.executeWithAssertions(bidSimulator, assertionEngine, interactionData);
     
-    console.log('   💰 Bids executed and checkpoints validated successfully');
+    console.log('   💰 Bids executed and assertions validated successfully');
     
     // Get final state
     const finalState = await assertionEngine.getAuctionState();
@@ -84,17 +93,16 @@ export class SingleTestRunner {
   }
 
   /**
-   * Execute bids and actions with integrated checkpoint validation
-   * Checkpoints are validated at their specific blocks during execution
+   * Execute bids and actions with integrated assertion validation
+   * Assertions are validated at their specific blocks during execution
    * Multiple events in the same block are executed together
    */
-  async executeWithCheckpoints(
+  async executeWithAssertions(
     bidSimulator: BidSimulator, 
     assertionEngine: AssertionEngine, 
-    interactionData: InteractionData, 
-    timeBase: string
+    interactionData: TestInteractionData
   ): Promise<void> {
-    // Collect all events (bids, actions, checkpoints) and sort by block
+    // Collect all events (bids, actions, assertions) and sort by block
     const allEvents: EventData[] = [];
     
     // Add bids
@@ -102,7 +110,7 @@ export class SingleTestRunner {
       interactionData.namedBidders.forEach(bidder => {
         bidder.bids.forEach(bid => {
           allEvents.push({
-            type: 'bid',
+            type: EventType.BID,
             atBlock: bid.atBlock,
             data: { bidder: bidder.address, ...bid }
           });
@@ -123,7 +131,7 @@ export class SingleTestRunner {
               (i * group.rotationIntervalBlocks);
             
             allEvents.push({
-              type: 'groupBid',
+              type: EventType.GROUP_BID,
               atBlock: blockOffset,
               data: { group, ...group }
             });
@@ -138,7 +146,7 @@ export class SingleTestRunner {
         action.interactions.forEach((interactionGroup: any) => {
           interactionGroup.forEach((interaction: any) => {
             allEvents.push({
-              type: 'action',
+              type: EventType.ACTION,
               atBlock: interaction.atBlock,
               data: { actionType: action.type, ...interaction }
             });
@@ -147,11 +155,11 @@ export class SingleTestRunner {
       });
     }
     
-    // Add checkpoints
-    if (interactionData.checkpoints) {
-      interactionData.checkpoints.forEach(checkpoint => {
+    // Add assertions
+    if (interactionData.assertions) {
+      interactionData.assertions.forEach(checkpoint => {
         allEvents.push({
-          type: 'checkpoint',
+          type: EventType.ASSERTION,
           atBlock: checkpoint.atBlock,
           data: checkpoint
         });
@@ -163,8 +171,8 @@ export class SingleTestRunner {
       if (a.atBlock !== b.atBlock) {
         return a.atBlock - b.atBlock;
       }
-      // Within the same block, execute queries/checkpoints before transactions
-      const queryTypes = ['checkpoint'];
+      // Within the same block, execute queries/assertions before transactions
+      const queryTypes = [EventType.ASSERTION];
       const aIsQuery = queryTypes.includes(a.type);
       const bIsQuery = queryTypes.includes(b.type);
       
@@ -201,23 +209,23 @@ export class SingleTestRunner {
         
         // Execute the event
         switch (event.type) {
-          case 'bid':
+          case EventType.BID:
             await bidSimulator.executeBid(event.data);
             break;
-          case 'groupBid':
+          case EventType.GROUP_BID:
             await bidSimulator.executeBid(event.data);
             break;
-          case 'action':
-            if (event.data.actionType === 'Transfer') {
+          case EventType.ACTION:
+            if (event.data.actionType === ActionType.TRANSFER_ACTION) {
               await bidSimulator.executeTransfers([[event.data]]);
-            } else if (event.data.actionType === 'AdminAction') {
+            } else if (event.data.actionType === ActionType.ADMIN_ACTION) {
               await bidSimulator.executeAdminActions([[event.data]]);
             }
             break;
-          case 'checkpoint':
+          case EventType.ASSERTION:
             console.log(`         🔍 Validating checkpoint: ${event.data.reason}`);
             await assertionEngine.validateAssertion(event.data.assert);
-            console.log(`         ✅ Checkpoint validated`);
+            console.log(`         ✅ Assertion validated`);
             break;
         }
       }

@@ -1,6 +1,6 @@
 # TWAP Auction E2E Test Suite
 
-This directory contains the end-to-end (E2E) test suite for the TWAP Auction system. The test suite allows you to define complex auction scenarios using JSON schemas and validate the entire auction lifecycle from deployment to completion.
+This directory contains the end-to-end (E2E) test suite for the TWAP Auction system. The test suite allows you to define complex auction scenarios using TypeScript interfaces and validate the entire auction lifecycle from deployment to completion.
 
 ## 🚧 TODO: Unimplemented Features
 
@@ -50,7 +50,7 @@ The following features are defined in the schemas but not yet implemented. These
 - **📊 Comprehensive Logging** - Detailed execution traces and state information
 - **🛠️ Flexible Interface** - npm scripts, command-line options, and shell scripts
 - **🔍 Real Contract Integration** - Uses actual Foundry auction contracts, not mocks
-- **📋 Schema Validation** - JSON schema validation for test configuration
+- **📋 Type Safety** - TypeScript interfaces for compile-time validation and IDE support
 - **🎮 MEV Testing** - Test transaction ordering and arbitrage scenarios
 
 ## 🏗️ Architecture
@@ -59,7 +59,7 @@ The E2E test suite is built on top of Hardhat and consists of several key compon
 
 ### Core Components
 
-- **`src/SchemaValidator.ts`** - Loads and validates JSON schemas
+- **`src/SchemaValidator.ts`** - Loads and validates TypeScript instance files
 - **`src/AuctionDeployer.ts`** - Deploys auction contracts and sets up the environment
 - **`src/BidSimulator.ts`** - Simulates bids and interactions with the auction
 - **`src/AssertionEngine.ts`** - Validates checkpoints and assertions
@@ -69,15 +69,15 @@ The E2E test suite is built on top of Hardhat and consists of several key compon
 
 ### Test Data
 
-- **`instances/setup/`** - JSON files defining auction setup parameters
-- **`instances/interaction/`** - JSON files defining bid scenarios and interactions
-- **`schemas/`** - JSON schemas for validating setup and interaction files
+- **`instances/setup/`** - TypeScript files defining auction setup parameters
+- **`instances/interaction/`** - TypeScript files defining bid scenarios and interactions
+- **`schemas/`** - TypeScript interface definitions for type safety
 
 ## 🔄 Execution Flow
 
 The test suite follows a structured execution flow:
 
-1. **📋 Schema Validation** - Validate setup and interaction JSON files
+1. **📋 Type Validation** - Validate setup and interaction TypeScript files
 2. **🏗️ Environment Setup** - Deploy auction contracts and configure tokens
 3. **⚖️ Balance Setup** - Set initial balances for test accounts
 4. **📅 Event Scheduling** - Collect and sort all events (bids, actions, checkpoints) by block
@@ -127,7 +127,7 @@ npx hardhat test test/e2e/tests/e2e.test.ts
 npm run e2e:run
 
 # Run specific combination
-npx ts-node test/e2e/src/E2ECliRunner.ts --setup simple-setup.json --interaction simple-interaction.json
+npx ts-node test/e2e/src/E2ECliRunner.ts --setup SimpleSetup.ts --interaction SimpleInteraction.ts
 
 # Show help
 npx ts-node test/e2e/src/E2ECliRunner.ts --help
@@ -142,18 +142,45 @@ The E2E test suite now uses **TypeScript interfaces** instead of JSON schemas fo
 
 ### Benefits of TypeScript Schemas
 
-- **Type Safety**: Compile-time validation of test data structure
+- **Type Safety**: Compile-time validation of test data structure with strict `Address` type (42-char hex strings)
 - **IDE Support**: Auto-completion, refactoring, and error detection
 - **Maintainability**: Easier to update and extend test scenarios
 - **Runtime Validation**: Built-in type guards for runtime checks
 - **Documentation**: Self-documenting interfaces with clear type definitions
+- **Address Validation**: Enforces proper Ethereum address format (0x + 40 hex digits)
+
+### Address Type
+
+The E2E test suite uses a strict `Address` type that ensures all addresses are properly formatted:
+
+```typescript
+export type Address = `0x${string}` & { readonly length: 42 };
+```
+
+This type:
+- **Enforces 0x prefix**: Must start with `0x`
+- **Enforces exact length**: Must be exactly 42 characters (0x + 40 hex digits)
+- **Provides compile-time safety**: TypeScript will catch invalid addresses at compile time
+- **Supports type assertions**: Use `as Address` for string literals
+
+**Examples:**
+```typescript
+// ✅ Valid addresses
+"0x1111111111111111111111111111111111111111" as Address
+"0x0000000000000000000000000000000000000000" as Address
+
+// ❌ Invalid addresses (TypeScript errors)
+"0x111"  // Too short
+"1111111111111111111111111111111111111111"  // Missing 0x
+"0x11111111111111111111111111111111111111111"  // Too long
+```
 
 ### Setup Schema
 
 The setup schema defines the auction environment using TypeScript interfaces:
 
 ```typescript
-import { TestSetupData } from '../schemas/TestSetupSchema';
+import { TestSetupData, Address } from '../schemas/TestSetupSchema';
 
 export const simpleSetup: TestSetupData = {
   env: {
@@ -161,23 +188,23 @@ export const simpleSetup: TestSetupData = {
     startBlock: "1",
     balances: [
       {
-        address: "0x1111111111111111111111111111111111111111",
-        token: "0x0000000000000000000000000000000000000000",
+        address: "0x1111111111111111111111111111111111111111" as Address,
+        token: "0x0000000000000000000000000000000000000000" as Address,
         amount: "1000000000000000000000"
       }
     ]
   },
   auctionParameters: {
-    currency: "0x0000000000000000000000000000000000000000",
+    currency: "0x0000000000000000000000000000000000000000" as Address,
     auctionedToken: "SimpleToken",
-    tokensRecipient: "0x2222222222222222222222222222222222222222",
-    fundsRecipient: "0x3333333333333333333333333333333333333333",
+    tokensRecipient: "0x2222222222222222222222222222222222222222" as Address,
+    fundsRecipient: "0x3333333333333333333333333333333333333333" as Address,
     startOffsetBlocks: 0,
     auctionDurationBlocks: 50,
     claimDelayBlocks: 10,
     graduationThresholdMps: "1000",
     tickSpacing: 100,
-    validationHook: "0x0000000000000000000000000000000000000000",
+    validationHook: "0x0000000000000000000000000000000000000000" as Address,
     floorPrice: "79228162514264337593543950336000"
   },
   additionalTokens: [
@@ -193,16 +220,15 @@ export const simpleSetup: TestSetupData = {
 
 ### Interaction Schema
 
-The interaction schema defines bid scenarios and checkpoints using TypeScript interfaces:
+The interaction schema defines bid scenarios and assertions using TypeScript interfaces:
 
 ```typescript
-import { TokenInteractionData } from '../schemas/TokenInteractionSchema';
+import { TestInteractionData, Address, AssertionInterfaceType } from '../schemas/TestInteractionSchema';
 
-export const simpleInteraction: TokenInteractionData = {
-  timeBase: "auctionStart",
+export const simpleInteraction: TestInteractionData = {
   namedBidders: [
     {
-      address: "0x1111111111111111111111111111111111111111",
+      address: "0x1111111111111111111111111111111111111111" as Address,
       label: "SimpleBidder",
       bids: [
         {
@@ -215,14 +241,14 @@ export const simpleInteraction: TokenInteractionData = {
       recurringBids: []
     }
   ],
-  checkpoints: [
+  assertions: [
     {
       atBlock: 20,
       reason: "Check bidder balance after auction",
       assert: {
-        type: "balance",
-        address: "0x1111111111111111111111111111111111111111",
-        token: "0x0000000000000000000000000000000000000000",
+        type: AssertionInterfaceType.BALANCE,
+        address: "0x1111111111111111111111111111111111111111" as Address,
+        token: "0x0000000000000000000000000000000000000000" as Address,
         expected: "0"
       }
     }
@@ -256,17 +282,21 @@ The test suite loads contract artifacts directly from Foundry's `out` directory,
 
 ### Creating a New Setup
 
-1. Create a new JSON file in `instances/setup/`
-2. Define the auction parameters and environment
-3. Specify additional tokens to deploy
-4. Set up initial balances for test accounts
+1. Create a new TypeScript file in `instances/setup/` (e.g., `MySetup.ts`)
+2. Import the `TestSetupData` and `Address` types from the schema
+3. Define the auction parameters and environment with proper type annotations
+4. Use `as Address` type assertions for 42-character hex addresses
+5. Specify additional tokens to deploy
+6. Set up initial balances for test accounts
 
 ### Creating a New Interaction
 
-1. Create a new JSON file in `instances/interaction/`
-2. Define bid scenarios with specific blocks and amounts
-3. Add checkpoints to validate auction state
-4. Use proper tick pricing for bid amounts
+1. Create a new TypeScript file in `instances/interaction/` (e.g., `MyInteraction.ts`)
+2. Import the `TestInteractionData` and `Address` types from the schema
+3. Define bid scenarios with specific blocks and amounts
+4. Add assertions (formerly checkpoints) to validate auction state
+5. Use proper tick pricing for bid amounts
+6. Use `as Address` type assertions for addresses
 
 ### Same-Block Transactions
 
@@ -275,57 +305,96 @@ The test suite supports multiple transactions in the same block, which is useful
 - **Gas optimization** - Multiple transactions hitting block gas limits
 - **Real-world behavior** - True same-block execution like Ethereum
 
-```json
+```typescript
 {
-  "namedBidders": [
+  namedBidders: [
     {
-      "address": "0x111...",
-      "bids": [{"atBlock": 10, ...}]  // Same block
+      address: "0x111..." as Address,
+      bids: [{ atBlock: 10, ... }]  // Same block
     },
     {
-      "address": "0x222...", 
-      "bids": [{"atBlock": 10, ...}]  // Same block
+      address: "0x222..." as Address, 
+      bids: [{ atBlock: 10, ... }]  // Same block
     }
   ],
-  "checkpoints": [
+  assertions: [
     {
-      "atBlock": 10,  // Same block - executes FIRST (queries before transactions)
-      "assert": {...}
+      atBlock: 10,  // Same block - executes FIRST (queries before transactions)
+      assert: {...}
     }
   ]
 }
 ```
 
-**Execution Order**: Queries/checkpoints execute before transactions in the same block.
+**Execution Order**: Queries/assertions execute before transactions in the same block.
 
 ### Expected Reverts
 
 You can test that certain operations should fail by adding an `expectRevert` field to your bids:
 
-```json
+```typescript
 {
-  "atBlock": 10,
-  "amount": { "side": "input", "type": "raw", "value": "1000000000000000000" },
-  "price": { "type": "raw", "value": "87150978765690771352898345369600" },
-  "expectRevert": "InsufficientBalance"
+  atBlock: 10,
+  amount: { side: "input", type: "raw", value: "1000000000000000000" },
+  price: { type: "raw", value: "87150978765690771352898345369600" },
+  expectRevert: "InsufficientBalance"
 }
 ```
 
 The `expectRevert` field accepts a string that should be contained in the revert data. The test will pass if the transaction reverts and the revert data contains the specified string.
 
-### Adding Checkpoints
+### Adding Assertions
 
-Checkpoints allow you to validate auction state at specific blocks:
+Assertions (formerly checkpoints) allow you to validate auction state at specific blocks. The E2E test suite supports multiple assertion types:
 
-```json
+#### Available Assertion Types
+
+- **`AssertionInterfaceType.BALANCE`** - Validate token or native currency balances
+- **`AssertionInterfaceType.TOTAL_SUPPLY`** - Validate total supply of tokens
+- **`AssertionInterfaceType.EVENT`** - Validate that specific events were emitted
+
+#### Balance Assertions
+
+```typescript
 {
-  "atBlock": 20,
-  "reason": "Validate auction state",
-  "assert": {
-    "type": "balance",
-    "address": "0x1111111111111111111111111111111111111111",
-    "token": "ETH",
-    "expected": "0"
+  atBlock: 20,
+  reason: "Validate auction state",
+  assert: {
+    type: AssertionInterfaceType.BALANCE,
+    address: "0x1111111111111111111111111111111111111111" as Address,
+    token: "0x0000000000000000000000000000000000000000" as Address, // or token name
+    expected: "0"
+  }
+}
+```
+
+#### Total Supply Assertions
+
+```typescript
+{
+  atBlock: 20,
+  reason: "Validate token supply",
+  assert: {
+    type: AssertionInterfaceType.TOTAL_SUPPLY,
+    token: "SimpleToken", // or token address
+    expected: "1000000000000000000000000"
+  }
+}
+```
+
+#### Event Assertions
+
+```typescript
+{
+  atBlock: 20,
+  reason: "Validate event emission",
+  assert: {
+    type: AssertionInterfaceType.EVENT,
+    eventName: "BidPlaced",
+    expectedArgs: {
+      bidder: "0x1111111111111111111111111111111111111111",
+      amount: "1000000000000000000"
+    }
   }
 }
 ```
@@ -339,6 +408,8 @@ Checkpoints allow you to validate auction state at specific blocks:
 3. **Contract Deployment Issues** - Verify that all required contracts are properly imported
 4. **Expected Revert Failures** - Ensure the `expectRevert` string matches the actual revert data
 5. **Native Currency Issues** - Use `0x0000000000000000000000000000000000000000` for native currency
+6. **TypeScript Type Errors** - Use `as Address` type assertions for 42-character hex addresses
+7. **Export Name Mismatches** - Ensure export names match the expected patterns (camelCase for PascalCase filenames)
 
 ### Debug Output
 
@@ -347,6 +418,7 @@ The test suite provides detailed logging:
 - 🏗️ Auction deployment progress
 - 🔍 Bid execution details with same-block grouping
 - 💰 Balance validation results
+- ✅ Assertion validation results
 - 📊 Final auction state
 - 📅 Block-by-block event execution
 
@@ -363,23 +435,22 @@ npx hardhat test test/e2e/tests/e2e.test.ts --verbose
 ```
 test/e2e/
 ├── README.md                 # This file
-├── hardhat.config.ts         # Hardhat configuration
 ├── src/                      # Core test components
-│   ├── SchemaValidator.ts    # Schema validation
+│   ├── SchemaValidator.ts    # TypeScript instance loading
 │   ├── AuctionDeployer.ts    # Contract deployment
 │   ├── BidSimulator.ts       # Bid simulation
-│   ├── AssertionEngine.ts    # Checkpoint validation
+│   ├── AssertionEngine.ts    # Assertion validation
 │   ├── SingleTestRunner.ts   # Test orchestration
 │   ├── MultiTestRunner.ts    # Multi-test management
 │   └── E2ECliRunner.ts       # CLI interface
 ├── instances/                # Test data
 │   ├── setup/               # Auction setup TypeScript files
-│   │   └── simple-setup.ts
+│   │   └── SimpleSetup.ts
 │   └── interaction/         # Interaction TypeScript files
-│       └── simple-interaction.ts
+│       └── SimpleInteraction.ts
 ├── schemas/                  # TypeScript interface definitions
-│   ├── TestSetupSchema.ts
-│   └── TokenInteractionSchema.ts
+│   ├── TestSetupSchema.ts    # Setup data interfaces with Address type
+│   └── TestInteractionSchema.ts # Interaction data interfaces with Address type
 ├── tests/                    # Test files
 │   └── e2e.test.ts          # Main E2E test
 ├── run-e2e-tests.sh         # Shell script for running tests
@@ -394,20 +465,22 @@ When adding new test scenarios:
 1. Follow the existing TypeScript interface patterns
 2. Use descriptive names for setup and interaction files (`.ts` extension)
 3. Import the appropriate interfaces from `schemas/` directory
-4. Add appropriate checkpoints to validate expected behavior
-5. Test with both native currency (0x000...000) and ERC20 token currencies
-6. Document any new assertion types or validation logic
-7. Test same-block scenarios for MEV and gas optimization
-8. Use the command-line interface for targeted testing
+4. Use `as Address` type assertions for 42-character hex addresses
+5. Add appropriate assertions to validate expected behavior
+6. Test with both native currency (0x000...000) and ERC20 token currencies
+7. Document any new assertion types or validation logic
+8. Test same-block scenarios for MEV and gas optimization
+9. Use the command-line interface for targeted testing
+10. Ensure export names follow camelCase convention (e.g., `simpleSetup` for `SimpleSetup.ts`)
 
 ### Adding New Combinations
 
 To add new test combinations, edit `test/e2e/src/E2ECliRunner.ts`:
 
-```javascript
+```typescript
 const COMBINATIONS_TO_RUN = [
-  { setup: 'simple-setup.json', interaction: 'simple-interaction.json' },
-  { setup: 'setup02.json', interaction: 'interaction02.json' },  // Add new combinations
+  { setup: 'SimpleSetup.ts', interaction: 'SimpleInteraction.ts' },
+  { setup: 'MySetup.ts', interaction: 'MyInteraction.ts' },  // Add new combinations
   // Only add compatible combinations!
 ];
 ```

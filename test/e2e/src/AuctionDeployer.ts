@@ -1,4 +1,7 @@
-import { SetupData } from './SchemaValidator';
+import { TestSetupData, Address } from '../schemas/TestSetupSchema';
+import { Contract } from "ethers";
+import mockTokenArtifact from '../../../out/WorkingCustomMockToken.sol/WorkingCustomMockToken.json';
+import auctionArtifact from '../../../out/Auction.sol/Auction.json';
 import hre from "hardhat";
 
 export interface TokenConfig {
@@ -8,17 +11,11 @@ export interface TokenConfig {
   percentAuctioned: string;
 }
 
-export interface BalanceItem {
-  address: string;
-  token: string;
-  amount: string;
-}
-
 export class AuctionDeployer {
-  private ethers: any;
-  private auctionFactory: any = null;
-  private auction: any = null;
-  private tokens: Map<string, any> = new Map(); // Map of token name -> contract instance
+  private ethers: typeof hre.ethers;
+  private auctionFactory: Contract | undefined;
+  private auction: Contract | undefined;
+  private tokens: Map<string, Contract> = new Map(); // Map of token name -> contract instance
 
   constructor() {
     this.ethers = hre.ethers;
@@ -29,9 +26,8 @@ export class AuctionDeployer {
     
     for (const tokenConfig of additionalTokens) {
       // Load artifact directly from Foundry's out directory
-      const tokenArtifact = require('../../../out/WorkingCustomMockToken.sol/WorkingCustomMockToken.json');
-      const Token = await this.ethers.getContractFactory('WorkingCustomMockToken', tokenArtifact);
-      const token = await Token.deploy(
+      const mockToken = await this.ethers.getContractFactory('WorkingCustomMockToken', mockTokenArtifact as any);
+      const token = await mockToken.deploy(
         tokenConfig.name,
         tokenConfig.name.substring(0, Math.min(4, tokenConfig.name.length)).toUpperCase(), // Use first 4 chars as symbol
         parseInt(tokenConfig.decimals),
@@ -47,9 +43,9 @@ export class AuctionDeployer {
     return this.tokens.get(tokenName);
   }
 
-  async getTokenAddress(tokenName: string): Promise<string | null> {
+  async getTokenAddress(tokenName: string): Promise<Address | null> {
     const token = this.tokens.get(tokenName);
-    return token ? await token.getAddress() : null;
+    return token ? await token.getAddress() as Address : null;
   }
 
   async deployAuctionFactory(): Promise<any> {
@@ -60,7 +56,7 @@ export class AuctionDeployer {
     return this.auctionFactory!;
   }
 
-  async createAuction(setupData: SetupData): Promise<any> {
+  async createAuction(setupData: TestSetupData): Promise<any> {
     if (!this.auctionFactory) {
       await this.deployAuctionFactory();
     }
@@ -78,11 +74,23 @@ export class AuctionDeployer {
       throw new Error(`Auctioned token ${setupData.auctionParameters.auctionedToken} not found`);
     }
 
-    const currencyAddress = await this.resolveCurrencyAddress(setupData.auctionParameters.currency);
+    const currencyAddress = await this.resolveCurrencyAddress(setupData.auctionParameters.currency as Address);
     const { auctionParameters, env } = setupData;
+    
+    // Log current block information
+    const currentBlock = await this.ethers.provider.getBlockNumber();
+    console.log(`   📊 Current block number: ${currentBlock}`);
+    console.log(`   📊 Fork block number: ${env.fork?.blockNumber || 'N/A'}`);
+    console.log(`   📊 Env startBlock: ${env.startBlock}`);
+    console.log(`   📊 Start offset blocks: ${auctionParameters.startOffsetBlocks}`);
+    
     const startBlock = BigInt(env.startBlock) + BigInt(auctionParameters.startOffsetBlocks);
     const endBlock = startBlock + BigInt(auctionParameters.auctionDurationBlocks);
     const claimBlock = endBlock + BigInt(auctionParameters.claimDelayBlocks);
+    
+    console.log(`   📊 Calculated auction startBlock: ${startBlock}`);
+    console.log(`   📊 Calculated auction endBlock: ${endBlock}`);
+    console.log(`   📊 Calculated auction claimBlock: ${claimBlock}`);
     
     const auctionAmount = this.calculateAuctionAmount(setupData.auctionParameters.auctionedToken, setupData.additionalTokens);
     
@@ -106,10 +114,25 @@ export class AuctionDeployer {
         auctionStepsData: this.createSimpleAuctionStepsData(auctionParameters.auctionDurationBlocks)
       };
 
+      // Extract AuctionParameters struct definition from the auction artifact
+      const auctionParametersType = auctionArtifact.abi.find((item: any) => 
+        item.type === 'constructor' && 
+        item.inputs && 
+        item.inputs.some((input: any) => input.internalType === 'struct AuctionParameters')
+      )?.inputs.find((input: any) => input.internalType === 'struct AuctionParameters');
+
+      if (!auctionParametersType) {
+        throw new Error('AuctionParameters struct not found in auction artifact');
+      }
+
+      // Construct the tuple type string from the ABI components
+      const components = (auctionParametersType as any).components.map((comp: any) => 
+        `${comp.type} ${comp.name}`
+      ).join(', ');
+      const tupleType = `tuple(${components})`;
+      
       const configData = this.ethers.AbiCoder.defaultAbiCoder().encode(
-        [
-          "tuple(address currency, address tokensRecipient, address fundsRecipient, uint64 startBlock, uint64 endBlock, uint64 claimBlock, uint24 graduationThresholdMps, uint256 tickSpacing, address validationHook, uint256 floorPrice, bytes auctionStepsData)"
-        ],
+        [tupleType],
         [auctionParams]
       );
 
@@ -139,7 +162,7 @@ export class AuctionDeployer {
     }
   }
 
-  async resolveCurrencyAddress(currency: string): Promise<string> {
+  async resolveCurrencyAddress(currency: Address): Promise<Address> {
     // If it's an address, return it directly
     if (currency.startsWith('0x')) {
       return currency;
@@ -191,14 +214,14 @@ export class AuctionDeployer {
     return result;
   }
 
-  async setupBalances(setupData: SetupData): Promise<void> {
+  async setupBalances(setupData: TestSetupData): Promise<void> {
     const { env } = setupData;
     if (!env.balances) return;
 
     console.log('   💰 Setting up balances...');
 
     for (const balance of env.balances) {
-      if (balance.token === '0x0000000000000000000000000000000000000000') {
+      if (balance.token === '0x0000000000000000000000000000000000000000' as Address) {
         // Native currency balance - set native currency balance (ETH, MATIC, BNB, etc.)
         const hexAmount = '0x' + BigInt(balance.amount).toString(16);
         await hre.network.provider.send('hardhat_setBalance', [

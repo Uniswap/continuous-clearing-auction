@@ -1,58 +1,29 @@
-import { SetupData, InteractionData } from './SchemaValidator';
+import { ActionType, TestInteractionData, Group, BidData, Side, AmountType, PriceType, AdminActionMethod, Address } from '../schemas/TestInteractionSchema';
+import { Contract } from "ethers";
 import hre from "hardhat";
 
-export interface BidData {
-  atBlock: number;
-  amount: {
-    side: 'input' | 'output';
-    type: 'raw' | 'percentOfSupply' | 'basisPoints' | 'percentOfGroup';
-    value: string | number;
-    variation?: string | number;
-    token?: string;
-  };
-  price: {
-    type: 'raw' | 'tick';
-    value: string | number;
-    variation?: string | number;
-  };
-  hookData?: string;
-  expectRevert?: string;
+export interface InternalBidData {
+  bidData: BidData;
   bidder: string;
   type: 'named' | 'group';
   group?: string;
 }
 
-export interface Group {
-  labelPrefix: string;
-  count: number;
-  startOffsetBlocks: number;
-  amount: any;
-  price: any;
-  rotationIntervalBlocks: number;
-  betweenRoundsBlocks: number;
-  rounds: number;
-  hookData?: string;
-}
-
 export class BidSimulator {
-  private ethers: any;
-  private network: any;
-  private auction: any;
-  private currency: any;
+  private auction: Contract;
+  private currency: Contract;
   private labelMap: Map<string, string> = new Map();
   private groupBidders: Map<string, string[]> = new Map();
 
   constructor(
-    auction: any, 
-    currency: any
+    auction: Contract, 
+    currency: Contract
   ) {
-    this.ethers = hre.ethers;
-    this.network = hre.network;
     this.auction = auction;
     this.currency = currency;
   }
 
-  async setupLabels(interactionData: InteractionData): Promise<void> {
+  async setupLabels(interactionData: TestInteractionData): Promise<void> {
     // Map symbolic labels to actual addresses
     this.labelMap.set('Pool', await this.auction.getAddress());
     this.labelMap.set('Auction', await this.auction.getAddress());
@@ -74,7 +45,7 @@ export class BidSimulator {
     for (const group of groups) {
       const bidders: string[] = [];
       for (let i = 0; i < group.count; i++) {
-        const address = this.ethers.Wallet.createRandom().address;
+        const address = hre.ethers.Wallet.createRandom().address;
         bidders.push(address);
         this.labelMap.set(`${group.labelPrefix}${i}`, address);
       }
@@ -82,29 +53,30 @@ export class BidSimulator {
     }
   }
 
-  async executeBids(interactionData: InteractionData, timeBase: string): Promise<void> {
-    const allBids = this.collectAllBids(interactionData, timeBase);
+  async executeBids(interactionData: TestInteractionData): Promise<void> {
+    const allBids = this.collectAllBids(interactionData);
     
     // Sort bids by block number
-    allBids.sort((a, b) => a.atBlock - b.atBlock);
+    allBids.sort((a, b) => a.bidData.atBlock - b.bidData.atBlock);
 
     for (const bid of allBids) {
       await this.executeBid(bid);
     }
   }
 
-  collectAllBids(interactionData: InteractionData, timeBase: string): BidData[] {
-    const bids: BidData[] = [];
+  collectAllBids(interactionData: TestInteractionData): InternalBidData[] {
+    const bids: InternalBidData[] = [];
 
     // Named bidders
     if (interactionData.namedBidders) {
       interactionData.namedBidders.forEach(bidder => {
         bidder.bids.forEach(bid => {
-          bids.push({
-            ...bid,
+          const internalBid = {
+            bidData: bid,
             bidder: bidder.address,
-            type: 'named'
-          });
+            type: 'named' as const
+          };
+          bids.push(internalBid);
         });
         
         // TODO: Implement recurring bids support
@@ -128,12 +100,14 @@ export class BidSimulator {
                 (i * group.rotationIntervalBlocks);
               
               bids.push({
-                atBlock: blockOffset,
-                amount: group.amount,
-                price: group.price,
-                hookData: group.hookData,
+                bidData: {
+                  atBlock: blockOffset,
+                  amount: group.amount,
+                  price: group.price,
+                  hookData: group.hookData
+                },
                 bidder,
-                type: 'group',
+                type: 'group' as const,
                 group: group.labelPrefix
               });
             }
@@ -145,16 +119,30 @@ export class BidSimulator {
     return bids;
   }
 
-  async executeBid(bid: BidData): Promise<void> {
+  async executeBid(bid: InternalBidData | any): Promise<void> {
     // Note: Block mining is handled at the block level in CombinedTestRunner
     // This method just executes the bid transaction
 
-    const amount = await this.calculateAmount(bid.amount);
-    const price = await this.calculatePrice(bid.price);
+    // Handle both old flat structure and new InternalBidData structure
+    let bidData: any;
+    let bidder: string;
+    
+    if (bid.bidData) {
+      // New InternalBidData structure
+      bidData = bid.bidData;
+      bidder = bid.bidder;
+    } else {
+      // Old flat structure - convert to InternalBidData
+      bidData = bid;
+      bidder = bid.bidder;
+    }
+
+    const amount = await this.calculateAmount(bidData.amount);
+    const price = await this.calculatePrice(bidData.price);
 
     // Calculate required currency amount for the bid
     const requiredCurrencyAmount = await this.calculateRequiredCurrencyAmount(
-      bid.amount.side === 'input',
+      bidData.amount.side === Side.INPUT,
       amount,
       price
     );
@@ -163,7 +151,7 @@ export class BidSimulator {
     console.log('   🔍   amount:', amount.toString());
     console.log('   🔍   price:', price.toString());
     console.log('   🔍   requiredCurrencyAmount:', requiredCurrencyAmount.toString());
-    console.log('   🔍   bidder:', bid.bidder);
+    console.log('   🔍   bidder:', bidder);
 
     try {
       // For the first bid, use tick 1 as prevTickPrice (floor price)
@@ -171,10 +159,10 @@ export class BidSimulator {
       const prevTickPrice = this.tickNumberToPriceX96(1); // Floor price tick
       
       // Impersonate the bidder account to send the transaction from their address
-      await this.network.provider.send('hardhat_impersonateAccount', [bid.bidder]);
+      await hre.network.provider.send('hardhat_impersonateAccount', [bidder]);
       
       // Get a signer for the bidder address
-      const bidderSigner = await this.ethers.getSigner(bid.bidder);
+      const bidderSigner = await hre.ethers.getSigner(bidder);
       
       // Connect the auction contract to the bidder signer
       const auctionWithBidder = this.auction.connect(bidderSigner);
@@ -182,25 +170,24 @@ export class BidSimulator {
       let tx: any;
       if (this.currency) {
         console.log('   🔍 Using ERC20 currency - would need permit2 setup');
-        // For ERC20 tokens, we would need permit2 setup
-        // For now, we'll skip this and let the auction handle it
+        // TODO: permit2 setup
         tx = await (auctionWithBidder as any).submitBid(
           price,
-          bid.amount.side === 'input',
+          bidData.amount.side === Side.INPUT,
           amount,
-          bid.bidder,
+          bidder,
           prevTickPrice,
-          bid.hookData || '0x'
+          bidData.hookData || '0x'
         );
       } else {
         // For ETH currency, send the required amount as msg.value
         tx = await (auctionWithBidder as any).submitBid(
           price,
-          bid.amount.side === 'input',
+          bidData.amount.side === Side.INPUT,
           amount,
-          bid.bidder,
+          bidder,
           prevTickPrice,
-          bid.hookData || '0x',
+          bidData.hookData || '0x',
           { value: requiredCurrencyAmount }
         );
       }
@@ -208,19 +195,19 @@ export class BidSimulator {
       await tx.wait();
       
       // Stop impersonating the account
-      await this.network.provider.send('hardhat_stopImpersonatingAccount', [bid.bidder]);
+      await hre.network.provider.send('hardhat_stopImpersonatingAccount', [bidder]);
       
     } catch (error: any) {
       // Stop impersonating the account even if there's an error
       try {
-        await this.network.provider.send('hardhat_stopImpersonatingAccount', [bid.bidder]);
+        await hre.network.provider.send('hardhat_stopImpersonatingAccount', [bidder]);
       } catch (stopError) {
         // Ignore stop impersonation errors
       }
       
-      if (bid.expectRevert) {
+      if (bidData.expectRevert) {
         // Expected revert - validate the revert data if specified
-        await this.validateExpectedRevert(error, bid.expectRevert);
+        await this.validateExpectedRevert(error, bidData.expectRevert);
         return;
       }
       throw error;
@@ -229,7 +216,7 @@ export class BidSimulator {
   }
 
   async validateExpectedRevert(error: any, expectedRevert: string): Promise<void> {
-    // TODO: decode data from revert
+    // TODO: decode reason from revert data
     // Extract the revert data string from the error
     const actualRevertData = error?.data || error?.error?.data || error?.info?.data || '';
     
@@ -243,27 +230,27 @@ export class BidSimulator {
   async calculateAmount(amountConfig: any): Promise<bigint> {
     // Implementation depends on amount type (raw, percentOfSupply, etc.)
     // This is a simplified version
-    if (amountConfig.type === 'raw') {
+    if (amountConfig.type === AmountType.RAW) {
       return BigInt(amountConfig.value);
     }
     
     // TODO: Implement percentOfSupply calculation
     // Should calculate percentage of total token supply
-    if (amountConfig.type === 'percentOfSupply') {
+    if (amountConfig.type === AmountType.PERCENT_OF_SUPPLY) {
       // const totalSupply = await this.token.totalSupply();
       // return (totalSupply * BigInt(amountConfig.value)) / 100n;
     }
     
     // TODO: Implement basisPoints calculation
     // Should calculate basis points (1/10000) of total supply
-    if (amountConfig.type === 'basisPoints') {
+    if (amountConfig.type === AmountType.BASIS_POINTS) {
       // const totalSupply = await this.token.totalSupply();
       // return (totalSupply * BigInt(amountConfig.value)) / 10000n;
     }
     
     // TODO: Implement percentOfGroup calculation
     // Should calculate percentage of group total
-    if (amountConfig.type === 'percentOfGroup') {
+    if (amountConfig.type === AmountType.PERCENT_OF_GROUP) {
       // Implementation depends on group context
     }
     
@@ -279,7 +266,7 @@ export class BidSimulator {
   }
 
   async calculatePrice(priceConfig: any): Promise<bigint> {
-    if (priceConfig.type === 'tick') {
+    if (priceConfig.type === PriceType.TICK) {
       // Convert tick to actual price using the same logic as the Foundry tests
       return this.tickNumberToPriceX96(parseInt(priceConfig.value.toString()));
     }
@@ -315,13 +302,13 @@ export class BidSimulator {
     }
   }
 
-  async executeActions(interactionData: InteractionData, timeBase: string): Promise<void> {
+  async executeActions(interactionData: TestInteractionData): Promise<void> {
     if (!interactionData.actions) return;
 
     for (const action of interactionData.actions) {
-      if (action.type === 'TransferAction') {
+      if (action.type === ActionType.TRANSFER_ACTION) {
         await this.executeTransfers(action.interactions);
-      } else if (action.type === 'AdminAction') {
+      } else if (action.type === ActionType.ADMIN_ACTION) {
         await this.executeAdminActions(action.interactions);
       }
     }
@@ -359,9 +346,9 @@ export class BidSimulator {
         // Note: Block mining is handled at the block level in CombinedTestRunner
         
         const { kind } = interaction.value;
-        if (kind === 'sweepCurrency') {
+        if (kind === AdminActionMethod.SWEEP_CURRENCY) {
           await this.auction.sweepCurrency();
-        } else if (kind === 'sweepUnsoldTokens') {
+        } else if (kind === AdminActionMethod.SWEEP_UNSOLD_TOKENS) {
           await this.auction.sweepUnsoldTokens();
         } 
       }

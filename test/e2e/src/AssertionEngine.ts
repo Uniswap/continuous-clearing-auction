@@ -1,28 +1,8 @@
-import { InteractionData } from './SchemaValidator';
+import { AssertionInterfaceType, BalanceAssertion, PoolAssertion, EventAssertion, TotalSupplyAssertion, Assertion, Address } from '../schemas/TestInteractionSchema';
+import { Contract } from "ethers";
 import hre from "hardhat";
 
-export interface BalanceAssertion {
-  type: 'balance';
-  address: string;
-  token: string;
-  expected: string;
-}
-
-export interface AddressAssertion {
-  address: string;
-  balance?: string | number;
-}
-
-export interface PoolAssertion {
-  tick?: number;
-  sqrtPriceX96?: string | number;
-  liquidity?: string | number;
-}
-
-export interface EventAssertion {
-  signature: string;
-}
-
+// NOTE: Uses bigint since this comes directly from the contract
 export interface Checkpoint {
   clearingPrice: bigint;
   totalCleared: bigint;
@@ -35,6 +15,7 @@ export interface Checkpoint {
   cumulativeSupplySoldToClearingPrice: bigint;
 }
 
+// NOTE: Uses bigint since this comes directly from the contract
 export interface AuctionState {
   currentBlock: number;
   isGraduated: boolean;
@@ -44,57 +25,49 @@ export interface AuctionState {
 }
 
 export interface BidderState {
-  address: string;
-  tokenBalance: bigint;
-  currencyBalance: bigint;
+  address: Address;
+  tokenBalance: string;
+  currencyBalance: string;
 }
 
 export class AssertionEngine {
-  private auction: any;
-  private token: any;
-  private currency: any;
-  private ethers: any;
+  private auction: Contract;
+  private token: Contract | any; // Contract or Native currency
+  private currency: Contract | any; // Contract or Native currency
+  private auctionDeployer: any;
 
   constructor(
-    auction: any, 
-    token: any, 
-    currency: any,
+    auction: Contract, 
+    token: Contract | any, 
+    currency: Contract | any,
+    auctionDeployer: any,
   ) {
     this.auction = auction;
     this.token = token;
     this.currency = currency;
-    this.ethers = hre.ethers;
+    this.auctionDeployer = auctionDeployer;
   }
 
-  async validateCheckpoints(interactionData: InteractionData, timeBase: string): Promise<void> {
-    if (!interactionData.checkpoints) return;
 
-    for (const checkpoint of interactionData.checkpoints) {
-      // Note: Block mining is handled at the block level in CombinedTestRunner
-      // This method just validates the assertion
-      
-      if (checkpoint.assert) {
-        await this.validateAssertion(checkpoint.assert);
-      }
+  async validateAssertion(assertion: Assertion): Promise<void> {
+    if (assertion.type === AssertionInterfaceType.BALANCE) {
+      await this.validateBalanceAssertion(assertion);
+    } else {
+      // TODO: Implement other assertion interfaces (TotalSupplyAssertion, EventAssertion, PoolAssertion, etc.)
+      console.log(`   ⚠️  Unsupported assertion interface: ${assertion.type}`);
     }
   }
 
-  async validateAssertion(assertion: any): Promise<void> {
-    if (assertion.type === 'balance') {
-      await this.validateBalanceAssertion(assertion as BalanceAssertion);
-    } else if (assertion.address) {
-      await this.validateAddressAssertion(assertion as AddressAssertion);
-    } else if (assertion.pool) {
-      // TODO: Implement pool state assertions
-      // Should validate tick, sqrtPriceX96, liquidity values
-      console.log(`   🏊 Pool assertion: tick=${assertion.pool.tick}, sqrtPriceX96=${assertion.pool.sqrtPriceX96}, liquidity=${assertion.pool.liquidity}`);
-      await this.validatePoolAssertion(assertion.pool as PoolAssertion);
-    } else if (assertion.events) {
-      // TODO: Implement event assertions
-      // Should validate that specific events were emitted
-      console.log(`   📝 Event assertion: ${assertion.events.length} events to validate`);
-      await this.validateEventAssertion(assertion.events as EventAssertion[]);
+  async resolveTokenAddress(tokenIdentifier: string): Promise<string> {
+    if (tokenIdentifier.startsWith('0x')) {
+      return tokenIdentifier; // It's already an address
     }
+    // Look up by name in the deployed tokens (from AuctionDeployer)
+    const tokenContract = this.auctionDeployer.getTokenByName(tokenIdentifier);
+    if (tokenContract) {
+      return await tokenContract.getAddress();
+    }
+    throw new Error(`Token with identifier ${tokenIdentifier} not found.`);
   }
 
   async validateBalanceAssertion(assertion: BalanceAssertion): Promise<void> {
@@ -103,102 +76,38 @@ export class AssertionEngine {
     let actualBalance: bigint;
     const expectedBalance = BigInt(expected);
     
-    if (token === '0x0000000000000000000000000000000000000000') {
-      // Check native currency balance (ETH, MATIC, BNB, etc.)
-      actualBalance = await this.ethers.provider.getBalance(address);
-      console.log(`   💰 Native currency balance check: ${address} has ${actualBalance.toString()} wei, expected ${expectedBalance.toString()}`);
+    const resolvedTokenAddress = await this.resolveTokenAddress(token);
+    
+    if (resolvedTokenAddress === '0x0000000000000000000000000000000000000000') {
+      // Native currency
+      actualBalance = await hre.ethers.provider.getBalance(address);
+      console.log(`   💰 Native currency balance check: ${address} has ${actualBalance} wei, expected ${expectedBalance}`);
     } else {
-      // Get the token contract based on the token name
-      let tokenContract: any = null;
-      if (token === 'USDC') {
-        tokenContract = this.currency; // USDC is our currency token
-      } else {
-        tokenContract = this.token; // Default to auctioned token
-      }
-      
-      if (!tokenContract) {
-        throw new Error(`Token contract not found for token: ${token}`);
-      }
-      
+      // ERC20 token
+      const tokenContract = await hre.ethers.getContractAt('IERC20Minimal', resolvedTokenAddress);
       actualBalance = await tokenContract.balanceOf(address);
-      console.log(`   💰 Token Balance check: ${address} has ${actualBalance.toString()} ${token}, expected ${expectedBalance.toString()}`);
+      console.log(`   💰 ERC20 token balance check: ${address} has ${actualBalance} of ${token}, expected ${expectedBalance}`);
     }
     
     if (actualBalance !== expectedBalance) {
-      throw new Error(
-        `Balance assertion failed for ${address}: expected ${expectedBalance} ${token}, got ${actualBalance}`
-      );
+      throw new Error(`Balance assertion failed for ${address} token ${token}. Expected ${expectedBalance}, got ${actualBalance}`);
     }
+    console.log(`         ✅ Assertion validated`);
   }
 
-  async validateAddressAssertion(addressAssertion: AddressAssertion): Promise<void> {
-    const { address, balance } = addressAssertion;
-    
-    if (balance !== undefined && this.token) {
-      const actualBalance = await this.token.balanceOf(address);
-      const expectedBalance = BigInt(balance);
-      
-      if (actualBalance !== expectedBalance) {
-        throw new Error(
-          `Address balance assertion failed: expected ${expectedBalance}, got ${actualBalance}`
-        );
-      }
-    }
+  async validateTotalSupplyAssertion(totalSupplyAssertion: TotalSupplyAssertion[]): Promise<void> {
+    // TODO: implement this validation
+    console.log(`   ⚠️  Total supply assertion validation not yet implemented`);
   }
 
-  async validatePoolAssertion(poolAssertion: PoolAssertion): Promise<void> {
-    // Validate pool state assertions
-    if (poolAssertion.tick !== undefined) {
-      try {
-        const actualTick = await this.auction.getCurrentTick();
-        if (actualTick !== poolAssertion.tick) {
-          throw new Error(
-            `Pool tick assertion failed: expected ${poolAssertion.tick}, got ${actualTick}`
-          );
-        }
-      } catch (error) {
-        console.warn('   ⚠️  getCurrentTick not available on auction contract');
-      }
-    }
-
-    if (poolAssertion.sqrtPriceX96 !== undefined) {
-      try {
-        const actualSqrtPrice = await this.auction.getCurrentSqrtPrice();
-        const expectedSqrtPrice = BigInt(poolAssertion.sqrtPriceX96);
-        
-        if (actualSqrtPrice !== expectedSqrtPrice) {
-          throw new Error(
-            `Pool sqrtPriceX96 assertion failed: expected ${expectedSqrtPrice}, got ${actualSqrtPrice}`
-          );
-        }
-      } catch (error) {
-        console.warn('   ⚠️  getCurrentSqrtPrice not available on auction contract');
-      }
-    }
-
-    if (poolAssertion.liquidity !== undefined) {
-      try {
-        const actualLiquidity = await this.auction.getCurrentLiquidity();
-        const expectedLiquidity = BigInt(poolAssertion.liquidity);
-        
-        if (actualLiquidity !== expectedLiquidity) {
-          throw new Error(
-            `Pool liquidity assertion failed: expected ${expectedLiquidity}, got ${actualLiquidity}`
-          );
-        }
-      } catch (error) {
-        console.warn('   ⚠️  getCurrentLiquidity not available on auction contract');
-      }
-    }
+  async validatePoolAssertion(poolAssertions: PoolAssertion[]): Promise<void> {
+    // TODO: implement this validation
+    console.log(`   ⚠️  Pool assertion validation not yet implemented`);
   }
 
-  async validateEventAssertion(eventAssertions: EventAssertion[]): Promise<void> {
-    // This would validate that specific events were emitted
-    // Implementation depends on how you want to track events
-    for (const eventAssertion of eventAssertions) {
-      // Validate event signature and parameters
-      console.log(`Validating event: ${eventAssertion.signature}`);
-    }
+  async validateEventAssertion(eventAssertion: EventAssertion[]): Promise<void> {
+    // TODO: implement this validation
+    console.log(`   ⚠️  Event assertion validation not yet implemented`);
   }
 
   async getAuctionState(): Promise<AuctionState> {
@@ -209,7 +118,7 @@ export class AssertionEngine {
       currencyRaised,
       latestCheckpoint
     ] = await Promise.all([
-      this.ethers.provider.getBlockNumber(),
+      hre.ethers.provider.getBlockNumber(),
       this.auction.isGraduated(),
       this.auction.clearingPrice(),
       this.auction.currencyRaised(),
@@ -225,16 +134,16 @@ export class AssertionEngine {
     };
   }
 
-  async getBidderState(bidderAddress: string): Promise<BidderState> {
-    // This would return the state of a specific bidder
-    // Implementation depends on how bids are tracked
+  async getBidderState(bidderAddress: Address): Promise<BidderState> {
+    // TODO: This would return the state of a specific bidder. 
+    // This is just a placeholder for now
     const tokenBalance = this.token ? await this.token.balanceOf(bidderAddress) : 0n;
     const currencyBalance = this.currency ? await this.currency.balanceOf(bidderAddress) : 0n;
     
     return {
       address: bidderAddress,
-      tokenBalance,
-      currencyBalance
+      tokenBalance: tokenBalance.toString(),
+      currencyBalance: currencyBalance.toString(),
     };
   }
 }

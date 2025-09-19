@@ -1,5 +1,6 @@
 // TypeScript interfaces for test setup schema
-// This replaces the JSON schema with proper TypeScript types
+
+export type Address = `0x${string}` & { readonly length: 42 };
 
 export interface ForkConfig {
   rpcUrl: string;
@@ -7,8 +8,8 @@ export interface ForkConfig {
 }
 
 export interface BalanceItem {
-  address: string;
-  token: string;
+  address: Address; // Address of the account to set the balance for
+  token: Address | string;
   amount: string;
 }
 
@@ -24,16 +25,16 @@ export interface Environment {
 }
 
 export interface AuctionParameters {
-  currency: string;
-  auctionedToken: string;
-  tokensRecipient: string;
-  fundsRecipient: string;
+  currency: Address | string;
+  auctionedToken: Address | string;
+  tokensRecipient: Address;
+  fundsRecipient: Address;
   startOffsetBlocks: number;
   auctionDurationBlocks: number;
   claimDelayBlocks: number;
   graduationThresholdMps: string;
   tickSpacing: number;
-  validationHook: string;
+  validationHook: Address;
   floorPrice: string;
 }
 

@@ -83,28 +83,4 @@ export class MultiTestRunner {
       interaction: interactionFiles.map(f => f.filename)
     };
   }
-
-  /**
-   * Generate all possible combinations of setup + interaction files
-   */
-  generateAllCombinations(): Combination[] {
-    const files = this.getAvailableFiles();
-    const combinations: Combination[] = [];
-    
-    for (const setup of files.setup) {
-      for (const interaction of files.interaction) {
-        combinations.push({ setup, interaction });
-      }
-    }
-    
-    return combinations;
-  }
-
-  /**
-   * Run all possible combinations
-   */
-  async runAllPossibleCombinations(): Promise<CombinationResult[]> {
-    const combinations = this.generateAllCombinations();
-    return await this.runAllCombinations(combinations);
-  }
 }

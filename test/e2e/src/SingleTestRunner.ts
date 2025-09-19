@@ -54,7 +54,14 @@ export class SingleTestRunner {
     
     // PHASE 1: Setup the auction environment
     console.log('🏗️  Phase 1: Setting up auction environment...');
+    
+    // Initialize deployer with tokens and factory (one-time setup)
+    await this.deployer.initialize(setupData);
+    
+    // Create the auction
     const auction: Contract = await this.deployer.createAuction(setupData);
+    
+    // Setup balances
     await this.deployer.setupBalances(setupData);
     
     console.log(`   🏛️  Auction deployed: ${await auction.getAddress()}`);

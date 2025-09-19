@@ -38,6 +38,20 @@ export class AuctionDeployer {
     this.ethers = hre.ethers;
   }
 
+  /**
+   * Initialize the deployer with tokens and factory
+   * This should be called once per test setup
+   */
+  async initialize(setupData: TestSetupData): Promise<void> {
+    // Deploy auction factory
+    await this.deployAuctionFactory();
+    
+    // Deploy all tokens once
+    await this.deployAdditionalTokens(setupData.additionalTokens);
+    
+    logger.info(LOG_PREFIXES.SUCCESS, 'AuctionFactory deployed. Additional Tokens Deployer', setupData.additionalTokens.length, 'tokens');
+  }
+
   async deployAdditionalTokens(additionalTokens: TokenConfig[]): Promise<void> {
     logger.info(LOG_PREFIXES.DEPLOY, 'Deploying additional tokens...');
     
@@ -81,13 +95,10 @@ export class AuctionDeployer {
 
   async createAuction(setupData: TestSetupData): Promise<AuctionContract> {
     if (!this.auctionFactory) {
-      await this.deployAuctionFactory();
+      throw new AuctionDeploymentError('AuctionDeployer not initialized. Call initialize() first.');
     }
 
-    // Deploy additional tokens
-    await this.deployAdditionalTokens(setupData.additionalTokens);
-
-    // Get the auctioned token and currency
+    // Get the auctioned token and currency (tokens should already be deployed)
     const auctionedToken = this.getTokenByName(setupData.auctionParameters.auctionedToken);
     if (!auctionedToken) {
       throw new AuctionDeploymentError(

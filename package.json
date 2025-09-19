@@ -15,7 +15,9 @@
     "compile": "hardhat compile",
     "clean": "hardhat clean",
     "build": "tsc",
-    "build:watch": "tsc --watch"
+    "build:watch": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "lint": "tsc --noEmit"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^3.1.0",

@@ -69,14 +69,6 @@ library CurrencyLibrary {
         }
     }
 
-    function balanceOfSelf(Currency currency) internal view returns (uint256) {
-        if (currency.isAddressZero()) {
-            return address(this).balance;
-        } else {
-            return IERC20Minimal(Currency.unwrap(currency)).balanceOf(address(this));
-        }
-    }
-
     function balanceOf(Currency currency, address owner) internal view returns (uint256) {
         if (currency.isAddressZero()) {
             return owner.balance;

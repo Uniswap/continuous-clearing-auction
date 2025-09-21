@@ -12,7 +12,7 @@ contract AuctionFactory is IAuctionFactory {
     address public constant USE_MSG_SENDER = 0x0000000000000000000000000000000000000001;
     /// @inheritdoc IDistributionStrategy
 
-    function initializeDistribution(address token, uint128 amount, bytes calldata configData, bytes32 salt)
+    function initializeDistribution(address token, uint256 amount, bytes calldata configData, bytes32 salt)
         external
         returns (IDistributionContract distributionContract)
     {

@@ -1,3 +1,13 @@
 {
-  "checkpoint_zeroSupply": "145295"
+  "checkpoint_advanceToCurrentStep": "157988",
+  "checkpoint_noBids": "141549",
+  "checkpoint_zeroSupply": "145295",
+  "claimTokens": "82612",
+  "exitBid": "91736",
+  "exitPartiallyFilledBid": "290600",
+  "submitBid": "161288",
+  "submitBid_recordStep_updateCheckpoint": "314320",
+  "submitBid_recordStep_updateCheckpoint_initializeTick": "314320",
+  "submitBid_updateCheckpoint": "299530",
+  "submitBid_withValidationHook": "318561"
 }

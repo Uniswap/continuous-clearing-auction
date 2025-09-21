@@ -1148,7 +1148,7 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(mps, 250e3);
     }
 
-    function test_calculateNewClearingPrice_belowFloorPrice_returnsFloorPrice() public {
+    function test_calculateNewClearingPrice_belowMinimumClearingPrice_returnsMinimumClearingPrice() public {
         params = params.withFloorPrice(10e6 << FixedPoint96.RESOLUTION);
 
         MockAuction mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, params);
@@ -1163,9 +1163,8 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(block.number + 1);
         mockAuction.checkpoint(); // This sets up sumDemandAboveClearing properly
 
-        // We need: minimumClearingPrice < calculated_price < floorPrice
-        // Use a much smaller minimumClearingPrice so the calculated price will be above it
-        uint256 minimumClearingPrice = 1e1 << FixedPoint96.RESOLUTION; // Much much smaller than floor price (10e6 << 96)
+        // Minimum clearing price must be at least floor price
+        uint256 minimumClearingPrice = 11e6 << FixedPoint96.RESOLUTION;
 
         Checkpoint memory latestCheckpoint = mockAuction.latestCheckpoint();
 
@@ -1177,7 +1176,7 @@ contract AuctionTest is AuctionBaseTest {
             quotientX7
         );
 
-        assertEq(result, 10e6 << FixedPoint96.RESOLUTION);
+        assertEq(result, 11e6 << FixedPoint96.RESOLUTION);
     }
 
     /// forge-config: default.isolate = true

@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/d8923ff869bd7fcb722e5bcf182d5585489c9701/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/29137e702c0788c77e322c9c3ddb3311dbfffb38/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -135,12 +135,19 @@ function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint64 blockNumber
 
 ### _calculateNewClearingPrice
 
-Calculate the new clearing price, given:
+Calculate the new clearing price, given the minimum clearing price and the quotient
 
 
 ```solidity
 function _calculateNewClearingPrice(uint256 minimumClearingPrice, ValueX7 quotientX7) internal view returns (uint256);
 ```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`minimumClearingPrice`|`uint256`|The minimum clearing price which MUST be >= the floor price|
+|`quotientX7`|`ValueX7`|The quotient used in the clearing price calculation|
+
 
 ### _updateLatestCheckpointToCurrentStep
 

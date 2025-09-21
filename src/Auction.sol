@@ -159,27 +159,23 @@ contract Auction is
         return _checkpoint;
     }
 
-    /// @notice Calculate the new clearing price, given:
+    /// @notice Calculate the new clearing price, given the minimum clearing price and the quotient
+    /// @param minimumClearingPrice The minimum clearing price which MUST be >= the floor price
+    /// @param quotientX7 The quotient used in the clearing price calculation
     function _calculateNewClearingPrice(uint256 minimumClearingPrice, ValueX7 quotientX7)
         internal
         view
         returns (uint256)
     {
         // Calculate the clearing price by dividing the currencyDemandX7 by the supply subtracted by the tokenDemandX7, following `currency / tokens = price`
-        // If the step is zero the supply being sold is zero so we set the price to zero
-        // That way, if the minimum clearing price is non zero, it will be returned. Otherwise, the floor price will be returned.
-        uint256 _clearingPrice = step.mps > 0
-            ? ValueX7.unwrap(
-                sumDemandAboveClearing.currencyDemandX7.fullMulDiv(
-                    ValueX7.wrap(FixedPoint96.Q96), quotientX7.sub(sumDemandAboveClearing.tokenDemandX7)
-                )
+        uint256 _clearingPrice = ValueX7.unwrap(
+            sumDemandAboveClearing.currencyDemandX7.fullMulDiv(
+                ValueX7.wrap(FixedPoint96.Q96), quotientX7.sub(sumDemandAboveClearing.tokenDemandX7)
             )
-            : 0;
+        );
 
         // If the new clearing price is below the minimum clearing price return the minimum clearing price
         if (_clearingPrice < minimumClearingPrice) return minimumClearingPrice;
-        // If the new clearing price is below the floor price return the floor price
-        if (_clearingPrice < FLOOR_PRICE) return FLOOR_PRICE;
         // Otherwise, round down to the nearest tick boundary
         return (_clearingPrice - (_clearingPrice % TICK_SPACING));
     }
@@ -197,41 +193,58 @@ contract Auction is
         // If step.mps is 0, advance to the current step before calculating the supply
         if (step.mps == 0) _advanceToCurrentStep(_checkpoint, blockNumber);
 
-        ValueX7 quotientX7 = TOTAL_SUPPLY_X7.sub(_checkpoint.totalCleared).mulUint256(MPSLib.MPS).divUint256(
-            MPSLib.MPS - _checkpoint.cumulativeMps
-        );
+        // The clearing price can never be lower than the last checkpoint. If the clearingPrice is zero, set it to the floor price
+        uint256 _clearingPrice = _checkpoint.clearingPrice.coalesce(FLOOR_PRICE);
+        if (step.mps > 0) {
+            // All active demand above the current clearing price
+            Demand memory _sumDemandAboveClearing = sumDemandAboveClearing;
+            // The next price tick initialized with demand is the `nextActiveTickPrice`
+            Tick memory _nextActiveTick = getTick(nextActiveTickPrice);
 
-        // All active demand above the current clearing price
-        Demand memory _sumDemandAboveClearing = sumDemandAboveClearing;
-        // The clearing price can never be lower than the last checkpoint
-        uint256 minimumClearingPrice = _checkpoint.clearingPrice;
-        // The next price tick initialized with demand is the `nextActiveTickPrice`
-        Tick memory _nextActiveTick = getTick(nextActiveTickPrice);
+            /**
+             * Calculate the quotient used in the tick iteration and clearing price calculation
+             * - We can calculate the supply sold in this block by finding the actual supply sold so far,
+             *   multiplying it by the current supply issuance rate (step.mps), and dividing by the remaining mps in the auction.
+             *   This accounts for any previously unsold supply which is rolled over.
+             * - However, multpling by `step.mps` and dividing by `MPSLib.MPS` loses precision, so we want to avoid it whenever possible.
+             *   Thus, we calculate an intermediate value here that simplifies future calculations.
+             */
+            ValueX7 quotientX7 = TOTAL_SUPPLY_X7.sub(_checkpoint.totalCleared).mulUint256(MPSLib.MPS).divUint256(
+                MPSLib.MPS - _checkpoint.cumulativeMps
+            );
 
-        // For a non-zero supply, iterate to find the tick where the demand at and above it is strictly less than the supply
-        // Sets nextActiveTickPrice to MAX_TICK_PRICE if the highest tick in the book is reached
-        while (_sumDemandAboveClearing.resolve(nextActiveTickPrice).gte(ValueX7.unwrap(quotientX7)) && step.mps > 0) {
-            // Subtract the demand at `nextActiveTickPrice`
-            _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_nextActiveTick.demand);
-            // The `nextActiveTickPrice` is now the minimum clearing price because there was enough demand to fill the supply
-            minimumClearingPrice = nextActiveTickPrice;
-            // Advance to the next tick
-            uint256 _nextTickPrice = _nextActiveTick.next;
-            nextActiveTickPrice = _nextTickPrice;
-            _nextActiveTick = getTick(_nextTickPrice);
-        }
+            /**
+             * For a non-zero supply, iterate to find the tick where the demand at and above it is strictly less than the supply
+             * Sets nextActiveTickPrice to MAX_TICK_PRICE if the highest tick in the book is reached
+             *
+             * We must compare the resolved demand following the current issuance schedule (step.mps) to the supply being sold
+             * But we don't want to multiply by `step.mps` and divide by `MPSLib.MPS` because it loses precision
+             * Thus, we multiply both sides by `MPSLib.MPS` instead of dividing such that it is equivalent.
+             */
+            while (_sumDemandAboveClearing.resolve(nextActiveTickPrice).gte(ValueX7.unwrap(quotientX7))) {
+                // Subtract the demand at `nextActiveTickPrice`
+                _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_nextActiveTick.demand);
+                // The `nextActiveTickPrice` is now the minimum clearing price because there was enough demand to fill the supply
+                _clearingPrice = nextActiveTickPrice;
+                // Advance to the next tick
+                uint256 _nextTickPrice = _nextActiveTick.next;
+                nextActiveTickPrice = _nextTickPrice;
+                _nextActiveTick = getTick(_nextTickPrice);
+            }
 
-        // Save state variables
-        sumDemandAboveClearing = _sumDemandAboveClearing;
-        // Calculate the new clearing price
-        uint256 newClearingPrice = _calculateNewClearingPrice(minimumClearingPrice, quotientX7);
-        // Reset the cumulative supply sold to clearing price if the clearing price is different now
-        if (newClearingPrice != _checkpoint.clearingPrice) {
-            _checkpoint.cumulativeSupplySoldToClearingPriceX7 = ValueX7.wrap(0);
+            // Save state variables
+            sumDemandAboveClearing = _sumDemandAboveClearing;
+            // Calculate the new clearing price
+            _clearingPrice = _calculateNewClearingPrice(_clearingPrice, quotientX7);
+            // Reset the cumulative supply sold to clearing price if the clearing price is different now
+            if (_clearingPrice != _checkpoint.clearingPrice) {
+                _checkpoint.cumulativeSupplySoldToClearingPriceX7 = ValueX7.wrap(0);
+            }
+            _checkpoint.sumDemandAboveClearingPrice = _sumDemandAboveClearing;
         }
         // Set the new clearing price
-        _checkpoint.clearingPrice = newClearingPrice;
-        _checkpoint.sumDemandAboveClearingPrice = _sumDemandAboveClearing;
+        _checkpoint.clearingPrice = _clearingPrice;
+
         /// We can now advance the `step` to the current step for the block
         /// This modifies the `_checkpoint` to ensure the cumulative variables are correctly accounted for
         /// Checkpoint.transform is dependent on:

@@ -1,5 +1,5 @@
 # ICheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/579dd192cb3d6db3d93e95ab513fff830b038a4e/src/interfaces/ICheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ce0cdcca7cbcb44361047d64c159d39b69b75e36/src/interfaces/ICheckpointStorage.sol)
 
 
 ## Functions
@@ -29,7 +29,7 @@ Get the currency raised at the last checkpointed block
 
 
 ```solidity
-function currencyRaised() external view returns (uint128);
+function currencyRaised() external view returns (uint256);
 ```
 
 ### lastCheckpointedBlock

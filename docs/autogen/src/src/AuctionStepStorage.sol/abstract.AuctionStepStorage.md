@@ -1,5 +1,5 @@
 # AuctionStepStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/234e8323b9dc5c4ff4d3d4843763914a3051a9ce/src/AuctionStepStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/f66249e6bb5ebf3be6698edff5f27719f8f33c6e/src/AuctionStepStorage.sol)
 
 **Inherits:**
 [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md)
@@ -17,30 +17,30 @@ uint256 public constant UINT64_SIZE = 8;
 ```
 
 
-### startBlock
+### START_BLOCK
 The block at which the auction starts
 
 
 ```solidity
-uint64 public immutable startBlock;
+uint64 internal immutable START_BLOCK;
 ```
 
 
-### endBlock
+### END_BLOCK
 The block at which the auction ends
 
 
 ```solidity
-uint64 public immutable endBlock;
+uint64 internal immutable END_BLOCK;
 ```
 
 
-### _length
+### _LENGTH
 Cached length of the auction steps data provided in the constructor
 
 
 ```solidity
-uint256 private immutable _length;
+uint256 internal immutable _LENGTH;
 ```
 
 
@@ -99,5 +99,23 @@ Advance the current auction step
 
 ```solidity
 function _advanceStep() internal returns (AuctionStep memory);
+```
+
+### startBlock
+
+The block at which the auction starts
+
+
+```solidity
+function startBlock() external view returns (uint64);
+```
+
+### endBlock
+
+The block at which the auction ends
+
+
+```solidity
+function endBlock() external view returns (uint64);
 ```
 

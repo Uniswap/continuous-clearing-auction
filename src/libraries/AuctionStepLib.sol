@@ -8,9 +8,7 @@ struct AuctionStep {
 }
 
 library AuctionStepLib {
-    /// @notice we use milli-bips, or one thousandth of a basis point
-
-    uint24 public constant MPS = 1e7;
+    using AuctionStepLib for *;
 
     /// @notice Unpack the mps and block delta from the auction steps data
     function parse(bytes8 data) internal pure returns (uint24 mps, uint40 blockDelta) {
@@ -26,11 +24,5 @@ library AuctionStepLib {
             mps := shr(40, packedValue)
             blockDelta := and(packedValue, 0xFFFFFFFFFF)
         }
-    }
-
-    /// @notice Apply mps to a value
-    /// @dev Requires that value is > MPS to avoid loss of precision
-    function applyMps(uint128 value, uint24 mps) internal pure returns (uint128) {
-        return mps * value / MPS;
     }
 }

@@ -153,7 +153,6 @@ struct AuctionParameters {
     address validationHook; // Optional hook called before a bid
     uint256 floorPrice; // Starting floor price for the auction (in Q96 format)
     bytes auctionStepsData; // Packed bytes describing token issuance schedule
-    bytes fundsRecipientData; // Optional data to call the fundsRecipient with after the currency is swept
 }
 
 constructor(
@@ -302,10 +301,10 @@ event BidExited(uint256 indexed bidId, address indexed owner);
 - `lower`: Last checkpoint where clearing price is strictly < bid.maxPrice
 - `upper`: First checkpoint where clearing price is strictly > bid.maxPrice, or 0 for end-of-auction fills
 
-**Mathematical Optimization**: Uses cumulative supply tracking (`cumulativeSupplySoldToClearingPrice`) for direct partial fill calculation:
+**Mathematical Optimization**: Uses cumulative supply tracking (`cumulativeSupplySoldToClearingPriceX7`) for direct partial fill calculation:
 
 ```
-partialFillRate = cumulativeSupplySoldToClearingPrice * mpsDenominator / (tickDemand * cumulativeMpsDelta)
+partialFillRate = cumulativeSupplySoldToClearingPriceX7 * mpsDenominator / (tickDemand * cumulativeMpsDelta)
 ```
 
 **Implementation**: Enhanced checkpoint architecture with linked-list structure (prev/next pointers) enables efficient traversal. Block numbers are stored as `uint64` for gas optimization while maintaining sufficient range (~584 billion years).
@@ -346,8 +345,6 @@ event TokensSwept(address indexed tokensRecipient, uint256 tokensAmount);
 - `sweepUnsoldTokens()`: Callable by anyone after auction ends
 - For graduated auctions: sweeps `totalSupply - totalCleared` tokens
 - For non-graduated auctions: sweeps all `totalSupply` tokens
-
-**Callback Support**: The `fundsRecipientData` parameter enables custom logic execution after currency sweeping. If the funds recipient is a contract and callback data is provided, the contract will be called with the specified data after the currency transfer.
 
 **Implementation**: The sweeping functions use the `TokenCurrencyStorage` abstraction to handle fund transfers and emit appropriate events. Safety mechanisms prevent double-sweeping and ensure proper timing constraints.
 
@@ -434,7 +431,7 @@ sequenceDiagram
     alt Validation Hook Configured
         Auction->>IValidationHook: validate(maxPrice, exactIn, amount, owner, sender, hookData)
     end
-    Auction->>TickStorage: _updateTick(...)
+    Auction->>TickStorage: _updateTickDemand(...)
     Auction->>BidStorage: _createBid(...)
     Auction->>Auction: update sumDemandAboveClearing
     Auction-->>User: bidId
@@ -451,7 +448,7 @@ sequenceDiagram
 
     Bidder->>Auction: submitBid(highPrice, ...)
     Auction->>TickStorage: _initializeTickIfNeeded()
-    Auction->>TickStorage: _updateTick()
+    Auction->>TickStorage: _updateTickDemand()
     TickStorage->>TickStorage: aggregate demand at price level
     Auction->>CheckpointStorage: checkpoint()
     CheckpointStorage->>CheckpointStorage: _advanceToCurrentStep()
@@ -487,9 +484,6 @@ sequenceDiagram
         Auction->>Auction: check block.number < claimBlock
         Auction->>TokenCurrencyStorage: _sweepCurrency(amount)
         TokenCurrencyStorage->>TokenCurrencyStorage: transfer currency to fundsRecipient
-        opt fundsRecipientData provided and recipient is contract
-            TokenCurrencyStorage->>FundsRecipient: call with fundsRecipientData
-        end
         TokenCurrencyStorage->>TokenCurrencyStorage: emit CurrencySwept()
 
         TokensRecipient->>Auction: sweepUnsoldTokens()

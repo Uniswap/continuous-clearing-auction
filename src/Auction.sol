@@ -167,7 +167,35 @@ contract Auction is
         view
         returns (uint256)
     {
-        // Calculate the clearing price by dividing the currencyDemandX7 by the supply subtracted by the tokenDemandX7, following `currency / tokens = price`
+        /**
+         * Calculate the clearing price by dividing the currencyDemandX7 by the quotient minus the tokenDemandX7, following `currency / tokens = price`
+         * We find the ratio of all exact input demand to the amount of tokens available (from supply minus tokenDemandX7)
+         * However, scaling the demand by mps loses precision when dividing by MPSLib.MPS. To avoid this, we use the precalculated quotientX7.
+         *
+         * Formula derivation:
+         * 
+         *   ((currencyDemandX7 * step.mps) / MPSLib.MPS) * Q96
+         *   ────────────────────────────────────────────────────────────────────────────────────────────────────────
+         *   (remainingSupply * step.mps / (MPSLib.MPS - cumulativeMps)) - ((tokenDemandX7 * step.mps) / MPSLib.MPS)
+         * 
+         * Observe that we can cancel out the `step.mps` component in the numerator and denominator:
+         * 
+         *   (currencyDemandX7 / MPSLib.MPS) * Q96
+         *   ──────────────────────────────────────────────────────────────────────────────────────
+         *   (remainingSupply / (MPSLib.MPS - cumulativeMps)) - (tokenDemandX7 / MPSLib.MPS)
+         * 
+         * Multiply both sides by MPSLib.MPS:
+         * 
+         *   currencyDemandX7 * Q96
+         *   ─────────────────────────────────────────────────────────────────────────────────────
+         *   (remainingSupply * MPSLib.MPS / (MPSLib.MPS - cumulativeMps)) - tokenDemandX7
+         *
+         * Substituting quotientX7 for (remainingSupply * MPSLib.MPS / (MPSLib.MPS - cumulativeMps)):
+         * 
+         *   currencyDemandX7 * Q96
+         *   ──────────────────────
+         *   quotientX7 - tokenDemandX7
+         */
         uint256 _clearingPrice = ValueX7.unwrap(
             sumDemandAboveClearing.currencyDemandX7.fullMulDiv(
                 ValueX7.wrap(FixedPoint96.Q96), quotientX7.sub(sumDemandAboveClearing.tokenDemandX7)

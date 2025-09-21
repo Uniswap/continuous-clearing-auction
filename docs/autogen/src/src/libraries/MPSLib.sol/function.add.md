@@ -1,10 +1,10 @@
-# divUint256
+# add
 [Git Source](https://github.com/Uniswap/twap-auction/blob/1114374e01da33a4baf331dd5bccd74f00e9fbd4/src/libraries/MPSLib.sol)
 
-Divide a ValueX7 value by a uint256
+Add two ValueX7 values
 
 
 ```solidity
-function divUint256(ValueX7 a, uint256 b) pure returns (ValueX7);
+function add(ValueX7 a, ValueX7 b) pure returns (ValueX7);
 ```
 

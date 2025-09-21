@@ -938,7 +938,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.checkpoint();
 
         auction.exitPartiallyFilledBid(0, 6, 101);
-        auction.exitPartiallyFilledBid(1, 6, 101);
+        auction.exitPartiallyFilledBid(1, 6, 0);
 
         vm.roll(auction.claimBlock());
         auction.claimTokens(0);
@@ -1178,7 +1178,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(auction.endBlock());
         // Expect the final checkpoint to be made
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), TOTAL_SUPPLY, AuctionStepLib.MPS);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), TOTAL_SUPPLY.scaleUpToX7(), MPSLib.MPS);
         // Checkpoint hints are:
         // - lower: 1 (last fully filled checkpoint)
         // - upper: 0 because the bid was never outbid

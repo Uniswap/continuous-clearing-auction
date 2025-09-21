@@ -17,7 +17,6 @@ import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
-
 import {MPSLib, ValueX7} from './libraries/MPSLib.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
@@ -112,17 +111,21 @@ contract Auction is
         view
         returns (Checkpoint memory)
     {
+        // Resolved demand above the clearing price over `deltaMps`
+        // This loses precision up to `deltaMps` significant figures
+        ValueX7 demandAboveClearingPriceMpsX7 =
+            _checkpoint.sumDemandAboveClearingPrice.resolve(_checkpoint.clearingPrice).scaleByMps(deltaMps);
         // Calculate the supply to be cleared based on demand above the clearing price
         ValueX7 supplyClearedX7;
         ValueX7 supplySoldToClearingPriceX7;
         // If the clearing price is above the floor price we can sell the available supply
         // Otherwise, we can only sell the demand above the clearing price
         if (_checkpoint.clearingPrice > FLOOR_PRICE) {
+            // Get the supply to be cleared over `deltaMps`
             supplyClearedX7 = _checkpoint.getSupply(TOTAL_SUPPLY_X7, deltaMps);
-            supplySoldToClearingPriceX7 =
-                supplyClearedX7.sub(_checkpoint.resolvedDemandAboveClearingPrice.scaleByMps(deltaMps));
+            supplySoldToClearingPriceX7 = supplyClearedX7.sub(demandAboveClearingPriceMpsX7);
         } else {
-            supplyClearedX7 = _checkpoint.resolvedDemandAboveClearingPrice.scaleByMps(deltaMps);
+            supplyClearedX7 = demandAboveClearingPriceMpsX7;
             // supplySoldToClearing price is zero here
         }
         _checkpoint.totalCleared = _checkpoint.totalCleared.add(supplyClearedX7);
@@ -157,20 +160,18 @@ contract Auction is
     }
 
     /// @notice Calculate the new clearing price, given:
-    /// @param blockSumDemandAboveClearing The demand above the clearing price in the block
-    /// @param minimumClearingPrice The minimum clearing price
-    /// @param supplyX7 The token supply (as ValueX7) at or above nextActiveTickPrice in the block
-    function _calculateNewClearingPrice(
-        Demand memory blockSumDemandAboveClearing,
-        uint256 minimumClearingPrice,
-        ValueX7 supplyX7
-    ) internal view returns (uint256) {
+    function _calculateNewClearingPrice(uint256 minimumClearingPrice, ValueX7 quotientX7)
+        internal
+        view
+        returns (uint256)
+    {
         // Calculate the clearing price by dividing the currencyDemandX7 by the supply subtracted by the tokenDemandX7, following `currency / tokens = price`
-        // If the supply is zero set this to zero to prevent division by zero. If the minimum clearing price is non zero, it will be returned. Otherwise, the floor price will be returned.
-        uint256 _clearingPrice = supplyX7.gt(0)
+        // If the step is zero the supply being sold is zero so we set the price to zero
+        // That way, if the minimum clearing price is non zero, it will be returned. Otherwise, the floor price will be returned.
+        uint256 _clearingPrice = step.mps > 0
             ? ValueX7.unwrap(
-                blockSumDemandAboveClearing.currencyDemandX7.fullMulDiv(
-                    ValueX7.wrap(FixedPoint96.Q96), supplyX7.sub(blockSumDemandAboveClearing.tokenDemandX7)
+                sumDemandAboveClearing.currencyDemandX7.fullMulDiv(
+                    ValueX7.wrap(FixedPoint96.Q96), quotientX7.sub(sumDemandAboveClearing.tokenDemandX7)
                 )
             )
             : 0;
@@ -195,8 +196,10 @@ contract Auction is
         Checkpoint memory _checkpoint = latestCheckpoint();
         // If step.mps is 0, advance to the current step before calculating the supply
         if (step.mps == 0) _advanceToCurrentStep(_checkpoint, blockNumber);
-        // Get the supply being sold since the last checkpoint, accounting for rollovers of past supply
-        ValueX7 supply = _checkpoint.getSupply(TOTAL_SUPPLY_X7, step.mps);
+
+        ValueX7 quotientX7 = TOTAL_SUPPLY_X7.sub(_checkpoint.totalCleared).mulUint256(MPSLib.MPS).divUint256(
+            MPSLib.MPS - _checkpoint.cumulativeMps
+        );
 
         // All active demand above the current clearing price
         Demand memory _sumDemandAboveClearing = sumDemandAboveClearing;
@@ -207,10 +210,7 @@ contract Auction is
 
         // For a non-zero supply, iterate to find the tick where the demand at and above it is strictly less than the supply
         // Sets nextActiveTickPrice to MAX_TICK_PRICE if the highest tick in the book is reached
-        while (
-            _sumDemandAboveClearing.resolve(nextActiveTickPrice).scaleByMps(step.mps).gte(ValueX7.unwrap(supply))
-                && supply.gt(0)
-        ) {
+        while (_sumDemandAboveClearing.resolve(nextActiveTickPrice).gte(ValueX7.unwrap(quotientX7)) && step.mps > 0) {
             // Subtract the demand at `nextActiveTickPrice`
             _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_nextActiveTick.demand);
             // The `nextActiveTickPrice` is now the minimum clearing price because there was enough demand to fill the supply
@@ -224,20 +224,19 @@ contract Auction is
         // Save state variables
         sumDemandAboveClearing = _sumDemandAboveClearing;
         // Calculate the new clearing price
-        uint256 newClearingPrice =
-            _calculateNewClearingPrice(_sumDemandAboveClearing.scaleByMps(step.mps), minimumClearingPrice, supply);
+        uint256 newClearingPrice = _calculateNewClearingPrice(minimumClearingPrice, quotientX7);
         // Reset the cumulative supply sold to clearing price if the clearing price is different now
         if (newClearingPrice != _checkpoint.clearingPrice) {
             _checkpoint.cumulativeSupplySoldToClearingPriceX7 = ValueX7.wrap(0);
         }
         // Set the new clearing price
         _checkpoint.clearingPrice = newClearingPrice;
-        _checkpoint.resolvedDemandAboveClearingPrice = _sumDemandAboveClearing.resolve(_checkpoint.clearingPrice);
+        _checkpoint.sumDemandAboveClearingPrice = _sumDemandAboveClearing;
         /// We can now advance the `step` to the current step for the block
         /// This modifies the `_checkpoint` to ensure the cumulative variables are correctly accounted for
         /// Checkpoint.transform is dependent on:
         /// - clearing price
-        /// - resolvedDemandAboveClearingPrice
+        /// - sumDemandAboveClearingPrice
         return _advanceToCurrentStep(_checkpoint, blockNumber);
     }
 

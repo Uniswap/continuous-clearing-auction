@@ -201,7 +201,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
         (
             uint256 clearingPrice,
             ValueX7 totalCleared,
-            ValueX7 resolvedDemandAboveClearingPrice,
+            Demand memory sumDemandAboveClearingPrice,
             uint256 cumulativeMpsPerPrice,
             ValueX7 cumulativeSupplySoldToClearingPriceX7,
             uint24 cumulativeMps,
@@ -212,7 +212,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
         return Checkpoint({
             clearingPrice: clearingPrice,
             totalCleared: totalCleared,
-            resolvedDemandAboveClearingPrice: resolvedDemandAboveClearingPrice,
+            sumDemandAboveClearingPrice: sumDemandAboveClearingPrice,
             cumulativeMpsPerPrice: cumulativeMpsPerPrice,
             cumulativeSupplySoldToClearingPriceX7: cumulativeSupplySoldToClearingPriceX7,
             cumulativeMps: cumulativeMps,

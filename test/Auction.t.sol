@@ -957,7 +957,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.checkpoint();
 
         auction.exitPartiallyFilledBid(0, 6, 101);
-        auction.exitPartiallyFilledBid(1, 6, 101);
+        auction.exitPartiallyFilledBid(1, 6, 0);
 
         vm.roll(auction.claimBlock());
         auction.claimTokens(0);

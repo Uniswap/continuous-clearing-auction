@@ -415,7 +415,7 @@ contract Auction is
         if (outbidBlock != 0) {
             Checkpoint memory outbidCheckpoint = _getCheckpoint(outbidBlock);
             upperCheckpoint = _getCheckpoint(outbidCheckpoint.prev);
-            /// We require that the outbid checkpoint is > bid max price AND the upper checkpoint is <= bid max price, revert if either of these conditions are not met
+            /// We require that the outbid checkpoint is > bid max price AND the checkpoint before it is <= bid max price, revert if either of these conditions are not met
             if (outbidCheckpoint.clearingPrice <= bid.maxPrice || upperCheckpoint.clearingPrice > bid.maxPrice) {
                 revert InvalidOutbidBlockCheckpointHint();
             }

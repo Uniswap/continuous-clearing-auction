@@ -97,7 +97,8 @@ contract Auction is
     }
 
     /// @notice External function to check if the auction has graduated as of the latest checkpoint
-    /// @dev Be aware that the latest checkpoint may be out of date
+    /// @dev The latest checkpoint may be out of date
+    /// @return bool Whether the auction has graduated or not
     function isGraduated() external view returns (bool) {
         return _isGraduated(latestCheckpoint());
     }

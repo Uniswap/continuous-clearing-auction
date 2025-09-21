@@ -6,7 +6,7 @@ import {AuctionParameters} from '../../src/Auction.sol';
 import {ValueX7} from '../../src/libraries/MPSLib.sol';
 
 contract MockAuction is Auction {
-    constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
+    constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
         Auction(_token, _totalSupply, _parameters)
     {}
 

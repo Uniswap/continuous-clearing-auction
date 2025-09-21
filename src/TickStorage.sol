@@ -20,10 +20,10 @@ abstract contract TickStorage is ITickStorage {
 
     /// @inheritdoc ITickStorage
     uint256 public nextActiveTickPrice;
-    /// @inheritdoc ITickStorage
-    uint256 public immutable floorPrice;
-    /// @inheritdoc ITickStorage
-    uint256 public immutable tickSpacing;
+    /// @notice The floor price of the auction
+    uint256 internal immutable FLOOR_PRICE;
+    /// @notice The tick spacing of the auction - bids must be placed at discrete tick intervals
+    uint256 internal immutable TICK_SPACING;
 
     /// @notice Sentinel value for the next value of the highest tick in the book
     uint256 public constant MAX_TICK_PRICE = type(uint256).max;
@@ -31,8 +31,8 @@ abstract contract TickStorage is ITickStorage {
     uint256 public constant MIN_FLOOR_PRICE = 18_448_130_884_583_730_121;
 
     constructor(uint256 _tickSpacing, uint256 _floorPrice) {
-        tickSpacing = _tickSpacing;
-        floorPrice = _floorPrice;
+        TICK_SPACING = _tickSpacing;
+        FLOOR_PRICE = _floorPrice;
         if (_floorPrice < MIN_FLOOR_PRICE) revert FloorPriceTooLow();
         _unsafeInitializeTick(_floorPrice);
     }
@@ -71,7 +71,7 @@ abstract contract TickStorage is ITickStorage {
             revert TickPriceNotIncreasing();
         }
 
-        if (price % tickSpacing != 0) revert TickPriceNotAtBoundary();
+        if (price % TICK_SPACING != 0) revert TickPriceNotAtBoundary();
 
         // The tick already exists, early return
         if (nextPrice == price) return;
@@ -98,5 +98,16 @@ abstract contract TickStorage is ITickStorage {
     function _updateTickDemand(uint256 price, Demand memory demand) internal {
         Tick storage tick = ticks[price];
         tick.demand = tick.demand.add(demand);
+    }
+
+    // Getters
+    /// @inheritdoc ITickStorage
+    function floorPrice() external view override(ITickStorage) returns (uint256) {
+        return FLOOR_PRICE;
+    }
+
+    /// @inheritdoc ITickStorage
+    function tickSpacing() external view override(ITickStorage) returns (uint256) {
+        return TICK_SPACING;
     }
 }

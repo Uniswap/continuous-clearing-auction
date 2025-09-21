@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/45bab3c8875b0df2a6d4a56c26add6ec4f6a45f5/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/2af661ccc6f86504a1d7897ac960a1d241655970/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -20,21 +20,21 @@ address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 ```
 
 
-### claimBlock
+### CLAIM_BLOCK
 The block at which purchased tokens can be claimed
 
 
 ```solidity
-uint64 public immutable claimBlock;
+uint64 internal immutable CLAIM_BLOCK;
 ```
 
 
-### validationHook
+### VALIDATION_HOOK
 An optional hook to be called before a bid is registered
 
 
 ```solidity
-IValidationHook public immutable validationHook;
+IValidationHook internal immutable VALIDATION_HOOK;
 ```
 
 
@@ -86,11 +86,28 @@ function onTokensReceived() external view;
 
 ### isGraduated
 
+External function to check if the auction has graduated as of the latest checkpoint
+
+*The latest checkpoint may be out of date*
+
+
+```solidity
+function isGraduated() external view returns (bool);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`bool`|bool Whether the auction has graduated or not|
+
+
+### _isGraduated
+
 Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
 
 
 ```solidity
-function isGraduated() public view returns (bool);
+function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool);
 ```
 
 ### _transformCheckpoint
@@ -340,5 +357,23 @@ Sweep any leftover tokens to the tokens recipient
 
 ```solidity
 function sweepUnsoldTokens() external onlyAfterAuctionIsOver;
+```
+
+### claimBlock
+
+The block at which the auction can be claimed
+
+
+```solidity
+function claimBlock() external view override(IAuction) returns (uint64);
+```
+
+### validationHook
+
+The address of the validation hook for the auction
+
+
+```solidity
+function validationHook() external view override(IAuction) returns (IValidationHook);
 ```
 

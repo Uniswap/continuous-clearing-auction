@@ -1497,8 +1497,6 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithThreshold.endBlock());
-        // Update the lastCheckpoint to register the auction as graduated
-        auctionWithThreshold.checkpoint();
 
         vm.prank(fundsRecipient);
         vm.expectEmit(true, true, true, true);
@@ -1537,8 +1535,6 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithThreshold.endBlock());
-        // Update the lastCheckpoint to register the auction as graduated
-        auctionWithThreshold.checkpoint();
 
         // Should sweep only unsold tokens (40% of supply)
         uint256 expectedUnsoldTokens = TOTAL_SUPPLY - soldAmount;
@@ -1592,8 +1588,6 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithThreshold.endBlock());
-        // Update the lastCheckpoint to register the auction as graduated
-        auctionWithThreshold.checkpoint();
 
         // Sweep currency first (should succeed as graduated)
         uint256 expectedCurrencyRaised = inputAmountForTokens(soldAmount, tickNumberToPriceX96(1));
@@ -1640,5 +1634,18 @@ contract AuctionTest is AuctionBaseTest {
         vm.prank(fundsRecipient);
         vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
         auctionWithThreshold.sweepCurrency();
+    }
+
+    // Test that all of the state getters for constants / immutable variables are correct
+    function test_constructor_immuatble_getters() public {
+        assertEq(Currency.unwrap(auction.currency()), ETH_SENTINEL);
+        assertEq(address(auction.token()), address(token));
+        assertEq(auction.totalSupply(), TOTAL_SUPPLY);
+        assertEq(auction.tokensRecipient(), tokensRecipient);
+        assertEq(auction.fundsRecipient(), fundsRecipient);
+        assertEq(auction.graduationThresholdMps(), params.graduationThresholdMps);
+        assertEq(auction.tickSpacing(), TICK_SPACING);
+        assertEq(address(auction.validationHook()), address(0));
+        assertEq(auction.floorPrice(), FLOOR_PRICE);
     }
 }

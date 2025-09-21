@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/9b332e9ae711433b888783601b4b8b92cce6d905/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/68ac8872732447ce81179f3172b9065cb26cf494/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -20,21 +20,21 @@ address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 ```
 
 
-### claimBlock
+### CLAIM_BLOCK
 The block at which purchased tokens can be claimed
 
 
 ```solidity
-uint64 public immutable claimBlock;
+uint64 internal immutable CLAIM_BLOCK;
 ```
 
 
-### validationHook
+### VALIDATION_HOOK
 An optional hook to be called before a bid is registered
 
 
 ```solidity
-IValidationHook public immutable validationHook;
+IValidationHook internal immutable VALIDATION_HOOK;
 ```
 
 
@@ -52,7 +52,7 @@ Demand public sumDemandAboveClearing;
 
 
 ```solidity
-constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
+constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
     AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
     TokenCurrencyStorage(
         _token,
@@ -60,8 +60,7 @@ constructor(address _token, uint128 _totalSupply, AuctionParameters memory _para
         _totalSupply,
         _parameters.tokensRecipient,
         _parameters.fundsRecipient,
-        _parameters.graduationThresholdMps,
-        _parameters.fundsRecipientData
+        _parameters.graduationThresholdMps
     )
     TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
     PermitSingleForwarder(IAllowanceTransfer(PERMIT2));
@@ -154,7 +153,7 @@ Calculate the new clearing price, given:
 function _calculateNewClearingPrice(
     Demand memory blockSumDemandAboveClearing,
     uint256 minimumClearingPrice,
-    uint128 supply
+    ValueX7 supplyX7
 ) internal view returns (uint256);
 ```
 **Parameters**
@@ -163,7 +162,7 @@ function _calculateNewClearingPrice(
 |----|----|-----------|
 |`blockSumDemandAboveClearing`|`Demand`|The demand above the clearing price in the block|
 |`minimumClearingPrice`|`uint256`|The minimum clearing price|
-|`supply`|`uint128`|The token supply at or above nextActiveTickPrice in the block|
+|`supplyX7`|`ValueX7`|The token supply (as ValueX7) at or above nextActiveTickPrice in the block|
 
 
 ### _updateLatestCheckpointToCurrentStep
@@ -216,7 +215,7 @@ function _getFinalCheckpoint() internal returns (Checkpoint memory _checkpoint);
 function _submitBid(
     uint256 maxPrice,
     bool exactIn,
-    uint128 amount,
+    uint256 amount,
     address owner,
     uint256 prevTickPrice,
     bytes calldata hookData
@@ -229,7 +228,7 @@ Given a bid, tokens filled and refund, process the transfers and refund
 
 
 ```solidity
-function _processExit(uint256 bidId, Bid memory bid, uint128 tokensFilled, uint128 refund) internal;
+function _processExit(uint256 bidId, Bid memory bid, uint256 tokensFilled, uint256 refund) internal;
 ```
 
 ### checkpoint
@@ -254,7 +253,7 @@ Submit a new bid
 function submitBid(
     uint256 maxPrice,
     bool exactIn,
-    uint128 amount,
+    uint256 amount,
     address owner,
     uint256 prevTickPrice,
     bytes calldata hookData
@@ -266,7 +265,7 @@ function submitBid(
 |----|----|-----------|
 |`maxPrice`|`uint256`|The maximum price the bidder is willing to pay|
 |`exactIn`|`bool`|Whether the bid is exact in|
-|`amount`|`uint128`|The amount of the bid|
+|`amount`|`uint256`|The amount of the bid|
 |`owner`|`address`|The owner of the bid|
 |`prevTickPrice`|`uint256`|The price of the previous tick|
 |`hookData`|`bytes`|Additional data to pass to the hook required for validation|
@@ -352,5 +351,23 @@ Sweep any leftover tokens to the tokens recipient
 
 ```solidity
 function sweepUnsoldTokens() external onlyAfterAuctionIsOver;
+```
+
+### claimBlock
+
+The block at which the auction can be claimed
+
+
+```solidity
+function claimBlock() external view override(IAuction) returns (uint64);
+```
+
+### validationHook
+
+The address of the validation hook for the auction
+
+
+```solidity
+function validationHook() external view override(IAuction) returns (IValidationHook);
 ```
 

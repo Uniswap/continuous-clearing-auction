@@ -104,7 +104,7 @@ contract Auction is
 
     /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
     function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool) {
-        return latestCheckpoint().totalCleared.gte(ValueX7.unwrap(TOTAL_SUPPLY_X7.scaleByMps(GRADUATION_THRESHOLD_MPS)));
+        return _checkpoint.totalCleared.gte(ValueX7.unwrap(TOTAL_SUPPLY_X7.scaleByMps(GRADUATION_THRESHOLD_MPS)));
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`

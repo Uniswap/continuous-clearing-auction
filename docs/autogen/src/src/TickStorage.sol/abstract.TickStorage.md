@@ -1,5 +1,5 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4c9af76a705eb813cc2e0ec768b3771f7a342ec1/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/89f9182c5a4250ce7345e6305d6fe12fceb138f4/src/TickStorage.sol)
 
 **Inherits:**
 [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
@@ -26,21 +26,21 @@ uint256 public nextActiveTickPrice;
 ```
 
 
-### floorPrice
-Get the floor price of the auction
+### FLOOR_PRICE
+The floor price of the auction
 
 
 ```solidity
-uint256 public immutable floorPrice;
+uint256 internal immutable FLOOR_PRICE;
 ```
 
 
-### tickSpacing
-Get the tick spacing enforced for bid prices
+### TICK_SPACING
+The tick spacing of the auction - bids must be placed at discrete tick intervals
 
 
 ```solidity
-uint256 public immutable tickSpacing;
+uint256 internal immutable TICK_SPACING;
 ```
 
 
@@ -114,22 +114,37 @@ function _initializeTickIfNeeded(uint256 prevPrice, uint256 price) internal;
 |`price`|`uint256`|The price of the tick|
 
 
-### _updateTick
+### _updateTickDemand
 
-Internal function to add a bid to a tick and update its values
-
-*Requires the tick to be initialized*
+Internal function to add demand to a tick
 
 
 ```solidity
-function _updateTick(uint256 price, bool exactIn, uint128 amount) internal;
+function _updateTickDemand(uint256 price, Demand memory demand) internal;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`price`|`uint256`|The price of the tick|
-|`exactIn`|`bool`|Whether the bid is exact in|
-|`amount`|`uint128`|The amount of the bid|
+|`demand`|`Demand`|The demand to add|
 
+
+### floorPrice
+
+Get the floor price of the auction
+
+
+```solidity
+function floorPrice() external view override(ITickStorage) returns (uint256);
+```
+
+### tickSpacing
+
+Get the tick spacing enforced for bid prices
+
+
+```solidity
+function tickSpacing() external view override(ITickStorage) returns (uint256);
+```
 

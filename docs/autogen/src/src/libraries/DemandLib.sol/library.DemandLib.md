@@ -1,34 +1,39 @@
 # DemandLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4c9af76a705eb813cc2e0ec768b3771f7a342ec1/src/libraries/DemandLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/89f9182c5a4250ce7345e6305d6fe12fceb138f4/src/libraries/DemandLib.sol)
 
 
 ## Functions
 ### resolve
 
+Resolve the demand at a given price
+
+*"Resolving" means converting all demand into token terms, which requires dividing the currency demand by a price*
+
 
 ```solidity
-function resolve(Demand memory _demand, uint256 price) internal pure returns (uint128);
+function resolve(Demand memory _demand, uint256 price) internal pure returns (ValueX7);
 ```
+**Parameters**
 
-### resolveCurrencyDemand
+|Name|Type|Description|
+|----|----|-----------|
+|`_demand`|`Demand`|The demand to resolve|
+|`price`|`uint256`|The price to resolve the demand at|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`ValueX7`|The resolved demand as a ValueX7|
+
+
+### _resolveCurrencyDemand
+
+Resolve the currency demand at a given price
 
 
 ```solidity
-function resolveCurrencyDemand(uint128 amount, uint256 price) internal pure returns (uint128);
-```
-
-### resolveTokenDemand
-
-
-```solidity
-function resolveTokenDemand(uint128 amount) internal pure returns (uint128);
-```
-
-### sub
-
-
-```solidity
-function sub(Demand memory _demand, Demand memory _other) internal pure returns (Demand memory);
+function _resolveCurrencyDemand(ValueX7 amount, uint256 price) private pure returns (ValueX7);
 ```
 
 ### add
@@ -38,24 +43,21 @@ function sub(Demand memory _demand, Demand memory _other) internal pure returns 
 function add(Demand memory _demand, Demand memory _other) internal pure returns (Demand memory);
 ```
 
-### applyMps
+### sub
 
 
 ```solidity
-function applyMps(Demand memory _demand, uint24 mps) internal pure returns (Demand memory);
+function sub(Demand memory _demand, Demand memory _other) internal pure returns (Demand memory);
 ```
 
-### addCurrencyAmount
+### scaleByMps
+
+Apply mps to a Demand struct
+
+*Shorthand for calling `scaleByMps` on both currencyDemandX7 and tokenDemandX7*
 
 
 ```solidity
-function addCurrencyAmount(Demand memory _demand, uint128 _amount) internal pure returns (Demand memory);
-```
-
-### addTokenAmount
-
-
-```solidity
-function addTokenAmount(Demand memory _demand, uint128 _amount) internal pure returns (Demand memory);
+function scaleByMps(Demand memory _demand, uint24 mps) internal pure returns (Demand memory);
 ```
 

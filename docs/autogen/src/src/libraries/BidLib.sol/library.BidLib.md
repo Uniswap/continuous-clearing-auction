@@ -1,5 +1,5 @@
 # BidLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c484a619b57e8cdba6726e41eefe57b0876affbb/src/libraries/BidLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/89f9182c5a4250ce7345e6305d6fe12fceb138f4/src/libraries/BidLib.sol)
 
 
 ## State Variables

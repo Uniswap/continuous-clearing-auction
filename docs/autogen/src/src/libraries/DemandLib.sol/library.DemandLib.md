@@ -1,5 +1,5 @@
 # DemandLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/60abcc13bc954ef69471e1981dc9965a554c3331/src/libraries/DemandLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/89f9182c5a4250ce7345e6305d6fe12fceb138f4/src/libraries/DemandLib.sol)
 
 
 ## Functions

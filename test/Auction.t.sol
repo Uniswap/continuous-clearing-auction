@@ -1525,7 +1525,7 @@ contract AuctionTest is AuctionBaseTest {
 
         // The amount cleared will be the total cleared / the _numberOfBids
         Checkpoint memory lastCheckpoint = auction.latestCheckpoint();
-        uint128 amountClearedPerBid = lastCheckpoint.totalCleared / _numberOfBids;
+        uint256 amountClearedPerBid = ValueX7.unwrap(lastCheckpoint.totalCleared.divUint256(_numberOfBids));
 
         vm.roll(auction.claimBlock());
         vm.expectEmit(true, true, true, true);

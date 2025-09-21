@@ -93,10 +93,16 @@ contract Auction is
         if (token.balanceOf(address(this)) < totalSupply) revert IDistributionContract__InvalidAmountReceived();
     }
 
+    /// @notice External function to check if the auction has graduated as of the latest checkpoint
+    /// @dev The latest checkpoint may be out of date
+    /// @return bool Whether the auction has graduated or not
+    function isGraduated() external view returns (bool) {
+        return _isGraduated(latestCheckpoint());
+    }
+
     /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
-    function isGraduated() public view returns (bool) {
-        return latestCheckpoint().totalCleared
-            >= uint128((totalSupply.fullMulDiv(graduationThresholdMps, AuctionStepLib.MPS)));
+    function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool) {
+        return _checkpoint.totalCleared >= totalSupply.fullMulDiv(graduationThresholdMps, AuctionStepLib.MPS);
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
@@ -354,7 +360,7 @@ contract Auction is
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
         Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
-        if (!isGraduated()) {
+        if (!_isGraduated(finalCheckpoint)) {
             // In the case that the auction did not graduate, fully refund the bid
             return _processExit(bidId, bid, 0, bid.inputAmount());
         }
@@ -447,7 +453,7 @@ contract Auction is
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock == 0) revert BidNotExited();
         if (block.number < claimBlock) revert NotClaimable();
-        if (!isGraduated()) revert NotGraduated();
+        if (!_isGraduated(_getFinalCheckpoint())) revert NotGraduated();
 
         uint128 tokensFilled = bid.tokensFilled;
         bid.tokensFilled = 0;
@@ -462,16 +468,18 @@ contract Auction is
     function sweepCurrency() external onlyAfterAuctionIsOver {
         // Cannot sweep if already swept
         if (sweepCurrencyBlock != 0) revert CannotSweepCurrency();
+        Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
         // Cannot sweep currency if the auction has not graduated, as the Currency must be refunded
-        if (!isGraduated()) revert NotGraduated();
-        _sweepCurrency(_getFinalCheckpoint().getCurrencyRaised());
+        if (!_isGraduated(finalCheckpoint)) revert NotGraduated();
+        _sweepCurrency(finalCheckpoint.getCurrencyRaised());
     }
 
     /// @inheritdoc IAuction
     function sweepUnsoldTokens() external onlyAfterAuctionIsOver {
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
-        if (isGraduated()) {
-            _sweepUnsoldTokens(totalSupply - _getFinalCheckpoint().totalCleared);
+        Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
+        if (_isGraduated(finalCheckpoint)) {
+            _sweepUnsoldTokens(totalSupply - finalCheckpoint.totalCleared);
         } else {
             _sweepUnsoldTokens(totalSupply);
         }

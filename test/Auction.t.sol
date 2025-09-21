@@ -1337,8 +1337,6 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithThreshold.endBlock());
-        // Update the lastCheckpoint to register the auction as graduated
-        auctionWithThreshold.checkpoint();
 
         vm.prank(fundsRecipient);
         vm.expectEmit(true, true, true, true);
@@ -1606,8 +1604,6 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithThreshold.endBlock());
-        // Update the lastCheckpoint to register the auction as graduated
-        auctionWithThreshold.checkpoint();
 
         // Should sweep only unsold tokens (40% of supply)
         uint128 expectedUnsoldTokens = TOTAL_SUPPLY - soldAmount;
@@ -1661,8 +1657,6 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auctionWithThreshold.endBlock());
-        // Update the lastCheckpoint to register the auction as graduated
-        auctionWithThreshold.checkpoint();
 
         // Sweep currency first (should succeed as graduated)
         uint128 expectedCurrencyRaised = inputAmountForTokens(soldAmount, tickNumberToPriceX96(1));

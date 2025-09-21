@@ -1,5 +1,5 @@
 # IDistributionStrategy
-[Git Source](https://github.com/Uniswap/twap-auction/blob/1c5771863c4021bfedcc36824eaa17f627dc43e0/src/interfaces/external/IDistributionStrategy.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/4a2534467c505f9bb8c4a942d2cc4f01d7d061ef/src/interfaces/external/IDistributionStrategy.sol)
 
 Interface for token distribution strategies.
 

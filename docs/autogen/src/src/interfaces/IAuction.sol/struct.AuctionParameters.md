@@ -1,5 +1,5 @@
 # AuctionParameters
-[Git Source](https://github.com/Uniswap/twap-auction/blob/3a2a79a8442dc1d66aca4be0c1d531db5a9f8424/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/4a2534467c505f9bb8c4a942d2cc4f01d7d061ef/src/interfaces/IAuction.sol)
 
 Parameters for the auction
 

@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f66249e6bb5ebf3be6698edff5f27719f8f33c6e/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/d8923ff869bd7fcb722e5bcf182d5585489c9701/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -158,6 +158,20 @@ function sweepUnsoldTokens() external;
 ```
 
 ## Events
+### TokensReceived
+Emitted when the tokens are received
+
+
+```solidity
+event TokensReceived(uint256 totalSupply);
+```
+
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`totalSupply`|`uint256`|The total supply of tokens received|
+
 ### BidSubmitted
 Emitted when a bid is submitted
 
@@ -249,6 +263,14 @@ Error thrown when the auction is not started
 
 ```solidity
 error AuctionNotStarted();
+```
+
+### TokensNotReceived
+Error thrown when the tokens required for the auction have not been received
+
+
+```solidity
+error TokensNotReceived();
 ```
 
 ### FloorPriceIsZero

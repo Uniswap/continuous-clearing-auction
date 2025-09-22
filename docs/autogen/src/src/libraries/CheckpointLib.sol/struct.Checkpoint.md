@@ -1,5 +1,5 @@
 # Checkpoint
-[Git Source](https://github.com/Uniswap/twap-auction/blob/2af661ccc6f86504a1d7897ac960a1d241655970/src/libraries/CheckpointLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/7f8e9557cd2f0bf0814d12508e520cf2664be393/src/libraries/CheckpointLib.sol)
 
 
 ```solidity

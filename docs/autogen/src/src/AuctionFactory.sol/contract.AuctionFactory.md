@@ -1,16 +1,8 @@
 # AuctionFactory
-[Git Source](https://github.com/Uniswap/twap-auction/blob/2af661ccc6f86504a1d7897ac960a1d241655970/src/AuctionFactory.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/7f8e9557cd2f0bf0814d12508e520cf2664be393/src/AuctionFactory.sol)
 
 **Inherits:**
 [IAuctionFactory](/src/interfaces/IAuctionFactory.sol/interface.IAuctionFactory.md)
-
-
-## State Variables
-### USE_MSG_SENDER
-
-```solidity
-address public constant USE_MSG_SENDER = 0x0000000000000000000000000000000000000001;
-```
 
 
 ## Functions
@@ -42,5 +34,32 @@ function initializeDistribution(address token, uint256 amount, bytes calldata co
 |Name|Type|Description|
 |----|----|-----------|
 |`distributionContract`|`IDistributionContract`|The contract that will handle or manage the distribution. (Could be `address(this)` if the strategy is handled in-place, or a newly deployed instance).|
+
+
+### getAuctionAddress
+
+Get the address of an auction contract
+
+
+```solidity
+function getAuctionAddress(address token, uint256 amount, bytes calldata configData, bytes32 salt)
+    public
+    view
+    returns (address);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`token`|`address`|The address of the token|
+|`amount`|`uint256`|The amount of tokens to sell|
+|`configData`|`bytes`|The configuration data for the auction|
+|`salt`|`bytes32`|The salt to use for the deterministic deployment|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`address`|The address of the auction contract|
 
 

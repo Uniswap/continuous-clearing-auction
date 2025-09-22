@@ -1,5 +1,5 @@
 # BidLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/2af661ccc6f86504a1d7897ac960a1d241655970/src/libraries/BidLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/7f8e9557cd2f0bf0814d12508e520cf2664be393/src/libraries/BidLib.sol)
 
 
 ## State Variables
@@ -10,13 +10,6 @@ The maximum allowable price for a bid, which is equal to the MAX_SQRT_PRICE defi
 ```solidity
 uint256 public constant MAX_BID_PRICE =
     26_957_920_004_054_754_506_022_898_809_067_591_261_277_585_227_686_421_694_841_721_768_917;
-```
-
-
-### PRECISION
-
-```solidity
-uint256 public constant PRECISION = 1e18;
 ```
 
 

@@ -3,8 +3,9 @@ pragma solidity 0.8.26;
 
 import {Tick, TickStorage} from '../src/TickStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
-import {Demand} from '../src/libraries/DemandLib.sol';
 
+import {Demand} from '../src/libraries/DemandLib.sol';
+import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {ValueX7} from '../src/libraries/MPSLib.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {Test} from 'forge-std/Test.sol';
@@ -29,7 +30,7 @@ contract MockTickStorage is TickStorage {
 contract TickStorageTest is Test, Assertions {
     MockTickStorage public tickStorage;
     uint256 public constant TICK_SPACING = 100;
-    uint256 public constant FLOOR_PRICE = 100e6; // 100 in X96 format
+    uint256 public constant FLOOR_PRICE = 100 << FixedPoint96.RESOLUTION; // 100 in X96 format
 
     function setUp() public {
         tickStorage = new MockTickStorage(TICK_SPACING, FLOOR_PRICE);
@@ -42,7 +43,6 @@ contract TickStorageTest is Test, Assertions {
 
     function test_initializeTick_succeeds() public {
         uint256 prev = FLOOR_PRICE;
-        // 2e18 << FixedPoint96.RESOLUTION
         uint256 price = tickNumberToPriceX96(2);
         tickStorage.initializeTickIfNeeded(prev, price);
         Tick memory tick = tickStorage.getTick(price);

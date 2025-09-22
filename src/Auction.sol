@@ -77,7 +77,6 @@ contract Auction is
         CLAIM_BLOCK = _parameters.claimBlock;
         VALIDATION_HOOK = IValidationHook(_parameters.validationHook);
 
-        if (FLOOR_PRICE == 0) revert FloorPriceIsZero();
         if (TICK_SPACING == 0) revert TickSpacingIsZero();
         if (CLAIM_BLOCK < END_BLOCK) revert ClaimBlockIsBeforeEndBlock();
         if (FUNDS_RECIPIENT == address(0)) revert FundsRecipientIsZero();
@@ -342,7 +341,7 @@ contract Auction is
 
         VALIDATION_HOOK.handleValidate(maxPrice, exactIn, amount, owner, msg.sender, hookData);
         // ClearingPrice will be set to floor price in checkpoint() if not set already
-        if (maxPrice <= _checkpoint.clearingPrice) revert InvalidBidPrice();
+        if (maxPrice <= _checkpoint.clearingPrice || maxPrice >= BidLib.MAX_BID_PRICE) revert InvalidBidPrice();
 
         // Scale the amount according to the rest of the supply schedule, accounting for past blocks
         // This is only used in demand related internal calculations

@@ -3,13 +3,15 @@ pragma solidity 0.8.26;
 
 import {Auction, AuctionParameters} from '../src/Auction.sol';
 import {AuctionFactory} from '../src/AuctionFactory.sol';
-
+import {TickStorage} from '../src/TickStorage.sol';
 import {IAuctionFactory} from '../src/interfaces/IAuctionFactory.sol';
 import {IDistributionContract} from '../src/interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
 
+import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
+import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
-
+import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
@@ -26,8 +28,8 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
 
     uint256 public constant AUCTION_DURATION = 100;
     uint256 public constant TICK_SPACING = 1e6;
-    uint256 public constant FLOOR_PRICE = 1e6;
-    uint256 public constant TOTAL_SUPPLY = 1000e18;
+    uint256 public constant FLOOR_PRICE = 1e6 << FixedPoint96.RESOLUTION;
+    uint128 public constant TOTAL_SUPPLY = 1000e18;
 
     address public alice;
     address public tokensRecipient;
@@ -196,7 +198,8 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         vm.assume(_params.graduationThresholdMps != 0);
         vm.assume(_params.tickSpacing != 0);
         vm.assume(_params.validationHook != address(0));
-        vm.assume(_params.floorPrice != 0);
+        // TickStorage.MIN_FLOOR_PRICE
+        vm.assume(_params.floorPrice >= 118_448_130_884_583_730_121);
         vm.assume(_salt != bytes32(0));
 
         vm.assume(_numberOfSteps > 0);

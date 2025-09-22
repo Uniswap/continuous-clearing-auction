@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {Auction} from '../src/Auction.sol';
-import {Tick} from '../src/TickStorage.sol';
+import {Tick, TickStorage} from '../src/TickStorage.sol';
 import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
@@ -35,7 +35,7 @@ contract AuctionInvariantHandler is Test, Assertions {
     Currency public currency;
     IERC20Minimal public token;
 
-    uint256 public constant BID_MAX_PRICE = type(uint256).max;
+    uint256 public constant BID_MAX_PRICE = BidLib.MAX_BID_PRICE;
     uint256 public BID_MIN_PRICE;
 
     // Ghost variables

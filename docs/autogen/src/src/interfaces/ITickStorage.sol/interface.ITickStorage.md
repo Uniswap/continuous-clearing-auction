@@ -1,5 +1,5 @@
 # ITickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/e8c1bbc686358a3cb32baa6b79098fe877a211eb/src/interfaces/ITickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c5718c13b5a20e0aacebf2071a7062f239033bd5/src/interfaces/ITickStorage.sol)
 
 Interface for the TickStorage contract
 
@@ -64,6 +64,14 @@ event NextActiveTickUpdated(uint256 price);
 |`price`|`uint256`|The price of the tick|
 
 ## Errors
+### FloorPriceTooLow
+Error thrown when the floor price is below the minimum sqrt price defined in Uniswap V4
+
+
+```solidity
+error FloorPriceTooLow();
+```
+
 ### TickPreviousPriceInvalid
 Error thrown when the previous price hint is invalid (higher than the new price)
 

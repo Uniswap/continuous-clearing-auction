@@ -1,6 +1,61 @@
 # ITokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/3a2a79a8442dc1d66aca4be0c1d531db5a9f8424/src/interfaces/ITokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/f66249e6bb5ebf3be6698edff5f27719f8f33c6e/src/interfaces/ITokenCurrencyStorage.sol)
 
+
+## Functions
+### currency
+
+The currency being raised in the auction
+
+
+```solidity
+function currency() external view returns (Currency);
+```
+
+### token
+
+The token being sold in the auction
+
+
+```solidity
+function token() external view returns (IERC20Minimal);
+```
+
+### totalSupply
+
+The total supply of tokens to sell
+
+
+```solidity
+function totalSupply() external view returns (uint256);
+```
+
+### tokensRecipient
+
+The recipient of any unsold tokens at the end of the auction
+
+
+```solidity
+function tokensRecipient() external view returns (address);
+```
+
+### fundsRecipient
+
+The recipient of the raised Currency from the auction
+
+
+```solidity
+function fundsRecipient() external view returns (address);
+```
+
+### graduationThresholdMps
+
+The minimum portion (in MPS) of the total supply that must be sold
+
+
+```solidity
+function graduationThresholdMps() external view returns (uint24);
+```
 
 ## Events
 ### TokensSwept

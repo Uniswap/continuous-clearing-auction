@@ -8,7 +8,7 @@ import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {CheckpointLib} from '../src/libraries/CheckpointLib.sol';
 import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-
+import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {MockCheckpointStorage} from './utils/MockCheckpointStorage.sol';
 import {Test} from 'forge-std/Test.sol';
@@ -19,16 +19,17 @@ contract CheckpointStorageTest is Assertions, Test {
 
     using BidLib for Bid;
     using DemandLib for Demand;
-    using FixedPointMathLib for uint128;
-    using AuctionStepLib for uint128;
+    using FixedPointMathLib for uint256;
+    using AuctionStepLib for uint256;
+    using MPSLib for *;
 
     uint24 public constant MPS = 1e7;
     uint256 public constant TICK_SPACING = 100;
-    uint128 public constant ETH_AMOUNT = 10 ether;
+    uint256 public constant ETH_AMOUNT = 10 ether;
     uint256 public constant FLOOR_PRICE = 100 << FixedPoint96.RESOLUTION;
     uint256 public constant MAX_PRICE = 500 << FixedPoint96.RESOLUTION;
-    uint128 public constant TOKEN_AMOUNT = 100e18;
-    uint128 public constant TOTAL_SUPPLY = 1000e18;
+    uint256 public constant TOKEN_AMOUNT = 100e18;
+    uint256 public constant TOTAL_SUPPLY = 1000e18;
 
     function setUp() public {
         mockCheckpointStorage = new MockCheckpointStorage();
@@ -78,7 +79,7 @@ contract CheckpointStorageTest is Assertions, Test {
 
         // The checkpoint should be empty (all fields default to 0)
         assertEq(checkpoint.clearingPrice, 0);
-        assertEq(checkpoint.totalCleared, 0);
+        assertEq(checkpoint.totalCleared, ValueX7.wrap(0));
         assertEq(checkpoint.cumulativeMps, 0);
 
         checkpoint.clearingPrice = 1;
@@ -92,7 +93,7 @@ contract CheckpointStorageTest is Assertions, Test {
         public
         view
     {
-        vm.assume(ETH_AMOUNT * (cumulativeMpsPerPriceDelta >> FixedPoint96.RESOLUTION) <= type(uint128).max);
+        vm.assume(ETH_AMOUNT * (cumulativeMpsPerPriceDelta >> FixedPoint96.RESOLUTION) <= type(uint256).max);
         vm.assume(cumulativeMpsDelta <= MPS);
         // Setup: User commits 10 ETH to buy tokens
         Bid memory bid = Bid({
@@ -101,16 +102,17 @@ contract CheckpointStorageTest is Assertions, Test {
             amount: ETH_AMOUNT,
             tokensFilled: 0,
             startBlock: 100,
+            startCumulativeMps: 0,
             exitedBlock: 0,
             maxPrice: MAX_PRICE // doesn't matter for this test
         });
 
-        (uint128 tokensFilled, uint128 currencySpent) =
-            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta, MPS);
+        (uint256 tokensFilled, uint256 currencySpent) =
+            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
 
         assertEq(tokensFilled, ETH_AMOUNT.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * MPS));
         if (tokensFilled != 0) {
-            assertEq(currencySpent, ETH_AMOUNT.applyMps(cumulativeMpsDelta));
+            assertEq(currencySpent, ETH_AMOUNT * cumulativeMpsDelta / MPS);
         } else {
             assertEq(currencySpent, 0);
         }
@@ -125,18 +127,19 @@ contract CheckpointStorageTest is Assertions, Test {
             amount: TOKEN_AMOUNT,
             tokensFilled: 0,
             startBlock: 100,
+            startCumulativeMps: 0,
             exitedBlock: 0,
             maxPrice: MAX_PRICE // doesn't matter for this test
         });
 
         uint256 maxPrice = 2000 << FixedPoint96.RESOLUTION;
         uint256 cumulativeMpsPerPrice = CheckpointLib.getMpsPerPrice(cumulativeMpsDelta, maxPrice);
-        uint128 _tokensFilled = TOKEN_AMOUNT.applyMps(cumulativeMpsDelta);
-        uint128 _currencySpent =
-            uint128(_tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPrice));
+        uint256 _tokensFilled = TOKEN_AMOUNT * cumulativeMpsDelta / MPS;
+        uint256 _currencySpent =
+            uint256(_tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPrice));
 
-        (uint128 tokensFilled, uint128 currencySpent) =
-            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPrice, cumulativeMpsDelta, MPS);
+        (uint256 tokensFilled, uint256 currencySpent) =
+            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPrice, cumulativeMpsDelta);
 
         assertEq(tokensFilled, _tokensFilled);
         assertEq(currencySpent, _currencySpent);
@@ -155,14 +158,14 @@ contract CheckpointStorageTest is Assertions, Test {
         mpsArray[2] = 20e3;
         pricesArray[2] = 200 << FixedPoint96.RESOLUTION;
 
-        uint128 _tokensFilled;
-        uint128 _currencySpent;
+        uint256 _tokensFilled;
+        uint256 _currencySpent;
         uint24 _totalMps;
         uint256 _cumulativeMpsPerPrice;
 
         for (uint256 i = 0; i < 3; i++) {
-            uint128 currencySpentInBlock = ETH_AMOUNT * mpsArray[i] / MPS;
-            uint128 tokensFilledInBlock = uint128(currencySpentInBlock.fullMulDiv(FixedPoint96.Q96, pricesArray[i]));
+            uint256 currencySpentInBlock = ETH_AMOUNT * mpsArray[i] / MPS;
+            uint256 tokensFilledInBlock = uint256(currencySpentInBlock.fullMulDiv(FixedPoint96.Q96, pricesArray[i]));
             _tokensFilled += tokensFilledInBlock;
             _currencySpent += currencySpentInBlock;
 
@@ -176,12 +179,13 @@ contract CheckpointStorageTest is Assertions, Test {
             amount: ETH_AMOUNT,
             tokensFilled: 0,
             startBlock: 100,
+            startCumulativeMps: 0,
             exitedBlock: 0,
             maxPrice: MAX_PRICE // doesn't matter for this test
         });
 
-        (uint128 tokensFilled, uint128 currencySpent) =
-            mockCheckpointStorage.calculateFill(bid, _cumulativeMpsPerPrice, uint24(_totalMps), MPS);
+        (uint256 tokensFilled, uint256 currencySpent) =
+            mockCheckpointStorage.calculateFill(bid, _cumulativeMpsPerPrice, uint24(_totalMps));
 
         assertEq(tokensFilled, _tokensFilled);
         assertEq(currencySpent, _currencySpent);
@@ -196,12 +200,12 @@ contract CheckpointStorageTest is Assertions, Test {
 
         uint256 _totalMps;
         uint256 _cumulativeMpsPerPrice;
-        uint128 _currencySpent;
+        uint256 _currencySpent;
 
         for (uint256 i = 0; i < 1; i++) {
             _totalMps += mpsArray[i];
             _cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(mpsArray[i], pricesArray[i]);
-            _currencySpent += uint128(TOKEN_AMOUNT.fullMulDiv(mpsArray[i] * FixedPoint96.Q96, _cumulativeMpsPerPrice));
+            _currencySpent += uint256(TOKEN_AMOUNT.fullMulDiv(mpsArray[i] * FixedPoint96.Q96, _cumulativeMpsPerPrice));
         }
 
         Bid memory bid = Bid({
@@ -210,16 +214,17 @@ contract CheckpointStorageTest is Assertions, Test {
             amount: TOKEN_AMOUNT,
             tokensFilled: 0,
             startBlock: 100,
+            startCumulativeMps: 0,
             exitedBlock: 0,
             maxPrice: MAX_PRICE // doesn't matter for this test
         });
 
         // Bid is fully filled since max price is always higher than all prices
-        (uint128 tokensFilled, uint128 currencySpent) =
-            mockCheckpointStorage.calculateFill(bid, _cumulativeMpsPerPrice, uint24(_totalMps), MPS);
+        (uint256 tokensFilled, uint256 currencySpent) =
+            mockCheckpointStorage.calculateFill(bid, _cumulativeMpsPerPrice, uint24(_totalMps));
 
         assertEq(_totalMps, 1e7);
-        assertEq(tokensFilled, TOKEN_AMOUNT.applyMps(1e7));
+        assertEq(tokensFilled, TOKEN_AMOUNT * 1e7 / MPS);
         assertEq(currencySpent, _currencySpent);
     }
 
@@ -231,25 +236,26 @@ contract CheckpointStorageTest is Assertions, Test {
         pricesArray[0] = MAX_PRICE;
 
         // Setup: Large ETH bid
-        uint128 largeAmount = 100 ether;
+        uint256 largeAmount = 100 ether;
         Bid memory bid = Bid({
             exactIn: true,
             owner: address(this),
             amount: largeAmount,
             tokensFilled: 0,
             startBlock: 100,
+            startCumulativeMps: 0,
             exitedBlock: 0,
             maxPrice: MAX_PRICE // doesn't matter for this test
         });
 
         uint256 cumulativeMpsPerPriceDelta = CheckpointLib.getMpsPerPrice(mpsArray[0], pricesArray[0]);
         uint24 cumulativeMpsDelta = MPS;
-        uint128 expectedCurrencySpent = largeAmount * cumulativeMpsDelta / MPS;
+        uint256 expectedCurrencySpent = largeAmount * cumulativeMpsDelta / MPS;
 
-        uint128 expectedTokensFilled = uint128(expectedCurrencySpent.fullMulDiv(FixedPoint96.Q96, MAX_PRICE));
+        uint256 expectedTokensFilled = uint256(expectedCurrencySpent.fullMulDiv(FixedPoint96.Q96, MAX_PRICE));
 
-        (uint128 tokensFilled, uint128 currencySpent) =
-            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta, MPS);
+        (uint256 tokensFilled, uint256 currencySpent) =
+            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
 
         assertEq(tokensFilled, expectedTokensFilled);
         assertEq(currencySpent, expectedCurrencySpent);
@@ -257,8 +263,8 @@ contract CheckpointStorageTest is Assertions, Test {
 
     function test_accountPartiallyFilledCheckpoints_zeroCumulativeSupplySoldToClearingPrice_returnsZero() public view {
         Checkpoint memory _checkpoint = mockCheckpointStorage.latestCheckpoint();
-        (uint128 tokensFilled, uint128 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
-            _checkpoint.cumulativeSupplySoldToClearingPrice, 1e18, 1e18, 1e6
+        (uint256 tokensFilled, uint256 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
+            _checkpoint.cumulativeSupplySoldToClearingPriceX7, ValueX7.wrap(1e18), ValueX7.wrap(1e18), 1e6
         );
         assertEq(tokensFilled, 0);
         assertEq(currencySpent, 0);
@@ -266,12 +272,12 @@ contract CheckpointStorageTest is Assertions, Test {
 
     function test_accountPartiallyFilledCheckpoints_zeroTickDemand_returnsZero() public view {
         Checkpoint memory _checkpoint = mockCheckpointStorage.latestCheckpoint();
-        _checkpoint.cumulativeSupplySoldToClearingPrice = 1e18;
+        _checkpoint.cumulativeSupplySoldToClearingPriceX7 = ValueX7.wrap(1e18);
 
-        (uint128 tokensFilled, uint128 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
-            _checkpoint.cumulativeSupplySoldToClearingPrice,
-            0, // bid demand
-            0, // tick demand
+        (uint256 tokensFilled, uint256 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
+            _checkpoint.cumulativeSupplySoldToClearingPriceX7,
+            ValueX7.wrap(0), // bid demand
+            ValueX7.wrap(0), // tick demand
             1e6
         );
         assertEq(tokensFilled, 0);

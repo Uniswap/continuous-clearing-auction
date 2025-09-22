@@ -3,7 +3,10 @@ pragma solidity 0.8.26;
 
 import {Tick, TickStorage} from '../src/TickStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
+import {Demand} from '../src/libraries/DemandLib.sol';
 
+import {ValueX7} from '../src/libraries/MPSLib.sol';
+import {Assertions} from './utils/Assertions.sol';
 import {Test} from 'forge-std/Test.sol';
 
 contract MockTickStorage is TickStorage {
@@ -18,12 +21,12 @@ contract MockTickStorage is TickStorage {
         super._initializeTickIfNeeded(prevPrice, price);
     }
 
-    function updateTick(uint256 price, bool exactIn, uint128 amount) external {
-        super._updateTick(price, exactIn, amount);
+    function updateTick(uint256 price, Demand memory demand) external {
+        super._updateTickDemand(price, demand);
     }
 }
 
-contract TickStorageTest is Test {
+contract TickStorageTest is Test, Assertions {
     MockTickStorage public tickStorage;
     uint256 public constant TICK_SPACING = 100;
     uint256 public constant FLOOR_PRICE = 100e6; // 100 in X96 format
@@ -43,8 +46,8 @@ contract TickStorageTest is Test {
         uint256 price = tickNumberToPriceX96(2);
         tickStorage.initializeTickIfNeeded(prev, price);
         Tick memory tick = tickStorage.getTick(price);
-        assertEq(tick.demand.currencyDemand, 0);
-        assertEq(tick.demand.tokenDemand, 0);
+        assertEq(tick.demand.currencyDemandX7, ValueX7.wrap(0));
+        assertEq(tick.demand.tokenDemandX7, ValueX7.wrap(0));
         // Assert there is no next tick (type(uint256).max)
         assertEq(tick.next, type(uint256).max);
         // Assert the nextActiveTick is unchanged

@@ -1,5 +1,5 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/eb1997cae9e49254904b75da348b365b9f8f37de/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c484a619b57e8cdba6726e41eefe57b0876affbb/src/CheckpointStorage.sol)
 
 **Inherits:**
 [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
@@ -60,7 +60,7 @@ Get the currency raised at the last checkpointed block
 
 
 ```solidity
-function currencyRaised() public view returns (uint128);
+function currencyRaised() public view returns (uint256);
 ```
 
 ### _getCheckpoint
@@ -95,7 +95,7 @@ because it uses lazy accounting to calculate the tokens filled*
 function _accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memory startCheckpoint, Bid memory bid)
     internal
     pure
-    returns (uint128 tokensFilled, uint128 currencySpent);
+    returns (uint256 tokensFilled, uint256 currencySpent);
 ```
 **Parameters**
 
@@ -109,8 +109,8 @@ function _accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memo
 
 |Name|Type|Description|
 |----|----|-----------|
-|`tokensFilled`|`uint128`|The tokens sold|
-|`currencySpent`|`uint128`|The amount of currency spent|
+|`tokensFilled`|`uint256`|The tokens sold|
+|`currencySpent`|`uint256`|The amount of currency spent|
 
 
 ### _accountPartiallyFilledCheckpoints
@@ -120,27 +120,27 @@ Calculate the tokens sold, proportion of input used, and the block number of the
 
 ```solidity
 function _accountPartiallyFilledCheckpoints(
-    uint256 cumulativeSupplySoldToClearingPrice,
-    uint128 bidDemand,
-    uint128 tickDemand,
+    ValueX7 cumulativeSupplySoldToClearingPriceX7,
+    ValueX7 bidDemandX7,
+    ValueX7 tickDemandX7,
     uint256 bidMaxPrice
-) internal pure returns (uint128 tokensFilled, uint128 currencySpent);
+) internal pure returns (uint256 tokensFilled, uint256 currencySpent);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`cumulativeSupplySoldToClearingPrice`|`uint256`|The cumulative supply sold to the clearing price|
-|`bidDemand`|`uint128`|The demand of the bid|
-|`tickDemand`|`uint128`||
+|`cumulativeSupplySoldToClearingPriceX7`|`ValueX7`|The cumulative supply sold to the clearing price|
+|`bidDemandX7`|`ValueX7`|The demand of the bid|
+|`tickDemandX7`|`ValueX7`|The demand of the tick|
 |`bidMaxPrice`|`uint256`|The max price of the bid|
 
 **Returns**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`tokensFilled`|`uint128`|The tokens sold|
-|`currencySpent`|`uint128`|The amount of currency spent|
+|`tokensFilled`|`uint256`|The tokens sold|
+|`currencySpent`|`uint256`|The amount of currency spent|
 
 
 ### _calculateFill
@@ -152,12 +152,10 @@ It MUST only be used when the bid's max price is strictly greater than the clear
 
 
 ```solidity
-function _calculateFill(
-    Bid memory bid,
-    uint256 cumulativeMpsPerPriceDelta,
-    uint24 cumulativeMpsDelta,
-    uint24 mpsDenominator
-) internal pure returns (uint128 tokensFilled, uint128 currencySpent);
+function _calculateFill(Bid memory bid, uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
+    internal
+    pure
+    returns (uint256 tokensFilled, uint256 currencySpent);
 ```
 **Parameters**
 
@@ -166,13 +164,12 @@ function _calculateFill(
 |`bid`|`Bid`|the bid to evaluate|
 |`cumulativeMpsPerPriceDelta`|`uint256`|the cumulative sum of supply to price ratio|
 |`cumulativeMpsDelta`|`uint24`|the cumulative sum of mps values across the block range|
-|`mpsDenominator`|`uint24`|the percentage of the auction which the bid was spread over|
 
 **Returns**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`tokensFilled`|`uint128`|the amount of tokens filled for this bid|
-|`currencySpent`|`uint128`|the amount of currency spent by this bid|
+|`tokensFilled`|`uint256`|the amount of tokens filled for this bid|
+|`currencySpent`|`uint256`|the amount of currency spent by this bid|
 
 

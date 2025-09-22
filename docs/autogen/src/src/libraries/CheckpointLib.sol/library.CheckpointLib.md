@@ -1,5 +1,5 @@
 # CheckpointLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/7e43e46c34279b47442669694d1dfea18473472f/src/libraries/CheckpointLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/22aee9729c26f2abf42c6308fcc6d9c57d106074/src/libraries/CheckpointLib.sol)
 
 
 ## Functions
@@ -9,14 +9,14 @@ Calculate the actual supply to sell given the total cleared in the auction so fa
 
 
 ```solidity
-function getSupply(Checkpoint memory checkpoint, uint128 totalSupply, uint24 mps) internal pure returns (uint128);
+function getSupply(Checkpoint memory checkpoint, ValueX7 totalSupplyX7, uint24 mps) internal pure returns (ValueX7);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`checkpoint`|`Checkpoint`|The last checkpointed state of the auction|
-|`totalSupply`|`uint128`|immutable total supply of the auction|
+|`totalSupplyX7`|`ValueX7`|immutable total supply of the auction|
 |`mps`|`uint24`|the number of mps, following the auction sale schedule|
 
 
@@ -50,7 +50,7 @@ Calculate the total currency raised
 
 
 ```solidity
-function getCurrencyRaised(Checkpoint memory checkpoint) internal pure returns (uint128);
+function getCurrencyRaised(Checkpoint memory checkpoint) internal pure returns (uint256);
 ```
 **Parameters**
 
@@ -62,6 +62,6 @@ function getCurrencyRaised(Checkpoint memory checkpoint) internal pure returns (
 
 |Name|Type|Description|
 |----|----|-----------|
-|`<none>`|`uint128`|The total currency raised|
+|`<none>`|`uint256`|The total currency raised|
 
 

@@ -39,7 +39,7 @@ export interface EventData {
 }
 
 export class SingleTestRunner {
-  private network: Network; // Hardhat network type is complex, using any for now
+  private network: Network;
   private schemaValidator: SchemaValidator;
   private deployer: AuctionDeployer;
 

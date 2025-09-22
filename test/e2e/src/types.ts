@@ -75,15 +75,6 @@ export interface AssertionEventData {
   };
 }
 
-
-// Network types
-export interface NetworkProvider {
-  send(method: string, params: unknown[]): Promise<unknown>;
-}
-
-
-
-
 // Test result types
 export interface TestExecutionResult {
   success: boolean;

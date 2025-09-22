@@ -12,7 +12,7 @@ interface ICheckpointStorage {
 
     /// @notice Get the currency raised at the last checkpointed block
     /// @dev This may be less than the balance of this contract as tokens are sold at different prices
-    function currencyRaised() external view returns (uint128);
+    function currencyRaised() external view returns (uint256);
 
     /// @notice Get the number of the last checkpointed block
     function lastCheckpointedBlock() external view returns (uint64);

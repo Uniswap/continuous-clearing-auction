@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f66249e6bb5ebf3be6698edff5f27719f8f33c6e/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/899241e807de403ae63b1b5bb830691ad3d8c97a/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -291,12 +291,28 @@ Error thrown when the bid is higher than the clearing price
 error CannotExitBid();
 ```
 
-### InvalidCheckpointHint
+### CannotPartiallyExitBidBeforeEndBlock
+Error thrown when the bid cannot be partially exited before the end block
+
+
+```solidity
+error CannotPartiallyExitBidBeforeEndBlock();
+```
+
+### InvalidLowerCheckpointHint
 Error thrown when the checkpoint hint is invalid
 
 
 ```solidity
-error InvalidCheckpointHint();
+error InvalidLowerCheckpointHint();
+```
+
+### InvalidOutbidBlockCheckpointHint
+Error thrown when the outbid block checkpoint hint is invalid
+
+
+```solidity
+error InvalidOutbidBlockCheckpointHint();
 ```
 
 ### NotClaimable

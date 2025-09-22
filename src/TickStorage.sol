@@ -57,18 +57,25 @@ abstract contract TickStorage is ITickStorage {
     /// @param prevPrice The price of the previous tick
     /// @param price The price of the tick
     function _initializeTickIfNeeded(uint256 prevPrice, uint256 price) internal {
-        // No previous price can be greater than or equal to the new price
-        uint256 nextPrice = ticks[prevPrice].next;
+        if (price % TICK_SPACING != 0) revert TickPriceNotAtBoundary();
+        if (price == MAX_TICK_PRICE) revert InvalidTickPrice();
 
+        // No previous price can be greater than or equal to the new price
         if (prevPrice >= price) {
             revert TickPreviousPriceInvalid();
         }
 
-        if (nextPrice != MAX_TICK_PRICE && nextPrice < price) {
-            revert TickPriceNotIncreasing();
+        // Require that the next price is greater than or equal to the current price
+        // If not, iterate until reached or MAX_TICK_PRICE
+        uint256 nextPrice = ticks[prevPrice].next;
+        // Revert if the next price is 0 as the prevPrice is not initialized
+        if (nextPrice == 0) {
+            revert TickPreviousPriceInvalid();
         }
-
-        if (price % TICK_SPACING != 0) revert TickPriceNotAtBoundary();
+        while (nextPrice < price) {
+            prevPrice = nextPrice;
+            nextPrice = ticks[nextPrice].next;
+        }
 
         // The tick already exists, early return
         if (nextPrice == price) return;

@@ -6,6 +6,8 @@ import {AuctionParameters} from './interfaces/IAuction.sol';
 import {IAuctionFactory} from './interfaces/IAuctionFactory.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from './interfaces/external/IDistributionStrategy.sol';
+
+import {Create2} from '@openzeppelin/contracts/utils/Create2.sol';
 import {ActionConstants} from 'v4-periphery/src/libraries/ActionConstants.sol';
 
 /// @title AuctionFactory
@@ -26,5 +28,23 @@ contract AuctionFactory is IAuctionFactory {
         );
 
         emit AuctionCreated(address(distributionContract), token, amount, configData);
+    }
+
+    /// @inheritdoc IAuctionFactory
+    function getAuctionAddress(address token, uint128 amount, bytes calldata configData, bytes32 salt)
+        public
+        view
+        returns (address)
+    {
+        AuctionParameters memory parameters = abi.decode(configData, (AuctionParameters));
+        // If the tokensRecipient is address(1), set it to the msg.sender
+        if (parameters.tokensRecipient == ActionConstants.MSG_SENDER) parameters.tokensRecipient = msg.sender;
+        // If the fundsRecipient is address(1), set it to the msg.sender
+        if (parameters.fundsRecipient == ActionConstants.MSG_SENDER) parameters.fundsRecipient = msg.sender;
+
+        bytes32 initCodeHash =
+            keccak256(abi.encodePacked(type(Auction).creationCode, abi.encode(token, amount, parameters)));
+        salt = keccak256(abi.encode(msg.sender, salt));
+        return Create2.computeAddress(salt, initCodeHash, address(this));
     }
 }

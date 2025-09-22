@@ -59,6 +59,8 @@ contract Auction is
     /// @notice The sum of demand in ticks above the clearing price
     Demand public sumDemandAboveClearing;
 
+    Checkpoint public lastCheckpointBeforeFullySubscribed;
+
     constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
         TokenCurrencyStorage(
@@ -110,34 +112,38 @@ contract Auction is
     /// @return The transformed checkpoint
     function _transformCheckpoint(Checkpoint memory _checkpoint, uint24 deltaMps)
         internal
-        view
         returns (Checkpoint memory)
     {
         // Resolved demand above the clearing price over `deltaMps`
         // This loses precision up to `deltaMps` significant figures
         ValueX7 demandAboveClearingPriceMpsX7 =
-            _checkpoint.sumDemandAboveClearingPrice.resolve(_checkpoint.clearingPrice).scaleByMps(deltaMps);
+            _checkpoint.sumDemandAboveClearingPrice.scaleByMps(deltaMps).resolve(_checkpoint.clearingPrice);
         // Calculate the supply to be cleared based on demand above the clearing price
         ValueX7 supplyClearedX7;
         ValueX7 supplySoldToClearingPriceX7;
         // If the clearing price is above the floor price we can sell the available supply
         // Otherwise, we can only sell the demand above the clearing price
         if (_checkpoint.clearingPrice > FLOOR_PRICE) {
-            // Get the supply to be cleared over `deltaMps`
-            supplyClearedX7 = _checkpoint.getSupply(TOTAL_SUPPLY_X7, deltaMps);
+            // If unset, set the lastCheckpointBeforeFullySubscribed to the current _checkpoint
+            // The `totalCleared` and `cumulativeMps` values have not been updated yet
+            if (lastCheckpointBeforeFullySubscribed.totalCleared.eq(0)) {
+                lastCheckpointBeforeFullySubscribed = _checkpoint;
+            }
+            supplyClearedX7 = TOTAL_SUPPLY_X7.sub(lastCheckpointBeforeFullySubscribed.totalCleared).mulUint256(deltaMps)
+                .divUint256(MPSLib.MPS - lastCheckpointBeforeFullySubscribed.cumulativeMps);
 
-            console2.log("supplyClearedX7", ValueX7.unwrap(supplyClearedX7));
-            console2.log("demandAboveClearingPriceMpsX7", ValueX7.unwrap(demandAboveClearingPriceMpsX7));
+            console2.log('supplyClearedX7', ValueX7.unwrap(supplyClearedX7));
+            console2.log('demandAboveClearingPriceMpsX7', ValueX7.unwrap(demandAboveClearingPriceMpsX7));
 
             supplySoldToClearingPriceX7 = supplyClearedX7.sub(demandAboveClearingPriceMpsX7);
+            _checkpoint.cumulativeSupplySoldToClearingPriceX7 =
+                _checkpoint.cumulativeSupplySoldToClearingPriceX7.add(supplySoldToClearingPriceX7);
         } else {
             supplyClearedX7 = demandAboveClearingPriceMpsX7;
             // supplySoldToClearing price is zero here
         }
         _checkpoint.totalCleared = _checkpoint.totalCleared.add(supplyClearedX7);
         _checkpoint.cumulativeMps += deltaMps;
-        _checkpoint.cumulativeSupplySoldToClearingPriceX7 =
-            _checkpoint.cumulativeSupplySoldToClearingPriceX7.add(supplySoldToClearingPriceX7);
         _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(deltaMps, _checkpoint.clearingPrice);
         return _checkpoint;
     }
@@ -179,25 +185,25 @@ contract Auction is
          * However, scaling the demand by mps loses precision when dividing by MPSLib.MPS. To avoid this, we use the precalculated quotientX7.
          *
          * Formula derivation:
-         * 
+         *
          *   ((currencyDemandX7 * step.mps) / MPSLib.MPS) * Q96
          *   ────────────────────────────────────────────────────────────────────────────────────────────────────────
          *   (remainingSupply * step.mps / (MPSLib.MPS - cumulativeMps)) - ((tokenDemandX7 * step.mps) / MPSLib.MPS)
-         * 
+         *
          * Observe that we can cancel out the `step.mps` component in the numerator and denominator:
-         * 
+         *
          *   (currencyDemandX7 / MPSLib.MPS) * Q96
          *   ──────────────────────────────────────────────────────────────────────────────────────
          *   (remainingSupply / (MPSLib.MPS - cumulativeMps)) - (tokenDemandX7 / MPSLib.MPS)
-         * 
+         *
          * Multiply both sides by MPSLib.MPS:
-         * 
+         *
          *   currencyDemandX7 * Q96
          *   ─────────────────────────────────────────────────────────────────────────────────────
          *   (remainingSupply * MPSLib.MPS / (MPSLib.MPS - cumulativeMps)) - tokenDemandX7
          *
          * Substituting quotientX7 for (remainingSupply * MPSLib.MPS / (MPSLib.MPS - cumulativeMps)):
-         * 
+         *
          *   currencyDemandX7 * Q96
          *   ──────────────────────
          *   quotientX7 - tokenDemandX7

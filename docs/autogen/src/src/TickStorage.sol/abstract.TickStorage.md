@@ -1,5 +1,5 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/2af661ccc6f86504a1d7897ac960a1d241655970/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/3a5291ae8874824c9d440912e557ad8044c366ac/src/TickStorage.sol)
 
 **Inherits:**
 [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
@@ -58,7 +58,7 @@ The minimum floor price such that a Uniswap V4 pool can be created with the auct
 
 
 ```solidity
-uint256 public constant MIN_FLOOR_PRICE = 18_448_130_884_583_730_121;
+uint256 public constant MIN_FLOOR_PRICE = 118_448_130_884_583_730_121;
 ```
 
 

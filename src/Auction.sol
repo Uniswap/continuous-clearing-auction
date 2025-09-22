@@ -399,6 +399,7 @@ contract Auction is
         if (CURRENCY.isAddressZero()) {
             if (msg.value != requiredCurrencyAmount) revert InvalidAmount();
         } else {
+            if (msg.value != 0) revert CannotReceiveETHAndCurrency();
             SafeTransferLib.permit2TransferFrom(
                 Currency.unwrap(CURRENCY), msg.sender, address(this), requiredCurrencyAmount
             );

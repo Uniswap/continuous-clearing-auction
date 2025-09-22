@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/88477dc12ad46ab8c9c67c45a4c065f7cc42fc7e/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/5e42abf3052338d15b31bccc07188cc86bde121e/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -255,6 +255,14 @@ Error thrown when not enough amount is deposited
 
 ```solidity
 error InvalidAmount();
+```
+
+### CannotReceiveETHAndCurrency
+Error thrown when msg.value is non zero when currency is not ETH
+
+
+```solidity
+error CannotReceiveETHAndCurrency();
 ```
 
 ### AuctionNotStarted

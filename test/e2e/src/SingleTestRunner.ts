@@ -71,10 +71,10 @@ export class SingleTestRunner {
     
     // PHASE 2: Execute interactions on the configured auction
     console.log('🎯 Phase 2: Executing interaction scenario...');
-    const auctionedToken = this.deployer.getTokenByName(setupData.auctionParameters.auctionedToken);
-    const currencyToken = setupData.auctionParameters.currency === '0x0000000000000000000000000000000000000000' ? null : this.deployer.getTokenByName(setupData.auctionParameters.currency);
+    const auctionedToken = this.deployer.getTokenByName(setupData.auctionParameters.auctionedToken) ?? null;
+    const currencyToken = setupData.auctionParameters.currency === '0x0000000000000000000000000000000000000000' ? null : this.deployer.getTokenByName(setupData.auctionParameters.currency) ?? null;
     const bidSimulator = new BidSimulator(auction, currencyToken as Contract);
-    const assertionEngine = new AssertionEngine(auction, auctionedToken as any, currencyToken as any, this.deployer);
+    const assertionEngine = new AssertionEngine(auction, auctionedToken, currencyToken, this.deployer);
     
     // Setup labels and execute the interaction scenario
     await bidSimulator.setupLabels(interactionData);

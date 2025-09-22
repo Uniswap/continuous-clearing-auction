@@ -41,7 +41,7 @@ describe('E2E Tests', function() {
     if (failed > 0) {
       console.log('\n❌ Failed combinations:');
       results.filter(r => !r.success).forEach(r => {
-        console.log(`   - ${r.setupFile} + ${r.interactionFile}: ${r.error}`);
+        console.log(`   - ${r.setupName} + ${r.interactionName}: ${r.error}`);
       });
       throw new Error(`${failed} test(s) failed`);
     } else {

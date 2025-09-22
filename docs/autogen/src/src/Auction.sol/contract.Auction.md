@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/e8c1bbc686358a3cb32baa6b79098fe877a211eb/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/88477dc12ad46ab8c9c67c45a4c065f7cc42fc7e/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -47,6 +47,15 @@ Demand public sumDemandAboveClearing;
 ```
 
 
+### _tokensReceived
+Whether the TOTAL_SUPPLY of tokens has been received
+
+
+```solidity
+bool private _tokensReceived;
+```
+
+
 ## Functions
 ### constructor
 
@@ -75,13 +84,22 @@ Modifier for functions which can only be called after the auction is over
 modifier onlyAfterAuctionIsOver();
 ```
 
+### onlyActiveAuction
+
+Modifier for functions which can only be called after the auction is started and the tokens have been received
+
+
+```solidity
+modifier onlyActiveAuction();
+```
+
 ### onTokensReceived
 
 Notify a distribution contract that it has received the tokens to distribute
 
 
 ```solidity
-function onTokensReceived() external view;
+function onTokensReceived() external;
 ```
 
 ### isGraduated
@@ -240,7 +258,7 @@ Register a new checkpoint
 
 
 ```solidity
-function checkpoint() public returns (Checkpoint memory _checkpoint);
+function checkpoint() public onlyActiveAuction returns (Checkpoint memory _checkpoint);
 ```
 
 ### submitBid
@@ -258,7 +276,7 @@ function submitBid(
     address owner,
     uint256 prevTickPrice,
     bytes calldata hookData
-) external payable returns (uint256);
+) external payable onlyActiveAuction returns (uint256);
 ```
 **Parameters**
 

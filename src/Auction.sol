@@ -72,14 +72,10 @@ contract Auction is
         TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
         PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
     {
-        TOKENS_RECIPIENT = _parameters.tokensRecipient;
-        FUNDS_RECIPIENT = _parameters.fundsRecipient;
         CLAIM_BLOCK = _parameters.claimBlock;
         VALIDATION_HOOK = IValidationHook(_parameters.validationHook);
 
-        if (TICK_SPACING == 0) revert TickSpacingIsZero();
         if (CLAIM_BLOCK < END_BLOCK) revert ClaimBlockIsBeforeEndBlock();
-        if (FUNDS_RECIPIENT == address(0)) revert FundsRecipientIsZero();
     }
 
     /// @notice Modifier for functions which can only be called after the auction is over

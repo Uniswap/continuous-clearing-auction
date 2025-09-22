@@ -10,7 +10,8 @@ using CurrencyLibrary for Currency global;
 
 /// @title CurrencyLibrary
 /// @dev This library allows for transferring and holding native tokens and ERC20 tokens
-/// @dev Forked from https://github.com/Uniswap/v4-core/blob/main/src/types/Currency.sol but modified to not bubble up reverts
+/// @dev Forked from https://github.com/Uniswap/v4-core/blob/main/src/types/Currency.sol
+/// @dev Modified to not bubble up reverts and removed unused functions
 library CurrencyLibrary {
     /// @notice Thrown when a native transfer fails
     error NativeTransferFailed();
@@ -66,14 +67,6 @@ library CurrencyLibrary {
             if (!success) {
                 revert ERC20TransferFailed();
             }
-        }
-    }
-
-    function balanceOf(Currency currency, address owner) internal view returns (uint256) {
-        if (currency.isAddressZero()) {
-            return owner.balance;
-        } else {
-            return IERC20Minimal(Currency.unwrap(currency)).balanceOf(owner);
         }
     }
 

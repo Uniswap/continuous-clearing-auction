@@ -1,5 +1,5 @@
 # ICheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/ce0cdcca7cbcb44361047d64c159d39b69b75e36/src/interfaces/ICheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/9108275bb2b2739632f86ff78401b370ae2d4f3d/src/interfaces/ICheckpointStorage.sol)
 
 
 ## Functions

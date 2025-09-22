@@ -46,10 +46,6 @@ interface IAuction is
     error AuctionNotStarted();
     /// @notice Error thrown when the tokens required for the auction have not been received
     error TokensNotReceived();
-    /// @notice Error thrown when the floor price is zero
-    error FloorPriceIsZero();
-    /// @notice Error thrown when the tick spacing is zero
-    error TickSpacingIsZero();
     /// @notice Error thrown when the claim block is before the end block
     error ClaimBlockIsBeforeEndBlock();
     /// @notice Error thrown when the bid has already been exited

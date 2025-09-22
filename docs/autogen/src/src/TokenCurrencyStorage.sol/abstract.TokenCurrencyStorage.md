@@ -1,5 +1,5 @@
 # TokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/60abcc13bc954ef69471e1981dc9965a554c3331/src/TokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/9108275bb2b2739632f86ff78401b370ae2d4f3d/src/TokenCurrencyStorage.sol)
 
 **Inherits:**
 [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)

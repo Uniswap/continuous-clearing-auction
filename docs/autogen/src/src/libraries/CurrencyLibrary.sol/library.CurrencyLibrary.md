@@ -1,9 +1,11 @@
 # CurrencyLibrary
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c5718c13b5a20e0aacebf2071a7062f239033bd5/src/libraries/CurrencyLibrary.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/9108275bb2b2739632f86ff78401b370ae2d4f3d/src/libraries/CurrencyLibrary.sol)
 
 *This library allows for transferring and holding native tokens and ERC20 tokens*
 
-*Forked from https://github.com/Uniswap/v4-core/blob/main/src/types/Currency.sol but modified to not bubble up reverts*
+*Forked from https://github.com/Uniswap/v4-core/blob/main/src/types/Currency.sol*
+
+*Modified to not bubble up reverts and removed unused functions*
 
 
 ## State Variables
@@ -22,13 +24,6 @@ Currency public constant ADDRESS_ZERO = Currency.wrap(address(0));
 
 ```solidity
 function transfer(Currency currency, address to, uint256 amount) internal;
-```
-
-### balanceOf
-
-
-```solidity
-function balanceOf(Currency currency, address owner) internal view returns (uint256);
 ```
 
 ### isAddressZero

@@ -33,7 +33,10 @@ abstract contract TickStorage is ITickStorage {
     constructor(uint256 _tickSpacing, uint256 _floorPrice) {
         TICK_SPACING = _tickSpacing;
         FLOOR_PRICE = _floorPrice;
+
         if (_floorPrice < MIN_FLOOR_PRICE) revert FloorPriceTooLow();
+        if (_tickSpacing == 0) revert TickSpacingIsZero();
+
         _unsafeInitializeTick(_floorPrice);
     }
 

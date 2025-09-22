@@ -24,6 +24,8 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
+import {console2} from 'forge-std/console2.sol';
+
 /// @title Auction
 /// @notice Implements a time weighted uniform clearing price auction
 /// @dev Can be constructed directly or through the AuctionFactory. In either case, users must validate
@@ -123,6 +125,10 @@ contract Auction is
         if (_checkpoint.clearingPrice > FLOOR_PRICE) {
             // Get the supply to be cleared over `deltaMps`
             supplyClearedX7 = _checkpoint.getSupply(TOTAL_SUPPLY_X7, deltaMps);
+
+            console2.log("supplyClearedX7", ValueX7.unwrap(supplyClearedX7));
+            console2.log("demandAboveClearingPriceMpsX7", ValueX7.unwrap(demandAboveClearingPriceMpsX7));
+
             supplySoldToClearingPriceX7 = supplyClearedX7.sub(demandAboveClearingPriceMpsX7);
         } else {
             supplyClearedX7 = demandAboveClearingPriceMpsX7;

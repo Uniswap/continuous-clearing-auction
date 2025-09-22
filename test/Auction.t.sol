@@ -24,6 +24,8 @@ import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
+import {console2} from 'forge-std/console2.sol';
+
 contract AuctionTest is AuctionBaseTest {
     using FixedPointMathLib for uint256;
     using AuctionParamsBuilder for AuctionParameters;
@@ -1698,5 +1700,79 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(auction.tickSpacing(), TICK_SPACING);
         assertEq(address(auction.validationHook()), address(0));
         assertEq(auction.floorPrice(), FLOOR_PRICE);
+    }
+
+
+    function test_repro(uint8 numBids) public {
+        vm.assume(numBids > 0);
+        vm.assume(numBids < 15);
+
+        uint256 AUCTION_DURATION = 20;
+        uint256 TICK_SPACING = 1;
+        uint128 TOTAL_SUPPLY = 1000e18;
+        uint256 FLOOR_PRICE = (25 << FixedPoint96.RESOLUTION) / 1000000;
+
+        AuctionParameters memory params = AuctionParameters({
+            currency: address(0),
+            floorPrice: FLOOR_PRICE,
+            tickSpacing: TICK_SPACING,
+            validationHook: address(0),
+            fundsRecipient: msg.sender,
+            tokensRecipient: msg.sender,
+            startBlock: uint64(block.number + 1),
+            endBlock: uint64(block.number + 1 + AUCTION_DURATION),
+            claimBlock: uint64(block.number + 1 + AUCTION_DURATION),
+            graduationThresholdMps: 0,
+            auctionStepsData: abi.encodePacked(
+                uint24(0),
+                uint40(1), // 0% for 1 blocks
+                abi.encodePacked(
+                    uint24(1000e3),
+                    uint40(1), // 10% for 1 block
+                    abi.encodePacked(uint24(500e3), uint40(18)) // 5% for 18 blocks
+                )
+            )
+        });
+
+        uint256 maxPrice = FLOOR_PRICE; 
+        uint256 lastTickPrice = FLOOR_PRICE; 
+
+        for (uint256 i = 0; i < numBids; i++) {
+            maxPrice += FLOOR_PRICE; // Increase the maxPrice by FLOOR_PRICE every bid
+
+            // purchase 50 tokens at the maxPrice
+            uint256 amount = inputAmountForTokens(200 ether, maxPrice);
+
+            console2.log("\n========================================");
+            console2.log("Bid Number: ", i + 1);
+            logQ96AmountWithDecimal("Token Price (ETH)", maxPrice);
+            logAmountWithDecimal("Amount Paid (ETH)", amount);
+            logAmountWithDecimal("Estimated tokens: ", uint128((amount * 1e8) / ((maxPrice * 1e8) >> 96)));
+            console2.log("\n========================================\n");
+
+            auction.submitBid{value: amount, gas: 1000000}(
+                maxPrice, // maxPrice
+                true, // exactIn
+                amount, // amount
+                msg.sender, // owner
+                lastTickPrice, // previousPrice
+                "" // hookData
+            );
+
+            // Advance block
+            console2.log("Advancing block to: ", block.number + 1);
+            vm.roll(block.number + 1);
+
+            // set the new price as lastTickPrice
+            lastTickPrice = maxPrice;
+        }
+    }
+
+    function logAmountWithDecimal(string memory key, uint256 amount) internal {
+        emit log_named_decimal_uint(key, amount, 18);
+    }
+
+    function logQ96AmountWithDecimal(string memory key, uint256 amount) internal {
+        emit log_named_decimal_uint(key, ((amount * 1e18) >> FixedPoint96.RESOLUTION), 18);
     }
 }

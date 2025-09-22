@@ -1734,13 +1734,19 @@ contract AuctionTest is AuctionBaseTest {
             )
         });
 
+        auction = new Auction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(auction), TOTAL_SUPPLY);
+
+
         uint256 maxPrice = FLOOR_PRICE; 
         uint256 lastTickPrice = FLOOR_PRICE; 
+
+        vm.roll(params.startBlock + 1);
 
         for (uint256 i = 0; i < numBids; i++) {
             maxPrice += FLOOR_PRICE; // Increase the maxPrice by FLOOR_PRICE every bid
 
-            // purchase 50 tokens at the maxPrice
+            // purchase at max price
             uint256 amount = inputAmountForTokens(200 ether, maxPrice);
 
             console2.log("\n========================================");

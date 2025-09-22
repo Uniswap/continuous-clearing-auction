@@ -59,6 +59,8 @@ contract Auction is
     /// @notice The sum of demand in ticks above the clearing price
     Demand public sumDemandAboveClearing;
 
+    Checkpoint public lastCheckpointBeforeFullySubscribed;
+
     constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
         TokenCurrencyStorage(
@@ -110,7 +112,6 @@ contract Auction is
     /// @return The transformed checkpoint
     function _transformCheckpoint(Checkpoint memory _checkpoint, uint24 deltaMps)
         internal
-        view
         returns (Checkpoint memory)
     {
         ValueX7 demandAboveClearingPriceMpsX7X7 =
@@ -120,6 +121,18 @@ contract Auction is
         // If the clearing price is above the floor price we can sell the available supply
         // Otherwise, we can only sell the demand above the clearing price
         if (_checkpoint.clearingPrice > FLOOR_PRICE) {
+            // If unset, set the lastCheckpointBeforeFullySubscribed to the current _checkpoint
+            // The `totalCleared` and `cumulativeMps` values have not been updated yet
+            if (lastCheckpointBeforeFullySubscribed.totalCleared.eq(0)) {
+                lastCheckpointBeforeFullySubscribed = _checkpoint;
+            }
+            ValueX7 A = TOTAL_SUPPLY_X7.mulUint256(MPSLib.MPS).sub(lastCheckpointBeforeFullySubscribed.totalCleared);
+            uint256 B = MPSLib.MPS - lastCheckpointBeforeFullySubscribed.cumulativeMps;
+            ValueX7 R = _checkpoint.sumDemandAboveClearingPrice.resolveRoundingUp(_checkpoint.clearingPrice);
+            ValueX7 supplySoldToClearingPriceX7X7 =
+                (A.sub(R.mulUint256(B))).fullMulDiv(ValueX7.wrap(deltaMps), ValueX7.wrap(B));
+            supplyClearedX7X7 = supplySoldToClearingPriceX7X7.add(demandAboveClearingPriceMpsX7X7);
+
             _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 =
                 _checkpoint.cumulativeSupplySoldToClearingPriceX7X7.add(supplySoldToClearingPriceX7X7);
         } else {
@@ -517,7 +530,7 @@ contract Auction is
     function sweepUnsoldTokens() external onlyAfterAuctionIsOver {
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
         if (isGraduated()) {
-            _sweepUnsoldTokens((TOTAL_SUPPLY_X7.sub(_getFinalCheckpoint().totalCleared)).scaleDownToUint256());
+            _sweepUnsoldTokens((TOTAL_SUPPLY_X7.mulUint256(MPSLib.MPS).sub(_getFinalCheckpoint().totalCleared)).scaleDownToUint256());
         } else {
             // Use the uint256 totalSupply value instead of the scaled up X7 value
             _sweepUnsoldTokens(TOTAL_SUPPLY);

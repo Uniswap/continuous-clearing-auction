@@ -7,6 +7,8 @@ import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
+
+import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
@@ -987,6 +989,51 @@ contract AuctionTest is AuctionBaseTest {
         auction.claimTokens(2);
     }
 
+    function test_manual() public {
+        auction.submitBid{value: 1_311_466_564_896_620_242_383_001}(
+            79_228_162_514_264_337_593_543_950_356_700,
+            false,
+            1_311_466_564_896_620_242_383,
+            0x328809Bc894f92807417D2dAD6b7C998c1aFdac6,
+            79_228_162_514_264_337_593_543_950_336_000,
+            bytes('')
+        );
+        vm.roll(2);
+        vm.roll(3);
+        vm.roll(4);
+        vm.roll(5);
+
+        deal(
+            address(this), 1_402_474_953_563_817_263_757_670_981_034_320_697_166_371_144_131_523_042_726_651_730_329_600
+        );
+
+        auction.submitBid{
+            value: 1_402_474_953_563_817_263_757_670_981_034_320_697_166_371_144_131_523_042_726_651_730_329_600
+        }(
+            115_792_089_237_316_195_423_570_985_008_687_907_853_269_984_665_640_564_039_457_584_007_913_129_639_800,
+            false,
+            959_612_304_044_431_769_600,
+            0x328809Bc894f92807417D2dAD6b7C998c1aFdac6,
+            79_228_162_514_264_337_593_543_950_356_700,
+            bytes('')
+        );
+
+        deal(address(this), 722_366_482_869_645_213_696);
+
+        auction.submitBid{value: 722_366_482_869_645_213_696}(
+            115_792_089_237_316_195_423_570_985_008_687_907_853_269_984_665_640_564_039_457_584_007_913_129_639_800,
+            true,
+            722_366_482_869_645_213_696,
+            0x328809Bc894f92807417D2dAD6b7C998c1aFdac6,
+            79_228_162_514_264_337_593_543_950_356_700,
+            bytes('')
+        );
+
+        vm.roll(101);
+
+        auction.checkpoint();
+    }
+
     function test_onTokensReceived_withCorrectTokenAndAmount_succeeds() public view {
         // Should not revert since tokens are already minted in setUp()
         auction.onTokensReceived();
@@ -1217,7 +1264,7 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(mps, 250e3);
     }
 
-    function test_calculateNewClearingPrice_belowFloorPrice_returnsFloorPrice() public {
+    function test_calculateNewClearingPrice_belowMinimumClearingPrice_returnsMinimumClearingPrice() public {
         params = params.withFloorPrice(10e6 << FixedPoint96.RESOLUTION);
 
         MockAuction mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, params);
@@ -1232,22 +1279,20 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(block.number + 1);
         mockAuction.checkpoint(); // This sets up sumDemandAboveClearing properly
 
-        // We need: minimumClearingPrice < calculated_price < floorPrice
-        // Use a much smaller minimumClearingPrice so the calculated price will be above it
-        uint256 minimumClearingPrice = 1e1 << FixedPoint96.RESOLUTION; // Much much smaller than floor price (10e6 << 96)
+        // Minimum clearing price must be at least floor price
+        uint256 minimumClearingPrice = 11e6 << FixedPoint96.RESOLUTION;
 
-        // Use a blockTokenSupply that will give a calculated price between minimumClearingPrice and floorPrice
-        // The formula is: clearingPrice = currencyDemandX7 * Q96 / (blockTokenSupply - tokenDemandX7)
-        // We want: minimumClearingPrice < calculated_price < floorPrice
-        // With currencyDemandX7 = 120e18 and tokenDemandX7 = 100e18, we need to find the right blockTokenSupply
-        ValueX7 blockTokenSupply = MPSLib.scaleUpToX7(1e22); // Even larger supply to get a smaller calculated price
+        Checkpoint memory latestCheckpoint = mockAuction.latestCheckpoint();
+
+        ValueX7 quotientX7 = TOTAL_SUPPLY.scaleUpToX7().sub(latestCheckpoint.totalCleared).mulUint256(MPSLib.MPS)
+            .divUint256(MPSLib.MPS - latestCheckpoint.cumulativeMps);
 
         uint256 result = mockAuction.calculateNewClearingPrice(
             minimumClearingPrice, // minimumClearingPrice in X96 (below floor price)
-            blockTokenSupply // blockTokenSupply
+            quotientX7
         );
 
-        assertEq(result, 10e6 << FixedPoint96.RESOLUTION);
+        assertEq(result, 11e6 << FixedPoint96.RESOLUTION);
     }
 
     /// forge-config: default.isolate = true

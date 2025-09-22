@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 import {AuctionStepLib} from './AuctionStepLib.sol';
 import {BidLib} from './BidLib.sol';
+
+import {Demand} from './DemandLib.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
 import {MPSLib, ValueX7} from './MPSLib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -10,7 +12,7 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 struct Checkpoint {
     uint256 clearingPrice;
     ValueX7 totalCleared;
-    ValueX7 resolvedDemandAboveClearingPrice;
+    Demand sumDemandAboveClearingPrice;
     uint256 cumulativeMpsPerPrice;
     ValueX7 cumulativeSupplySoldToClearingPriceX7;
     uint24 cumulativeMps;

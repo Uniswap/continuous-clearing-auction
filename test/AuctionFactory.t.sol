@@ -7,7 +7,7 @@ import {AuctionFactory} from '../src/AuctionFactory.sol';
 import {IAuctionFactory} from '../src/interfaces/IAuctionFactory.sol';
 import {IDistributionContract} from '../src/interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
-import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
+
 import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
 
 import {Assertions} from './utils/Assertions.sol';
@@ -169,5 +169,70 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
 
         // Verify the auction has the correct token balance
         assertEq(token.balanceOf(address(auction)), TOTAL_SUPPLY);
+    }
+
+    function helper__assumeValidDeploymentParams(
+        address _token,
+        uint128 _totalSupply,
+        bytes32 _salt,
+        AuctionParameters memory _params,
+        uint8 _numberOfSteps
+    ) public pure {
+        vm.assume(_totalSupply > 0);
+        vm.assume(_token != address(0));
+
+        vm.assume(_params.currency != address(0));
+        vm.assume(_params.tokensRecipient != address(0));
+        vm.assume(_params.fundsRecipient != address(0));
+        vm.assume(_params.startBlock != 0);
+        vm.assume(_params.claimBlock != 0);
+
+        // -2 because we need to account for the endBlock and claimBlock
+        vm.assume(_params.startBlock <= type(uint64).max - _numberOfSteps - 2);
+        _params.endBlock = _params.startBlock + uint64(_numberOfSteps);
+        _params.claimBlock = _params.endBlock + 1;
+
+        vm.assume(_params.graduationThresholdMps != 0);
+        vm.assume(_params.tickSpacing != 0);
+        vm.assume(_params.validationHook != address(0));
+        vm.assume(_params.floorPrice != 0);
+        vm.assume(_salt != bytes32(0));
+
+        vm.assume(_numberOfSteps > 0);
+        vm.assume(MPSLib.MPS % _numberOfSteps == 0); // such that it is divisible
+
+        // Replace auction steps data with a valid one
+        // Divide steps by number of bips
+        uint256 _numberOfMps = MPSLib.MPS / _numberOfSteps;
+        bytes memory _auctionStepsData = new bytes(0);
+        for (uint8 i = 0; i < _numberOfSteps; i++) {
+            _auctionStepsData = AuctionStepsBuilder.addStep(_auctionStepsData, uint24(_numberOfMps), uint40(1));
+        }
+        _params.auctionStepsData = _auctionStepsData;
+        vm.assume(_params.claimBlock > _params.endBlock);
+
+        // Bound graduation threshold mps
+        _params.graduationThresholdMps = uint24(bound(_params.graduationThresholdMps, 0, uint24(MPSLib.MPS)));
+    }
+
+    function testFuzz_getAuctionAddress(
+        address _token,
+        uint128 _totalSupply,
+        bytes32 _salt,
+        uint8 _numberOfSteps,
+        AuctionParameters memory _params
+    ) public {
+        helper__assumeValidDeploymentParams(_token, _totalSupply, _salt, _params, _numberOfSteps);
+
+        bytes memory configData = abi.encode(_params);
+
+        // Predict the auction address
+        address auctionAddress = factory.getAuctionAddress(_token, _totalSupply, configData, _salt);
+
+        // Create the actual auction
+        IDistributionContract distributionContract =
+            factory.initializeDistribution(_token, _totalSupply, configData, _salt);
+
+        assertEq(auctionAddress, address(distributionContract));
     }
 }

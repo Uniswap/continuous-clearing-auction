@@ -173,11 +173,12 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
 
     function helper__assumeValidDeploymentParams(
         address _token,
-        uint128 _totalSupply,
+        uint256 _totalSupply,
         bytes32 _salt,
         AuctionParameters memory _params,
         uint8 _numberOfSteps
     ) public pure {
+        vm.assume(_totalSupply <= type(uint224).max);
         vm.assume(_totalSupply > 0);
         vm.assume(_token != address(0));
 
@@ -217,7 +218,7 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
 
     function testFuzz_getAuctionAddress(
         address _token,
-        uint128 _totalSupply,
+        uint256 _totalSupply,
         bytes32 _salt,
         uint8 _numberOfSteps,
         AuctionParameters memory _params

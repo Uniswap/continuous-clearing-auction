@@ -1,6 +1,7 @@
 import { TestSetupData, Address } from '../../schemas/TestSetupSchema';
 
 export const simpleSetup: TestSetupData = {
+  name: "SimpleSetup",
   env: {
     chainId: 31337,
     startBlock: "1",

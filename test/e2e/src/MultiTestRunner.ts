@@ -1,12 +1,14 @@
 import { SingleTestRunner, TestResult } from './SingleTestRunner';
 import { TestInstance } from './SchemaValidator';
+import { TestSetupData } from '../schemas/TestSetupSchema';
+import { TestInteractionData } from '../schemas/TestInteractionSchema';
 
 export interface CombinationResult {
   success: boolean;
   result?: TestResult;
   error?: string;
-  setupFile: string;
-  interactionFile: string;
+  setupName: string;
+  interactionName: string;
 }
 
 export interface AvailableFiles {
@@ -15,8 +17,8 @@ export interface AvailableFiles {
 }
 
 export interface Combination {
-  setup: string;
-  interaction: string;
+  setup: TestSetupData;
+  interaction: TestInteractionData;
 }
 
 export class MultiTestRunner {
@@ -26,21 +28,24 @@ export class MultiTestRunner {
     this.singleTestRunner = new SingleTestRunner();
   }
 
+
   /**
    * Run a specific setup + interaction combination
    */
-  async runCombination(setupFile: string, interactionFile: string): Promise<CombinationResult> {
-    console.log(`\n🎯 Running combination: ${setupFile} + ${interactionFile}`);
+  async runCombination(setupData: TestSetupData, interactionData: TestInteractionData): Promise<CombinationResult> {
+    const setupName = setupData.name;
+    const interactionName = interactionData.name;
+    console.log(`\n🎯 Running combination: ${setupName} + ${interactionName}`);
     
     try {
-      const result = await this.singleTestRunner.runCombinedTest(setupFile, interactionFile);
-      console.log(`✅ ${setupFile} + ${interactionFile} - PASSED`);
-      return { success: true, result, setupFile, interactionFile };
+      const result = await this.singleTestRunner.runFullTest(setupData, interactionData);
+      console.log(`✅ ${setupName} + ${interactionName} - PASSED`);
+      return { success: true, result, setupName, interactionName };
     } catch (error: unknown) {
-      console.error(`❌ ${setupFile} + ${interactionFile} - FAILED`);
+      console.error(`❌ ${setupName} + ${interactionName} - FAILED`);
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`   Error: ${errorMessage}`);
-      return { success: false, error: errorMessage, setupFile, interactionFile };
+      return { success: false, error: errorMessage, setupName, interactionName };
     }
   }
 

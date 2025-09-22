@@ -49,15 +49,9 @@ export class SingleTestRunner {
     this.deployer = new AuctionDeployer();
   }
 
-  /**
-   * Runs a complete test combining setup and interaction schemas
-   */
-  async runCombinedTest(setupFilename: string, interactionFilename: string): Promise<TestResult> {
-    console.log(`\n🧪 Running combined test: ${setupFilename} + ${interactionFilename}`);
-    
-    // Load and validate both schemas
-    const setupData = this.schemaValidator.loadTestInstance('setup', setupFilename) as TestSetupData;
-    const interactionData = this.schemaValidator.loadTestInstance('interaction', interactionFilename) as TestInteractionData;
+
+  async runFullTest(setupData: TestSetupData, interactionData: TestInteractionData): Promise<TestResult> {
+    console.log(`\n🧪 Running test: ${setupData.name} + ${interactionData.name}`);
     
     console.log('✅ Schema validation passed');
     

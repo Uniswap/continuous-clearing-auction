@@ -1,6 +1,7 @@
 import { TestInteractionData, Address, AssertionInterfaceType, Side, AmountType, PriceType } from '../../schemas/TestInteractionSchema';
 
 export const simpleInteraction: TestInteractionData = {
+  name: "SimpleInteraction",
   namedBidders: [
     {
       address: "0x1111111111111111111111111111111111111111" as Address,

@@ -1,4 +1,6 @@
 import { MultiTestRunner } from '../src/MultiTestRunner';
+import { simpleSetup } from '../instances/setup/SimpleSetup';
+import { simpleInteraction } from '../instances/interaction/SimpleInteraction';
 import hre from "hardhat";
 
 describe('E2E Tests', function() {
@@ -11,7 +13,7 @@ describe('E2E Tests', function() {
 
   it('should run simple setup and interaction', async function() {
     const combinations = [
-      { setup: 'SimpleSetup.ts', interaction: 'SimpleInteraction.ts' }
+      { setup: simpleSetup, interaction: simpleInteraction }
     ];
     
     console.log('🚀 TWAP Auction E2E Test Runner');

@@ -26,6 +26,7 @@ export const ERROR_MESSAGES = {
   TOKEN_NOT_FOUND: (tokenName: string) => `Token ${tokenName} not found`,
   AUCTIONED_TOKEN_NOT_FOUND: (tokenName: string) => `Auctioned token ${tokenName} not found`,
   AUCTION_PARAMETERS_NOT_FOUND: 'AuctionParameters struct not found in auction artifact',
+  AUCTION_FACTORY_NOT_DEPLOYED: 'AuctionFactory not deployed. Call initialize() first.',
   BALANCE_ASSERTION_FAILED: (address: string, token: string, expected: string, actual: string) => 
     `Balance assertion failed for ${address} token ${token}. Expected ${expected}, got ${actual}`,
   EXPECTED_REVERT_NOT_FOUND: (expected: string, actual: string) => 
@@ -41,6 +42,7 @@ export const LOG_PREFIXES = {
   ERROR: '   ❌',
   WARNING: '   ⚠️',
   INFO: '   🔍',
+  DEBUG: '   🐛',
   BID: '   🔸',
   ASSERTION: '   💰',
   CONFIG: '   📊',

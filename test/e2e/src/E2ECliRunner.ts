@@ -2,18 +2,24 @@
 
 import { MultiTestRunner, CombinationResult } from './MultiTestRunner';
 import { TestInstance } from './SchemaValidator';
+import { TestSetupData } from '../schemas/TestSetupSchema';
+import { TestInteractionData } from '../schemas/TestInteractionSchema';
 
-// Define the combinations you want to run
+// Import the actual TypeScript instances
+import { simpleSetup } from '../instances/setup/SimpleSetup';
+import { simpleInteraction } from '../instances/interaction/SimpleInteraction';
+
+// Define the combinations to run
 const COMBINATIONS_TO_RUN = [
-  { setup: 'SimpleSetup.ts', interaction: 'SimpleInteraction.ts' }
+  { setup: simpleSetup, interaction: simpleInteraction }
   // TODO: Add more combinations here as they are created:
-  // { setup: 'setup02.json', interaction: 'interaction02.json' },
-  // { setup: 'setup03.json', interaction: 'interaction01.json' },
+  // { setup: setup02, interaction: interaction02 },
+  // { setup: setup03, interaction: interaction01 },
 ];
 
 interface CombinationToRun {
-  setup: string;
-  interaction: string;
+  setup: TestSetupData;
+  interaction: TestInteractionData;
 }
 
 interface AvailableFiles {
@@ -43,17 +49,17 @@ class E2ECliRunner {
     
     for (const combination of combinations) {
       try {
-        console.log(`\n🧪 Running: ${combination.setup} + ${combination.interaction}`);
+        console.log(`\n🧪 Running: ${combination.setup.name} + ${combination.interaction.name}`);
         const result = await this.runner.runCombination(combination.setup, combination.interaction);
         results.push(result);
-        console.log(`✅ Success: ${combination.setup} + ${combination.interaction}`);
+        console.log(`✅ Success: ${combination.setup.name} + ${combination.interaction.name}`);
       } catch (error: unknown) {
-        console.error(`❌ Failed: ${combination.setup} + ${combination.interaction}`);
+        console.error(`❌ Failed: ${combination.setup.name} + ${combination.interaction.name}`);
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`   Error: ${errorMessage}`);
         results.push({
-          setupFile: combination.setup,
-          interactionFile: combination.interaction,
+        setupName: combination.setup.name,
+        interactionName: combination.interaction.name,
           success: false,
           error: errorMessage
         });
@@ -61,6 +67,78 @@ class E2ECliRunner {
     }
     
     return results;
+  }
+}
+
+/**
+ * Load combinations from CLI arguments or return predefined combinations
+ */
+async function loadCombinationsFromArgs(): Promise<CombinationToRun[]> {
+  const args = process.argv.slice(2);
+  
+  if (args.length === 0) {
+    // No arguments provided, use predefined combinations
+    console.log('📋 No arguments provided, using predefined combinations');
+    return COMBINATIONS_TO_RUN;
+  }
+  
+  if (args.length % 2 !== 0) {
+    console.error('❌ Error: Arguments must be provided in pairs (setup interaction)');
+    console.log('Usage: npm run e2e:run [setup1 interaction1] [setup2 interaction2] ...');
+    process.exit(1);
+  }
+  
+  const combinations: CombinationToRun[] = [];
+  
+  for (let i = 0; i < args.length; i += 2) {
+    const setupFile = args[i];
+    const interactionFile = args[i + 1];
+    
+    try {
+      const setupData = loadInstanceFromFile(setupFile, 'setup');
+      const interactionData = loadInstanceFromFile(interactionFile, 'interaction');
+      
+      combinations.push({
+        setup: setupData,
+        interaction: interactionData
+      });
+      
+      console.log(`✅ Loaded: ${setupData.name} + ${interactionData.name}`);
+    } catch (error) {
+      console.error(`❌ Failed to load ${setupFile} + ${interactionFile}:`, error);
+      process.exit(1);
+    }
+  }
+  
+  return combinations;
+}
+
+/**
+ * Load a TypeScript instance from a file path
+ */
+function loadInstanceFromFile(filePath: string, type: 'setup'): TestSetupData;
+function loadInstanceFromFile(filePath: string, type: 'interaction'): TestInteractionData;
+function loadInstanceFromFile(filePath: string, type: 'setup' | 'interaction'): TestSetupData | TestInteractionData {
+  // Remove .ts extension if present
+  const cleanPath = filePath.replace(/\.ts$/, '');
+  
+  // Convert file path to require path
+  const requirePath = `../instances/${type}/${cleanPath}`;
+  
+  try {
+    // Use require to load the TypeScript file (ts-node will handle compilation)
+    const module = require(requirePath);
+    
+    // Find the exported instance (should be the default export or a named export)
+    const instance = module.default || module[cleanPath] || Object.values(module)[0];
+    
+    if (!instance) {
+      throw new Error(`No instance found in ${filePath}`);
+    }
+    
+    return instance;
+  } catch (error) {
+    throw new Error(`Failed to load ${filePath}: ${error}`);
   }
 }
 
@@ -76,24 +154,8 @@ async function main(): Promise<void> {
   console.log('   Setup files:', availableFiles.setup.join(', '));
   console.log('   Interaction files:', availableFiles.interaction.join(', '));
   
-  // Check for command line arguments
-  let combinationsToRun = COMBINATIONS_TO_RUN;
-  
-  // Parse command line arguments for specific combinations
-  const args = process.argv.slice(2);
-  if (args.length >= 2) {
-    const setupIndex = args.indexOf('--setup');
-    const interactionIndex = args.indexOf('--interaction');
-    
-    if (setupIndex !== -1 && interactionIndex !== -1 && 
-        setupIndex + 1 < args.length && interactionIndex + 1 < args.length) {
-      const setupFile = args[setupIndex + 1];
-      const interactionFile = args[interactionIndex + 1];
-      
-      console.log(`\n🎯 Running specific combination: ${setupFile} + ${interactionFile}`);
-      combinationsToRun = [{ setup: setupFile, interaction: interactionFile }];
-    }
-  }
+// Load combinations from CLI arguments or use predefined ones
+const combinationsToRun = await loadCombinationsFromArgs();
   
   // Run the specified combinations
   console.log(`\n🎯 Running ${combinationsToRun.length} specified combinations...`);
@@ -111,7 +173,7 @@ async function main(): Promise<void> {
   if (failed > 0) {
     console.log('\n❌ Failed combinations:');
     results.filter(r => !r.success).forEach(r => {
-      console.log(`   - ${r.setupFile} + ${r.interactionFile}: ${r.error}`);
+      console.log(`   - ${r.setupName} + ${r.interactionName}: ${r.error}`);
     });
     process.exit(1);
   } else {

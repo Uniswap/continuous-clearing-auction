@@ -141,6 +141,7 @@ export interface AssertionInfo {
 }
 
 export interface TestInteractionData {
+  name: string;
   namedBidders?: NamedBidder[];
   groups?: Group[];
   actions?: Array<{

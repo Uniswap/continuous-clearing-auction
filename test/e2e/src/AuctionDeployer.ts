@@ -1,4 +1,4 @@
-import { TestSetupData, Address } from '../schemas/TestSetupSchema';
+import { TestSetupData, Address, AdditionalToken } from '../schemas/TestSetupSchema';
 import mockTokenArtifact from '../../../out/WorkingCustomMockToken.sol/WorkingCustomMockToken.json';
 import auctionArtifact from '../../../out/Auction.sol/Auction.json';
 import auctionFactoryArtifact from '../../../out/AuctionFactory.sol/AuctionFactory.json';
@@ -22,12 +22,6 @@ import {
 } from './types';
 import hre from "hardhat";
 
-export interface TokenConfig {
-  name: string;
-  decimals: string;
-  totalSupply: string;
-  percentAuctioned: string;
-}
 
 export class AuctionDeployer {
   private ethers: typeof hre.ethers;
@@ -47,13 +41,14 @@ export class AuctionDeployer {
     // Deploy auction factory
     await this.deployAuctionFactory();
     
+    
     // Deploy all tokens once
     await this.deployAdditionalTokens(setupData.additionalTokens);
     
     logger.info(LOG_PREFIXES.SUCCESS, 'AuctionFactory deployed. Additional Tokens Deployer', setupData.additionalTokens.length, 'tokens');
   }
 
-  async deployAdditionalTokens(additionalTokens: TokenConfig[]): Promise<void> {
+  async deployAdditionalTokens(additionalTokens: AdditionalToken[]): Promise<void> {
     logger.info(LOG_PREFIXES.DEPLOY, 'Deploying additional tokens...');
     
     for (const tokenConfig of additionalTokens) {
@@ -66,7 +61,7 @@ export class AuctionDeployer {
   /**
    * Deploy a single token
    */
-  private async deployToken(tokenConfig: TokenConfig): Promise<TokenContract> {
+  private async deployToken(tokenConfig: AdditionalToken): Promise<TokenContract> {
     // Load artifact directly from Foundry's out directory
     const mockToken = await this.ethers.getContractFactory(mockTokenArtifact.abi, mockTokenArtifact.bytecode.object);
     const symbol = tokenConfig.name.substring(0, Math.min(MAX_SYMBOL_LENGTH, tokenConfig.name.length)).toUpperCase();
@@ -226,9 +221,13 @@ export class AuctionDeployer {
     auctionAmount: bigint, 
     configData: string
   ): Promise<string> {
+    if (!this.auctionFactory) {
+      throw new AuctionDeploymentError(ERROR_MESSAGES.AUCTION_FACTORY_NOT_DEPLOYED);
+    }
+    
     const salt = this.ethers.keccak256(this.ethers.toUtf8Bytes("test-salt"));
     
-    const auctionAddress = await (this.auctionFactory!.initializeDistribution as any).staticCall(
+    const auctionAddress = await (this.auctionFactory.initializeDistribution as any).staticCall(
       await auctionedToken.getAddress(),
       auctionAmount,
       configData,
@@ -236,7 +235,7 @@ export class AuctionDeployer {
     );
     
     // Execute the actual transaction
-    const tx = await this.auctionFactory!.initializeDistribution(
+    const tx = await this.auctionFactory.initializeDistribution(
       await auctionedToken.getAddress(),
       auctionAmount,
       configData,
@@ -260,7 +259,7 @@ export class AuctionDeployer {
     return address;
   }
 
-  calculateAuctionAmount(tokenName: string, additionalTokens: TokenConfig[]): bigint {
+  calculateAuctionAmount(tokenName: string, additionalTokens: AdditionalToken[]): bigint {
     const tokenConfig = additionalTokens.find(t => t.name === tokenName);
     if (!tokenConfig) {
       throw new AuctionDeploymentError(ERROR_MESSAGES.TOKEN_NOT_FOUND(tokenName));

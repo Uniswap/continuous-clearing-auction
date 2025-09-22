@@ -112,12 +112,6 @@ export interface AuctionConfig {
   auctionStepsData: string;
 }
 
-export interface TokenConfig {
-  name: string;
-  decimals: string;
-  totalSupply: string;
-  percentAuctioned: string;
-}
 
 // Error types
 export class E2ETestError extends Error {

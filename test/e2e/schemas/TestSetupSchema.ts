@@ -1,4 +1,5 @@
 // TypeScript interfaces for test setup schema
+import { ChainId } from '@uniswap/sdk-core';
 
 export type Address = `0x${string}` & { readonly length: 42 };
 
@@ -14,7 +15,7 @@ export interface BalanceItem {
 }
 
 export interface Environment {
-  chainId?: 1 | 5 | 11155111 | 42161 | 8453 | 31337;
+  chainId?: ChainId | 31337; // 31337 is local Hardhat network
   startBlock: string;
   blockTimeSec?: number;
   blockGasLimit?: string;
@@ -46,14 +47,15 @@ export interface AdditionalToken {
 }
 
 export interface TestSetupData {
+  name: string;
   env: Environment;
   auctionParameters: AuctionParameters;
   additionalTokens: AdditionalToken[];
 }
 
 // Type guards for runtime validation
-export function isValidChainId(chainId: number): chainId is 1 | 5 | 11155111 | 42161 | 8453 | 31337 {
-  return [1, 5, 11155111, 42161, 8453, 31337].includes(chainId);
+export function isValidChainId(chainId: number): chainId is ChainId | 31337 {
+  return Object.values(ChainId).includes(chainId as ChainId) || chainId === 31337;
 }
 
 export function isValidAddress(address: string): boolean {

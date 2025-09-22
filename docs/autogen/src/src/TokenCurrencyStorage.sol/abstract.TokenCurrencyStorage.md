@@ -1,73 +1,73 @@
 # TokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4967de5a0312d620dba4bcfa654c49c4c495aad3/src/TokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0870269de9eb67f838fdf37d31febd27dfdef28a/src/TokenCurrencyStorage.sol)
 
 **Inherits:**
 [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
 
 
 ## State Variables
-### currency
+### CURRENCY
 The currency being raised in the auction
 
 
 ```solidity
-Currency public immutable currency;
+Currency internal immutable CURRENCY;
 ```
 
 
-### token
+### TOKEN
 The token being sold in the auction
 
 
 ```solidity
-IERC20Minimal public immutable token;
+IERC20Minimal internal immutable TOKEN;
 ```
 
 
-### totalSupply
+### TOTAL_SUPPLY
 The total supply of tokens to sell
 
 
 ```solidity
-uint256 public immutable totalSupply;
+uint256 internal immutable TOTAL_SUPPLY;
 ```
 
 
-### totalSupplyX7
+### TOTAL_SUPPLY_X7
 The total supply of tokens to sell, scaled up to a ValueX7
 
 *The auction does not support selling more than type(uint256).max / MPSLib.MPS (1e7) tokens*
 
 
 ```solidity
-ValueX7 internal immutable totalSupplyX7;
+ValueX7 internal immutable TOTAL_SUPPLY_X7;
 ```
 
 
-### tokensRecipient
+### TOKENS_RECIPIENT
 The recipient of any unsold tokens at the end of the auction
 
 
 ```solidity
-address public immutable tokensRecipient;
+address internal immutable TOKENS_RECIPIENT;
 ```
 
 
-### fundsRecipient
+### FUNDS_RECIPIENT
 The recipient of the raised Currency from the auction
 
 
 ```solidity
-address public immutable fundsRecipient;
+address internal immutable FUNDS_RECIPIENT;
 ```
 
 
-### graduationThresholdMps
+### GRADUATION_THRESHOLD_MPS
 The minimum portion (in MPS) of the total supply that must be sold
 
 
 ```solidity
-uint24 public immutable graduationThresholdMps;
+uint24 internal immutable GRADUATION_THRESHOLD_MPS;
 ```
 
 
@@ -116,5 +116,59 @@ function _sweepCurrency(uint256 amount) internal;
 
 ```solidity
 function _sweepUnsoldTokens(uint256 amount) internal;
+```
+
+### currency
+
+The currency being raised in the auction
+
+
+```solidity
+function currency() external view override(ITokenCurrencyStorage) returns (Currency);
+```
+
+### token
+
+The token being sold in the auction
+
+
+```solidity
+function token() external view override(ITokenCurrencyStorage) returns (IERC20Minimal);
+```
+
+### totalSupply
+
+The total supply of tokens to sell
+
+
+```solidity
+function totalSupply() external view override(ITokenCurrencyStorage) returns (uint256);
+```
+
+### tokensRecipient
+
+The recipient of any unsold tokens at the end of the auction
+
+
+```solidity
+function tokensRecipient() external view override(ITokenCurrencyStorage) returns (address);
+```
+
+### fundsRecipient
+
+The recipient of the raised Currency from the auction
+
+
+```solidity
+function fundsRecipient() external view override(ITokenCurrencyStorage) returns (address);
+```
+
+### graduationThresholdMps
+
+The minimum portion (in MPS) of the total supply that must be sold
+
+
+```solidity
+function graduationThresholdMps() external view override(ITokenCurrencyStorage) returns (uint24);
 ```
 

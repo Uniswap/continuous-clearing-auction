@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4967de5a0312d620dba4bcfa654c49c4c495aad3/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0870269de9eb67f838fdf37d31febd27dfdef28a/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -126,6 +126,24 @@ Must be called before the `claimBlock`*
 
 ```solidity
 function sweepCurrency() external;
+```
+
+### claimBlock
+
+The block at which the auction can be claimed
+
+
+```solidity
+function claimBlock() external view returns (uint64);
+```
+
+### validationHook
+
+The address of the validation hook for the auction
+
+
+```solidity
+function validationHook() external view returns (IValidationHook);
 ```
 
 ### sweepUnsoldTokens

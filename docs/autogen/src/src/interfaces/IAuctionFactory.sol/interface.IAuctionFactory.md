@@ -1,5 +1,5 @@
 # IAuctionFactory
-[Git Source](https://github.com/Uniswap/twap-auction/blob/5605689a37ed2f924e7c51bbb1dd4ffd8cd93542/src/interfaces/IAuctionFactory.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/8f4a5f1c468f03e9c8dc382568e1e46e29bae691/src/interfaces/IAuctionFactory.sol)
 
 **Inherits:**
 [IDistributionStrategy](/src/interfaces/external/IDistributionStrategy.sol/interface.IDistributionStrategy.md)
@@ -12,7 +12,7 @@ Get the address of an auction contract
 
 
 ```solidity
-function getAuctionAddress(address token, uint128 amount, bytes calldata configData, bytes32 salt)
+function getAuctionAddress(address token, uint256 amount, bytes calldata configData, bytes32 salt)
     external
     view
     returns (address);
@@ -22,7 +22,7 @@ function getAuctionAddress(address token, uint128 amount, bytes calldata configD
 |Name|Type|Description|
 |----|----|-----------|
 |`token`|`address`|The address of the token|
-|`amount`|`uint128`|The amount of tokens to sell|
+|`amount`|`uint256`|The amount of tokens to sell|
 |`configData`|`bytes`|The configuration data for the auction|
 |`salt`|`bytes32`|The salt to use for the deterministic deployment|
 

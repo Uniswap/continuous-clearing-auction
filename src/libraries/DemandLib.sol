@@ -56,6 +56,13 @@ library DemandLib {
         });
     }
 
+    function mulUint256(Demand memory _demand, uint256 value) internal pure returns (Demand memory) {
+        return Demand({
+            currencyDemandX7: _demand.currencyDemandX7.mulUint256(value),
+            tokenDemandX7: _demand.tokenDemandX7.mulUint256(value)
+        });
+    }
+
     /// @notice Apply mps to a Demand struct
     /// @dev Shorthand for calling `scaleByMps` on both currencyDemandX7 and tokenDemandX7
     function scaleByMps(Demand memory _demand, uint24 mps) internal pure returns (Demand memory) {

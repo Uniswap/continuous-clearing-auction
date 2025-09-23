@@ -264,7 +264,7 @@ contract CheckpointStorageTest is Assertions, Test {
     function test_accountPartiallyFilledCheckpoints_zeroCumulativeSupplySoldToClearingPrice_returnsZero() public view {
         Checkpoint memory _checkpoint = mockCheckpointStorage.latestCheckpoint();
         (uint256 tokensFilled, uint256 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
-            _checkpoint.cumulativeSupplySoldToClearingPriceX7, ValueX7.wrap(1e18), ValueX7.wrap(1e18), 1e6
+            _checkpoint.cumulativeSupplySoldToClearingPriceX7X7, ValueX7.wrap(1e18), ValueX7.wrap(1e18), 1e6
         );
         assertEq(tokensFilled, 0);
         assertEq(currencySpent, 0);
@@ -272,10 +272,10 @@ contract CheckpointStorageTest is Assertions, Test {
 
     function test_accountPartiallyFilledCheckpoints_zeroTickDemand_returnsZero() public view {
         Checkpoint memory _checkpoint = mockCheckpointStorage.latestCheckpoint();
-        _checkpoint.cumulativeSupplySoldToClearingPriceX7 = ValueX7.wrap(1e18);
+        _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 = ValueX7.wrap(1e18);
 
         (uint256 tokensFilled, uint256 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
-            _checkpoint.cumulativeSupplySoldToClearingPriceX7,
+            _checkpoint.cumulativeSupplySoldToClearingPriceX7X7,
             ValueX7.wrap(0), // bid demand
             ValueX7.wrap(0), // tick demand
             1e6

@@ -18,7 +18,7 @@ abstract contract Assertions {
                 _checkpoint.next,
                 keccak256(abi.encode(_checkpoint.sumDemandAboveClearingPrice)),
                 _checkpoint.cumulativeMpsPerPrice,
-                _checkpoint.cumulativeSupplySoldToClearingPriceX7
+                _checkpoint.cumulativeSupplySoldToClearingPriceX7X7
             )
         );
     }

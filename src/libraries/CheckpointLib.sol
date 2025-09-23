@@ -14,7 +14,7 @@ struct Checkpoint {
     ValueX7 totalCleared;
     Demand sumDemandAboveClearingPrice;
     uint256 cumulativeMpsPerPrice;
-    ValueX7 cumulativeSupplySoldToClearingPriceX7;
+    ValueX7 cumulativeSupplySoldToClearingPriceX7X7;
     uint24 cumulativeMps;
     uint24 mps;
     uint64 prev;

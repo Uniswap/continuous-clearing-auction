@@ -8,6 +8,8 @@ import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {MPSLib, ValueX7} from './libraries/MPSLib.sol';
+
+import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
@@ -81,14 +83,14 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     }
 
     /// @notice Calculate the tokens sold, proportion of input used, and the block number of the next checkpoint under the bid's max price
-    /// @param cumulativeSupplySoldToClearingPriceX7 The cumulative supply sold to the clearing price
+    /// @param cumulativeSupplySoldToClearingPriceX7X7 The cumulative supply sold to the clearing price
     /// @param bidDemandX7 The demand of the bid
     /// @param tickDemandX7 The demand of the tick
     /// @param bidMaxPrice The max price of the bid
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent
     function _accountPartiallyFilledCheckpoints(
-        ValueX7 cumulativeSupplySoldToClearingPriceX7,
+        ValueX7 cumulativeSupplySoldToClearingPriceX7X7,
         ValueX7 bidDemandX7,
         ValueX7 tickDemandX7,
         uint256 bidMaxPrice
@@ -98,10 +100,13 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         // tokensFilled = bidDemandX7 * runningPartialFillRate * cumulativeMpsDelta / (MPS * Q96)
         // tokensFilled = bidDemandX7 * (cumulativeSupplyX7 * Q96 * MPS / tickDemandX7 * cumulativeMpsDelta) * cumulativeMpsDelta / (mpsDenominator * Q96)
         //              = bidDemandX7 * (cumulativeSupplyX7 / tickDemandX7)
-        // BidDemand and tickDemand are both ValueX7 values, so the X7 cancels out. However, we need to scale down the result due to cumulativeSupplySoldToClearingPriceX7 being a ValueX7 value
-        tokensFilled =
-            (bidDemandX7.fullMulDiv(cumulativeSupplySoldToClearingPriceX7, tickDemandX7)).scaleDownToUint256();
+        // BidDemand and tickDemand are both ValueX7 values, so the X7 cancels out. However, we need to scale down the result due to cumulativeSupplySoldToClearingPriceX7X7 being a ValueX7 value
+        tokensFilled = (
+            bidDemandX7.fullMulDiv(cumulativeSupplySoldToClearingPriceX7X7, tickDemandX7.mulUint256(MPSLib.MPS))
+        ).scaleDownToUint256();
+        console2.log('tokensFilled', tokensFilled);
         currencySpent = tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96);
+        console2.log('currencySpent', currencySpent);
     }
 
     /// @notice Calculate the tokens filled and currency spent for a bid

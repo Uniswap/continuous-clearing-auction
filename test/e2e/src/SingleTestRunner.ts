@@ -55,8 +55,25 @@ export class SingleTestRunner {
     
     console.log('✅ Schema validation passed');
     
+    // Reset the Hardhat network to start fresh for each test
+    await hre.network.provider.send('hardhat_reset');
+    console.log('   🔄 Reset Hardhat network to start fresh');
+    
     // PHASE 1: Setup the auction environment
     console.log('🏗️  Phase 1: Setting up auction environment...');
+    
+    // Check current block and auction start block
+    const currentBlock = await hre.ethers.provider.getBlockNumber();
+    const auctionStartBlock = parseInt(setupData.env.startBlock) + setupData.auctionParameters.startOffsetBlocks;
+    console.log(`   📊 Current block: ${currentBlock}, Auction start block: ${auctionStartBlock}`);
+    
+    if (currentBlock < auctionStartBlock) {
+      const blocksToMine = auctionStartBlock - currentBlock;
+      await hre.ethers.provider.send('hardhat_mine', [`0x${blocksToMine.toString(16)}`]);
+      console.log(`   ⏰ Mined ${blocksToMine} blocks to reach auction start block ${auctionStartBlock}`);
+    } else if (currentBlock > auctionStartBlock) {
+      console.log(`   ⚠️  Current block ${currentBlock} is already past auction start block ${auctionStartBlock}`);
+    }
     
     // Initialize deployer with tokens and factory (one-time setup)
     await this.deployer.initialize(setupData);
@@ -87,8 +104,8 @@ export class SingleTestRunner {
     // Get final state
     const finalState = await assertionEngine.getAuctionState();
     
-    console.log('🎉 Test completed successfully!');
-    console.log(`   📊 Final state:`, finalState);
+          console.log('🎉 Test completed successfully!');
+          console.log(`   📊 Final state:`, finalState);
     
     return {
       setupData,
@@ -183,15 +200,18 @@ export class SingleTestRunner {
     for (const [blockNumber, blockEvents] of Object.entries(eventsByBlock)) {
       const blockNum = parseInt(blockNumber);
       
-      // Mine to the target block (only once per block)
-      await this.network.provider.send('hardhat_mine', [blockNumber]);
+           // Mine to the target block (only once per block)
+           const currentBlock = await hre.ethers.provider.getBlockNumber();
+           const blocksToMine = blockNum - currentBlock;
+           if (blocksToMine > 0) {
+             await this.network.provider.send('hardhat_mine', [`0x${blocksToMine.toString(16)}`]);
+           }
       
       console.log(`   🔸 Block ${blockNumber}: ${blockEvents.length} event(s)`);
       
       // Execute all events in this block
-      for (const event of blockEvents) {
-        console.log(`      📝 ${event.type}`);
-        console.log(event.data);
+        for (const event of blockEvents) {
+          console.log(`      📝 ${event.type}`);
         // Execute the event
         switch (event.type) {
           case EventType.BID:
@@ -215,5 +235,6 @@ export class SingleTestRunner {
       }
     }
   }
+
 
 }

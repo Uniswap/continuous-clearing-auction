@@ -1,6 +1,8 @@
 import { ActionType, TestInteractionData, Group, BidData, Side, AmountType, PriceType, AdminActionMethod, Address, AmountConfig, PriceConfig } from '../schemas/TestInteractionSchema';
 import { Contract } from "ethers";
 import hre from "hardhat";
+import { PERMIT2_ADDRESS, MAX_UINT256 } from './constants';
+import { IAllowanceTransfer } from '../../../typechain-types/test/e2e/artifacts/permit2/src/interfaces/IAllowanceTransfer';
 
 export enum BiddersType {
   NAMED = 'named',
@@ -54,17 +56,6 @@ export class BidSimulator {
         this.labelMap.set(`${group.labelPrefix}${i}`, address);
       }
       this.groupBidders.set(group.labelPrefix, bidders);
-    }
-  }
-
-  async executeBids(interactionData: TestInteractionData): Promise<void> {
-    const allBids = this.collectAllBids(interactionData);
-    
-    // Sort bids by block number
-    allBids.sort((a, b) => a.bidData.atBlock - b.bidData.atBlock);
-
-    for (const bid of allBids) {
-      await this.executeBid(bid);
     }
   }
 
@@ -125,7 +116,6 @@ export class BidSimulator {
   }
 
   async executeBid(bid: InternalBidData): Promise<void> {
-    // Note: Block mining is handled at the block level in CombinedTestRunner
     // This method just executes the bid transaction
 
     const bidData = bid.bidData;
@@ -145,26 +135,22 @@ export class BidSimulator {
       price
     );
 
-    console.log('   🔍 Bid details:');
-    console.log('   🔍   amount:', amount.toString());
-    console.log('   🔍   price:', price.toString());
-    console.log('   🔍   requiredCurrencyAmount:', requiredCurrencyAmount.toString());
-    console.log('   🔍   bidder:', bidder);
-
     try {
-      // Impersonate the bidder account to send the transaction from their address
-      await hre.network.provider.send('hardhat_impersonateAccount', [bidder]);
-      
-      // Get a signer for the bidder address
-      const bidderSigner = await hre.ethers.getSigner(bidder);
-      
-      // Connect the auction contract to the bidder signer
-      const auctionWithBidder = this.auction.connect(bidderSigner);
-      
+        if (this.currency) {
+          await this.handlePermit2Setup(this.currency, bidder);
+        }
+        // Impersonate the bidder account to send the transaction from their address
+        await hre.network.provider.send('hardhat_impersonateAccount', [bidder]);
+        
+        // Get a signer for the bidder address
+        const bidderSigner = await hre.ethers.getSigner(bidder);
+        
+        // Connect the auction contract to the bidder signer
+        const auctionWithBidder = this.auction.connect(bidderSigner);
       let tx: any; // Transaction response type varies
       if (this.currency) {
-        console.log('   🔍 Using ERC20 currency - would need permit2 setup');
-        // TODO: permit2 setup
+        console.log('   🔍 Using ERC20 currency:', await this.currency.getAddress());
+        
         tx = await (auctionWithBidder as any).submitBid(
           price,
           bidData.amount.side === Side.INPUT,
@@ -187,7 +173,6 @@ export class BidSimulator {
       }
 
       await tx.wait();
-      
       // Stop impersonating the account
       await hre.network.provider.send('hardhat_stopImpersonatingAccount', [bidder]);
       
@@ -333,14 +318,8 @@ export class BidSimulator {
   }
 
   async executeAdminActions(adminInteractions: any[]): Promise<void> {
-    // TODO: Implement full admin actions support
-    // Currently only supports sweepCurrency and sweepUnsoldTokens
-    // Need to implement: pause, unpause, setFee, setParam, setValidationHook
-    
     for (const interactionGroup of adminInteractions) {
       for (const interaction of interactionGroup) {
-        // Note: Block mining is handled at the block level in CombinedTestRunner
-        
         const { kind } = interaction.value;
         if (kind === AdminActionMethod.SWEEP_CURRENCY) {
           await this.auction.sweepCurrency();
@@ -348,6 +327,70 @@ export class BidSimulator {
           await this.auction.sweepUnsoldTokens();
         } 
       }
+    }
+  }
+
+  async handlePermit2Setup(currency: Contract, bidder: string): Promise<void> {
+    console.log('   🔍 Handling permit2 setup for:', await currency.getAddress());
+    
+    await this.handlePermit2Deployment();
+    await this.grantPermit2Allowances(currency, bidder);
+  }
+
+  async grantPermit2Allowances(currency: Contract, bidder: string): Promise<void> {
+    // Impersonate the bidder to approve Permit2
+    await hre.network.provider.send('hardhat_impersonateAccount', [bidder]);
+    const bidderSigner = await hre.ethers.getSigner(bidder);
+    const currencyWithBidder = currency.connect(bidderSigner);
+
+    // First, approve Permit2 to spend the tokens
+    await (currencyWithBidder as any).approve(PERMIT2_ADDRESS, MAX_UINT256);
+
+    // Then, call Permit2's approve function to grant allowance to the auction contract
+    const permit2 = await hre.ethers.getContractAt('IAllowanceTransfer', PERMIT2_ADDRESS) as unknown as IAllowanceTransfer;
+    const permit2WithBidder = permit2.connect(bidderSigner);
+    const auctionAddress = await this.auction.getAddress();
+    const maxAmount = '0xffffffffffffffffffffffffffffffffffffffff'; // uint160 max
+    const maxExpiration = '0xffffffffffff'; // uint48 max (far in the future)
+    
+    await permit2WithBidder.approve(
+      await currency.getAddress(), // token address
+      auctionAddress,              // spender (auction contract)
+      maxAmount,                   // amount (max uint160)
+      maxExpiration                // expiration (max uint48)
+    );
+    
+    // Stop impersonating
+    await hre.network.provider.send('hardhat_stopImpersonatingAccount', [bidder]);
+  }
+
+  async handlePermit2Deployment(): Promise<void> {
+    // Check if Permit2 is already deployed at the canonical address
+    const code = await hre.ethers.provider.getCode(PERMIT2_ADDRESS);
+    
+    if (code === '0x') {
+      // Load the Permit2 artifact
+      const permit2Artifact = require('../../../lib/permit2/out/Permit2.sol/Permit2.json');
+      
+      // Deploy Permit2 using the factory pattern first, then move to canonical address
+      const permit2Factory = await hre.ethers.getContractFactory(
+        permit2Artifact.abi,
+        permit2Artifact.bytecode.object
+      );
+      
+      // Deploy Permit2 normally first
+      const permit2Contract = await permit2Factory.deploy();
+      await permit2Contract.waitForDeployment();
+      const permit2Address = await permit2Contract.getAddress();
+      
+      // Get the deployed bytecode
+      const deployedCode = await hre.ethers.provider.getCode(permit2Address);
+      
+      // Use hardhat_setCode to deploy at canonical address
+      await hre.network.provider.send('hardhat_setCode', [
+        PERMIT2_ADDRESS,
+        deployedCode
+      ]);
     }
   }
 }

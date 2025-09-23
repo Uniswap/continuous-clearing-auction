@@ -101,10 +101,10 @@ export class AuctionDeployer {
       );
     }
 
-    const currencyAddress = await this.resolveCurrencyAddress(setupData.auctionParameters.currency as Address);
+    const currencyAddress = await this.resolveCurrencyAddress(setupData.auctionParameters.currency);
     
     // Calculate auction parameters
-    const auctionConfig = this.calculateAuctionParameters(setupData);
+    const auctionConfig = this.calculateAuctionParameters(setupData, currencyAddress);
     const auctionAmount = this.calculateAuctionAmount(setupData.auctionParameters.auctionedToken, setupData.additionalTokens);
     
     // Log auction configuration
@@ -127,7 +127,7 @@ export class AuctionDeployer {
   /**
    * Calculate auction timing parameters
    */
-  private calculateAuctionParameters(setupData: TestSetupData): AuctionConfig {
+  private calculateAuctionParameters(setupData: TestSetupData, currencyAddress: Address): AuctionConfig {
     const { auctionParameters, env } = setupData;
     
     const startBlock = BigInt(env.startBlock) + BigInt(auctionParameters.startOffsetBlocks);
@@ -135,7 +135,7 @@ export class AuctionDeployer {
     const claimBlock = endBlock + BigInt(auctionParameters.claimDelayBlocks);
     
     return {
-      currency: setupData.auctionParameters.currency as Address,
+      currency: currencyAddress,
       tokensRecipient: auctionParameters.tokensRecipient,
       fundsRecipient: auctionParameters.fundsRecipient,
       startBlock: Number(startBlock),
@@ -246,10 +246,10 @@ export class AuctionDeployer {
     return auctionAddress;
   }
 
-  async resolveCurrencyAddress(currency: Address): Promise<Address> {
+  async resolveCurrencyAddress(currency: Address | string): Promise<Address> {
     // If it's an address, return it directly
     if (currency.startsWith('0x')) {
-      return currency;
+      return currency as Address;
     }
     // Otherwise, look up the token by name
     const address = await this.getTokenAddress(currency);

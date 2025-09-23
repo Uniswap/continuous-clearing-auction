@@ -8,12 +8,14 @@ import { TestInteractionData } from '../schemas/TestInteractionSchema';
 // Import the actual TypeScript instances
 import { simpleSetup } from '../instances/setup/SimpleSetup';
 import { simpleInteraction } from '../instances/interaction/SimpleInteraction';
+import { erc20Setup } from '../instances/setup/ERC20Setup';
+import { erc20Interaction } from '../instances/interaction/ERC20Interaction';
 
 // Define the combinations to run
 const COMBINATIONS_TO_RUN = [
-  { setup: simpleSetup, interaction: simpleInteraction }
+  { setup: simpleSetup, interaction: simpleInteraction },
+  { setup: erc20Setup, interaction: erc20Interaction }
   // TODO: Add more combinations here as they are created:
-  // { setup: setup02, interaction: interaction02 },
   // { setup: setup03, interaction: interaction01 },
 ];
 
@@ -126,7 +128,7 @@ function loadInstanceFromFile(filePath: string, type: 'setup' | 'interaction'): 
   const requirePath = `../instances/${type}/${cleanPath}`;
   
   try {
-    // Use require to load the TypeScript file (ts-node will handle compilation)
+    // TODO: find a way to avoid require
     const module = require(requirePath);
     
     // Find the exported instance (should be the default export or a named export)

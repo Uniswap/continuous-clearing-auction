@@ -1,8 +1,3 @@
-/**
- * Enhanced type definitions for E2E tests
- * Improves type safety and reduces 'any' usage
- */
-
 import { Contract } from 'ethers';
 import { Address } from '../schemas/TestSetupSchema';
 

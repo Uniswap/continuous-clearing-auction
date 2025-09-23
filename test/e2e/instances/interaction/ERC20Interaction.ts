@@ -1,15 +1,15 @@
 import { TestInteractionData, Address, AssertionInterfaceType, Side, AmountType, PriceType } from '../../schemas/TestInteractionSchema';
 
-export const simpleInteraction: TestInteractionData = {
-  name: "SimpleInteraction",
+export const erc20Interaction: TestInteractionData = {
+  name: "ERC20Interaction",
   namedBidders: [
     {
       address: "0x1111111111111111111111111111111111111111" as Address,
-      label: "SimpleBidder",
+      label: "ERC20Bidder",
       bids: [
         {
           atBlock: 10,
-          amount: { side: Side.INPUT, type: AmountType.RAW, value: "1000000000000000000" },
+          amount: { side: Side.INPUT, type: AmountType.RAW, value: "1000000000" }, // 1000 USDC (6 decimals)
           price: { type: PriceType.RAW, value: "87150978765690771352898345369600" },
           previousTick: 1
         }
@@ -17,20 +17,15 @@ export const simpleInteraction: TestInteractionData = {
       recurringBids: []
     }
   ],
-  
-  groups: [],
-
-  actions: [],
-
   assertions: [
     {
-      atBlock: 20,
-      reason: "Check bidder native currency balance after bid",
+      atBlock: 70,
+      reason: "Check bidder USDC balance after bid",
       assert: {
         type: AssertionInterfaceType.BALANCE,
         address: "0x1111111111111111111111111111111111111111" as Address,
-        token: "0x0000000000000000000000000000000000000000" as Address,
-        expected: "999603611106735603"
+        token: "USDC",
+        expected: "999000000000" // Expected USDC balance after bid (1M - 1K = 999K USDC)
       }
     }
   ]

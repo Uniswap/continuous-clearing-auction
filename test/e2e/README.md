@@ -1,6 +1,6 @@
 # TWAP Auction E2E Test Suite
 
-This directory contains the end-to-end (E2E) test suite for the TWAP Auction system. The test suite allows you to define complex auction scenarios using TypeScript interfaces and validate the entire auction lifecycle from deployment to completion.
+This directory contains the end-to-end (E2E) test suite for the TWAP Auction system. The test suite allows one to define complex auction scenarios using TypeScript interfaces and validate the entire auction lifecycle from deployment to completion.
 
 ## 🚧 TODO: Unimplemented Features
 

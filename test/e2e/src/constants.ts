@@ -7,6 +7,10 @@ import { Address } from '../schemas/TestSetupSchema';
 // Network and blockchain constants
 export const NATIVE_CURRENCY_ADDRESS = '0x0000000000000000000000000000000000000000' as Address;
 export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Address;
+export const PERMIT2_ADDRESS = '0x000000000022D473030F116dDEE9F6B43aC78BA3' as Address;
+
+// ERC20 constants
+export const MAX_UINT256 = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
 
 // Hardhat network methods
 export const HARDHAT_METHODS = {

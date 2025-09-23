@@ -1170,11 +1170,11 @@ contract AuctionTest is AuctionBaseTest {
 
         Checkpoint memory latestCheckpoint = mockAuction.latestCheckpoint();
 
-        ValueX7 quotientX7 = TOTAL_SUPPLY.scaleUpToX7().sub(latestCheckpoint.totalCleared).mulUint256(MPSLib.MPS)
-            .divUint256(MPSLib.MPS - latestCheckpoint.cumulativeMps);
+        ValueX7 quotientX7 = TOTAL_SUPPLY.scaleUpToX7().sub(latestCheckpoint.totalCleared).mulUint256(MPSLib.MPS);
 
         uint256 result = mockAuction.calculateNewClearingPrice(
             minimumClearingPrice, // minimumClearingPrice in X96 (below floor price)
+            MPSLib.MPS - latestCheckpoint.cumulativeMps,
             quotientX7
         );
 
@@ -1702,15 +1702,14 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(auction.floorPrice(), FLOOR_PRICE);
     }
 
-
     function test_repro(uint8 numBids) public {
         vm.assume(numBids > 0);
         vm.assume(numBids < 15);
 
         uint256 AUCTION_DURATION = 20;
-        uint256 TICK_SPACING = 1;
+        uint256 TICK_SPACING = 2;
         uint128 TOTAL_SUPPLY = 1000e18;
-        uint256 FLOOR_PRICE = (25 << FixedPoint96.RESOLUTION) / 1000000;
+        uint256 FLOOR_PRICE = (25 << FixedPoint96.RESOLUTION) / 1_000_000;
 
         AuctionParameters memory params = AuctionParameters({
             currency: address(0),
@@ -1737,9 +1736,8 @@ contract AuctionTest is AuctionBaseTest {
         auction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auction), TOTAL_SUPPLY);
 
-
-        uint256 maxPrice = FLOOR_PRICE; 
-        uint256 lastTickPrice = FLOOR_PRICE; 
+        uint256 maxPrice = FLOOR_PRICE;
+        uint256 lastTickPrice = FLOOR_PRICE;
 
         vm.roll(params.startBlock + 1);
 
@@ -1749,24 +1747,24 @@ contract AuctionTest is AuctionBaseTest {
             // purchase at max price
             uint256 amount = inputAmountForTokens(200 ether, maxPrice);
 
-            console2.log("\n========================================");
-            console2.log("Bid Number: ", i + 1);
-            logQ96AmountWithDecimal("Token Price (ETH)", maxPrice);
-            logAmountWithDecimal("Amount Paid (ETH)", amount);
-            logAmountWithDecimal("Estimated tokens: ", uint128((amount * 1e8) / ((maxPrice * 1e8) >> 96)));
-            console2.log("\n========================================\n");
+            console2.log('\n========================================');
+            console2.log('Bid Number: ', i + 1);
+            logQ96AmountWithDecimal('Token Price (ETH)', maxPrice);
+            logAmountWithDecimal('Amount Paid (ETH)', amount);
+            logAmountWithDecimal('Estimated tokens: ', uint128((amount * 1e8) / ((maxPrice * 1e8) >> 96)));
+            console2.log('\n========================================\n');
 
-            auction.submitBid{value: amount, gas: 1000000}(
+            auction.submitBid{value: amount, gas: 1_000_000}(
                 maxPrice, // maxPrice
                 true, // exactIn
                 amount, // amount
                 msg.sender, // owner
                 lastTickPrice, // previousPrice
-                "" // hookData
+                '' // hookData
             );
 
             // Advance block
-            console2.log("Advancing block to: ", block.number + 1);
+            console2.log('Advancing block to: ', block.number + 1);
             vm.roll(block.number + 1);
 
             // set the new price as lastTickPrice

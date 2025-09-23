@@ -1707,7 +1707,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.assume(numBids < 15);
 
         uint256 AUCTION_DURATION = 20;
-        uint256 TICK_SPACING = 1;
+        uint256 TICK_SPACING = 2;
         uint128 TOTAL_SUPPLY = 1000e18;
         uint256 FLOOR_PRICE = (25 << FixedPoint96.RESOLUTION) / 1_000_000;
 

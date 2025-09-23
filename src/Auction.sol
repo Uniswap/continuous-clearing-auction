@@ -117,7 +117,7 @@ contract Auction is
         // Resolved demand above the clearing price over `deltaMps`
         // This loses precision up to `deltaMps` significant figures
         ValueX7 demandAboveClearingPriceMpsX7 =
-            _checkpoint.sumDemandAboveClearingPrice.scaleByMps(deltaMps).resolve(_checkpoint.clearingPrice);
+            _checkpoint.sumDemandAboveClearingPrice.resolve(_checkpoint.clearingPrice).scaleByMps(deltaMps);
         // Calculate the supply to be cleared based on demand above the clearing price
         ValueX7 supplyClearedX7;
         ValueX7 supplySoldToClearingPriceX7;
@@ -209,13 +209,16 @@ contract Auction is
          *   quotientX7 - tokenDemandX7
          */
         uint256 _clearingPrice = ValueX7.unwrap(
-            sumDemandAboveClearing.currencyDemandX7.fullMulDiv(
+            sumDemandAboveClearing.currencyDemandX7.fullMulDivUp(
                 ValueX7.wrap(FixedPoint96.Q96), quotientX7.sub(sumDemandAboveClearing.tokenDemandX7)
             )
         );
 
         // If the new clearing price is below the minimum clearing price return the minimum clearing price
         if (_clearingPrice < minimumClearingPrice) return minimumClearingPrice;
+        console2.log('clearingPrice == (clearingPrice - (clearingPrice % TICK_SPACING))', _clearingPrice == (_clearingPrice - (_clearingPrice % TICK_SPACING)));
+        console2.log('clearingPrice', _clearingPrice);
+        console2.log('clearingPrice - (clearingPrice % TICK_SPACING)', _clearingPrice - (_clearingPrice % TICK_SPACING));
         // Otherwise, round down to the nearest tick boundary
         return (_clearingPrice - (_clearingPrice % TICK_SPACING));
     }

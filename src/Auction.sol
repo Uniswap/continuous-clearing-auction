@@ -113,7 +113,8 @@ contract Auction is
         view
         returns (Checkpoint memory)
     {
-        ValueX7 demandAboveClearingPriceMpsX7 = _checkpoint.sumDemandAboveClearingPrice.resolveRoundingUp(_checkpoint.clearingPrice).scaleByMps(deltaMps);
+        ValueX7 demandAboveClearingPriceMpsX7 =
+            _checkpoint.sumDemandAboveClearingPrice.resolveRoundingUp(_checkpoint.clearingPrice).scaleByMps(deltaMps);
         // Calculate the supply to be cleared based on demand above the clearing price
         ValueX7 supplyClearedX7;
         ValueX7 supplySoldToClearingPriceX7;
@@ -121,24 +122,22 @@ contract Auction is
         // Otherwise, we can only sell the demand above the clearing price
         if (_checkpoint.clearingPrice > FLOOR_PRICE) {
             // Get the supply to be cleared over `deltaMps`
-            supplyClearedX7 = _checkpoint.getSupply(TOTAL_SUPPLY_X7, deltaMps);
-
-            ValueX7 supplyNumerator =
-                TOTAL_SUPPLY_X7.sub(_checkpoint.totalCleared).mulUint256(uint256(deltaMps) * MPSLib.MPS);
+            ValueX7 supplyNumerator = TOTAL_SUPPLY_X7.sub(_checkpoint.totalCleared).mulUint256(MPSLib.MPS);
             uint256 supplyDenominator = MPSLib.MPS - _checkpoint.cumulativeMps;
             supplySoldToClearingPriceX7 = supplyNumerator.sub(
                 _checkpoint.sumDemandAboveClearingPrice.resolveRoundingUp(_checkpoint.clearingPrice).mulUint256(
-                    supplyDenominator * deltaMps
+                    supplyDenominator
                 )
-            ).divUint256(supplyDenominator * MPSLib.MPS);
-            console2.log('supplyClearedX7', ValueX7.unwrap(supplyClearedX7));
+            ).fullMulDivUp(ValueX7.wrap(deltaMps), ValueX7.wrap(supplyDenominator * MPSLib.MPS));
             console2.log('supplySoldToClearingPriceX7', ValueX7.unwrap(supplySoldToClearingPriceX7));
             console2.log('demandAboveClearingPriceMpsX7', ValueX7.unwrap(demandAboveClearingPriceMpsX7));
-            require(supplySoldToClearingPriceX7.add(demandAboveClearingPriceMpsX7).eq(ValueX7.unwrap(supplyClearedX7)), 'supplySoldToClearingPriceX7 + demandAboveClearingPriceMpsX7 != supplyClearedX7');
+            supplyClearedX7 = supplySoldToClearingPriceX7.add(demandAboveClearingPriceMpsX7);
+            console2.log('> supplyClearedX7', ValueX7.unwrap(supplyClearedX7));
         } else {
             // Resolved demand above the clearing price over `deltaMps`
             // This loses precision up to `deltaMps` significant figures
             supplyClearedX7 = demandAboveClearingPriceMpsX7;
+            console2.log('<= supplyClearedX7', ValueX7.unwrap(supplyClearedX7));
             // supplySoldToClearing price is zero here
         }
         _checkpoint.totalCleared = _checkpoint.totalCleared.add(supplyClearedX7);

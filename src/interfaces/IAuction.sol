@@ -42,6 +42,8 @@ interface IAuction is
     error InvalidAmount();
     /// @notice Error thrown when the auction is not started
     error AuctionNotStarted();
+    /// @notice Error thrown when the tokens required for the auction have not been received
+    error TokensNotReceived();
     /// @notice Error thrown when the floor price is zero
     error FloorPriceIsZero();
     /// @notice Error thrown when the tick spacing is zero
@@ -64,6 +66,10 @@ interface IAuction is
     error AuctionIsNotOver();
     /// @notice Error thrown when a new bid is less than or equal to the clearing price
     error InvalidBidPrice();
+
+    /// @notice Emitted when the tokens are received
+    /// @param totalSupply The total supply of tokens received
+    event TokensReceived(uint256 totalSupply);
 
     /// @notice Emitted when a bid is submitted
     /// @param id The id of the bid

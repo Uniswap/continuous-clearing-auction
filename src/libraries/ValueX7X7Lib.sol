@@ -8,7 +8,7 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 /// @notice A ValueX7 is a uint256 value that has been multiplied by MPS
 type ValueX7X7 is uint256;
 
-using {add, sub, eq, mulUint256, divUint256, gt, gte, fullMulDiv, fullMulDivUp} for ValueX7X7 global;
+using {add, sub, eq, mulUint256, divUint256, gte, fullMulDiv, fullMulDivUp} for ValueX7X7 global;
 
 /// @notice Add two ValueX7 values
 function add(ValueX7X7 a, ValueX7X7 b) pure returns (ValueX7X7) {
@@ -20,19 +20,14 @@ function sub(ValueX7X7 a, ValueX7X7 b) pure returns (ValueX7X7) {
     return ValueX7X7.wrap(ValueX7X7.unwrap(a) - ValueX7X7.unwrap(b));
 }
 
-/// @notice Check if a ValueX7 value is equal to its uint256 representation
-function eq(ValueX7X7 a, uint256 b) pure returns (bool) {
-    return ValueX7X7.unwrap(a) == b;
+/// @notice Check if a ValueX7X7 value is equal to another ValueX7X7 value
+function eq(ValueX7X7 a, ValueX7X7 b) pure returns (bool) {
+    return ValueX7X7.unwrap(a) == ValueX7X7.unwrap(b);
 }
 
-/// @notice Check if a ValueX7 value is greater than its uint256 representation
-function gt(ValueX7X7 a, uint256 b) pure returns (bool) {
-    return ValueX7X7.unwrap(a) > b;
-}
-
-/// @notice Check if a ValueX7 value is greater than or equal to its uint256 representation
-function gte(ValueX7X7 a, uint256 b) pure returns (bool) {
-    return ValueX7X7.unwrap(a) >= b;
+/// @notice Check if a ValueX7 value is greater than or equal to another ValueX7X7 value
+function gte(ValueX7X7 a, ValueX7X7 b) pure returns (bool) {
+    return ValueX7X7.unwrap(a) >= ValueX7X7.unwrap(b);
 }
 
 /// @notice Multiply a ValueX7 value by a uint256
@@ -71,5 +66,11 @@ library ValueX7X7Lib {
     /// @return The result as a uint256
     function scaleDownToValueX7(ValueX7X7 value) internal pure returns (ValueX7) {
         return ValueX7.wrap(ValueX7X7.unwrap(value.divUint256(MPSLib.MPS)));
+    }
+
+    /// @notice Wrapper around free fullMulDiv function to support cases where we want to use uint256 values
+    /// @dev Ensure that `b` and `c` should be compared against the ValueX7X7 value
+    function fullMulDivUnchecked(ValueX7X7 a, uint256 b, uint256 c) internal pure returns (ValueX7X7) {
+        return a.fullMulDiv(ValueX7X7.wrap(b), ValueX7X7.wrap(c));
     }
 }

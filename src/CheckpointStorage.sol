@@ -97,16 +97,21 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         ValueX7 tickDemandX7,
         uint256 bidMaxPrice
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
-        if (tickDemandX7.eq(0)) return (0, 0);
+        if (tickDemandX7.eq(ValueX7.wrap(0))) return (0, 0);
         // Expanded version of the math:
         // tokensFilled = bidDemandX7 * runningPartialFillRate * cumulativeMpsDelta / (MPS * Q96)
         // tokensFilled = bidDemandX7 * (cumulativeSupplyX7 * Q96 * MPS / tickDemandX7 * cumulativeMpsDelta) * cumulativeMpsDelta / (mpsDenominator * Q96)
         //              = bidDemandX7 * (cumulativeSupplyX7 / tickDemandX7)
         // BidDemand and tickDemand are both ValueX7 values, so the X7 cancels out. However, we need to scale down the result due to cumulativeSupplySoldToClearingPriceX7X7 being a ValueX7 value
         tokensFilled = (
-            bidDemandX7.fullMulDiv(cumulativeSupplySoldToClearingPriceX7X7.scaleDownToValueX7(), tickDemandX7)
+            ValueX7.wrap(
+                ValueX7X7.unwrap(
+                    ValueX7X7.wrap(ValueX7.unwrap(bidDemandX7)).fullMulDiv(
+                        cumulativeSupplySoldToClearingPriceX7X7, tickDemandX7.scaleUpToX7X7()
+                    )
+                )
+            )
         )
-            // TODO(ez): should not scale down here in intermediate step
             // We need to scale the X7X7 value down, but to prevent intermediate division, scale up the denominator instead
             .scaleDownToUint256();
         currencySpent = tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96);

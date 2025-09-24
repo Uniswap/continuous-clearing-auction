@@ -105,7 +105,7 @@ contract Auction is
     /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
     function isGraduated() public view returns (bool) {
         return latestCheckpoint().totalClearedX7X7.gte(
-            ValueX7X7.unwrap(TOTAL_SUPPLY_X7_X7.mulUint256(GRADUATION_THRESHOLD_MPS).divUint256(MPSLib.MPS))
+            TOTAL_SUPPLY_X7_X7.mulUint256(GRADUATION_THRESHOLD_MPS).divUint256(MPSLib.MPS)
         );
     }
 
@@ -131,14 +131,15 @@ contract Auction is
         if (_checkpoint.clearingPrice > FLOOR_PRICE) {
             // If unset, set the lastCheckpointBeforeFullySubscribed to the current _checkpoint
             // The `totalClearedX7X7` and `cumulativeMps` values have not been updated yet
-            if (lastCheckpointBeforeFullySubscribed.totalClearedX7X7.eq(0)) {
+            if (lastCheckpointBeforeFullySubscribed.totalClearedX7X7.eq(ValueX7X7.wrap(0))) {
                 lastCheckpointBeforeFullySubscribed = _checkpoint;
             }
-            ValueX7X7 A = TOTAL_SUPPLY_X7_X7.sub(lastCheckpointBeforeFullySubscribed.totalClearedX7X7);
-            uint256 B = MPSLib.MPS - lastCheckpointBeforeFullySubscribed.cumulativeMps;
+            uint256 factor = MPSLib.MPS - lastCheckpointBeforeFullySubscribed.cumulativeMps;
             ValueX7X7 supplySoldToClearingPriceX7X7 = (
-                A.sub(ValueX7X7.wrap(ValueX7.unwrap(resolvedDemandAboveClearingPriceX7.mulUint256(B))))
-            ).fullMulDiv(ValueX7X7.wrap(deltaMps), ValueX7X7.wrap(B));
+                TOTAL_SUPPLY_X7_X7.sub(lastCheckpointBeforeFullySubscribed.totalClearedX7X7).sub(
+                    ValueX7X7.wrap(ValueX7.unwrap(resolvedDemandAboveClearingPriceX7.mulUint256(factor)))
+                )
+            ).fullMulDivUnchecked(deltaMps, factor);
             supplyClearedX7X7 = supplySoldToClearingPriceX7X7.add(resolvedDemandAboveClearingPriceMpsX7X7);
 
             _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 =
@@ -194,7 +195,7 @@ contract Auction is
          */
         uint256 _clearingPrice = ValueX7.unwrap(
             sumDemandAboveClearing.currencyDemandX7.fullMulDivUp(
-                ValueX7.wrap(FixedPoint96.Q96).mulUint256(factor),
+                ValueX7.wrap(FixedPoint96.Q96 * factor),
                 ValueX7.wrap(ValueX7X7.unwrap(quotientX7X7)).sub(
                     sumDemandAboveClearing.tokenDemandX7.mulUint256(factor)
                 )
@@ -253,7 +254,7 @@ contract Auction is
             while (
                 ValueX7X7.wrap(
                     ValueX7.unwrap(_sumDemandAboveClearing.resolveRoundingUp(nextActiveTickPrice).mulUint256(factor))
-                ).gte(ValueX7X7.unwrap(TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)))
+                ).gte(TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7))
             ) {
                 // Subtract the demand at `nextActiveTickPrice`
                 _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_nextActiveTick.demand);

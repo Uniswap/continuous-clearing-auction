@@ -54,13 +54,18 @@ function fullMulDivUp(ValueX7X7 a, ValueX7X7 b, ValueX7X7 c) pure returns (Value
 /// @title ValueX7X7Lib
 library ValueX7X7Lib {
     using ValueX7Lib for ValueX7;
-    using ValueX7X7Lib for ValueX7X7;
+    using ValueX7X7Lib for *;
 
     /// @notice Multiply a uint256 value by MPS
     /// @dev This ensures that future operations (ex. scaleByMps) will not lose precision
     /// @return The result as a ValueX7
     function scaleUpToX7X7(ValueX7 value) internal pure returns (ValueX7X7) {
-        return ValueX7X7.wrap(ValueX7.unwrap(value.mulUint256(MPSLib.MPS)));
+        return value.upcast().mulUint256(MPSLib.MPS);
+    }
+
+    /// @notice Upcast a ValueX7 value to a ValueX7X7 value
+    function upcast(ValueX7 value) internal pure returns (ValueX7X7) {
+        return ValueX7X7.wrap(ValueX7.unwrap(value));
     }
 
     /// @notice Divide a ValueX7 value by MPS

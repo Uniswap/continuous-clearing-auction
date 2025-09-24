@@ -121,7 +121,7 @@ contract Auction is
             _checkpoint.sumDemandAboveClearingPrice.resolveRoundingUp(_checkpoint.clearingPrice);
         // This value should have been divided by MPS, we implicitly remove it to wrap it as a ValueX7X7
         ValueX7X7 resolvedDemandAboveClearingPriceMpsX7X7 =
-            ValueX7X7.wrap(ValueX7.unwrap(resolvedDemandAboveClearingPriceX7.mulUint256(deltaMps)));
+            resolvedDemandAboveClearingPriceX7.upcast().mulUint256(deltaMps);
         // Calculate the supply to be cleared based on demand above the clearing price
         ValueX7X7 supplyClearedX7X7;
         // If the clearing price is above the floor price we can sell the available supply
@@ -135,7 +135,7 @@ contract Auction is
             uint256 factor = MPSLib.MPS - lastCheckpointBeforeFullySubscribed.cumulativeMps;
             ValueX7X7 supplySoldToClearingPriceX7X7 = (
                 TOTAL_SUPPLY_X7_X7.sub(lastCheckpointBeforeFullySubscribed.totalClearedX7X7).sub(
-                    ValueX7X7.wrap(ValueX7.unwrap(resolvedDemandAboveClearingPriceX7.mulUint256(factor)))
+                    resolvedDemandAboveClearingPriceX7.upcast().mulUint256(factor)
                 )
             ).fullMulDivUnchecked(deltaMps, factor);
             supplyClearedX7X7 = supplySoldToClearingPriceX7X7.add(resolvedDemandAboveClearingPriceMpsX7X7);

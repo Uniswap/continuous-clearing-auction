@@ -102,7 +102,7 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         tokensFilled = (
             ValueX7.wrap(
                 ValueX7X7.unwrap(
-                    ValueX7X7.wrap(ValueX7.unwrap(bidDemandX7)).fullMulDiv(
+                    bidDemandX7.upcast().fullMulDiv(
                         cumulativeSupplySoldToClearingPriceX7X7, tickDemandX7.scaleUpToX7X7()
                     )
                 )

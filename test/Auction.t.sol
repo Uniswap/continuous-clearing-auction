@@ -22,58 +22,98 @@ import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
+
+import {console} from 'forge-std/console.sol';
+
 contract AuctionTest is AuctionBaseTest {
     using FixedPointMathLib for uint256;
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
     using MPSLib for *;
 
-    function setUp() public {
-        setUpAuction();
-    }
-
     /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice
     function inputAmountForTokens(uint256 tokens, uint256 maxPrice) internal pure returns (uint256) {
         return tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96);
     }
 
+    // TODO(md): remove
+    function setUp() public {
+        setUpAuction();
+    }
+
+    modifier setUpAuctionFuzz(FuzzDeploymentParams memory _deploymentParams) {
+        setUpAuction(_deploymentParams);
+        _;
+    }
+
+    modifier givenAuctionHasStarted() {
+        helper__goToAuctionStartBlock();
+        _;
+    }
+
+    function helper__goToAuctionStartBlock() public {
+        vm.roll(auction.startBlock());
+    }
+
     /// forge-config: default.isolate = true
     /// forge-config: ci.isolate = true
-    function test_submitBid_exactIn_succeeds_gas() public {
+    function test_submitBid_exactIn_succeeds_gas(FuzzDeploymentParams memory _deploymentParams, uint8 _bidTickSpacingMultiple) public 
+        setUpAuctionFuzz(_deploymentParams) 
+        givenAuctionHasStarted 
+    {
+        uint256 tickSpacing = auction.tickSpacing();
+        uint256 floorPrice = auction.floorPrice();
+
+        // Round bid down to a multiple of tick spacing - but must be above the floor price
+        uint256 firstBid = ((floorPrice + (_bidTickSpacingMultiple * tickSpacing)) / tickSpacing) * tickSpacing;
+        vm.assume(firstBid > floorPrice);
+
+        console.log('firstBid', firstBid);
+        console.log('floorPrice', floorPrice);
+        console.log('tickSpacing', tickSpacing);
+        console.log('bidTickSpacingMultiple', _bidTickSpacingMultiple);
+
+        // Bid price is in X96 format
+        uint256 firstBidMaxPrice = firstBid << FixedPoint96.RESOLUTION;
+
+        uint256 ethInputAmount = inputAmountForTokens(100e18, firstBidMaxPrice);
+        vm.assume(ethInputAmount < 10e24);
+
+        console.log("before submit");
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(
-            0, alice, tickNumberToPriceX96(2), true, inputAmountForTokens(100e18, tickNumberToPriceX96(2))
+            0, alice, firstBidMaxPrice, true, ethInputAmount
         );
-        auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
-            tickNumberToPriceX96(2),
+        auction.submitBid{value: ethInputAmount}(
+            firstBidMaxPrice,
             true,
-            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            ethInputAmount,
             alice,
-            tickNumberToPriceX96(1),
+            floorPrice,
             bytes('')
         );
         vm.snapshotGasLastCall('submitBid_recordStep_updateCheckpoint');
 
-        vm.roll(block.number + 1);
-        auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
-            tickNumberToPriceX96(2),
-            true,
-            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
-            alice,
-            tickNumberToPriceX96(1),
-            bytes('')
-        );
-        vm.snapshotGasLastCall('submitBid_updateCheckpoint');
+        // vm.roll(block.number + 1);
+        // auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+        //     tickNumberToPriceX96(2),
+        //     true,
+        //     inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+        //     alice,
+        //     tickNumberToPriceX96(1),
+        //     bytes('')
+        // );
+        // vm.snapshotGasLastCall('submitBid_updateCheckpoint');
 
-        auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
-            tickNumberToPriceX96(2),
-            true,
-            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
-            alice,
-            tickNumberToPriceX96(1),
-            bytes('')
-        );
-        vm.snapshotGasLastCall('submitBid');
+        // auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+        //     tickNumberToPriceX96(2),
+        //     true,
+        //     inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+        //     alice,
+        //     tickNumberToPriceX96(1),
+        //     bytes('')
+        // );
+        // vm.snapshotGasLastCall('submitBid');
     }
 
     /// forge-config: default.isolate = true

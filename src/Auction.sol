@@ -25,6 +25,8 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
+import {console} from 'forge-std/console.sol';
+
 /// @title Auction
 /// @notice Implements a time weighted uniform clearing price auction
 /// @dev Can be constructed directly or through the AuctionFactory. In either case, users must validate
@@ -342,9 +344,15 @@ contract Auction is
         uint256 prevTickPrice,
         bytes calldata hookData
     ) external payable returns (uint256) {
+        console.log("entry point");
         // Bids cannot be submitted at the endBlock or after
         if (block.number >= END_BLOCK) revert AuctionIsOver();
+        console.log('block.number', block.number);
         uint256 requiredCurrencyAmount = BidLib.inputAmount(exactIn, amount, maxPrice);
+
+        console.log('msg.value', msg.value);
+        console.log('requiredCurrencyAmount', requiredCurrencyAmount);
+
         if (requiredCurrencyAmount == 0) revert InvalidAmount();
         if (CURRENCY.isAddressZero()) {
             if (msg.value != requiredCurrencyAmount) revert InvalidAmount();

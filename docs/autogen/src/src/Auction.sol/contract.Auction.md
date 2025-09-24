@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/29137e702c0788c77e322c9c3ddb3311dbfffb38/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/80666e59d09cb795dca3d090223fd985f766589b/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -47,6 +47,15 @@ Demand public sumDemandAboveClearing;
 ```
 
 
+### _tokensReceived
+Whether the TOTAL_SUPPLY of tokens has been received
+
+
+```solidity
+bool private _tokensReceived;
+```
+
+
 ## Functions
 ### constructor
 
@@ -75,22 +84,48 @@ Modifier for functions which can only be called after the auction is over
 modifier onlyAfterAuctionIsOver();
 ```
 
+### onlyActiveAuction
+
+Modifier for functions which can only be called after the auction is started and the tokens have been received
+
+
+```solidity
+modifier onlyActiveAuction();
+```
+
 ### onTokensReceived
 
 Notify a distribution contract that it has received the tokens to distribute
 
 
 ```solidity
-function onTokensReceived() external view;
+function onTokensReceived() external;
 ```
 
 ### isGraduated
+
+External function to check if the auction has graduated as of the latest checkpoint
+
+*The latest checkpoint may be out of date*
+
+
+```solidity
+function isGraduated() external view returns (bool);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`bool`|bool Whether the auction has graduated or not|
+
+
+### _isGraduated
 
 Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
 
 
 ```solidity
-function isGraduated() public view returns (bool);
+function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool);
 ```
 
 ### _transformCheckpoint
@@ -223,7 +258,7 @@ Register a new checkpoint
 
 
 ```solidity
-function checkpoint() public returns (Checkpoint memory _checkpoint);
+function checkpoint() public onlyActiveAuction returns (Checkpoint memory _checkpoint);
 ```
 
 ### submitBid
@@ -241,7 +276,7 @@ function submitBid(
     address owner,
     uint256 prevTickPrice,
     bytes calldata hookData
-) external payable returns (uint256);
+) external payable onlyActiveAuction returns (uint256);
 ```
 **Parameters**
 

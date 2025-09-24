@@ -191,25 +191,25 @@ contract Auction is
          * However, scaling the demand by mps loses precision when dividing by MPSLib.MPS. To avoid this, we use the precalculated quotientX7.
          *
          * Formula derivation:
-         * 
+         *
          *   ((currencyDemandX7 * step.mps) / MPSLib.MPS) * Q96
          *   ────────────────────────────────────────────────────────────────────────────────────────────────────────
          *   (remainingSupply * step.mps / (MPSLib.MPS - cumulativeMps)) - ((tokenDemandX7 * step.mps) / MPSLib.MPS)
-         * 
+         *
          * Observe that we can cancel out the `step.mps` component in the numerator and denominator:
-         * 
+         *
          *   (currencyDemandX7 / MPSLib.MPS) * Q96
          *   ──────────────────────────────────────────────────────────────────────────────────────
          *   (remainingSupply / (MPSLib.MPS - cumulativeMps)) - (tokenDemandX7 / MPSLib.MPS)
-         * 
+         *
          * Multiply both sides by MPSLib.MPS:
-         * 
+         *
          *   currencyDemandX7 * Q96
          *   ─────────────────────────────────────────────────────────────────────────────────────
          *   (remainingSupply * MPSLib.MPS / (MPSLib.MPS - cumulativeMps)) - tokenDemandX7
          *
          * Substituting quotientX7 for (remainingSupply * MPSLib.MPS / (MPSLib.MPS - cumulativeMps)):
-         * 
+         *
          *   currencyDemandX7 * Q96
          *   ──────────────────────
          *   quotientX7 - tokenDemandX7

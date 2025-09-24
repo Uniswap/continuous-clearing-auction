@@ -31,6 +31,8 @@ contract AuctionTest is AuctionBaseTest {
     using AuctionStepsBuilder for bytes;
     using MPSLib for *;
 
+    bool exactIn = true;
+
     /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice
     function inputAmountForTokens(uint256 tokens, uint256 maxPrice) internal pure returns (uint256) {
         return tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96);
@@ -61,6 +63,16 @@ contract AuctionTest is AuctionBaseTest {
         _;
     }
 
+    modifier givenExactIn() {
+        exactIn = true;
+        _;
+    }
+
+    modifier givenExactOut() {
+        exactIn = false;
+        _;
+    }
+
     function helper__goToAuctionStartBlock() public {
         vm.roll(auction.startBlock());
     }
@@ -83,6 +95,7 @@ contract AuctionTest is AuctionBaseTest {
     function test_submitBid_exactIn_succeeds_gas(FuzzDeploymentParams memory _deploymentParams, uint8 _tickNumber) public 
         setUpAuctionFuzz(_deploymentParams) 
         givenAuctionHasStarted 
+        givenExactIn
         givenFullyFundedAccount
         givenNonZeroTickNumber(_tickNumber)
     {
@@ -98,7 +111,7 @@ contract AuctionTest is AuctionBaseTest {
         );
         auction.submitBid{value: ethInputAmount}(
             firstBidMaxPrice,
-            true,
+            exactIn,
             ethInputAmount,
             alice,
             lastTick,

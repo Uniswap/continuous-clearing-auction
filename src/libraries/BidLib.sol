@@ -27,8 +27,6 @@ library BidLib {
     using BidLib for *;
     using FixedPointMathLib for *;
 
-    uint256 public constant PRECISION = 1e18;
-
     /// @notice Calculate the number of mps remaining in the auction since the bid was submitted
     /// @param bid The bid to calculate the remaining mps for
     /// @return The number of mps remaining in the auction

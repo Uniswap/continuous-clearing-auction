@@ -51,14 +51,15 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
         _deploymentParams.auctionParams.fundsRecipient = fundsRecipient;
         _deploymentParams.auctionParams.validationHook = address(0);
 
-        vm.assume(_deploymentParams.totalSupply <= type(uint224).max);
-        vm.assume(_deploymentParams.totalSupply > 0);
+        // vm.assume(_deploymentParams.totalSupply <= type(uint224).max / (MPSLib.MPS ** 2));
 
-        vm.assume(_deploymentParams.auctionParams.startBlock != 0);
-        vm.assume(_deploymentParams.auctionParams.claimBlock != 0);
+        // TODO: constantify
+        uint256 X7_UPPER_BOUND = (type(uint256).max) / 1e14;
+        _deploymentParams.totalSupply = bound(_deploymentParams.totalSupply, 1, X7_UPPER_BOUND);
+
 
         // -2 because we need to account for the endBlock and claimBlock
-        vm.assume(_deploymentParams.auctionParams.startBlock <= type(uint64).max - _deploymentParams.numberOfSteps - 2);
+        _deploymentParams.auctionParams.startBlock = uint64(bound(_deploymentParams.auctionParams.startBlock, block.number, type(uint64).max - _deploymentParams.numberOfSteps - 2));
         _deploymentParams.auctionParams.endBlock = _deploymentParams.auctionParams.startBlock + uint64(_deploymentParams.numberOfSteps);
         _deploymentParams.auctionParams.claimBlock = _deploymentParams.auctionParams.endBlock + 1;
 
@@ -84,7 +85,6 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
             _auctionStepsData = AuctionStepsBuilder.addStep(_auctionStepsData, uint24(_numberOfMps), uint40(1));
         }
         _deploymentParams.auctionParams.auctionStepsData = _auctionStepsData;
-        vm.assume(_deploymentParams.auctionParams.claimBlock > _deploymentParams.auctionParams.endBlock);
 
         // Bound graduation threshold mps
         _deploymentParams.auctionParams.graduationThresholdMps = uint24(bound(_deploymentParams.auctionParams.graduationThresholdMps, 0, uint24(MPSLib.MPS)));

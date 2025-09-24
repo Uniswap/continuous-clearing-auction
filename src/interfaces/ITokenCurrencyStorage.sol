@@ -10,6 +10,8 @@ interface ITokenCurrencyStorage {
     error TotalSupplyIsZero();
     /// @notice Error thrown when the funds recipient is the zero address
     error FundsRecipientIsZero();
+    /// @notice Error thrown when the total supply is too large - it must be less than type(uint256).max / MPSLib.MPS ** 2
+    error TotalSupplyX7IsTooLarge();
     /// @notice Error thrown when the function is called by an address other than the funds recipient
     error OnlyFundsRecipient();
     /// @notice Error thrown when the currency cannot be swept

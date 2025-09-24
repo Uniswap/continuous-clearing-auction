@@ -153,6 +153,7 @@ contract Auction is
         uint64 start = step.startBlock < lastCheckpointedBlock ? lastCheckpointedBlock : step.startBlock;
         uint64 end = step.endBlock;
 
+        console.log("advance to current step: before while");
         uint24 mps = step.mps;
         while (blockNumber > end) {
             _checkpoint = _transformCheckpoint(_checkpoint, uint24((end - start) * mps));
@@ -202,9 +203,11 @@ contract Auction is
     ///      depending on how much time has passed since the last checkpoint
     function _updateLatestCheckpointToCurrentStep(uint64 blockNumber) internal returns (Checkpoint memory) {
         Checkpoint memory _checkpoint = latestCheckpoint();
+        console.log("update latest checkpoint: before advanceToCurrentStep");
         // If step.mps is 0, advance to the current step before calculating the supply
         if (step.mps == 0) _advanceToCurrentStep(_checkpoint, blockNumber);
         // Get the supply being sold since the last checkpoint, accounting for rollovers of past supply
+        console.log("update latest checkpoint: before getSupply");
         ValueX7 supply = _checkpoint.getSupply(TOTAL_SUPPLY_X7, step.mps);
 
         // All active demand above the current clearing price
@@ -214,6 +217,7 @@ contract Auction is
         // The next price tick initialized with demand is the `nextActiveTickPrice`
         Tick memory _nextActiveTick = getTick(nextActiveTickPrice);
 
+        console.log("update latest checkpoint: before while");
         // For a non-zero supply, iterate to find the tick where the demand at and above it is strictly less than the supply
         // Sets nextActiveTickPrice to MAX_TICK_PRICE if the highest tick in the book is reached
         while (
@@ -256,15 +260,18 @@ contract Auction is
         if (blockNumber == lastCheckpointedBlock) return latestCheckpoint();
         if (blockNumber < START_BLOCK) revert AuctionNotStarted();
 
+        console.log("before updateLatestCheckpointToCurrentStep");
         // Update the latest checkpoint, accounting for new bids and advances in supply schedule
         _checkpoint = _updateLatestCheckpointToCurrentStep(blockNumber);
         _checkpoint.mps = step.mps;
 
+        console.log("checkpoint: before blockDelta");
         // Now account for any time in between this checkpoint and the greater of the start of the step or the last checkpointed block
         uint64 blockDelta =
             blockNumber - (step.startBlock > lastCheckpointedBlock ? step.startBlock : lastCheckpointedBlock);
         uint24 mpsSinceLastCheckpoint = uint256(_checkpoint.mps * blockDelta).toUint24();
 
+        console.log("checkpoint: before transformCheckpoint");
         _checkpoint = _transformCheckpoint(_checkpoint, mpsSinceLastCheckpoint);
         _insertCheckpoint(_checkpoint, blockNumber);
 
@@ -288,9 +295,14 @@ contract Auction is
         uint256 prevTickPrice,
         bytes calldata hookData
     ) internal returns (uint256 bidId) {
+        console.log("before checkpoint");
         Checkpoint memory _checkpoint = checkpoint();
+        console.log("after checkpoint");
 
+        console.log("before initializeTickIfNeeded");
         _initializeTickIfNeeded(prevTickPrice, maxPrice);
+        console.log("after initializeTickIfNeeded");
+
 
         VALIDATION_HOOK.handleValidate(maxPrice, exactIn, amount, owner, msg.sender, hookData);
         // ClearingPrice will be set to floor price in checkpoint() if not set already
@@ -299,11 +311,14 @@ contract Auction is
         // Scale the amount according to the rest of the supply schedule, accounting for past blocks
         // This is only used in demand related internal calculations
         Bid memory bid;
+        console.log("before createBid");
         (bid, bidId) = _createBid(exactIn, amount, owner, maxPrice, _checkpoint.cumulativeMps);
         Demand memory bidDemand = bid.toDemand();
 
+        console.log("before updateTickDemand");
         _updateTickDemand(maxPrice, bidDemand);
 
+        console.log("before add to sumDemandAboveClearing");
         sumDemandAboveClearing = sumDemandAboveClearing.add(bidDemand);
 
         emit BidSubmitted(bidId, owner, maxPrice, exactIn, amount);

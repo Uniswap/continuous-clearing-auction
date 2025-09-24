@@ -32,6 +32,10 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     /// @notice The block at which the tokens were swept
     uint256 public sweepUnsoldTokensBlock;
 
+
+    // TODO: make 1e14 constant
+    uint256 constant X7_UPPER_BOUND = (type(uint256).max) / 1e14;
+
     constructor(
         address _token,
         address _currency,
@@ -41,8 +45,13 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         uint24 _graduationThresholdMps
     ) {
         TOKEN = IERC20Minimal(_token);
+        // total supply musts be less than the X7 upper bound to prevent overflows in multiplications that scale 
+        // up by X7
+        if (_totalSupply > X7_UPPER_BOUND) revert TotalSupplyX7IsTooLarge();
+
         TOTAL_SUPPLY = _totalSupply;
         TOTAL_SUPPLY_X7 = _totalSupply.scaleUpToX7();
+
         CURRENCY = Currency.wrap(_currency);
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;

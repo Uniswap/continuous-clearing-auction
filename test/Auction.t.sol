@@ -51,35 +51,47 @@ contract AuctionTest is AuctionBaseTest {
         _;
     }
 
+    modifier givenFullyFundedAccount() {
+        vm.deal(address(this), uint256(type(uint256).max));
+        _;
+    }
+
+    modifier givenNonZeroTickNumber(uint8 _tickNumber) {
+        vm.assume(_tickNumber > 0);
+        _;
+    }
+
     function helper__goToAuctionStartBlock() public {
         vm.roll(auction.startBlock());
     }
 
+    function helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(uint256 _tickNumber) internal returns (uint256 maxPrice, uint256 maxPriceQ96) {
+        uint256 tickSpacing = params.tickSpacing;
+        uint256 floorPrice = params.floorPrice;
+
+        uint256 maxPrice = ((floorPrice + (_tickNumber * tickSpacing)) / tickSpacing) * tickSpacing;
+
+        // Find the first value above floorPrice that is a multiple of tickSpacing
+        uint256 tickAboveFloorPrice = ((floorPrice / tickSpacing) + 1) * tickSpacing;
+
+        maxPrice = bound(maxPrice, tickAboveFloorPrice, uint256(type(uint256).max));
+        maxPriceQ96 = maxPrice << FixedPoint96.RESOLUTION;
+    }
+
     /// forge-config: default.isolate = true
     /// forge-config: ci.isolate = true
-    function test_submitBid_exactIn_succeeds_gas(FuzzDeploymentParams memory _deploymentParams, uint8 _bidTickSpacingMultiple) public 
+    function test_submitBid_exactIn_succeeds_gas(FuzzDeploymentParams memory _deploymentParams, uint8 _tickNumber) public 
         setUpAuctionFuzz(_deploymentParams) 
         givenAuctionHasStarted 
+        givenFullyFundedAccount
+        givenNonZeroTickNumber(_tickNumber)
     {
-        uint256 tickSpacing = auction.tickSpacing();
-        uint256 floorPrice = auction.floorPrice();
-
         // Round bid down to a multiple of tick spacing - but must be above the floor price
-        uint256 firstBid = ((floorPrice + (_bidTickSpacingMultiple * tickSpacing)) / tickSpacing) * tickSpacing;
-        vm.assume(firstBid > floorPrice);
-
-        console.log('firstBid', firstBid);
-        console.log('floorPrice', floorPrice);
-        console.log('tickSpacing', tickSpacing);
-        console.log('bidTickSpacingMultiple', _bidTickSpacingMultiple);
-
-        // Bid price is in X96 format
-        uint256 firstBidMaxPrice = firstBid << FixedPoint96.RESOLUTION;
-
+        (uint256 firstBid, uint256 firstBidMaxPrice) = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(_tickNumber);
         uint256 ethInputAmount = inputAmountForTokens(100e18, firstBidMaxPrice);
-        vm.assume(ethInputAmount < 10e24);
 
-        console.log("before submit");
+        uint256 lastTick = params.floorPrice;
+
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(
             0, alice, firstBidMaxPrice, true, ethInputAmount
@@ -89,7 +101,7 @@ contract AuctionTest is AuctionBaseTest {
             true,
             ethInputAmount,
             alice,
-            floorPrice,
+            lastTick,
             bytes('')
         );
         vm.snapshotGasLastCall('submitBid_recordStep_updateCheckpoint');

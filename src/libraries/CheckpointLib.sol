@@ -7,6 +7,8 @@ import {FixedPoint96} from './FixedPoint96.sol';
 import {MPSLib, ValueX7} from './MPSLib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
+import {console} from 'forge-std/console.sol';
+
 struct Checkpoint {
     uint256 clearingPrice;
     ValueX7 totalCleared;
@@ -36,8 +38,15 @@ library CheckpointLib {
         returns (ValueX7)
     {
         uint24 mpsRemainingInAuction = MPSLib.MPS - checkpoint.cumulativeMps;
+
+        console.log("totalSupplyX7", ValueX7.unwrap(totalSupplyX7));
+        console.log("checkpoint.totalCleared", ValueX7.unwrap(checkpoint.totalCleared));
+        console.log("mps", mps);
+        console.log("mpsRemainingInAuction", mpsRemainingInAuction);
+
         return totalSupplyX7.sub(checkpoint.totalCleared).mulUint256(mps).divUint256(mpsRemainingInAuction);
     }
+
 
     /// @notice Calculate the supply to price ratio. Will return zero if `price` is zero
     /// @dev This function returns a value in Q96 form

@@ -1616,6 +1616,68 @@ contract AuctionTest is AuctionBaseTest {
         }
     }
 
+
+    function test_repro_electric_boogaloo() public {
+        uint256 AUCTION_DURATION = 20;
+        uint128 TOTAL_SUPPLY = 1000e18;
+        uint256 FLOOR_PRICE = (25 << FixedPoint96.RESOLUTION) / 1_000_000;
+        uint256 TICK_SPACING = FLOOR_PRICE;
+
+        AuctionParameters memory params = AuctionParameters({
+            currency: address(0),
+            floorPrice: FLOOR_PRICE,
+            tickSpacing: TICK_SPACING,
+            validationHook: address(0),
+            fundsRecipient: msg.sender,
+            tokensRecipient: msg.sender,
+            startBlock: uint64(block.number + 1),
+            endBlock: uint64(block.number + 1 + AUCTION_DURATION),
+            claimBlock: uint64(block.number + 1 + AUCTION_DURATION),
+            graduationThresholdMps: 0,
+            auctionStepsData: abi.encodePacked(
+                uint24(0),
+                uint40(1), // 0% for 1 blocks
+                abi.encodePacked(
+                    uint24(1000e3),
+                    uint40(1), // 10% for 1 block
+                    abi.encodePacked(uint24(500e3), uint40(18)) // 5% for 18 blocks
+                )
+            )
+        });
+
+        auction = new Auction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(auction), TOTAL_SUPPLY);
+
+
+        vm.roll(params.startBlock + 1);
+
+        uint256 maxPrice = FLOOR_PRICE; 
+        maxPrice += TICK_SPACING; // Increase the maxPrice by FLOOR_PRICE on every iteration
+        uint256 lastTickPrice = FLOOR_PRICE;
+
+        // purchase all the tokens
+        uint256 amount = inputAmountForTokens(TOTAL_SUPPLY, maxPrice);
+
+        uint256 bidId = auction.submitBid{value: amount, gas: 1000000}(
+            maxPrice, // maxPrice
+            true, // exactIn
+            amount, // amount
+            alice, // owner
+            lastTickPrice, // previousPrice
+            "" // hookData
+        );
+
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+
+        // Advance to the end of the auction
+        vm.roll(auction.endBlock() + 1);
+
+        // Exit the bids and claim ATP
+        auction.exitPartiallyFilledBid(bidId, 4, 0);
+        auction.claimTokens(bidId);
+    }
+
     function logAmountWithDecimal(string memory key, uint256 amount) internal {
         emit log_named_decimal_uint(key, amount, 18);
     }

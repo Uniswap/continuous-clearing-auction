@@ -59,6 +59,8 @@ contract Auction is
 
     /// @notice The sum of demand in ticks above the clearing price
     Demand public sumDemandAboveClearing;
+    /// @notice Whether the TOTAL_SUPPLY of tokens has been received
+    bool private _tokensReceived;
 
     Checkpoint public lastCheckpointBeforeFullySubscribed;
 
@@ -92,16 +94,32 @@ contract Auction is
         _;
     }
 
+    /// @notice Modifier for functions which can only be called after the auction is started and the tokens have been received
+    modifier onlyActiveAuction() {
+        if (block.number < START_BLOCK) revert AuctionNotStarted();
+        if (!_tokensReceived) revert TokensNotReceived();
+        _;
+    }
+
     /// @inheritdoc IDistributionContract
-    function onTokensReceived() external view {
+    function onTokensReceived() external {
         // Use the normal totalSupply value instead of the scaled up X7 value
         if (TOKEN.balanceOf(address(this)) < TOTAL_SUPPLY) {
             revert IDistributionContract__InvalidAmountReceived();
         }
+        _tokensReceived = true;
+        emit TokensReceived(TOTAL_SUPPLY);
     }
 
-    /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
-    function isGraduated() public view returns (bool) {
+    /// @notice External function to check if the auction has graduated as of the latest checkpoint
+    /// @dev The latest checkpoint may be out of date
+    /// @return bool Whether the auction has graduated or not
+    function isGraduated() external view returns (bool) {
+        return _isGraduated(latestCheckpoint());
+    }
+
+    /// @notice Whether the auction has graduated as of the given checkpoint (sold more than the graduation threshold)
+    function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool) {
         return latestCheckpoint().totalClearedX7X7.gte(
             TOTAL_SUPPLY_X7_X7.mulUint256(GRADUATION_THRESHOLD_MPS).divUint256(MPSLib.MPS)
         );
@@ -290,7 +308,6 @@ contract Auction is
     /// @param blockNumber The block number to checkpoint at
     function _unsafeCheckpoint(uint64 blockNumber) internal returns (Checkpoint memory _checkpoint) {
         if (blockNumber == lastCheckpointedBlock) return latestCheckpoint();
-        if (blockNumber < START_BLOCK) revert AuctionNotStarted();
 
         // Update the latest checkpoint, accounting for new bids and advances in supply schedule
         _checkpoint = _updateLatestCheckpointToCurrentStep(blockNumber);
@@ -365,8 +382,10 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function checkpoint() public returns (Checkpoint memory _checkpoint) {
-        if (block.number > END_BLOCK) revert AuctionIsOver();
+    function checkpoint() public onlyActiveAuction returns (Checkpoint memory _checkpoint) {
+        if (block.number > END_BLOCK) {
+            return _getFinalCheckpoint();
+        }
         return _unsafeCheckpoint(uint64(block.number));
     }
 
@@ -379,7 +398,7 @@ contract Auction is
         address owner,
         uint256 prevTickPrice,
         bytes calldata hookData
-    ) external payable returns (uint256) {
+    ) external payable onlyActiveAuction returns (uint256) {
         // Bids cannot be submitted at the endBlock or after
         if (block.number >= END_BLOCK) revert AuctionIsOver();
         uint256 requiredCurrencyAmount = BidLib.inputAmount(exactIn, amount, maxPrice);
@@ -399,7 +418,7 @@ contract Auction is
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
         Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
-        if (!isGraduated()) {
+        if (!_isGraduated(finalCheckpoint)) {
             // In the case that the auction did not graduate, fully refund the bid
             return _processExit(bidId, bid, 0, bid.inputAmount());
         }
@@ -492,7 +511,7 @@ contract Auction is
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock == 0) revert BidNotExited();
         if (block.number < CLAIM_BLOCK) revert NotClaimable();
-        if (!isGraduated()) revert NotGraduated();
+        if (!_isGraduated(_getFinalCheckpoint())) revert NotGraduated();
 
         uint256 tokensFilled = bid.tokensFilled;
         bid.tokensFilled = 0;
@@ -507,15 +526,17 @@ contract Auction is
     function sweepCurrency() external onlyAfterAuctionIsOver {
         // Cannot sweep if already swept
         if (sweepCurrencyBlock != 0) revert CannotSweepCurrency();
+        Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
         // Cannot sweep currency if the auction has not graduated, as the Currency must be refunded
-        if (!isGraduated()) revert NotGraduated();
-        _sweepCurrency(_getFinalCheckpoint().getCurrencyRaised());
+        if (!_isGraduated(finalCheckpoint)) revert NotGraduated();
+        _sweepCurrency(finalCheckpoint.getCurrencyRaised());
     }
 
     /// @inheritdoc IAuction
     function sweepUnsoldTokens() external onlyAfterAuctionIsOver {
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
-        if (isGraduated()) {
+        Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
+        if (_isGraduated(finalCheckpoint)) {
             _sweepUnsoldTokens(
                 ((TOTAL_SUPPLY_X7_X7.sub(_getFinalCheckpoint().totalClearedX7X7)).scaleDownToValueX7())
                     .scaleDownToUint256()

@@ -36,10 +36,18 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
     AuctionParameters public params;
     bytes public auctionStepsData;
 
+    /// @dev Parameters for fuzzing the auction
     struct FuzzDeploymentParams {
         uint256 totalSupply;
         AuctionParameters auctionParams;
         uint8 numberOfSteps;
+    }
+
+    /// @dev Parameters for fuzzing the bids
+    struct FuzzBid {
+        // TODO(md): errors when bumped to uin128
+        uint64 bidAmount;
+        uint8 tickNumber;
     }
 
     function helper__validFuzzDeploymentParams(

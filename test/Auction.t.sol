@@ -22,6 +22,7 @@ import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
+import {TickBitmap, TickBitmapLib} from './utils/TickBitmap.sol';
 
 import {console} from 'forge-std/console.sol';
 
@@ -30,21 +31,33 @@ contract AuctionTest is AuctionBaseTest {
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
     using MPSLib for *;
+    using TickBitmapLib for TickBitmap;
 
     bool exactIn = true;
+    TickBitmap private tickBitmap;
 
     /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice
     function inputAmountForTokens(uint256 tokens, uint256 maxPrice) internal pure returns (uint256) {
         return tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96);
     }
 
-    // TODO(md): remove
     function setUp() public {
         setUpAuction();
     }
 
+    /// @dev Sets up the auction for fuzzing, ensuring valid parameters
     modifier setUpAuctionFuzz(FuzzDeploymentParams memory _deploymentParams) {
         setUpAuction(_deploymentParams);
+        _;
+    }
+
+    /// @dev All bids provided to bid fuzz must have some value and a positive tick number
+    modifier setUpBidsFuzz(FuzzBid[] memory _bids) {
+        for (uint256 i = 0; i < _bids.length; i++) {
+            // Note(md): errors when bumped to uint128
+            _bids[i].bidAmount = uint64(bound(_bids[i].bidAmount, 1, type(uint64).max));
+            _bids[i].tickNumber = uint8(bound(_bids[i].tickNumber, 1, type(uint8).max));
+        }
         _;
     }
 
@@ -77,9 +90,12 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(auction.startBlock());
     }
 
-    function helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(uint256 _tickNumber) internal returns (uint256 maxPrice, uint256 maxPriceQ96) {
+    /// @dev Given a tick number, return it as a multiple of the tick spacing above the floor price - as q96
+    function helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(uint256 _tickNumber) internal view returns (uint256 maxPriceQ96) {
         uint256 tickSpacing = params.tickSpacing;
         uint256 floorPrice = params.floorPrice;
+
+        if (_tickNumber == 0) return floorPrice;
 
         uint256 maxPrice = ((floorPrice + (_tickNumber * tickSpacing)) / tickSpacing) * tickSpacing;
 
@@ -90,61 +106,64 @@ contract AuctionTest is AuctionBaseTest {
         maxPriceQ96 = maxPrice << FixedPoint96.RESOLUTION;
     }
 
-    function helper__submitBid(uint256 _tickNumber, uint256 _lastTickPrice, uint256 _amount, address _owner) internal returns (uint256 bidId) {
-        (uint256 firstBid, uint256 firstBidMaxPrice) = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(_tickNumber);
-        uint256 ethInputAmount = inputAmountForTokens(_amount, firstBidMaxPrice);
+    /// @dev Submit a bid for a given tick number, amount, and owner
+    function helper__submitBid(uint256 _i, FuzzBid memory _bid, address _owner) internal returns (uint256 bidId) {
+        // Get the correct bid prices for the bid
+        uint256 firstBidMaxPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(_bid.tickNumber);
+        uint256 ethInputAmount = inputAmountForTokens(_bid.bidAmount, firstBidMaxPrice);
+
+        // Get the correct last tick price for the bid
+        uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
+        uint256 lastTickPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(lowerTickNumber);
+
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(
-            0, _owner, firstBidMaxPrice, true, ethInputAmount
+            _i, _owner, firstBidMaxPrice, true, ethInputAmount
         );
         bidId = auction.submitBid{value: ethInputAmount}(
             firstBidMaxPrice,
             exactIn,
             ethInputAmount,
             _owner,
-            _lastTickPrice,
+            lastTickPrice,
             bytes('')
         );
+
+        // Set the tick in the bitmap for future bids
+        tickBitmap.set(_bid.tickNumber);
     }
+
+    /// @dev if iteration block has bottom two bits set, roll to the next block - 25% chance
+    function helper__maybeRollToNextBlock(uint256 _iteration) internal {
+        uint256 endBlock = auction.endBlock();
+
+        uint256 rand = uint256(keccak256(abi.encode(block.prevrandao, _iteration)));
+        bool rollToNextBlock = rand & 0x3 == 0;
+        // Randomly roll to the next block
+        if (rollToNextBlock && block.number < endBlock - 1) {
+            vm.roll(block.number + 1);
+        }
+    }
+
 
     /// forge-config: default.isolate = true
     /// forge-config: ci.isolate = true
-    function test_submitBid_exactIn_succeeds_gas(FuzzDeploymentParams memory _deploymentParams, uint64 _bidAmount, uint8 _tickNumber) public 
+    function test_submitBid_exactIn_succeeds_gas(FuzzDeploymentParams memory _deploymentParams, FuzzBid[] memory _bids) public 
         setUpAuctionFuzz(_deploymentParams) 
+        setUpBidsFuzz(_bids)
         givenAuctionHasStarted 
         givenExactIn
         givenFullyFundedAccount
-        givenNonZeroTickNumber(_tickNumber)
     {
-        vm.assume(_bidAmount > 0);
-
         // Round bid down to a multiple of tick spacing - but must be above the floor price
-
-        uint256 lastTick = params.floorPrice;
-
-        uint256 bidId = helper__submitBid(_tickNumber, lastTick, _bidAmount, alice);
+        for (uint256 i = 0; i < _bids.length; i++) {
+            // Use the immediate lower tick among those already placed (fallback to floor when none)
+            helper__submitBid(i, _bids[i], alice);
+            helper__maybeRollToNextBlock(i);
+        }
+        vm.snapshotGasLastCall('submitBid_updateCheckpoint');
         vm.snapshotGasLastCall('submitBid_recordStep_updateCheckpoint');
-
-        // vm.roll(block.number + 1);
-        // auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
-        //     tickNumberToPriceX96(2),
-        //     true,
-        //     inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
-        //     alice,
-        //     tickNumberToPriceX96(1),
-        //     bytes('')
-        // );
-        // vm.snapshotGasLastCall('submitBid_updateCheckpoint');
-
-        // auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
-        //     tickNumberToPriceX96(2),
-        //     true,
-        //     inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
-        //     alice,
-        //     tickNumberToPriceX96(1),
-        //     bytes('')
-        // );
-        // vm.snapshotGasLastCall('submitBid');
+        vm.snapshotGasLastCall('submitBid');
     }
 
     /// forge-config: default.isolate = true

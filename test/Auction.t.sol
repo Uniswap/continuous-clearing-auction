@@ -90,33 +90,39 @@ contract AuctionTest is AuctionBaseTest {
         maxPriceQ96 = maxPrice << FixedPoint96.RESOLUTION;
     }
 
+    function helper__submitBid(uint256 _tickNumber, uint256 _lastTickPrice, uint256 _amount, address _owner) internal returns (uint256 bidId) {
+        (uint256 firstBid, uint256 firstBidMaxPrice) = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(_tickNumber);
+        uint256 ethInputAmount = inputAmountForTokens(_amount, firstBidMaxPrice);
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.BidSubmitted(
+            0, _owner, firstBidMaxPrice, true, ethInputAmount
+        );
+        bidId = auction.submitBid{value: ethInputAmount}(
+            firstBidMaxPrice,
+            exactIn,
+            ethInputAmount,
+            _owner,
+            _lastTickPrice,
+            bytes('')
+        );
+    }
+
     /// forge-config: default.isolate = true
     /// forge-config: ci.isolate = true
-    function test_submitBid_exactIn_succeeds_gas(FuzzDeploymentParams memory _deploymentParams, uint8 _tickNumber) public 
+    function test_submitBid_exactIn_succeeds_gas(FuzzDeploymentParams memory _deploymentParams, uint64 _bidAmount, uint8 _tickNumber) public 
         setUpAuctionFuzz(_deploymentParams) 
         givenAuctionHasStarted 
         givenExactIn
         givenFullyFundedAccount
         givenNonZeroTickNumber(_tickNumber)
     {
+        vm.assume(_bidAmount > 0);
+
         // Round bid down to a multiple of tick spacing - but must be above the floor price
-        (uint256 firstBid, uint256 firstBidMaxPrice) = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(_tickNumber);
-        uint256 ethInputAmount = inputAmountForTokens(100e18, firstBidMaxPrice);
 
         uint256 lastTick = params.floorPrice;
 
-        vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(
-            0, alice, firstBidMaxPrice, true, ethInputAmount
-        );
-        auction.submitBid{value: ethInputAmount}(
-            firstBidMaxPrice,
-            exactIn,
-            ethInputAmount,
-            alice,
-            lastTick,
-            bytes('')
-        );
+        uint256 bidId = helper__submitBid(_tickNumber, lastTick, _bidAmount, alice);
         vm.snapshotGasLastCall('submitBid_recordStep_updateCheckpoint');
 
         // vm.roll(block.number + 1);

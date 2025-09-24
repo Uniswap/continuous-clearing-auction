@@ -369,10 +369,16 @@ contract AuctionTest is AuctionBaseTest {
         auction.checkpoint();
     }
 
-    function test_checkpoint_afterEndBlock_reverts() public {
-        vm.roll(auction.endBlock() + 1);
-        vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
-        auction.checkpoint();
+    function test_checkpoint_afterEndBlock_succeeds(uint32 blocksAfterEndBlock, uint8 numberOfInvocations) public {
+        uint256 blockInFuture = auction.endBlock() + blocksAfterEndBlock;
+        vm.roll(blockInFuture);
+        for (uint8 i = 0; i < numberOfInvocations; i++) {
+            vm.roll(blockInFuture + i);
+            auction.checkpoint();
+            
+            // Final checkpoint should remain the same as the last block
+            assertEq(auction.lastCheckpointedBlock(), auction.endBlock());
+        }
     }
 
     function test_submitBid_exactIn_atFloorPrice_reverts() public {

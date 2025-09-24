@@ -47,6 +47,8 @@ Register a new checkpoint
 
 *This function is called every time a new bid is submitted above the current clearing price*
 
+*If the auction is over, it returns the final checkpoint*
+
 
 ```solidity
 function checkpoint() external returns (Checkpoint memory _checkpoint);

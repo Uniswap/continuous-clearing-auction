@@ -61,6 +61,10 @@ interface IAuction is
     /// @notice Error thrown when a new bid is less than or equal to the clearing price
     error InvalidBidPrice();
 
+    /// @notice Emitted when the tokens are received
+    /// @param totalSupply The total supply of tokens received
+    event TokensReceived(uint256 totalSupply);
+
     /// @notice Emitted when a bid is submitted
     /// @param id The id of the bid
     /// @param owner The owner of the bid
@@ -110,6 +114,7 @@ interface IAuction is
 
     /// @notice Register a new checkpoint
     /// @dev This function is called every time a new bid is submitted above the current clearing price
+    /// @dev If the auction is over, it returns the final checkpoint
     function checkpoint() external returns (Checkpoint memory _checkpoint);
 
     /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)

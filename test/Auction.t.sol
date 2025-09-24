@@ -108,8 +108,14 @@ contract AuctionTest is AuctionBaseTest {
 
     /// @dev Submit a bid for a given tick number, amount, and owner
     function helper__submitBid(uint256 _i, FuzzBid memory _bid, address _owner) internal returns (uint256 bidId) {
+        uint256 clearingPrice = auction.clearingPrice();
+
         // Get the correct bid prices for the bid
         uint256 firstBidMaxPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(_bid.tickNumber);
+        
+        // if the bid if not above the clearing price, don't submit the bid
+        if (firstBidMaxPrice <= clearingPrice) return 0;
+
         uint256 ethInputAmount = inputAmountForTokens(_bid.bidAmount, firstBidMaxPrice);
 
         // Get the correct last tick price for the bid
@@ -155,9 +161,7 @@ contract AuctionTest is AuctionBaseTest {
         givenExactIn
         givenFullyFundedAccount
     {
-        // Round bid down to a multiple of tick spacing - but must be above the floor price
         for (uint256 i = 0; i < _bids.length; i++) {
-            // Use the immediate lower tick among those already placed (fallback to floor when none)
             helper__submitBid(i, _bids[i], alice);
             helper__maybeRollToNextBlock(i);
         }

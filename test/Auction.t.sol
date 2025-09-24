@@ -1259,10 +1259,26 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_submitBid_atEndBlock_reverts() public {
-        // Advance to after the auction ends
+        // Advance to the auction end block
         vm.roll(auction.endBlock());
 
         // Try to submit a bid at the end block
+        vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
+        auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+    }
+
+    function test_submitBid_afterEndBlock_reverts() public {
+        // Advance to after the auction end block
+        vm.roll(auction.endBlock() + 1);
+
+        // Try to submit a bid after the auction end block
         vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
         auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),

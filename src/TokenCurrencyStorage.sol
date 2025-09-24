@@ -48,11 +48,11 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         FUNDS_RECIPIENT = _fundsRecipient;
         GRADUATION_THRESHOLD_MPS = _graduationThresholdMps;
 
-        if (_totalSupply == 0) revert TotalSupplyIsZero();
+        if (TOTAL_SUPPLY == 0) revert TotalSupplyIsZero();
         if (Currency.wrap(_token).isAddressZero()) revert TokenIsAddressZero();
         if (_token == _currency) revert TokenAndCurrencyCannotBeTheSame();
-        if (_fundsRecipient == address(0)) revert FundsRecipientIsZero();
-        if (_graduationThresholdMps > MPSLib.MPS) revert InvalidGraduationThresholdMps();
+        if (FUNDS_RECIPIENT == address(0)) revert FundsRecipientIsZero();
+        if (GRADUATION_THRESHOLD_MPS > MPSLib.MPS) revert InvalidGraduationThresholdMps();
     }
 
     function _sweepCurrency(uint256 amount) internal {

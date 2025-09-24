@@ -32,8 +32,8 @@ abstract contract TickStorage is ITickStorage {
         TICK_SPACING = _tickSpacing;
         FLOOR_PRICE = _floorPrice;
 
-        if (_floorPrice == 0) revert FloorPriceIsZero();
-        if (_tickSpacing == 0) revert TickSpacingIsZero();
+        if (FLOOR_PRICE == 0) revert FloorPriceIsZero();
+        if (TICK_SPACING == 0) revert TickSpacingIsZero();
 
         _unsafeInitializeTick(_floorPrice);
     }

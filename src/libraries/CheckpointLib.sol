@@ -45,7 +45,7 @@ library CheckpointLib {
     /// @param checkpoint The checkpoint to calculate the currency raised from
     /// @return The total currency raised
     function getCurrencyRaised(Checkpoint memory checkpoint) internal pure returns (uint256) {
-        return checkpoint.totalClearedX7X7.fullMulDivUnchecked(
+        return checkpoint.totalClearedX7X7.wrapAndFullMulDiv(
             checkpoint.cumulativeMps * FixedPoint96.Q96, checkpoint.cumulativeMpsPerPrice
         ).scaleDownToValueX7()
             // We need to scale the X7X7 value down, but to prevent intermediate division, scale up the denominator instead

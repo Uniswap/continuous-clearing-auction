@@ -137,7 +137,7 @@ contract Auction is
                 TOTAL_SUPPLY_X7_X7.sub(lastCheckpointBeforeFullySubscribed.totalClearedX7X7).sub(
                     resolvedDemandAboveClearingPriceX7.upcast().mulUint256(factor)
                 )
-            ).fullMulDivUnchecked(deltaMps, factor);
+            ).wrapAndFullMulDiv(deltaMps, factor);
             supplyClearedX7X7 = supplySoldToClearingPriceX7X7.add(resolvedDemandAboveClearingPriceMpsX7X7);
 
             _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 =

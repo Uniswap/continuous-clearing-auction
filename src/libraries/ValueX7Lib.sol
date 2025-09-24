@@ -64,13 +64,13 @@ library ValueX7Lib {
 
     /// @notice Wrapper around free fullMulDiv function to support cases where we want to use uint256 values
     /// @dev Ensure that `b` and `c` should be compared against the ValueX7 value
-    function fullMulDivUnchecked(ValueX7 a, uint256 b, uint256 c) internal pure returns (ValueX7) {
+    function wrapAndFullMulDiv(ValueX7 a, uint256 b, uint256 c) internal pure returns (ValueX7) {
         return a.fullMulDiv(ValueX7.wrap(b), ValueX7.wrap(c));
     }
 
     /// @notice Wrapper around free fullMulDivUp function to support cases where we want to use uint256 values
     /// @dev Ensure that `b` and `c` should be compared against the ValueX7 value
-    function fullMulDivUpUnchecked(ValueX7 a, uint256 b, uint256 c) internal pure returns (ValueX7) {
+    function wrapAndFullMulDivUp(ValueX7 a, uint256 b, uint256 c) internal pure returns (ValueX7) {
         return a.fullMulDivUp(ValueX7.wrap(b), ValueX7.wrap(c));
     }
 }

@@ -68,6 +68,12 @@ library ValueX7X7Lib {
         return ValueX7X7.wrap(ValueX7.unwrap(value));
     }
 
+    /// @notice Downcast a ValueX7X7 value to a ValueX7 value
+    /// @return the value as a ValueX7
+    function downcast(ValueX7X7 value) internal pure returns (ValueX7) {
+        return ValueX7.wrap(ValueX7X7.unwrap(value));
+    }
+
     /// @notice Divide a ValueX7X7 value by MPS
     /// @return The result as a ValueX7
     function scaleDownToValueX7(ValueX7X7 value) internal pure returns (ValueX7) {

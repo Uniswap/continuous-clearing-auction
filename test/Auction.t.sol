@@ -1686,7 +1686,7 @@ contract AuctionTest is AuctionBaseTest {
         auction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auction), TOTAL_SUPPLY);
         auction.onTokensReceived();
-        
+
         vm.roll(params.startBlock + 1);
 
         uint256 maxPrice = FLOOR_PRICE;

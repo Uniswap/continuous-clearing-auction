@@ -7,7 +7,8 @@ import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
-import {MPSLib, ValueX7} from './libraries/MPSLib.sol';
+import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
+import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
 
 import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -22,7 +23,8 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     using SafeCastLib for uint256;
     using DemandLib for Demand;
     using CheckpointLib for Checkpoint;
-    using MPSLib for *;
+    using ValueX7Lib for *;
+    using ValueX7X7Lib for *;
 
     uint64 public constant MAX_BLOCK_NUMBER = type(uint64).max;
 
@@ -90,7 +92,7 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent
     function _accountPartiallyFilledCheckpoints(
-        ValueX7 cumulativeSupplySoldToClearingPriceX7X7,
+        ValueX7X7 cumulativeSupplySoldToClearingPriceX7X7,
         ValueX7 bidDemandX7,
         ValueX7 tickDemandX7,
         uint256 bidMaxPrice
@@ -102,11 +104,12 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         //              = bidDemandX7 * (cumulativeSupplyX7 / tickDemandX7)
         // BidDemand and tickDemand are both ValueX7 values, so the X7 cancels out. However, we need to scale down the result due to cumulativeSupplySoldToClearingPriceX7X7 being a ValueX7 value
         tokensFilled = (
-            bidDemandX7.fullMulDiv(cumulativeSupplySoldToClearingPriceX7X7, tickDemandX7.mulUint256(MPSLib.MPS))
-        ).scaleDownToUint256();
-        console2.log('tokensFilled', tokensFilled);
+            bidDemandX7.fullMulDiv(cumulativeSupplySoldToClearingPriceX7X7.scaleDownToValueX7(), tickDemandX7)
+        )
+            // TODO(ez): should not scale down here in intermediate step
+            // We need to scale the X7X7 value down, but to prevent intermediate division, scale up the denominator instead
+            .scaleDownToUint256();
         currencySpent = tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96);
-        console2.log('currencySpent', currencySpent);
     }
 
     /// @notice Calculate the tokens filled and currency spent for a bid

@@ -17,8 +17,10 @@ import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
-import {MPSLib, ValueX7} from './libraries/MPSLib.sol';
+import {MPSLib} from './libraries/MPSLib.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
+import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
+import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
@@ -47,7 +49,8 @@ contract Auction is
     using DemandLib for Demand;
     using SafeCastLib for uint256;
     using ValidationHookLib for IValidationHook;
-    using MPSLib for *;
+    using ValueX7Lib for *;
+    using ValueX7X7Lib for *;
 
     /// @notice Permit2 address
     address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
@@ -101,7 +104,9 @@ contract Auction is
 
     /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
     function isGraduated() public view returns (bool) {
-        return latestCheckpoint().totalCleared.gte(ValueX7.unwrap(TOTAL_SUPPLY_X7.scaleByMps(GRADUATION_THRESHOLD_MPS)));
+        return latestCheckpoint().totalClearedX7X7.gte(
+            ValueX7X7.unwrap(TOTAL_SUPPLY_X7_X7.mulUint256(GRADUATION_THRESHOLD_MPS).divUint256(MPSLib.MPS))
+        );
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
@@ -114,33 +119,36 @@ contract Auction is
         internal
         returns (Checkpoint memory)
     {
-        ValueX7 demandAboveClearingPriceMpsX7X7 =
-            _checkpoint.sumDemandAboveClearingPrice.resolveRoundingUp(_checkpoint.clearingPrice).mulUint256(deltaMps);
+        ValueX7 resolvedDemandAboveClearingPriceX7 =
+            _checkpoint.sumDemandAboveClearingPrice.resolveRoundingUp(_checkpoint.clearingPrice);
+        // This value should have been divided by MPS, we implicitly remove it to wrap it as a ValueX7X7
+        ValueX7X7 resolvedDemandAboveClearingPriceMpsX7X7 =
+            ValueX7X7.wrap(ValueX7.unwrap(resolvedDemandAboveClearingPriceX7.mulUint256(deltaMps)));
         // Calculate the supply to be cleared based on demand above the clearing price
-        ValueX7 supplyClearedX7X7;
+        ValueX7X7 supplyClearedX7X7;
         // If the clearing price is above the floor price we can sell the available supply
         // Otherwise, we can only sell the demand above the clearing price
         if (_checkpoint.clearingPrice > FLOOR_PRICE) {
             // If unset, set the lastCheckpointBeforeFullySubscribed to the current _checkpoint
-            // The `totalCleared` and `cumulativeMps` values have not been updated yet
-            if (lastCheckpointBeforeFullySubscribed.totalCleared.eq(0)) {
+            // The `totalClearedX7X7` and `cumulativeMps` values have not been updated yet
+            if (lastCheckpointBeforeFullySubscribed.totalClearedX7X7.eq(0)) {
                 lastCheckpointBeforeFullySubscribed = _checkpoint;
             }
-            ValueX7 A = TOTAL_SUPPLY_X7.mulUint256(MPSLib.MPS).sub(lastCheckpointBeforeFullySubscribed.totalCleared);
+            ValueX7X7 A = TOTAL_SUPPLY_X7_X7.sub(lastCheckpointBeforeFullySubscribed.totalClearedX7X7);
             uint256 B = MPSLib.MPS - lastCheckpointBeforeFullySubscribed.cumulativeMps;
-            ValueX7 R = _checkpoint.sumDemandAboveClearingPrice.resolveRoundingUp(_checkpoint.clearingPrice);
-            ValueX7 supplySoldToClearingPriceX7X7 =
-                (A.sub(R.mulUint256(B))).fullMulDiv(ValueX7.wrap(deltaMps), ValueX7.wrap(B));
-            supplyClearedX7X7 = supplySoldToClearingPriceX7X7.add(demandAboveClearingPriceMpsX7X7);
+            ValueX7X7 supplySoldToClearingPriceX7X7 = (
+                A.sub(ValueX7X7.wrap(ValueX7.unwrap(resolvedDemandAboveClearingPriceX7.mulUint256(B))))
+            ).fullMulDiv(ValueX7X7.wrap(deltaMps), ValueX7X7.wrap(B));
+            supplyClearedX7X7 = supplySoldToClearingPriceX7X7.add(resolvedDemandAboveClearingPriceMpsX7X7);
 
             _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 =
                 _checkpoint.cumulativeSupplySoldToClearingPriceX7X7.add(supplySoldToClearingPriceX7X7);
         } else {
             // Resolved demand above the clearing price over `deltaMps`
-            supplyClearedX7X7 = demandAboveClearingPriceMpsX7X7;
+            supplyClearedX7X7 = resolvedDemandAboveClearingPriceMpsX7X7;
             // supplySoldToClearing price is zero here
         }
-        _checkpoint.totalCleared = _checkpoint.totalCleared.add(supplyClearedX7X7);
+        _checkpoint.totalClearedX7X7 = _checkpoint.totalClearedX7X7.add(supplyClearedX7X7);
         _checkpoint.cumulativeMps += deltaMps;
         _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(deltaMps, _checkpoint.clearingPrice);
         return _checkpoint;
@@ -171,8 +179,8 @@ contract Auction is
 
     /// @notice Calculate the new clearing price, given the minimum clearing price and the quotient
     /// @param minimumClearingPrice The minimum clearing price which MUST be >= the floor price
-    /// @param quotientX7 The quotient used in the clearing price calculation
-    function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 factor, ValueX7 quotientX7)
+    /// @param quotientX7X7 The quotient used in the clearing price calculation
+    function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 factor, ValueX7X7 quotientX7X7)
         internal
         view
         returns (uint256)
@@ -183,33 +191,12 @@ contract Auction is
          * However, scaling the demand by mps loses precision when dividing by MPSLib.MPS. To avoid this, we use the precalculated quotientX7.
          *
          * Formula derivation:
-         *
-         *   ((currencyDemandX7 * step.mps) / MPSLib.MPS) * Q96
-         *   ────────────────────────────────────────────────────────────────────────────────────────────────────────
-         *   (remainingSupply * step.mps / (MPSLib.MPS - cumulativeMps)) - ((tokenDemandX7 * step.mps) / MPSLib.MPS)
-         *
-         * Observe that we can cancel out the `step.mps` component in the numerator and denominator:
-         *
-         *   (currencyDemandX7 / MPSLib.MPS) * Q96
-         *   ──────────────────────────────────────────────────────────────────────────────────────
-         *   (remainingSupply / (MPSLib.MPS - cumulativeMps)) - (tokenDemandX7 / MPSLib.MPS)
-         *
-         * Multiply both sides by MPSLib.MPS:
-         *
-         *   currencyDemandX7 * Q96
-         *   ─────────────────────────────────────────────────────────────────────────────────────
-         *   (remainingSupply * MPSLib.MPS / (MPSLib.MPS - cumulativeMps)) - tokenDemandX7
-         *
-         * Substituting quotientX7 for (remainingSupply * MPSLib.MPS / (MPSLib.MPS - cumulativeMps)):
-         *
-         *   currencyDemandX7 * Q96
-         *   ──────────────────────
-         *   quotientX7 - tokenDemandX7
          */
         uint256 _clearingPrice = ValueX7.unwrap(
             sumDemandAboveClearing.currencyDemandX7.fullMulDivUp(
                 ValueX7.wrap(FixedPoint96.Q96).mulUint256(factor),
-                quotientX7.sub(sumDemandAboveClearing.tokenDemandX7.mulUint256(factor))
+                // TODO(ez): should not scale down here
+                quotientX7X7.scaleDownToValueX7().sub(sumDemandAboveClearing.tokenDemandX7.mulUint256(factor))
             )
         );
 
@@ -252,7 +239,6 @@ contract Auction is
              * - However, multpling by `step.mps` and dividing by `MPSLib.MPS` loses precision, so we want to avoid it whenever possible.
              *   Thus, we calculate an intermediate value here that simplifies future calculations.
              */
-            ValueX7 quotientX7 = TOTAL_SUPPLY_X7.mulUint256(MPSLib.MPS).sub(_checkpoint.totalCleared);
             uint256 factor = MPSLib.MPS - _checkpoint.cumulativeMps;
 
             /**
@@ -264,9 +250,9 @@ contract Auction is
              * Thus, we multiply both sides by `MPSLib.MPS` instead of dividing such that it is equivalent.
              */
             while (
-                _sumDemandAboveClearing.resolveRoundingUp(nextActiveTickPrice).mulUint256(factor).gte(
-                    ValueX7.unwrap(quotientX7)
-                )
+                ValueX7X7.wrap(
+                    ValueX7.unwrap(_sumDemandAboveClearing.resolveRoundingUp(nextActiveTickPrice).mulUint256(factor))
+                ).gte(ValueX7X7.unwrap(TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)))
             ) {
                 // Subtract the demand at `nextActiveTickPrice`
                 _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_nextActiveTick.demand);
@@ -281,10 +267,11 @@ contract Auction is
             // Save state variables
             sumDemandAboveClearing = _sumDemandAboveClearing;
             // Calculate the new clearing price
-            _clearingPrice = _calculateNewClearingPrice(_clearingPrice, factor, quotientX7);
+            ValueX7X7 quotientX7X7 = TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7);
+            _clearingPrice = _calculateNewClearingPrice(_clearingPrice, factor, quotientX7X7);
             // Reset the cumulative supply sold to clearing price if the clearing price is different now
             if (_clearingPrice != _checkpoint.clearingPrice) {
-                _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 = ValueX7.wrap(0);
+                _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 = ValueX7X7.wrap(0);
             }
             _checkpoint.sumDemandAboveClearingPrice = _sumDemandAboveClearing;
         }
@@ -318,7 +305,7 @@ contract Auction is
         _insertCheckpoint(_checkpoint, blockNumber);
 
         emit CheckpointUpdated(
-            blockNumber, _checkpoint.clearingPrice, _checkpoint.totalCleared, _checkpoint.cumulativeMps
+            blockNumber, _checkpoint.clearingPrice, _checkpoint.totalClearedX7X7, _checkpoint.cumulativeMps
         );
     }
 
@@ -497,7 +484,6 @@ contract Auction is
             currencySpent += partialCurrencySpent;
         }
 
-        console2.log('bid.inputAmount()', bid.inputAmount());
         _processExit(bidId, bid, tokensFilled, bid.inputAmount() - currencySpent);
     }
 
@@ -530,7 +516,10 @@ contract Auction is
     function sweepUnsoldTokens() external onlyAfterAuctionIsOver {
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
         if (isGraduated()) {
-            _sweepUnsoldTokens((TOTAL_SUPPLY_X7.mulUint256(MPSLib.MPS).sub(_getFinalCheckpoint().totalCleared)).scaleDownToUint256());
+            _sweepUnsoldTokens(
+                ((TOTAL_SUPPLY_X7_X7.sub(_getFinalCheckpoint().totalClearedX7X7)).scaleDownToValueX7())
+                    .scaleDownToUint256()
+            );
         } else {
             // Use the uint256 totalSupply value instead of the scaled up X7 value
             _sweepUnsoldTokens(TOTAL_SUPPLY);

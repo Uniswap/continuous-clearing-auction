@@ -3,7 +3,8 @@ pragma solidity ^0.8.0;
 
 import {AuctionStepLib} from './AuctionStepLib.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
-import {MPSLib, ValueX7} from './MPSLib.sol';
+import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
+import {ValueX7X7, ValueX7X7Lib} from './ValueX7X7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @notice Struct containing currency demand and token demand
@@ -16,7 +17,8 @@ struct Demand {
 /// @title DemandLib
 library DemandLib {
     using DemandLib for ValueX7;
-    using MPSLib for *;
+    using ValueX7Lib for *;
+    using ValueX7X7Lib for *;
     using FixedPointMathLib for uint256;
     using AuctionStepLib for uint256;
 
@@ -60,15 +62,6 @@ library DemandLib {
         return Demand({
             currencyDemandX7: _demand.currencyDemandX7.mulUint256(value),
             tokenDemandX7: _demand.tokenDemandX7.mulUint256(value)
-        });
-    }
-
-    /// @notice Apply mps to a Demand struct
-    /// @dev Shorthand for calling `scaleByMps` on both currencyDemandX7 and tokenDemandX7
-    function scaleByMps(Demand memory _demand, uint24 mps) internal pure returns (Demand memory) {
-        return Demand({
-            currencyDemandX7: _demand.currencyDemandX7.scaleByMps(mps),
-            tokenDemandX7: _demand.tokenDemandX7.scaleByMps(mps)
         });
     }
 }

@@ -8,7 +8,9 @@ import {IAuctionFactory} from '../src/interfaces/IAuctionFactory.sol';
 import {IDistributionContract} from '../src/interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
-import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
+import {MPSLib} from '../src/libraries/MPSLib.sol';
+import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
+import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
 
 import {Assertions} from './utils/Assertions.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
@@ -19,7 +21,8 @@ import {Test} from 'forge-std/Test.sol';
 contract AuctionFactoryTest is TokenHandler, Test, Assertions {
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
-    using MPSLib for *;
+    using ValueX7Lib for *;
+    using ValueX7X7Lib for *;
 
     AuctionFactory factory;
     Auction auction;

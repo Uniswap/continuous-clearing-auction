@@ -3,18 +3,19 @@ pragma solidity ^0.8.0;
 
 import {AuctionStepLib} from './AuctionStepLib.sol';
 import {BidLib} from './BidLib.sol';
-
 import {Demand} from './DemandLib.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
-import {MPSLib, ValueX7} from './MPSLib.sol';
+import {MPSLib} from './MPSLib.sol';
+import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
+import {ValueX7X7, ValueX7X7Lib} from './ValueX7X7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 struct Checkpoint {
     uint256 clearingPrice;
-    ValueX7 totalCleared;
+    ValueX7X7 totalClearedX7X7;
+    ValueX7X7 cumulativeSupplySoldToClearingPriceX7X7;
     Demand sumDemandAboveClearingPrice;
     uint256 cumulativeMpsPerPrice;
-    ValueX7 cumulativeSupplySoldToClearingPriceX7X7;
     uint24 cumulativeMps;
     uint24 mps;
     uint64 prev;
@@ -25,21 +26,9 @@ struct Checkpoint {
 library CheckpointLib {
     using FixedPointMathLib for *;
     using AuctionStepLib for uint256;
-    using MPSLib for *;
+    using ValueX7Lib for *;
+    using ValueX7X7Lib for *;
     using CheckpointLib for Checkpoint;
-
-    /// @notice Calculate the actual supply to sell given the total cleared in the auction so far
-    /// @param checkpoint The last checkpointed state of the auction
-    /// @param totalSupplyX7 immutable total supply of the auction
-    /// @param mps the number of mps, following the auction sale schedule
-    function getSupply(Checkpoint memory checkpoint, ValueX7 totalSupplyX7, uint24 mps)
-        internal
-        pure
-        returns (ValueX7)
-    {
-        uint24 mpsRemainingInAuction = MPSLib.MPS - checkpoint.cumulativeMps;
-        return totalSupplyX7.sub(checkpoint.totalCleared).mulUint256(mps).divUint256(mpsRemainingInAuction);
-    }
 
     /// @notice Calculate the supply to price ratio. Will return zero if `price` is zero
     /// @dev This function returns a value in Q96 form
@@ -56,8 +45,11 @@ library CheckpointLib {
     /// @param checkpoint The checkpoint to calculate the currency raised from
     /// @return The total currency raised
     function getCurrencyRaised(Checkpoint memory checkpoint) internal pure returns (uint256) {
-        return checkpoint.totalCleared.fullMulDiv(
-            ValueX7.wrap(checkpoint.cumulativeMps * FixedPoint96.Q96), ValueX7.wrap(checkpoint.cumulativeMpsPerPrice).mulUint256(MPSLib.MPS)
-        ).scaleDownToUint256();
+        return checkpoint.totalClearedX7X7.fullMulDiv(
+            ValueX7X7.wrap(checkpoint.cumulativeMps * FixedPoint96.Q96),
+            ValueX7X7.wrap(checkpoint.cumulativeMpsPerPrice)
+        ).scaleDownToValueX7()
+            // We need to scale the X7X7 value down, but to prevent intermediate division, scale up the denominator instead
+            .scaleDownToUint256();
     }
 }

@@ -2,7 +2,8 @@
 pragma solidity ^0.8.0;
 
 import {Currency} from '../libraries/CurrencyLibrary.sol';
-import {ValueX7} from '../libraries/MPSLib.sol';
+import {ValueX7} from '../libraries/ValueX7Lib.sol';
+import {ValueX7X7} from '../libraries/ValueX7X7Lib.sol';
 import {IERC20Minimal} from './external/IERC20Minimal.sol';
 
 interface ITokenCurrencyStorage {

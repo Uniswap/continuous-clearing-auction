@@ -31,7 +31,7 @@ contract AuctionFactory is IAuctionFactory {
     }
 
     /// @inheritdoc IAuctionFactory
-    function getAuctionAddress(address token, uint128 amount, bytes calldata configData, bytes32 salt)
+    function getAuctionAddress(address token, uint256 amount, bytes calldata configData, bytes32 salt)
         public
         view
         returns (address)

@@ -56,6 +56,8 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
         auction = new Auction(address(token), TOTAL_SUPPLY, params);
 
         token.mint(address(auction), TOTAL_SUPPLY);
+        // Expect the tokens to be received
+        auction.onTokensReceived();
     }
 
     /// @dev Helper function to convert a tick number to a priceX96

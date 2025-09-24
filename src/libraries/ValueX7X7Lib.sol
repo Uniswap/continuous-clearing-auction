@@ -5,7 +5,8 @@ import {MPSLib} from './MPSLib.sol';
 import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
-/// @notice A ValueX7 is a uint256 value that has been multiplied by MPS
+/// @notice A ValueX7X7 is a ValueX7 value that has been multiplied by MPS
+/// @dev X7X7 values are used for supply values to avoid intermediate division by MPS
 type ValueX7X7 is uint256;
 
 using {add, sub, eq, mulUint256, divUint256, gte, fullMulDiv, fullMulDivUp} for ValueX7X7 global;

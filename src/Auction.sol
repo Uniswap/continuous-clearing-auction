@@ -195,8 +195,9 @@ contract Auction is
         uint256 _clearingPrice = ValueX7.unwrap(
             sumDemandAboveClearing.currencyDemandX7.fullMulDivUp(
                 ValueX7.wrap(FixedPoint96.Q96).mulUint256(factor),
-                // TODO(ez): should not scale down here
-                quotientX7X7.scaleDownToValueX7().sub(sumDemandAboveClearing.tokenDemandX7.mulUint256(factor))
+                ValueX7.wrap(ValueX7X7.unwrap(quotientX7X7)).sub(
+                    sumDemandAboveClearing.tokenDemandX7.mulUint256(factor)
+                )
             )
         );
 

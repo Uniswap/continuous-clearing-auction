@@ -942,7 +942,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepUnsoldTokens();
     }
 
-    function test_onTokensReceived_withCorrectTokenAndAmount_succeeds() public view {
+    function test_onTokensReceived_withCorrectTokenAndAmount_succeeds() public {
         // Should not revert since tokens are already minted in setUp()
         vm.expectEmit(true, true, true, true);
         emit IAuction.TokensReceived(TOTAL_SUPPLY);
@@ -1617,6 +1617,7 @@ contract AuctionTest is AuctionBaseTest {
 
         auction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auction), TOTAL_SUPPLY);
+        auction.onTokensReceived();
 
         uint256 maxPrice = FLOOR_PRICE;
         uint256 lastTickPrice = FLOOR_PRICE;
@@ -1654,7 +1655,6 @@ contract AuctionTest is AuctionBaseTest {
         }
     }
 
-
     function test_repro_electric_boogaloo() public {
         uint256 AUCTION_DURATION = 20;
         uint128 TOTAL_SUPPLY = 1000e18;
@@ -1685,24 +1685,24 @@ contract AuctionTest is AuctionBaseTest {
 
         auction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auction), TOTAL_SUPPLY);
-
-
+        auction.onTokensReceived();
+        
         vm.roll(params.startBlock + 1);
 
-        uint256 maxPrice = FLOOR_PRICE; 
+        uint256 maxPrice = FLOOR_PRICE;
         maxPrice += TICK_SPACING; // Increase the maxPrice by FLOOR_PRICE on every iteration
         uint256 lastTickPrice = FLOOR_PRICE;
 
         // purchase all the tokens
         uint256 amount = inputAmountForTokens(TOTAL_SUPPLY, maxPrice);
 
-        uint256 bidId = auction.submitBid{value: amount, gas: 1000000}(
+        uint256 bidId = auction.submitBid{value: amount, gas: 1_000_000}(
             maxPrice, // maxPrice
             true, // exactIn
             amount, // amount
             alice, // owner
             lastTickPrice, // previousPrice
-            "" // hookData
+            '' // hookData
         );
 
         vm.roll(block.number + 1);

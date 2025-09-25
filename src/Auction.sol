@@ -26,9 +26,9 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 /// @title Auction
-/// @notice Implements a time weighted uniform clearing price auction
-/// @dev Can be constructed directly or through the AuctionFactory. In either case, users must validate
-///      that the auction parameters are correct and it has sufficient token balance.
+/// @notice Time-weighted uniform clearing price auction implementation
+/// @dev Inherits from specialized storage contracts for modular functionality.
+///      Can be deployed directly or via AuctionFactory.
 contract Auction is
     BidStorage,
     CheckpointStorage,
@@ -50,14 +50,14 @@ contract Auction is
 
     /// @notice Permit2 address
     address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
-    /// @notice The block at which purchased tokens can be claimed
+    /// @notice Block when tokens can be claimed
     uint64 internal immutable CLAIM_BLOCK;
-    /// @notice An optional hook to be called before a bid is registered
+    /// @notice Optional validation hook (address(0) if none)
     IValidationHook internal immutable VALIDATION_HOOK;
 
-    /// @notice The sum of demand in ticks above the clearing price
+    /// @notice Sum of demand above the clearing price
     Demand public sumDemandAboveClearing;
-    /// @notice Whether the TOTAL_SUPPLY of tokens has been received
+    /// @notice Whether the total supply has been received
     bool private _tokensReceived;
 
     constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
@@ -84,13 +84,13 @@ contract Auction is
         if (FUNDS_RECIPIENT == address(0)) revert FundsRecipientIsZero();
     }
 
-    /// @notice Modifier for functions which can only be called after the auction is over
+    /// @notice Modifier for post-auction operations
     modifier onlyAfterAuctionIsOver() {
         if (block.number < END_BLOCK) revert AuctionIsNotOver();
         _;
     }
 
-    /// @notice Modifier for functions which can only be called after the auction is started and the tokens have been received
+    /// @notice Modifier for active auction operations
     modifier onlyActiveAuction() {
         if (block.number < START_BLOCK) revert AuctionNotStarted();
         if (!_tokensReceived) revert TokensNotReceived();
@@ -119,12 +119,13 @@ contract Auction is
         return _checkpoint.totalCleared.gte(ValueX7.unwrap(TOTAL_SUPPLY_X7.scaleByMps(GRADUATION_THRESHOLD_MPS)));
     }
 
-    /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
-    ///         This function updates the cumulative values of the checkpoint, requiring that
-    ///         `clearingPrice` is up to to date
-    /// @param _checkpoint The checkpoint to transform
-    /// @param deltaMps The number of mps to add
-    /// @return The transformed checkpoint
+    /// @notice Advances a checkpoint by a specified MPS delta, updating cumulative tracking values
+    /// @dev This function implements the core auction mechanics by calculating supply distribution
+    ///      based on demand above clearing price. Updates cumulative values for efficient partial
+    ///      fill calculations. Requires that clearingPrice is current and accurate.
+    /// @param _checkpoint The checkpoint to advance (must have current clearing price)
+    /// @param deltaMps The MPS (milli-bips per second) delta to advance by
+    /// @return The transformed checkpoint with updated cumulative values
     function _transformCheckpoint(Checkpoint memory _checkpoint, uint24 deltaMps)
         internal
         view
@@ -151,8 +152,10 @@ contract Auction is
         return _checkpoint;
     }
 
-    /// @notice Advance the current step until the current block is within the step
-    /// @dev The checkpoint must be up to date since `transform` depends on the clearingPrice
+    /// @notice Advances the auction step schedule to align with the current block
+    /// @dev Processes multiple auction steps if necessary, applying MPS rates for each completed
+    ///      step period. Critical for maintaining accurate supply issuance timing. The checkpoint
+    ///      must have an up-to-date clearing price since transformation depends on it.
     function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint64 blockNumber)
         internal
         returns (Checkpoint memory)
@@ -174,10 +177,13 @@ contract Auction is
         return _checkpoint;
     }
 
-    /// @notice Calculate the new clearing price, given:
-    /// @param blockSumDemandAboveClearing The demand above the clearing price in the block
-    /// @param minimumClearingPrice The minimum clearing price
-    /// @param supplyX7 The token supply (as ValueX7) at or above nextActiveTickPrice in the block
+    /// @notice Calculates the new clearing price using supply-demand equilibrium
+    /// @dev Implements the core price discovery algorithm: clearing_price = currency_demand / token_supply.
+    ///      Uses Q96 fixed-point arithmetic for precision. Enforces floor price and minimum clearing price
+    ///      constraints. Returns floor price if calculated price is below minimum thresholds.
+    /// @param blockSumDemandAboveClearing Aggregate demand above current clearing price for this block
+    /// @param minimumClearingPrice Floor price constraint (cannot clear below this)
+    /// @param supplyX7 Available token supply (ValueX7 format) at or above the next active tick price
     function _calculateNewClearingPrice(
         Demand memory blockSumDemandAboveClearing,
         uint256 minimumClearingPrice,
@@ -201,14 +207,16 @@ contract Auction is
         return (_clearingPrice - (_clearingPrice % TICK_SPACING));
     }
 
-    /// @notice Update the latest checkpoint to the current step
-    /// @dev This updates the state of the auction accounting for the bids placed after the last checkpoint
-    ///      Checkpoints are created at the top of each block with a new bid and does NOT include that bid
-    ///      Because of this, we need to calculate what the new state of the Auction should be before updating
-    ///      purely on the supply we will sell to the potentially updated `sumDemandAboveClearing` value
-    ///
-    ///      After the checkpoint is made up to date we can use those values to update the cumulative values
-    ///      depending on how much time has passed since the last checkpoint
+    /// @notice Updates the latest checkpoint to reflect current auction state and step progress
+    /// @dev This function is the core of the checkpoint system, performing several critical operations:
+    ///      1. Calculates available supply based on current step and rollover from previous periods
+    ///      2. Performs price discovery by walking through demand ticks to find new clearing price
+    ///      3. Updates nextActiveTickPrice and sumDemandAboveClearing based on filled demand
+    ///      4. Resets cumulative tracking if clearing price changes
+    ///      
+    ///      Checkpoints are created at block boundaries and do NOT include bids from that block,
+    ///      ensuring consistent state for bid fill calculations. The clearing price can only
+    ///      increase or stay the same, never decrease.
     function _updateLatestCheckpointToCurrentStep(uint64 blockNumber) internal returns (Checkpoint memory) {
         Checkpoint memory _checkpoint = latestCheckpoint();
         // If step.mps is 0, advance to the current step before calculating the supply
@@ -259,8 +267,13 @@ contract Auction is
         return _advanceToCurrentStep(_checkpoint, blockNumber);
     }
 
-    /// @notice Internal function for checkpointing at a specific block number
-    /// @param blockNumber The block number to checkpoint at
+    /// @notice Creates a complete checkpoint for the specified block, updating all auction state
+    /// @dev This function orchestrates the full checkpointing process:
+    ///      1. Updates checkpoint to current step (price discovery, supply calculation)
+    ///      2. Accounts for time elapsed since last checkpoint using MPS rates
+    ///      3. Stores checkpoint in linked-list structure for efficient retrieval
+    ///      4. Emits CheckpointUpdated event for off-chain tracking
+    /// @param blockNumber The target block number for this checkpoint
     function _unsafeCheckpoint(uint64 blockNumber) internal returns (Checkpoint memory _checkpoint) {
         if (blockNumber == lastCheckpointedBlock) return latestCheckpoint();
 

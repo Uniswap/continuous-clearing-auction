@@ -7,25 +7,26 @@ import {MPSLib} from './libraries/MPSLib.sol';
 import {SSTORE2} from 'solady/utils/SSTORE2.sol';
 
 /// @title AuctionStepStorage
-/// @notice Abstract contract to store and read information about the auction issuance schedule
+/// @notice Manages time-weighted token issuance schedule
+/// @dev Uses SSTORE2 for gas-efficient storage. Validates that sum(mps * blockDelta) equals MPSLib.MPS.
 abstract contract AuctionStepStorage is IAuctionStepStorage {
     using AuctionStepLib for *;
     using SSTORE2 for *;
 
-    /// @notice The size of a uint64 in bytes
+    /// @notice Size of each packed auction step
     uint256 public constant UINT64_SIZE = 8;
-    /// @notice The block at which the auction starts
+    /// @notice Block when auction starts
     uint64 internal immutable START_BLOCK;
-    /// @notice The block at which the auction ends
+    /// @notice Block when auction ends
     uint64 internal immutable END_BLOCK;
-    /// @notice Cached length of the auction steps data provided in the constructor
+    /// @notice Length of auction steps data
     uint256 internal immutable _LENGTH;
 
-    /// @notice The address pointer to the contract deployed by SSTORE2
+    /// @notice SSTORE2 pointer to step data
     address public pointer;
-    /// @notice The word offset of the last read step in `auctionStepsData` bytes
+    /// @notice Current reading offset in step data
     uint256 public offset;
-    /// @notice The current active auction step
+    /// @notice Current active auction step
     AuctionStep public step;
 
     constructor(bytes memory _auctionStepsData, uint64 _startBlock, uint64 _endBlock) {
@@ -43,8 +44,12 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
         _advanceStep();
     }
 
-    /// @notice Validate the data provided in the constructor
-    /// @dev Checks that the contract was correctly deployed by SSTORE2 and that the total mps and blocks are valid
+    /// @notice Validates auction step data integrity and mathematical constraints
+    /// @dev Performs comprehensive validation:
+    ///      1. Checks SSTORE2 deployment success and data length alignment
+    ///      2. Validates that sum(mps * blockDelta) == MPSLib.MPS for proper token distribution
+    ///      3. Ensures sum(blockDelta) + START_BLOCK == END_BLOCK for timing consistency
+    ///      This prevents invalid supply schedules that could break auction mechanics.
     function _validate(address _pointer) private view {
         bytes memory _auctionStepsData = _pointer.read();
         if (
@@ -64,8 +69,10 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
         if (sumBlockDelta + START_BLOCK != END_BLOCK) revert InvalidEndBlock();
     }
 
-    /// @notice Advance the current auction step
-    /// @dev This function is called on every new bid if the current step is complete
+    /// @notice Advances to the next auction step when the current step period ends
+    /// @dev Called during checkpoint updates when block.number exceeds current step.endBlock.
+    ///      Reads the next packed step data from SSTORE2 storage, updates the step state,
+    ///      and increments the offset. Reverts if attempting to advance past the final step.
     function _advanceStep() internal returns (AuctionStep memory) {
         if (offset > _LENGTH) revert AuctionIsOver();
 

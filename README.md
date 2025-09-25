@@ -1,6 +1,17 @@
 # TWAP Auction
 
-This repository contains the smart contracts for a TWAP (Time-Weighted Average Price) auction mechanism.
+This repository contains the smart contracts for a TWAP (Time-Weighted Average Price) auction mechanism. The system implements a uniform clearing price auction with time-based supply scheduling.
+
+## Key Features
+
+- Uniform clearing price across all winning bids
+- Time-weighted token issuance via MPS (milli-bips per second) schedule
+- Support for exact-in (currency) and exact-out (token) bids
+- Graduation threshold with automatic refunds for failed auctions
+- Gas-optimized checkpoints with hint-based partial fill calculations
+- Permit2 integration for efficient token transfers
+- Optional validation hooks for custom bid validation
+- Q96 fixed-point arithmetic for precise price calculations
 
 ## Installation
 
@@ -10,8 +21,24 @@ forge install
 
 ## Testing
 
+Run the full test suite:
 ```bash
 forge test
+```
+
+Run with gas reports:
+```bash
+forge test --gas-report
+```
+
+Run invariant tests:
+```bash
+forge test --match-contract Invariant
+```
+
+Generate coverage report:
+```bash
+forge coverage
 ```
 
 ## Architecture
@@ -208,6 +235,8 @@ bytes8 packed2 = uint64(mps) | (uint64(blockDelta) << 24);
 
 bytes packed = abi.encodePacked(packed1, packed2);
 ```
+
+**MPS Validation**: The constructor validates that the sum of all `(mps * blockDelta)` values equals exactly `MPSLib.MPS` (10^7), ensuring the total supply is distributed correctly. Additionally, the sum of all `blockDelta` values plus `START_BLOCK` must equal `END_BLOCK`.
 
 **Implementation**: The data is deployed to an external SSTORE2 contract for cheaper reads over the lifetime of the auction.
 

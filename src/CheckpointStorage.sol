@@ -12,7 +12,11 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
 /// @title CheckpointStorage
-/// @notice Abstract contract for managing auction checkpoints and bid fill calculations
+/// @notice Abstract contract implementing checkpoint-based auction state management
+/// @dev Manages auction state snapshots at block boundaries for efficient bid fill calculations.
+///      Uses a linked-list structure for checkpoint traversal and cumulative tracking for
+///      O(1) partial fill computations. Checkpoints store clearing price, total cleared supply,
+///      and cumulative MPS values to enable precise bid settlement without iteration.
 abstract contract CheckpointStorage is ICheckpointStorage {
     using FixedPointMathLib for *;
     using AuctionStepLib for *;
@@ -24,9 +28,10 @@ abstract contract CheckpointStorage is ICheckpointStorage {
 
     uint64 public constant MAX_BLOCK_NUMBER = type(uint64).max;
 
-    /// @notice Storage of checkpoints
+    /// @notice Mapping from block number to checkpoint state snapshots
+    /// @dev Each checkpoint represents auction state at the end of that block
     mapping(uint64 blockNumber => Checkpoint) public checkpoints;
-    /// @notice The block number of the last checkpointed block
+    /// @notice Block number of the most recent checkpoint (head of linked list)
     uint64 public lastCheckpointedBlock;
 
     /// @inheritdoc ICheckpointStorage
@@ -44,13 +49,17 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         return _getCheckpoint(lastCheckpointedBlock).getCurrencyRaised();
     }
 
-    /// @notice Get a checkpoint from storage
+    /// @notice Retrieves a checkpoint from storage by block number
     function _getCheckpoint(uint64 blockNumber) internal view returns (Checkpoint memory) {
         return checkpoints[blockNumber];
     }
 
-    /// @notice Insert a checkpoint into storage
-    /// @dev This function updates the prev and next pointers of the latest checkpoint and the new checkpoint
+    /// @notice Inserts a new checkpoint into the linked-list structure
+    /// @dev Updates the linked-list pointers to maintain bidirectional traversal:
+    ///      1. Sets the current latest checkpoint's next pointer to the new block
+    ///      2. Sets the new checkpoint's prev pointer to the current latest
+    ///      3. Sets the new checkpoint's next to MAX_BLOCK_NUMBER (end marker)
+    ///      4. Updates lastCheckpointedBlock to the new block
     function _insertCheckpoint(Checkpoint memory checkpoint, uint64 blockNumber) internal {
         uint64 _lastCheckpointedBlock = lastCheckpointedBlock;
         if (_lastCheckpointedBlock != 0) checkpoints[_lastCheckpointedBlock].next = blockNumber;

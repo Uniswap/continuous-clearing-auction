@@ -3,15 +3,18 @@ pragma solidity 0.8.26;
 
 import {Bid} from './libraries/BidLib.sol';
 
+/// @title BidStorage
+/// @notice Manages bid storage and lifecycle
+/// @dev Simple CRUD operations with auto-incrementing IDs
 abstract contract BidStorage {
-    /// @notice The id of the next bid to be created
+    /// @notice Next bid ID to assign
     uint256 public nextBidId;
-    /// @notice The mapping of bid ids to bids
+    /// @notice Bid storage mapping
     mapping(uint256 bidId => Bid bid) public bids;
 
-    /// @notice Get a bid from storage
-    /// @param bidId The id of the bid to get
-    /// @return bid The bid
+    /// @notice Retrieves a bid from storage by ID
+    /// @param bidId The unique identifier of the bid
+    /// @return bid The bid data structure
     function _getBid(uint256 bidId) internal view returns (Bid memory) {
         return bids[bidId];
     }
@@ -21,9 +24,9 @@ abstract contract BidStorage {
     /// @param amount The amount of the bid
     /// @param owner The owner of the bid
     /// @param maxPrice The maximum price for the bid
-    /// @param startCumulativeMps The cumulative mps at the start of the bid
+    /// @param startCumulativeMps The cumulative mps at bid creation
     /// @return bid The created bid
-    /// @return bidId The id of the created bid
+    /// @return bidId The assigned bid ID
     function _createBid(bool exactIn, uint256 amount, address owner, uint256 maxPrice, uint24 startCumulativeMps)
         internal
         returns (Bid memory bid, uint256 bidId)
@@ -44,15 +47,16 @@ abstract contract BidStorage {
         nextBidId++;
     }
 
-    /// @notice Update a bid in storage
-    /// @param bidId The id of the bid to update
-    /// @param bid The new bid
+    /// @notice Updates an existing bid in storage
+    /// @dev Used to update bid state during exit/settlement operations
+    /// @param bidId The unique identifier of the bid to update
+    /// @param bid The updated bid structure
     function _updateBid(uint256 bidId, Bid memory bid) internal {
         bids[bidId] = bid;
     }
 
-    /// @notice Delete a bid from storage
-    /// @param bidId The id of the bid to delete
+    /// @notice Removes a bid from storage (used after settlement)
+    /// @param bidId The unique identifier of the bid to delete
     function _deleteBid(uint256 bidId) internal {
         delete bids[bidId];
     }

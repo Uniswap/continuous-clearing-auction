@@ -1584,7 +1584,9 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(auction.floorPrice(), FLOOR_PRICE);
     }
 
-    function test_repro(uint8 numBids) public {
+    /// @dev Reproduces rounding issue caused by 1 tick spacing
+    /// the _nextActiveTick demand could be above sumDemandAboveClearing, causing an underflow when transforming the checkpoint
+    function test_repro_rounding_error_underflow_transform_checkpoint(uint8 numBids) public {
         vm.assume(numBids > 0);
         vm.assume(numBids < 15);
 
@@ -1655,7 +1657,8 @@ contract AuctionTest is AuctionBaseTest {
         }
     }
 
-    function test_repro_electric_boogaloo() public {
+    /// @dev Reproduces rounding error caused by rounding up bid
+    function test_repro_rounding_error_tokens_sold_without_moving_clearing_price() public {
         uint256 AUCTION_DURATION = 20;
         uint128 TOTAL_SUPPLY = 1000e18;
         uint256 FLOOR_PRICE = (25 << FixedPoint96.RESOLUTION) / 1_000_000;

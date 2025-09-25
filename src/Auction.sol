@@ -250,22 +250,45 @@ contract Auction is
             Tick memory _nextActiveTick = getTick(nextActiveTickPrice);
 
             /**
-             * Calculate the quotient used in the tick iteration and clearing price calculation
-             * - We can calculate the supply sold in this block by finding the actual supply sold so far,
-             *   multiplying it by the current supply issuance rate (step.mps), and dividing by the remaining mps in the auction.
-             *   This accounts for any previously unsold supply which is rolled over.
-             * - However, multpling by `step.mps` and dividing by `MPSLib.MPS` loses precision, so we want to avoid it whenever possible.
-             *   Thus, we calculate an intermediate value here that simplifies future calculations.
+             * For clearing price related calculations, we need to determine the amount of supply sold over `mps` as well as the corresponding demand.
+             * - Supply is found by multiplying the actual supply sold so far by the current supply issuance rate (step.mps), 
+             *   and dividing by the remaining mps in the auction to account for any previously unsold supply which is rolled over.
+             *
+             *   For example: (totalSupply - _checkpoint.totalCleared) * step.mps / (MPSLib.MPS - _checkpoint.cumulativeMps)
+             *
+             * - However, multpling by `step.mps` and dividing by `(MPSLib.MPS - _checkpoint.cumulativeMps)` loses precision, and we want to avoid it whenever possible.
+             *   We save `(MPSLib.MPS - _checkpoint.cumulativeMps)` here to multiply by later when we want to cancel out the division.
              */
             uint256 factor = MPSLib.MPS - _checkpoint.cumulativeMps;
 
             /**
              * For a non-zero supply, iterate to find the tick where the demand at and above it is strictly less than the supply
-             * Sets nextActiveTickPrice to MAX_TICK_PRICE if the highest tick in the book is reached
+             * If the loop reaches the highest tick in the book, `nextActiveTickPrice` will be set to MAX_TICK_PRICE
              *
-             * We must compare the resolved demand following the current issuance schedule (step.mps) to the supply being sold
-             * But we don't want to multiply by `step.mps` and divide by `MPSLib.MPS` because it loses precision
-             * Thus, we multiply both sides by `MPSLib.MPS` instead of dividing such that it is equivalent.
+             * To compare the resolved demand to the supply being sold, we have the orignal equation:
+             *   R = resolvedDemand * mps / MPSLib.MPS
+             *   supply = (totalSupply - _checkpoint.totalCleared) * step.mps / (MPSLib.MPS - _checkpoint.cumulativeMps)
+             * We are looking for R >= supply
+             *
+             * Observe that because of the inequality, we can multiply both sides by `(MPSLib.MPS - _checkpoint.cumulativeMps)` to get:
+             *   R * (MPSLib.MPS - _checkpoint.cumulativeMps) >= supply * mps
+             *
+             * Substituting R back into the equation to get:
+             *   (resolvedDemand * mps / MPSLib.MPS) * (MPSLib.MPS - _checkpoint.cumulativeMps) >= supply * mps
+             * Or,
+             *   (resolvedDemand * mps) * (MPSLib.MPS - _checkpoint.cumulativeMps)
+             *   ----------------------------------------------------------------- >= supply * mps
+             *                            MPSLib.MPS
+             * We can eliminate the `mps` term on both sides to get:
+             *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps)
+             *   ----------------------------------------------------------------- >= supply
+             *                            MPSLib.MPS
+             * And multiply both sides by `MPSLib.MPS` to remove the division entirely:
+             *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps) >= supply * MPSLib.MPS
+             *
+             * Conveniently, we are already tracking supply in terms of X7X7, which is already scaled up by MPSLib.MPS, 
+             * so we can substitute in TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
+             *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps) >= TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
              */
             while (
                 ValueX7X7.wrap(

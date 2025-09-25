@@ -56,6 +56,8 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
         uint64 sumBlockDelta = 0;
         for (uint256 i = 0; i < _length; i += UINT64_SIZE) {
             (uint24 mps, uint40 blockDelta) = _auctionStepsData.get(i);
+            // Prevent the block delta from being set to zero 
+            if(blockDelta == 0) revert StepBlockDeltaCannotBeZero();
             sumMps += mps * blockDelta;
             sumBlockDelta += blockDelta;
         }

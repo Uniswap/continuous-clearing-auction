@@ -1,5 +1,5 @@
 # ITokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/83a914c60b4e9281565be6f803d3565a474adef4/src/interfaces/ITokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/96e6e2c508ac3c34a2d937e1508d0ad15fe3ca30/src/interfaces/ITokenCurrencyStorage.sol)
 
 
 ## Events
@@ -40,14 +40,6 @@ Error thrown when the total supply is zero
 
 ```solidity
 error TotalSupplyIsZero();
-```
-
-### TotalSupplyIsTooLarge
-Error thrown when the total supply is too large to fit in a uint256 after scaling up by X7
-
-
-```solidity
-error TotalSupplyIsTooLarge();
 ```
 
 ### FundsRecipientIsZero

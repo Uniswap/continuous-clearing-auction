@@ -118,6 +118,7 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
         auction = new Auction(address(token), _deploymentParams.totalSupply, params);
 
         token.mint(address(auction), _deploymentParams.totalSupply);
+        auction.onTokensReceived();
     }
 
     // Non fuzzing variant of setUpAuction

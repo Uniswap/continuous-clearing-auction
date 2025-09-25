@@ -396,8 +396,8 @@ contract Auction is
         Checkpoint memory lastFullyFilledCheckpoint = _getCheckpoint(lower);
 
         // Since `lower` points to the last fully filled Checkpoint, it must be < bid.maxPrice
-        // Its next Checkpoint must be partially or fully filled (clearingPrice >= bid.maxPrice)
-        // It also cannot be before the bid's startCheckpoint
+        // The next Checkpoint after `lower` must be partially or fully filled (clearingPrice >= bid.maxPrice)
+        // `lower` also cannot be before the bid's startCheckpoint
         if (
             lastFullyFilledCheckpoint.clearingPrice >= bid.maxPrice
                 || _getCheckpoint(lastFullyFilledCheckpoint.next).clearingPrice < bid.maxPrice || lower < bid.startBlock

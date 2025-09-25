@@ -58,7 +58,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     // ================
-    // submitBid tests 
+    // submitBid tests
     // ================
 
     /// forge-config: default.isolate = true

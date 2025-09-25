@@ -213,7 +213,7 @@ contract Auction is
     ///      2. Performs price discovery by walking through demand ticks to find new clearing price
     ///      3. Updates nextActiveTickPrice and sumDemandAboveClearing based on filled demand
     ///      4. Resets cumulative tracking if clearing price changes
-    ///      
+    ///
     ///      Checkpoints are created at block boundaries and do NOT include bids from that block,
     ///      ensuring consistent state for bid fill calculations. The clearing price can only
     ///      increase or stay the same, never decrease.

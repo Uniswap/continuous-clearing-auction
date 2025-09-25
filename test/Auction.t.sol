@@ -2,6 +2,9 @@
 pragma solidity 0.8.26;
 
 import {Auction, AuctionParameters} from '../src/Auction.sol';
+
+import {Bid} from '../src/BidStorage.sol';
+import {Checkpoint} from '../src/CheckpointStorage.sol';
 import {IAuction} from '../src/interfaces/IAuction.sol';
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
@@ -9,6 +12,7 @@ import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
+
 import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
@@ -1021,6 +1025,49 @@ contract AuctionTest is AuctionBaseTest {
         // This violates the condition: outbidCheckpoint.clearingPrice < bid.maxPrice
         vm.expectRevert(IAuction.InvalidCheckpointHint.selector);
         auction.exitPartiallyFilledBid(bidId, 2, 2);
+    }
+
+    function test_exitPartiallyFilledBid_lowerHintIsValidated() public {
+        MockAuction mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(mockAuction), TOTAL_SUPPLY);
+        mockAuction.onTokensReceived();
+
+        Checkpoint memory _checkpointOne;
+        _checkpointOne.clearingPrice = tickNumberToPriceX96(1);
+        Checkpoint memory _checkpointTwo;
+        _checkpointTwo.clearingPrice = tickNumberToPriceX96(2);
+        Checkpoint memory _checkpointThree;
+        _checkpointThree.clearingPrice = tickNumberToPriceX96(2);
+        Checkpoint memory _checkpointFour;
+        _checkpointFour.clearingPrice = tickNumberToPriceX96(2);
+        Checkpoint memory _checkpointFive;
+        _checkpointFive.clearingPrice = tickNumberToPriceX96(3);
+
+        vm.roll(1);
+        // Create a bid which was entered with a max price of tickNumberToPriceX96(2) at checkpoint 1
+        (Bid memory bid, uint256 bidId) = mockAuction.createBid(true, 100e18, alice, tickNumberToPriceX96(2), 0);
+        assertEq(bid.startBlock, 1);
+        mockAuction.insertCheckpoint(_checkpointOne, 1);
+        vm.roll(2);
+        mockAuction.insertCheckpoint(_checkpointTwo, 2);
+        vm.roll(3);
+        mockAuction.insertCheckpoint(_checkpointThree, 3);
+        vm.roll(4);
+        mockAuction.insertCheckpoint(_checkpointFour, 4);
+        vm.roll(5);
+        mockAuction.insertCheckpoint(_checkpointFive, 5);
+
+        // The bid is fully filled at checkpoint 1
+        // The bid is partially filled from checkpoints (2, 3, 4), inclusive
+        // The bid is outbid at checkpoint 5
+
+        // Test failure cases
+        // Provide an invalid lower hint (i being not 1)
+        for (uint64 i = 0; i <= 5; i++) {
+            if (i == 1) continue;
+            vm.expectRevert(IAuction.InvalidCheckpointHint.selector);
+            mockAuction.exitPartiallyFilledBid(bidId, i, 5);
+        }
     }
 
     function test_advanceToCurrentStep_withMultipleStepsAndClearingPrice() public {

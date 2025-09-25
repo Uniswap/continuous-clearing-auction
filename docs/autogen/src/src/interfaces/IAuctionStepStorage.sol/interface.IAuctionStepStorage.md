@@ -1,5 +1,5 @@
 # IAuctionStepStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/e1dbf4f02e1bcbb91486a39f0f49eb2aeb52ecc6/src/interfaces/IAuctionStepStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0c5851aa9ec5ac43c56db7c402b9b2ddf115c996/src/interfaces/IAuctionStepStorage.sol)
 
 
 ## Functions
@@ -61,6 +61,14 @@ Error thrown when the auction data length is invalid
 
 ```solidity
 error InvalidAuctionDataLength();
+```
+
+### StepBlockDeltaCannotBeZero
+Error thrown when the block delta in a step is zero
+
+
+```solidity
+error StepBlockDeltaCannotBeZero();
 ```
 
 ### InvalidMps

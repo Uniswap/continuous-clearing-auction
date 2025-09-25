@@ -26,15 +26,15 @@ contract AuctionStepStorageTest is Test {
     }
 
     function test_canBeConstructed_fuzz(uint8 numIterations) public {
-        for(uint8 i = 0; i < numIterations; i++) {
+        for (uint8 i = 0; i < numIterations; i++) {
             bytes memory auctionStepsData = AuctionStepsBuilder.init();
             uint24 mpsLeft = 1e7;
             uint64 cumulativeBlockDelta = 0;
-            while(mpsLeft > 0) {
+            while (mpsLeft > 0) {
                 // random values between 0 and 1e4
                 uint24 mps = uint24(vm.randomUint() % 1e4);
                 uint40 blockDelta = uint40(_bound(uint40(vm.randomUint() % 1e4), 1, 1e4));
-                if(mpsLeft < mps * blockDelta) {
+                if (mpsLeft < mps * blockDelta) {
                     break;
                 }
                 mpsLeft -= uint24(mps * blockDelta);
@@ -42,7 +42,7 @@ contract AuctionStepStorageTest is Test {
                 auctionStepsData = auctionStepsData.addStep(mps, blockDelta);
             }
             // Add the remaining mps as a single step
-            if(mpsLeft > 0) {
+            if (mpsLeft > 0) {
                 auctionStepsData = auctionStepsData.addStep(mpsLeft, 1);
                 cumulativeBlockDelta += 1;
             }

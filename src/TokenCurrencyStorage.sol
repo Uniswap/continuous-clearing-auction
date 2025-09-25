@@ -11,6 +11,9 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     using CurrencyLibrary for Currency;
     using MPSLib for uint256;
 
+    /// @dev The auction does not support selling more than type(uint256).max / MPSLib.MPS (1e7) tokens
+    uint256 public constant MAX_TOTAL_SUPPLY = type(uint256).max / 1e7;
+
     /// @notice The currency being raised in the auction
     Currency internal immutable CURRENCY;
     /// @notice The token being sold in the auction
@@ -41,6 +44,8 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         uint24 _graduationThresholdMps
     ) {
         TOKEN = IERC20Minimal(_token);
+        // total supply musts be less than the X7 upper bound to prevent overflows in multiplications that scale up by X7
+        if (_totalSupply > MAX_TOTAL_SUPPLY) revert TotalSupplyIsTooLarge();
         TOTAL_SUPPLY = _totalSupply;
         TOTAL_SUPPLY_X7 = _totalSupply.scaleUpToX7();
         CURRENCY = Currency.wrap(_currency);
@@ -50,6 +55,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
 
         if (TOTAL_SUPPLY == 0) revert TotalSupplyIsZero();
         if (FUNDS_RECIPIENT == address(0)) revert FundsRecipientIsZero();
+        if (TOKENS_RECIPIENT == address(0)) revert TokensRecipientIsZero();
         if (GRADUATION_THRESHOLD_MPS > MPSLib.MPS) revert InvalidGraduationThresholdMps();
     }
 

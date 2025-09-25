@@ -1712,7 +1712,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(auction.endBlock() + 1);
 
         // Exit the bids and claim ATP
-        auction.exitPartiallyFilledBid(bidId, 4, 0);
+        auction.exitPartiallyFilledBid(bidId, 3, 0);
         auction.claimTokens(bidId);
     }
 

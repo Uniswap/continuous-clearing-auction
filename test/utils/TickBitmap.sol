@@ -5,7 +5,9 @@ struct TickBitmap {
     mapping(uint256 => uint256) words;
 }
 
-
+// Modified version of Uniswap v3 TickBitmap.sol
+// Allows you to set ticks as initialized and query for the highest tick below a given value.
+// https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/TickBitmap.sol
 library TickBitmapLib {
     uint256 internal constant WORD_SIZE = 256;
 

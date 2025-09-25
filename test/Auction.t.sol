@@ -107,16 +107,17 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     /// @dev Submit a bid for a given tick number, amount, and owner
-    function helper__submitBid(uint256 _i, FuzzBid memory _bid, address _owner) internal returns (uint256 bidId) {
+    /// @dev if the bid was not successfully placed - i.e. it would not have succeeded at clearing - bidPlaced is false and bidId is 0
+    function helper__trySubmitBid(uint256 _i, FuzzBid memory _bid, address _owner) internal returns (bool bidPlaced, uint256 bidId ) {
         uint256 clearingPrice = auction.clearingPrice();
 
         // Get the correct bid prices for the bid
-        uint256 firstBidMaxPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(_bid.tickNumber);
+        uint256 maxPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(_bid.tickNumber);
         
         // if the bid if not above the clearing price, don't submit the bid
-        if (firstBidMaxPrice <= clearingPrice) return 0;
+        if (maxPrice <= clearingPrice) return (false, 0);
 
-        uint256 ethInputAmount = inputAmountForTokens(_bid.bidAmount, firstBidMaxPrice);
+        uint256 ethInputAmount = inputAmountForTokens(_bid.bidAmount, maxPrice);
 
         // Get the correct last tick price for the bid
         uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
@@ -124,10 +125,10 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(
-            _i, _owner, firstBidMaxPrice, true, ethInputAmount
+            _i, _owner, maxPrice, true, ethInputAmount
         );
         bidId = auction.submitBid{value: ethInputAmount}(
-            firstBidMaxPrice,
+            maxPrice,
             exactIn,
             ethInputAmount,
             _owner,
@@ -137,6 +138,8 @@ contract AuctionTest is AuctionBaseTest {
 
         // Set the tick in the bitmap for future bids
         tickBitmap.set(_bid.tickNumber);
+
+        return (true, bidId);
     }
 
     /// @dev if iteration block has bottom two bits set, roll to the next block - 25% chance
@@ -161,8 +164,14 @@ contract AuctionTest is AuctionBaseTest {
         givenExactIn
         givenFullyFundedAccount
     {
+        uint256 expectedBidId;
         for (uint256 i = 0; i < _bids.length; i++) {
-            helper__submitBid(i, _bids[i], alice);
+            // TODO(md): Temporary to ensure that we dont place bids that will not succeed if the clearing price moves above them during the tx
+            auction.checkpoint();
+
+            (bool bidPlaced, uint256 bidId) = helper__trySubmitBid(expectedBidId, _bids[i], alice);
+            if (bidPlaced) expectedBidId++;
+
             helper__maybeRollToNextBlock(i);
         }
         vm.snapshotGasLastCall('submitBid_updateCheckpoint');

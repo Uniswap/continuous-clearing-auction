@@ -1159,9 +1159,10 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitPartiallyFilledBid(bidId, 2, 2);
     }
 
-    function test_auctionConstruction_revertsWithTotalSupplyTooLarge() public {
+    function test_auctionConstruction_revertsWithTotalSupplyTooLarge(uint256 _totalSupply) public {
+        _totalSupply = _bound(_totalSupply, (type(uint256).max / 1e7) + 1, type(uint256).max);
         vm.expectRevert(ITokenCurrencyStorage.TotalSupplyIsTooLarge.selector);
-        new Auction(address(token), type(uint256).max / 1e7 + 1, params);
+        new Auction(address(token), _totalSupply, params);
     }
 
     function test_auctionConstruction_revertsWithTotalSupplyZero() public {

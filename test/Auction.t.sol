@@ -55,7 +55,6 @@ contract AuctionTest is AuctionBaseTest {
     function test_checkpoint_beforeTokensReceived_reverts() public {
         Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(newAuction), TOTAL_SUPPLY);
-
         vm.expectRevert(IAuction.TokensNotReceived.selector);
         newAuction.checkpoint();
     }

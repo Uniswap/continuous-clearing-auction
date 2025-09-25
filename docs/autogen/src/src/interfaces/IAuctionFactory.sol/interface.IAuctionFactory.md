@@ -1,5 +1,5 @@
 # IAuctionFactory
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c93a502c43cc6579f7780b08fd2fc5515af395e2/src/interfaces/IAuctionFactory.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/f80ba18b60de4b770005741879dfdddb0bfb58e3/src/interfaces/IAuctionFactory.sol)
 
 **Inherits:**
 [IDistributionStrategy](/src/interfaces/external/IDistributionStrategy.sol/interface.IDistributionStrategy.md)

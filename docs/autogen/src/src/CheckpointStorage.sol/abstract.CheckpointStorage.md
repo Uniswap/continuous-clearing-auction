@@ -1,5 +1,5 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c484a619b57e8cdba6726e41eefe57b0876affbb/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/f80ba18b60de4b770005741879dfdddb0bfb58e3/src/CheckpointStorage.sol)
 
 **Inherits:**
 [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)

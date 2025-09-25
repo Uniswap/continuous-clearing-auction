@@ -1,5 +1,5 @@
 # Bid
-[Git Source](https://github.com/Uniswap/twap-auction/blob/d1e7b82f3777bade51fea369dcee7819652c8bdc/src/libraries/BidLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/f80ba18b60de4b770005741879dfdddb0bfb58e3/src/libraries/BidLib.sol)
 
 
 ```solidity

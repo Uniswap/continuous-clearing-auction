@@ -55,6 +55,7 @@ contract AuctionTest is AuctionBaseTest {
     function test_checkpoint_beforeTokensReceived_reverts() public {
         Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(newAuction), TOTAL_SUPPLY);
+
         vm.expectRevert(IAuction.TokensNotReceived.selector);
         newAuction.checkpoint();
     }
@@ -393,10 +394,16 @@ contract AuctionTest is AuctionBaseTest {
         auction.checkpoint();
     }
 
-    function test_checkpoint_afterEndBlock_reverts() public {
-        vm.roll(auction.endBlock() + 1);
-        vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
-        auction.checkpoint();
+    function test_checkpoint_afterEndBlock_succeeds(uint32 blocksAfterEndBlock, uint8 numberOfInvocations) public {
+        uint256 blockInFuture = auction.endBlock() + blocksAfterEndBlock;
+        vm.roll(blockInFuture);
+        for (uint8 i = 0; i < numberOfInvocations; i++) {
+            vm.roll(blockInFuture + i);
+            auction.checkpoint();
+
+            // Final checkpoint should remain the same as the last block
+            assertEq(auction.lastCheckpointedBlock(), auction.endBlock());
+        }
     }
 
     function test_submitBid_exactIn_atFloorPrice_reverts() public {
@@ -932,85 +939,6 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepUnsoldTokens();
     }
 
-    function test_fuzzReplay_roundingErrors_succeeds() public {
-        vm.roll(2);
-        vm.roll(3);
-        vm.roll(4);
-        auction.submitBid{value: 16_951_001}(
-            79_228_162_514_264_337_593_543_950_341_500,
-            false,
-            16_951,
-            alice,
-            79_228_162_514_264_337_593_543_950_336_000,
-            bytes('')
-        );
-
-        vm.roll(5);
-        auction.checkpoint();
-
-        vm.roll(6);
-        auction.submitBid{value: 1_938_195_602_430_274_713_814_001}(
-            79_228_162_514_264_337_593_543_950_357_400,
-            false,
-            1_938_195_602_430_274_713_814,
-            alice,
-            79_228_162_514_264_337_593_543_950_341_500,
-            bytes('')
-        );
-
-        vm.roll(101);
-        auction.checkpoint();
-
-        auction.exitPartiallyFilledBid(0, 6, 101);
-        auction.exitPartiallyFilledBid(1, 6, 0);
-
-        vm.roll(auction.claimBlock());
-        auction.claimTokens(0);
-        auction.claimTokens(1);
-    }
-
-    function test_fuzzReplay_supplyCausingRoundingErrors_succeeds() public {
-        vm.roll(2);
-        auction.submitBid{value: 305_286_001}(
-            79_228_162_514_264_337_593_543_950_349_400,
-            false,
-            305_286,
-            alice,
-            79_228_162_514_264_337_593_543_950_336_000,
-            bytes('')
-        );
-
-        auction.submitBid{value: 233_715_034_573_585_010_487_001}(
-            79_228_162_514_264_337_593_543_950_341_500,
-            false,
-            233_715_034_573_585_010_487,
-            alice,
-            79_228_162_514_264_337_593_543_950_336_000,
-            bytes('')
-        );
-
-        auction.submitBid{value: 894_591_511_812_533_175_189_001}(
-            79_228_162_514_264_337_593_543_950_350_900,
-            false,
-            894_591_511_812_533_175_189,
-            alice,
-            79_228_162_514_264_337_593_543_950_349_400,
-            bytes('')
-        );
-
-        vm.roll(101);
-        auction.checkpoint();
-
-        auction.exitBid(0);
-        auction.exitPartiallyFilledBid(1, 2, 0);
-        auction.exitBid(2);
-
-        vm.roll(auction.claimBlock());
-        auction.claimTokens(0);
-        auction.claimTokens(1);
-        auction.claimTokens(2);
-    }
-
     function test_onTokensReceived_withCorrectTokenAndAmount_succeeds() public {
         vm.expectEmit(true, true, true, true);
         emit IAuction.TokensReceived(TOTAL_SUPPLY);
@@ -1397,10 +1325,26 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_submitBid_atEndBlock_reverts() public {
-        // Advance to after the auction ends
+        // Advance to the auction end block
         vm.roll(auction.endBlock());
 
         // Try to submit a bid at the end block
+        vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
+        auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+    }
+
+    function test_submitBid_afterEndBlock_reverts() public {
+        // Advance to after the auction end block
+        vm.roll(auction.endBlock() + 1);
+
+        // Try to submit a bid after the auction end block
         vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
         auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),

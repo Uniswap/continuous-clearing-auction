@@ -338,7 +338,9 @@ contract Auction is
 
     /// @inheritdoc IAuction
     function checkpoint() public onlyActiveAuction returns (Checkpoint memory _checkpoint) {
-        if (block.number > END_BLOCK) revert AuctionIsOver();
+        if (block.number > END_BLOCK) {
+            return _getFinalCheckpoint();
+        }
         return _unsafeCheckpoint(uint64(block.number));
     }
 

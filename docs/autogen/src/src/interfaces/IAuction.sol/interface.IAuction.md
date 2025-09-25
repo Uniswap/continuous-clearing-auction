@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/5f0a943517be1207a258ed99708c5230362ad0a8/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0bb666b8a504df75d6272865506059bf75e7720b/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -46,6 +46,8 @@ function submitBid(
 Register a new checkpoint
 
 *This function is called every time a new bid is submitted above the current clearing price*
+
+*If the auction is over, it returns the final checkpoint*
 
 
 ```solidity

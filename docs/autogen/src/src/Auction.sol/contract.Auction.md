@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/5f0a943517be1207a258ed99708c5230362ad0a8/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0bb666b8a504df75d6272865506059bf75e7720b/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)

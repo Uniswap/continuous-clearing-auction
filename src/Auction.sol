@@ -212,7 +212,9 @@ contract Auction is
     function _updateLatestCheckpointToCurrentStep(uint64 blockNumber) internal returns (Checkpoint memory) {
         Checkpoint memory _checkpoint = latestCheckpoint();
         // If step.mps is 0, advance to the current step before calculating the supply
-        if (step.mps == 0) _advanceToCurrentStep(_checkpoint, blockNumber);
+        if (step.mps == 0) {
+            _checkpoint = _advanceToCurrentStep(_checkpoint, blockNumber);
+        }
         // Get the supply being sold since the last checkpoint, accounting for rollovers of past supply
         ValueX7 supply = _checkpoint.getSupply(TOTAL_SUPPLY_X7, step.mps);
 

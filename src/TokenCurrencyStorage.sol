@@ -10,6 +10,9 @@ import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     using CurrencyLibrary for Currency;
 
+    /// @dev The auction does not support selling more than type(uint256).max / MPSLib.MPS (1e7) tokens
+    uint256 public constant MAX_TOTAL_SUPPLY = type(uint256).max / 1e7;
+
     /// @notice The currency being raised in the auction
     Currency public immutable currency;
     /// @notice The token being sold in the auction
@@ -41,6 +44,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         bytes memory _fundsRecipientData
     ) {
         token = IERC20Minimal(_token);
+        if (_totalSupply > MAX_TOTAL_SUPPLY) revert TotalSupplyIsTooLarge();
         totalSupply = _totalSupply;
         currency = Currency.wrap(_currency);
         tokensRecipient = _tokensRecipient;
@@ -50,6 +54,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
 
         if (totalSupply == 0) revert TotalSupplyIsZero();
         if (fundsRecipient == address(0)) revert FundsRecipientIsZero();
+        if (tokensRecipient == address(0)) revert TokensRecipientIsZero();
         if (graduationThresholdMps > AuctionStepLib.MPS) revert InvalidGraduationThresholdMps();
     }
 

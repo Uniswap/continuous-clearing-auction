@@ -1,11 +1,20 @@
 # TokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/e1dbf4f02e1bcbb91486a39f0f49eb2aeb52ecc6/src/TokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/83a914c60b4e9281565be6f803d3565a474adef4/src/TokenCurrencyStorage.sol)
 
 **Inherits:**
 [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
 
 
 ## State Variables
+### MAX_TOTAL_SUPPLY
+*The auction does not support selling more than type(uint256).max / MPSLib.MPS (1e7) tokens*
+
+
+```solidity
+uint256 public constant MAX_TOTAL_SUPPLY = type(uint256).max / 1e7;
+```
+
+
 ### currency
 The currency being raised in the auction
 

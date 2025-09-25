@@ -1226,22 +1226,46 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitPartiallyFilledBid(bidId, 2, 2);
     }
 
-    function test_auctionConstruction_reverts() public {
+    function test_auctionConstruction_revertsWithTotalSupplyZero() public {
         vm.expectRevert(ITokenCurrencyStorage.TotalSupplyIsZero.selector);
         new Auction(address(token), 0, params);
+    }
 
+    function test_auctionConstruction_revertsWithTickSpacingZero() public {
+        AuctionParameters memory paramsZeroTickSpacing = params.withTickSpacing(0);
+        vm.expectRevert(IAuction.TickSpacingIsZero.selector);
+        new Auction(address(token), TOTAL_SUPPLY, paramsZeroTickSpacing);
+    }
+
+    function test_auctionConstruction_revertsWithFloorPriceZero() public {
         AuctionParameters memory paramsZeroFloorPrice = params.withFloorPrice(0);
         vm.expectRevert(IAuction.FloorPriceIsZero.selector);
         new Auction(address(token), TOTAL_SUPPLY, paramsZeroFloorPrice);
+    }
 
+    function test_auctionConstruction_revertsWithClaimBlockBeforeEndBlock() public {
         AuctionParameters memory paramsClaimBlockBeforeEndBlock =
             params.withClaimBlock(block.number + AUCTION_DURATION - 1).withEndBlock(block.number + AUCTION_DURATION);
         vm.expectRevert(IAuction.ClaimBlockIsBeforeEndBlock.selector);
         new Auction(address(token), TOTAL_SUPPLY, paramsClaimBlockBeforeEndBlock);
+    }
 
+    function test_auctionConstruction_revertsWithFundsRecipientZero() public {
         AuctionParameters memory paramsFundsRecipientZero = params.withFundsRecipient(address(0));
         vm.expectRevert(ITokenCurrencyStorage.FundsRecipientIsZero.selector);
         new Auction(address(token), TOTAL_SUPPLY, paramsFundsRecipientZero);
+    }
+
+    function test_auctionConstruction_revertsWithTokensRecipientZero() public {
+        AuctionParameters memory paramsTokensRecipientZero = params.withTokensRecipient(address(0));
+        vm.expectRevert(ITokenCurrencyStorage.TokensRecipientIsZero.selector);
+        new Auction(address(token), TOTAL_SUPPLY, paramsTokensRecipientZero);
+    }
+
+    function test_auctionConstruction_revertsWithInvalidGraduationThresholdMps() public {
+        AuctionParameters memory paramsInvalidGraduationThresholdMps = params.withGraduationThresholdMps(1e7 + 1);
+        vm.expectRevert(ITokenCurrencyStorage.InvalidGraduationThresholdMps.selector);
+        new Auction(address(token), TOTAL_SUPPLY, paramsInvalidGraduationThresholdMps);
     }
 
     function test_checkpoint_beforeAuctionStarts_reverts() public {

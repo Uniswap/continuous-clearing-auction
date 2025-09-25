@@ -1,5 +1,5 @@
 # ITokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/e1dbf4f02e1bcbb91486a39f0f49eb2aeb52ecc6/src/interfaces/ITokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/83a914c60b4e9281565be6f803d3565a474adef4/src/interfaces/ITokenCurrencyStorage.sol)
 
 
 ## Events
@@ -42,6 +42,14 @@ Error thrown when the total supply is zero
 error TotalSupplyIsZero();
 ```
 
+### TotalSupplyIsTooLarge
+Error thrown when the total supply is too large to fit in a uint256 after scaling up by X7
+
+
+```solidity
+error TotalSupplyIsTooLarge();
+```
+
 ### FundsRecipientIsZero
 Error thrown when the funds recipient is the zero address
 
@@ -50,12 +58,12 @@ Error thrown when the funds recipient is the zero address
 error FundsRecipientIsZero();
 ```
 
-### OnlyFundsRecipient
-Error thrown when the function is called by an address other than the funds recipient
+### TokensRecipientIsZero
+Error thrown when the tokens recipient is the zero address
 
 
 ```solidity
-error OnlyFundsRecipient();
+error TokensRecipientIsZero();
 ```
 
 ### CannotSweepCurrency

@@ -8,6 +8,8 @@ interface IAuctionStepStorage {
     error AuctionIsOver();
     /// @notice Error thrown when the auction data length is invalid
     error InvalidAuctionDataLength();
+    /// @notice Error thrown when the block delta in a step is zero
+    error StepBlockDeltaCannotBeZero();
     /// @notice Error thrown when the mps is invalid
     error InvalidMps();
     /// @notice Error thrown when the end block is invalid

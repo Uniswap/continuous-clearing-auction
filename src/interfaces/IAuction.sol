@@ -2,7 +2,10 @@
 pragma solidity ^0.8.0;
 
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
+
+import {Demand} from '../libraries/DemandLib.sol';
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
+import {IBidStorage} from './IBidStorage.sol';
 import {ICheckpointStorage} from './ICheckpointStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
 import {ITokenCurrencyStorage} from './ITokenCurrencyStorage.sol';
@@ -31,7 +34,8 @@ interface IAuction is
     ICheckpointStorage,
     ITickStorage,
     IAuctionStepStorage,
-    ITokenCurrencyStorage
+    ITokenCurrencyStorage,
+    IBidStorage
 {
     /// @notice Error thrown when the amount received is invalid
     error IDistributionContract__InvalidAmountReceived();
@@ -151,4 +155,7 @@ interface IAuction is
     /// @notice Sweep any leftover tokens to the tokens recipient
     /// @dev This function can only be called after the auction has ended
     function sweepUnsoldTokens() external;
+
+    /// @notice The sum of demand in ticks above the clearing price
+    function sumDemandAboveClearing() external view returns (Demand memory);
 }

@@ -11,7 +11,7 @@ contract MockTickStorage is TickStorage {
 
     /// @notice Set the nextActiveTickPrice, only for testing
     function setNextActiveTickPrice(uint256 price) external {
-        nextActiveTickPrice = price;
+        $nextActiveTickPrice = price;
     }
 
     function initializeTickIfNeeded(uint256 prevPrice, uint256 price) external {

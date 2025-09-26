@@ -31,7 +31,13 @@ abstract contract TickStorage is ITickStorage {
     constructor(uint256 _tickSpacing, uint256 _floorPrice) {
         tickSpacing = _tickSpacing;
         floorPrice = _floorPrice;
-        _unsafeInitializeTick(_floorPrice);
+        // Ensure the floor price is at a tick boundary
+        if (_floorPrice % tickSpacing != 0) revert TickPriceNotAtBoundary();
+        // Initialize the floor price as the first tick
+        ticks[_floorPrice].next = MAX_TICK_PRICE;
+        nextActiveTickPrice = _floorPrice;
+        emit NextActiveTickUpdated(_floorPrice);
+        emit TickInitialized(_floorPrice);
     }
 
     /// @notice Get a tick at a price
@@ -39,16 +45,6 @@ abstract contract TickStorage is ITickStorage {
     /// @param price The price of the tick
     function getTick(uint256 price) public view returns (Tick memory) {
         return ticks[price];
-    }
-
-    /// @notice Initialize a tick at `price` without checking for existing ticks
-    /// @dev This function is unsafe and should only be used when the tick is guaranteed to be the first in the book
-    /// @param price The price of the tick
-    function _unsafeInitializeTick(uint256 price) internal {
-        ticks[price].next = MAX_TICK_PRICE;
-        nextActiveTickPrice = price;
-        emit NextActiveTickUpdated(price);
-        emit TickInitialized(price);
     }
 
     /// @notice Initialize a tick at `price` if it does not exist already

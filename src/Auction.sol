@@ -62,7 +62,8 @@ contract Auction is
     /// @notice Whether the TOTAL_SUPPLY of tokens has been received
     bool private _tokensReceived;
 
-    Checkpoint public lastCheckpointBeforeFullySubscribed;
+    uint256 private _packedTotalClearedBeforeFullySubscribed;
+    uint24 private _cumulativeMpsBeforeFullySubscribed;
 
     constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
@@ -125,6 +126,37 @@ contract Auction is
         );
     }
 
+    /// @notice Gets saved checkpoint values before the auction is fully subscribed, and sets them if unset
+    /// @param totalClearedX7X7 The total cleared value to set if not already set
+    /// @param cumulativeMps The cumulative mps value to set if not already set
+    /// @return The stored values (either existing or newly set)
+    function _getOrSetValuesBeforeFullySubscribed(ValueX7X7 totalClearedX7X7, uint24 cumulativeMps)
+        internal
+        returns (ValueX7X7, uint24)
+    {
+        if (TOTAL_SUPPLY_X7_X7_LESS_THAN_UINT_232_MAX) {
+            uint256 packed = _packedTotalClearedBeforeFullySubscribed;
+            if (packed >> 232 == 0) {
+                // If unset, set the value in storage
+                packed = uint256(cumulativeMps) << 232 | ValueX7X7.unwrap(totalClearedX7X7);
+                _packedTotalClearedBeforeFullySubscribed = packed;
+            }
+
+            return (ValueX7X7.wrap(packed & MASK_LOWER_232_BITS), uint24(packed >> 232));
+        } else {
+            uint24 storedMps = _cumulativeMpsBeforeFullySubscribed;
+            if (storedMps == 0) {
+                // If unset, set the values in storage
+                _packedTotalClearedBeforeFullySubscribed = ValueX7X7.unwrap(totalClearedX7X7);
+                _cumulativeMpsBeforeFullySubscribed = cumulativeMps;
+                // Return early for gas savings
+                return (totalClearedX7X7, cumulativeMps);
+            }
+
+            return (ValueX7X7.wrap(_packedTotalClearedBeforeFullySubscribed), storedMps);
+        }
+    }
+
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
     ///         This function updates the cumulative values of the checkpoint, requiring that
     ///         `clearingPrice` is up to to date
@@ -143,27 +175,27 @@ contract Auction is
         // Calculate the supply to be cleared based on demand above the clearing price
         ValueX7X7 supplyClearedX7X7;
         // If the clearing price is above the floor price we can sell the available supply
-        // Otherwise, we can only sell the demand above the clearing price
         if (_checkpoint.clearingPrice > FLOOR_PRICE) {
-            // If unset, set the lastCheckpointBeforeFullySubscribed to the current _checkpoint
-            // The `totalClearedX7X7` and `cumulativeMps` values have not been updated yet
-            if (lastCheckpointBeforeFullySubscribed.totalClearedX7X7.eq(ValueX7X7.wrap(0))) {
-                lastCheckpointBeforeFullySubscribed = _checkpoint;
-            }
-            uint256 factor = MPSLib.MPS - lastCheckpointBeforeFullySubscribed.cumulativeMps;
+            // Get or set the values before fully subscribed (will only set on first time above floor price)
+            (ValueX7X7 lastTotalClearedBeforeFullySubscribed, uint24 lastCumulativeMpsBeforeFullySubscribed) =
+                _getOrSetValuesBeforeFullySubscribed(_checkpoint.totalClearedX7X7, _checkpoint.cumulativeMps);
+
+            uint256 remainingMpsAfterAuctionIsFullySubscribed = MPSLib.MPS - lastCumulativeMpsBeforeFullySubscribed;
             ValueX7X7 supplySoldToClearingPriceX7X7 = (
-                TOTAL_SUPPLY_X7_X7.sub(lastCheckpointBeforeFullySubscribed.totalClearedX7X7).sub(
-                    resolvedDemandAboveClearingPriceX7.upcast().mulUint256(factor)
+                TOTAL_SUPPLY_X7_X7.sub(lastTotalClearedBeforeFullySubscribed).sub(
+                    resolvedDemandAboveClearingPriceX7.upcast().mulUint256(remainingMpsAfterAuctionIsFullySubscribed)
                 )
-            ).wrapAndFullMulDiv(deltaMps, factor);
+            ).wrapAndFullMulDiv(deltaMps, remainingMpsAfterAuctionIsFullySubscribed);
             supplyClearedX7X7 = supplySoldToClearingPriceX7X7.add(resolvedDemandAboveClearingPriceMpsX7X7);
 
             _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 =
                 _checkpoint.cumulativeSupplySoldToClearingPriceX7X7.add(supplySoldToClearingPriceX7X7);
-        } else {
-            // Resolved demand above the clearing price over `deltaMps`
+        }
+        // Otherwise, we can only sell the demand above the clearing price
+        else {
+            // Clear supply equal to the resolved demand above the clearing price over the given `deltaMps`
             supplyClearedX7X7 = resolvedDemandAboveClearingPriceMpsX7X7;
-            // supplySoldToClearing price is zero here
+            // supplySoldToClearing price is zero here because the auction is not fully subscribed yet
         }
         _checkpoint.totalClearedX7X7 = _checkpoint.totalClearedX7X7.add(supplyClearedX7X7);
         _checkpoint.cumulativeMps += deltaMps;
@@ -585,11 +617,13 @@ contract Auction is
         Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
         if (_isGraduated(finalCheckpoint)) {
             _sweepUnsoldTokens(
-                ((TOTAL_SUPPLY_X7_X7.sub(_getFinalCheckpoint().totalClearedX7X7)).scaleDownToValueX7())
+                // Subtract the total cleared from the total supply before scaling down to X7
+                (TOTAL_SUPPLY_X7_X7.sub(_getFinalCheckpoint().totalClearedX7X7).scaleDownToValueX7())
+                    // Then finally scale down to uint256
                     .scaleDownToUint256()
             );
         } else {
-            // Use the uint256 totalSupply value instead of the scaled up X7 value
+            // For simplicity we use the uint256 totalSupply value here instead of the scaled up X7 value
             _sweepUnsoldTokens(TOTAL_SUPPLY);
         }
     }

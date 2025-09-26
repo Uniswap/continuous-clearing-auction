@@ -24,6 +24,11 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     /// @notice The total supply of tokens to sell, scaled up to a ValueX7
     /// @dev The auction does not support selling more than type(uint256).max / (1e7 ** 2) tokens
     ValueX7X7 internal immutable TOTAL_SUPPLY_X7_X7;
+    /// @notice Whether the total supply is less than uint232 max
+    /// @dev If true, we can pack X7X7 values along with uint24 cumulativeMps values into the same word
+    bool internal immutable TOTAL_SUPPLY_X7_X7_LESS_THAN_UINT_232_MAX;
+    /// @notice Bit mask for the lower 232 bits of a uint256
+    uint256 internal constant MASK_LOWER_232_BITS = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
     /// @notice The recipient of any unsold tokens at the end of the auction
     address internal immutable TOKENS_RECIPIENT;
     /// @notice The recipient of the raised Currency from the auction
@@ -47,6 +52,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         TOKEN = IERC20Minimal(_token);
         TOTAL_SUPPLY = _totalSupply;
         TOTAL_SUPPLY_X7_X7 = _totalSupply.scaleUpToX7().scaleUpToX7X7();
+        TOTAL_SUPPLY_X7_X7_LESS_THAN_UINT_232_MAX = ValueX7X7.unwrap(TOTAL_SUPPLY_X7_X7) >> 232 == 0;
         CURRENCY = Currency.wrap(_currency);
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;

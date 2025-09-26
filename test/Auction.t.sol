@@ -1719,6 +1719,73 @@ contract AuctionTest is AuctionBaseTest {
         auction.claimTokens(bidId);
     }
 
+    /// Super large tick spacing
+    /// Bids sufficiently large become unable to clear
+    function test_disallow_bids_too_large_to_clear() public {
+        vm.deal(address(this), type(uint256).max);
+        AuctionParameters memory params;
+        {
+            uint40 numberOfSteps = 8;
+            uint256 totalSupply = 588_328_726_985_325_063_210;
+            uint256 floorPrice = 118_448_130_884_583_730_123;
+            uint256 tickSpacing = 2_209_651_000_904_018_883_815_550_911_347_325_013_141_479_858_589_172_312;
+
+            bytes memory auctionSteps = AuctionStepsBuilder.splitEvenlyAmongSteps(numberOfSteps);
+            params = AuctionParameters({
+                currency: address(0),
+                tokensRecipient: msg.sender,
+                fundsRecipient: msg.sender,
+                startBlock: uint64(block.number + 1),
+                endBlock: uint64(block.number + 1 + numberOfSteps),
+                claimBlock: uint64(block.number + 1 + numberOfSteps),
+                graduationThresholdMps: 0,
+                tickSpacing: tickSpacing,
+                validationHook: address(0),
+                floorPrice: floorPrice,
+                auctionStepsData: auctionSteps
+            });
+
+            auction = new Auction(address(token), totalSupply, params);
+            token.mint(address(auction), totalSupply);
+            auction.onTokensReceived();
+        }
+
+        vm.roll(params.startBlock + 1);
+
+        // Bid 1
+        uint256 bid1Amount = 1_895_231_061_251_153;
+        uint256 bid1Tick = 200;
+        uint256 bid1MaxPrice = tickNumberToPriceAboveFloorX96(bid1Tick, params.floorPrice, params.tickSpacing);
+        uint256 bid1InputAmount = inputAmountForTokens(bid1Amount, bid1MaxPrice);
+
+        // Bid 2
+        uint256 bid2Amount = 25_892_000_000_000_000_000_000;
+        uint256 bid2Tick = 83;
+        uint256 bid2MaxPrice = tickNumberToPriceAboveFloorX96(bid2Tick, params.floorPrice, params.tickSpacing);
+        uint256 bid2InputAmount = inputAmountForTokens(bid2Amount, bid2MaxPrice);
+
+        // Submit Bid 1
+        auction.submitBid{value: bid1InputAmount}(
+            bid1MaxPrice,
+            true,
+            bid1InputAmount,
+            alice,
+            params.floorPrice, // previousPrice
+            bytes('')
+        );
+
+        // Submit Bid 2
+        vm.expectRevert(IAuction.InvalidBidUnableToClear.selector);
+        auction.submitBid{value: bid2InputAmount}(
+            bid2MaxPrice,
+            true,
+            bid2InputAmount,
+            alice,
+            params.floorPrice, // previousPrice
+            bytes('')
+        );
+    }
+
     function logAmountWithDecimal(string memory key, uint256 amount) internal {
         emit log_named_decimal_uint(key, amount, 18);
     }

@@ -65,6 +65,15 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
         return FLOOR_PRICE + (tickNumber - 1) * TICK_SPACING;
     }
 
+    /// @dev Helper function to get price of a tick above floor price
+    function tickNumberToPriceAboveFloorX96(uint256 tickNumber, uint256 floorPrice, uint256 tickSpacing)
+        internal
+        pure
+        returns (uint256)
+    {
+        return ((floorPrice + (tickNumber * tickSpacing)) / tickSpacing) * tickSpacing;
+    }
+
     /// @notice Helper function to return the tick at the given price
     function getTick(uint256 price) public view returns (Tick memory) {
         (uint256 next, Demand memory demand) = auction.ticks(price);

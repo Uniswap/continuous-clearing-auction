@@ -14,6 +14,8 @@ import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
+
+import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
@@ -25,7 +27,6 @@ import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol'
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
-import {ConstantsLib} from './libraries/ConstantsLib.sol';
 
 /// @title Auction
 /// @notice Implements a time weighted uniform clearing price auction
@@ -440,7 +441,10 @@ contract Auction is
         sumDemandAboveClearing = sumDemandAboveClearing.add(bidDemand);
 
         // If the sumDemandAboveClearing becomes large enough to overflow a multiplication by an X7X7 value, revert
-        if (ValueX7.unwrap(sumDemandAboveClearing.resolveRoundingUp(nextActiveTickPrice)) >= ConstantsLib.X7X7_UPPER_BOUND) revert InvalidBidUnableToClear();
+        if (
+            ValueX7.unwrap(sumDemandAboveClearing.resolveRoundingUp(nextActiveTickPrice))
+                >= ConstantsLib.X7X7_UPPER_BOUND
+        ) revert InvalidBidUnableToClear();
 
         emit BidSubmitted(bidId, owner, maxPrice, exactIn, amount);
     }

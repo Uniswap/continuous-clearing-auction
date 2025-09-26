@@ -5,10 +5,10 @@ import {ITokenCurrencyStorage} from './interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 
+import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {MPSLib} from './libraries/MPSLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
-import {ConstantsLib} from './libraries/ConstantsLib.sol';
 
 /// @title TokenCurrencyStorage
 abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {

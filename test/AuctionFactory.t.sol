@@ -181,7 +181,7 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         AuctionParameters memory _params,
         uint8 _numberOfSteps
     ) public pure {
-        vm.assume(_totalSupply <= type(uint256).max / 1e14);
+        vm.assume(_totalSupply <= type(uint232).max / 1e14);
         vm.assume(_totalSupply > 0);
         vm.assume(_token != address(0));
 

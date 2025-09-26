@@ -4,7 +4,6 @@ pragma solidity 0.8.26;
 import {ITokenCurrencyStorage} from './interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
-
 import {MPSLib} from './libraries/MPSLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
@@ -15,14 +14,16 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     using ValueX7Lib for *;
     using ValueX7X7Lib for *;
 
+    /// @notice The maximum total supply of tokens than can be sold in the auction
+    uint256 public constant MAX_TOTAL_SUPPLY = type(uint232).max / 1e14;
+
     /// @notice The currency being raised in the auction
     Currency internal immutable CURRENCY;
     /// @notice The token being sold in the auction
     IERC20Minimal internal immutable TOKEN;
     /// @notice The total supply of tokens to sell
     uint256 internal immutable TOTAL_SUPPLY;
-    /// @notice The total supply of tokens to sell, scaled up to a ValueX7
-    /// @dev The auction does not support selling more than type(uint256).max / (1e7 ** 2) tokens
+    /// @notice The total supply of tokens to sell, scaled up to a ValueX7X7
     ValueX7X7 internal immutable TOTAL_SUPPLY_X7_X7;
     /// @notice Whether the total supply is less than uint232 max
     /// @dev If true, we can pack X7X7 values along with uint24 cumulativeMps values into the same word
@@ -51,14 +52,15 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     ) {
         TOKEN = IERC20Minimal(_token);
         TOTAL_SUPPLY = _totalSupply;
+        if (_totalSupply > MAX_TOTAL_SUPPLY) revert TotalSupplyIsTooLarge();
+        if (TOTAL_SUPPLY == 0) revert TotalSupplyIsZero();
+
         TOTAL_SUPPLY_X7_X7 = _totalSupply.scaleUpToX7().scaleUpToX7X7();
-        TOTAL_SUPPLY_X7_X7_LESS_THAN_UINT_232_MAX = ValueX7X7.unwrap(TOTAL_SUPPLY_X7_X7) >> 232 == 0;
         CURRENCY = Currency.wrap(_currency);
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;
         GRADUATION_THRESHOLD_MPS = _graduationThresholdMps;
 
-        if (TOTAL_SUPPLY == 0) revert TotalSupplyIsZero();
         if (FUNDS_RECIPIENT == address(0)) revert FundsRecipientIsZero();
         if (GRADUATION_THRESHOLD_MPS > MPSLib.MPS) revert InvalidGraduationThresholdMps();
     }

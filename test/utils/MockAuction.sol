@@ -18,4 +18,16 @@ contract MockAuction is Auction {
     ) external view returns (uint256) {
         return _calculateNewClearingPrice(minimumClearingPrice, remainingMpsInAuction, remainingSupplyX7X7);
     }
+
+    function getRolloverSupplyMultiplier() external view returns (ValueX7X7, uint24) {
+        return _getRolloverSupplyMultiplier();
+    }
+
+    function setRolloverSupplyMultiplier(ValueX7X7 totalClearedX7X7, uint24 cumulativeMps) external {
+        _setRolloverSupplyMultiplier(totalClearedX7X7, cumulativeMps);
+    }
+
+    function rolloverSupplyMultiplierSet() external view returns (bool) {
+        return _rolloverSupplyMultiplierSet;
+    }
 }

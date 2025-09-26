@@ -1,4 +1,4 @@
-import { Contract } from 'ethers';
+import { Contract, ContractTransaction, Signer, TransactionLike } from 'ethers';
 import { Address } from '../schemas/TestSetupSchema';
 
 // Import contract artifacts to get proper typing
@@ -96,6 +96,13 @@ export interface AuctionConfig {
   validationHook: Address;
   floorPrice: string;
   auctionStepsData: string;
+}
+
+export interface TransactionInfo {
+  tx: ContractTransaction | TransactionLike<string>;
+  from: string | null;
+  msg?: string;
+  expectRevert?: string;
 }
 
 

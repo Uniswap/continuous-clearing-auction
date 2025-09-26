@@ -3,6 +3,8 @@ import { simpleSetup } from '../instances/setup/SimpleSetup';
 import { simpleInteraction } from '../instances/interaction/SimpleInteraction';
 import { erc20Setup } from '../instances/setup/ERC20Setup';
 import { erc20Interaction } from '../instances/interaction/ERC20Interaction';
+import { advancedSetup } from '../instances/setup/AdvancedSetup';
+import { advancedInteraction } from '../instances/interaction/AdvancedInteraction';
 import { TestSetupData } from '../schemas/TestSetupSchema';
 import { TestInteractionData } from '../schemas/TestInteractionSchema';
 import { CombinationResult } from '../src/MultiTestRunner';
@@ -33,9 +35,18 @@ describe('E2E Tests', function() {
     await runTest(combinations);
   });
 
+  it('should run advanced setup and interaction', async function() {
+    const combinations = [
+      { setup: advancedSetup, interaction: advancedInteraction }
+    ];
+    
+    await runTest(combinations);
+  });
+
   after(function() {
     printResults();
   });
+  
   async function runTest(combinations: { setup: TestSetupData, interaction: TestInteractionData }[]) {
     console.log('🚀 TWAP Auction E2E Test Runner');
     console.log('================================');
@@ -44,15 +55,16 @@ describe('E2E Tests', function() {
     console.log(`\n🎯 Running ${combinations.length} specified combinations...`);
     const _results = await runner.runAllCombinations(combinations);
     results.push(..._results);
-    const failed = results.filter(r => !r.success).length;
+    const failed = _results.filter(r => !r.success).length;
     if (failed > 0) {
       console.log('\n❌ Failed combinations:');
-      results.filter(r => !r.success).forEach(r => {
+      _results.filter(r => !r.success).forEach(r => {
         console.log(`   - ${r.setupName} + ${r.interactionName}: ${r.error}`);
       });
       throw new Error(`${failed} test(s) failed`);
     }
   }
+
   function printResults() {
        // Summary
        const passed = results.filter(r => r.success).length;

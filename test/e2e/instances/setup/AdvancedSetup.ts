@@ -1,0 +1,58 @@
+import { TestSetupData, Address } from '../../schemas/TestSetupSchema';
+
+export const advancedSetup: TestSetupData = {
+  name: "AdvancedSetup",
+  env: {
+    chainId: 31337,
+    startBlock: "10",
+    blockTimeSec: 12,
+    blockGasLimit: "30000000",
+    txGasLimit: "30000000",
+    baseFeePerGasWei: "0",
+    fork: {
+      rpcUrl: "http://localhost:8545",
+      blockNumber: "1"
+    },
+    balances: [
+      {
+        address: "0x1111111111111111111111111111111111111111" as Address,
+        token: "0x0000000000000000000000000000000000000000",
+        amount: "20000000000000000000000" // 20,000 ETH for complex operations
+      },
+      {
+        address: "0x2222222222222222222222222222222222222222" as Address,
+        token: "0x0000000000000000000000000000000000000000",
+        amount: "1000000000000000000" // 1 ETH
+      }
+    ]
+  },
+
+  auctionParameters: {
+    currency: "0x0000000000000000000000000000000000000000" as Address,
+    auctionedToken: "AdvancedToken",
+    tokensRecipient: "0x3333333333333333333333333333333333333333" as Address,
+    fundsRecipient: "0x4444444444444444444444444444444444444444" as Address,
+    startOffsetBlocks: 0,
+    auctionDurationBlocks: 100, // Longer auction for complex testing
+    claimDelayBlocks: 20,
+    graduationThresholdMps: "2000", // Higher threshold for testing
+    tickSpacing: 200,
+    validationHook: "0x0000000000000000000000000000000000000000" as Address,
+    floorPrice: "79228162514264337593543950336000"
+  },
+
+  additionalTokens: [
+    {
+      name: "AdvancedToken",
+      decimals: "18",
+      totalSupply: "1000000000000000000000", // 1000 tokens
+      percentAuctioned: "20.0" // 20% of supply auctioned
+    },
+    {
+      name: "USDC",
+      decimals: "6",
+      totalSupply: "1000000000000",
+      percentAuctioned: "0.0"
+    }
+  ]
+};

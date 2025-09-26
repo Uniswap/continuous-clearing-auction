@@ -1,4 +1,5 @@
-// TypeScript interfaces for token interaction schema
+// TypeScript interfaces for test interaction schema
+import { CheckpointStruct } from '../../../typechain-types/out/Auction';
 
 export type Address = `0x${string}` & { readonly length: 42 };
 
@@ -6,7 +7,7 @@ export enum AssertionInterfaceType {
   BALANCE = 'balance',
   TOTAL_SUPPLY = 'totalSupply',
   EVENT = 'event',
-  POOL = 'pool',
+  AUCTION = 'auction',
 }
 
 export enum ActionType {
@@ -22,8 +23,6 @@ export enum Side {
 export enum AmountType {
   RAW = 'raw',
   PERCENT_OF_SUPPLY = 'percentOfSupply',
-  BASIS_POINTS = 'basisPoints',
-  PERCENT_OF_GROUP = 'percentOfGroup',
 }
 
 export enum PriceType {
@@ -124,15 +123,16 @@ export interface EventAssertion {
   expectedArgs: Record<string, any>;
 }
 
-export interface PoolAssertion {
-  type: AssertionInterfaceType.POOL;
-  tick?: string;
-  sqrtPriceX96?: string;
-  liquidity?: string;
+export interface AuctionAssertion {
+  type: AssertionInterfaceType.AUCTION;
+  currentBlock: number;
+  isGraduated: boolean;
+  clearingPrice: string;
+  currencyRaised: string;
+  latestCheckpoint: CheckpointStruct;
 }
 
-
-export type Assertion = BalanceAssertion | TotalSupplyAssertion | EventAssertion | PoolAssertion;
+export type Assertion = BalanceAssertion | TotalSupplyAssertion | EventAssertion | AuctionAssertion;
 
 export interface AssertionInfo {
   atBlock: number;

@@ -8,7 +8,7 @@ export const erc20Interaction: TestInteractionData = {
       label: "ERC20Bidder",
       bids: [
         {
-          atBlock: 10,
+          atBlock: 20,
           amount: { side: Side.INPUT, type: AmountType.RAW, value: "1000000000" }, // 1000 USDC (6 decimals)
           price: { type: PriceType.RAW, value: "87150978765690771352898345369600" },
           previousTick: 1

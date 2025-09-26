@@ -1,8 +1,10 @@
 import { ActionType, TestInteractionData, Group, BidData, Side, AmountType, PriceType, AdminActionMethod, Address, AmountConfig, PriceConfig } from '../schemas/TestInteractionSchema';
-import { Contract } from "ethers";
+import { Contract, ContractTransaction } from "ethers";
 import hre from "hardhat";
-import { PERMIT2_ADDRESS, MAX_UINT256 } from './constants';
+import { PERMIT2_ADDRESS, MAX_UINT256, ZERO_ADDRESS, UINT_160_MAX, UINT_48_MAX } from './constants';
 import { IAllowanceTransfer } from '../../../typechain-types/test/e2e/artifacts/permit2/src/interfaces/IAllowanceTransfer';
+import { Signer } from 'ethers';
+import { TransactionInfo } from './types';
 
 export enum BiddersType {
   NAMED = 'named',
@@ -115,7 +117,7 @@ export class BidSimulator {
     return bids;
   }
 
-  async executeBid(bid: InternalBidData): Promise<void> {
+  async executeBid(bid: InternalBidData, transactionInfos: TransactionInfo[]): Promise<void> {
     // This method just executes the bid transaction
 
     const bidData = bid.bidData;
@@ -135,23 +137,14 @@ export class BidSimulator {
       price
     );
 
-    try {
         if (this.currency) {
-          await this.handlePermit2Setup(this.currency, bidder);
+          await this.grantPermit2Allowances(this.currency, bidder, transactionInfos);
         }
-        // Impersonate the bidder account to send the transaction from their address
-        await hre.network.provider.send('hardhat_impersonateAccount', [bidder]);
-        
-        // Get a signer for the bidder address
-        const bidderSigner = await hre.ethers.getSigner(bidder);
-        
-        // Connect the auction contract to the bidder signer
-        const auctionWithBidder = this.auction.connect(bidderSigner);
-      let tx: any; // Transaction response type varies
+        let tx: ContractTransaction; // Transaction response type varies
+        let msg: string; 
       if (this.currency) {
-        console.log('   🔍 Using ERC20 currency:', await this.currency.getAddress());
-        
-        tx = await (auctionWithBidder as any).submitBid(
+        msg = `   🔍 Using ERC20 currency: ${await this.currency.getAddress()}`;
+        tx = await this.auction.getFunction('submitBid').populateTransaction(
           price,
           bidData.amount.side === Side.INPUT,
           amount,
@@ -159,9 +152,11 @@ export class BidSimulator {
           previousTickPrice,
           bidData.hookData || '0x'
         );
+        
       } else {
         // For ETH currency, send the required amount as msg.value
-        tx = await (auctionWithBidder as any).submitBid(
+        msg = `   🔍 Using Native currency`;
+        tx = await this.auction.getFunction('submitBid').populateTransaction(
           price,
           bidData.amount.side === Side.INPUT,
           amount,
@@ -171,28 +166,7 @@ export class BidSimulator {
           { value: requiredCurrencyAmount }
         );
       }
-
-      await tx.wait();
-      // Stop impersonating the account
-      await hre.network.provider.send('hardhat_stopImpersonatingAccount', [bidder]);
-      
-    } catch (error: unknown) {
-      // Stop impersonating the account even if there's an error
-      try {
-        await hre.network.provider.send('hardhat_stopImpersonatingAccount', [bidder]);
-      } catch (stopError) {
-        // Ignore stop impersonation errors
-        console.error('   ❌ Error stopping impersonation:', stopError);
-      }
-      
-      if (bidData.expectRevert) {
-        // Expected revert - validate the revert data if specified
-        await this.validateExpectedRevert(error, bidData.expectRevert);
-        return;
-      }
-      throw error;
-    }
-    // TODO: check transaction receipt for revert
+      transactionInfos.push({ tx, from: bidder, msg, expectRevert: bidData.expectRevert });
   }
 
   async validateExpectedRevert(error: unknown, expectedRevert: string): Promise<void> {
@@ -215,24 +189,21 @@ export class BidSimulator {
       return BigInt(amountConfig.value);
     }
     
-    // TODO: Implement percentOfSupply calculation
-    // Should calculate percentage of total token supply
     if (amountConfig.type === AmountType.PERCENT_OF_SUPPLY) {
-      // const totalSupply = await this.token.totalSupply();
-      // return (totalSupply * BigInt(amountConfig.value)) / 100n;
-    }
-    
-    // TODO: Implement basisPoints calculation
-    // Should calculate basis points (1/10000) of total supply
-    if (amountConfig.type === AmountType.BASIS_POINTS) {
-      // const totalSupply = await this.token.totalSupply();
-      // return (totalSupply * BigInt(amountConfig.value)) / 10000n;
-    }
-    
-    // TODO: Implement percentOfGroup calculation
-    // Should calculate percentage of group total
-    if (amountConfig.type === AmountType.PERCENT_OF_GROUP) {
-      // Implementation depends on group context
+      // PERCENT_OF_SUPPLY can only be used for auctioned token (output), not currency (input)
+      if (amountConfig.side === Side.INPUT) {
+        throw new Error('PERCENT_OF_SUPPLY can only be used for auctioned token (OUTPUT), not currency (INPUT)');
+      }
+      
+      // Calculate percentage of total token supply
+      // Get the total supply from the auction contract
+      const totalSupply = await this.auction.totalSupply();
+      console.log(`   🔍 Total supply from auction: ${totalSupply.toString()}`);
+      
+      // Parse decimal percentage (e.g., "5.5" = 5.5%)
+      const percentageValue = parseFloat(amountConfig.value);
+      const percentage = BigInt(Math.floor(percentageValue * 100)); // Convert to basis points (5.5% = 550 basis points)
+      return (totalSupply * percentage) / 10000n;
     }
     
     // TODO: Implement amount variation
@@ -283,114 +254,96 @@ export class BidSimulator {
     }
   }
 
-  async executeActions(interactionData: TestInteractionData): Promise<void> {
+  async executeActions(interactionData: TestInteractionData, transactionInfos: TransactionInfo[]): Promise<void> {
     if (!interactionData.actions) return;
 
     for (const action of interactionData.actions) {
       if (action.type === ActionType.TRANSFER_ACTION) {
-        await this.executeTransfers(action.interactions);
+        await this.executeTransfers(action.interactions, transactionInfos);
       } else if (action.type === ActionType.ADMIN_ACTION) {
-        await this.executeAdminActions(action.interactions);
+        await this.executeAdminActions(action.interactions, transactionInfos);
       }
     }
   }
 
-  async executeTransfers(transferInteractions: any[]): Promise<void> {
-    // TODO: Implement transfer actions
-    // This should handle token transfers between addresses
+  async executeTransfers(transferInteractions: any[], transactionInfos: TransactionInfo[]): Promise<void> {
+    // This handles token transfers between addresses
     // Support for both ERC20 tokens and native currency
-    // Should resolve label references for 'to' addresses
-    
+    // Resolves label references for 'to' addresses
     for (const interactionGroup of transferInteractions) {
       for (const interaction of interactionGroup) {
-        // Note: Block mining is handled at the block level in CombinedTestRunner
-        
         const { from, to, token, amount } = interaction.value;
         const toAddress = this.labelMap.get(to) || to;
-        const amountValue = await this.calculateAmount(amount);
+        const amountValue = BigInt(amount); // Transfer actions use raw amounts directly
 
-        // TODO: Execute the transfer
-        // Implementation depends on token type (ERC20 vs ETH)
-        // Need to handle token name references vs addresses
-        console.log(`   🔄 Transfer action: ${amountValue} from ${from} to ${toAddress} (token: ${token})`);
+        // Execute the transfer based on token type
+        if (token === ZERO_ADDRESS) {
+          // Native ETH transfer
+          await this.executeNativeTransfer(from, toAddress, amountValue, transactionInfos);
+        } else {
+          // ERC20 token transfer
+          await this.executeTokenTransfer(from, toAddress, token, amountValue, transactionInfos);
+        }
       }
     }
   }
 
-  async executeAdminActions(adminInteractions: any[]): Promise<void> {
+  private async executeNativeTransfer(from: string, to: string, amount: bigint, transactionInfos: TransactionInfo[]): Promise<void> {
+      // Send native ETH
+      const tx = {
+        to,
+        value: amount
+      };
+      let msg = `   ✅ Native transfer: ${amount.toString()} ETH`;
+      transactionInfos.push({ tx, from, msg });
+  }
+  
+  private async executeTokenTransfer(from: string, to: string, tokenAddress: string, amount: bigint, transactionInfos: TransactionInfo[]): Promise<void> {
+    // Get the token contract
+    const token = await hre.ethers.getContractAt('IERC20Minimal', tokenAddress);
+    
+      // Execute the transfer
+      const tx = await token.getFunction('transfer').populateTransaction(to, amount);
+      let msg = `   ✅ Token transfer: ${amount.toString()} tokens`;
+      transactionInfos.push({ tx, from, msg });
+  }
+
+  async executeAdminActions(adminInteractions: any[], transactionInfos: TransactionInfo[]): Promise<void> {
     for (const interactionGroup of adminInteractions) {
       for (const interaction of interactionGroup) {
         const { kind } = interaction.value;
         if (kind === AdminActionMethod.SWEEP_CURRENCY) {
-          await this.auction.sweepCurrency();
+          let tx = await this.auction.getFunction('sweepCurrency').populateTransaction();
+          let msg = `   ✅ Sweeping currency`;
+          transactionInfos.push({ tx, from: null, msg });
         } else if (kind === AdminActionMethod.SWEEP_UNSOLD_TOKENS) {
-          await this.auction.sweepUnsoldTokens();
+          let tx = await this.auction.getFunction('sweepUnsoldTokens').populateTransaction();
+          let msg = `   ✅ Sweeping unsold tokens`;
+          transactionInfos.push({ tx, from: null, msg });
         } 
       }
     }
   }
 
-  async handlePermit2Setup(currency: Contract, bidder: string): Promise<void> {
-    console.log('   🔍 Handling permit2 setup for:', await currency.getAddress());
-    
-    await this.handlePermit2Deployment();
-    await this.grantPermit2Allowances(currency, bidder);
-  }
-
-  async grantPermit2Allowances(currency: Contract, bidder: string): Promise<void> {
-    // Impersonate the bidder to approve Permit2
-    await hre.network.provider.send('hardhat_impersonateAccount', [bidder]);
-    const bidderSigner = await hre.ethers.getSigner(bidder);
-    const currencyWithBidder = currency.connect(bidderSigner);
-
+  async grantPermit2Allowances(currency: Contract, bidder: string, transactionInfos: TransactionInfo[]): Promise<void> {
     // First, approve Permit2 to spend the tokens
-    await (currencyWithBidder as any).approve(PERMIT2_ADDRESS, MAX_UINT256);
+    const approveTx = await currency.getFunction('approve').populateTransaction(PERMIT2_ADDRESS, MAX_UINT256);
+    let approveMsg = `   ✅ Approving Permit2 to spend tokens`;
+    transactionInfos.push({ tx: approveTx, from: bidder, msg: approveMsg });
 
     // Then, call Permit2's approve function to grant allowance to the auction contract
     const permit2 = await hre.ethers.getContractAt('IAllowanceTransfer', PERMIT2_ADDRESS) as unknown as IAllowanceTransfer;
-    const permit2WithBidder = permit2.connect(bidderSigner);
     const auctionAddress = await this.auction.getAddress();
-    const maxAmount = '0xffffffffffffffffffffffffffffffffffffffff'; // uint160 max
-    const maxExpiration = '0xffffffffffff'; // uint48 max (far in the future)
-    
-    await permit2WithBidder.approve(
+    const maxAmount = UINT_160_MAX; // uint160 max
+    const maxExpiration = UINT_48_MAX; // uint48 max (far in the future)
+    let tx = await permit2.getFunction('approve').populateTransaction(
       await currency.getAddress(), // token address
       auctionAddress,              // spender (auction contract)
       maxAmount,                   // amount (max uint160)
       maxExpiration                // expiration (max uint48)
     );
-    
-    // Stop impersonating
-    await hre.network.provider.send('hardhat_stopImpersonatingAccount', [bidder]);
+    let msg = `   ✅ Granting Permit2 allowance to the auction contract`;
+    transactionInfos.push({ tx, from: bidder, msg });
   }
 
-  async handlePermit2Deployment(): Promise<void> {
-    // Check if Permit2 is already deployed at the canonical address
-    const code = await hre.ethers.provider.getCode(PERMIT2_ADDRESS);
-    
-    if (code === '0x') {
-      // Load the Permit2 artifact
-      const permit2Artifact = require('../../../lib/permit2/out/Permit2.sol/Permit2.json');
-      
-      // Deploy Permit2 using the factory pattern first, then move to canonical address
-      const permit2Factory = await hre.ethers.getContractFactory(
-        permit2Artifact.abi,
-        permit2Artifact.bytecode.object
-      );
-      
-      // Deploy Permit2 normally first
-      const permit2Contract = await permit2Factory.deploy();
-      await permit2Contract.waitForDeployment();
-      const permit2Address = await permit2Contract.getAddress();
-      
-      // Get the deployed bytecode
-      const deployedCode = await hre.ethers.provider.getCode(permit2Address);
-      
-      // Use hardhat_setCode to deploy at canonical address
-      await hre.network.provider.send('hardhat_setCode', [
-        PERMIT2_ADDRESS,
-        deployedCode
-      ]);
-    }
-  }
 }

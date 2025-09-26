@@ -4,7 +4,7 @@ export const erc20Setup: TestSetupData = {
   name: "ERC20Setup",
   env: {
     chainId: 31337,
-    startBlock: "1",
+    startBlock: "10",
     blockTimeSec: 12,
     blockGasLimit: "30000000",
     txGasLimit: "30000000",

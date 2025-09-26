@@ -1,4 +1,4 @@
-import { AssertionInterfaceType, BalanceAssertion, PoolAssertion, EventAssertion, TotalSupplyAssertion, Assertion, Address } from '../schemas/TestInteractionSchema';
+import { AssertionInterfaceType, BalanceAssertion, AuctionAssertion, EventAssertion, TotalSupplyAssertion, Assertion, Address } from '../schemas/TestInteractionSchema';
 import { Contract } from "ethers";
 import { TokenContract } from './types';
 import { AuctionDeployer } from './AuctionDeployer';
@@ -43,10 +43,13 @@ export class AssertionEngine {
   async validateAssertion(assertion: Assertion): Promise<void> {
     if (assertion.type === AssertionInterfaceType.BALANCE) {
       await this.validateBalanceAssertion(assertion);
-    } else {
-      // TODO: Implement other assertion interfaces (TotalSupplyAssertion, EventAssertion, PoolAssertion, etc.)
-      console.log(`   ⚠️  Unsupported assertion interface: ${assertion.type}`);
-    }
+    } else if (assertion.type === AssertionInterfaceType.TOTAL_SUPPLY) {
+      await this.validateTotalSupplyAssertion([assertion]);
+    } else if (assertion.type === AssertionInterfaceType.EVENT) {
+      await this.validateEventAssertion([assertion]);
+    } else if (assertion.type === AssertionInterfaceType.AUCTION) {
+      await this.validateAuctionAssertion([assertion]);
+    } 
   }
 
   async resolveTokenAddress(tokenIdentifier: string): Promise<string> {
@@ -87,18 +90,109 @@ export class AssertionEngine {
   }
 
   async validateTotalSupplyAssertion(totalSupplyAssertion: TotalSupplyAssertion[]): Promise<void> {
-    // TODO: implement this validation
-    console.log(`   ⚠️  Total supply assertion validation not yet implemented`);
+    for (const assertion of totalSupplyAssertion) {
+      const tokenAddress = await this.resolveTokenAddress(assertion.token);
+      const token = await this.auctionDeployer.getTokenByAddress(tokenAddress);
+      
+      if (!token) {
+        throw new Error(`Token not found for address: ${tokenAddress}`);
+      }
+      const _addr = await token.getAddress();
+      console.log(`   🔍 Token address for totalSupply(): ${_addr}`);
+      const actualSupply = await token.totalSupply();
+      const expectedSupply = BigInt(assertion.expected);
+      
+      console.log(`   💰 Total supply check: ${tokenAddress} has ${actualSupply.toString()} total supply, expected ${expectedSupply.toString()}`);
+      
+      if (actualSupply !== expectedSupply) {
+        throw new Error(`Total supply assertion failed: expected ${expectedSupply.toString()}, got ${actualSupply.toString()}`);
+      }
+    }
   }
 
-  async validatePoolAssertion(poolAssertions: PoolAssertion[]): Promise<void> {
-    // TODO: implement this validation
-    console.log(`   ⚠️  Pool assertion validation not yet implemented`);
+  async validateAuctionAssertion(auctionAssertions: AuctionAssertion[]): Promise<void> {
+    for (const assertion of auctionAssertions) {
+      console.log(`   🔍 Auction assertion validation`);
+      
+      // Get the current auction state
+      const auctionState = await this.getAuctionState();
+      
+      for (const key of Object.keys(assertion)) {
+        if (key === 'type') continue;
+        if (assertion[key as keyof AuctionAssertion] != undefined &&
+           assertion[key as keyof AuctionAssertion] != null &&
+           auctionState[key as keyof AuctionState].toString() != assertion[key as keyof AuctionAssertion].toString()) {
+          throw new Error(`Auction assertion failed: expected ${assertion[key as keyof AuctionAssertion]}, got ${auctionState[key as keyof AuctionState]}`);
+        }
+      }
+      
+      console.log(`   ✅ Auction assertion validated (partial implementation)`);
+    }
   }
 
   async validateEventAssertion(eventAssertion: EventAssertion[]): Promise<void> {
-    // TODO: implement this validation
-    console.log(`   ⚠️  Event assertion validation not yet implemented`);
+    for (const assertion of eventAssertion) {
+      console.log(`   🔍 Event assertion validation for event: ${assertion.eventName}`);
+      
+      // Get the current block to check for events
+      const currentBlock = await hre.ethers.provider.getBlockNumber();
+      const block = await hre.ethers.provider.getBlock(currentBlock);
+      
+      if (!block) {
+        throw new Error(`Block ${currentBlock} not found`);
+      }
+      
+      // Get all transaction receipts for this block
+      const eventFound = await this.checkForEventInBlock(block, assertion);
+      
+      if (!eventFound) {
+        throw new Error(`Event assertion failed: Event '${assertion.eventName}' not found with expected arguments`);
+      }
+      
+      console.log(`   ✅ Event assertion validated: ${assertion.eventName}`);
+    }
+  }
+  
+  private async checkForEventInBlock(block: any, assertion: EventAssertion): Promise<boolean> {
+    // Check all transactions in the block for the event
+    for (const txHash of block.transactions) {
+      const receipt = await hre.ethers.provider.getTransactionReceipt(txHash);
+      
+      if (!receipt) continue;
+      
+      // Check each log in the transaction
+      for (const log of receipt.logs) {
+        try {
+          // Try to decode the log using the auction contract interface
+          const parsedLog = this.auction.interface.parseLog({
+            topics: log.topics,
+            data: log.data
+          });
+          
+          if (parsedLog && parsedLog.name === assertion.eventName) {
+            // Check if the event arguments match expected values
+            const matches = this.checkEventArguments(parsedLog.args, assertion.expectedArgs);
+            if (matches) {
+              return true;
+            }
+          }
+        } catch (error) {
+          // Log parsing failed, continue to next log
+          continue;
+        }
+      }
+    }
+    
+    return false;
+  }
+  
+  private checkEventArguments(actualArgs: any, expectedArgs: Record<string, any>): boolean {
+    for (const [key, expectedValue] of Object.entries(expectedArgs)) {
+      if (actualArgs[key] !== expectedValue) {
+        return false;
+      }
+    }
+    return true;
   }
 
   async getAuctionState(): Promise<AuctionState> {

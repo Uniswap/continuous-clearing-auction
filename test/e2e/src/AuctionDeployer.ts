@@ -81,6 +81,17 @@ export class AuctionDeployer {
     return token ? await token.getAddress() as Address : null;
   }
 
+  async getTokenByAddress(tokenAddress: string): Promise<TokenContract | undefined> {
+    // Find token by address in the tokens map
+    for (const [, token] of this.tokens) {
+      const address = await token.getAddress();
+      if (address === tokenAddress) {
+        return token;
+      }
+    }
+    return undefined;
+  }
+
   async deployAuctionFactory(): Promise<AuctionFactoryContract> {
     // Load artifact directly from Foundry's out directory
     const AuctionFactory = await this.ethers.getContractFactory(auctionFactoryArtifact.abi, auctionFactoryArtifact.bytecode.object);

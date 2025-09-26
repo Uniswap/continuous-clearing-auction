@@ -8,6 +8,8 @@ import { Address } from '../schemas/TestSetupSchema';
 export const NATIVE_CURRENCY_ADDRESS = '0x0000000000000000000000000000000000000000' as Address;
 export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Address;
 export const PERMIT2_ADDRESS = '0x000000000022D473030F116dDEE9F6B43aC78BA3' as Address;
+export const UINT_160_MAX = '0xffffffffffffffffffffffffffffffffffffffff';
+export const UINT_48_MAX = '0xffffffffffff';
 
 // ERC20 constants
 export const MAX_UINT256 = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';

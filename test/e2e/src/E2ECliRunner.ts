@@ -10,13 +10,14 @@ import { simpleSetup } from '../instances/setup/SimpleSetup';
 import { simpleInteraction } from '../instances/interaction/SimpleInteraction';
 import { erc20Setup } from '../instances/setup/ERC20Setup';
 import { erc20Interaction } from '../instances/interaction/ERC20Interaction';
+import { advancedSetup } from '../instances/setup/AdvancedSetup';
+import { advancedInteraction } from '../instances/interaction/AdvancedInteraction';
 
 // Define the combinations to run
 const COMBINATIONS_TO_RUN = [
   { setup: simpleSetup, interaction: simpleInteraction },
-  { setup: erc20Setup, interaction: erc20Interaction }
-  // TODO: Add more combinations here as they are created:
-  // { setup: setup03, interaction: interaction01 },
+  { setup: erc20Setup, interaction: erc20Interaction },
+  { setup: advancedSetup, interaction: advancedInteraction }
 ];
 
 interface CombinationToRun {

@@ -26,6 +26,7 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
+      blockGasLimit: 40_000_000,
       accounts: {
         count: 20,
         initialIndex: 0,

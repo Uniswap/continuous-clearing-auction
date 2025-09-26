@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f80ba18b60de4b770005741879dfdddb0bfb58e3/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/97b9f50fc290e1d145d29832b96438e6ecfe03de/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -158,6 +158,31 @@ Sweep any leftover tokens to the tokens recipient
 ```solidity
 function sweepUnsoldTokens() external;
 ```
+
+### getBidRequiredCurrencyAmount
+
+Getters
+
+Get the required currency amount for a bid
+
+
+```solidity
+function getBidRequiredCurrencyAmount(bool exactIn, uint256 amount, uint256 maxPrice) external view returns (uint256);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`exactIn`|`bool`|Whether the bid is exact in|
+|`amount`|`uint256`|The amount of the bid|
+|`maxPrice`|`uint256`|The max price of the bid|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The required currency amount for a bid|
+
 
 ## Events
 ### TokensReceived

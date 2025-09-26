@@ -1,5 +1,5 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f80ba18b60de4b770005741879dfdddb0bfb58e3/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/97b9f50fc290e1d145d29832b96438e6ecfe03de/src/TickStorage.sol)
 
 **Inherits:**
 [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
@@ -61,7 +61,7 @@ uint256 public constant MAX_TICK_PRICE = type(uint256).max;
 constructor(uint256 _tickSpacing, uint256 _floorPrice);
 ```
 
-### getTick
+### _getTick
 
 Get a tick at a price
 
@@ -69,7 +69,7 @@ Get a tick at a price
 
 
 ```solidity
-function getTick(uint256 price) public view returns (Tick memory);
+function _getTick(uint256 price) public view returns (Tick memory);
 ```
 **Parameters**
 
@@ -147,4 +147,21 @@ Get the tick spacing enforced for bid prices
 ```solidity
 function tickSpacing() external view override(ITickStorage) returns (uint256);
 ```
+
+### getTick
+
+Get a tick at a price
+
+*The returned tick is not guaranteed to be initialized*
+
+
+```solidity
+function getTick(uint256 price) external view returns (Tick memory);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`price`|`uint256`|The price of the tick|
+
 

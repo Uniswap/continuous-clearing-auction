@@ -22,11 +22,11 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
     uint256 internal immutable _LENGTH;
 
     /// @notice The address pointer to the contract deployed by SSTORE2
-    address public pointer;
+    address public $pointer;
     /// @notice The word offset of the last read step in `auctionStepsData` bytes
-    uint256 public offset;
+    uint256 public $offset;
     /// @notice The current active auction step
-    AuctionStep public step;
+    AuctionStep internal $step;
 
     constructor(bytes memory _auctionStepsData, uint64 _startBlock, uint64 _endBlock) {
         START_BLOCK = _startBlock;
@@ -38,7 +38,7 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
         if (_pointer == address(0)) revert InvalidPointer();
 
         _validate(_pointer);
-        pointer = _pointer;
+        $pointer = _pointer;
 
         _advanceStep();
     }
@@ -67,21 +67,21 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
     /// @notice Advance the current auction step
     /// @dev This function is called on every new bid if the current step is complete
     function _advanceStep() internal returns (AuctionStep memory) {
-        if (offset > _LENGTH) revert AuctionIsOver();
+        if ($offset > _LENGTH) revert AuctionIsOver();
 
-        bytes8 _auctionStep = bytes8(pointer.read(offset, offset + UINT64_SIZE));
+        bytes8 _auctionStep = bytes8($pointer.read($offset, $offset + UINT64_SIZE));
         (uint24 mps, uint40 blockDelta) = _auctionStep.parse();
 
-        uint64 _startBlock = step.endBlock;
+        uint64 _startBlock = $step.endBlock;
         if (_startBlock == 0) _startBlock = START_BLOCK;
         uint64 _endBlock = _startBlock + uint64(blockDelta);
 
-        step = AuctionStep({startBlock: _startBlock, endBlock: _endBlock, mps: mps});
+        $step = AuctionStep({startBlock: _startBlock, endBlock: _endBlock, mps: mps});
 
-        offset += UINT64_SIZE;
+        $offset += UINT64_SIZE;
 
         emit AuctionStepRecorded(_startBlock, _endBlock, mps);
-        return step;
+        return $step;
     }
 
     // Getters
@@ -93,5 +93,10 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
     /// @inheritdoc IAuctionStepStorage
     function endBlock() external view returns (uint64) {
         return END_BLOCK;
+    }
+
+    /// @inheritdoc IAuctionStepStorage
+    function step() external view override(IAuctionStepStorage) returns (AuctionStep memory) {
+        return $step;
     }
 }

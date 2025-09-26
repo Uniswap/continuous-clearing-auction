@@ -5,6 +5,7 @@ import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {MockAuctionStepStorage} from './utils/MockAuctionStepStorage.sol';
+import {AuctionStep} from '../src/libraries/AuctionStepLib.sol';
 import {Test} from 'forge-std/Test.sol';
 
 contract AuctionStepStorageTest is Test {
@@ -49,11 +50,11 @@ contract AuctionStepStorageTest is Test {
         MockAuctionStepStorage auctionStepStorage =
             _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7);
 
-        (uint24 mps, uint64 startBlock, uint64 endBlock) = auctionStepStorage.step();
+        AuctionStep memory step = auctionStepStorage.step();
 
-        assertEq(mps, 1);
-        assertEq(startBlock, auctionStartBlock);
-        assertEq(endBlock, auctionStartBlock + 1e7);
+        assertEq(step.mps, 1);
+        assertEq(step.startBlock, auctionStartBlock);
+        assertEq(step.endBlock, auctionStartBlock + 1e7);
     }
 
     function test_advanceStep_usesStartBlock() public {
@@ -66,12 +67,12 @@ contract AuctionStepStorageTest is Test {
             _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7);
 
         // Expect startBlock to be auction.startBlock
-        (uint24 mps, uint64 startBlock, uint64 endBlock) = auctionStepStorage.step();
+        AuctionStep memory step = auctionStepStorage.step();
         // Assert that the current block is the next block
         assertEq(block.number, auctionStartBlock + 100);
-        assertEq(mps, 1);
-        assertEq(startBlock, auctionStartBlock);
-        assertEq(endBlock, auctionStartBlock + 1e7);
+        assertEq(step.mps, 1);
+        assertEq(step.startBlock, auctionStartBlock);
+        assertEq(step.endBlock, auctionStartBlock + 1e7);
     }
 
     function test_advanceStep_succeeds() public {
@@ -82,20 +83,20 @@ contract AuctionStepStorageTest is Test {
         MockAuctionStepStorage auctionStepStorage = _create(auctionStepsData, auctionStartBlock, step2EndBlock);
 
         // Expect first step to be initialized
-        (uint24 mps, uint64 startBlock, uint64 endBlock) = auctionStepStorage.step();
-        assertEq(mps, 1);
-        assertEq(startBlock, auctionStartBlock);
-        assertEq(endBlock, step1EndBlock);
+        AuctionStep memory step = auctionStepStorage.step();
+        assertEq(step.mps, 1);
+        assertEq(step.startBlock, auctionStartBlock);
+        assertEq(step.endBlock, step1EndBlock);
 
         vm.expectEmit(true, true, true, true);
         emit IAuctionStepStorage.AuctionStepRecorded(step1EndBlock, step2EndBlock, 2);
         auctionStepStorage.advanceStep();
 
-        (mps, startBlock, endBlock) = auctionStepStorage.step();
+        step = auctionStepStorage.step();
 
-        assertEq(mps, 2);
-        assertEq(startBlock, step1EndBlock);
-        assertEq(endBlock, step2EndBlock);
+        assertEq(step.mps, 2);
+        assertEq(step.startBlock, step1EndBlock);
+        assertEq(step.endBlock, step2EndBlock);
     }
 
     function test_emptyAuctionStepsData_reverts_withInvalidAuctionDataLength() public {

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {AuctionStep} from '../libraries/AuctionStepLib.sol';
+
 interface IAuctionStepStorage {
     /// @notice Error thrown when the SSTORE2 pointer is the zero address
     error InvalidPointer();
@@ -17,6 +19,9 @@ interface IAuctionStepStorage {
     function startBlock() external view returns (uint64);
     /// @notice The block at which the auction ends
     function endBlock() external view returns (uint64);
+
+    /// @notice Get the current active auction step
+    function step() external view returns (AuctionStep memory);
 
     /// @notice Emitted when an auction step is recorded
     /// @param startBlock The start block of the auction step

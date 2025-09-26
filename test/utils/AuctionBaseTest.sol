@@ -68,7 +68,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     /// @notice Helper function to return the tick at the given price
     function getTick(uint256 price) public view returns (Tick memory) {
-        (uint256 next, Demand memory demand) = auction.ticks(price);
-        return Tick({next: next, demand: demand});
+        return auction.ticks(price);
     }
 }

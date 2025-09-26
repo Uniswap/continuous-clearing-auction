@@ -28,6 +28,6 @@ contract MockAuction is Auction {
     }
 
     function rolloverSupplyMultiplierSet() external view returns (bool) {
-        return _rolloverSupplyMultiplierSet;
+        return $_rolloverSupplyMultiplierSet;
     }
 }

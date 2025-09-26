@@ -3,9 +3,10 @@ pragma solidity 0.8.26;
 
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
+
+import {AuctionStep} from '../src/libraries/AuctionStepLib.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {MockAuctionStepStorage} from './utils/MockAuctionStepStorage.sol';
-import {AuctionStep} from '../src/libraries/AuctionStepLib.sol';
 import {Test} from 'forge-std/Test.sol';
 
 contract AuctionStepStorageTest is Test {

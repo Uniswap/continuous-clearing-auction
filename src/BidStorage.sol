@@ -56,4 +56,13 @@ abstract contract BidStorage {
     function _deleteBid(uint256 bidId) internal {
         delete bids[bidId];
     }
+
+    // Getters
+
+    /// @notice Get a bid from storage
+    /// @param bidId The id of the bid to get
+    /// @return bid The bid
+    function getBid(uint256 bidId) external view returns (Bid memory) {
+        return _getBid(bidId);
+    }
 }

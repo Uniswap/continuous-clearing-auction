@@ -44,6 +44,11 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         return _getCheckpoint(lastCheckpointedBlock).getCurrencyRaised();
     }
 
+    /// @inheritdoc ICheckpointStorage
+    function getCheckpoint(uint64 blockNumber) external view returns (Checkpoint memory) {
+        return _getCheckpoint(blockNumber);
+    }
+
     /// @notice Get a checkpoint from storage
     function _getCheckpoint(uint64 blockNumber) internal view returns (Checkpoint memory) {
         return checkpoints[blockNumber];

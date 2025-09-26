@@ -221,7 +221,7 @@ contract Auction is
         // The clearing price can never be lower than the last checkpoint
         uint256 minimumClearingPrice = _checkpoint.clearingPrice;
         // The next price tick initialized with demand is the `nextActiveTickPrice`
-        Tick memory _nextActiveTick = getTick(nextActiveTickPrice);
+        Tick memory _nextActiveTick = _getTick(nextActiveTickPrice);
 
         // For a non-zero supply, iterate to find the tick where the demand at and above it is strictly less than the supply
         // Sets nextActiveTickPrice to MAX_TICK_PRICE if the highest tick in the book is reached
@@ -236,7 +236,7 @@ contract Auction is
             // Advance to the next tick
             uint256 _nextTickPrice = _nextActiveTick.next;
             nextActiveTickPrice = _nextTickPrice;
-            _nextActiveTick = getTick(_nextTickPrice);
+            _nextActiveTick = _getTick(_nextTickPrice);
         }
 
         // Save state variables
@@ -451,7 +451,7 @@ contract Auction is
             (uint256 partialTokensFilled, uint256 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
                 upperCheckpoint.cumulativeSupplySoldToClearingPriceX7,
                 bid.toDemand().resolve(bid.maxPrice),
-                getTick(bid.maxPrice).demand.resolve(bid.maxPrice),
+                _getTick(bid.maxPrice).demand.resolve(bid.maxPrice),
                 bid.maxPrice
             );
             tokensFilled += partialTokensFilled;
@@ -508,5 +508,14 @@ contract Auction is
     /// @inheritdoc IAuction
     function validationHook() external view override(IAuction) returns (IValidationHook) {
         return VALIDATION_HOOK;
+    }
+
+    /// @inheritdoc IAuction
+    function getBidRequiredCurrencyAmount(bool exactIn, uint256 amount, uint256 maxPrice)
+        external
+        pure
+        returns (uint256)
+    {
+        return BidLib.inputAmount(exactIn, amount, maxPrice);
     }
 }

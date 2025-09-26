@@ -158,4 +158,16 @@ interface IAuction is
     /// @notice Sweep any leftover tokens to the tokens recipient
     /// @dev This function can only be called after the auction has ended
     function sweepUnsoldTokens() external;
+
+    /// Getters
+
+    /// @notice Get the required currency amount for a bid
+    /// @param exactIn Whether the bid is exact in
+    /// @param amount The amount of the bid
+    /// @param maxPrice The max price of the bid
+    /// @return The required currency amount for a bid
+    function getBidRequiredCurrencyAmount(bool exactIn, uint256 amount, uint256 maxPrice)
+        external
+        view
+        returns (uint256);
 }

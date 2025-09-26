@@ -8,6 +8,7 @@ import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {MPSLib} from './libraries/MPSLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
+import {ConstantsLib} from './libraries/ConstantsLib.sol';
 
 /// @title TokenCurrencyStorage
 abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
@@ -49,6 +50,8 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         address _fundsRecipient,
         uint24 _graduationThresholdMps
     ) {
+        if (_totalSupply > ConstantsLib.X7X7_UPPER_BOUND) revert TotalSupplyIsGreaterThanX7X7UpperBound();
+
         TOKEN = IERC20Minimal(_token);
         TOTAL_SUPPLY = _totalSupply;
         TOTAL_SUPPLY_X7_X7 = _totalSupply.scaleUpToX7().scaleUpToX7X7();

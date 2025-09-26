@@ -23,6 +23,8 @@ interface ITokenCurrencyStorage {
     error NotGraduated();
     /// @notice Error thrown when the funds recipient data cannot be decoded
     error FundsRecipientCallFailed();
+    /// @notice Error thrown when the total supply is too large
+    error TotalSupplyIsGreaterThanX7X7UpperBound();
 
     /// @notice Emitted when the tokens are swept
     /// @param tokensRecipient The address of the tokens recipient

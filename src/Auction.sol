@@ -25,6 +25,7 @@ import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol'
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
+import {ConstantsLib} from './libraries/ConstantsLib.sol';
 
 /// @title Auction
 /// @notice Implements a time weighted uniform clearing price auction
@@ -437,6 +438,9 @@ contract Auction is
         _updateTickDemand(maxPrice, bidDemand);
 
         sumDemandAboveClearing = sumDemandAboveClearing.add(bidDemand);
+
+        // If the sumDemandAboveClearing becomes large enough to overflow a multiplication by an X7X7 value, revert
+        if (ValueX7.unwrap(sumDemandAboveClearing.resolveRoundingUp(nextActiveTickPrice)) >= ConstantsLib.X7X7_UPPER_BOUND) revert InvalidBidUnableToClear();
 
         emit BidSubmitted(bidId, owner, maxPrice, exactIn, amount);
     }

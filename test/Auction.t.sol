@@ -1239,11 +1239,13 @@ contract AuctionTest is AuctionBaseTest {
          * We are at the END of the first step, which is the start of the second step
          * If we make a checkpoint in this block (number 11), which step is valid?
          * - It should be the second step, because AuctionSteps are inclusive of the start block and exclusive of the end block
-         *   So for blocks [1, 10), we sold 0 mps for blocks 1,2,3,4,5,6,7,8,9,10
+         *   So for blocks [1, 10), we sold 100e3 mps for blocks 1,2,3,4,5,6,7,8,9,10
          * Since Checkpoints are made top of the block, they reflect the state of the auction UP UNTIL, but not including, that block.
          * 
-         * Thus the bid below makes a checkpoint which does not show that any mps or tokens have been sold (because they haven't).
+         * Thus the bid below makes a checkpoint which shows that 100e3 * 10 mps were sold but no supply was cleared
          */
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), 0, 100e3 * 10);
         mockAuction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
             true,

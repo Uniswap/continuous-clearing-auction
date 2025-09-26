@@ -1123,6 +1123,171 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(mps, 250e3);
     }
 
+    // Test the edge case where the blockNumber happens to be on the end of a step, which is exclusive
+    // Test the case where the current step is 0 mps and we have to call advanceToCurrentStep before calculating the clearing price
+    function test_advanceToCurrentStep_blockNumberIsEndOfZeroMpsStep() public {
+        // 10 blocks of 0 mps, then 100 blocks of 100e3 mps (1%) each
+        uint64 startBlock = uint64(block.number);
+        uint64 endBlock = startBlock + 110;
+        params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(0, 10).addStep(100e3, 100)).withEndBlock(block.number + 110);
+        MockAuction mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(mockAuction), TOTAL_SUPPLY);
+        mockAuction.onTokensReceived();
+
+        (uint24 mps, uint64 stepStart, uint64 stepEnd) = mockAuction.step();
+        assertEq(mps, 0);
+        assertEq(stepStart, startBlock);
+        assertEq(stepEnd, startBlock + 10);
+
+        /**
+         * Current state of the auction steps
+         * blockNumber:     1                11                                    111
+         *                  |                |                                      |
+         *          stepStart          stepEnd                                   
+         *                             stepStart                              stepEnd
+         *                  ^
+         */
+        // Roll to the end of the first step (top of block)
+        vm.roll(stepEnd);
+        /**
+         * blockNumber:     1                11                                    111
+         *                  |                |                                      |
+         *          stepStart          stepEnd                                   
+         *                             stepStart                              stepEnd
+         *                                   ^
+         * We are at the END of the first step, which is the start of the second step
+         * If we make a checkpoint in this block (number 11), which step is valid?
+         * - It should be the second step, because AuctionSteps are inclusive of the start block and exclusive of the end block
+         *   So for blocks [1, 10), we sold 0 mps for blocks 1,2,3,4,5,6,7,8,9,10
+         * Since Checkpoints are made top of the block, they reflect the state of the auction UP UNTIL, but not including, that block.
+         * 
+         * Thus the bid below makes a checkpoint which does not show that any mps or tokens have been sold (because they haven't).
+         */
+        mockAuction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+        /**
+         * Roll one more block and checkpoint
+         * blockNumber:     1                11   12                              111
+         *                  |                |     .                                |
+         *          stepStart          stepEnd                                   
+         *                             stepStart                              stepEnd
+         *                                         ^
+         * The current block number is 12, which is > than the end of the current step (ended block 11). That means we have to advance forward
+         * Before we can advance to the next step, there could have been blocks that were not checkpointed in between the last checkpoint we made 
+         * and the end of the last step. In this case both of those values are equal (block 11) so we don't transform the checkpoint.
+         * However, we do advance to the next step such that the step is up to date with the schedule. 
+         * 
+         * Once the step is made current, we can find the `clearingPrice` and `sumDemandAboveClearing` values which affect the Checkpointed values.
+         * It's important to remember that these values are calculated at the TOP of block 12, one block after the bid was submitted
+         * This is correct because it reflects the state of the auction UP UNTIL block 12, not including.
+         *
+         * And we show that at the end of the last step of the auction, 1e7 or 100% of all `mps` were sold in the auction
+         */
+        vm.roll(block.number + 1);
+        vm.expectEmit(true, true, true, true);
+        // Expect the second step to be recorded
+        emit IAuctionStepStorage.AuctionStepRecorded(stepEnd, endBlock, 100e3);
+        vm.expectEmit(true, true, true, true);
+        // Expect 1 block to be have been cleared
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), TOTAL_SUPPLY * 100e3 / AuctionStepLib.MPS, 100e3);
+        mockAuction.checkpoint();
+
+        // Roll to end of the auction
+        vm.roll(endBlock);
+        vm.expectEmit(true, true, true, true);
+        // Expect that we sold the total supply at price of 2
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), TOTAL_SUPPLY, AuctionStepLib.MPS);
+        mockAuction.checkpoint();
+    }
+
+    function test_advanceToCurrentStep_blockNumberIsEndOfStep() public {
+        // 10 blocks of 0 mps, then 100 blocks of 100e3 mps (1%) each
+        uint64 startBlock = uint64(block.number);
+        uint64 endBlock = startBlock + 40;
+        params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(100e3, 10).addStep(300e3, 30)).withEndBlock(block.number + 40);
+        MockAuction mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(mockAuction), TOTAL_SUPPLY);
+        mockAuction.onTokensReceived();
+
+        (uint24 mps, uint64 stepStart, uint64 stepEnd) = mockAuction.step();
+        assertEq(mps, 100e3);
+        assertEq(stepStart, startBlock);
+        assertEq(stepEnd, startBlock + 10);
+
+        /**
+         * Current state of the auction steps
+         * blockNumber:     1                11                                    111
+         *                  |                |                                      |
+         *          stepStart          stepEnd                                   
+         *                             stepStart                              stepEnd
+         *                  ^
+         */
+        // Roll to the end of the first step (top of block)
+        vm.roll(stepEnd);
+        /**
+         * blockNumber:     1                11                                    111
+         *                  |                |                                      |
+         *          stepStart          stepEnd                                   
+         *                             stepStart                              stepEnd
+         *                                   ^
+         * We are at the END of the first step, which is the start of the second step
+         * If we make a checkpoint in this block (number 11), which step is valid?
+         * - It should be the second step, because AuctionSteps are inclusive of the start block and exclusive of the end block
+         *   So for blocks [1, 10), we sold 0 mps for blocks 1,2,3,4,5,6,7,8,9,10
+         * Since Checkpoints are made top of the block, they reflect the state of the auction UP UNTIL, but not including, that block.
+         * 
+         * Thus the bid below makes a checkpoint which does not show that any mps or tokens have been sold (because they haven't).
+         */
+        mockAuction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+        /**
+         * Roll one more block and checkpoint
+         * blockNumber:     1                11   12                              111
+         *                  |                |     .                                |
+         *          stepStart          stepEnd                                   
+         *                             stepStart                              stepEnd
+         *                                         ^
+         * The current block number is 12, which is > than the end of the current step (ended block 11). That means we have to advance forward
+         * Before we can advance to the next step, there could have been blocks that were not checkpointed in between the last checkpoint we made 
+         * and the end of the last step. In this case both of those values are equal (block 11) so we don't transform the checkpoint.
+         * However, we do advance to the next step such that the step is up to date with the schedule. 
+         * 
+         * Once the step is made current, we can find the `clearingPrice` and `sumDemandAboveClearing` values which affect the Checkpointed values.
+         * It's important to remember that these values are calculated at the TOP of block 12, one block after the bid was submitted
+         * This is correct because it reflects the state of the auction UP UNTIL block 12, not including.
+         *
+         * And we show that at the end of the last step of the auction, 1e7 or 100% of all `mps` were sold in the auction
+         */
+        vm.roll(block.number + 1);
+        vm.expectEmit(true, true, true, true);
+        // Expect the second step to be recorded
+        emit IAuctionStepStorage.AuctionStepRecorded(stepEnd, endBlock, 300e3);
+        vm.expectEmit(true, true, true, true);
+        // Expect 1 block to be have been cleared
+        uint24 expectedCumulativeMps = 100e3 * 10 + 300e3;
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), TOTAL_SUPPLY / 30, expectedCumulativeMps);
+        mockAuction.checkpoint();
+
+        // Roll to end of the auction
+        vm.roll(endBlock);
+        vm.expectEmit(true, true, true, true);
+        // Expect that we sold the total supply at price of 2
+        emit IAuction.CheckpointUpdated(startBlock + 40, tickNumberToPriceX96(2), TOTAL_SUPPLY, AuctionStepLib.MPS);
+        mockAuction.checkpoint();
+    }
+
     function test_calculateNewClearingPrice_belowFloorPrice_returnsFloorPrice() public {
         params = params.withFloorPrice(10e6 << FixedPoint96.RESOLUTION);
 

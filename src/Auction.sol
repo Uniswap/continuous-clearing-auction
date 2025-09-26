@@ -194,26 +194,49 @@ contract Auction is
         return _checkpoint;
     }
 
-    /// @notice Calculate the new clearing price, given the minimum clearing price and the quotient
-    /// @param minimumClearingPrice The minimum clearing price which MUST be >= the floor price
-    /// @param quotientX7X7 The quotient used in the clearing price calculation
-    function _calculateNewClearingPrice(uint256 minimumClearingPrice, uint256 factor, ValueX7X7 quotientX7X7)
-        internal
-        view
-        returns (uint256)
-    {
+    /// @notice Calculate the new clearing price, given the minimum clearing price and the remaining supply in the auction
+    /// @param minimumClearingPrice The minimum clearing price, which will either be the floor price or the last iterated `nextActiveTickPrice`
+    /// @param remainingMpsInAuction The remaining mps in the auction which is MPSLib.MPS minus the cumulative mps so far
+    /// @param remainingSupplyX7X7 The result of TOTAL_SUPPLY_X7_X7 minus the total cleared supply so far
+    function _calculateNewClearingPrice(
+        uint256 minimumClearingPrice,
+        uint24 remainingMpsInAuction,
+        ValueX7X7 remainingSupplyX7X7
+    ) internal view returns (uint256) {
         /**
          * Calculate the clearing price by dividing the currencyDemandX7 by the quotient minus the tokenDemandX7, following `currency / tokens = price`
-         * We find the ratio of all exact input demand to the amount of tokens available (from supply minus tokenDemandX7)
-         * However, scaling the demand by mps loses precision when dividing by MPSLib.MPS. To avoid this, we use the precalculated quotientX7.
+         * We find the ratio of all exact input demand to the amount of tokens available (from remaining supply minus tokenDemandX7)
          *
-         * Formula derivation:
+         * At this point, we know that the new clearing price must be between `minimumClearingPrice` and `nextActiveTickPrice`, inclusive of both bounds.
+         * We can use the following equation to find the price:
+         *   currencyDemandX7 * Q96 * mps         [  (totalSupplyX7 - totalClearedX7) * mps            tokenDemandX7 * mps      ]
+         *   ---------------------------------  / [  ---------------------------------      -   ------------------------------  ]
+         *             MPSLib.MPS                 [     MPSLib.MPS - cumulativeMps                     MPSLib.MPS               ]
+         *
+         * Finding common denominator for the RHS:
+         *                                        [ (totalSupplyX7 - totalClearedX7) * mps * MPSLib.MPS - tokenDemandX7 * mps * (MPSLib.MPS - cumulativeMps) ]
+         *                                      / [ ----------------------------------------------------------------------------------------------------     ]
+         *                                        [                             (MPSLib.MPS - cumulativeMps) * MPSLib.MPS                                    ]
+         * Rewriting as multiplication by reciprocal:
+         *   currencyDemandX7 * Q96 * mps         [                             (MPSLib.MPS - cumulativeMps) * MPSLib.MPS                                    ]
+         *   ---------------------------------  * [ ----------------------------------------------------------------------------------------------------     ]
+         *             MPSLib.MPS                 [ (totalSupplyX7 - totalClearedX7) * mps * MPSLib.MPS - tokenDemandX7 * mps * (MPSLib.MPS - cumulativeMps) ]
+         *
+         * Cancelling out the `mps` terms and lone `MPSLib.MPS` terms:
+         *                                        [                             (MPSLib.MPS - cumulativeMps)                                                 ]
+         *   currencyDemandX7 * Q96             * [ ----------------------------------------------------------------------------------------------------     ]
+         *                                        [ (totalSupplyX7 - totalClearedX7) * MPSLib.MPS - tokenDemandX7 * (MPSLib.MPS - cumulativeMps)             ]
+         *
+         * Observe that (totalSupplyX7 - totalClearedX7) * MPSLib.MPS is equal to `remainingSupplyX7X7`, since it is scaled up by MPSLib.MPS a second time
+         * Now we can substitute in `remainingSupplyX7X7` and `remainingMpsInAuction` into the equation
+         * We use fullMulDivUp to allow for intermediate overflows and ensure that the final clearing price is rounded up because we bias towards
+         * higher prices which results in less tokens being sold (since price is currency / token).
          */
         uint256 _clearingPrice = ValueX7.unwrap(
             sumDemandAboveClearing.currencyDemandX7.fullMulDivUp(
-                ValueX7.wrap(FixedPoint96.Q96 * factor),
-                ValueX7.wrap(ValueX7X7.unwrap(quotientX7X7)).sub(
-                    sumDemandAboveClearing.tokenDemandX7.mulUint256(factor)
+                ValueX7.wrap(FixedPoint96.Q96 * uint256(remainingMpsInAuction)),
+                remainingSupplyX7X7.downcast().sub(
+                    sumDemandAboveClearing.tokenDemandX7.mulUint256(remainingMpsInAuction)
                 )
             )
         );
@@ -221,6 +244,7 @@ contract Auction is
         // If the new clearing price is below the minimum clearing price return the minimum clearing price
         if (_clearingPrice < minimumClearingPrice) return minimumClearingPrice;
         // Otherwise, round up to the nearest tick boundary
+        // This will result in a higher price which means less tokens will be sold than expected
         uint256 remainder = _clearingPrice % TICK_SPACING;
         if (remainder != 0) {
             return ((_clearingPrice + TICK_SPACING) - remainder);
@@ -251,7 +275,7 @@ contract Auction is
 
             /**
              * For clearing price related calculations, we need to determine the amount of supply sold over `mps` as well as the corresponding demand.
-             * - Supply is found by multiplying the actual supply sold so far by the current supply issuance rate (step.mps), 
+             * - Supply is found by multiplying the actual supply sold so far by the current supply issuance rate (step.mps),
              *   and dividing by the remaining mps in the auction to account for any previously unsold supply which is rolled over.
              *
              *   For example: (totalSupply - _checkpoint.totalCleared) * step.mps / (MPSLib.MPS - _checkpoint.cumulativeMps)
@@ -259,7 +283,7 @@ contract Auction is
              * - However, multpling by `step.mps` and dividing by `(MPSLib.MPS - _checkpoint.cumulativeMps)` loses precision, and we want to avoid it whenever possible.
              *   We save `(MPSLib.MPS - _checkpoint.cumulativeMps)` here to multiply by later when we want to cancel out the division.
              */
-            uint256 factor = MPSLib.MPS - _checkpoint.cumulativeMps;
+            uint24 remainingMpsInAuction = MPSLib.MPS - _checkpoint.cumulativeMps;
 
             /**
              * For a non-zero supply, iterate to find the tick where the demand at and above it is strictly less than the supply
@@ -286,16 +310,15 @@ contract Auction is
              * And multiply both sides by `MPSLib.MPS` to remove the division entirely:
              *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps) >= supply * MPSLib.MPS
              *
-             * Conveniently, we are already tracking supply in terms of X7X7, which is already scaled up by MPSLib.MPS, 
-             * so we can substitute in TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
+             * Conveniently, we are already tracking supply in terms of X7X7, which is already scaled up by MPSLib.MPS,
+             * so we can substitute in TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7) for `supply`:
              *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps) >= TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
              */
             while (
-                ValueX7X7.wrap(
-                    ValueX7.unwrap(_sumDemandAboveClearing.resolveRoundingUp(nextActiveTickPrice).mulUint256(factor))
+                _sumDemandAboveClearing.resolveRoundingUp(nextActiveTickPrice).mulUint256(remainingMpsInAuction).upcast(
                 ).gte(TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7))
             ) {
-                // Subtract the demand at `nextActiveTickPrice`
+                // Subtract the demand at the current nextActiveTick from the total demand
                 _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_nextActiveTick.demand);
                 // The `nextActiveTickPrice` is now the minimum clearing price because there was enough demand to fill the supply
                 _clearingPrice = nextActiveTickPrice;
@@ -305,11 +328,12 @@ contract Auction is
                 _nextActiveTick = getTick(_nextTickPrice);
             }
 
-            // Save state variables
+            // Save cached state variable
             sumDemandAboveClearing = _sumDemandAboveClearing;
             // Calculate the new clearing price
-            ValueX7X7 quotientX7X7 = TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7);
-            _clearingPrice = _calculateNewClearingPrice(_clearingPrice, factor, quotientX7X7);
+            _clearingPrice = _calculateNewClearingPrice(
+                _clearingPrice, remainingMpsInAuction, TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
+            );
             // Reset the cumulative supply sold to clearing price if the clearing price is different now
             if (_clearingPrice != _checkpoint.clearingPrice) {
                 _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 = ValueX7X7.wrap(0);

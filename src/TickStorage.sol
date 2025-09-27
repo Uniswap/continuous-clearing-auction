@@ -16,7 +16,7 @@ struct Tick {
 abstract contract TickStorage is ITickStorage {
     using DemandLib for Demand;
 
-    mapping(uint256 price => Tick) internal $ticks;
+    mapping(uint256 price => Tick) private $_ticks;
 
     /// @notice The price of the next initialized tick above the clearing price
     /// @dev This will be equal to the clearingPrice if no ticks have been initialized yet
@@ -39,14 +39,14 @@ abstract contract TickStorage is ITickStorage {
     /// @dev The returned tick is not guaranteed to be initialized
     /// @param price The price of the tick
     function getTick(uint256 price) public view returns (Tick memory) {
-        return $ticks[price];
+        return $_ticks[price];
     }
 
     /// @notice Initialize a tick at `price` without checking for existing ticks
     /// @dev This function is unsafe and should only be used when the tick is guaranteed to be the first in the book
     /// @param price The price of the tick
     function _unsafeInitializeTick(uint256 price) internal {
-        $ticks[price].next = MAX_TICK_PRICE;
+        $_ticks[price].next = MAX_TICK_PRICE;
         $nextActiveTickPrice = price;
         emit NextActiveTickUpdated(price);
         emit TickInitialized(price);
@@ -59,7 +59,7 @@ abstract contract TickStorage is ITickStorage {
     /// @param price The price of the tick
     function _initializeTickIfNeeded(uint256 prevPrice, uint256 price) internal {
         // No previous price can be greater than or equal to the new price
-        uint256 nextPrice = $ticks[prevPrice].next;
+        uint256 nextPrice = $_ticks[prevPrice].next;
 
         if (prevPrice >= price) {
             revert TickPreviousPriceInvalid();
@@ -74,11 +74,11 @@ abstract contract TickStorage is ITickStorage {
         // The tick already exists, early return
         if (nextPrice == price) return;
 
-        Tick storage newTick = $ticks[price];
+        Tick storage newTick = $_ticks[price];
         newTick.next = nextPrice;
 
         // Link prev to new tick
-        $ticks[prevPrice].next = price;
+        $_ticks[prevPrice].next = price;
 
         // If the next tick is the nextActiveTick, update nextActiveTick to the new tick
         // In the base case, where next == 0 and nextActiveTickPrice == 0, this will set nextActiveTickPrice to price
@@ -96,7 +96,7 @@ abstract contract TickStorage is ITickStorage {
     /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
     function _updateTick(uint256 price, bool exactIn, uint128 amount) internal {
-        Tick storage tick = $ticks[price];
+        Tick storage tick = $_ticks[price];
 
         if (exactIn) {
             tick.demand = tick.demand.addCurrencyAmount(amount);
@@ -112,6 +112,6 @@ abstract contract TickStorage is ITickStorage {
 
     /// @inheritdoc ITickStorage
     function ticks(uint256 price) external view override(ITickStorage) returns (Tick memory) {
-        return $ticks[price];
+        return $_ticks[price];
     }
 }

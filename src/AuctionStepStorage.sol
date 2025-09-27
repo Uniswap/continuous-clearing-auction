@@ -21,9 +21,9 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
     uint256 private immutable _length;
 
     /// @notice The address pointer to the contract deployed by SSTORE2
-    address public $pointer;
+    address private $_pointer;
     /// @notice The word offset of the last read step in `auctionStepsData` bytes
-    uint256 public $offset;
+    uint256 private $_offset;
     /// @notice The current active auction step
     AuctionStep internal $step;
 
@@ -37,7 +37,7 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
         if (_pointer == address(0)) revert InvalidPointer();
 
         _validate(_pointer);
-        $pointer = _pointer;
+        $_pointer = _pointer;
 
         _advanceStep();
     }
@@ -66,9 +66,9 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
     /// @notice Advance the current auction step
     /// @dev This function is called on every new bid if the current step is complete
     function _advanceStep() internal returns (AuctionStep memory) {
-        if ($offset > _length) revert AuctionIsOver();
+        if ($_offset > _length) revert AuctionIsOver();
 
-        bytes8 _auctionStep = bytes8($pointer.read($offset, $offset + UINT64_SIZE));
+        bytes8 _auctionStep = bytes8($_pointer.read($_offset, $_offset + UINT64_SIZE));
         (uint24 mps, uint40 blockDelta) = _auctionStep.parse();
 
         uint64 _startBlock = $step.endBlock;
@@ -77,7 +77,7 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
 
         $step = AuctionStep({startBlock: _startBlock, endBlock: _endBlock, mps: mps});
 
-        $offset += UINT64_SIZE;
+        $_offset += UINT64_SIZE;
 
         emit AuctionStepRecorded(_startBlock, _endBlock, mps);
         return $step;

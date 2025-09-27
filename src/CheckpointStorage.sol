@@ -23,9 +23,9 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     uint64 public constant MAX_BLOCK_NUMBER = type(uint64).max;
 
     /// @notice Storage of checkpoints
-    mapping(uint64 blockNumber => Checkpoint) internal $checkpoints;
+    mapping(uint64 blockNumber => Checkpoint) private $_checkpoints;
     /// @notice The block number of the last checkpointed block
-    uint64 public $lastCheckpointedBlock;
+    uint64 internal $lastCheckpointedBlock;
 
     /// @inheritdoc ICheckpointStorage
     function latestCheckpoint() public view returns (Checkpoint memory) {
@@ -44,17 +44,17 @@ abstract contract CheckpointStorage is ICheckpointStorage {
 
     /// @notice Get a checkpoint from storage
     function _getCheckpoint(uint64 blockNumber) internal view returns (Checkpoint memory) {
-        return $checkpoints[blockNumber];
+        return $_checkpoints[blockNumber];
     }
 
     /// @notice Insert a checkpoint into storage
     /// @dev This function updates the prev and next pointers of the latest checkpoint and the new checkpoint
     function _insertCheckpoint(Checkpoint memory checkpoint, uint64 blockNumber) internal {
         uint64 _lastCheckpointedBlock = $lastCheckpointedBlock;
-        if (_lastCheckpointedBlock != 0) $checkpoints[_lastCheckpointedBlock].next = blockNumber;
+        if (_lastCheckpointedBlock != 0) $_checkpoints[_lastCheckpointedBlock].next = blockNumber;
         checkpoint.prev = _lastCheckpointedBlock;
         checkpoint.next = MAX_BLOCK_NUMBER;
-        $checkpoints[blockNumber] = checkpoint;
+        $_checkpoints[blockNumber] = checkpoint;
         $lastCheckpointedBlock = blockNumber;
     }
 
@@ -133,6 +133,6 @@ abstract contract CheckpointStorage is ICheckpointStorage {
 
     /// @inheritdoc ICheckpointStorage
     function checkpoints(uint64 blockNumber) external view override(ICheckpointStorage) returns (Checkpoint memory) {
-        return $checkpoints[blockNumber];
+        return $_checkpoints[blockNumber];
     }
 }

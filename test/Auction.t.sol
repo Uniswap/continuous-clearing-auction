@@ -7,7 +7,6 @@ import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
-
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
@@ -22,10 +21,10 @@ import {MockToken} from './utils/MockToken.sol';
 import {MockValidationHook} from './utils/MockValidationHook.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 import {console2} from 'forge-std/console2.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 contract AuctionTest is AuctionBaseTest {
     using FixedPointMathLib for uint256;
@@ -1582,6 +1581,34 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(auction.tickSpacing(), TICK_SPACING);
         assertEq(address(auction.validationHook()), address(0));
         assertEq(auction.floorPrice(), FLOOR_PRICE);
+    }
+
+    function test_getRolloverSupplyMultiplier_fuzz(
+        uint256 totalSupply,
+        ValueX7X7 remainingSupplyX7X7,
+        uint24 remainingMps
+    ) public {
+        vm.assume(totalSupply > 0);
+        vm.assume(totalSupply < type(uint232).max / 1e14);
+        vm.assume(ValueX7X7.unwrap(remainingSupplyX7X7) <= ValueX7X7.unwrap(totalSupply.scaleUpToX7().scaleUpToX7X7()));
+
+        MockAuction mockAuction = new MockAuction(address(token), totalSupply, params);
+        token.mint(address(mockAuction), totalSupply);
+        mockAuction.onTokensReceived();
+
+        (ValueX7X7 cachedRemainingSupplyX7X7, uint24 cachedRemainingMps) = mockAuction.getRolloverSupplyMultiplier();
+        // Assert base case
+        assertEq(ValueX7X7.unwrap(cachedRemainingSupplyX7X7), 0);
+        assertEq(cachedRemainingMps, 0);
+        assertFalse(mockAuction.rolloverSupplyMultiplierSet());
+
+        // Set initial values
+        mockAuction.setRolloverSupplyMultiplier(remainingSupplyX7X7, remainingMps);
+        (cachedRemainingSupplyX7X7, cachedRemainingMps) = mockAuction.getRolloverSupplyMultiplier();
+        // Assert the getter fetches them correctly
+        assertEq(cachedRemainingSupplyX7X7, remainingSupplyX7X7);
+        assertEq(cachedRemainingMps, remainingMps);
+        assertTrue(mockAuction.rolloverSupplyMultiplierSet());
     }
 
     /// @dev Reproduces rounding issue caused by 1 tick spacing

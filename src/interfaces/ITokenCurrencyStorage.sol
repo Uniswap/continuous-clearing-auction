@@ -7,6 +7,8 @@ import {ValueX7X7} from '../libraries/ValueX7X7Lib.sol';
 import {IERC20Minimal} from './external/IERC20Minimal.sol';
 
 interface ITokenCurrencyStorage {
+    /// @notice Error thrown when the total supply is too large
+    error TotalSupplyIsTooLarge();
     /// @notice Error thrown when the total supply is zero
     error TotalSupplyIsZero();
     /// @notice Error thrown when the funds recipient is the zero address

@@ -63,9 +63,13 @@ contract Auction is
     Demand public sumDemandAboveClearing;
     /// @notice Whether the TOTAL_SUPPLY of tokens has been received
     bool private _tokensReceived;
-
-    uint256 private _packedTotalClearedBeforeFullySubscribed;
-    uint24 private _cumulativeMpsBeforeFullySubscribed;
+    /// @notice Whether the rollover supply multiplier has been set
+    ///         which only happens after the auction becomes fully subscribed, at which point the supply schedule becomes deterministic
+    ///         When this is true the supply sold in a block is equal to _rolloverSupplyMultiplier * that block (or range's) `mps`
+    bool internal _rolloverSupplyMultiplierSet;
+    /// @notice A packed uint256 containing the `remainingSupplyX7X7` and `remainingMps` values derived from the checkpoint
+    ///         immediately before the auction becomes fully subscribed. The ratio of these helps account for rollover supply.
+    uint256 internal _packedRolloverSupplyMultiplier;
 
     constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
@@ -128,35 +132,23 @@ contract Auction is
         );
     }
 
-    /// @notice Gets saved checkpoint values before the auction is fully subscribed, and sets them if unset
-    /// @param totalClearedX7X7 The total cleared value to set if not already set
-    /// @param cumulativeMps The cumulative mps value to set if not already set
-    /// @return The stored values (either existing or newly set)
-    function _getOrSetValuesBeforeFullySubscribed(ValueX7X7 totalClearedX7X7, uint24 cumulativeMps)
-        internal
-        returns (ValueX7X7, uint24)
-    {
-        if (TOTAL_SUPPLY_X7_X7_LESS_THAN_UINT_232_MAX) {
-            uint256 packed = _packedTotalClearedBeforeFullySubscribed;
-            if (packed >> 232 == 0) {
-                // If unset, set the value in storage
-                packed = uint256(cumulativeMps) << 232 | ValueX7X7.unwrap(totalClearedX7X7);
-                _packedTotalClearedBeforeFullySubscribed = packed;
-            }
+    /// @notice Get the rollover supply multiplier from unpacking the totalCleared and cumulative mps from the packed value
+    /// @dev Must only be called after the values have been set
+    /// @return The total cleared and (MPSLib.MPS - saved cumulativeMps)
+    function _getRolloverSupplyMultiplier() internal view returns (ValueX7X7, uint24) {
+        uint256 packed = _packedRolloverSupplyMultiplier;
+        return (ValueX7X7.wrap(packed & MASK_LOWER_232_BITS), uint24(packed >> 232));
+    }
 
-            return (ValueX7X7.wrap(packed & MASK_LOWER_232_BITS), uint24(packed >> 232));
-        } else {
-            uint24 storedMps = _cumulativeMpsBeforeFullySubscribed;
-            if (storedMps == 0) {
-                // If unset, set the values in storage
-                _packedTotalClearedBeforeFullySubscribed = ValueX7X7.unwrap(totalClearedX7X7);
-                _cumulativeMpsBeforeFullySubscribed = cumulativeMps;
-                // Return early for gas savings
-                return (totalClearedX7X7, cumulativeMps);
-            }
-
-            return (ValueX7X7.wrap(_packedTotalClearedBeforeFullySubscribed), storedMps);
-        }
+    /// @notice Set the rollover supply multiplier by packing the total cleared and cumulative mps into one word
+    /// @dev This is guaranteed to fit because the TOTAL_SUPPLY_X7_X7 is checked to be less than type(uint232).max..
+    ///      And because remainingSupplyX7X7 must be <= TOTAL_SUPPLY_X7_X7.
+    /// @param remainingSupplyX7X7 The remaining supply to be sold at the checkpoint
+    /// @param remainingMps The remaining mps in the auction at the checkpoint
+    function _setRolloverSupplyMultiplier(ValueX7X7 remainingSupplyX7X7, uint24 remainingMps) internal {
+        uint256 packed = uint256(remainingMps) << 232 | ValueX7X7.unwrap(remainingSupplyX7X7);
+        _packedRolloverSupplyMultiplier = packed;
+        _rolloverSupplyMultiplierSet = true;
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
@@ -169,34 +161,68 @@ contract Auction is
         internal
         returns (Checkpoint memory)
     {
-        ValueX7 resolvedDemandAboveClearingPriceX7 =
-            _checkpoint.sumDemandAboveClearingPrice.resolveRoundingUp(_checkpoint.clearingPrice);
         // This value should have been divided by MPS, we implicitly remove it to wrap it as a ValueX7X7
-        ValueX7X7 resolvedDemandAboveClearingPriceMpsX7X7 =
-            resolvedDemandAboveClearingPriceX7.upcast().mulUint256(deltaMps);
+        ValueX7X7 resolvedDemandAboveClearingPriceX7X7 =
+            _checkpoint.sumDemandAboveClearingPrice.resolveRoundingUp(_checkpoint.clearingPrice).upcast();
         // Calculate the supply to be cleared based on demand above the clearing price
         ValueX7X7 supplyClearedX7X7;
-        // If the clearing price is above the floor price we can sell the available supply
+        // If the clearing price is above the floor price the auction is fully subscribed and we can sell the available supply
         if (_checkpoint.clearingPrice > FLOOR_PRICE) {
-            // Get or set the values before fully subscribed (will only set on first time above floor price)
-            (ValueX7X7 lastTotalClearedBeforeFullySubscribed, uint24 lastCumulativeMpsBeforeFullySubscribed) =
-                _getOrSetValuesBeforeFullySubscribed(_checkpoint.totalClearedX7X7, _checkpoint.cumulativeMps);
-
-            uint256 remainingMpsAfterAuctionIsFullySubscribed = MPSLib.MPS - lastCumulativeMpsBeforeFullySubscribed;
+            if (!_rolloverSupplyMultiplierSet) {
+                // Set the cache with the values in _checkpoint, which represents the state of the auction before it becomes fully subscribed
+                _setRolloverSupplyMultiplier(
+                    TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7), MPSLib.MPS - _checkpoint.cumulativeMps
+                );
+            }
+            // The supply sold over `deltaMps` is deterministic since there is no more roll over supply
+            // We get the cached total cleared and remaining mps for use in the calculations below. These values
+            // make up the multiplier which helps account for rollover supply.
+            (ValueX7X7 cachedRemainingSupplyX7X7, uint24 cachedRemainingMps) = _getRolloverSupplyMultiplier();
+            /**
+             * The supply sold to the clearing price is the supply sold minus the tokens sold to bidders above the clearing price
+             * Supply is calculated as:
+             *       (totalSupply - totalCleared) * mps                            (TOTAL_SUPPLY_X7_X7 - totalClearedX7X7)
+             *      ------------------------------------ , also can be written as  --------------------------------------- * deltaMps
+             *              MPS - cumulativeMps                                                 MPS - cumulativeMps
+             *
+             * Substituting in the cached remaining supply and remaining mps:
+             *       cachedRemainingSupplyX7X7
+             *      ---------------------------- * deltaMps
+             *            cachedRemainingMps
+             *
+             * Writing out the full equation:
+             *       cachedRemainingSupplyX7X7                     resolvedDemandAboveClearingPriceX7 * deltaMps
+             *      ------------------------------- * deltaMps -      -------------------------------------
+             *            cachedRemainingMps                                        MPSLib.MPS
+             *
+             * !! We multiply the RHS (demand) by MPSLib.MPS to remove the division and turn the result into an X7X7 value !!
+             *
+             * Finding common denominator of cachedRemainingMps
+             *       cachedRemainingSupplyX7X7 * deltaMps - resolvedDemandAboveClearingPriceX7 * deltaMps * cachedRemainingMps
+             *      -----------------------------------------------------------------------------------------------------------------------
+             *            cachedRemainingMps
+             *
+             * Moving out `deltaMps` and multiply by MPSLib.MPS to turn it into a ValueX7X7
+             *       deltaMps * (cachedRemainingSupplyX7X7 - resolvedDemandAboveClearingPriceX7 * cachedRemainingMps)
+             *      -----------------------------------------------------------------------------------------------------------------------
+             *            cachedRemainingMps
+             *
+             * Arriving at the final fullMulDiv below.
+             */
             ValueX7X7 supplySoldToClearingPriceX7X7 = (
-                TOTAL_SUPPLY_X7_X7.sub(lastTotalClearedBeforeFullySubscribed).sub(
-                    resolvedDemandAboveClearingPriceX7.upcast().mulUint256(remainingMpsAfterAuctionIsFullySubscribed)
-                )
-            ).wrapAndFullMulDiv(deltaMps, remainingMpsAfterAuctionIsFullySubscribed);
-            supplyClearedX7X7 = supplySoldToClearingPriceX7X7.add(resolvedDemandAboveClearingPriceMpsX7X7);
-
+                cachedRemainingSupplyX7X7.sub(resolvedDemandAboveClearingPriceX7X7.mulUint256(cachedRemainingMps))
+            ).wrapAndFullMulDiv(deltaMps, cachedRemainingMps);
+            // After finding the supply sold to the clearing price, we add the demand above the clearing price to get the total supply sold
+            supplyClearedX7X7 =
+                supplySoldToClearingPriceX7X7.add(resolvedDemandAboveClearingPriceX7X7.mulUint256(deltaMps));
+            // Finally, update the cumulative supply sold to the clearing price value
             _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 =
                 _checkpoint.cumulativeSupplySoldToClearingPriceX7X7.add(supplySoldToClearingPriceX7X7);
         }
-        // Otherwise, we can only sell the demand above the clearing price
+        // Otherwise, we can only sell tokens equal to the current demand above the clearing price
         else {
             // Clear supply equal to the resolved demand above the clearing price over the given `deltaMps`
-            supplyClearedX7X7 = resolvedDemandAboveClearingPriceMpsX7X7;
+            supplyClearedX7X7 = resolvedDemandAboveClearingPriceX7X7.mulUint256(deltaMps);
             // supplySoldToClearing price is zero here because the auction is not fully subscribed yet
         }
         _checkpoint.totalClearedX7X7 = _checkpoint.totalClearedX7X7.add(supplyClearedX7X7);

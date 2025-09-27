@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/aa2ccd1c0e4c78c616e28068bb0b6a94f112645a/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/046dab769f5d2ea2e8b9bef5d784a4e50afa7ccd/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)

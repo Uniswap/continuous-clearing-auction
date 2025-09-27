@@ -1,5 +1,5 @@
 # ITokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/e4845d2a40db74836b6910c2fb97b3f5b34b433e/src/interfaces/ITokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/046dab769f5d2ea2e8b9bef5d784a4e50afa7ccd/src/interfaces/ITokenCurrencyStorage.sol)
 
 
 ## Functions

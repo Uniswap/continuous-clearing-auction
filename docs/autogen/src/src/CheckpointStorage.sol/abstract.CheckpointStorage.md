@@ -1,5 +1,5 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f8777e7fce735616b313ae1a2d98047cf7578018/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0029089ebd1a3f788abcf4818f240d0f675068e6/src/CheckpointStorage.sol)
 
 **Inherits:**
 [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
@@ -15,21 +15,21 @@ uint64 public constant MAX_BLOCK_NUMBER = type(uint64).max;
 ```
 
 
-### checkpoints
+### $_checkpoints
 Storage of checkpoints
 
 
 ```solidity
-mapping(uint64 blockNumber => Checkpoint) public checkpoints;
+mapping(uint64 blockNumber => Checkpoint) private $_checkpoints;
 ```
 
 
-### lastCheckpointedBlock
+### $lastCheckpointedBlock
 The block number of the last checkpointed block
 
 
 ```solidity
-uint64 public lastCheckpointedBlock;
+uint64 internal $lastCheckpointedBlock;
 ```
 
 
@@ -175,4 +175,22 @@ function _calculateFill(
 |`tokensFilled`|`uint128`|the amount of tokens filled for this bid|
 |`currencySpent`|`uint128`|the amount of currency spent by this bid|
 
+
+### lastCheckpointedBlock
+
+Get the number of the last checkpointed block
+
+
+```solidity
+function lastCheckpointedBlock() external view override(ICheckpointStorage) returns (uint64);
+```
+
+### checkpoints
+
+Get a checkpoint at a block number
+
+
+```solidity
+function checkpoints(uint64 blockNumber) external view override(ICheckpointStorage) returns (Checkpoint memory);
+```
 

@@ -51,9 +51,9 @@ contract Auction is
     IValidationHook public immutable validationHook;
 
     /// @notice The sum of demand in ticks above the clearing price
-    Demand public sumDemandAboveClearing;
+    Demand internal $sumDemandAboveClearing;
     /// @notice Whether the TOTAL_SUPPLY of tokens has been received
-    bool private _tokensReceived;
+    bool private $_tokensReceived;
 
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
@@ -93,7 +93,7 @@ contract Auction is
     /// @notice Modifier for functions which can only be called after the auction is started and the tokens have been received
     modifier onlyActiveAuction() {
         if (block.number < startBlock) revert AuctionNotStarted();
-        if (!_tokensReceived) revert TokensNotReceived();
+        if (!$_tokensReceived) revert TokensNotReceived();
         _;
     }
 
@@ -103,7 +103,7 @@ contract Auction is
         if (token.balanceOf(address(this)) < totalSupply) {
             revert IDistributionContract__InvalidAmountReceived();
         }
-        _tokensReceived = true;
+        $_tokensReceived = true;
         emit TokensReceived(totalSupply);
     }
 
@@ -161,10 +161,10 @@ contract Auction is
     {
         // Advance the current step until the current block is within the step
         // Start at the larger of the last checkpointed block or the start block of the current step
-        uint64 start = step.startBlock < lastCheckpointedBlock ? lastCheckpointedBlock : step.startBlock;
-        uint64 end = step.endBlock;
+        uint64 start = $step.startBlock < $lastCheckpointedBlock ? $lastCheckpointedBlock : $step.startBlock;
+        uint64 end = $step.endBlock;
 
-        uint24 mps = step.mps;
+        uint24 mps = $step.mps;
         while (blockNumber > end) {
             _checkpoint = _transformCheckpoint(_checkpoint, uint24((end - start) * mps));
             start = end;
@@ -213,35 +213,35 @@ contract Auction is
     function _updateLatestCheckpointToCurrentStep(uint64 blockNumber) internal returns (Checkpoint memory) {
         Checkpoint memory _checkpoint = latestCheckpoint();
         // If step.mps is 0, advance to the current step before calculating the supply
-        if (step.mps == 0) _advanceToCurrentStep(_checkpoint, blockNumber);
+        if ($step.mps == 0) _advanceToCurrentStep(_checkpoint, blockNumber);
         // Get the supply being sold since the last checkpoint, accounting for rollovers of past supply
-        uint128 supply = _checkpoint.getSupply(totalSupply, step.mps);
+        uint128 supply = _checkpoint.getSupply(totalSupply, $step.mps);
 
         // All active demand above the current clearing price
-        Demand memory _sumDemandAboveClearing = sumDemandAboveClearing;
+        Demand memory _sumDemandAboveClearing = $sumDemandAboveClearing;
         // The clearing price can never be lower than the last checkpoint
         uint256 minimumClearingPrice = _checkpoint.clearingPrice;
         // The next price tick initialized with demand is the `nextActiveTickPrice`
-        Tick memory _nextActiveTick = getTick(nextActiveTickPrice);
+        Tick memory _nextActiveTick = getTick($nextActiveTickPrice);
 
         // For a non-zero supply, iterate to find the tick where the demand at and above it is strictly less than the supply
         // Sets nextActiveTickPrice to MAX_TICK_PRICE if the highest tick in the book is reached
-        while (_sumDemandAboveClearing.resolve(nextActiveTickPrice).applyMps(step.mps) >= supply && supply > 0) {
+        while (_sumDemandAboveClearing.resolve($nextActiveTickPrice).applyMps($step.mps) >= supply && supply > 0) {
             // Subtract the demand at `nextActiveTickPrice`
             _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_nextActiveTick.demand);
             // The `nextActiveTickPrice` is now the minimum clearing price because there was enough demand to fill the supply
-            minimumClearingPrice = nextActiveTickPrice;
+            minimumClearingPrice = $nextActiveTickPrice;
             // Advance to the next tick
             uint256 _nextTickPrice = _nextActiveTick.next;
-            nextActiveTickPrice = _nextTickPrice;
+            $nextActiveTickPrice = _nextTickPrice;
             _nextActiveTick = getTick(_nextTickPrice);
         }
 
         // Save state variables
-        sumDemandAboveClearing = _sumDemandAboveClearing;
+        $sumDemandAboveClearing = _sumDemandAboveClearing;
         // Calculate the new clearing price
         uint256 newClearingPrice =
-            _calculateNewClearingPrice(_sumDemandAboveClearing.applyMps(step.mps), minimumClearingPrice, supply);
+            _calculateNewClearingPrice(_sumDemandAboveClearing.applyMps($step.mps), minimumClearingPrice, supply);
         // Reset the cumulative weighted partial fill rate if the clearing price has updated
         if (newClearingPrice != _checkpoint.clearingPrice) _checkpoint.cumulativeSupplySoldToClearingPrice = 0;
         // Update the clearing price
@@ -258,15 +258,15 @@ contract Auction is
     /// @notice Internal function for checkpointing at a specific block number
     /// @param blockNumber The block number to checkpoint at
     function _unsafeCheckpoint(uint64 blockNumber) internal returns (Checkpoint memory _checkpoint) {
-        if (blockNumber == lastCheckpointedBlock) return latestCheckpoint();
+        if (blockNumber == $lastCheckpointedBlock) return latestCheckpoint();
 
         // Update the latest checkpoint, accounting for new bids and advances in supply schedule
         _checkpoint = _updateLatestCheckpointToCurrentStep(blockNumber);
-        _checkpoint.mps = step.mps;
+        _checkpoint.mps = $step.mps;
 
         // Now account for any time in between this checkpoint and the greater of the start of the step or the last checkpointed block
         uint64 blockDelta =
-            blockNumber - (step.startBlock > lastCheckpointedBlock ? step.startBlock : lastCheckpointedBlock);
+            blockNumber - ($step.startBlock > $lastCheckpointedBlock ? $step.startBlock : $lastCheckpointedBlock);
         uint24 mpsSinceLastCheckpoint = uint256(_checkpoint.mps * blockDelta).toUint24();
 
         _checkpoint = _transformCheckpoint(_checkpoint, mpsSinceLastCheckpoint);
@@ -311,9 +311,9 @@ contract Auction is
         bidId = _createBid(exactIn, amount, owner, maxPrice);
 
         if (exactIn) {
-            sumDemandAboveClearing = sumDemandAboveClearing.addCurrencyAmount(adjustedDemand);
+            $sumDemandAboveClearing = $sumDemandAboveClearing.addCurrencyAmount(adjustedDemand);
         } else {
-            sumDemandAboveClearing = sumDemandAboveClearing.addTokenAmount(adjustedDemand);
+            $sumDemandAboveClearing = $sumDemandAboveClearing.addTokenAmount(adjustedDemand);
         }
 
         emit BidSubmitted(bidId, owner, maxPrice, exactIn, amount);
@@ -502,5 +502,10 @@ contract Auction is
         } else {
             _sweepUnsoldTokens(totalSupply);
         }
+    }
+
+    /// @inheritdoc IAuction
+    function sumDemandAboveClearing() external view override(IAuction) returns (Demand memory) {
+        return $sumDemandAboveClearing;
     }
 }

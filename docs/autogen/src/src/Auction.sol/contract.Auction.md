@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f8777e7fce735616b313ae1a2d98047cf7578018/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0029089ebd1a3f788abcf4818f240d0f675068e6/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -38,21 +38,21 @@ IValidationHook public immutable validationHook;
 ```
 
 
-### sumDemandAboveClearing
+### $sumDemandAboveClearing
 The sum of demand in ticks above the clearing price
 
 
 ```solidity
-Demand public sumDemandAboveClearing;
+Demand internal $sumDemandAboveClearing;
 ```
 
 
-### _tokensReceived
+### $_tokensReceived
 Whether the TOTAL_SUPPLY of tokens has been received
 
 
 ```solidity
-bool private _tokensReceived;
+bool private $_tokensReceived;
 ```
 
 
@@ -376,5 +376,14 @@ Sweep any leftover tokens to the tokens recipient
 
 ```solidity
 function sweepUnsoldTokens() external onlyAfterAuctionIsOver;
+```
+
+### sumDemandAboveClearing
+
+The sum of demand in ticks above the clearing price
+
+
+```solidity
+function sumDemandAboveClearing() external view override(IAuction) returns (Demand memory);
 ```
 

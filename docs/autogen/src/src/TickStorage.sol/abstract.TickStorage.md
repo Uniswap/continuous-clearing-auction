@@ -1,5 +1,5 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f8777e7fce735616b313ae1a2d98047cf7578018/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0029089ebd1a3f788abcf4818f240d0f675068e6/src/TickStorage.sol)
 
 **Inherits:**
 [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
@@ -8,21 +8,21 @@ Abstract contract for handling tick storage
 
 
 ## State Variables
-### ticks
+### $_ticks
 
 ```solidity
-mapping(uint256 price => Tick) public ticks;
+mapping(uint256 price => Tick) private $_ticks;
 ```
 
 
-### nextActiveTickPrice
+### $nextActiveTickPrice
 The price of the next initialized tick above the clearing price
 
 *This will be equal to the clearingPrice if no ticks have been initialized yet*
 
 
 ```solidity
-uint256 public nextActiveTickPrice;
+uint256 internal $nextActiveTickPrice;
 ```
 
 
@@ -132,4 +132,24 @@ function _updateTick(uint256 price, bool exactIn, uint128 amount) internal;
 |`exactIn`|`bool`|Whether the bid is exact in|
 |`amount`|`uint128`|The amount of the bid|
 
+
+### nextActiveTickPrice
+
+The price of the next initialized tick above the clearing price
+
+*This will be equal to the clearingPrice if no ticks have been initialized yet*
+
+
+```solidity
+function nextActiveTickPrice() external view override(ITickStorage) returns (uint256);
+```
+
+### ticks
+
+Get a tick at a price
+
+
+```solidity
+function ticks(uint256 price) external view override(ITickStorage) returns (Tick memory);
+```
 

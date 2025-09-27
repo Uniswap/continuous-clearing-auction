@@ -22,7 +22,7 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
     Auction public auction;
 
     uint256 public constant AUCTION_DURATION = 100;
-    uint256 public constant TICK_SPACING = 100;
+    uint256 public constant TICK_SPACING = 100 << FixedPoint96.RESOLUTION;
     uint256 public constant FLOOR_PRICE = 1000 << FixedPoint96.RESOLUTION;
     uint256 public constant TOTAL_SUPPLY = 1000e18;
 
@@ -56,11 +56,13 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
         auction = new Auction(address(token), TOTAL_SUPPLY, params);
 
         token.mint(address(auction), TOTAL_SUPPLY);
+        // Expect the tokens to be received
+        auction.onTokensReceived();
     }
 
     /// @dev Helper function to convert a tick number to a priceX96
     function tickNumberToPriceX96(uint256 tickNumber) internal pure returns (uint256) {
-        return ((FLOOR_PRICE >> FixedPoint96.RESOLUTION) + (tickNumber - 1) * TICK_SPACING) << FixedPoint96.RESOLUTION;
+        return FLOOR_PRICE + (tickNumber - 1) * TICK_SPACING;
     }
 
     /// @notice Helper function to return the tick at the given price

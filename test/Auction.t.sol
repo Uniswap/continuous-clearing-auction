@@ -1221,7 +1221,7 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(Currency.unwrap(erc20Auction.currency()), address(currency));
         assertFalse(erc20Auction.currency().isAddressZero());
 
-        vm.expectRevert(IAuction.CannotReceiveETHAndCurrency.selector);
+        vm.expectRevert(IAuction.CurrencyIsNotNative.selector);
         erc20Auction.submitBid{value: 100e18}(
             tickNumberToPriceX96(2),
             true,

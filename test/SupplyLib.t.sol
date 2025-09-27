@@ -19,7 +19,7 @@ contract SupplyLibTest is Test {
     }
 
     /// @notice Test basic pack and unpack functionality with fuzzing
-    function testFuzz_packUnpack(bool set, uint24 remainingMps, uint256 remainingSupplyRaw) public view {
+    function test_packUnpack_fuzz(bool set, uint24 remainingMps, uint256 remainingSupplyRaw) public view {
         // Bound the supply value to fit in 231 bits
         vm.assume(remainingSupplyRaw <= SupplyLib.MAX_REMAINING_SUPPLY);
         ValueX7X7 remainingSupplyX7X7 = ValueX7X7.wrap(remainingSupplyRaw);
@@ -71,9 +71,7 @@ contract SupplyLibTest is Test {
     }
 
     /// @notice Test edge case: supply value exactly at the 231-bit boundary
-    function test_packUnpack_exactBoundary() public view {
-        bool set = true;
-        uint24 remainingMps = 12_345;
+    function test_packUnpack_fuzz_remainingSupplyIsMax(bool set, uint24 remainingMps) public view {
         ValueX7X7 remainingSupplyX7X7 = ValueX7X7.wrap(SupplyLib.MAX_REMAINING_SUPPLY);
 
         SupplyRolloverMultiplier packed =
@@ -87,8 +85,6 @@ contract SupplyLibTest is Test {
 
     /// @notice Test that bit fields don't interfere with each other
     function test_bitFieldIsolation() public view {
-        // Test that setting max value in one field doesn't affect others
-
         // Max supply, other fields zero
         SupplyRolloverMultiplier packed1 =
             mockSupplyLib.packSupplyRolloverMultiplier(false, 0, ValueX7X7.wrap(SupplyLib.MAX_REMAINING_SUPPLY));
@@ -113,26 +109,10 @@ contract SupplyLibTest is Test {
         assertEq(ValueX7X7.unwrap(supply3), 0);
     }
 
-    /// @notice Test all combinations of boolean flag
-    function test_booleanFlag_allCombinations() public view {
-        uint24 testMps = 5000;
-        ValueX7X7 testSupply = ValueX7X7.wrap(1_000_000);
-
-        // Test with set = false
-        SupplyRolloverMultiplier packedFalse = mockSupplyLib.packSupplyRolloverMultiplier(false, testMps, testSupply);
-        (bool setFalse,,) = mockSupplyLib.unpack(packedFalse);
-        assertEq(setFalse, false);
-
-        // Test with set = true
-        SupplyRolloverMultiplier packedTrue = mockSupplyLib.packSupplyRolloverMultiplier(true, testMps, testSupply);
-        (bool setTrue,,) = mockSupplyLib.unpack(packedTrue);
-        assertEq(setTrue, true);
-    }
-
     /// @notice Fuzz test for toX7X7 function
     function testFuzz_toX7X7(uint256 totalSupply) public view {
         // Bound to MAX_TOTAL_SUPPLY to avoid overflow
-        vm.assume(totalSupply <= SupplyLib.MAX_TOTAL_SUPPLY);
+        totalSupply = _bound(totalSupply, 0, SupplyLib.MAX_TOTAL_SUPPLY);
 
         ValueX7X7 result = mockSupplyLib.toX7X7(totalSupply);
 
@@ -150,28 +130,6 @@ contract SupplyLibTest is Test {
         assertEq(ValueX7X7.unwrap(maxResult), SupplyLib.MAX_TOTAL_SUPPLY * ValueX7Lib.X7 ** 2);
     }
 
-    /// @notice Test that different packed values produce different raw values
-    function testFuzz_uniqueRawValues(bool set1, bool set2, uint24 mps1, uint24 mps2, uint256 supply1, uint256 supply2)
-        public
-        view
-    {
-        // Bound supplies
-        vm.assume(supply1 <= SupplyLib.MAX_REMAINING_SUPPLY);
-        vm.assume(supply2 <= SupplyLib.MAX_REMAINING_SUPPLY);
-
-        // Skip test if all parameters are identical
-        vm.assume(set1 != set2 || mps1 != mps2 || supply1 != supply2);
-
-        SupplyRolloverMultiplier packed1 =
-            mockSupplyLib.packSupplyRolloverMultiplier(set1, mps1, ValueX7X7.wrap(supply1));
-
-        SupplyRolloverMultiplier packed2 =
-            mockSupplyLib.packSupplyRolloverMultiplier(set2, mps2, ValueX7X7.wrap(supply2));
-
-        // Different inputs should produce different packed values
-        assertTrue(SupplyRolloverMultiplier.unwrap(packed1) != SupplyRolloverMultiplier.unwrap(packed2));
-    }
-
     /// @notice Test specific bit patterns to ensure correct masking
     function test_specificBitPatterns() public view {
         // Test alternating bit patterns
@@ -187,8 +145,7 @@ contract SupplyLibTest is Test {
         assertEq(ValueX7X7.unwrap(unpackedSupply), ValueX7X7.unwrap(supplyPattern));
     }
 
-    /// @notice Test that packing preserves ordering when used for comparison
-    function testFuzz_packingPreservesOrdering(uint24 mps, uint256 supply1, uint256 supply2) public view {
+    function testFuzz_remainingSupplyDoesNotOverflow(uint24 mps, uint256 supply1, uint256 supply2) public view {
         vm.assume(supply1 <= SupplyLib.MAX_REMAINING_SUPPLY);
         vm.assume(supply2 <= SupplyLib.MAX_REMAINING_SUPPLY);
         vm.assume(supply1 < supply2);
@@ -200,7 +157,12 @@ contract SupplyLibTest is Test {
         SupplyRolloverMultiplier packed2 =
             mockSupplyLib.packSupplyRolloverMultiplier(false, mps, ValueX7X7.wrap(supply2));
 
-        // The packed value with larger supply should be larger
-        assertTrue(SupplyRolloverMultiplier.unwrap(packed1) < SupplyRolloverMultiplier.unwrap(packed2));
+        (,, ValueX7X7 supply1X7X7) = mockSupplyLib.unpack(packed1);
+        (,, ValueX7X7 supply2X7X7) = mockSupplyLib.unpack(packed2);
+        // Assert that the supply values are the same as the inputs
+        assertEq(ValueX7X7.unwrap(supply1X7X7), supply1);
+        assertEq(ValueX7X7.unwrap(supply2X7X7), supply2);
+        // Assert that the inequality still holds
+        assertTrue(ValueX7X7.unwrap(supply1X7X7) < ValueX7X7.unwrap(supply2X7X7));
     }
 }

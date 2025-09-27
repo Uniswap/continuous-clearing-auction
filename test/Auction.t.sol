@@ -32,11 +32,6 @@ contract AuctionTest is AuctionBaseTest {
         setUpAuction();
     }
 
-    /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice
-    function inputAmountForTokens(uint128 tokens, uint256 maxPrice) internal pure returns (uint128) {
-        return uint128(tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96));
-    }
-
     function test_submitBid_beforeTokensReceived_reverts() public {
         Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(newAuction), TOTAL_SUPPLY);
@@ -1093,8 +1088,9 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_advanceToCurrentStep_withMultipleStepsAndClearingPrice() public {
-        auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 20).addStep(150e3, 20).addStep(250e3, 20);
-        params = params.withEndBlock(block.number + 60).withAuctionStepsData(auctionStepsData);
+        params = params.withEndBlock(block.number + 60).withAuctionStepsData(
+            AuctionStepsBuilder.init().addStep(100e3, 20).addStep(150e3, 20).addStep(250e3, 20)
+        );
 
         Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(newAuction), TOTAL_SUPPLY);
@@ -1153,8 +1149,9 @@ contract AuctionTest is AuctionBaseTest {
          */
         uint64 startBlock = uint64(block.number);
         // Create auction with zero mps step: 250e3 * 20 + 0 * 20 + 250e3 * 20 = 5e6 + 0 + 5e6 = 1e7
-        auctionStepsData = AuctionStepsBuilder.init().addStep(250e3, 20).addStep(0, 20).addStep(250e3, 20);
-        params = params.withEndBlock(block.number + 60).withAuctionStepsData(auctionStepsData);
+        params = params.withEndBlock(block.number + 60).withAuctionStepsData(
+            AuctionStepsBuilder.init().addStep(250e3, 20).addStep(0, 20).addStep(250e3, 20)
+        );
 
         MockAuction mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(mockAuction), TOTAL_SUPPLY);

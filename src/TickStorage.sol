@@ -30,9 +30,9 @@ abstract contract TickStorage is ITickStorage {
 
     constructor(uint256 _tickSpacing, uint256 _floorPrice) {
         tickSpacing = _tickSpacing;
-        floorPrice = _floorPrice;
         // Ensure the floor price is at a tick boundary
         if (_floorPrice % tickSpacing != 0) revert TickPriceNotAtBoundary();
+        floorPrice = _floorPrice;
         // Initialize the floor price as the first tick
         ticks[_floorPrice].next = MAX_TICK_PRICE;
         nextActiveTickPrice = _floorPrice;

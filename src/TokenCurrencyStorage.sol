@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {ITokenCurrencyStorage} from './interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
@@ -9,6 +10,7 @@ import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 /// @title TokenCurrencyStorage
 abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     using CurrencyLibrary for Currency;
+    using FixedPointMathLib for uint128;
 
     /// @notice The currency being raised in the auction
     Currency public immutable currency;
@@ -23,6 +25,8 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     address public immutable fundsRecipient;
     /// @notice The minimum percentage of the total supply that must be sold
     uint24 public immutable graduationThresholdMps;
+    /// @notice The amount of supply that must be sold for the auction to graduate, saved for gas optimization
+    uint128 public immutable requiredSupplySoldForGraduation;
 
     /// @notice The block at which the currency was swept
     uint256 public sweepCurrencyBlock;
@@ -52,6 +56,9 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         if (fundsRecipient == address(0)) revert FundsRecipientIsZero();
         if (tokensRecipient == address(0)) revert TokensRecipientIsZero();
         if (graduationThresholdMps > AuctionStepLib.MPS) revert InvalidGraduationThresholdMps();
+
+        // Calculate the required supply sold for graduation, rounding up to sell at least the amount required by the graduation threshold
+        requiredSupplySoldForGraduation = uint128(totalSupply.fullMulDivUp(graduationThresholdMps, AuctionStepLib.MPS));
     }
 
     function _sweepCurrency(uint256 amount) internal {

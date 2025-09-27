@@ -1408,6 +1408,7 @@ contract AuctionTest is AuctionBaseTest {
         params = params.withCurrency(address(currency));
         Auction erc20Auction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(erc20Auction), TOTAL_SUPPLY);
+        erc20Auction.onTokensReceived();
 
         // Mint currency tokens to alice
         currency.mint(alice, 1000e18);
@@ -1756,6 +1757,7 @@ contract AuctionTest is AuctionBaseTest {
 
         Auction auctionWithCallback = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithCallback), TOTAL_SUPPLY);
+        auctionWithCallback.onTokensReceived();
 
         // Submit a bid for 50% of supply (above 30% threshold)
         uint128 halfSupply = TOTAL_SUPPLY / 2;
@@ -1789,6 +1791,7 @@ contract AuctionTest is AuctionBaseTest {
 
         Auction auctionWithCallback = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithCallback), TOTAL_SUPPLY);
+        auctionWithCallback.onTokensReceived();
 
         // Submit a bid for 50% of supply (above 30% threshold)
         uint128 halfSupply = TOTAL_SUPPLY / 2;
@@ -1814,6 +1817,7 @@ contract AuctionTest is AuctionBaseTest {
 
         Auction auctionWithCallback = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithCallback), TOTAL_SUPPLY);
+        auctionWithCallback.onTokensReceived();
 
         // Submit a bid for 50% of supply (above 30% threshold)
         uint128 halfSupply = TOTAL_SUPPLY / 2;
@@ -1839,6 +1843,7 @@ contract AuctionTest is AuctionBaseTest {
 
         Auction auctionWithCallback = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithCallback), TOTAL_SUPPLY);
+        auctionWithCallback.onTokensReceived();
 
         // Submit a bid for 50% of supply (above 30% threshold)
         uint128 halfSupply = TOTAL_SUPPLY / 2;
@@ -1868,6 +1873,7 @@ contract AuctionTest is AuctionBaseTest {
 
         Auction auctionWithCallback = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithCallback), TOTAL_SUPPLY);
+        auctionWithCallback.onTokensReceived();
 
         // Submit a bid for 50% of supply (above 30% threshold)
         uint128 halfSupply = TOTAL_SUPPLY / 2;
@@ -1901,6 +1907,7 @@ contract AuctionTest is AuctionBaseTest {
 
         Auction auctionWithCallback = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithCallback), TOTAL_SUPPLY);
+        auctionWithCallback.onTokensReceived();
 
         // Submit a bid for 50% of supply (above 30% threshold)
         uint128 halfSupply = TOTAL_SUPPLY / 2;
@@ -1936,6 +1943,7 @@ contract AuctionTest is AuctionBaseTest {
 
         Auction firstAuction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(firstAuction), TOTAL_SUPPLY);
+        firstAuction.onTokensReceived();
 
         // Second auction with different callback data
         bytes memory secondCallData = abi.encodeWithSignature('revertWithReason(bytes)', bytes('Should revert'));
@@ -1943,6 +1951,7 @@ contract AuctionTest is AuctionBaseTest {
 
         Auction secondAuction = new Auction{salt: bytes32(uint256(2))}(address(token), TOTAL_SUPPLY, params2);
         token.mint(address(secondAuction), TOTAL_SUPPLY);
+        secondAuction.onTokensReceived();
 
         // Submit bids to both auctions
         uint128 halfSupply = TOTAL_SUPPLY / 2;

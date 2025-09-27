@@ -1120,6 +1120,32 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitPartiallyFilledBid(bidId, 2, 3);
     }
 
+    function test_exitPartiallyfilledBid_outbidBlockIsCurrentBlock_succeeds() public {
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(1, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(1, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3))}(
+            tickNumberToPriceX96(3),
+            true,
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3)),
+            alice,
+            tickNumberToPriceX96(2),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        // Lower hint is the last fully filled checkpoint (2), since it includes the first bid but not the second
+        // Outbid checkpoint block is the current block (3)
+        auction.exitPartiallyFilledBid(bidId, 2, uint64(block.number));
+    }
+
     function test_exitPartiallyfilledBid_withHigherOutbidBlockHint_reverts() public {
         uint256 bidId = auction.submitBid{value: inputAmountForTokens(1, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),

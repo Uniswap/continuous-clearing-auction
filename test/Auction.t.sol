@@ -1269,6 +1269,14 @@ contract AuctionTest is AuctionBaseTest {
             tickNumberToPriceX96(1),
             bytes('')
         );
+        (uint128 currencyDemand, uint128 tokenDemand) = mockAuction.sumDemandAboveClearing();
+        assertEq(
+            currencyDemand,
+            BidLib.effectiveAmount(
+                inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)), AuctionStepLib.MPS - 100e3 * 10
+            )
+        );
+        assertEq(tokenDemand, 0);
         /**
          * Roll one more block and checkpoint
          * blockNumber:     1                11   12                              111

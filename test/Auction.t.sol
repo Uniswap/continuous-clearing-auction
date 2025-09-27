@@ -7,6 +7,7 @@ import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
+import {BidLib} from '../src/libraries/BidLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
@@ -1129,7 +1130,9 @@ contract AuctionTest is AuctionBaseTest {
         // 10 blocks of 0 mps, then 100 blocks of 100e3 mps (1%) each
         uint64 startBlock = uint64(block.number);
         uint64 endBlock = startBlock + 110;
-        params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(0, 10).addStep(100e3, 100)).withEndBlock(block.number + 110);
+        params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(0, 10).addStep(100e3, 100)).withEndBlock(
+            block.number + 110
+        );
         MockAuction mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(mockAuction), TOTAL_SUPPLY);
         mockAuction.onTokensReceived();
@@ -1143,7 +1146,7 @@ contract AuctionTest is AuctionBaseTest {
          * Current state of the auction steps
          * blockNumber:     1                11                                    111
          *                  |                |                                      |
-         *          stepStart          stepEnd                                   
+         *          stepStart          stepEnd
          *                             stepStart                              stepEnd
          *                  ^
          */
@@ -1152,7 +1155,7 @@ contract AuctionTest is AuctionBaseTest {
         /**
          * blockNumber:     1                11                                    111
          *                  |                |                                      |
-         *          stepStart          stepEnd                                   
+         *          stepStart          stepEnd
          *                             stepStart                              stepEnd
          *                                   ^
          * We are at the END of the first step, which is the start of the second step
@@ -1160,9 +1163,12 @@ contract AuctionTest is AuctionBaseTest {
          * - It should be the second step, because AuctionSteps are inclusive of the start block and exclusive of the end block
          *   So for blocks [1, 10), we sold 0 mps for blocks 1,2,3,4,5,6,7,8,9,10
          * Since Checkpoints are made top of the block, they reflect the state of the auction UP UNTIL, but not including, that block.
-         * 
+         *
          * Thus the bid below makes a checkpoint which does not show that any mps or tokens have been sold (because they haven't).
          */
+        vm.expectEmit(true, true, true, true);
+        // Assert that there is no supply sold in this checkpoint
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), 0, 0);
         mockAuction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
             true,
@@ -1171,18 +1177,24 @@ contract AuctionTest is AuctionBaseTest {
             tickNumberToPriceX96(1),
             bytes('')
         );
+        (uint128 currencyDemand, uint128 tokenDemand) = mockAuction.sumDemandAboveClearing();
+        assertEq(
+            currencyDemand,
+            BidLib.effectiveAmount(inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)), AuctionStepLib.MPS)
+        );
+        assertEq(tokenDemand, 0);
         /**
          * Roll one more block and checkpoint
          * blockNumber:     1                11   12                              111
          *                  |                |     .                                |
-         *          stepStart          stepEnd                                   
+         *          stepStart          stepEnd
          *                             stepStart                              stepEnd
          *                                         ^
          * The current block number is 12, which is > than the end of the current step (ended block 11). That means we have to advance forward
-         * Before we can advance to the next step, there could have been blocks that were not checkpointed in between the last checkpoint we made 
+         * Before we can advance to the next step, there could have been blocks that were not checkpointed in between the last checkpoint we made
          * and the end of the last step. In this case both of those values are equal (block 11) so we don't transform the checkpoint.
-         * However, we do advance to the next step such that the step is up to date with the schedule. 
-         * 
+         * However, we do advance to the next step such that the step is up to date with the schedule.
+         *
          * Once the step is made current, we can find the `clearingPrice` and `sumDemandAboveClearing` values which affect the Checkpointed values.
          * It's important to remember that these values are calculated at the TOP of block 12, one block after the bid was submitted
          * This is correct because it reflects the state of the auction UP UNTIL block 12, not including.
@@ -1195,7 +1207,9 @@ contract AuctionTest is AuctionBaseTest {
         emit IAuctionStepStorage.AuctionStepRecorded(stepEnd, endBlock, 100e3);
         vm.expectEmit(true, true, true, true);
         // Expect 1 block to be have been cleared
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), TOTAL_SUPPLY * 100e3 / AuctionStepLib.MPS, 100e3);
+        emit IAuction.CheckpointUpdated(
+            block.number, tickNumberToPriceX96(2), TOTAL_SUPPLY * 100e3 / AuctionStepLib.MPS, 100e3
+        );
         mockAuction.checkpoint();
 
         // Roll to end of the auction
@@ -1210,7 +1224,8 @@ contract AuctionTest is AuctionBaseTest {
         // 10 blocks of 0 mps, then 100 blocks of 100e3 mps (1%) each
         uint64 startBlock = uint64(block.number);
         uint64 endBlock = startBlock + 40;
-        params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(100e3, 10).addStep(300e3, 30)).withEndBlock(block.number + 40);
+        params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(100e3, 10).addStep(300e3, 30))
+            .withEndBlock(block.number + 40);
         MockAuction mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(mockAuction), TOTAL_SUPPLY);
         mockAuction.onTokensReceived();
@@ -1224,7 +1239,7 @@ contract AuctionTest is AuctionBaseTest {
          * Current state of the auction steps
          * blockNumber:     1                11                                    111
          *                  |                |                                      |
-         *          stepStart          stepEnd                                   
+         *          stepStart          stepEnd
          *                             stepStart                              stepEnd
          *                  ^
          */
@@ -1233,7 +1248,7 @@ contract AuctionTest is AuctionBaseTest {
         /**
          * blockNumber:     1                11                                    111
          *                  |                |                                      |
-         *          stepStart          stepEnd                                   
+         *          stepStart          stepEnd
          *                             stepStart                              stepEnd
          *                                   ^
          * We are at the END of the first step, which is the start of the second step
@@ -1241,7 +1256,7 @@ contract AuctionTest is AuctionBaseTest {
          * - It should be the second step, because AuctionSteps are inclusive of the start block and exclusive of the end block
          *   So for blocks [1, 10), we sold 100e3 mps for blocks 1,2,3,4,5,6,7,8,9,10
          * Since Checkpoints are made top of the block, they reflect the state of the auction UP UNTIL, but not including, that block.
-         * 
+         *
          * Thus the bid below makes a checkpoint which shows that 100e3 * 10 mps were sold but no supply was cleared
          */
         vm.expectEmit(true, true, true, true);
@@ -1258,14 +1273,14 @@ contract AuctionTest is AuctionBaseTest {
          * Roll one more block and checkpoint
          * blockNumber:     1                11   12                              111
          *                  |                |     .                                |
-         *          stepStart          stepEnd                                   
+         *          stepStart          stepEnd
          *                             stepStart                              stepEnd
          *                                         ^
          * The current block number is 12, which is > than the end of the current step (ended block 11). That means we have to advance forward
-         * Before we can advance to the next step, there could have been blocks that were not checkpointed in between the last checkpoint we made 
+         * Before we can advance to the next step, there could have been blocks that were not checkpointed in between the last checkpoint we made
          * and the end of the last step. In this case both of those values are equal (block 11) so we don't transform the checkpoint.
-         * However, we do advance to the next step such that the step is up to date with the schedule. 
-         * 
+         * However, we do advance to the next step such that the step is up to date with the schedule.
+         *
          * Once the step is made current, we can find the `clearingPrice` and `sumDemandAboveClearing` values which affect the Checkpointed values.
          * It's important to remember that these values are calculated at the TOP of block 12, one block after the bid was submitted
          * This is correct because it reflects the state of the auction UP UNTIL block 12, not including.

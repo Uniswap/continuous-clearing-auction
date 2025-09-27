@@ -37,10 +37,11 @@ contract TickStorageTest is Test {
     }
 
     function test_tickStorage_canBeConstructed_fuzz(uint256 tickSpacing, uint256 floorPrice) public {
-        // prevent mod by 0
-        vm.assume(tickSpacing > 0);
         MockTickStorage _tickStorage;
-        if (floorPrice % tickSpacing != 0) {
+        if (tickSpacing == 0) {
+            vm.expectRevert(ITickStorage.TickSpacingIsZero.selector);
+            _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
+        } else if (floorPrice % tickSpacing != 0) {
             vm.expectRevert(ITickStorage.TickPriceNotAtBoundary.selector);
             _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
         } else {

@@ -2,10 +2,14 @@
 pragma solidity 0.8.26;
 
 import {Auction, AuctionParameters} from '../src/Auction.sol';
+
+import {Bid} from '../src/BidStorage.sol';
+import {Checkpoint} from '../src/CheckpointStorage.sol';
 import {IAuction} from '../src/interfaces/IAuction.sol';
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
+import {AuctionStep} from '../src/libraries/AuctionStepLib.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
@@ -1090,6 +1094,50 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitPartiallyFilledBid(bidId, 2, 2);
     }
 
+    function test_exitPartiallyFilledBid_lowerHintIsValidated() public {
+        MockAuction mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(mockAuction), TOTAL_SUPPLY);
+        mockAuction.onTokensReceived();
+
+        Checkpoint memory _checkpointOne;
+        _checkpointOne.clearingPrice = tickNumberToPriceX96(1);
+        Checkpoint memory _checkpointTwo;
+        _checkpointTwo.clearingPrice = tickNumberToPriceX96(2);
+        Checkpoint memory _checkpointThree;
+        _checkpointThree.clearingPrice = tickNumberToPriceX96(2);
+        Checkpoint memory _checkpointFour;
+        _checkpointFour.clearingPrice = tickNumberToPriceX96(2);
+        Checkpoint memory _checkpointFive;
+        _checkpointFive.clearingPrice = tickNumberToPriceX96(3);
+
+        vm.roll(1);
+        // Create a bid which was entered with a max price of tickNumberToPriceX96(2) at checkpoint 1
+        uint256 bidId = mockAuction.createBid(true, 100e18, alice, tickNumberToPriceX96(2));
+        Bid memory bid = mockAuction.getBid(bidId);
+        assertEq(bid.startBlock, 1);
+        mockAuction.insertCheckpoint(_checkpointOne, 1);
+        vm.roll(2);
+        mockAuction.insertCheckpoint(_checkpointTwo, 2);
+        vm.roll(3);
+        mockAuction.insertCheckpoint(_checkpointThree, 3);
+        vm.roll(4);
+        mockAuction.insertCheckpoint(_checkpointFour, 4);
+        vm.roll(5);
+        mockAuction.insertCheckpoint(_checkpointFive, 5);
+
+        // The bid is fully filled at checkpoint 1
+        // The bid is partially filled from checkpoints (2, 3, 4), inclusive
+        // The bid is outbid at checkpoint 5
+
+        // Test failure cases
+        // Provide an invalid lower hint (i being not 1)
+        for (uint64 i = 0; i <= 5; i++) {
+            if (i == 1) continue;
+            vm.expectRevert(IAuction.InvalidCheckpointHint.selector);
+            mockAuction.exitPartiallyFilledBid(bidId, i, 5);
+        }
+    }
+
     function test_advanceToCurrentStep_withMultipleStepsAndClearingPrice() public {
         auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 20).addStep(150e3, 20).addStep(250e3, 20);
         params = params.withEndBlock(block.number + 60).withAuctionStepsData(auctionStepsData);
@@ -1113,14 +1161,14 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(block.number + 15);
         newAuction.checkpoint();
 
-        (uint24 mps,,) = newAuction.step();
+        uint24 mps = newAuction.step().mps;
         assertEq(mps, 150e3);
 
         vm.roll(block.number + 20);
         newAuction.checkpoint();
 
-        (mps,,) = newAuction.step();
-        assertEq(mps, 250e3);
+        AuctionStep memory step = newAuction.step();
+        assertEq(step.mps, 250e3);
     }
 
     function test_calculateNewClearingPrice_belowFloorPrice_returnsFloorPrice() public {
@@ -1208,6 +1256,31 @@ contract AuctionTest is AuctionBaseTest {
         );
     }
 
+    function test_submitBid_withERC20Currency_nonZeroMsgValue_reverts() public {
+        // Create auction parameters with ERC20 currency instead of ETH
+        params = params.withCurrency(address(currency));
+        Auction erc20Auction = new Auction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(erc20Auction), TOTAL_SUPPLY);
+        erc20Auction.onTokensReceived();
+
+        // Mint currency tokens to alice
+        currency.mint(alice, 1000e18);
+
+        // For now, let's just verify that the currency is set correctly
+        assertEq(Currency.unwrap(erc20Auction.currency()), address(currency));
+        assertFalse(erc20Auction.currency().isAddressZero());
+
+        vm.expectRevert(IAuction.CurrencyIsNotNative.selector);
+        erc20Auction.submitBid{value: 100e18}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+    }
+
     function test_exitPartiallyFilledBid_withInvalidCheckpointHint_atEndBlock_reverts() public {
         uint256 bidId = auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
@@ -1226,22 +1299,46 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitPartiallyFilledBid(bidId, 2, 2);
     }
 
-    function test_auctionConstruction_reverts() public {
+    function test_auctionConstruction_revertsWithTotalSupplyZero() public {
         vm.expectRevert(ITokenCurrencyStorage.TotalSupplyIsZero.selector);
         new Auction(address(token), 0, params);
+    }
 
+    function test_auctionConstruction_revertsWithTickSpacingZero() public {
+        AuctionParameters memory paramsZeroTickSpacing = params.withTickSpacing(0);
+        vm.expectRevert(ITickStorage.TickSpacingIsZero.selector);
+        new Auction(address(token), TOTAL_SUPPLY, paramsZeroTickSpacing);
+    }
+
+    function test_auctionConstruction_revertsWithFloorPriceZero() public {
         AuctionParameters memory paramsZeroFloorPrice = params.withFloorPrice(0);
         vm.expectRevert(IAuction.FloorPriceIsZero.selector);
         new Auction(address(token), TOTAL_SUPPLY, paramsZeroFloorPrice);
+    }
 
+    function test_auctionConstruction_revertsWithClaimBlockBeforeEndBlock() public {
         AuctionParameters memory paramsClaimBlockBeforeEndBlock =
             params.withClaimBlock(block.number + AUCTION_DURATION - 1).withEndBlock(block.number + AUCTION_DURATION);
         vm.expectRevert(IAuction.ClaimBlockIsBeforeEndBlock.selector);
         new Auction(address(token), TOTAL_SUPPLY, paramsClaimBlockBeforeEndBlock);
+    }
 
+    function test_auctionConstruction_revertsWithFundsRecipientZero() public {
         AuctionParameters memory paramsFundsRecipientZero = params.withFundsRecipient(address(0));
         vm.expectRevert(ITokenCurrencyStorage.FundsRecipientIsZero.selector);
         new Auction(address(token), TOTAL_SUPPLY, paramsFundsRecipientZero);
+    }
+
+    function test_auctionConstruction_revertsWithTokensRecipientZero() public {
+        AuctionParameters memory paramsTokensRecipientZero = params.withTokensRecipient(address(0));
+        vm.expectRevert(ITokenCurrencyStorage.TokensRecipientIsZero.selector);
+        new Auction(address(token), TOTAL_SUPPLY, paramsTokensRecipientZero);
+    }
+
+    function test_auctionConstruction_revertsWithInvalidGraduationThresholdMps() public {
+        AuctionParameters memory paramsInvalidGraduationThresholdMps = params.withGraduationThresholdMps(1e7 + 1);
+        vm.expectRevert(ITokenCurrencyStorage.InvalidGraduationThresholdMps.selector);
+        new Auction(address(token), TOTAL_SUPPLY, paramsInvalidGraduationThresholdMps);
     }
 
     function test_checkpoint_beforeAuctionStarts_reverts() public {
@@ -1533,6 +1630,7 @@ contract AuctionTest is AuctionBaseTest {
 
         Auction auctionWithCallback = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithCallback), TOTAL_SUPPLY);
+        auctionWithCallback.onTokensReceived();
 
         // Submit a bid for 50% of supply (above 30% threshold)
         uint128 halfSupply = TOTAL_SUPPLY / 2;
@@ -1566,6 +1664,7 @@ contract AuctionTest is AuctionBaseTest {
 
         Auction auctionWithCallback = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithCallback), TOTAL_SUPPLY);
+        auctionWithCallback.onTokensReceived();
 
         // Submit a bid for 50% of supply (above 30% threshold)
         uint128 halfSupply = TOTAL_SUPPLY / 2;
@@ -1591,6 +1690,7 @@ contract AuctionTest is AuctionBaseTest {
 
         Auction auctionWithCallback = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithCallback), TOTAL_SUPPLY);
+        auctionWithCallback.onTokensReceived();
 
         // Submit a bid for 50% of supply (above 30% threshold)
         uint128 halfSupply = TOTAL_SUPPLY / 2;
@@ -1616,6 +1716,7 @@ contract AuctionTest is AuctionBaseTest {
 
         Auction auctionWithCallback = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithCallback), TOTAL_SUPPLY);
+        auctionWithCallback.onTokensReceived();
 
         // Submit a bid for 50% of supply (above 30% threshold)
         uint128 halfSupply = TOTAL_SUPPLY / 2;
@@ -1645,6 +1746,7 @@ contract AuctionTest is AuctionBaseTest {
 
         Auction auctionWithCallback = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithCallback), TOTAL_SUPPLY);
+        auctionWithCallback.onTokensReceived();
 
         // Submit a bid for 50% of supply (above 30% threshold)
         uint128 halfSupply = TOTAL_SUPPLY / 2;
@@ -1678,6 +1780,7 @@ contract AuctionTest is AuctionBaseTest {
 
         Auction auctionWithCallback = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithCallback), TOTAL_SUPPLY);
+        auctionWithCallback.onTokensReceived();
 
         // Submit a bid for 50% of supply (above 30% threshold)
         uint128 halfSupply = TOTAL_SUPPLY / 2;
@@ -1713,6 +1816,7 @@ contract AuctionTest is AuctionBaseTest {
 
         Auction firstAuction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(firstAuction), TOTAL_SUPPLY);
+        firstAuction.onTokensReceived();
 
         // Second auction with different callback data
         bytes memory secondCallData = abi.encodeWithSignature('revertWithReason(bytes)', bytes('Should revert'));
@@ -1720,6 +1824,7 @@ contract AuctionTest is AuctionBaseTest {
 
         Auction secondAuction = new Auction{salt: bytes32(uint256(2))}(address(token), TOTAL_SUPPLY, params2);
         token.mint(address(secondAuction), TOTAL_SUPPLY);
+        secondAuction.onTokensReceived();
 
         // Submit bids to both auctions
         uint128 halfSupply = TOTAL_SUPPLY / 2;

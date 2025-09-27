@@ -27,7 +27,7 @@ abstract contract TickStorage is ITickStorage {
 
     /// @notice Sentinel value for the next pointer of the highest tick in the book
     uint256 private constant _MAX_TICK_PTR = type(uint256).max;
-    /// @notice The minimum floor price such that a Uniswap V4 pool can be created with the auction proceeds
+    /// @notice The minimum floor price such that a Uniswap v4 pool can be created with the auction proceeds
     uint256 public constant MIN_FLOOR_PRICE = 118_448_130_884_583_730_121;
 
     constructor(uint256 _tickSpacing, uint256 _floorPrice) {

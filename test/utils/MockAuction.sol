@@ -29,10 +29,7 @@ contract MockAuction is Auction {
         return _getBid(bidId);
     }
 
-    function createBid(bool exactIn, uint128 amount, address owner, uint256 maxPrice)
-        external
-        returns (uint256)
-    {
+    function createBid(bool exactIn, uint128 amount, address owner, uint256 maxPrice) external returns (uint256) {
         return _createBid(exactIn, amount, owner, maxPrice);
     }
 }

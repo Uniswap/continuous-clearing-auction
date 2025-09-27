@@ -390,7 +390,7 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 outbidBlock) external {
+    function exitPartiallyFilledBid(uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock) external {
         // Checkpoint before checking any of the hints because they could depend on the latest checkpoint
         // Calling this function after the auction is over will return the final checkpoint
         Checkpoint memory currentBlockCheckpoint = checkpoint();
@@ -399,7 +399,7 @@ contract Auction is
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
 
         // If the provided hint is the current block, use the checkpoint returned by `checkpoint()` instead of getting it from storage
-        Checkpoint memory lastFullyFilledCheckpoint = lower == block.number ? currentBlockCheckpoint : _getCheckpoint(lower);
+        Checkpoint memory lastFullyFilledCheckpoint = lastFullyFilledCheckpointBlock == block.number ? currentBlockCheckpoint : _getCheckpoint(lastFullyFilledCheckpointBlock);
         // There is guaranteed to be a checkpoint at the bid's startBlock because we always checkpoint before bid submission
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
 
@@ -408,9 +408,9 @@ contract Auction is
         // `lower` also cannot be before the bid's startCheckpoint
         if (
             lastFullyFilledCheckpoint.clearingPrice >= bid.maxPrice
-                || _getCheckpoint(lastFullyFilledCheckpoint.next).clearingPrice < bid.maxPrice || lower < bid.startBlock
+                || _getCheckpoint(lastFullyFilledCheckpoint.next).clearingPrice < bid.maxPrice || lastFullyFilledCheckpointBlock < bid.startBlock
         ) {
-            revert InvalidLowerCheckpointHint();
+            revert InvalidLastFullyFilledCheckpointHint();
         }
 
         uint128 tokensFilled;

@@ -1280,7 +1280,7 @@ contract AuctionTest is AuctionBaseTest {
         // Provide an invalid lower hint (i being not 1)
         for (uint64 i = 0; i <= 5; i++) {
             if (i == 1) continue;
-            vm.expectRevert(IAuction.InvalidLowerCheckpointHint.selector);
+            vm.expectRevert(IAuction.InvalidLastFullyFilledCheckpointHint.selector);
             mockAuction.exitPartiallyFilledBid(bidId, i, 5);
         }
     }
@@ -1442,7 +1442,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.checkpoint();
 
         vm.roll(auction.endBlock() + 1);
-        vm.expectRevert(IAuction.InvalidLowerCheckpointHint.selector);
+        vm.expectRevert(IAuction.InvalidLastFullyFilledCheckpointHint.selector);
         auction.exitPartiallyFilledBid(bidId, 2, 2);
     }
 

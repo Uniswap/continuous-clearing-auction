@@ -56,8 +56,8 @@ interface IAuction is
     error CannotExitBid();
     /// @notice Error thrown when the bid cannot be partially exited before the end block
     error CannotPartiallyExitBidBeforeEndBlock();
-    /// @notice Error thrown when the checkpoint hint is invalid
-    error InvalidLowerCheckpointHint();
+    /// @notice Error thrown when the last fully filled checkpoint hint is invalid
+    error InvalidLastFullyFilledCheckpointHint();
     /// @notice Error thrown when the outbid block checkpoint hint is invalid
     error InvalidOutbidBlockCheckpointHint();
     /// @notice Error thrown when the bid is not claimable

@@ -7,6 +7,8 @@ import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
+
+import {BidLib} from '../src/libraries/BidLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
@@ -1165,6 +1167,10 @@ contract AuctionTest is AuctionBaseTest {
         AuctionParameters memory paramsZeroFloorPrice = params.withFloorPrice(0);
         vm.expectRevert(ITickStorage.FloorPriceTooLow.selector);
         new Auction(address(token), TOTAL_SUPPLY, paramsZeroFloorPrice);
+
+        AuctionParameters memory paramsMaxFloorPrice = params.withFloorPrice(BidLib.MAX_BID_PRICE);
+        vm.expectRevert(ITickStorage.FloorPriceAboveMaxBidPrice.selector);
+        new Auction(address(token), TOTAL_SUPPLY, paramsMaxFloorPrice);
 
         AuctionParameters memory paramsClaimBlockBeforeEndBlock =
             params.withClaimBlock(block.number + AUCTION_DURATION - 1).withEndBlock(block.number + AUCTION_DURATION);

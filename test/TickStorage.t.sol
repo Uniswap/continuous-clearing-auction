@@ -87,7 +87,7 @@ contract TickStorageTest is Test, Assertions {
         Tick memory tick = tickStorage.getTick(price);
         assertEq(tick.next, type(uint256).max);
 
-        // Set nextActiveTickPrice to MAX_TICK_PRICE
+        // Set nextActiveTickPrice to _MAX_TICK_PTR
         tickStorage.setNextActiveTickPrice(type(uint256).max);
         assertEq(tickStorage.nextActiveTickPrice(), type(uint256).max);
 

@@ -9,6 +9,7 @@ import {IDistributionContract} from '../src/interfaces/external/IDistributionCon
 import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
 
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
+import {BidLib} from '../src/libraries/BidLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
 import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
@@ -199,7 +200,7 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         vm.assume(_params.tickSpacing != 0);
         vm.assume(_params.validationHook != address(0));
         // TickStorage.MIN_FLOOR_PRICE
-        vm.assume(_params.floorPrice >= 118_448_130_884_583_730_121);
+        vm.assume(_params.floorPrice >= 118_448_130_884_583_730_121 && _params.floorPrice <= BidLib.MAX_BID_PRICE);
         vm.assume(_salt != bytes32(0));
 
         vm.assume(_numberOfSteps > 0);

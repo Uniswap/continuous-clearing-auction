@@ -27,7 +27,7 @@ library BidLib {
     using BidLib for *;
     using FixedPointMathLib for *;
 
-    /// @notice The maximum allowable price for a bid, which is equal to the MAX_SQRT_PRICE defined in Uniswap V4's TickMath Library squared
+    /// @notice The maximum allowable price for a bid, which is equal to the MAX_SQRT_PRICE defined in Uniswap v4's TickMath Library squared
     uint256 public constant MAX_BID_PRICE =
         26_957_920_004_054_754_506_022_898_809_067_591_261_277_585_227_686_421_694_841_721_768_917;
 

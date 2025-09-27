@@ -223,7 +223,7 @@ contract Auction is
         Tick memory _nextActiveTick = getTick(nextActiveTickPrice);
 
         // For a non-zero supply, iterate to find the tick where the demand at and above it is strictly less than the supply
-        // Sets nextActiveTickPrice to MAX_TICK_PRICE if the highest tick in the book is reached
+        // nextActiveTickPrice will be set to TickStorage._MAX_TICK_PTR if we iterate past the highest tick in the book
         while (
             _sumDemandAboveClearing.resolve(nextActiveTickPrice).scaleByMps(step.mps).gte(ValueX7.unwrap(supply))
                 && supply.gt(0)

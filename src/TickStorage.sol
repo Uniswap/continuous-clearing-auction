@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {ITickStorage} from './interfaces/ITickStorage.sol';
-import {Bid} from './libraries/BidLib.sol';
+import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 
@@ -25,8 +25,8 @@ abstract contract TickStorage is ITickStorage {
     /// @notice The tick spacing of the auction - bids must be placed at discrete tick intervals
     uint256 internal immutable TICK_SPACING;
 
-    /// @notice Sentinel value for the next value of the highest tick in the book
-    uint256 public constant MAX_TICK_PRICE = type(uint256).max;
+    /// @notice Sentinel value for the next pointer of the highest tick in the book
+    uint256 private constant _MAX_TICK_PTR = type(uint256).max;
     /// @notice The minimum floor price such that a Uniswap V4 pool can be created with the auction proceeds
     uint256 public constant MIN_FLOOR_PRICE = 118_448_130_884_583_730_121;
 
@@ -34,6 +34,7 @@ abstract contract TickStorage is ITickStorage {
         TICK_SPACING = _tickSpacing;
         FLOOR_PRICE = _floorPrice;
         if (_floorPrice < MIN_FLOOR_PRICE) revert FloorPriceTooLow();
+        if (_floorPrice >= BidLib.MAX_BID_PRICE) revert FloorPriceAboveMaxBidPrice();
         _unsafeInitializeTick(_floorPrice);
     }
 
@@ -48,7 +49,7 @@ abstract contract TickStorage is ITickStorage {
     /// @dev This function is unsafe and should only be used when the tick is guaranteed to be the first in the book
     /// @param price The price of the tick
     function _unsafeInitializeTick(uint256 price) internal {
-        ticks[price].next = MAX_TICK_PRICE;
+        ticks[price].next = _MAX_TICK_PTR;
         nextActiveTickPrice = price;
         emit NextActiveTickUpdated(price);
         emit TickInitialized(price);
@@ -67,7 +68,7 @@ abstract contract TickStorage is ITickStorage {
             revert TickPreviousPriceInvalid();
         }
 
-        if (nextPrice != MAX_TICK_PRICE && nextPrice < price) {
+        if (nextPrice != _MAX_TICK_PTR && nextPrice < price) {
             revert TickPriceNotIncreasing();
         }
 

@@ -8,6 +8,8 @@ import {Tick} from '../TickStorage.sol';
 interface ITickStorage {
     /// @notice Error thrown when the floor price is below the minimum sqrt price defined in Uniswap V4
     error FloorPriceTooLow();
+    /// @notice Error thrown when the floor price is above the maximum bid price
+    error FloorPriceAboveMaxBidPrice();
     /// @notice Error thrown when the previous price hint is invalid (higher than the new price)
     error TickPreviousPriceInvalid();
     /// @notice Error thrown when the tick price is not increasing

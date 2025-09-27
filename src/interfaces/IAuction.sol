@@ -38,6 +38,8 @@ interface IAuction is
 
     /// @notice Error thrown when not enough amount is deposited
     error InvalidAmount();
+    /// @notice Error thrown when msg.value is non zero when currency is not ETH
+    error CurrencyIsNotNative();
     /// @notice Error thrown when the auction is not started
     error AuctionNotStarted();
     /// @notice Error thrown when the tokens required for the auction have not been received

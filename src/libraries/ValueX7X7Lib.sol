@@ -57,7 +57,7 @@ library ValueX7X7Lib {
 
     /// @notice Multiply a uint256 value by MPS
     /// @dev This ensures that future operations (ex. scaleByMps) will not lose precision
-    /// @return The result as a ValueX7X7s
+    /// @return The result as a ValueX7X7
     function scaleUpToX7X7(ValueX7 value) internal pure returns (ValueX7X7) {
         return value.upcast().mulUint256(ValueX7Lib.X7);
     }

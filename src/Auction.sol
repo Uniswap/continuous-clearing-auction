@@ -398,8 +398,10 @@ contract Auction is
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
 
-        Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
+        // If the provided hint is the current block, use the checkpoint returned by `checkpoint()` instead of getting it from storage
         Checkpoint memory lastFullyFilledCheckpoint = lower == block.number ? _latestCheckpoint : _getCheckpoint(lower);
+        // There is guaranteed to be a checkpoint at the bid's startBlock because we always checkpoint before bid submission
+        Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
 
         // Since `lower` points to the last fully filled Checkpoint, it must be < bid.maxPrice
         // The next Checkpoint after `lower` must be partially or fully filled (clearingPrice >= bid.maxPrice)
@@ -419,27 +421,28 @@ contract Auction is
                 _accountFullyFilledCheckpoints(lastFullyFilledCheckpoint, startCheckpoint, bid);
         }
 
-        /// Upper checkpoint is the last checkpoint where the bid is partially filled
+        // Upper checkpoint is the last checkpoint where the bid is partially filled
         Checkpoint memory upperCheckpoint;
-        /// If outbidBlock is not zero, the bid was outbid and the bidder is requesting an early exit
-        /// This can be done before the auction's endBlock
+        // If outbidBlock is not zero, the bid was outbid and the bidder is requesting an early exit
+        // This can be done before the auction's endBlock
         if (outbidBlock != 0) {
+            // If the provided hint is the current block, use the checkpoint returned by `checkpoint()` instead of getting it from storage
             Checkpoint memory outbidCheckpoint =
                 outbidBlock == block.number ? _latestCheckpoint : _getCheckpoint(outbidBlock);
 
             upperCheckpoint = _getCheckpoint(outbidCheckpoint.prev);
-            /// We require that the outbid checkpoint is > bid max price AND the checkpoint before it is <= bid max price, revert if either of these conditions are not met
+            // We require that the outbid checkpoint is > bid max price AND the checkpoint before it is <= bid max price, revert if either of these conditions are not met
             if (outbidCheckpoint.clearingPrice <= bid.maxPrice || upperCheckpoint.clearingPrice > bid.maxPrice) {
                 revert InvalidOutbidBlockCheckpointHint();
             }
         } else {
-            /// The only other partially exitable case is if the auction ends with the clearing price equal to the bid's max price
-            /// These bids can only be exited after the auction ends
+            // The only other partially exitable case is if the auction ends with the clearing price equal to the bid's max price
+            // These bids can only be exited after the auction ends
             if (block.number < endBlock) revert CannotPartiallyExitBidBeforeEndBlock();
-            /// Set the upper checkpoint to the checkpoint returned when we initially called `checkpoint()`
-            /// This must be the final checkpoint because `checkpoint()` will return the final checkpoint after the auction is over
+            // Set the upper checkpoint to the checkpoint returned when we initially called `checkpoint()`
+            // This must be the final checkpoint because `checkpoint()` will return the final checkpoint after the auction is over
             upperCheckpoint = _latestCheckpoint;
-            /// Revert if the final checkpoint's clearing price is not equal to the bid's max price
+            // Revert if the final checkpoint's clearing price is not equal to the bid's max price
             if (upperCheckpoint.clearingPrice != bid.maxPrice) {
                 revert CannotExitBid();
             }

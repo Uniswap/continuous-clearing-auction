@@ -8,6 +8,7 @@ import {AuctionStep} from '../src/libraries/AuctionStepLib.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {MockAuctionStepStorage} from './utils/MockAuctionStepStorage.sol';
 import {Test} from 'forge-std/Test.sol';
+import {console2} from 'forge-std/console2.sol';
 
 contract AuctionStepStorageTest is Test {
     using AuctionStepsBuilder for bytes;
@@ -24,6 +25,31 @@ contract AuctionStepStorageTest is Test {
         returns (MockAuctionStepStorage)
     {
         return new MockAuctionStepStorage(auctionStepsData, uint64(startBlock), uint64(endBlock));
+    }
+
+    function test_canBeConstructed_fuzz(uint8 numIterations) public {
+        for (uint8 i = 0; i < numIterations; i++) {
+            bytes memory auctionStepsData = AuctionStepsBuilder.init();
+            uint24 mpsLeft = 1e7;
+            uint64 cumulativeBlockDelta = 0;
+            while (mpsLeft > 0) {
+                // random values between 0 and 1e4
+                uint24 mps = uint24(vm.randomUint() % 1e4);
+                uint40 blockDelta = uint40(_bound(uint40(vm.randomUint() % 1e4), 1, 1e4));
+                if (mpsLeft < mps * blockDelta) {
+                    break;
+                }
+                mpsLeft -= uint24(mps * blockDelta);
+                cumulativeBlockDelta += blockDelta;
+                auctionStepsData = auctionStepsData.addStep(mps, blockDelta);
+            }
+            // Add the remaining mps as a single step
+            if (mpsLeft > 0) {
+                auctionStepsData = auctionStepsData.addStep(mpsLeft, 1);
+                cumulativeBlockDelta += 1;
+            }
+            _create(auctionStepsData, auctionStartBlock, auctionStartBlock + cumulativeBlockDelta);
+        }
     }
 
     function test_canBeConstructed() public {
@@ -44,6 +70,12 @@ contract AuctionStepStorageTest is Test {
     function test_canBeConstructed_withMiddleZeroMpsStep() public {
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(1, 5e6).addStep(0, 1e7).addStep(2, 25e5);
         _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 5e6 + 1e7 + 25e5);
+    }
+
+    function test_validate_revertsWithStepBlockDeltaCannotBeZero() public {
+        bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(1, 1e7).addStep(1, 0);
+        vm.expectRevert(IAuctionStepStorage.StepBlockDeltaCannotBeZero.selector);
+        _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7);
     }
 
     function test_advanceStep_initializesFirstStep() public {

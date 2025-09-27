@@ -1,5 +1,5 @@
 # ITokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f11ce57b69e74f06aead0215b40a74eaf1477170/src/interfaces/ITokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/f66249e6bb5ebf3be6698edff5f27719f8f33c6e/src/interfaces/ITokenCurrencyStorage.sol)
 
 
 ## Functions
@@ -89,14 +89,6 @@ event CurrencySwept(address indexed fundsRecipient, uint256 currencyAmount);
 |`currencyAmount`|`uint256`|The amount of currency swept|
 
 ## Errors
-### TotalSupplyIsTooLarge
-Error thrown when the total supply is too large
-
-
-```solidity
-error TotalSupplyIsTooLarge();
-```
-
 ### TotalSupplyIsZero
 Error thrown when the total supply is zero
 

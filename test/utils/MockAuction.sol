@@ -17,7 +17,7 @@ contract MockAuction is Auction {
         returns (uint256)
     {
         // TODO: needs to be in mps terms
-        return _calculateNewClearingPrice(sumDemandAboveClearing, minimumClearingPrice, blockTokenSupply);
+        return _calculateNewClearingPrice($sumDemandAboveClearing, minimumClearingPrice, blockTokenSupply);
     }
 
     /// @notice Helper function to insert a checkpoint

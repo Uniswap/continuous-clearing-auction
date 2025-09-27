@@ -1,19 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {IBidStorage} from './interfaces/IBidStorage.sol';
 import {Bid} from './libraries/BidLib.sol';
 
-abstract contract BidStorage {
+abstract contract BidStorage is IBidStorage {
     /// @notice The id of the next bid to be created
-    uint256 public nextBidId;
+    uint256 internal $nextBidId;
     /// @notice The mapping of bid ids to bids
-    mapping(uint256 bidId => Bid bid) public bids;
+    mapping(uint256 bidId => Bid bid) public $bids;
 
     /// @notice Get a bid from storage
     /// @param bidId The id of the bid to get
     /// @return bid The bid
     function _getBid(uint256 bidId) internal view returns (Bid memory) {
-        return bids[bidId];
+        return $bids[bidId];
     }
 
     /// @notice Create a new bid
@@ -36,21 +37,32 @@ abstract contract BidStorage {
             tokensFilled: 0
         });
 
-        bidId = nextBidId;
-        bids[bidId] = bid;
-        nextBidId++;
+        bidId = $nextBidId;
+        $bids[bidId] = bid;
+        $nextBidId++;
     }
 
     /// @notice Update a bid in storage
     /// @param bidId The id of the bid to update
     /// @param bid The new bid
     function _updateBid(uint256 bidId, Bid memory bid) internal {
-        bids[bidId] = bid;
+        $bids[bidId] = bid;
     }
 
     /// @notice Delete a bid from storage
     /// @param bidId The id of the bid to delete
     function _deleteBid(uint256 bidId) internal {
-        delete bids[bidId];
+        delete $bids[bidId];
+    }
+
+    /// Getters
+    /// @inheritdoc IBidStorage
+    function nextBidId() external view override(IBidStorage) returns (uint256) {
+        return $nextBidId;
+    }
+
+    /// @inheritdoc IBidStorage
+    function bids(uint256 bidId) external view override(IBidStorage) returns (Bid memory) {
+        return $bids[bidId];
     }
 }

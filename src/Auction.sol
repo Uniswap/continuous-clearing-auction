@@ -465,12 +465,15 @@ contract Auction is
          *           lastFullyFilled
          *
          */
-        if (upperCheckpoint.clearingPrice == bid.maxPrice) {
+        uint256 bidMaxPrice = bid.maxPrice; // place on stack
+        if (upperCheckpoint.clearingPrice == bidMaxPrice) {
             (uint128 partialTokensFilled, uint128 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
                 upperCheckpoint.cumulativeSupplySoldToClearingPrice,
+                // bid demand is the number of tokens demanded that have NOT been fully filled yet
                 bid.demand(AuctionStepLib.MPS - startCheckpoint.cumulativeMps),
-                getTick(bid.maxPrice).demand.resolve(bid.maxPrice),
-                bid.maxPrice
+                // tick demand is the number of tokens demanded (by everyone) at the current tick (the current clearing price)
+                getTick(bidMaxPrice).demand.resolve(bidMaxPrice),
+                bidMaxPrice
             );
             tokensFilled += partialTokensFilled;
             currencySpent += partialCurrencySpent;

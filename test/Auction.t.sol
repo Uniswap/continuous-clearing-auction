@@ -10,6 +10,8 @@ import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
+
+import {SupplyLib} from '../src/libraries/SupplyLib.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
@@ -1583,32 +1585,37 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(auction.floorPrice(), FLOOR_PRICE);
     }
 
-    function test_getRolloverSupplyMultiplier_fuzz(
+    function test_unpackSupplyRolloverMultiplier_fuzz(
         uint256 totalSupply,
-        ValueX7X7 remainingSupplyX7X7,
+        uint256 remainingSupplyX7X7Raw,
         uint24 remainingMps
     ) public {
         vm.assume(totalSupply > 0);
-        vm.assume(totalSupply < type(uint232).max / 1e14);
+        vm.assume(totalSupply <= SupplyLib.MAX_TOTAL_SUPPLY);
+
+        // Ensure remainingSupplyX7X7 fits within 231 bits
+        vm.assume(remainingSupplyX7X7Raw < (1 << 231));
+        ValueX7X7 remainingSupplyX7X7 = ValueX7X7.wrap(remainingSupplyX7X7Raw);
         vm.assume(ValueX7X7.unwrap(remainingSupplyX7X7) <= ValueX7X7.unwrap(totalSupply.scaleUpToX7().scaleUpToX7X7()));
 
         MockAuction mockAuction = new MockAuction(address(token), totalSupply, params);
         token.mint(address(mockAuction), totalSupply);
         mockAuction.onTokensReceived();
 
-        (ValueX7X7 cachedRemainingSupplyX7X7, uint24 cachedRemainingMps) = mockAuction.getRolloverSupplyMultiplier();
+        (bool isSet, uint24 cachedRemainingMps, ValueX7X7 cachedRemainingSupplyX7X7) =
+            mockAuction.unpackSupplyRolloverMultiplier();
         // Assert base case
-        assertEq(ValueX7X7.unwrap(cachedRemainingSupplyX7X7), 0);
+        assertFalse(isSet);
         assertEq(cachedRemainingMps, 0);
-        assertFalse(mockAuction.rolloverSupplyMultiplierSet());
+        assertEq(ValueX7X7.unwrap(cachedRemainingSupplyX7X7), 0);
 
         // Set initial values
-        mockAuction.setRolloverSupplyMultiplier(remainingSupplyX7X7, remainingMps);
-        (cachedRemainingSupplyX7X7, cachedRemainingMps) = mockAuction.getRolloverSupplyMultiplier();
+        mockAuction.setSupplyRolloverMultiplier(true, remainingMps, remainingSupplyX7X7);
+        (isSet, cachedRemainingMps, cachedRemainingSupplyX7X7) = mockAuction.unpackSupplyRolloverMultiplier();
         // Assert the getter fetches them correctly
-        assertEq(cachedRemainingSupplyX7X7, remainingSupplyX7X7);
+        assertTrue(isSet);
         assertEq(cachedRemainingMps, remainingMps);
-        assertTrue(mockAuction.rolloverSupplyMultiplierSet());
+        assertEq(cachedRemainingSupplyX7X7, remainingSupplyX7X7);
     }
 
     /// @dev Reproduces rounding issue caused by 1 tick spacing

@@ -18,6 +18,8 @@ import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {MPSLib} from './libraries/MPSLib.sol';
+
+import {SupplyLib, SupplyRolloverMultiplier} from './libraries/SupplyLib.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
@@ -49,6 +51,7 @@ contract Auction is
     using ValidationHookLib for IValidationHook;
     using ValueX7Lib for *;
     using ValueX7X7Lib for *;
+    using SupplyLib for *;
 
     /// @notice Permit2 address
     address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
@@ -61,13 +64,9 @@ contract Auction is
     Demand public sumDemandAboveClearing;
     /// @notice Whether the TOTAL_SUPPLY of tokens has been received
     bool private _tokensReceived;
-    /// @notice Whether the rollover supply multiplier has been set
-    ///         which only happens after the auction becomes fully subscribed, at which point the supply schedule becomes deterministic
-    ///         When this is true the supply sold in a block is equal to _rolloverSupplyMultiplier * that block (or range's) `mps`
-    bool internal _rolloverSupplyMultiplierSet;
-    /// @notice A packed uint256 containing the `remainingSupplyX7X7` and `remainingMps` values derived from the checkpoint
+    /// @notice A packed uint256 containing `set`, `remainingSupplyX7X7`, and `remainingMps` values derived from the checkpoint
     ///         immediately before the auction becomes fully subscribed. The ratio of these helps account for rollover supply.
-    uint256 internal _packedRolloverSupplyMultiplier;
+    SupplyRolloverMultiplier internal _supplyRolloverMultiplier;
 
     constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
@@ -130,25 +129,6 @@ contract Auction is
         );
     }
 
-    /// @notice Get the rollover supply multiplier from unpacking the totalCleared and cumulative mps from the packed value
-    /// @dev Must only be called after the values have been set
-    /// @return The total cleared and (MPSLib.MPS - saved cumulativeMps)
-    function _getRolloverSupplyMultiplier() internal view returns (ValueX7X7, uint24) {
-        uint256 packed = _packedRolloverSupplyMultiplier;
-        return (ValueX7X7.wrap(packed & MASK_LOWER_232_BITS), uint24(packed >> 232));
-    }
-
-    /// @notice Set the rollover supply multiplier by packing the total cleared and cumulative mps into one word
-    /// @dev This is guaranteed to fit because the TOTAL_SUPPLY_X7_X7 is checked to be less than type(uint232).max..
-    ///      And because remainingSupplyX7X7 must be <= TOTAL_SUPPLY_X7_X7.
-    /// @param remainingSupplyX7X7 The remaining supply to be sold at the checkpoint
-    /// @param remainingMps The remaining mps in the auction at the checkpoint
-    function _setRolloverSupplyMultiplier(ValueX7X7 remainingSupplyX7X7, uint24 remainingMps) internal {
-        uint256 packed = uint256(remainingMps) << 232 | ValueX7X7.unwrap(remainingSupplyX7X7);
-        _packedRolloverSupplyMultiplier = packed;
-        _rolloverSupplyMultiplierSet = true;
-    }
-
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
     ///         This function updates the cumulative values of the checkpoint, requiring that
     ///         `clearingPrice` is up to to date
@@ -166,16 +146,19 @@ contract Auction is
         ValueX7X7 supplyClearedX7X7;
         // If the clearing price is above the floor price the auction is fully subscribed and we can sell the available supply
         if (_checkpoint.clearingPrice > FLOOR_PRICE) {
-            if (!_rolloverSupplyMultiplierSet) {
-                // Set the cache with the values in _checkpoint, which represents the state of the auction before it becomes fully subscribed
-                _setRolloverSupplyMultiplier(
-                    TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7), MPSLib.MPS - _checkpoint.cumulativeMps
-                );
-            }
-            // The supply sold over `deltaMps` is deterministic since there is no more roll over supply
+            // The supply sold over `deltaMps` is deterministic once the auction becomes fully subscribed
             // We get the cached total cleared and remaining mps for use in the calculations below. These values
             // make up the multiplier which helps account for rollover supply.
-            (ValueX7X7 cachedRemainingSupplyX7X7, uint24 cachedRemainingMps) = _getRolloverSupplyMultiplier();
+            (bool isSet, uint24 cachedRemainingMps, ValueX7X7 cachedRemainingSupplyX7X7) =
+                _supplyRolloverMultiplier.unpack();
+            if (!isSet) {
+                // Locally set the variables to save gas
+                cachedRemainingMps = MPSLib.MPS - _checkpoint.cumulativeMps;
+                cachedRemainingSupplyX7X7 = TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7);
+                // Set the cache with the values in _checkpoint, which represents the state of the auction before it becomes fully subscribed
+                _supplyRolloverMultiplier =
+                    SupplyLib.packSupplyRolloverMultiplier(true, cachedRemainingMps, cachedRemainingSupplyX7X7);
+            }
             /**
              * The supply sold to the clearing price is the supply sold minus the tokens sold to bidders above the clearing price
              * Supply is calculated as:

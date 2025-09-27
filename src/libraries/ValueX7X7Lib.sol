@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {MPSLib} from './MPSLib.sol';
-import {ValueX7} from './ValueX7Lib.sol';
+import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @notice A ValueX7X7 is a ValueX7 value that has been multiplied by MPS
@@ -57,9 +57,9 @@ library ValueX7X7Lib {
 
     /// @notice Multiply a uint256 value by MPS
     /// @dev This ensures that future operations (ex. scaleByMps) will not lose precision
-    /// @return The result as a ValueX7X7
+    /// @return The result as a ValueX7X7s
     function scaleUpToX7X7(ValueX7 value) internal pure returns (ValueX7X7) {
-        return value.upcast().mulUint256(MPSLib.MPS);
+        return value.upcast().mulUint256(ValueX7Lib.X7);
     }
 
     /// @notice Upcast a ValueX7 value to a ValueX7X7 value
@@ -77,7 +77,7 @@ library ValueX7X7Lib {
     /// @notice Divide a ValueX7X7 value by MPS
     /// @return The result as a ValueX7
     function scaleDownToValueX7(ValueX7X7 value) internal pure returns (ValueX7) {
-        return ValueX7.wrap(ValueX7X7.unwrap(value.divUint256(MPSLib.MPS)));
+        return ValueX7.wrap(ValueX7X7.unwrap(value.divUint256(ValueX7Lib.X7)));
     }
 
     /// @notice Wrapper around free fullMulDiv function to support cases where we want to use uint256 values

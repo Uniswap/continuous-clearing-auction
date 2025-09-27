@@ -9,6 +9,8 @@ import {IDistributionContract} from '../src/interfaces/external/IDistributionCon
 import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {MPSLib} from '../src/libraries/MPSLib.sol';
+
+import {SupplyLib} from '../src/libraries/SupplyLib.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
 
@@ -181,7 +183,7 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         AuctionParameters memory _params,
         uint8 _numberOfSteps
     ) public pure {
-        vm.assume(_totalSupply <= type(uint232).max / 1e14);
+        vm.assume(_totalSupply <= SupplyLib.MAX_TOTAL_SUPPLY);
         vm.assume(_totalSupply > 0);
         vm.assume(_token != address(0));
 

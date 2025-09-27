@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f66249e6bb5ebf3be6698edff5f27719f8f33c6e/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/f11ce57b69e74f06aead0215b40a74eaf1477170/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -46,6 +46,8 @@ function submitBid(
 Register a new checkpoint
 
 *This function is called every time a new bid is submitted above the current clearing price*
+
+*If the auction is over, it returns the final checkpoint*
 
 
 ```solidity
@@ -158,6 +160,20 @@ function sweepUnsoldTokens() external;
 ```
 
 ## Events
+### TokensReceived
+Emitted when the tokens are received
+
+
+```solidity
+event TokensReceived(uint256 totalSupply);
+```
+
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`totalSupply`|`uint256`|The total supply of tokens received|
+
 ### BidSubmitted
 Emitted when a bid is submitted
 
@@ -181,7 +197,9 @@ Emitted when a new checkpoint is created
 
 
 ```solidity
-event CheckpointUpdated(uint256 indexed blockNumber, uint256 clearingPrice, ValueX7 totalCleared, uint24 cumulativeMps);
+event CheckpointUpdated(
+    uint256 indexed blockNumber, uint256 clearingPrice, ValueX7X7 totalClearedX7X7, uint24 cumulativeMps
+);
 ```
 
 **Parameters**
@@ -190,7 +208,7 @@ event CheckpointUpdated(uint256 indexed blockNumber, uint256 clearingPrice, Valu
 |----|----|-----------|
 |`blockNumber`|`uint256`|The block number of the checkpoint|
 |`clearingPrice`|`uint256`|The clearing price of the checkpoint|
-|`totalCleared`|`ValueX7`|The total amount of tokens cleared|
+|`totalClearedX7X7`|`ValueX7X7`|The total amount of tokens cleared|
 |`cumulativeMps`|`uint24`|The cumulative percentage of total tokens allocated across all previous steps, represented in ten-millionths of the total supply (1e7 = 100%)|
 
 ### BidExited
@@ -249,6 +267,14 @@ Error thrown when the auction is not started
 
 ```solidity
 error AuctionNotStarted();
+```
+
+### TokensNotReceived
+Error thrown when the tokens required for the auction have not been received
+
+
+```solidity
+error TokensNotReceived();
 ```
 
 ### FloorPriceIsZero

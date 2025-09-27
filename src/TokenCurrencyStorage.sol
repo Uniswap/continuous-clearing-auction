@@ -5,7 +5,9 @@ import {ITokenCurrencyStorage} from './interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {MPSLib} from './libraries/MPSLib.sol';
-import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
+
+import {SupplyLib} from './libraries/SupplyLib.sol';
+import {ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
 
 /// @title TokenCurrencyStorage
@@ -13,9 +15,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     using CurrencyLibrary for Currency;
     using ValueX7Lib for *;
     using ValueX7X7Lib for *;
-
-    /// @notice The maximum total supply of tokens than can be sold in the auction
-    uint256 public constant MAX_TOTAL_SUPPLY = type(uint232).max / 1e14;
+    using SupplyLib for *;
 
     /// @notice The currency being raised in the auction
     Currency internal immutable CURRENCY;
@@ -25,11 +25,6 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     uint256 internal immutable TOTAL_SUPPLY;
     /// @notice The total supply of tokens to sell, scaled up to a ValueX7X7
     ValueX7X7 internal immutable TOTAL_SUPPLY_X7_X7;
-    /// @notice Whether the total supply is less than uint232 max
-    /// @dev If true, we can pack X7X7 values along with uint24 cumulativeMps values into the same word
-    bool internal immutable TOTAL_SUPPLY_X7_X7_LESS_THAN_UINT_232_MAX;
-    /// @notice Bit mask for the lower 232 bits of a uint256
-    uint256 internal constant MASK_LOWER_232_BITS = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
     /// @notice The recipient of any unsold tokens at the end of the auction
     address internal immutable TOKENS_RECIPIENT;
     /// @notice The recipient of the raised Currency from the auction
@@ -52,10 +47,10 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     ) {
         TOKEN = IERC20Minimal(_token);
         TOTAL_SUPPLY = _totalSupply;
-        if (_totalSupply > MAX_TOTAL_SUPPLY) revert TotalSupplyIsTooLarge();
-        if (TOTAL_SUPPLY == 0) revert TotalSupplyIsZero();
+        if (_totalSupply > SupplyLib.MAX_TOTAL_SUPPLY) revert TotalSupplyIsTooLarge();
+        if (_totalSupply == 0) revert TotalSupplyIsZero();
 
-        TOTAL_SUPPLY_X7_X7 = _totalSupply.scaleUpToX7().scaleUpToX7X7();
+        TOTAL_SUPPLY_X7_X7 = _totalSupply.toX7X7();
         CURRENCY = Currency.wrap(_currency);
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;

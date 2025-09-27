@@ -6,8 +6,8 @@ interface ITokenCurrencyStorage {
     error TotalSupplyIsZero();
     /// @notice Error thrown when the funds recipient is the zero address
     error FundsRecipientIsZero();
-    /// @notice Error thrown when the function is called by an address other than the funds recipient
-    error OnlyFundsRecipient();
+    /// @notice Error thrown when the tokens recipient is the zero address
+    error TokensRecipientIsZero();
     /// @notice Error thrown when the currency cannot be swept
     error CannotSweepCurrency();
     /// @notice Error thrown when the tokens cannot be swept

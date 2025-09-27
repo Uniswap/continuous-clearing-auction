@@ -2,7 +2,10 @@
 pragma solidity ^0.8.0;
 
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
+
+import {Demand} from '../libraries/DemandLib.sol';
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
+import {IBidStorage} from './IBidStorage.sol';
 import {ICheckpointStorage} from './ICheckpointStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
 import {ITokenCurrencyStorage} from './ITokenCurrencyStorage.sol';
@@ -31,21 +34,22 @@ interface IAuction is
     ICheckpointStorage,
     ITickStorage,
     IAuctionStepStorage,
-    ITokenCurrencyStorage
+    ITokenCurrencyStorage,
+    IBidStorage
 {
     /// @notice Error thrown when the amount received is invalid
     error IDistributionContract__InvalidAmountReceived();
 
     /// @notice Error thrown when not enough amount is deposited
     error InvalidAmount();
+    /// @notice Error thrown when msg.value is non zero when currency is not ETH
+    error CurrencyIsNotNative();
     /// @notice Error thrown when the auction is not started
     error AuctionNotStarted();
     /// @notice Error thrown when the tokens required for the auction have not been received
     error TokensNotReceived();
     /// @notice Error thrown when the floor price is zero
     error FloorPriceIsZero();
-    /// @notice Error thrown when the tick spacing is zero
-    error TickSpacingIsZero();
     /// @notice Error thrown when the claim block is before the end block
     error ClaimBlockIsBeforeEndBlock();
     /// @notice Error thrown when the bid has already been exited
@@ -149,4 +153,7 @@ interface IAuction is
     /// @notice Sweep any leftover tokens to the tokens recipient
     /// @dev This function can only be called after the auction has ended
     function sweepUnsoldTokens() external;
+
+    /// @notice The sum of demand in ticks above the clearing price
+    function sumDemandAboveClearing() external view returns (Demand memory);
 }

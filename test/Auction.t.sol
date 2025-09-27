@@ -400,7 +400,7 @@ contract AuctionTest is AuctionBaseTest {
         for (uint8 i = 0; i < numberOfInvocations; i++) {
             vm.roll(blockInFuture + i);
             auction.checkpoint();
-            
+
             // Final checkpoint should remain the same as the last block
             assertEq(auction.lastCheckpointedBlock(), auction.endBlock());
         }

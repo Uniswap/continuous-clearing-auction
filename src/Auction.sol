@@ -320,84 +320,79 @@ contract Auction is
     ///      depending on how much time has passed since the last checkpoint
     function _updateLatestCheckpointToCurrentStep(uint64 blockNumber) internal returns (Checkpoint memory) {
         Checkpoint memory _checkpoint = latestCheckpoint();
-        // If step.mps is 0, advance to the current step before calculating the supply
-        if (step.mps == 0) _advanceToCurrentStep(_checkpoint, blockNumber);
 
         // The clearing price can never be lower than the last checkpoint. If the clearingPrice is zero, set it to the floor price
         uint256 _clearingPrice = _checkpoint.clearingPrice.coalesce(FLOOR_PRICE);
-        if (step.mps > 0) {
-            // All active demand above the current clearing price
-            Demand memory _sumDemandAboveClearing = sumDemandAboveClearing;
-            // The next price tick initialized with demand is the `nextActiveTickPrice`
-            Tick memory _nextActiveTick = getTick(nextActiveTickPrice);
+        // All active demand above the current clearing price
+        Demand memory _sumDemandAboveClearing = sumDemandAboveClearing;
+        // The next price tick initialized with demand is the `nextActiveTickPrice`
+        Tick memory _nextActiveTick = getTick(nextActiveTickPrice);
 
-            /**
-             * For clearing price related calculations, we need to determine the amount of supply sold over `mps` as well as the corresponding demand.
-             * - Supply is found by multiplying the actual supply sold so far by the current supply issuance rate (step.mps),
-             *   and dividing by the remaining mps in the auction to account for any previously unsold supply which is rolled over.
-             *
-             *   For example: (totalSupply - _checkpoint.totalCleared) * step.mps / (MPSLib.MPS - _checkpoint.cumulativeMps)
-             *
-             * - However, multpling by `step.mps` and dividing by `(MPSLib.MPS - _checkpoint.cumulativeMps)` loses precision, and we want to avoid it whenever possible.
-             *   We save `(MPSLib.MPS - _checkpoint.cumulativeMps)` here to multiply by later when we want to cancel out the division.
-             */
-            uint24 remainingMpsInAuction = MPSLib.MPS - _checkpoint.cumulativeMps;
-
-            /**
-             * For a non-zero supply, iterate to find the tick where the demand at and above it is strictly less than the supply
-             * If the loop reaches the highest tick in the book, `nextActiveTickPrice` will be set to MAX_TICK_PRICE
-             *
-             * To compare the resolved demand to the supply being sold, we have the orignal equation:
-             *   R = resolvedDemand * mps / MPSLib.MPS
-             *   supply = (totalSupply - _checkpoint.totalCleared) * step.mps / (MPSLib.MPS - _checkpoint.cumulativeMps)
-             * We are looking for R >= supply
-             *
-             * Observe that because of the inequality, we can multiply both sides by `(MPSLib.MPS - _checkpoint.cumulativeMps)` to get:
-             *   R * (MPSLib.MPS - _checkpoint.cumulativeMps) >= supply * mps
-             *
-             * Substituting R back into the equation to get:
-             *   (resolvedDemand * mps / MPSLib.MPS) * (MPSLib.MPS - _checkpoint.cumulativeMps) >= supply * mps
-             * Or,
-             *   (resolvedDemand * mps) * (MPSLib.MPS - _checkpoint.cumulativeMps)
-             *   ----------------------------------------------------------------- >= supply * mps
-             *                            MPSLib.MPS
-             * We can eliminate the `mps` term on both sides to get:
-             *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps)
-             *   ----------------------------------------------------------------- >= supply
-             *                            MPSLib.MPS
-             * And multiply both sides by `MPSLib.MPS` to remove the division entirely:
-             *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps) >= supply * MPSLib.MPS
-             *
-             * Conveniently, we are already tracking supply in terms of X7X7, which is already scaled up by MPSLib.MPS,
-             * so we can substitute in TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7) for `supply`:
-             *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps) >= TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
-             */
-            while (
-                _sumDemandAboveClearing.resolveRoundingUp(nextActiveTickPrice).mulUint256(remainingMpsInAuction).upcast(
-                ).gte(TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7))
-            ) {
-                // Subtract the demand at the current nextActiveTick from the total demand
-                _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_nextActiveTick.demand);
-                // The `nextActiveTickPrice` is now the minimum clearing price because there was enough demand to fill the supply
-                _clearingPrice = nextActiveTickPrice;
-                // Advance to the next tick
-                uint256 _nextTickPrice = _nextActiveTick.next;
-                nextActiveTickPrice = _nextTickPrice;
-                _nextActiveTick = getTick(_nextTickPrice);
-            }
-
-            // Save cached state variable
-            sumDemandAboveClearing = _sumDemandAboveClearing;
-            // Calculate the new clearing price
-            _clearingPrice = _calculateNewClearingPrice(
-                _clearingPrice, remainingMpsInAuction, TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
-            );
-            // Reset the cumulative supply sold to clearing price if the clearing price is different now
-            if (_clearingPrice != _checkpoint.clearingPrice) {
-                _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 = ValueX7X7.wrap(0);
-            }
-            _checkpoint.sumDemandAboveClearingPrice = _sumDemandAboveClearing;
+        /**
+         * For clearing price related calculations, we need to determine the amount of supply sold over `mps` as well as the corresponding demand.
+         * - Supply is found by multiplying the actual supply sold so far by the current supply issuance rate (step.mps),
+         *   and dividing by the remaining mps in the auction to account for any previously unsold supply which is rolled over.
+         *
+         *   For example: (totalSupply - _checkpoint.totalCleared) * step.mps / (MPSLib.MPS - _checkpoint.cumulativeMps)
+         *
+         * - However, multpling by `step.mps` and dividing by `(MPSLib.MPS - _checkpoint.cumulativeMps)` loses precision, and we want to avoid it whenever possible.
+         *   We save `(MPSLib.MPS - _checkpoint.cumulativeMps)` here to multiply by later when we want to cancel out the division.
+         */
+        uint24 remainingMpsInAuction = MPSLib.MPS - _checkpoint.cumulativeMps;
+        /**
+         * Iterate to find the tick where the total demand at and above it is strictly less than the remaining supply in the auction
+         * If the loop reaches the highest tick in the book, `nextActiveTickPrice` will be set to MAX_TICK_PRICE
+         *
+         * To compare the resolved demand to the supply being sold, we have the orignal equation:
+         *   R = resolvedDemand * mps / MPSLib.MPS
+         *   supply = (totalSupply - _checkpoint.totalCleared) * step.mps / (MPSLib.MPS - _checkpoint.cumulativeMps)
+         * We are looking for R >= supply
+         *
+         * Observe that because of the inequality, we can multiply both sides by `(MPSLib.MPS - _checkpoint.cumulativeMps)` to get:
+         *   R * (MPSLib.MPS - _checkpoint.cumulativeMps) >= supply * mps
+         *
+         * Substituting R back into the equation to get:
+         *   (resolvedDemand * mps / MPSLib.MPS) * (MPSLib.MPS - _checkpoint.cumulativeMps) >= supply * mps
+         * Or,
+         *   (resolvedDemand * mps) * (MPSLib.MPS - _checkpoint.cumulativeMps)
+         *   ----------------------------------------------------------------- >= supply * mps
+         *                            MPSLib.MPS
+         * We can eliminate the `mps` term on both sides to get:
+         *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps)
+         *   ----------------------------------------------------------------- >= supply
+         *                            MPSLib.MPS
+         * And multiply both sides by `MPSLib.MPS` to remove the division entirely:
+         *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps) >= supply * MPSLib.MPS
+         *
+         * Conveniently, we are already tracking supply in terms of X7X7, which is already scaled up by MPSLib.MPS,
+         * so we can substitute in TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7) for `supply`:
+         *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps) >= TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
+         */
+        while (
+            _sumDemandAboveClearing.resolveRoundingUp(nextActiveTickPrice).mulUint256(remainingMpsInAuction).upcast()
+                .gte(TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7))
+        ) {
+            // Subtract the demand at the current nextActiveTick from the total demand
+            _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_nextActiveTick.demand);
+            // The `nextActiveTickPrice` is now the minimum clearing price because there was enough demand to fill the supply
+            _clearingPrice = nextActiveTickPrice;
+            // Advance to the next tick
+            uint256 _nextTickPrice = _nextActiveTick.next;
+            nextActiveTickPrice = _nextTickPrice;
+            _nextActiveTick = getTick(_nextTickPrice);
         }
+
+        // Save cached state variable
+        sumDemandAboveClearing = _sumDemandAboveClearing;
+        // Calculate the new clearing price
+        _clearingPrice = _calculateNewClearingPrice(
+            _clearingPrice, remainingMpsInAuction, TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
+        );
+        // Reset the cumulative supply sold to clearing price if the clearing price is different now
+        if (_clearingPrice != _checkpoint.clearingPrice) {
+            _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 = ValueX7X7.wrap(0);
+        }
+        _checkpoint.sumDemandAboveClearingPrice = _sumDemandAboveClearing;
         // Set the new clearing price
         _checkpoint.clearingPrice = _clearingPrice;
 

@@ -37,11 +37,6 @@ contract AuctionTest is AuctionBaseTest {
         setUpAuction();
     }
 
-    /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice
-    function inputAmountForTokens(uint256 tokens, uint256 maxPrice) internal pure returns (uint256) {
-        return tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96);
-    }
-
     function test_submitBid_beforeTokensReceived_reverts() public {
         Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(newAuction), TOTAL_SUPPLY);
@@ -285,7 +280,8 @@ contract AuctionTest is AuctionBaseTest {
         // Advance to the next block to get the next checkpoint
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7X7.wrap(0), 0);
+        // Expect the price to increase, but no tokens to be sold
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), ValueX7X7.wrap(0), 0);
         auction.checkpoint();
         vm.snapshotGasLastCall('checkpoint_zeroSupply');
 
@@ -1027,8 +1023,9 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_advanceToCurrentStep_withMultipleStepsAndClearingPrice() public {
-        auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 20).addStep(150e3, 20).addStep(250e3, 20);
-        params = params.withEndBlock(block.number + 60).withAuctionStepsData(auctionStepsData);
+        params = params.withEndBlock(block.number + 60).withAuctionStepsData(
+            AuctionStepsBuilder.init().addStep(100e3, 20).addStep(150e3, 20).addStep(250e3, 20)
+        );
 
         Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(newAuction), TOTAL_SUPPLY);
@@ -1057,6 +1054,78 @@ contract AuctionTest is AuctionBaseTest {
 
         (mps,,) = newAuction.step();
         assertEq(mps, 250e3);
+    }
+
+    function test_updateLatestCheckpointToCurrentStep_withZeroMpsStep() public {
+        /*
+         * Timeline and Checkpoint Diagram:
+         * 
+         * Block:     [0]----[20]----[40]----[60]
+         * Step:      | 250e3 mps |  0 mps  | 250e3 mps |
+         * Duration:  |  20 blocks |20 blocks| 20 blocks |
+         * 
+         * Markers and Checkpoints:
+         * 
+         * Block 0:   Auction starts, submit initial bid
+         * Block 20:  End of first step
+         *            ├─ Checkpoint 1: cumulativeMps = 20 × 250e3 = 5e6
+         * 
+         * Block 25:  Middle of zero mps step  
+         *            ├─ Checkpoint 2 (zero mps): cumulativeMps = 5e6 (no change)
+         *            │  This checkpoint is created in a step where mps = 0
+         * 
+         * Block 50:  Middle of final step (10 blocks into 20-block step)
+         *            ├─ Checkpoint 3: This triggers _advanceToCurrentStep because
+         *            │  the latest checkpoint was made when step.mps == 0
+         *            │  Expected cumulativeMps = 5e6 + (10 × 250e3) = 7.5e6
+         *            │  The _advanceToCurrentStep function should:
+         *            │  1. Skip the zero mps step (no supply added)
+         *            │  2. Calculate supply for current step: (block 50 - block 40) × 250e3
+         */
+        uint64 startBlock = uint64(block.number);
+        // Create auction with zero mps step: 250e3 * 20 + 0 * 20 + 250e3 * 20 = 5e6 + 0 + 5e6 = 1e7
+        params = params.withEndBlock(block.number + 60).withAuctionStepsData(
+            AuctionStepsBuilder.init().addStep(250e3, 20).addStep(0, 20).addStep(250e3, 20)
+        );
+
+        MockAuction mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(mockAuction), TOTAL_SUPPLY);
+        mockAuction.onTokensReceived();
+
+        // Submit initial bid in first step
+        mockAuction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(startBlock + 20);
+        Checkpoint memory firstCheckpoint = mockAuction.checkpoint();
+        assertEq(firstCheckpoint.cumulativeMps, 20 * 250e3);
+
+        // Move to zero mps step and create checkpoint there
+        vm.roll(startBlock + 25);
+        mockAuction.checkpoint(); // Creates checkpoint in zero mps step
+        Checkpoint memory zeroMpsCheckpoint = mockAuction.checkpoint();
+        (uint24 mps,,) = mockAuction.step();
+        assertEq(mps, 0);
+        // Assert no change in the cumulativeMps
+        assertEq(zeroMpsCheckpoint.cumulativeMps, firstCheckpoint.cumulativeMps);
+
+        // Move to middle of final step (10 blocks into the final 20-block step)
+        vm.roll(startBlock + 50);
+        // Now checkpoint again - this should trigger _advanceToCurrentStep since the old step.mps == 0
+        Checkpoint memory finalCheckpoint = mockAuction.checkpoint();
+        (mps,,) = mockAuction.step();
+        assertEq(mps, 250e3);
+
+        // This verifies the final _advanceToCurrentStep calculates correctly
+        uint256 blocksPassed = 10;
+        uint256 expectedCumulativeMpsSold = blocksPassed * 250e3;
+        assertEq(finalCheckpoint.cumulativeMps - zeroMpsCheckpoint.cumulativeMps, expectedCumulativeMpsSold);
     }
 
     /// forge-config: default.isolate = true

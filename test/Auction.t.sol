@@ -2,6 +2,9 @@
 pragma solidity 0.8.26;
 
 import {Auction, AuctionParameters} from '../src/Auction.sol';
+
+import {Bid} from '../src/BidStorage.sol';
+import {Checkpoint} from '../src/CheckpointStorage.sol';
 import {IAuction} from '../src/interfaces/IAuction.sol';
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
@@ -1090,6 +1093,50 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitPartiallyFilledBid(bidId, 2, 2);
     }
 
+    function test_exitPartiallyFilledBid_lowerHintIsValidated() public {
+        MockAuction mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(mockAuction), TOTAL_SUPPLY);
+        mockAuction.onTokensReceived();
+
+        Checkpoint memory _checkpointOne;
+        _checkpointOne.clearingPrice = tickNumberToPriceX96(1);
+        Checkpoint memory _checkpointTwo;
+        _checkpointTwo.clearingPrice = tickNumberToPriceX96(2);
+        Checkpoint memory _checkpointThree;
+        _checkpointThree.clearingPrice = tickNumberToPriceX96(2);
+        Checkpoint memory _checkpointFour;
+        _checkpointFour.clearingPrice = tickNumberToPriceX96(2);
+        Checkpoint memory _checkpointFive;
+        _checkpointFive.clearingPrice = tickNumberToPriceX96(3);
+
+        vm.roll(1);
+        // Create a bid which was entered with a max price of tickNumberToPriceX96(2) at checkpoint 1
+        uint256 bidId = mockAuction.createBid(true, 100e18, alice, tickNumberToPriceX96(2));
+        Bid memory bid = mockAuction.getBid(bidId);
+        assertEq(bid.startBlock, 1);
+        mockAuction.insertCheckpoint(_checkpointOne, 1);
+        vm.roll(2);
+        mockAuction.insertCheckpoint(_checkpointTwo, 2);
+        vm.roll(3);
+        mockAuction.insertCheckpoint(_checkpointThree, 3);
+        vm.roll(4);
+        mockAuction.insertCheckpoint(_checkpointFour, 4);
+        vm.roll(5);
+        mockAuction.insertCheckpoint(_checkpointFive, 5);
+
+        // The bid is fully filled at checkpoint 1
+        // The bid is partially filled from checkpoints (2, 3, 4), inclusive
+        // The bid is outbid at checkpoint 5
+
+        // Test failure cases
+        // Provide an invalid lower hint (i being not 1)
+        for (uint64 i = 0; i <= 5; i++) {
+            if (i == 1) continue;
+            vm.expectRevert(IAuction.InvalidCheckpointHint.selector);
+            mockAuction.exitPartiallyFilledBid(bidId, i, 5);
+        }
+    }
+
     function test_advanceToCurrentStep_withMultipleStepsAndClearingPrice() public {
         auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 20).addStep(150e3, 20).addStep(250e3, 20);
         params = params.withEndBlock(block.number + 60).withAuctionStepsData(auctionStepsData);
@@ -1199,6 +1246,30 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector); // Expect revert due to Permit2 transfer failure
         erc20Auction.submitBid{value: 0}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+    }
+
+    function test_submitBid_withERC20Currency_nonZeroMsgValue_reverts() public {
+        // Create auction parameters with ERC20 currency instead of ETH
+        params = params.withCurrency(address(currency));
+        Auction erc20Auction = new Auction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(erc20Auction), TOTAL_SUPPLY);
+
+        // Mint currency tokens to alice
+        currency.mint(alice, 1000e18);
+
+        // For now, let's just verify that the currency is set correctly
+        assertEq(Currency.unwrap(erc20Auction.currency()), address(currency));
+        assertFalse(erc20Auction.currency().isAddressZero());
+
+        vm.expectRevert(IAuction.CurrencyIsNotNative.selector);
+        erc20Auction.submitBid{value: 100e18}(
             tickNumberToPriceX96(2),
             true,
             inputAmountForTokens(100e18, tickNumberToPriceX96(2)),

@@ -361,6 +361,7 @@ contract Auction is
         if (currency.isAddressZero()) {
             if (msg.value != requiredCurrencyAmount) revert InvalidAmount();
         } else {
+            if (msg.value != 0) revert CurrencyIsNotNative();
             SafeTransferLib.permit2TransferFrom(
                 Currency.unwrap(currency), msg.sender, address(this), requiredCurrencyAmount
             );
@@ -395,9 +396,13 @@ contract Auction is
         Checkpoint memory finalCheckpoint = _unsafeCheckpoint(endBlock);
         Checkpoint memory lastFullyFilledCheckpoint = _getCheckpoint(lower);
 
-        // Since `lower` points to the last fully filled Checkpoint, its next Checkpoint must be >= bid.maxPrice
-        // It must also cannot be before the bid's startCheckpoint
-        if (_getCheckpoint(lastFullyFilledCheckpoint.next).clearingPrice < bid.maxPrice || lower < bid.startBlock) {
+        // Since `lower` points to the last fully filled Checkpoint, it must be < bid.maxPrice
+        // The next Checkpoint after `lower` must be partially or fully filled (clearingPrice >= bid.maxPrice)
+        // `lower` also cannot be before the bid's startCheckpoint
+        if (
+            lastFullyFilledCheckpoint.clearingPrice >= bid.maxPrice
+                || _getCheckpoint(lastFullyFilledCheckpoint.next).clearingPrice < bid.maxPrice || lower < bid.startBlock
+        ) {
             revert InvalidCheckpointHint();
         }
 

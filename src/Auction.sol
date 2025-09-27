@@ -393,13 +393,13 @@ contract Auction is
     function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 outbidBlock) external {
         // Checkpoint before checking any of the hints because they could depend on the latest checkpoint
         // Calling this function after the auction is over will return the final checkpoint
-        Checkpoint memory _latestCheckpoint = checkpoint();
+        Checkpoint memory currentBlockCheckpoint = checkpoint();
 
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
 
         // If the provided hint is the current block, use the checkpoint returned by `checkpoint()` instead of getting it from storage
-        Checkpoint memory lastFullyFilledCheckpoint = lower == block.number ? _latestCheckpoint : _getCheckpoint(lower);
+        Checkpoint memory lastFullyFilledCheckpoint = lower == block.number ? currentBlockCheckpoint : _getCheckpoint(lower);
         // There is guaranteed to be a checkpoint at the bid's startBlock because we always checkpoint before bid submission
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
 
@@ -428,7 +428,7 @@ contract Auction is
         if (outbidBlock != 0) {
             // If the provided hint is the current block, use the checkpoint returned by `checkpoint()` instead of getting it from storage
             Checkpoint memory outbidCheckpoint =
-                outbidBlock == block.number ? _latestCheckpoint : _getCheckpoint(outbidBlock);
+                outbidBlock == block.number ? currentBlockCheckpoint : _getCheckpoint(outbidBlock);
 
             upperCheckpoint = _getCheckpoint(outbidCheckpoint.prev);
             // We require that the outbid checkpoint is > bid max price AND the checkpoint before it is <= bid max price, revert if either of these conditions are not met
@@ -441,7 +441,7 @@ contract Auction is
             if (block.number < endBlock) revert CannotPartiallyExitBidBeforeEndBlock();
             // Set the upper checkpoint to the checkpoint returned when we initially called `checkpoint()`
             // This must be the final checkpoint because `checkpoint()` will return the final checkpoint after the auction is over
-            upperCheckpoint = _latestCheckpoint;
+            upperCheckpoint = currentBlockCheckpoint;
             // Revert if the final checkpoint's clearing price is not equal to the bid's max price
             if (upperCheckpoint.clearingPrice != bid.maxPrice) {
                 revert CannotExitBid();

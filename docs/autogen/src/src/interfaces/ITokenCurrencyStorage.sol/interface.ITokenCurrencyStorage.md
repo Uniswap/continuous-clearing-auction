@@ -1,5 +1,5 @@
 # ITokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/e1dbf4f02e1bcbb91486a39f0f49eb2aeb52ecc6/src/interfaces/ITokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ace0c8fa02a7f9ecc269c8d6adca532a0d0858dc/src/interfaces/ITokenCurrencyStorage.sol)
 
 
 ## Events
@@ -50,12 +50,12 @@ Error thrown when the funds recipient is the zero address
 error FundsRecipientIsZero();
 ```
 
-### OnlyFundsRecipient
-Error thrown when the function is called by an address other than the funds recipient
+### TokensRecipientIsZero
+Error thrown when the tokens recipient is the zero address
 
 
 ```solidity
-error OnlyFundsRecipient();
+error TokensRecipientIsZero();
 ```
 
 ### CannotSweepCurrency

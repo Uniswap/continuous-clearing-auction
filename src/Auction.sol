@@ -51,9 +51,9 @@ contract Auction is
     IValidationHook public immutable validationHook;
 
     /// @notice The sum of demand in ticks above the clearing price
-    Demand public sumDemandAboveClearing;
+    Demand internal $sumDemandAboveClearing;
     /// @notice Whether the TOTAL_SUPPLY of tokens has been received
-    bool private _tokensReceived;
+    bool private $_tokensReceived;
 
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
@@ -79,7 +79,6 @@ contract Auction is
 
         if (totalSupply == 0) revert TotalSupplyIsZero();
         if (floorPrice == 0) revert FloorPriceIsZero();
-        if (tickSpacing == 0) revert TickSpacingIsZero();
         if (claimBlock < endBlock) revert ClaimBlockIsBeforeEndBlock();
         if (fundsRecipient == address(0)) revert FundsRecipientIsZero();
     }
@@ -93,7 +92,7 @@ contract Auction is
     /// @notice Modifier for functions which can only be called after the auction is started and the tokens have been received
     modifier onlyActiveAuction() {
         if (block.number < startBlock) revert AuctionNotStarted();
-        if (!_tokensReceived) revert TokensNotReceived();
+        if (!$_tokensReceived) revert TokensNotReceived();
         _;
     }
 
@@ -103,7 +102,7 @@ contract Auction is
         if (token.balanceOf(address(this)) < totalSupply) {
             revert IDistributionContract__InvalidAmountReceived();
         }
-        _tokensReceived = true;
+        $_tokensReceived = true;
         emit TokensReceived(totalSupply);
     }
 
@@ -161,10 +160,10 @@ contract Auction is
     {
         // Advance the current step until the current block is within the step
         // Start at the larger of the last checkpointed block or the start block of the current step
-        uint64 start = step.startBlock < lastCheckpointedBlock ? lastCheckpointedBlock : step.startBlock;
-        uint64 end = step.endBlock;
+        uint64 start = $step.startBlock < $lastCheckpointedBlock ? $lastCheckpointedBlock : $step.startBlock;
+        uint64 end = $step.endBlock;
 
-        uint24 mps = step.mps;
+        uint24 mps = $step.mps;
         while (blockNumber > end) {
             _checkpoint = _transformCheckpoint(_checkpoint, uint24((end - start) * mps));
             start = end;
@@ -213,35 +212,35 @@ contract Auction is
     function _updateLatestCheckpointToCurrentStep(uint64 blockNumber) internal returns (Checkpoint memory) {
         Checkpoint memory _checkpoint = latestCheckpoint();
         // If step.mps is 0, advance to the current step before calculating the supply
-        if (step.mps == 0) _advanceToCurrentStep(_checkpoint, blockNumber);
+        if ($step.mps == 0) _advanceToCurrentStep(_checkpoint, blockNumber);
         // Get the supply being sold since the last checkpoint, accounting for rollovers of past supply
-        uint128 supply = _checkpoint.getSupply(totalSupply, step.mps);
+        uint128 supply = _checkpoint.getSupply(totalSupply, $step.mps);
 
         // All active demand above the current clearing price
-        Demand memory _sumDemandAboveClearing = sumDemandAboveClearing;
+        Demand memory _sumDemandAboveClearing = $sumDemandAboveClearing;
         // The clearing price can never be lower than the last checkpoint
         uint256 minimumClearingPrice = _checkpoint.clearingPrice;
         // The next price tick initialized with demand is the `nextActiveTickPrice`
-        Tick memory _nextActiveTick = getTick(nextActiveTickPrice);
+        Tick memory _nextActiveTick = getTick($nextActiveTickPrice);
 
         // For a non-zero supply, iterate to find the tick where the demand at and above it is strictly less than the supply
         // Sets nextActiveTickPrice to MAX_TICK_PRICE if the highest tick in the book is reached
-        while (_sumDemandAboveClearing.resolve(nextActiveTickPrice).applyMps(step.mps) >= supply && supply > 0) {
+        while (_sumDemandAboveClearing.resolve($nextActiveTickPrice).applyMps($step.mps) >= supply && supply > 0) {
             // Subtract the demand at `nextActiveTickPrice`
             _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_nextActiveTick.demand);
             // The `nextActiveTickPrice` is now the minimum clearing price because there was enough demand to fill the supply
-            minimumClearingPrice = nextActiveTickPrice;
+            minimumClearingPrice = $nextActiveTickPrice;
             // Advance to the next tick
             uint256 _nextTickPrice = _nextActiveTick.next;
-            nextActiveTickPrice = _nextTickPrice;
+            $nextActiveTickPrice = _nextTickPrice;
             _nextActiveTick = getTick(_nextTickPrice);
         }
 
         // Save state variables
-        sumDemandAboveClearing = _sumDemandAboveClearing;
+        $sumDemandAboveClearing = _sumDemandAboveClearing;
         // Calculate the new clearing price
         uint256 newClearingPrice =
-            _calculateNewClearingPrice(_sumDemandAboveClearing.applyMps(step.mps), minimumClearingPrice, supply);
+            _calculateNewClearingPrice(_sumDemandAboveClearing.applyMps($step.mps), minimumClearingPrice, supply);
         // Reset the cumulative weighted partial fill rate if the clearing price has updated
         if (newClearingPrice != _checkpoint.clearingPrice) _checkpoint.cumulativeSupplySoldToClearingPrice = 0;
         // Update the clearing price
@@ -258,15 +257,15 @@ contract Auction is
     /// @notice Internal function for checkpointing at a specific block number
     /// @param blockNumber The block number to checkpoint at
     function _unsafeCheckpoint(uint64 blockNumber) internal returns (Checkpoint memory _checkpoint) {
-        if (blockNumber == lastCheckpointedBlock) return latestCheckpoint();
+        if (blockNumber == $lastCheckpointedBlock) return latestCheckpoint();
 
         // Update the latest checkpoint, accounting for new bids and advances in supply schedule
         _checkpoint = _updateLatestCheckpointToCurrentStep(blockNumber);
-        _checkpoint.mps = step.mps;
+        _checkpoint.mps = $step.mps;
 
         // Now account for any time in between this checkpoint and the greater of the start of the step or the last checkpointed block
         uint64 blockDelta =
-            blockNumber - (step.startBlock > lastCheckpointedBlock ? step.startBlock : lastCheckpointedBlock);
+            blockNumber - ($step.startBlock > $lastCheckpointedBlock ? $step.startBlock : $lastCheckpointedBlock);
         uint24 mpsSinceLastCheckpoint = uint256(_checkpoint.mps * blockDelta).toUint24();
 
         _checkpoint = _transformCheckpoint(_checkpoint, mpsSinceLastCheckpoint);
@@ -311,9 +310,9 @@ contract Auction is
         bidId = _createBid(exactIn, amount, owner, maxPrice);
 
         if (exactIn) {
-            sumDemandAboveClearing = sumDemandAboveClearing.addCurrencyAmount(adjustedDemand);
+            $sumDemandAboveClearing = $sumDemandAboveClearing.addCurrencyAmount(adjustedDemand);
         } else {
-            sumDemandAboveClearing = sumDemandAboveClearing.addTokenAmount(adjustedDemand);
+            $sumDemandAboveClearing = $sumDemandAboveClearing.addTokenAmount(adjustedDemand);
         }
 
         emit BidSubmitted(bidId, owner, maxPrice, exactIn, amount);
@@ -340,7 +339,9 @@ contract Auction is
 
     /// @inheritdoc IAuction
     function checkpoint() public onlyActiveAuction returns (Checkpoint memory _checkpoint) {
-        if (block.number > endBlock) revert AuctionIsOver();
+        if (block.number > endBlock) {
+            return _getFinalCheckpoint();
+        }
         return _unsafeCheckpoint(uint64(block.number));
     }
 
@@ -361,6 +362,7 @@ contract Auction is
         if (currency.isAddressZero()) {
             if (msg.value != requiredCurrencyAmount) revert InvalidAmount();
         } else {
+            if (msg.value != 0) revert CurrencyIsNotNative();
             SafeTransferLib.permit2TransferFrom(
                 Currency.unwrap(currency), msg.sender, address(this), requiredCurrencyAmount
             );
@@ -397,18 +399,32 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 outbidBlock) external {
+    function exitPartiallyFilledBid(uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock)
+        external
+    {
+        // Checkpoint before checking any of the hints because they could depend on the latest checkpoint
+        // Calling this function after the auction is over will return the final checkpoint
+        Checkpoint memory currentBlockCheckpoint = checkpoint();
+
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
 
+        // If the provided hint is the current block, use the checkpoint returned by `checkpoint()` instead of getting it from storage
+        Checkpoint memory lastFullyFilledCheckpoint = lastFullyFilledCheckpointBlock == block.number
+            ? currentBlockCheckpoint
+            : _getCheckpoint(lastFullyFilledCheckpointBlock);
+        // There is guaranteed to be a checkpoint at the bid's startBlock because we always checkpoint before bid submission
         Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
-        Checkpoint memory finalCheckpoint = _unsafeCheckpoint(endBlock);
-        Checkpoint memory lastFullyFilledCheckpoint = _getCheckpoint(lower);
 
-        // Since `lower` points to the last fully filled Checkpoint, its next Checkpoint must be >= bid.maxPrice
-        // It must also cannot be before the bid's startCheckpoint
-        if (_getCheckpoint(lastFullyFilledCheckpoint.next).clearingPrice < bid.maxPrice || lower < bid.startBlock) {
-            revert InvalidCheckpointHint();
+        // Since `lower` points to the last fully filled Checkpoint, it must be < bid.maxPrice
+        // The next Checkpoint after `lower` must be partially or fully filled (clearingPrice >= bid.maxPrice)
+        // `lower` also cannot be before the bid's startCheckpoint
+        if (
+            lastFullyFilledCheckpoint.clearingPrice >= bid.maxPrice
+                || _getCheckpoint(lastFullyFilledCheckpoint.next).clearingPrice < bid.maxPrice
+                || lastFullyFilledCheckpointBlock < bid.startBlock
+        ) {
+            revert InvalidLastFullyFilledCheckpointHint();
         }
 
         uint128 tokensFilled;
@@ -419,25 +435,31 @@ contract Auction is
                 _accountFullyFilledCheckpoints(lastFullyFilledCheckpoint, startCheckpoint, bid);
         }
 
-        /// Upper checkpoint is the last checkpoint where the bid is partially filled
+        // Upper checkpoint is the last checkpoint where the bid is partially filled
         Checkpoint memory upperCheckpoint;
-        /// @dev Bid has been outbid
-        if (bid.maxPrice < finalCheckpoint.clearingPrice) {
-            Checkpoint memory outbidCheckpoint = _getCheckpoint(outbidBlock);
+        // If outbidBlock is not zero, the bid was outbid and the bidder is requesting an early exit
+        // This can be done before the auction's endBlock
+        if (outbidBlock != 0) {
+            // If the provided hint is the current block, use the checkpoint returned by `checkpoint()` instead of getting it from storage
+            Checkpoint memory outbidCheckpoint =
+                outbidBlock == block.number ? currentBlockCheckpoint : _getCheckpoint(outbidBlock);
+
             upperCheckpoint = _getCheckpoint(outbidCheckpoint.prev);
-            // It's possible that there is no checkpoint with price equal to the bid's maxPrice
-            // In this case the bid is never partially filled and we can skip that accounting logic
-            // So upperCheckpoint.clearingPrice can be < or == the bid's maxPrice here
+            // We require that the outbid checkpoint is > bid max price AND the checkpoint before it is <= bid max price, revert if either of these conditions are not met
             if (outbidCheckpoint.clearingPrice <= bid.maxPrice || upperCheckpoint.clearingPrice > bid.maxPrice) {
-                revert InvalidCheckpointHint();
+                revert InvalidOutbidBlockCheckpointHint();
             }
-        }
-        /// @dev Auction ended and the final price is the bid's max price
-        ///      `outbidBlock` is not checked here and can be zero
-        else if (block.number >= endBlock && bid.maxPrice == finalCheckpoint.clearingPrice) {
-            upperCheckpoint = finalCheckpoint;
         } else {
-            revert CannotExitBid();
+            // The only other partially exitable case is if the auction ends with the clearing price equal to the bid's max price
+            // These bids can only be exited after the auction ends
+            if (block.number < endBlock) revert CannotPartiallyExitBidBeforeEndBlock();
+            // Set the upper checkpoint to the checkpoint returned when we initially called `checkpoint()`
+            // This must be the final checkpoint because `checkpoint()` will return the final checkpoint after the auction is over
+            upperCheckpoint = currentBlockCheckpoint;
+            // Revert if the final checkpoint's clearing price is not equal to the bid's max price
+            if (upperCheckpoint.clearingPrice != bid.maxPrice) {
+                revert CannotExitBid();
+            }
         }
 
         /**
@@ -457,12 +479,15 @@ contract Auction is
          *           lastFullyFilled
          *
          */
-        if (upperCheckpoint.clearingPrice == bid.maxPrice) {
+        uint256 bidMaxPrice = bid.maxPrice; // place on stack
+        if (upperCheckpoint.clearingPrice == bidMaxPrice) {
             (uint128 partialTokensFilled, uint128 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
                 upperCheckpoint.cumulativeSupplySoldToClearingPrice,
+                // bid demand is the number of tokens demanded that have NOT been fully filled yet
                 bid.demand(AuctionStepLib.MPS - startCheckpoint.cumulativeMps),
-                getTick(bid.maxPrice).demand.resolve(bid.maxPrice),
-                bid.maxPrice
+                // tick demand is the number of tokens demanded (by everyone) at the current tick (the current clearing price)
+                getTick(bidMaxPrice).demand.resolve(bidMaxPrice),
+                bidMaxPrice
             );
             tokensFilled += partialTokensFilled;
             currencySpent += partialCurrencySpent;
@@ -506,5 +531,10 @@ contract Auction is
         } else {
             _sweepUnsoldTokens(totalSupply);
         }
+    }
+
+    /// @inheritdoc IAuction
+    function sumDemandAboveClearing() external view override(IAuction) returns (Demand memory) {
+        return $sumDemandAboveClearing;
     }
 }

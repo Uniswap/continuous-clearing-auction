@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/e1dbf4f02e1bcbb91486a39f0f49eb2aeb52ecc6/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ace0c8fa02a7f9ecc269c8d6adca532a0d0858dc/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -38,21 +38,21 @@ IValidationHook public immutable validationHook;
 ```
 
 
-### sumDemandAboveClearing
+### $sumDemandAboveClearing
 The sum of demand in ticks above the clearing price
 
 
 ```solidity
-Demand public sumDemandAboveClearing;
+Demand internal $sumDemandAboveClearing;
 ```
 
 
-### _tokensReceived
+### $_tokensReceived
 Whether the TOTAL_SUPPLY of tokens has been received
 
 
 ```solidity
-bool private _tokensReceived;
+bool private $_tokensReceived;
 ```
 
 
@@ -302,6 +302,35 @@ function submitBid(
 |`<none>`|`uint256`|bidId The id of the bid|
 
 
+### submitBid
+
+Submit a new bid
+
+
+```solidity
+function submitBid(uint256 maxPrice, bool exactIn, uint128 amount, address owner, bytes calldata hookData)
+    external
+    payable
+    onlyActiveAuction
+    returns (uint256);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`maxPrice`|`uint256`|The maximum price the bidder is willing to pay|
+|`exactIn`|`bool`|Whether the bid is exact in|
+|`amount`|`uint128`|The amount of the bid|
+|`owner`|`address`|The owner of the bid|
+|`hookData`|`bytes`|Additional data to pass to the hook required for validation|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|bidId The id of the bid|
+
+
 ### exitBid
 
 Exit a bid
@@ -327,14 +356,14 @@ Exit a bid which has been partially filled
 
 
 ```solidity
-function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 outbidBlock) external;
+function exitPartiallyFilledBid(uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock) external;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
-|`lower`|`uint64`|The last checkpointed block where the clearing price is strictly < bid.maxPrice|
+|`lastFullyFilledCheckpointBlock`|`uint64`||
 |`outbidBlock`|`uint64`|The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction|
 
 
@@ -376,5 +405,14 @@ Sweep any leftover tokens to the tokens recipient
 
 ```solidity
 function sweepUnsoldTokens() external onlyAfterAuctionIsOver;
+```
+
+### sumDemandAboveClearing
+
+The sum of demand in ticks above the clearing price
+
+
+```solidity
+function sumDemandAboveClearing() external view override(IAuction) returns (Demand memory);
 ```
 

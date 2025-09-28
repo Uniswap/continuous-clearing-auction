@@ -6,6 +6,8 @@ import {Tick} from '../TickStorage.sol';
 /// @title ITickStorage
 /// @notice Interface for the TickStorage contract
 interface ITickStorage {
+    /// @notice Error thrown when the tick spacing is zero
+    error TickSpacingIsZero();
     /// @notice Error thrown when the previous price hint is invalid (higher than the new price)
     error TickPreviousPriceInvalid();
     /// @notice Error thrown when the tick price is not increasing
@@ -32,4 +34,7 @@ interface ITickStorage {
 
     /// @notice Get the tick spacing enforced for bid prices
     function tickSpacing() external view returns (uint256);
+
+    /// @notice Get a tick at a price
+    function ticks(uint256 price) external view returns (Tick memory);
 }

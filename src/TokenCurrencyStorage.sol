@@ -50,6 +50,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
 
         if (totalSupply == 0) revert TotalSupplyIsZero();
         if (fundsRecipient == address(0)) revert FundsRecipientIsZero();
+        if (tokensRecipient == address(0)) revert TokensRecipientIsZero();
         if (graduationThresholdMps > AuctionStepLib.MPS) revert InvalidGraduationThresholdMps();
     }
 

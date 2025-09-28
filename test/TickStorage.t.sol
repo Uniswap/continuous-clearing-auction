@@ -3,7 +3,6 @@ pragma solidity 0.8.26;
 
 import {Tick, TickStorage} from '../src/TickStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
-
 import {Test} from 'forge-std/Test.sol';
 
 contract MockTickStorage is TickStorage {
@@ -11,7 +10,7 @@ contract MockTickStorage is TickStorage {
 
     /// @notice Set the nextActiveTickPrice, only for testing
     function setNextActiveTickPrice(uint256 price) external {
-        nextActiveTickPrice = price;
+        $nextActiveTickPrice = price;
     }
 
     function initializeTickIfNeeded(uint256 prevPrice, uint256 price) external {
@@ -35,6 +34,23 @@ contract TickStorageTest is Test {
     /// Helper function to convert a tick number to a priceX96
     function tickNumberToPriceX96(uint256 tickNumber) internal pure returns (uint256) {
         return FLOOR_PRICE + (tickNumber - 1) * TICK_SPACING;
+    }
+
+    function test_tickStorage_canBeConstructed_fuzz(uint256 tickSpacing, uint256 floorPrice) public {
+        MockTickStorage _tickStorage;
+        if (tickSpacing == 0) {
+            vm.expectRevert(ITickStorage.TickSpacingIsZero.selector);
+            _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
+        } else if (floorPrice % tickSpacing != 0) {
+            vm.expectRevert(ITickStorage.TickPriceNotAtBoundary.selector);
+            _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
+        } else {
+            _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
+            assertEq(_tickStorage.floorPrice(), floorPrice);
+            assertEq(_tickStorage.tickSpacing(), tickSpacing);
+            assertEq(_tickStorage.nextActiveTickPrice(), floorPrice);
+            assertEq(_tickStorage.getTick(floorPrice).next, type(uint256).max);
+        }
     }
 
     function test_initializeTick_succeeds() public {

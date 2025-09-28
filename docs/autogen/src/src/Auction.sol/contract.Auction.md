@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/0ee04bc2c45f6d51f37030260f300f404e183bf7/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/261640115e0c211b774e219f6f78c546d0f2e97c/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -359,8 +359,7 @@ function claimTokens(uint256 bidId) external;
 
 Withdraw all of the currency raised
 
-*Can only be called by the funds recipient after the auction has ended
-Must be called before the `claimBlock`*
+*Can be called by anyone after the auction has ended*
 
 
 ```solidity

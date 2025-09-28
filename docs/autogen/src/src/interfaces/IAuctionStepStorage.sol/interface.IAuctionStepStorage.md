@@ -1,5 +1,5 @@
 # IAuctionStepStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/417428be9c09d153c63b5c6214c7a36520bc515b/src/interfaces/IAuctionStepStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/261640115e0c211b774e219f6f78c546d0f2e97c/src/interfaces/IAuctionStepStorage.sol)
 
 Interface for managing auction step storage
 
@@ -50,14 +50,6 @@ event AuctionStepRecorded(uint256 indexed startBlock, uint256 indexed endBlock, 
 |`mps`|`uint24`|The percentage of total tokens to sell per block during this auction step, represented in ten-millionths of the total supply (1e7 = 100%)|
 
 ## Errors
-### InvalidPointer
-Error thrown when the SSTORE2 pointer is the zero address
-
-
-```solidity
-error InvalidPointer();
-```
-
 ### AuctionIsOver
 Error thrown when the auction is over
 

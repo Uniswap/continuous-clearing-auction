@@ -34,8 +34,6 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
         _length = _auctionStepsData.length;
 
         address _pointer = _auctionStepsData.write();
-        if (_pointer == address(0)) revert InvalidPointer();
-
         _validate(_pointer);
         $_pointer = _pointer;
 

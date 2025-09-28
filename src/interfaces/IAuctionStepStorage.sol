@@ -5,8 +5,6 @@ import {AuctionStep} from '../libraries/AuctionStepLib.sol';
 
 /// @notice Interface for managing auction step storage
 interface IAuctionStepStorage {
-    /// @notice Error thrown when the SSTORE2 pointer is the zero address
-    error InvalidPointer();
     /// @notice Error thrown when the auction is over
     error AuctionIsOver();
     /// @notice Error thrown when the auction data length is invalid

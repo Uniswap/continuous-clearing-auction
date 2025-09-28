@@ -1,5 +1,5 @@
 # IAuctionStepStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/261640115e0c211b774e219f6f78c546d0f2e97c/src/interfaces/IAuctionStepStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/87fb8f9575631e47cd6fe069c142cc67d2505068/src/interfaces/IAuctionStepStorage.sol)
 
 Interface for managing auction step storage
 
@@ -13,6 +13,12 @@ The block at which the auction starts
 ```solidity
 function startBlock() external view returns (uint64);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint64`|The starting block number|
+
 
 ### endBlock
 
@@ -22,6 +28,12 @@ The block at which the auction ends
 ```solidity
 function endBlock() external view returns (uint64);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint64`|The ending block number|
+
 
 ### step
 

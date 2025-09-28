@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/261640115e0c211b774e219f6f78c546d0f2e97c/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/87fb8f9575631e47cd6fe069c142cc67d2505068/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
@@ -53,6 +53,12 @@ Register a new checkpoint
 ```solidity
 function checkpoint() external returns (Checkpoint memory _checkpoint);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`_checkpoint`|`Checkpoint`|The checkpoint at the current block|
+
 
 ### isGraduated
 
@@ -62,6 +68,12 @@ Whether the auction has graduated as of the latest checkpoint (sold more than th
 ```solidity
 function isGraduated() external view returns (bool);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`bool`|True if the auction has graduated, false otherwise|
+
 
 ### exitBid
 

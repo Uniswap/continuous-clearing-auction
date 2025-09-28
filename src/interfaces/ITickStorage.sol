@@ -25,12 +25,15 @@ interface ITickStorage {
 
     /// @notice The price of the next initialized tick above the clearing price
     /// @dev This will be equal to the clearingPrice if no ticks have been initialized yet
+    /// @return The price of the next active tick
     function nextActiveTickPrice() external view returns (uint256);
 
     /// @notice Get the floor price of the auction
+    /// @return The minimum price for bids
     function floorPrice() external view returns (uint256);
 
     /// @notice Get the tick spacing enforced for bid prices
+    /// @return The tick spacing value
     function tickSpacing() external view returns (uint256);
 
     /// @notice Get a tick at a price

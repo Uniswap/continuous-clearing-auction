@@ -111,6 +111,7 @@ contract Auction is
     }
 
     /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
+    /// @return True if the auction has graduated, false otherwise
     function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool) {
         return _checkpoint.totalCleared >= totalSupply.fullMulDiv(graduationThresholdMps, AuctionStepLib.MPS);
     }

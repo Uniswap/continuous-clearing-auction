@@ -127,9 +127,11 @@ interface IAuction is
     /// @notice Register a new checkpoint
     /// @dev This function is called every time a new bid is submitted above the current clearing price
     /// @dev If the auction is over, it returns the final checkpoint
+    /// @return _checkpoint The checkpoint at the current block
     function checkpoint() external returns (Checkpoint memory _checkpoint);
 
     /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
+    /// @return True if the auction has graduated, false otherwise
     function isGraduated() external view returns (bool);
 
     /// @notice Exit a bid

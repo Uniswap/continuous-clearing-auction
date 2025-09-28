@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/962199c2d1d5ac7c5aaef9b7d88d45d3e7af7969/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/87fb8f9575631e47cd6fe069c142cc67d2505068/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -119,6 +119,12 @@ Whether the auction has graduated as of the latest checkpoint (sold more than th
 ```solidity
 function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`bool`|True if the auction has graduated, false otherwise|
+
 
 ### _transformCheckpoint
 
@@ -257,6 +263,12 @@ Register a new checkpoint
 ```solidity
 function checkpoint() public onlyActiveAuction returns (Checkpoint memory _checkpoint);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`_checkpoint`|`Checkpoint`|The checkpoint at the current block|
+
 
 ### submitBid
 

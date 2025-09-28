@@ -72,6 +72,26 @@ contract AuctionFactoryTest is TokenHandler, Test {
         assertEq(auction.claimBlock(), block.number + AUCTION_DURATION);
     }
 
+    function test_initializeDistribution_createsAuction_withMsgSenderAsFundsRecipient() public {
+        params = params.withFundsRecipient(address(1));
+        bytes memory configData = abi.encode(params);
+
+        address sender = makeAddr('sender');
+        bytes memory expectedConfigData = abi.encode(params.withFundsRecipient(address(sender)));
+
+        // Expect the AuctionCreated event (don't check the auction address since it's deterministic)
+        vm.expectEmit(false, true, true, true);
+        emit IAuctionFactory.AuctionCreated(address(0), address(token), TOTAL_SUPPLY, expectedConfigData);
+
+        vm.prank(sender);
+        IDistributionContract distributionContract =
+            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
+
+        // Verify the auction was created correctly
+        auction = Auction(payable(address(distributionContract)));
+        assertEq(auction.fundsRecipient(), address(sender));
+    }
+
     function test_initializeDistribution_createsUniqueAddresses() public {
         bytes memory configData = abi.encode(params);
 

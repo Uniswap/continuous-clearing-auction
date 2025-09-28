@@ -129,7 +129,9 @@ interface IAuction is
     /// @dev If the auction is over, it returns the final checkpoint
     function checkpoint() external returns (Checkpoint memory _checkpoint);
 
-    /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
+    /// @notice Whether the auction has sold more tokens than specified in the graduation threshold as of the latest checkpoint
+    /// @dev Be aware that the latest checkpoint may be out of date
+    /// @return bool Whether the auction has graduated or not
     function isGraduated() external view returns (bool);
 
     /// @notice Exit a bid

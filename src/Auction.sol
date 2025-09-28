@@ -106,16 +106,13 @@ contract Auction is
         emit TokensReceived(totalSupply);
     }
 
-    /// @notice External function to check if the auction has graduated as of the latest checkpoint
-    /// @dev The latest checkpoint may be out of date
-    /// @return bool Whether the auction has graduated or not
+    /// @inheritdoc IAuction
     function isGraduated() external view returns (bool) {
         return _isGraduated(latestCheckpoint());
     }
 
-    /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
-    /// @dev This rounds up to ensure that `totalCleared` is always greater than or equal to the threshold
-    /// @param _checkpoint The given checkpoint to check
+    /// @notice Whether the auction has graduated as of the given checkpoint (sold more than the graduation threshold)
+    /// @param _checkpoint The checkpoint to check
     /// @return bool Whether the auction has graduated or not
     function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool) {
         return _checkpoint.totalCleared >= requiredSupplySoldForGraduation;

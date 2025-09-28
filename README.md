@@ -228,8 +228,7 @@ type ValueX7X7 is uint256;
 **Use Cases**:
 - Total cleared supply tracking (`totalClearedX7X7`)
 - Cumulative supply sold to clearing price (`cumulativeSupplySoldToClearingPriceX7X7`)
-- Supply allocation across auction steps
-- Graduation threshold comparisons
+- Finding the total tokens sold in the auction for graudation threshold comparison
 
 #### Core Mathematical Operations
 

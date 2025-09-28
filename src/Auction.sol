@@ -23,6 +23,7 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 /// @title Auction
+/// @custom:security-contact security@uniswap.org
 /// @notice Implements a time weighted uniform clearing price auction
 /// @dev Can be constructed directly or through the AuctionFactory. In either case, users must validate
 ///      that the auction parameters are correct and it has sufficient token balance.

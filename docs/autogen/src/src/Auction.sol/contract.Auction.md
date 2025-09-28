@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/261640115e0c211b774e219f6f78c546d0f2e97c/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/962199c2d1d5ac7c5aaef9b7d88d45d3e7af7969/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -11,15 +11,6 @@ that the auction parameters are correct and it has sufficient token balance.*
 
 
 ## State Variables
-### PERMIT2
-Permit2 address
-
-
-```solidity
-address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
-```
-
-
 ### claimBlock
 The block at which purchased tokens can be claimed
 

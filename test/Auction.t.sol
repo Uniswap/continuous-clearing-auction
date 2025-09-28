@@ -12,6 +12,7 @@ import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol
 import {AuctionStep} from '../src/libraries/AuctionStepLib.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
+import {Demand} from '../src/libraries/DemandLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
@@ -1333,10 +1334,10 @@ contract AuctionTest is AuctionBaseTest {
         token.mint(address(mockAuction), TOTAL_SUPPLY);
         mockAuction.onTokensReceived();
 
-        (uint24 mps, uint64 stepStart, uint64 stepEnd) = mockAuction.step();
-        assertEq(mps, 0);
-        assertEq(stepStart, startBlock);
-        assertEq(stepEnd, startBlock + 10);
+        AuctionStep memory step = mockAuction.step();
+        assertEq(step.mps, 0);
+        assertEq(step.startBlock, startBlock);
+        assertEq(step.endBlock, startBlock + 10);
 
         /**
          * Current state of the auction steps
@@ -1347,7 +1348,7 @@ contract AuctionTest is AuctionBaseTest {
          *                  ^
          */
         // Roll to the end of the first step (top of block)
-        vm.roll(stepEnd);
+        vm.roll(step.endBlock);
         /**
          * blockNumber:     1                11                                    111
          *                  |                |                                      |
@@ -1373,12 +1374,12 @@ contract AuctionTest is AuctionBaseTest {
             tickNumberToPriceX96(1),
             bytes('')
         );
-        (uint128 currencyDemand, uint128 tokenDemand) = mockAuction.sumDemandAboveClearing();
+        Demand memory demand = mockAuction.sumDemandAboveClearing();
         assertEq(
-            currencyDemand,
+            demand.currencyDemand,
             BidLib.effectiveAmount(inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)), AuctionStepLib.MPS)
         );
-        assertEq(tokenDemand, 0);
+        assertEq(demand.tokenDemand, 0);
         /**
          * Roll one more block and checkpoint
          * blockNumber:     1                11   12                              111
@@ -1400,7 +1401,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
         // Expect the second step to be recorded
-        emit IAuctionStepStorage.AuctionStepRecorded(stepEnd, endBlock, 100e3);
+        emit IAuctionStepStorage.AuctionStepRecorded(step.endBlock, endBlock, 100e3);
         vm.expectEmit(true, true, true, true);
         // Expect 1 block to be have been cleared
         emit IAuction.CheckpointUpdated(
@@ -1426,10 +1427,10 @@ contract AuctionTest is AuctionBaseTest {
         token.mint(address(mockAuction), TOTAL_SUPPLY);
         mockAuction.onTokensReceived();
 
-        (uint24 mps, uint64 stepStart, uint64 stepEnd) = mockAuction.step();
-        assertEq(mps, 100e3);
-        assertEq(stepStart, startBlock);
-        assertEq(stepEnd, startBlock + 10);
+        AuctionStep memory step = mockAuction.step();
+        assertEq(step.mps, 100e3);
+        assertEq(step.startBlock, startBlock);
+        assertEq(step.endBlock, startBlock + 10);
 
         /**
          * Current state of the auction steps
@@ -1440,7 +1441,7 @@ contract AuctionTest is AuctionBaseTest {
          *                  ^
          */
         // Roll to the end of the first step (top of block)
-        vm.roll(stepEnd);
+        vm.roll(step.endBlock);
         /**
          * blockNumber:     1                11                                    111
          *                  |                |                                      |
@@ -1465,14 +1466,14 @@ contract AuctionTest is AuctionBaseTest {
             tickNumberToPriceX96(1),
             bytes('')
         );
-        (uint128 currencyDemand, uint128 tokenDemand) = mockAuction.sumDemandAboveClearing();
+        Demand memory demand = mockAuction.sumDemandAboveClearing();
         assertEq(
-            currencyDemand,
+            demand.currencyDemand,
             BidLib.effectiveAmount(
                 inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)), AuctionStepLib.MPS - 100e3 * 10
             )
         );
-        assertEq(tokenDemand, 0);
+        assertEq(demand.tokenDemand, 0);
         /**
          * Roll one more block and checkpoint
          * blockNumber:     1                11   12                              111
@@ -1494,7 +1495,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
         // Expect the second step to be recorded
-        emit IAuctionStepStorage.AuctionStepRecorded(stepEnd, endBlock, 300e3);
+        emit IAuctionStepStorage.AuctionStepRecorded(step.endBlock, endBlock, 300e3);
         vm.expectEmit(true, true, true, true);
         // Expect 1 block to be have been cleared
         uint24 expectedCumulativeMps = 100e3 * 10 + 300e3;

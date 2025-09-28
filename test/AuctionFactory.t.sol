@@ -182,8 +182,8 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         bytes32 _salt,
         AuctionParameters memory _params,
         uint8 _numberOfSteps
-    ) public pure {
-        vm.assume(_totalSupply <= SupplyLib.MAX_TOTAL_SUPPLY && _totalSupply > 0);
+    ) public pure returns (uint256 totalSupply) {
+        _totalSupply = bound(_totalSupply, 1, SupplyLib.MAX_TOTAL_SUPPLY);
         vm.assume(_token != address(0));
 
         vm.assume(_params.currency != address(0));
@@ -218,6 +218,8 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
 
         // Bound graduation threshold mps
         _params.graduationThresholdMps = uint24(bound(_params.graduationThresholdMps, 0, uint24(MPSLib.MPS)));
+
+        return _totalSupply;
     }
 
     function testFuzz_getAuctionAddress(
@@ -227,7 +229,7 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         uint8 _numberOfSteps,
         AuctionParameters memory _params
     ) public {
-        helper__assumeValidDeploymentParams(_token, _totalSupply, _salt, _params, _numberOfSteps);
+        _totalSupply = helper__assumeValidDeploymentParams(_token, _totalSupply, _salt, _params, _numberOfSteps);
 
         bytes memory configData = abi.encode(_params);
 

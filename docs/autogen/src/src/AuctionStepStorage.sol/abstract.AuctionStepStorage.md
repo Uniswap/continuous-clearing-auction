@@ -1,5 +1,5 @@
 # AuctionStepStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/0ee04bc2c45f6d51f37030260f300f404e183bf7/src/AuctionStepStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/e90514cdfb7dc85cf9d3affc49dc2b9bfca2dc7e/src/AuctionStepStorage.sol)
 
 **Inherits:**
 [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md)
@@ -49,7 +49,7 @@ The address pointer to the contract deployed by SSTORE2
 
 
 ```solidity
-address private $_pointer;
+address private immutable $_pointer;
 ```
 
 

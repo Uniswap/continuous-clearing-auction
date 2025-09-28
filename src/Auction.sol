@@ -42,6 +42,8 @@ contract Auction is
     using DemandLib for Demand;
     using SafeCastLib for uint256;
 
+    /// @notice Permit2 address
+    address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     /// @notice The block at which purchased tokens can be claimed
     uint64 public immutable claimBlock;
     /// @notice An optional hook to be called before a bid is registered

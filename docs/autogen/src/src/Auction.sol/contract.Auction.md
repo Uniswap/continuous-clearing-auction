@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/87fb8f9575631e47cd6fe069c142cc67d2505068/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/f4ef771e6fc367787b90651b652ec8938298ac6c/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -227,7 +227,7 @@ any future calls to `step.mps` will return the mps of the last step in the aucti
 
 
 ```solidity
-function _getFinalCheckpoint() internal returns (Checkpoint memory _checkpoint);
+function _getFinalCheckpoint() internal returns (Checkpoint memory);
 ```
 
 ### _submitBid
@@ -261,13 +261,13 @@ Register a new checkpoint
 
 
 ```solidity
-function checkpoint() public onlyActiveAuction returns (Checkpoint memory _checkpoint);
+function checkpoint() public onlyActiveAuction returns (Checkpoint memory);
 ```
 **Returns**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`_checkpoint`|`Checkpoint`|The checkpoint at the current block|
+|`<none>`|`Checkpoint`|_checkpoint The checkpoint at the current block|
 
 
 ### submitBid

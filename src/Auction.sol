@@ -277,7 +277,7 @@ contract Auction is
     /// @notice Return the final checkpoint of the auction
     /// @dev Only called when the auction is over. Changes the current state of the `step` to the final step in the auction
     ///      any future calls to `step.mps` will return the mps of the last step in the auction
-    function _getFinalCheckpoint() internal returns (Checkpoint memory _checkpoint) {
+    function _getFinalCheckpoint() internal returns (Checkpoint memory) {
         return _unsafeCheckpoint(endBlock);
     }
 
@@ -336,7 +336,7 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function checkpoint() public onlyActiveAuction returns (Checkpoint memory _checkpoint) {
+    function checkpoint() public onlyActiveAuction returns (Checkpoint memory) {
         if (block.number > endBlock) {
             return _getFinalCheckpoint();
         }

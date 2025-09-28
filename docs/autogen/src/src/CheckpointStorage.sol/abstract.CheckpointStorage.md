@@ -1,5 +1,5 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/0ee04bc2c45f6d51f37030260f300f404e183bf7/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/417428be9c09d153c63b5c6214c7a36520bc515b/src/CheckpointStorage.sol)
 
 **Inherits:**
 [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
@@ -9,6 +9,8 @@ Abstract contract for managing auction checkpoints and bid fill calculations
 
 ## State Variables
 ### MAX_BLOCK_NUMBER
+Maximum block number value used as sentinel for last checkpoint
+
 
 ```solidity
 uint64 public constant MAX_BLOCK_NUMBER = type(uint64).max;

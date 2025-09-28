@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
 
+/// @notice Interface for checkpoint storage operations
 interface ICheckpointStorage {
     /// @notice Get the latest checkpoint at the last checkpointed block
     function latestCheckpoint() external view returns (Checkpoint memory);

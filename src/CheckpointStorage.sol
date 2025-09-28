@@ -20,6 +20,7 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     using DemandLib for Demand;
     using CheckpointLib for Checkpoint;
 
+    /// @notice Maximum block number value used as sentinel for last checkpoint
     uint64 public constant MAX_BLOCK_NUMBER = type(uint64).max;
 
     /// @notice Storage of checkpoints

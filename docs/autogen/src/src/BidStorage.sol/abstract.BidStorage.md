@@ -1,8 +1,10 @@
 # BidStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/0ee04bc2c45f6d51f37030260f300f404e183bf7/src/BidStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/417428be9c09d153c63b5c6214c7a36520bc515b/src/BidStorage.sol)
 
 **Inherits:**
 [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
+
+Abstract contract for managing bid storage
 
 
 ## State Variables

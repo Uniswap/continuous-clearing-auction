@@ -1,5 +1,5 @@
 # AuctionFactory
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f8777e7fce735616b313ae1a2d98047cf7578018/src/AuctionFactory.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/417428be9c09d153c63b5c6214c7a36520bc515b/src/AuctionFactory.sol)
 
 **Inherits:**
 [IAuctionFactory](/src/interfaces/IAuctionFactory.sol/interface.IAuctionFactory.md)
@@ -7,6 +7,8 @@
 
 ## State Variables
 ### USE_MSG_SENDER
+Special address to indicate that msg.sender should be used as funds recipient
+
 
 ```solidity
 address public constant USE_MSG_SENDER = 0x0000000000000000000000000000000000000001;

@@ -1,5 +1,5 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/0ee04bc2c45f6d51f37030260f300f404e183bf7/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/417428be9c09d153c63b5c6214c7a36520bc515b/src/TickStorage.sol)
 
 **Inherits:**
 [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
@@ -9,6 +9,8 @@ Abstract contract for handling tick storage
 
 ## State Variables
 ### $_ticks
+Mapping of price levels to tick data
+
 
 ```solidity
 mapping(uint256 price => Tick) private $_ticks;

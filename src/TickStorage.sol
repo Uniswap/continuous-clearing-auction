@@ -16,6 +16,7 @@ struct Tick {
 abstract contract TickStorage is ITickStorage {
     using DemandLib for Demand;
 
+    /// @notice Mapping of price levels to tick data
     mapping(uint256 price => Tick) private $_ticks;
 
     /// @notice The price of the next initialized tick above the clearing price

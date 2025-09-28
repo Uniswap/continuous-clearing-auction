@@ -10,6 +10,7 @@ struct Demand {
     uint128 tokenDemand;
 }
 
+/// @notice Library for demand calculations and operations
 library DemandLib {
     using DemandLib for uint128;
     using FixedPointMathLib for uint128;

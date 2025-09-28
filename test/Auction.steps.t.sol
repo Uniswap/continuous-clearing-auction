@@ -137,6 +137,18 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         );
 
         vm.roll(endBlock);
+        Checkpoint memory finalCheckpoint = newAuction.checkpoint();
+        // Assert that values in the final checkpoint is the same as the checkpoint after selling 1e7 mps worth of tokens
+        assertEq(finalCheckpoint.cumulativeMps, checkpoint.cumulativeMps);
+        assertEq(finalCheckpoint.clearingPrice, checkpoint.clearingPrice);
+        assertEq(finalCheckpoint.totalClearedX7X7, checkpoint.totalClearedX7X7);
+        assertEq(
+            finalCheckpoint.cumulativeSupplySoldToClearingPriceX7X7, checkpoint.cumulativeSupplySoldToClearingPriceX7X7
+        );
+        assertEq(finalCheckpoint.sumDemandAboveClearingPrice, checkpoint.sumDemandAboveClearingPrice);
+        assertEq(finalCheckpoint.cumulativeMpsPerPrice, checkpoint.cumulativeMpsPerPrice);
+        // Don't check mps, prev, and next because they will be different
+
         newAuction.exitPartiallyFilledBid(bidId, 1, 0);
         vm.roll(claimBlock);
         newAuction.claimTokens(bidId);

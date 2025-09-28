@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Checkpoint} from '../../src/libraries/CheckpointLib.sol';
+import {Demand} from '../../src/libraries/DemandLib.sol';
 import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../../src/libraries/ValueX7X7Lib.sol';
 
@@ -82,5 +83,17 @@ abstract contract Assertions {
 
     function assertLe(ValueX7X7 a, ValueX7X7 b, string memory err) internal pure returns (bool, string memory) {
         return (ValueX7X7.unwrap(a) <= ValueX7X7.unwrap(b), err);
+    }
+
+    function assertEq(Demand memory a, Demand memory b) internal pure returns (bool) {
+        return assertEq(a.currencyDemandX7, b.currencyDemandX7) && assertEq(a.tokenDemandX7, b.tokenDemandX7);
+    }
+
+    function assertEq(Demand memory a, Demand memory b, string memory err)
+        internal
+        pure
+        returns (bool, string memory)
+    {
+        return (assertEq(a.currencyDemandX7, b.currencyDemandX7) && assertEq(a.tokenDemandX7, b.tokenDemandX7), err);
     }
 }

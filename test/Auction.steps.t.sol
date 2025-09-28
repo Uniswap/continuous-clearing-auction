@@ -2,18 +2,17 @@
 pragma solidity 0.8.26;
 
 import {Auction} from '../src/Auction.sol';
-import {AuctionParameters} from '../src/interfaces/IAuction.sol';
+import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
-
 import {MPSLib} from '../src/libraries/MPSLib.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {Test} from 'forge-std/Test.sol';
-import {console2} from 'forge-std/console2.sol';
 
-// Test which deploys multiple auctions with similar steps data such that the end result is the same for each auction
+/// @title AuctionStepDiffTest
+/// @notice Tests for different auction steps data combinations
 contract AuctionStepDiffTest is AuctionBaseTest {
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
@@ -101,5 +100,46 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         assertEq(finalCheckpoint1.cumulativeMps, finalCheckpoint2.cumulativeMps);
         assertEq(finalCheckpoint1.totalClearedX7X7, finalCheckpoint2.totalClearedX7X7);
         assertEq(finalCheckpoint1.clearingPrice, finalCheckpoint2.clearingPrice);
+    }
+
+    function test_stepsDataEndingWithZeroMps_succeeds(uint256 totalSupply) public {
+        vm.assume(totalSupply > 0 && totalSupply <= type(uint232).max / 1e14);
+        bytes memory data = AuctionStepsBuilder.init().addStep(1, 1e7).addStep(0, 1e7);
+        uint256 startBlock = block.number;
+        uint256 endBlock = startBlock + 2e7;
+        uint256 claimBlock = endBlock + 10;
+        AuctionParameters memory params = params.withAuctionStepsData(data).withStartBlock(startBlock).withEndBlock(
+            endBlock
+        ).withClaimBlock(claimBlock);
+
+        Auction newAuction = new Auction(address(token), totalSupply, params);
+        token.mint(address(newAuction), totalSupply);
+        newAuction.onTokensReceived();
+
+        vm.roll(startBlock);
+        uint256 inputAmount = inputAmountForTokens(totalSupply, tickNumberToPriceX96(2));
+        vm.deal(address(this), inputAmount);
+        uint256 bidId = newAuction.submitBid{value: inputAmount}(
+            tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
+        );
+
+        // Show you can checkpoint when the step is zero mps
+        vm.roll(startBlock + 1e7 + 1);
+        Checkpoint memory checkpoint = newAuction.checkpoint();
+        assertEq(checkpoint.cumulativeMps, 1e7);
+
+        // The auction has fully sold out 1e7 mps worth of tokens, so all future bids will revert
+        inputAmount = inputAmountForTokens(1, tickNumberToPriceX96(2));
+        vm.deal(address(this), inputAmount);
+        vm.expectRevert(IAuction.AuctionSoldOut.selector);
+        newAuction.submitBid{value: inputAmount}(
+            tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
+        );
+
+        vm.roll(endBlock);
+        newAuction.exitPartiallyFilledBid(bidId, 1, 0);
+        vm.roll(claimBlock);
+        newAuction.claimTokens(bidId);
+        assertEq(token.balanceOf(address(alice)), totalSupply);
     }
 }

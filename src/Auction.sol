@@ -130,6 +130,11 @@ contract Auction is
         );
     }
 
+    /// @notice Get the remaining supply in the auction as an X7X7 value
+    function _remainingSupplyX7X7(Checkpoint memory _checkpoint) internal view returns (ValueX7X7) {
+        return TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7);
+    }
+
     /// @notice Get the rollover supply multiplier from unpacking the totalCleared and cumulative mps from the packed value
     /// @dev Must only be called after the values have been set
     /// @return The total cleared and (MPSLib.MPS - saved cumulativeMps)
@@ -368,33 +373,34 @@ contract Auction is
          * so we can substitute in TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7) for `supply`:
          *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps) >= TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
          */
-        while (
-            _sumDemandAboveClearing.resolveRoundingUp(nextActiveTickPrice).mulUint256(remainingMpsInAuction).upcast()
-                .gte(TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7))
-        ) {
-            // Subtract the demand at the current nextActiveTick from the total demand
-            _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_nextActiveTick.demand);
-            // The `nextActiveTickPrice` is now the minimum clearing price because there was enough demand to fill the supply
-            _clearingPrice = nextActiveTickPrice;
-            // Advance to the next tick
-            uint256 _nextTickPrice = _nextActiveTick.next;
-            nextActiveTickPrice = _nextTickPrice;
-            _nextActiveTick = getTick(_nextTickPrice);
-        }
+        ValueX7X7 remainingSupplyX7X7 = _remainingSupplyX7X7(_checkpoint);
+        if (!remainingSupplyX7X7.eq(ValueX7X7.wrap(0))) {
+            while (
+                _sumDemandAboveClearing.resolveRoundingUp(nextActiveTickPrice).mulUint256(remainingMpsInAuction).upcast(
+                ).gte(remainingSupplyX7X7)
+            ) {
+                // Subtract the demand at the current nextActiveTick from the total demand
+                _sumDemandAboveClearing = _sumDemandAboveClearing.sub(_nextActiveTick.demand);
+                // The `nextActiveTickPrice` is now the minimum clearing price because there was enough demand to fill the supply
+                _clearingPrice = nextActiveTickPrice;
+                // Advance to the next tick
+                uint256 _nextTickPrice = _nextActiveTick.next;
+                nextActiveTickPrice = _nextTickPrice;
+                _nextActiveTick = getTick(_nextTickPrice);
+            }
 
-        // Save cached state variable
-        sumDemandAboveClearing = _sumDemandAboveClearing;
-        // Calculate the new clearing price
-        _clearingPrice = _calculateNewClearingPrice(
-            _clearingPrice, remainingMpsInAuction, TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
-        );
-        // Reset the cumulative supply sold to clearing price if the clearing price is different now
-        if (_clearingPrice != _checkpoint.clearingPrice) {
-            _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 = ValueX7X7.wrap(0);
+            // Save cached state variable
+            sumDemandAboveClearing = _sumDemandAboveClearing;
+            // Calculate the new clearing price
+            _clearingPrice = _calculateNewClearingPrice(_clearingPrice, remainingMpsInAuction, remainingSupplyX7X7);
+            // Reset the cumulative supply sold to clearing price if the clearing price is different now
+            if (_clearingPrice != _checkpoint.clearingPrice) {
+                _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 = ValueX7X7.wrap(0);
+            }
+            _checkpoint.sumDemandAboveClearingPrice = _sumDemandAboveClearing;
+            // Set the new clearing price
+            _checkpoint.clearingPrice = _clearingPrice;
         }
-        _checkpoint.sumDemandAboveClearingPrice = _sumDemandAboveClearing;
-        // Set the new clearing price
-        _checkpoint.clearingPrice = _clearingPrice;
 
         /// We can now advance the `step` to the current step for the block
         /// This modifies the `_checkpoint` to ensure the cumulative variables are correctly accounted for
@@ -442,6 +448,8 @@ contract Auction is
         bytes calldata hookData
     ) internal returns (uint256 bidId) {
         Checkpoint memory _checkpoint = checkpoint();
+        // Revert if there are no more tokens to be sold
+        if (_remainingSupplyX7X7(_checkpoint).eq(ValueX7X7.wrap(0))) revert AuctionSoldOut();
 
         _initializeTickIfNeeded(prevTickPrice, maxPrice);
 

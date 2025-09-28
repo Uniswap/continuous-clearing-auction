@@ -8,8 +8,6 @@ import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 
 /// @title TokenCurrencyStorage
 abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
-    using CurrencyLibrary for Currency;
-
     /// @notice The currency being raised in the auction
     Currency public immutable currency;
     /// @notice The token being sold in the auction

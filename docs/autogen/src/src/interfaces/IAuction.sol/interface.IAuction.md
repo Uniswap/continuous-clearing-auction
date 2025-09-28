@@ -1,8 +1,8 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/83a914c60b4e9281565be6f803d3565a474adef4/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0ee04bc2c45f6d51f37030260f300f404e183bf7/src/interfaces/IAuction.sol)
 
 **Inherits:**
-[IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
+[IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
 
 Interface for the Auction contract
 
@@ -46,6 +46,8 @@ function submitBid(
 Register a new checkpoint
 
 *This function is called every time a new bid is submitted above the current clearing price*
+
+*If the auction is over, it returns the final checkpoint*
 
 
 ```solidity
@@ -137,6 +139,15 @@ Sweep any leftover tokens to the tokens recipient
 
 ```solidity
 function sweepUnsoldTokens() external;
+```
+
+### sumDemandAboveClearing
+
+The sum of demand in ticks above the clearing price
+
+
+```solidity
+function sumDemandAboveClearing() external view returns (Demand memory);
 ```
 
 ## Events
@@ -239,12 +250,12 @@ Error thrown when not enough amount is deposited
 error InvalidAmount();
 ```
 
-### CannotReceiveETHAndCurrency
+### CurrencyIsNotNative
 Error thrown when msg.value is non zero when currency is not ETH
 
 
 ```solidity
-error CannotReceiveETHAndCurrency();
+error CurrencyIsNotNative();
 ```
 
 ### AuctionNotStarted
@@ -271,14 +282,6 @@ Error thrown when the floor price is zero
 error FloorPriceIsZero();
 ```
 
-### TickSpacingIsZero
-Error thrown when the tick spacing is zero
-
-
-```solidity
-error TickSpacingIsZero();
-```
-
 ### ClaimBlockIsBeforeEndBlock
 Error thrown when the claim block is before the end block
 
@@ -303,12 +306,28 @@ Error thrown when the bid is higher than the clearing price
 error CannotExitBid();
 ```
 
-### InvalidCheckpointHint
-Error thrown when the checkpoint hint is invalid
+### CannotPartiallyExitBidBeforeEndBlock
+Error thrown when the bid cannot be partially exited before the end block
 
 
 ```solidity
-error InvalidCheckpointHint();
+error CannotPartiallyExitBidBeforeEndBlock();
+```
+
+### InvalidLastFullyFilledCheckpointHint
+Error thrown when the last fully filled checkpoint hint is invalid
+
+
+```solidity
+error InvalidLastFullyFilledCheckpointHint();
+```
+
+### InvalidOutbidBlockCheckpointHint
+Error thrown when the outbid block checkpoint hint is invalid
+
+
+```solidity
+error InvalidOutbidBlockCheckpointHint();
 ```
 
 ### NotClaimable

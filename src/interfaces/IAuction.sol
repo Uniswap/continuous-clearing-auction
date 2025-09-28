@@ -56,8 +56,12 @@ interface IAuction is
     error BidAlreadyExited();
     /// @notice Error thrown when the bid is higher than the clearing price
     error CannotExitBid();
-    /// @notice Error thrown when the checkpoint hint is invalid
-    error InvalidCheckpointHint();
+    /// @notice Error thrown when the bid cannot be partially exited before the end block
+    error CannotPartiallyExitBidBeforeEndBlock();
+    /// @notice Error thrown when the last fully filled checkpoint hint is invalid
+    error InvalidLastFullyFilledCheckpointHint();
+    /// @notice Error thrown when the outbid block checkpoint hint is invalid
+    error InvalidOutbidBlockCheckpointHint();
     /// @notice Error thrown when the bid is not claimable
     error NotClaimable();
     /// @notice Error thrown when the bid has not been exited
@@ -122,6 +126,7 @@ interface IAuction is
 
     /// @notice Register a new checkpoint
     /// @dev This function is called every time a new bid is submitted above the current clearing price
+    /// @dev If the auction is over, it returns the final checkpoint
     function checkpoint() external returns (Checkpoint memory _checkpoint);
 
     /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)

@@ -1,5 +1,5 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/e1dbf4f02e1bcbb91486a39f0f49eb2aeb52ecc6/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0ee04bc2c45f6d51f37030260f300f404e183bf7/src/TickStorage.sol)
 
 **Inherits:**
 [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
@@ -8,21 +8,21 @@ Abstract contract for handling tick storage
 
 
 ## State Variables
-### ticks
+### $_ticks
 
 ```solidity
-mapping(uint256 price => Tick) public ticks;
+mapping(uint256 price => Tick) private $_ticks;
 ```
 
 
-### nextActiveTickPrice
+### $nextActiveTickPrice
 The price of the next initialized tick above the clearing price
 
 *This will be equal to the clearingPrice if no ticks have been initialized yet*
 
 
 ```solidity
-uint256 public nextActiveTickPrice;
+uint256 internal $nextActiveTickPrice;
 ```
 
 
@@ -78,23 +78,6 @@ function getTick(uint256 price) public view returns (Tick memory);
 |`price`|`uint256`|The price of the tick|
 
 
-### _unsafeInitializeTick
-
-Initialize a tick at `price` without checking for existing ticks
-
-*This function is unsafe and should only be used when the tick is guaranteed to be the first in the book*
-
-
-```solidity
-function _unsafeInitializeTick(uint256 price) internal;
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`price`|`uint256`|The price of the tick|
-
-
 ### _initializeTickIfNeeded
 
 Initialize a tick at `price` if it does not exist already
@@ -132,4 +115,24 @@ function _updateTick(uint256 price, bool exactIn, uint128 amount) internal;
 |`exactIn`|`bool`|Whether the bid is exact in|
 |`amount`|`uint128`|The amount of the bid|
 
+
+### nextActiveTickPrice
+
+The price of the next initialized tick above the clearing price
+
+*This will be equal to the clearingPrice if no ticks have been initialized yet*
+
+
+```solidity
+function nextActiveTickPrice() external view override(ITickStorage) returns (uint256);
+```
+
+### ticks
+
+Get a tick at a price
+
+
+```solidity
+function ticks(uint256 price) external view override(ITickStorage) returns (Tick memory);
+```
 

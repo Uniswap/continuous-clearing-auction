@@ -51,6 +51,13 @@ contract TickStorageTest is Test {
         assertEq(tickStorage.nextActiveTickPrice(), FLOOR_PRICE);
     }
 
+    function test_initializeTickAtFloorPrice_returnsTick() public {
+        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, FLOOR_PRICE);
+        Tick memory tick = tickStorage.getTick(FLOOR_PRICE);
+        assertEq(tick.next, type(uint256).max);
+        assertEq(tickStorage.nextActiveTickPrice(), FLOOR_PRICE);
+    }
+
     function test_initializeTickWithPrev_succeeds() public {
         uint256 _nextActiveTickPrice = tickStorage.nextActiveTickPrice();
         assertEq(_nextActiveTickPrice, FLOOR_PRICE);
@@ -132,11 +139,6 @@ contract TickStorageTest is Test {
         tickStorage.initializeTickIfNeeded(FLOOR_PRICE, 0);
     }
 
-    function test_initializeTickAtFloorPrice_reverts() public {
-        vm.expectRevert(ITickStorage.TickPreviousPriceInvalid.selector);
-        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, FLOOR_PRICE);
-    }
-
     // The tick at 0 id should never be initialized, thus its next value is 0, which should cause a revert
     function test_initializeTickWithZeroPrev_reverts() public {
         vm.expectRevert(ITickStorage.TickPreviousPriceInvalid.selector);
@@ -150,8 +152,9 @@ contract TickStorageTest is Test {
     }
 
     function test_initializeTickIfNeeded_withPrevIdGreaterThanId_reverts() public {
-        // Try to initialize a tick at price 1 with prevId=2, but prevId > id
+        // Try to initialize a tick at price 2 with prevId=3, but prevId > id
+        // And 2 is not initialized yet
         vm.expectRevert(ITickStorage.TickPreviousPriceInvalid.selector);
-        tickStorage.initializeTickIfNeeded(tickNumberToPriceX96(2), tickNumberToPriceX96(1));
+        tickStorage.initializeTickIfNeeded(tickNumberToPriceX96(3), tickNumberToPriceX96(2));
     }
 }

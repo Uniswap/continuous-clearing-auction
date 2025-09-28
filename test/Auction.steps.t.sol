@@ -30,7 +30,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         ).withValidationHook(address(0)).withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient);
     }
 
-    function fuzzAuctionStepsData(uint8 steps) public view returns (bytes memory, uint24, uint40) {
+    function fuzzAuctionStepsData(uint8 steps) public pure returns (bytes memory, uint24, uint40) {
         vm.assume(steps > 0);
         bytes memory data = AuctionStepsBuilder.init();
         uint24 cumulativeMps = 0;
@@ -38,23 +38,26 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         // Assumes block delta is 1 for simplicity
         for (uint8 i = 0; i < steps && cumulativeMps < MPSLib.MPS; i++) {
             uint24 fuzzMps;
+            uint24 remainingSupply = MPSLib.MPS - cumulativeMps;
             // Bias towards 0
             if (i % 2 == 0) {
                 fuzzMps = 0;
             } else {
-                fuzzMps = uint24(bound(uint256(keccak256(abi.encode(i))), 0, MPSLib.MPS - cumulativeMps));
+                fuzzMps = uint24(bound(uint256(keccak256(abi.encode(i, steps))), 0, remainingSupply));
             }
             // If the total mps is greater than the max mps, set the mps to the max mps and the block delta to 1
-            if (fuzzMps > MPSLib.MPS - cumulativeMps) {
-                fuzzMps = MPSLib.MPS - cumulativeMps;
+            if (fuzzMps > remainingSupply) {
+                fuzzMps = remainingSupply;
             }
             cumulativeMps += fuzzMps;
             cumulativeBlockDelta++;
             data = data.addStep(fuzzMps, 1);
         }
         if (cumulativeMps < MPSLib.MPS) {
-            data = data.addStep(uint24(MPSLib.MPS - cumulativeMps), 1);
-            cumulativeMps = MPSLib.MPS;
+            uint24 remainingSupply = MPSLib.MPS - cumulativeMps;
+
+            data = data.addStep(uint24(remainingSupply), 1);
+            cumulativeMps += remainingSupply;
             cumulativeBlockDelta++;
         }
         assertEq(cumulativeMps, MPSLib.MPS, 'fuzzed cumulative mps is not equal to the max mps');

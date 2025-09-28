@@ -57,9 +57,8 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         // First transfer the currency to the fundsRecipient
         currency.transfer(fundsRecipient, amount);
         // Then if fundsRecipientData is set and is a contract, call it
-        if (fundsRecipientData.length > 0 && address(fundsRecipient).code.length > 0 && fundsRecipient != address(this))
-        {
-            (bool success, bytes memory result) = address(fundsRecipient).call(fundsRecipientData);
+        if (fundsRecipientData.length > 0 && fundsRecipient.code.length > 0 && fundsRecipient != address(this)) {
+            (bool success, bytes memory result) = fundsRecipient.call(fundsRecipientData);
             if (!success) {
                 // bubble up the revert reason
                 assembly {

@@ -1,5 +1,5 @@
 # IAuctionStepStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/87fb8f9575631e47cd6fe069c142cc67d2505068/src/interfaces/IAuctionStepStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/97736469ca9c341f9fa3e3f0d8f30f1ff55a4425/src/interfaces/IAuctionStepStorage.sol)
 
 Interface for managing auction step storage
 
@@ -62,6 +62,14 @@ event AuctionStepRecorded(uint256 indexed startBlock, uint256 indexed endBlock, 
 |`mps`|`uint24`|The percentage of total tokens to sell per block during this auction step, represented in ten-millionths of the total supply (1e7 = 100%)|
 
 ## Errors
+### InvalidEndBlock
+Error thrown when the end block is equal to or before the start block
+
+
+```solidity
+error InvalidEndBlock();
+```
+
 ### AuctionIsOver
 Error thrown when the auction is over
 
@@ -86,19 +94,19 @@ Error thrown when the block delta in a step is zero
 error StepBlockDeltaCannotBeZero();
 ```
 
-### InvalidMps
+### InvalidStepDataMps
 Error thrown when the mps is invalid
 
 
 ```solidity
-error InvalidMps();
+error InvalidStepDataMps();
 ```
 
-### InvalidEndBlock
+### InvalidEndBlockGivenStepData
 Error thrown when the end block is invalid
 
 
 ```solidity
-error InvalidEndBlock();
+error InvalidEndBlockGivenStepData();
 ```
 

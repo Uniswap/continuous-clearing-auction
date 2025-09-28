@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/3101ca7f72a1286347869f4c1ea9af514bb5ff7f/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/97736469ca9c341f9fa3e3f0d8f30f1ff55a4425/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
@@ -62,7 +62,9 @@ function checkpoint() external returns (Checkpoint memory _checkpoint);
 
 ### isGraduated
 
-Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
+Whether the auction has sold more tokens than specified in the graduation threshold as of the latest checkpoint
+
+*Be aware that the latest checkpoint may be out of date*
 
 
 ```solidity
@@ -72,7 +74,7 @@ function isGraduated() external view returns (bool);
 
 |Name|Type|Description|
 |----|----|-----------|
-|`<none>`|`bool`|True if the auction has graduated, false otherwise|
+|`<none>`|`bool`|bool True if the auction has graduated, false otherwise|
 
 
 ### exitBid
@@ -283,14 +285,6 @@ Error thrown when the tokens required for the auction have not been received
 
 ```solidity
 error TokensNotReceived();
-```
-
-### FloorPriceIsZero
-Error thrown when the floor price is zero
-
-
-```solidity
-error FloorPriceIsZero();
 ```
 
 ### ClaimBlockIsBeforeEndBlock

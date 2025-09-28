@@ -72,6 +72,18 @@ contract AuctionStepStorageTest is Test {
         _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 5e6 + 1e7 + 25e5);
     }
 
+    function test_constructor_revertsWithInvalidEndBlock() public {
+        // Not checked in this test
+        bytes memory auctionStepsData = bytes('');
+        vm.expectRevert(IAuctionStepStorage.InvalidEndBlock.selector);
+        // Endblock is before startblock
+        _create(auctionStepsData, 1, 0);
+
+        vm.expectRevert(IAuctionStepStorage.InvalidEndBlock.selector);
+        // StartBlock == EndBlock
+        _create(auctionStepsData, 1, 1);
+    }
+
     function test_validate_revertsWithStepBlockDeltaCannotBeZero() public {
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(1, 1e7).addStep(1, 0);
         vm.expectRevert(IAuctionStepStorage.StepBlockDeltaCannotBeZero.selector);
@@ -145,24 +157,24 @@ contract AuctionStepStorageTest is Test {
         _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7);
     }
 
-    function test_reverts_withInvalidMps() public {
+    function test_reverts_withInvalidStepDataMps() public {
         // The sum is only 100, but must be 1e7
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(1, 100);
-        vm.expectRevert(IAuctionStepStorage.InvalidMps.selector);
+        vm.expectRevert(IAuctionStepStorage.InvalidStepDataMps.selector);
         _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7);
     }
 
-    function test_exceedsMps_reverts_withInvalidMps() public {
+    function test_exceedsMps_reverts_withInvalidStepDataMps() public {
         // The sum is 1e7 + 1, but must be 1e7
         uint40 blockDelta = 1e7 + 1;
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(1, blockDelta);
-        vm.expectRevert(IAuctionStepStorage.InvalidMps.selector);
+        vm.expectRevert(IAuctionStepStorage.InvalidStepDataMps.selector);
         _create(auctionStepsData, auctionStartBlock, auctionStartBlock + blockDelta);
     }
 
-    function test_reverts_withInvalidEndBlock() public {
+    function test_reverts_withInvalidEndBlockGivenStepData() public {
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(1, 1e7);
-        vm.expectRevert(IAuctionStepStorage.InvalidEndBlock.selector);
+        vm.expectRevert(IAuctionStepStorage.InvalidEndBlockGivenStepData.selector);
         // The end block should be block.number + 1e7, but is 1e7 - 1
         _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7 - 1);
     }

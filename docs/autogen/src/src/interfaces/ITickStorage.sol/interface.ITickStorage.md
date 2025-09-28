@@ -1,5 +1,5 @@
 # ITickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/87fb8f9575631e47cd6fe069c142cc67d2505068/src/interfaces/ITickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/97736469ca9c341f9fa3e3f0d8f30f1ff55a4425/src/interfaces/ITickStorage.sol)
 
 Interface for the TickStorage contract
 
@@ -97,6 +97,14 @@ Error thrown when the tick spacing is zero
 
 ```solidity
 error TickSpacingIsZero();
+```
+
+### FloorPriceIsZero
+Error thrown when the floor price is zero
+
+
+```solidity
+error FloorPriceIsZero();
 ```
 
 ### TickPreviousPriceInvalid

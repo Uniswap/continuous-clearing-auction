@@ -162,7 +162,7 @@ contract SupplyLibTest is Test {
         // Assert that the supply values are the same as the inputs
         assertEq(ValueX7X7.unwrap(supply1X7X7), supply1);
         assertEq(ValueX7X7.unwrap(supply2X7X7), supply2);
-        // Assert that the inequality still holds
+        // Assert that the inequality still holds - implying that mps has not been overridden
         assertTrue(ValueX7X7.unwrap(supply1X7X7) < ValueX7X7.unwrap(supply2X7X7));
     }
 }

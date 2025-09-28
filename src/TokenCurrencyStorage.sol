@@ -11,6 +11,7 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     using FixedPointMathLib for uint128;
     /// @notice The currency being raised in the auction
+
     Currency public immutable currency;
     /// @notice The token being sold in the auction
     IERC20Minimal public immutable token;

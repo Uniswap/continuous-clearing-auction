@@ -1031,7 +1031,7 @@ contract AuctionTest is AuctionBaseTest {
 
         token.mint(address(newAuction), TOTAL_SUPPLY - 1);
 
-        vm.expectRevert(IAuction.IDistributionContract__InvalidAmountReceived.selector);
+        vm.expectRevert(IAuction.InvalidTokenAmountReceived.selector);
         newAuction.onTokensReceived();
     }
 

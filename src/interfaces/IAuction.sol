@@ -38,7 +38,7 @@ interface IAuction is
     IBidStorage
 {
     /// @notice Error thrown when the amount received is invalid
-    error IDistributionContract__InvalidAmountReceived();
+    error InvalidTokenAmountReceived();
 
     /// @notice Error thrown when not enough amount is deposited
     error InvalidAmount();

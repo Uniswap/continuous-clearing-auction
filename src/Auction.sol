@@ -98,7 +98,7 @@ contract Auction is
     function onTokensReceived() external {
         // Use the normal totalSupply value instead of the scaled up X7 value
         if (token.balanceOf(address(this)) < totalSupply) {
-            revert IDistributionContract__InvalidAmountReceived();
+            revert InvalidTokenAmountReceived();
         }
         $_tokensReceived = true;
         emit TokensReceived(totalSupply);

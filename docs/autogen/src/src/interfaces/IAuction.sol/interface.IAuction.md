@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/87fb8f9575631e47cd6fe069c142cc67d2505068/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/3101ca7f72a1286347869f4c1ea9af514bb5ff7f/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
@@ -245,12 +245,12 @@ event TokensClaimed(uint256 indexed bidId, address indexed owner, uint128 tokens
 |`tokensFilled`|`uint128`|The amount of tokens claimed|
 
 ## Errors
-### IDistributionContract__InvalidAmountReceived
+### InvalidTokenAmountReceived
 Error thrown when the amount received is invalid
 
 
 ```solidity
-error IDistributionContract__InvalidAmountReceived();
+error InvalidTokenAmountReceived();
 ```
 
 ### InvalidAmount

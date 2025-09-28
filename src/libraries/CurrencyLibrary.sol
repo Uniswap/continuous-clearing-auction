@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import {IERC20Minimal} from '../interfaces/external/IERC20Minimal.sol';
-import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 type Currency is address;
 

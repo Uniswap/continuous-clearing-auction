@@ -5,14 +5,13 @@ import {AuctionStepLib} from './AuctionStepLib.sol';
 import {DemandLib} from './DemandLib.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
 struct Bid {
     bool exactIn; // If amount below is denoted in currency or tokens
     uint64 startBlock; // Block number when the bid was first made in
     uint64 exitedBlock; // Block number when the bid was exited
     uint256 maxPrice; // The max price of the bid
-    address owner; // Who is allowed to exit the bid
+    address owner; // The bidder who placed the bid
     uint128 amount; // User's demand
     uint128 tokensFilled; // Amount of tokens filled
 }
@@ -23,8 +22,6 @@ library BidLib {
     using DemandLib for uint128;
     using BidLib for *;
     using FixedPointMathLib for uint128;
-
-    uint256 public constant PRECISION = 1e18;
 
     /// @notice Calculate the effective amount of a bid based on the mps denominator
     /// @param amount The amount of the bid

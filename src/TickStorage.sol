@@ -2,9 +2,7 @@
 pragma solidity 0.8.26;
 
 import {ITickStorage} from './interfaces/ITickStorage.sol';
-import {Bid} from './libraries/BidLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
-import {FixedPoint96} from './libraries/FixedPoint96.sol';
 
 struct Tick {
     uint256 next;
@@ -16,6 +14,7 @@ struct Tick {
 abstract contract TickStorage is ITickStorage {
     using DemandLib for Demand;
 
+    /// @notice Mapping of price levels to tick data
     mapping(uint256 price => Tick) private $_ticks;
 
     /// @notice The price of the next initialized tick above the clearing price
@@ -45,6 +44,7 @@ abstract contract TickStorage is ITickStorage {
     /// @notice Get a tick at a price
     /// @dev The returned tick is not guaranteed to be initialized
     /// @param price The price of the tick
+    /// @return The tick at the given price
     function getTick(uint256 price) public view returns (Tick memory) {
         return $_ticks[price];
     }

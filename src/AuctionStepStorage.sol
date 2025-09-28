@@ -21,7 +21,7 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
     uint256 private immutable _length;
 
     /// @notice The address pointer to the contract deployed by SSTORE2
-    address private $_pointer;
+    address private immutable $_pointer;
     /// @notice The word offset of the last read step in `auctionStepsData` bytes
     uint256 private $_offset;
     /// @notice The current active auction step
@@ -34,8 +34,6 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
         _length = _auctionStepsData.length;
 
         address _pointer = _auctionStepsData.write();
-        if (_pointer == address(0)) revert InvalidPointer();
-
         _validate(_pointer);
         $_pointer = _pointer;
 

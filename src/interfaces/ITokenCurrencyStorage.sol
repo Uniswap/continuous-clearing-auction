@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+/// @notice Interface for token and currency storage operations
 interface ITokenCurrencyStorage {
     /// @notice Error thrown when the total supply is zero
     error TotalSupplyIsZero();

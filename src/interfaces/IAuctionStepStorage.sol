@@ -3,9 +3,8 @@ pragma solidity ^0.8.0;
 
 import {AuctionStep} from '../libraries/AuctionStepLib.sol';
 
+/// @notice Interface for managing auction step storage
 interface IAuctionStepStorage {
-    /// @notice Error thrown when the SSTORE2 pointer is the zero address
-    error InvalidPointer();
     /// @notice Error thrown when the auction is over
     error AuctionIsOver();
     /// @notice Error thrown when the auction data length is invalid
@@ -18,8 +17,10 @@ interface IAuctionStepStorage {
     error InvalidEndBlock();
 
     /// @notice The block at which the auction starts
+    /// @return The starting block number
     function startBlock() external view returns (uint64);
     /// @notice The block at which the auction ends
+    /// @return The ending block number
     function endBlock() external view returns (uint64);
 
     /// @notice Get the current active auction step

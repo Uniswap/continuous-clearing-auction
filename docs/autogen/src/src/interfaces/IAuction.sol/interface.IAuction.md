@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/ace0c8fa02a7f9ecc269c8d6adca532a0d0858dc/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/163a9c5caa0e1ad086f86fa796c27a59e36ff096/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
@@ -84,15 +84,29 @@ Register a new checkpoint
 ```solidity
 function checkpoint() external returns (Checkpoint memory _checkpoint);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`_checkpoint`|`Checkpoint`|The checkpoint at the current block|
+
 
 ### isGraduated
 
-Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
+Whether the auction has sold more tokens than specified in the graduation threshold as of the latest checkpoint
+
+*Be aware that the latest checkpoint may be out of date*
 
 
 ```solidity
 function isGraduated() external view returns (bool);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`bool`|bool True if the auction has graduated, false otherwise|
+
 
 ### exitBid
 
@@ -153,8 +167,7 @@ function claimTokens(uint256 bidId) external;
 
 Withdraw all of the currency raised
 
-*Can only be called by the funds recipient after the auction has ended
-Must be called before the `claimBlock`*
+*Can be called by anyone after the auction has ended*
 
 
 ```solidity
@@ -265,12 +278,12 @@ event TokensClaimed(uint256 indexed bidId, address indexed owner, uint128 tokens
 |`tokensFilled`|`uint128`|The amount of tokens claimed|
 
 ## Errors
-### IDistributionContract__InvalidAmountReceived
+### InvalidTokenAmountReceived
 Error thrown when the amount received is invalid
 
 
 ```solidity
-error IDistributionContract__InvalidAmountReceived();
+error InvalidTokenAmountReceived();
 ```
 
 ### InvalidAmount

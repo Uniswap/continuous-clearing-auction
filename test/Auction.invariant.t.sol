@@ -19,7 +19,6 @@ import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract AuctionInvariantHandler is Test {
-    using CurrencyLibrary for Currency;
     using FixedPointMathLib for uint128;
 
     Auction public auction;

@@ -23,6 +23,7 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 /// @title Auction
+/// @custom:security-contact security@uniswap.org
 /// @notice Implements a time weighted uniform clearing price auction
 /// @dev Can be constructed directly or through the AuctionFactory. In either case, users must validate
 ///      that the auction parameters are correct and it has sufficient token balance.
@@ -36,15 +37,12 @@ contract Auction is
     IAuction
 {
     using FixedPointMathLib for uint128;
-    using CurrencyLibrary for Currency;
     using BidLib for *;
     using AuctionStepLib for *;
     using CheckpointLib for Checkpoint;
     using DemandLib for Demand;
     using SafeCastLib for uint256;
 
-    /// @notice Permit2 address
-    address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     /// @notice The block at which purchased tokens can be claimed
     uint64 public immutable claimBlock;
     /// @notice An optional hook to be called before a bid is registered
@@ -100,22 +98,22 @@ contract Auction is
     function onTokensReceived() external {
         // Use the normal totalSupply value instead of the scaled up X7 value
         if (token.balanceOf(address(this)) < totalSupply) {
-            revert IDistributionContract__InvalidAmountReceived();
+            revert InvalidTokenAmountReceived();
         }
         $_tokensReceived = true;
         emit TokensReceived(totalSupply);
     }
 
-    /// @notice External function to check if the auction has graduated as of the latest checkpoint
-    /// @dev The latest checkpoint may be out of date
-    /// @return bool Whether the auction has graduated or not
+    /// @inheritdoc IAuction
     function isGraduated() external view returns (bool) {
         return _isGraduated(latestCheckpoint());
     }
 
-    /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
+    /// @notice Whether the auction has graduated as of the given checkpoint (sold more than the graduation threshold)
+    /// @param _checkpoint The checkpoint to check
+    /// @return bool True if the auction has graduated, false otherwise
     function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool) {
-        return _checkpoint.totalCleared >= totalSupply.fullMulDiv(graduationThresholdMps, AuctionStepLib.MPS);
+        return _checkpoint.totalCleared >= requiredSupplySoldForGraduation;
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
@@ -279,7 +277,7 @@ contract Auction is
     /// @notice Return the final checkpoint of the auction
     /// @dev Only called when the auction is over. Changes the current state of the `step` to the final step in the auction
     ///      any future calls to `step.mps` will return the mps of the last step in the auction
-    function _getFinalCheckpoint() internal returns (Checkpoint memory _checkpoint) {
+    function _getFinalCheckpoint() internal returns (Checkpoint memory) {
         return _unsafeCheckpoint(endBlock);
     }
 
@@ -338,7 +336,7 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function checkpoint() public onlyActiveAuction returns (Checkpoint memory _checkpoint) {
+    function checkpoint() public onlyActiveAuction returns (Checkpoint memory) {
         if (block.number > endBlock) {
             return _getFinalCheckpoint();
         }

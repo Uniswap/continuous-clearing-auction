@@ -7,9 +7,9 @@ struct AuctionStep {
     uint64 endBlock; // Ending block of the step (exclusive)
 }
 
+/// @notice Library for auction step calculations and parsing
 library AuctionStepLib {
-    /// @notice we use milli-bips, or one thousandth of a basis point
-
+    /// @notice Maximum value for milli-bips (mps), representing 100% in ten-millionths
     uint24 public constant MPS = 1e7;
 
     /// @notice Unpack the mps and block delta from the auction steps data

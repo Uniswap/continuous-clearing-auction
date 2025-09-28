@@ -1,5 +1,5 @@
 # ITickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/ace0c8fa02a7f9ecc269c8d6adca532a0d0858dc/src/interfaces/ITickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/163a9c5caa0e1ad086f86fa796c27a59e36ff096/src/interfaces/ITickStorage.sol)
 
 Interface for the TickStorage contract
 
@@ -15,6 +15,12 @@ The price of the next initialized tick above the clearing price
 ```solidity
 function nextActiveTickPrice() external view returns (uint256);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The price of the next active tick|
+
 
 ### floorPrice
 
@@ -24,6 +30,12 @@ Get the floor price of the auction
 ```solidity
 function floorPrice() external view returns (uint256);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The minimum price for bids|
+
 
 ### tickSpacing
 
@@ -33,6 +45,12 @@ Get the tick spacing enforced for bid prices
 ```solidity
 function tickSpacing() external view returns (uint256);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The tick spacing value|
+
 
 ### ticks
 

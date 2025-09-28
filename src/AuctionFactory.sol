@@ -9,6 +9,7 @@ import {IDistributionStrategy} from './interfaces/external/IDistributionStrategy
 
 /// @title AuctionFactory
 contract AuctionFactory is IAuctionFactory {
+    /// @notice Special address to indicate that msg.sender should be used as funds recipient
     address public constant USE_MSG_SENDER = 0x0000000000000000000000000000000000000001;
     /// @inheritdoc IDistributionStrategy
 

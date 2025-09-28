@@ -1,10 +1,12 @@
 # AuctionStepLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/ace0c8fa02a7f9ecc269c8d6adca532a0d0858dc/src/libraries/AuctionStepLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/163a9c5caa0e1ad086f86fa796c27a59e36ff096/src/libraries/AuctionStepLib.sol)
+
+Library for auction step calculations and parsing
 
 
 ## State Variables
 ### MPS
-we use milli-bips, or one thousandth of a basis point
+Maximum value for milli-bips (mps), representing 100% in ten-millionths
 
 
 ```solidity

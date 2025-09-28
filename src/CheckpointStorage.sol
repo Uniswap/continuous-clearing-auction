@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {ICheckpointStorage} from './interfaces/ICheckpointStorage.sol';
-import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
+import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
@@ -20,6 +20,7 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     using DemandLib for Demand;
     using CheckpointLib for Checkpoint;
 
+    /// @notice Maximum block number value used as sentinel for last checkpoint
     uint64 public constant MAX_BLOCK_NUMBER = type(uint64).max;
 
     /// @notice Storage of checkpoints
@@ -79,9 +80,10 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         );
     }
 
-    /// @notice Calculate the tokens sold, proportion of input used, and the block number of the next checkpoint under the bid's max price
+    /// @notice Calculate the tokens sold and currency spent for a partially filled bid
     /// @param cumulativeSupplySoldToClearingPrice The cumulative supply sold to the clearing price
     /// @param bidDemand The demand of the bid
+    /// @param tickDemand The total demand at the tick
     /// @param bidMaxPrice The max price of the bid
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent

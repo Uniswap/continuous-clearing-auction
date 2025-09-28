@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Bid} from '../libraries/BidLib.sol';
-
 /// @notice Interface for custom bid validation logic
 interface IValidationHook {
     /// @notice Validate a bid

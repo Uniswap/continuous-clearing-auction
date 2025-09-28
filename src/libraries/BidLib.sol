@@ -5,7 +5,6 @@ import {AuctionStepLib} from './AuctionStepLib.sol';
 import {DemandLib} from './DemandLib.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
 struct Bid {
     bool exactIn; // If amount below is denoted in currency or tokens

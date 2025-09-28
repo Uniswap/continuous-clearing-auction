@@ -130,9 +130,11 @@ contract Auction is
         );
     }
 
-    /// @notice Get the remaining supply in the auction as an X7X7 value
-    function _remainingSupplyX7X7(Checkpoint memory _checkpoint) internal view returns (ValueX7X7) {
-        return TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7);
+    /// @notice Get the remaining mps left in the auction at the given checkpoint
+    /// @param _checkpoint The checkpoint with `cumulativeMps` so far
+    /// @return The remaining mps in the auction
+    function _remainingMpsInAuction(Checkpoint memory _checkpoint) internal view returns (uint24) {
+        return MPSLib.MPS - _checkpoint.cumulativeMps;
     }
 
     /// @notice Get the rollover supply multiplier from unpacking the totalCleared and cumulative mps from the packed value
@@ -343,7 +345,7 @@ contract Auction is
          * - However, multpling by `step.mps` and dividing by `(MPSLib.MPS - _checkpoint.cumulativeMps)` loses precision, and we want to avoid it whenever possible.
          *   We save `(MPSLib.MPS - _checkpoint.cumulativeMps)` here to multiply by later when we want to cancel out the division.
          */
-        uint24 remainingMpsInAuction = MPSLib.MPS - _checkpoint.cumulativeMps;
+        uint24 remainingMpsInAuction = _remainingMpsInAuction(_checkpoint);
         /**
          * Iterate to find the tick where the total demand at and above it is strictly less than the remaining supply in the auction
          * If the loop reaches the highest tick in the book, `nextActiveTickPrice` will be set to MAX_TICK_PRICE
@@ -373,8 +375,8 @@ contract Auction is
          * so we can substitute in TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7) for `supply`:
          *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps) >= TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
          */
-        ValueX7X7 remainingSupplyX7X7 = _remainingSupplyX7X7(_checkpoint);
-        if (!remainingSupplyX7X7.eq(ValueX7X7.wrap(0))) {
+        if (remainingMpsInAuction > 0) {
+            ValueX7X7 remainingSupplyX7X7 = TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7);
             while (
                 _sumDemandAboveClearing.resolveRoundingUp(nextActiveTickPrice).mulUint256(remainingMpsInAuction).upcast(
                 ).gte(remainingSupplyX7X7)
@@ -449,7 +451,7 @@ contract Auction is
     ) internal returns (uint256 bidId) {
         Checkpoint memory _checkpoint = checkpoint();
         // Revert if there are no more tokens to be sold
-        if (_remainingSupplyX7X7(_checkpoint).eq(ValueX7X7.wrap(0))) revert AuctionSoldOut();
+        if (_remainingMpsInAuction(_checkpoint) == 0) revert AuctionSoldOut();
 
         _initializeTickIfNeeded(prevTickPrice, maxPrice);
 

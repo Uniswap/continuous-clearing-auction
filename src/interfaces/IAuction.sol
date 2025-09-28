@@ -151,8 +151,7 @@ interface IAuction is
     function claimTokens(uint256 bidId) external;
 
     /// @notice Withdraw all of the currency raised
-    /// @dev Can only be called by the funds recipient after the auction has ended
-    ///      Must be called before the `claimBlock`
+    /// @dev Can be called by anyone after the auction has ended
     function sweepCurrency() external;
 
     /// @notice Sweep any leftover tokens to the tokens recipient

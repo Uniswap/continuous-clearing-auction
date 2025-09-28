@@ -80,9 +80,10 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         );
     }
 
-    /// @notice Calculate the tokens sold, proportion of input used, and the block number of the next checkpoint under the bid's max price
+    /// @notice Calculate the tokens sold and currency spent for a partially filled bid
     /// @param cumulativeSupplySoldToClearingPrice The cumulative supply sold to the clearing price
     /// @param bidDemand The demand of the bid
+    /// @param tickDemand The total demand at the tick
     /// @param bidMaxPrice The max price of the bid
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent

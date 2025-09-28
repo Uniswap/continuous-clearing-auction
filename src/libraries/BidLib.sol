@@ -24,9 +24,6 @@ library BidLib {
     using BidLib for *;
     using FixedPointMathLib for uint128;
 
-    /// @notice Precision constant for calculations (18 decimal places)
-    uint256 public constant PRECISION = 1e18;
-
     /// @notice Calculate the effective amount of a bid based on the mps denominator
     /// @param amount The amount of the bid
     /// @param mpsDenominator The percentage of the auction which the bid was spread over

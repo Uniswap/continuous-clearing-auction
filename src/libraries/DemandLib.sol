@@ -24,10 +24,6 @@ library DemandLib {
         return price == 0 ? 0 : uint128(amount.fullMulDiv(FixedPoint96.Q96, price));
     }
 
-    function resolveTokenDemand(uint128 amount) internal pure returns (uint128) {
-        return amount;
-    }
-
     function sub(Demand memory _demand, Demand memory _other) internal pure returns (Demand memory) {
         return Demand({
             currencyDemand: _demand.currencyDemand - _other.currencyDemand,

@@ -1,8 +1,8 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/957ca8d09b6831bcada2577eb6dd17257f4004cf/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0ee04bc2c45f6d51f37030260f300f404e183bf7/src/interfaces/IAuction.sol)
 
 **Inherits:**
-[IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
+[IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
 
 Interface for the Auction contract
 
@@ -141,6 +141,15 @@ Sweep any leftover tokens to the tokens recipient
 function sweepUnsoldTokens() external;
 ```
 
+### sumDemandAboveClearing
+
+The sum of demand in ticks above the clearing price
+
+
+```solidity
+function sumDemandAboveClearing() external view returns (Demand memory);
+```
+
 ## Events
 ### TokensReceived
 Emitted when the tokens are received
@@ -271,14 +280,6 @@ Error thrown when the floor price is zero
 
 ```solidity
 error FloorPriceIsZero();
-```
-
-### TickSpacingIsZero
-Error thrown when the tick spacing is zero
-
-
-```solidity
-error TickSpacingIsZero();
 ```
 
 ### ClaimBlockIsBeforeEndBlock

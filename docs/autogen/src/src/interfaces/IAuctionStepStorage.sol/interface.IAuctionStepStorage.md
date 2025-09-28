@@ -1,5 +1,5 @@
 # IAuctionStepStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f8777e7fce735616b313ae1a2d98047cf7578018/src/interfaces/IAuctionStepStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0ee04bc2c45f6d51f37030260f300f404e183bf7/src/interfaces/IAuctionStepStorage.sol)
 
 
 ## Functions
@@ -19,6 +19,15 @@ The block at which the auction ends
 
 ```solidity
 function endBlock() external view returns (uint64);
+```
+
+### step
+
+Get the current active auction step
+
+
+```solidity
+function step() external view returns (AuctionStep memory);
 ```
 
 ## Events
@@ -61,6 +70,14 @@ Error thrown when the auction data length is invalid
 
 ```solidity
 error InvalidAuctionDataLength();
+```
+
+### StepBlockDeltaCannotBeZero
+Error thrown when the block delta in a step is zero
+
+
+```solidity
+error StepBlockDeltaCannotBeZero();
 ```
 
 ### InvalidMps

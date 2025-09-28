@@ -9,6 +9,7 @@ import {IAuction} from '../src/interfaces/IAuction.sol';
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
+import {AuctionStep} from '../src/libraries/AuctionStepLib.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
@@ -1308,14 +1309,14 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(block.number + 15);
         newAuction.checkpoint();
 
-        (uint24 mps,,) = newAuction.step();
+        uint24 mps = newAuction.step().mps;
         assertEq(mps, 150e3);
 
         vm.roll(block.number + 20);
         newAuction.checkpoint();
 
-        (mps,,) = newAuction.step();
-        assertEq(mps, 250e3);
+        AuctionStep memory step = newAuction.step();
+        assertEq(step.mps, 250e3);
     }
 
     function test_calculateNewClearingPrice_belowFloorPrice_returnsFloorPrice() public {
@@ -1453,7 +1454,7 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_auctionConstruction_revertsWithTickSpacingZero() public {
         AuctionParameters memory paramsZeroTickSpacing = params.withTickSpacing(0);
-        vm.expectRevert(IAuction.TickSpacingIsZero.selector);
+        vm.expectRevert(ITickStorage.TickSpacingIsZero.selector);
         new Auction(address(token), TOTAL_SUPPLY, paramsZeroTickSpacing);
     }
 

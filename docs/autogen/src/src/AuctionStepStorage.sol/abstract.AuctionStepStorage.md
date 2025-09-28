@@ -1,5 +1,5 @@
 # AuctionStepStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f8777e7fce735616b313ae1a2d98047cf7578018/src/AuctionStepStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0ee04bc2c45f6d51f37030260f300f404e183bf7/src/AuctionStepStorage.sol)
 
 **Inherits:**
 [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md)
@@ -44,30 +44,30 @@ uint256 private immutable _length;
 ```
 
 
-### pointer
+### $_pointer
 The address pointer to the contract deployed by SSTORE2
 
 
 ```solidity
-address public pointer;
+address private $_pointer;
 ```
 
 
-### offset
+### $_offset
 The word offset of the last read step in `auctionStepsData` bytes
 
 
 ```solidity
-uint256 public offset;
+uint256 private $_offset;
 ```
 
 
-### step
+### $step
 The current active auction step
 
 
 ```solidity
-AuctionStep public step;
+AuctionStep internal $step;
 ```
 
 
@@ -99,5 +99,14 @@ Advance the current auction step
 
 ```solidity
 function _advanceStep() internal returns (AuctionStep memory);
+```
+
+### step
+
+Get the current active auction step
+
+
+```solidity
+function step() external view override(IAuctionStepStorage) returns (AuctionStep memory);
 ```
 

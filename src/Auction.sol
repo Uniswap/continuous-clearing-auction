@@ -26,6 +26,8 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
+import {console} from 'forge-std/console.sol';
+
 /// @title Auction
 /// @notice Implements a time weighted uniform clearing price auction
 /// @dev Can be constructed directly or through the AuctionFactory. In either case, users must validate
@@ -372,6 +374,8 @@ contract Auction is
              * so we can substitute in TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7) for `supply`:
              *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps) >= TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
              */
+            console.log("resolveRounding Up: ", ValueX7.unwrap(_sumDemandAboveClearing.resolveRoundingUp(nextActiveTickPrice)));
+            console.log("sumDemandAboveClearing before loop: ", ValueX7X7.unwrap(_sumDemandAboveClearing.resolveRoundingUp(nextActiveTickPrice).mulUint256(remainingMpsInAuction).upcast()));
             while (
                 _sumDemandAboveClearing.resolveRoundingUp(nextActiveTickPrice).mulUint256(remainingMpsInAuction).upcast(
                 ).gte(TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7))
@@ -385,6 +389,8 @@ contract Auction is
                 nextActiveTickPrice = _nextTickPrice;
                 _nextActiveTick = getTick(_nextTickPrice);
             }
+
+            console.log("clearing price after loop: ", _clearingPrice);
 
             // Save cached state variable
             sumDemandAboveClearing = _sumDemandAboveClearing;
@@ -461,6 +467,9 @@ contract Auction is
         Demand memory bidDemand = bid.toDemand();
 
         _updateTickDemand(maxPrice, bidDemand);
+
+        console.log("bid demand currency: ", ValueX7.unwrap(bidDemand.currencyDemandX7));
+        console.log("bid demand token: ", ValueX7.unwrap(bidDemand.tokenDemandX7));
 
         sumDemandAboveClearing = sumDemandAboveClearing.add(bidDemand);
 

@@ -184,7 +184,7 @@ library FixedPoint96 {
 
 ### X7 and X7X7 Precision Mathematics
 
-The auction employs a sophisticated dual-scaling system to maintain mathematical precision throughout complex time-weighted calculations, avoiding intermediate rounding errors that could compound over the auction lifecycle.
+The auction employs a dual-scaling system to maintain mathematical precision throughout complex time-weighted calculations, avoiding intermediate rounding errors that could compound over the auction lifecycle.
 
 #### MPS (Milli-Basis Points)
 
@@ -223,7 +223,7 @@ type ValueX7 is uint256;
 type ValueX7X7 is uint256;
 ```
 
-**Purpose**: Supply calculations are more complex, involving time-weighted distributions, cumulative tracking, and clearing price interactions. The double scaling ensures precision is maintained through multiple mathematical operations.
+**Purpose**: Supply calculations are more complex, involving time-weighted distributions, cumulative tracking, and clearing price interactions. The double scaling maintains precision through multiple mathematical operations.
 
 **Use Cases**:
 - Total cleared supply tracking (`totalClearedX7X7`)
@@ -233,7 +233,7 @@ type ValueX7X7 is uint256;
 
 #### Core Mathematical Operations
 
-The dual scaling system enables two critical mathematical operations that define the auction mechanism:
+The dual scaling is used in two main areas which define the auction mechanism:
 
 <details>
 <summary><strong>1. Clearing Price Calculation</strong></summary>

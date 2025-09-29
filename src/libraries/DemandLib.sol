@@ -7,6 +7,8 @@ import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './ValueX7X7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
+import {console} from 'forge-std/console.sol';
+
 /// @notice Struct containing currency demand and token demand
 /// @dev All values are in ValueX7 format
 struct Demand {
@@ -28,6 +30,10 @@ library DemandLib {
     /// @param price The price to resolve the demand at
     /// @return The resolved demand as a ValueX7
     function resolveRoundingUp(Demand memory _demand, uint256 price) internal pure returns (ValueX7) {
+        console.log("in resolveRoundingUp");
+        console.log("_demand.currencyDemandX7: ", ValueX7.unwrap(_demand.currencyDemandX7));
+        console.log("_demand.currencyDemandX7.resolveRoundingUp(price): ", ValueX7.unwrap(_resolveCurrencyDemandRoundingUp(_demand.currencyDemandX7, price)));
+        console.log("_demand.tokenDemandX7: ", ValueX7.unwrap(_demand.tokenDemandX7));
         return _resolveCurrencyDemandRoundingUp(_demand.currencyDemandX7, price).add(_demand.tokenDemandX7);
     }
 

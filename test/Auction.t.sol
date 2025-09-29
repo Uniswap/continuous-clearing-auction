@@ -26,6 +26,8 @@ import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
+import {console} from 'forge-std/console.sol';
+
 contract AuctionTest is AuctionBaseTest {
     using FixedPointMathLib for uint256;
     using AuctionParamsBuilder for AuctionParameters;
@@ -1609,6 +1611,70 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(cachedRemainingSupplyX7X7, remainingSupplyX7X7);
         assertEq(cachedRemainingMps, remainingMps);
         assertTrue(mockAuction.rolloverSupplyMultiplierSet());
+    }
+
+    function test_bidsMadeInEactInOrExactOut_haveSameImpactOnClearingPrice() public {
+
+        console.log("TOTAL_SUPPLY: ", TOTAL_SUPPLY);
+
+        // Submit a bid in exact in
+        uint256 bid1Price = tickNumberToPriceX96(2);
+        uint256 bid1Amount = inputAmountForTokens(TOTAL_SUPPLY, bid1Price);
+        auction.submitBid{value: bid1Amount}(
+            bid1Price, true, bid1Amount, alice, tickNumberToPriceX96(1), bytes('')
+        );
+
+        // Resolve the auction
+        vm.roll(auction.endBlock());
+        auction.checkpoint();
+
+        // Assert that the clearing price is the same as the bid1Price
+        uint256 firstAuctionClearingPrice = auction.clearingPrice();
+        assertEq(firstAuctionClearingPrice, bid1Price);
+
+        // Deploy the auction again
+        // Updating the start block times 
+        params.startBlock = uint64(block.number + 1);
+        params.endBlock = uint64(block.number + 1 + AUCTION_DURATION);
+        params.claimBlock = uint64(block.number + 1 + AUCTION_DURATION);
+
+        auction = new Auction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(auction), TOTAL_SUPPLY);
+        auction.onTokensReceived();
+
+        console.log("");
+        console.log("-------------------------");
+        console.log("-------------------------");
+        console.log("");
+
+        
+        // Submit a bid in exact out
+        vm.roll(params.startBlock + 1);
+        uint256 bid2Price = tickNumberToPriceX96(2);
+        uint256 bid2Amount = inputAmountForTokens(TOTAL_SUPPLY, bid2Price);
+        auction.submitBid{value: bid2Amount}(
+            bid2Price, false, TOTAL_SUPPLY, alice, tickNumberToPriceX96(1), bytes('')
+        );
+
+        // Resolve the auction
+        vm.roll(auction.endBlock());
+        auction.checkpoint();
+
+        uint256 secondAuctionClearingPrice = auction.clearingPrice();
+
+        console.log("");
+        console.log("-------------------------");
+        console.log("-------------------------");
+        console.log("");
+
+        console.log('secondAuctionClearingPrice: ', secondAuctionClearingPrice);
+        console.log('firstAuctionClearingPrice: ', firstAuctionClearingPrice);
+        console.log('floorPrice: ', auction.floorPrice());
+
+        // Assert that the clearing price is the same as the bid2Price
+        assertEq(firstAuctionClearingPrice, bid2Price);
+        assertEq(secondAuctionClearingPrice, bid2Price);
+        assertEq(secondAuctionClearingPrice, firstAuctionClearingPrice);
     }
 
     /// @dev Reproduces rounding issue caused by 1 tick spacing

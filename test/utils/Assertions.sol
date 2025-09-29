@@ -3,8 +3,9 @@ pragma solidity ^0.8.20;
 
 import {Checkpoint} from '../../src/libraries/CheckpointLib.sol';
 import {MPSLib, ValueX7} from '../../src/libraries/MPSLib.sol';
+import {StdAssertions} from 'forge-std/StdAssertions.sol';
 
-abstract contract Assertions {
+abstract contract Assertions is StdAssertions {
     using MPSLib for ValueX7;
 
     function hash(Checkpoint memory _checkpoint) internal pure returns (bytes32) {
@@ -24,30 +25,30 @@ abstract contract Assertions {
     }
 
     function assertEq(Checkpoint memory a, Checkpoint memory b) internal pure returns (bool) {
-        return (hash(a) == hash(b));
+        assertEq(hash(a), hash(b));
     }
 
     function assertEq(ValueX7 a, ValueX7 b) internal pure returns (bool) {
-        return (ValueX7.unwrap(a) == ValueX7.unwrap(b));
+        assertEq(ValueX7.unwrap(a), ValueX7.unwrap(b));
     }
 
     function assertGt(ValueX7 a, ValueX7 b) internal pure returns (bool) {
-        return (ValueX7.unwrap(a) > ValueX7.unwrap(b));
+        assertGt(ValueX7.unwrap(a), ValueX7.unwrap(b));
     }
 
     function assertGe(ValueX7 a, ValueX7 b) internal pure returns (bool) {
-        return (ValueX7.unwrap(a) >= ValueX7.unwrap(b));
+        assertGe(ValueX7.unwrap(a), ValueX7.unwrap(b));
     }
 
     function assertGe(ValueX7 a, ValueX7 b, string memory err) internal pure returns (bool, string memory) {
-        return (ValueX7.unwrap(a) >= ValueX7.unwrap(b), err);
+        assertGe(ValueX7.unwrap(a), ValueX7.unwrap(b), err);
     }
 
     function assertLt(ValueX7 a, ValueX7 b) internal pure returns (bool) {
-        return (ValueX7.unwrap(a) < ValueX7.unwrap(b));
+        assertLt(ValueX7.unwrap(a), ValueX7.unwrap(b));
     }
 
     function assertLe(ValueX7 a, ValueX7 b) internal pure returns (bool) {
-        return (ValueX7.unwrap(a) <= ValueX7.unwrap(b));
+        assertLe(ValueX7.unwrap(a), ValueX7.unwrap(b));
     }
 }

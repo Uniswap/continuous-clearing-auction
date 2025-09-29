@@ -2,7 +2,8 @@ name: Integrated Security Workflow
 on: 
   pull_request:
     branches: [main, master, staging, dev, feat/**, fix/**]
-  push
+  push:
+    branches: [main, master, staging, dev]
 jobs:
   security:
     runs-on: ubuntu-latest

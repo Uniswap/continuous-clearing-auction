@@ -9,6 +9,8 @@ import {IDistributionContract} from '../src/interfaces/external/IDistributionCon
 import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {MPSLib} from '../src/libraries/MPSLib.sol';
+
+import {SupplyLib} from '../src/libraries/SupplyLib.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
 
@@ -180,9 +182,8 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         bytes32 _salt,
         AuctionParameters memory _params,
         uint8 _numberOfSteps
-    ) public pure {
-        vm.assume(_totalSupply <= type(uint232).max / 1e14);
-        vm.assume(_totalSupply > 0);
+    ) public pure returns (uint256 totalSupply) {
+        _totalSupply = bound(_totalSupply, 1, SupplyLib.MAX_TOTAL_SUPPLY);
         vm.assume(_token != address(0));
 
         vm.assume(_params.currency != address(0));
@@ -217,6 +218,8 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
 
         // Bound graduation threshold mps
         _params.graduationThresholdMps = uint24(bound(_params.graduationThresholdMps, 0, uint24(MPSLib.MPS)));
+
+        return _totalSupply;
     }
 
     function testFuzz_getAuctionAddress(
@@ -226,7 +229,7 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         uint8 _numberOfSteps,
         AuctionParameters memory _params
     ) public {
-        helper__assumeValidDeploymentParams(_token, _totalSupply, _salt, _params, _numberOfSteps);
+        _totalSupply = helper__assumeValidDeploymentParams(_token, _totalSupply, _salt, _params, _numberOfSteps);
 
         bytes memory configData = abi.encode(_params);
 

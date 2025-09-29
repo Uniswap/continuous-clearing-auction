@@ -10,6 +10,7 @@ import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {Test} from 'forge-std/Test.sol';
+import {SupplyLib} from '../src/libraries/SupplyLib.sol';
 
 /// @title AuctionStepDiffTest
 /// @notice Tests for different auction steps data combinations
@@ -103,7 +104,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
     }
 
     function test_stepsDataEndingWithZeroMps_succeeds(uint256 totalSupply) public {
-        vm.assume(totalSupply > 0 && totalSupply <= type(uint232).max / 1e14);
+        vm.assume(totalSupply > 0 && totalSupply <= SupplyLib.MAX_TOTAL_SUPPLY);
         bytes memory data = AuctionStepsBuilder.init().addStep(1, 1e7).addStep(0, 1e7);
         uint256 startBlock = block.number;
         uint256 endBlock = startBlock + 2e7;

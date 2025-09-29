@@ -3,9 +3,10 @@ pragma solidity 0.8.26;
 
 import {Auction} from '../../src/Auction.sol';
 import {AuctionParameters} from '../../src/Auction.sol';
-import {Demand} from '../../src/libraries/DemandLib.sol';
+
 import {Bid} from '../../src/BidStorage.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
+import {Demand} from '../../src/libraries/DemandLib.sol';
 import {SupplyLib, SupplyRolloverMultiplier} from '../../src/libraries/SupplyLib.sol';
 import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7} from '../../src/libraries/ValueX7X7Lib.sol';
@@ -15,17 +16,21 @@ contract MockAuction is Auction {
         Auction(_token, _totalSupply, _parameters)
     {}
 
+    /// @notice Wrapper around internal function for testing
     function calculateNewClearingPrice(
         Demand memory sumDemandAboveClearing,
-        uint256 minimumClearingPrice,
-        uint24 remainingMpsInAuction,
-        ValueX7X7 remainingSupplyX7X7
+        ValueX7X7 remainingSupplyX7X7,
+        uint24 remainingMpsInAuction
     ) external view returns (uint256) {
-        return _calculateNewClearingPrice(
-            sumDemandAboveClearing, minimumClearingPrice, remainingMpsInAuction, remainingSupplyX7X7
-        );
+        return _calculateNewClearingPrice(sumDemandAboveClearing, remainingSupplyX7X7, remainingMpsInAuction);
     }
 
+    /// @notice Wrapper around internal function for testing
+    function iterateOverTicksAndFindClearingPrice(Checkpoint memory checkpoint) external view returns (uint256) {
+        return _iterateOverTicksAndFindClearingPrice(checkpoint);
+    }
+
+    /// @notice Wrapper around internal function for testing
     function unpackSupplyRolloverMultiplier()
         external
         view
@@ -34,6 +39,7 @@ contract MockAuction is Auction {
         return SupplyLib.unpack($_supplyRolloverMultiplier);
     }
 
+    /// @notice Wrapper around internal function for testing
     function setSupplyRolloverMultiplier(bool set, uint24 remainingMps, ValueX7X7 remainingSupplyX7X7) external {
         $_supplyRolloverMultiplier = SupplyLib.packSupplyRolloverMultiplier(set, remainingMps, remainingSupplyX7X7);
     }

@@ -225,16 +225,14 @@ contract Auction is
         return _checkpoint;
     }
 
-    /// @notice Calculate the new clearing price, given the minimum clearing price and the remaining supply in the auction
+    /// @notice Calculate the new clearing price, given the cumulative demand and the remaining supply in the auction
     /// @param _sumDemandAboveClearing The sum of demand above the clearing price
-    /// @param _minimumClearingPrice The minimum clearing price, which will either be the floor price or the last iterated `nextActiveTickPrice`
     /// @param _remainingMpsInAuction The remaining mps in the auction which is MPSLib.MPS minus the cumulative mps so far
     /// @param _remainingSupplyX7X7 The result of TOTAL_SUPPLY_X7_X7 minus the total cleared supply so far
     function _calculateNewClearingPrice(
         Demand memory _sumDemandAboveClearing,
-        uint256 _minimumClearingPrice,
-        uint24 _remainingMpsInAuction,
-        ValueX7X7 _remainingSupplyX7X7
+        ValueX7X7 _remainingSupplyX7X7,
+        uint24 _remainingMpsInAuction
     ) internal view returns (uint256) {
         /**
          * Calculate the clearing price by dividing the currencyDemandX7 by the quotient minus the tokenDemandX7, following `currency / tokens = price`
@@ -274,9 +272,7 @@ contract Auction is
             )
         );
 
-        // If the new clearing price is below the minimum clearing price return the minimum clearing price
-        if (clearingPrice < _minimumClearingPrice) return _minimumClearingPrice;
-        // Otherwise, round up to the nearest tick boundary
+        // Round up to the nearest tick boundary
         // This will result in a higher price which means less tokens will be sold than expected
         uint256 remainder = clearingPrice % TICK_SPACING;
         if (remainder != 0) {
@@ -288,21 +284,24 @@ contract Auction is
     /// @notice Iterate to find the tick where the total demand at and above it is strictly less than the remaining supply in the auction
     /// @dev If the loop reaches the highest tick in the book, `nextActiveTickPrice` will be set to MAX_TICK_PRICE
     /// @param _checkpoint The latest checkpoint
-    /// @return clearingPrice The new clearing price and the updated sum demand above the clearing price
-    function _findNextClearingPrice(Checkpoint memory _checkpoint)
-        internal
-        returns (uint256 clearingPrice)
-    {
-        // The clearing price can never be lower than the last checkpoint. If the clearingPrice is zero, set it to the floor price
+    /// @return The new clearing price
+    function _iterateOverTicksAndFindClearingPrice(Checkpoint memory _checkpoint) internal returns (uint256) {
+        // The clearing price can never be lower than the last checkpoint.
+        // If the clearingPrice is zero, this will set it to the floor price
         uint256 minimumClearingPrice = _checkpoint.clearingPrice.coalesce(FLOOR_PRICE);
         uint24 _REMAINING_MPS_IN_AUCTION = _checkpoint.remainingMpsInAuction();
         ValueX7X7 _REMAINING_SUPPLY_X7_X7 = TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7);
+        // If there are no more remaining mps in the auction, we don't need to iterate over ticks
+        // and we can return the minimum clearing price above
+        if (_REMAINING_MPS_IN_AUCTION == 0) return minimumClearingPrice;
 
         Demand memory sumDemandAboveClearing_ = $sumDemandAboveClearing;
         uint256 nextActiveTickPrice_ = $nextActiveTickPrice;
 
         Tick memory nextActiveTick = getTick(nextActiveTickPrice_);
         /**
+         * Tick iteration loop inequality explained:
+         *
          * To compare the resolved demand to the supply being sold, we have the orignal equation:
          *   R = resolvedDemand * mps / MPSLib.MPS
          *   supply = (totalSupply - _checkpoint.totalCleared) * step.mps / (MPSLib.MPS - _checkpoint.cumulativeMps)
@@ -329,7 +328,8 @@ contract Auction is
          *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps) >= TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
          */
         while (
-            sumDemandAboveClearing_.resolveRoundingUp(nextActiveTickPrice_).mulUint256(_REMAINING_MPS_IN_AUCTION).upcast()
+            sumDemandAboveClearing_.resolveRoundingUp(nextActiveTickPrice_).mulUint256(_REMAINING_MPS_IN_AUCTION).upcast(
+            )
                 // Round up for demand here to bias towards finding a higher price
                 // This ensures that demand is never greater than supply, and in the case of rounding, we simply sell less tokens
                 .gte(_REMAINING_SUPPLY_X7_X7)
@@ -349,9 +349,11 @@ contract Auction is
         }
 
         // Calculate the new clearing price
-        clearingPrice = _calculateNewClearingPrice(
-            sumDemandAboveClearing_, minimumClearingPrice, _REMAINING_MPS_IN_AUCTION, _REMAINING_SUPPLY_X7_X7
-        );
+        uint256 clearingPrice =
+            _calculateNewClearingPrice(sumDemandAboveClearing_, _REMAINING_SUPPLY_X7_X7, _REMAINING_MPS_IN_AUCTION);
+        // If the new clearing price is below the minimum clearing price return the minimum clearing price
+        if (clearingPrice < minimumClearingPrice) return minimumClearingPrice;
+        return clearingPrice;
     }
 
     /// @notice Internal function for checkpointing at a specific block number
@@ -364,20 +366,13 @@ contract Auction is
         if (blockNumber == $lastCheckpointedBlock) return latestCheckpoint();
 
         _checkpoint = latestCheckpoint();
-        /// For clearing price related calculations, we need to determine the amount of supply sold over `mps` as well as the corresponding demand.
-        /// The equation for determining supply and considering previous rollover supply invovles dividing by `(MPSLib.MPS - _checkpoint.cumulativeMps)`.
-        /// To avoid intermediate divisions, we save `(MPSLib.MPS - _checkpoint.cumulativeMps)` here to multiply by later to cancel out the division.
-        uint24 remainingMpsInAuction = _checkpoint.remainingMpsInAuction();
-        if (remainingMpsInAuction > 0) {
-            uint256 clearingPrice = _findNextClearingPrice(_checkpoint);
-            // Reset the cumulative supply sold to clearing price if the clearing price is different now
-            if (clearingPrice != _checkpoint.clearingPrice) {
-                _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 = ValueX7X7.wrap(0);
-            }
-            _checkpoint.sumDemandAboveClearingPrice = $sumDemandAboveClearing;
+        uint256 clearingPrice = _iterateOverTicksAndFindClearingPrice(_checkpoint);
+        if (clearingPrice != _checkpoint.clearingPrice) {
             // Set the new clearing price
             _checkpoint.clearingPrice = clearingPrice;
+            _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 = ValueX7X7.wrap(0);
         }
+        _checkpoint.sumDemandAboveClearingPrice = $sumDemandAboveClearing;
 
         /// We can now advance the `step` to the current step for the block
         /// This modifies the `_checkpoint` to ensure the cumulative variables are correctly accounted for

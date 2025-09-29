@@ -3,10 +3,11 @@ pragma solidity ^0.8.0;
 
 import {Demand} from './DemandLib.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
+
+import {MPSLib} from './MPSLib.sol';
 import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './ValueX7X7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {MPSLib} from './MPSLib.sol';
 
 struct Checkpoint {
     uint256 clearingPrice; // The X96 price which the auction is currently clearing at

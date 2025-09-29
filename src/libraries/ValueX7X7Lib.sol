@@ -85,4 +85,10 @@ library ValueX7X7Lib {
     function wrapAndFullMulDiv(ValueX7X7 a, uint256 b, uint256 c) internal pure returns (ValueX7X7) {
         return a.fullMulDiv(ValueX7X7.wrap(b), ValueX7X7.wrap(c));
     }
+
+    /// @notice Wrapper around free fullMulDivUp function to support cases where we want to use uint256 values
+    /// @dev Ensure that `b` and `c` should be compared against the ValueX7X7 value
+    function wrapAndFullMulDivUp(ValueX7X7 a, uint256 b, uint256 c) internal pure returns (ValueX7X7) {
+        return a.fullMulDivUp(ValueX7X7.wrap(b), ValueX7X7.wrap(c));
+    }
 }

@@ -5,10 +5,10 @@ import {ITokenCurrencyStorage} from './interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {MPSLib} from './libraries/MPSLib.sol';
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SupplyLib} from './libraries/SupplyLib.sol';
-import {ValueX7Lib} from './libraries/ValueX7Lib.sol';
+import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @title TokenCurrencyStorage
 abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
@@ -33,7 +33,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     /// @notice The minimum portion (in MPS) of the total supply that must be sold
     uint24 internal immutable GRADUATION_THRESHOLD_MPS;
     /// @notice The amount of supply that must be sold for the auction to graduate, saved for gas optimization
-    ValueX7 internal immutable REQUIRED_SUPPLY_SOLD_FOR_GRADUATION_X7;
+    ValueX7X7 internal immutable REQUIRED_SUPPLY_SOLD_FOR_GRADUATION_X7_X7;
 
     /// @notice The block at which the currency was swept
     uint256 public sweepCurrencyBlock;
@@ -66,8 +66,8 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         if (GRADUATION_THRESHOLD_MPS > MPSLib.MPS) revert InvalidGraduationThresholdMps();
 
         // Calculate the required supply sold for graduation, rounding up to sell at least the amount required by the graduation threshold
-        REQUIRED_SUPPLY_SOLD_FOR_GRADUATION_X7 =
-            TOTAL_SUPPLY_X7.fullMulDivUp(ValueX7.wrap(GRADUATION_THRESHOLD_MPS), ValueX7.wrap(MPSLib.MPS));
+        REQUIRED_SUPPLY_SOLD_FOR_GRADUATION_X7_X7 =
+            TOTAL_SUPPLY_X7_X7.wrapAndFullMulDivUp(GRADUATION_THRESHOLD_MPS, MPSLib.MPS);
     }
 
     function _sweepCurrency(uint256 amount) internal {

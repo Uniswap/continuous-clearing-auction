@@ -1,5 +1,5 @@
 # ValueX7X7Lib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/2ab6f1f651f977062136e0144a4f3e636a17d226/src/libraries/ValueX7X7Lib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/43737e6643fccd8bba6b520bad93b4c795de35b0/src/libraries/ValueX7X7Lib.sol)
 
 
 ## Functions
@@ -74,5 +74,16 @@ Wrapper around free fullMulDiv function to support cases where we want to use ui
 
 ```solidity
 function wrapAndFullMulDiv(ValueX7X7 a, uint256 b, uint256 c) internal pure returns (ValueX7X7);
+```
+
+### wrapAndFullMulDivUp
+
+Wrapper around free fullMulDivUp function to support cases where we want to use uint256 values
+
+*Ensure that `b` and `c` should be compared against the ValueX7X7 value*
+
+
+```solidity
+function wrapAndFullMulDivUp(ValueX7X7 a, uint256 b, uint256 c) internal pure returns (ValueX7X7);
 ```
 

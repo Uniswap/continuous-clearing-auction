@@ -2,9 +2,10 @@
 pragma solidity ^0.8.0;
 
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
+
+import {Demand} from '../libraries/DemandLib.sol';
 import {ValueX7} from '../libraries/ValueX7Lib.sol';
 import {ValueX7X7} from '../libraries/ValueX7X7Lib.sol';
-import {Demand} from '../libraries/DemandLib.sol';
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
 import {IBidStorage} from './IBidStorage.sol';
 import {ICheckpointStorage} from './ICheckpointStorage.sol';

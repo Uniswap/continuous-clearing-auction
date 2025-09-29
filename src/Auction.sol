@@ -116,15 +116,13 @@ contract Auction is
 
     /// @notice Whether the auction has graduated as of the given checkpoint (sold more than the graduation threshold)
     function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool) {
-        return _checkpoint.totalClearedX7X7.scaleDownToX7().gte(
-            REQUIRED_SUPPLY_SOLD_FOR_GRADUATION_X7
-        );
+        return _checkpoint.totalClearedX7X7.gte(REQUIRED_SUPPLY_SOLD_FOR_GRADUATION_X7_X7);
     }
 
     /// @notice Get the remaining mps left in the auction at the given checkpoint
     /// @param _checkpoint The checkpoint with `cumulativeMps` so far
     /// @return The remaining mps in the auction
-    function _remainingMpsInAuction(Checkpoint memory _checkpoint) internal view returns (uint24) {
+    function _remainingMpsInAuction(Checkpoint memory _checkpoint) internal pure returns (uint24) {
         return MPSLib.MPS - _checkpoint.cumulativeMps;
     }
 
@@ -149,13 +147,13 @@ contract Auction is
             // We get the cached total cleared and remaining mps for use in the calculations below. These values
             // make up the multiplier which helps account for rollover supply.
             (bool isSet, uint24 cachedRemainingMps, ValueX7X7 cachedRemainingSupplyX7X7) =
-                _supplyRolloverMultiplier.unpack();
+                $_supplyRolloverMultiplier.unpack();
             if (!isSet) {
                 // Locally set the variables to save gas
                 cachedRemainingMps = MPSLib.MPS - _checkpoint.cumulativeMps;
                 cachedRemainingSupplyX7X7 = TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7);
                 // Set the cache with the values in _checkpoint, which represents the state of the auction before it becomes fully subscribed
-                _supplyRolloverMultiplier =
+                $_supplyRolloverMultiplier =
                     SupplyLib.packSupplyRolloverMultiplier(true, cachedRemainingMps, cachedRemainingSupplyX7X7);
             }
             /**
@@ -273,10 +271,10 @@ contract Auction is
          * higher prices which results in less tokens being sold (since price is currency / token).
          */
         uint256 _clearingPrice = ValueX7.unwrap(
-            sumDemandAboveClearing.currencyDemandX7.fullMulDivUp(
+            $sumDemandAboveClearing.currencyDemandX7.fullMulDivUp(
                 ValueX7.wrap(FixedPoint96.Q96 * uint256(remainingMpsInAuction)),
                 remainingSupplyX7X7.downcast().sub(
-                    sumDemandAboveClearing.tokenDemandX7.mulUint256(remainingMpsInAuction)
+                    $sumDemandAboveClearing.tokenDemandX7.mulUint256(remainingMpsInAuction)
                 )
             )
         );
@@ -307,8 +305,6 @@ contract Auction is
         uint256 _clearingPrice = _checkpoint.clearingPrice.coalesce(FLOOR_PRICE);
         // All active demand above the current clearing price
         Demand memory _sumDemandAboveClearing = $sumDemandAboveClearing;
-        // The clearing price can never be lower than the last checkpoint
-        uint256 minimumClearingPrice = _checkpoint.clearingPrice;
         // The next price tick initialized with demand is the `nextActiveTickPrice`
         Tick memory _nextActiveTick = getTick($nextActiveTickPrice);
 

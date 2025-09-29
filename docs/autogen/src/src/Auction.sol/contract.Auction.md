@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/97736469ca9c341f9fa3e3f0d8f30f1ff55a4425/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/a19cc56b47229fecd45274503206852cafed48a0/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -305,6 +305,35 @@ function submitBid(
 |`amount`|`uint128`|The amount of the bid|
 |`owner`|`address`|The owner of the bid|
 |`prevTickPrice`|`uint256`|The price of the previous tick|
+|`hookData`|`bytes`|Additional data to pass to the hook required for validation|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|bidId The id of the bid|
+
+
+### submitBid
+
+Submit a new bid
+
+
+```solidity
+function submitBid(uint256 maxPrice, bool exactIn, uint128 amount, address owner, bytes calldata hookData)
+    external
+    payable
+    onlyActiveAuction
+    returns (uint256);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`maxPrice`|`uint256`|The maximum price the bidder is willing to pay|
+|`exactIn`|`bool`|Whether the bid is exact in|
+|`amount`|`uint128`|The amount of the bid|
+|`owner`|`address`|The owner of the bid|
 |`hookData`|`bytes`|Additional data to pass to the hook required for validation|
 
 **Returns**

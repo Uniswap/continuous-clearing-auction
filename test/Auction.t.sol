@@ -388,6 +388,29 @@ contract AuctionTest is AuctionBaseTest {
         assertLt(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 500e18);
     }
 
+    /// forge-config: default.isolate = true
+    /// forge-config: ci.isolate = true
+    function test_submitBid_withoutPrevTickPrice_isInitialized_succeeds_gas() public {
+        vm.expectEmit(true, true, true, true);
+        emit ITickStorage.TickInitialized(tickNumberToPriceX96(2));
+        auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2), true, inputAmountForTokens(100e18, tickNumberToPriceX96(2)), alice, bytes('')
+        );
+        vm.snapshotGasLastCall('submitBidWithoutPrevTickPrice_initializeTick_updateCheckpoint');
+
+        // Submit another bid at the same price, which is now initialized
+        auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2), true, inputAmountForTokens(100e18, tickNumberToPriceX96(2)), alice, bytes('')
+        );
+        vm.snapshotGasLastCall('submitBidWithoutPrevTickPrice');
+
+        // Submit a bid at a higher price which is not initialized, requiring the protocol to search
+        auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(3))}(
+            tickNumberToPriceX96(3), true, inputAmountForTokens(100e18, tickNumberToPriceX96(3)), alice, bytes('')
+        );
+        vm.snapshotGasLastCall('submitBidWithoutPrevTickPrice_initializeTick_search');
+    }
+
     function test_checkpoint_startBlock_succeeds() public {
         vm.roll(auction.startBlock());
         auction.checkpoint();
@@ -411,7 +434,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_submitBid_exactIn_atFloorPrice_reverts() public {
-        vm.expectRevert(ITickStorage.TickPreviousPriceInvalid.selector);
+        vm.expectRevert(IAuction.InvalidBidPrice.selector);
         auction.submitBid{value: inputAmountForTokens(10e18, tickNumberToPriceX96(1))}(
             tickNumberToPriceX96(1),
             true,
@@ -423,7 +446,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_submitBid_exactOut_atFloorPrice_reverts() public {
-        vm.expectRevert(ITickStorage.TickPreviousPriceInvalid.selector);
+        vm.expectRevert(IAuction.InvalidBidPrice.selector);
         auction.submitBid{value: inputAmountForTokens(10e18, tickNumberToPriceX96(1))}(
             tickNumberToPriceX96(1), false, 10e18, alice, tickNumberToPriceX96(1), bytes('')
         );

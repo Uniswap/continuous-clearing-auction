@@ -122,6 +122,20 @@ interface IAuction is
         bytes calldata hookData
     ) external payable returns (uint256 bidId);
 
+    /// @notice Submit a new bid without specifying the previous tick price
+    /// @dev It is NOT recommended to use this function unless you are sure that `maxPrice` is already initialized
+    ///      as this function will iterate through every tick starting from the floor price if it is not.
+    /// @param maxPrice The maximum price the bidder is willing to pay
+    /// @param exactIn Whether the bid is exact in
+    /// @param amount The amount of the bid
+    /// @param owner The owner of the bid
+    /// @param hookData Additional data to pass to the hook required for validation
+    /// @return bidId The id of the bid
+    function submitBid(uint256 maxPrice, bool exactIn, uint128 amount, address owner, bytes calldata hookData)
+        external
+        payable
+        returns (uint256 bidId);
+
     /// @notice Register a new checkpoint
     /// @dev This function is called every time a new bid is submitted above the current clearing price
     /// @dev If the auction is over, it returns the final checkpoint

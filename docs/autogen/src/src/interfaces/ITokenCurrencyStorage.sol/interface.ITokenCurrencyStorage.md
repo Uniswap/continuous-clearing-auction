@@ -1,5 +1,5 @@
 # ITokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/97736469ca9c341f9fa3e3f0d8f30f1ff55a4425/src/interfaces/ITokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/a19cc56b47229fecd45274503206852cafed48a0/src/interfaces/ITokenCurrencyStorage.sol)
 
 Interface for token and currency storage operations
 

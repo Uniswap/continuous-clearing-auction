@@ -361,6 +361,16 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
+    function submitBid(uint256 maxPrice, bool exactIn, uint128 amount, address owner, bytes calldata hookData)
+        external
+        payable
+        onlyActiveAuction
+        returns (uint256)
+    {
+        return _submitBid(maxPrice, exactIn, amount, owner, floorPrice, hookData);
+    }
+
+    /// @inheritdoc IAuction
     function exitBid(uint256 bidId) external onlyAfterAuctionIsOver {
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();

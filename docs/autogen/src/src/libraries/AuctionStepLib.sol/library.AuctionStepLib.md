@@ -1,5 +1,5 @@
 # AuctionStepLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/417428be9c09d153c63b5c6214c7a36520bc515b/src/libraries/AuctionStepLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/163a9c5caa0e1ad086f86fa796c27a59e36ff096/src/libraries/AuctionStepLib.sol)
 
 Library for auction step calculations and parsing
 

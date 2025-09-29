@@ -1,5 +1,5 @@
 # BidLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/bfa21e9f2d74b598ceb2c43c80025e414a574c8e/src/libraries/BidLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/163a9c5caa0e1ad086f86fa796c27a59e36ff096/src/libraries/BidLib.sol)
 
 
 ## Functions

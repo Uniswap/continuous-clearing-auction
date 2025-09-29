@@ -23,7 +23,7 @@ library DemandLib {
     using FixedPointMathLib for uint256;
     using AuctionStepLib for uint256;
 
-    /// @notice Resolve the demand at a given price, rounding up. 
+    /// @notice Resolve the demand at a given price, rounding up.
     ///         We only round up when we compare demand to supply so we never find a price that is too low.
     /// @dev "Resolving" means converting all demand into token terms, which requires dividing the currency demand by a price
     /// @param _demand The demand to resolve

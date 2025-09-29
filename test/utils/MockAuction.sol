@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {Auction} from '../../src/Auction.sol';
 import {AuctionParameters} from '../../src/Auction.sol';
-
+import {Demand} from '../../src/libraries/DemandLib.sol';
 import {Bid} from '../../src/BidStorage.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
 import {SupplyLib, SupplyRolloverMultiplier} from '../../src/libraries/SupplyLib.sol';
@@ -16,11 +16,14 @@ contract MockAuction is Auction {
     {}
 
     function calculateNewClearingPrice(
+        Demand memory sumDemandAboveClearing,
         uint256 minimumClearingPrice,
         uint24 remainingMpsInAuction,
         ValueX7X7 remainingSupplyX7X7
     ) external view returns (uint256) {
-        return _calculateNewClearingPrice(minimumClearingPrice, remainingMpsInAuction, remainingSupplyX7X7);
+        return _calculateNewClearingPrice(
+            sumDemandAboveClearing, minimumClearingPrice, remainingMpsInAuction, remainingSupplyX7X7
+        );
     }
 
     function unpackSupplyRolloverMultiplier()

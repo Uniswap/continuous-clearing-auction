@@ -6,6 +6,7 @@ import {FixedPoint96} from './FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './ValueX7X7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {MPSLib} from './MPSLib.sol';
 
 struct Checkpoint {
     uint256 clearingPrice; // The X96 price which the auction is currently clearing at
@@ -25,6 +26,13 @@ library CheckpointLib {
     using ValueX7Lib for *;
     using ValueX7X7Lib for *;
     using CheckpointLib for Checkpoint;
+
+    /// @notice Get the remaining mps in the auction at the given checkpoint
+    /// @param _checkpoint The checkpoint with `cumulativeMps` so far
+    /// @return The remaining mps in the auction
+    function remainingMpsInAuction(Checkpoint memory _checkpoint) internal pure returns (uint24) {
+        return MPSLib.MPS - _checkpoint.cumulativeMps;
+    }
 
     /// @notice Calculate the supply to price ratio. Will return zero if `price` is zero
     /// @dev This function returns a value in Q96 form

@@ -59,20 +59,41 @@ library TickBitmapLib {
 
     /// @dev Convert tick into (word, bit) position
     function position(uint256 tick) private pure returns (uint256 wordPos, uint8 bitPos) {
-        wordPos = tick >> 8;     // divide by 256
+        wordPos = tick >> 8; // divide by 256
         bitPos = uint8(tick & 0xFF); // mod 256
     }
 
     /// @dev Find most significant bit index (0–255) of nonzero word
     function _mostSignificantBit(uint256 x) private pure returns (uint8 r) {
         require(x > 0);
-        if (x >> 128 > 0) { x >>= 128; r += 128; }
-        if (x >> 64 > 0)  { x >>= 64;  r += 64; }
-        if (x >> 32 > 0)  { x >>= 32;  r += 32; }
-        if (x >> 16 > 0)  { x >>= 16;  r += 16; }
-        if (x >> 8 > 0)   { x >>= 8;   r += 8; }
-        if (x >> 4 > 0)   { x >>= 4;   r += 4; }
-        if (x >> 2 > 0)   { x >>= 2;   r += 2; }
-        if (x >> 1 > 0)   {            r += 1; }
+        if (x >> 128 > 0) {
+            x >>= 128;
+            r += 128;
+        }
+        if (x >> 64 > 0) {
+            x >>= 64;
+            r += 64;
+        }
+        if (x >> 32 > 0) {
+            x >>= 32;
+            r += 32;
+        }
+        if (x >> 16 > 0) {
+            x >>= 16;
+            r += 16;
+        }
+        if (x >> 8 > 0) {
+            x >>= 8;
+            r += 8;
+        }
+        if (x >> 4 > 0) {
+            x >>= 4;
+            r += 4;
+        }
+        if (x >> 2 > 0) {
+            x >>= 2;
+            r += 2;
+        }
+        if (x >> 1 > 0) r += 1;
     }
 }

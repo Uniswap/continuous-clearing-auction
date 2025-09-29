@@ -27,13 +27,15 @@ import {MockAuction} from './utils/MockAuction.sol';
 import {MockFundsRecipient} from './utils/MockFundsRecipient.sol';
 import {MockToken} from './utils/MockToken.sol';
 import {MockValidationHook} from './utils/MockValidationHook.sol';
+
+import {TickBitmap, TickBitmapLib} from './utils/TickBitmap.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
+
+import {console} from 'forge-std/console.sol';
+import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
-import {TickBitmap, TickBitmapLib} from './utils/TickBitmap.sol';
-import {console2} from 'forge-std/console2.sol';
-import {console} from 'forge-std/console.sol';
 
 contract AuctionTest is AuctionBaseTest {
     using FixedPointMathLib for uint256;
@@ -43,7 +45,7 @@ contract AuctionTest is AuctionBaseTest {
     using ValueX7X7Lib for *;
     using TickBitmapLib for TickBitmap;
 
-    bool exactIn = true;
+    bool internal $exactIn = true;
     TickBitmap private tickBitmap;
 
     function setUp() public {
@@ -82,12 +84,12 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     modifier givenExactIn() {
-        exactIn = true;
+        $exactIn = true;
         _;
     }
 
     modifier givenExactOut() {
-        exactIn = false;
+        $exactIn = false;
         _;
     }
 
@@ -96,7 +98,11 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     /// @dev Given a tick number, return it as a multiple of the tick spacing above the floor price - as q96
-    function helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(uint256 _tickNumber) internal view returns (uint256 maxPriceQ96) {
+    function helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(uint256 _tickNumber)
+        internal
+        view
+        returns (uint256 maxPriceQ96)
+    {
         uint256 tickSpacing = params.tickSpacing;
         uint256 floorPrice = params.floorPrice;
 
@@ -113,12 +119,15 @@ contract AuctionTest is AuctionBaseTest {
 
     /// @dev Submit a bid for a given tick number, amount, and owner
     /// @dev if the bid was not successfully placed - i.e. it would not have succeeded at clearing - bidPlaced is false and bidId is 0
-    function helper__trySubmitBid(uint256 _i, FuzzBid memory _bid, address _owner) internal returns (bool bidPlaced, uint256 bidId ) {
+    function helper__trySubmitBid(uint256 _i, FuzzBid memory _bid, address _owner)
+        internal
+        returns (bool bidPlaced, uint256 bidId)
+    {
         uint256 clearingPrice = auction.clearingPrice();
 
         // Get the correct bid prices for the bid
         uint256 maxPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(_bid.tickNumber);
-        
+
         // if the bid if not above the clearing price, don't submit the bid
         if (maxPrice <= clearingPrice) return (false, 0);
 
@@ -129,13 +138,12 @@ contract AuctionTest is AuctionBaseTest {
         uint256 lastTickPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(lowerTickNumber);
 
         vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(
-            _i, _owner, maxPrice, true, ethInputAmount
-        );
+        emit IAuction.BidSubmitted(_i, _owner, maxPrice, $exactIn, $exactIn ? ethInputAmount : _bid.bidAmount);
         bidId = auction.submitBid{value: ethInputAmount}(
             maxPrice,
-            exactIn,
-            ethInputAmount,
+            $exactIn,
+            // if the bid is exact in, use the eth input amount, otherwise use the bid amount in tokens
+            $exactIn ? ethInputAmount : _bid.bidAmount,
             _owner,
             lastTickPrice,
             bytes('')
@@ -169,7 +177,6 @@ contract AuctionTest is AuctionBaseTest {
         newAuction.checkpoint();
     }
 
-
     /// @dev if iteration block has bottom two bits set, roll to the next block - 25% chance
     function helper__maybeRollToNextBlock(uint256 _iteration) internal {
         uint256 endBlock = auction.endBlock();
@@ -182,13 +189,11 @@ contract AuctionTest is AuctionBaseTest {
         }
     }
 
-
-    /// forge-config: default.isolate = true
-    /// forge-config: ci.isolate = true
-    function test_submitBid_exactIn_succeeds_gas(FuzzDeploymentParams memory _deploymentParams, FuzzBid[] memory _bids) public 
-        setUpAuctionFuzz(_deploymentParams) 
+    function test_submitBid_exactIn_succeeds_gas(FuzzDeploymentParams memory _deploymentParams, FuzzBid[] memory _bids)
+        public
+        setUpAuctionFuzz(_deploymentParams)
         setUpBidsFuzz(_bids)
-        givenAuctionHasStarted 
+        givenAuctionHasStarted
         givenExactIn
         givenFullyFundedAccount
     {
@@ -202,9 +207,44 @@ contract AuctionTest is AuctionBaseTest {
 
             helper__maybeRollToNextBlock(i);
         }
-        vm.snapshotGasLastCall('submitBid_updateCheckpoint');
-        vm.snapshotGasLastCall('submitBid_recordStep_updateCheckpoint');
-        vm.snapshotGasLastCall('submitBid');
+    }
+
+    function test_submitBid_exactOut_succeeds_gas(FuzzDeploymentParams memory _deploymentParams, FuzzBid[] memory _bids)
+        public
+        setUpAuctionFuzz(_deploymentParams)
+        setUpBidsFuzz(_bids)
+        givenAuctionHasStarted
+        givenExactOut
+        givenFullyFundedAccount
+    {
+        uint256 expectedBidId;
+        for (uint256 i = 0; i < _bids.length; i++) {
+            // TODO(md): Temporary to ensure that we dont place bids that will not succeed if the clearing price moves above them during the tx
+            auction.checkpoint();
+
+            (bool bidPlaced, uint256 bidId) = helper__trySubmitBid(expectedBidId, _bids[i], alice);
+            if (bidPlaced) expectedBidId++;
+
+            helper__maybeRollToNextBlock(i);
+        }
+    }
+
+    function test_submitBid_mixedExactInAndOut_succeeds_gas(
+        FuzzDeploymentParams memory _deploymentParams,
+        FuzzBid[] memory _bids
+    ) public setUpAuctionFuzz(_deploymentParams) setUpBidsFuzz(_bids) givenAuctionHasStarted givenFullyFundedAccount {
+        uint256 expectedBidId;
+        for (uint256 i = 0; i < _bids.length; i++) {
+            // TODO(md): Temporary to ensure that we dont place bids that will not succeed if the clearing price moves above them during the tx
+            auction.checkpoint();
+
+            $exactIn = block.number % 2 == 0;
+            console2.log('exactIn', $exactIn);
+            (bool bidPlaced, uint256 bidId) = helper__trySubmitBid(expectedBidId, _bids[i], alice);
+            if (bidPlaced) expectedBidId++;
+
+            helper__maybeRollToNextBlock(i);
+        }
     }
 
     /// forge-config: default.isolate = true
@@ -269,6 +309,7 @@ contract AuctionTest is AuctionBaseTest {
             tickNumberToPriceX96(1),
             bytes('')
         );
+        vm.snapshotGasLastCall('submitBid_updateCheckpoint');
 
         vm.roll(block.number + 1);
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block

@@ -7,6 +7,8 @@ import {AuctionParameters, IAuction} from '../../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
 import {Demand} from '../../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
+
+import {MPSLib} from '../../src/libraries/MPSLib.sol';
 import {SupplyLib} from '../../src/libraries/SupplyLib.sol';
 import {Assertions} from './Assertions.sol';
 import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
@@ -15,7 +17,6 @@ import {MockFundsRecipient} from './MockFundsRecipient.sol';
 import {TokenHandler} from './TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {MPSLib} from '../../src/libraries/MPSLib.sol';
 
 /// @notice Handler contract for setting up an auction
 abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
@@ -52,9 +53,11 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         uint8 tickNumber;
     }
 
-    function helper__validFuzzDeploymentParams(
-        FuzzDeploymentParams memory _deploymentParams
-    ) public view returns (AuctionParameters memory) {
+    function helper__validFuzzDeploymentParams(FuzzDeploymentParams memory _deploymentParams)
+        public
+        view
+        returns (AuctionParameters memory)
+    {
         // Hard coded for tests
         _deploymentParams.auctionParams.currency = ETH_SENTINEL;
         _deploymentParams.auctionParams.tokensRecipient = tokensRecipient;
@@ -64,20 +67,30 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _deploymentParams.totalSupply = _bound(_deploymentParams.totalSupply, 1, SupplyLib.MAX_TOTAL_SUPPLY);
 
         // -2 because we need to account for the endBlock and claimBlock
-        _deploymentParams.auctionParams.startBlock = uint64(_bound(_deploymentParams.auctionParams.startBlock, block.number, type(uint64).max - _deploymentParams.numberOfSteps - 2));
-        _deploymentParams.auctionParams.endBlock = _deploymentParams.auctionParams.startBlock + uint64(_deploymentParams.numberOfSteps);
+        _deploymentParams.auctionParams.startBlock = uint64(
+            _bound(
+                _deploymentParams.auctionParams.startBlock,
+                block.number,
+                type(uint64).max - _deploymentParams.numberOfSteps - 2
+            )
+        );
+        _deploymentParams.auctionParams.endBlock =
+            _deploymentParams.auctionParams.startBlock + uint64(_deploymentParams.numberOfSteps);
         _deploymentParams.auctionParams.claimBlock = _deploymentParams.auctionParams.endBlock + 1;
 
         vm.assume(_deploymentParams.auctionParams.graduationThresholdMps != 0);
-        
+
         // Dont have tick spacing or floor price too large
-        _deploymentParams.auctionParams.floorPrice = _bound(_deploymentParams.auctionParams.floorPrice, 0, type(uint128).max);
-        _deploymentParams.auctionParams.tickSpacing = _bound(_deploymentParams.auctionParams.tickSpacing, 0, type(uint128).max);
+        _deploymentParams.auctionParams.floorPrice =
+            _bound(_deploymentParams.auctionParams.floorPrice, 0, type(uint128).max);
+        _deploymentParams.auctionParams.tickSpacing =
+            _bound(_deploymentParams.auctionParams.tickSpacing, 0, type(uint128).max);
 
         // first assume that tick spacing is not zero to avoid division by zero
         vm.assume(_deploymentParams.auctionParams.tickSpacing != 0);
         // round down to the closest floor price to the tick spacing
-        _deploymentParams.auctionParams.floorPrice = _deploymentParams.auctionParams.floorPrice / _deploymentParams.auctionParams.tickSpacing * _deploymentParams.auctionParams.tickSpacing;
+        _deploymentParams.auctionParams.floorPrice = _deploymentParams.auctionParams.floorPrice
+            / _deploymentParams.auctionParams.tickSpacing * _deploymentParams.auctionParams.tickSpacing;
         // then assume that floor price is non zero
         vm.assume(_deploymentParams.auctionParams.floorPrice != 0);
 
@@ -96,7 +109,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _deploymentParams.auctionParams.auctionStepsData = _auctionStepsData;
 
         // Bound graduation threshold mps
-        _deploymentParams.auctionParams.graduationThresholdMps = uint24(bound(_deploymentParams.auctionParams.graduationThresholdMps, 0, uint24(MPSLib.MPS)));
+        _deploymentParams.auctionParams.graduationThresholdMps =
+            uint24(bound(_deploymentParams.auctionParams.graduationThresholdMps, 0, uint24(MPSLib.MPS)));
 
         return _deploymentParams.auctionParams;
     }
@@ -148,8 +162,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Expect the tokens to be received
         auction.onTokensReceived();
     }
-
-
 
     /// @dev Helper function to convert a tick number to a priceX96
     function tickNumberToPriceX96(uint256 tickNumber) internal pure returns (uint256) {

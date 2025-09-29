@@ -37,11 +37,6 @@ contract AuctionTest is AuctionBaseTest {
         setUpAuction();
     }
 
-    /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice
-    function inputAmountForTokens(uint256 tokens, uint256 maxPrice) internal pure returns (uint256) {
-        return tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96);
-    }
-
     function test_submitBid_beforeTokensReceived_reverts() public {
         Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(newAuction), TOTAL_SUPPLY);
@@ -285,7 +280,8 @@ contract AuctionTest is AuctionBaseTest {
         // Advance to the next block to get the next checkpoint
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7X7.wrap(0), 0);
+        // Expect the price to increase, but no tokens to be sold
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), ValueX7X7.wrap(0), 0);
         auction.checkpoint();
         vm.snapshotGasLastCall('checkpoint_zeroSupply');
 
@@ -1027,8 +1023,9 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_advanceToCurrentStep_withMultipleStepsAndClearingPrice() public {
-        auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 20).addStep(150e3, 20).addStep(250e3, 20);
-        params = params.withEndBlock(block.number + 60).withAuctionStepsData(auctionStepsData);
+        params = params.withEndBlock(block.number + 60).withAuctionStepsData(
+            AuctionStepsBuilder.init().addStep(100e3, 20).addStep(150e3, 20).addStep(250e3, 20)
+        );
 
         Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(newAuction), TOTAL_SUPPLY);

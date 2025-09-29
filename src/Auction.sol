@@ -67,18 +67,10 @@ contract Auction is
         TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
         PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
     {
-        currency = Currency.wrap(_parameters.currency);
-        token = IERC20Minimal(_token);
-        totalSupply = _totalSupply;
-        tokensRecipient = _parameters.tokensRecipient;
-        fundsRecipient = _parameters.fundsRecipient;
         claimBlock = _parameters.claimBlock;
         validationHook = IValidationHook(_parameters.validationHook);
 
-        if (totalSupply == 0) revert TotalSupplyIsZero();
-        if (floorPrice == 0) revert FloorPriceIsZero();
         if (claimBlock < endBlock) revert ClaimBlockIsBeforeEndBlock();
-        if (fundsRecipient == address(0)) revert FundsRecipientIsZero();
     }
 
     /// @notice Modifier for functions which can only be called after the auction is over

@@ -44,16 +44,18 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         bytes memory _fundsRecipientData
     ) {
         token = IERC20Minimal(_token);
-        totalSupply = _totalSupply;
         currency = Currency.wrap(_currency);
+        totalSupply = _totalSupply;
         tokensRecipient = _tokensRecipient;
         fundsRecipient = _fundsRecipient;
         graduationThresholdMps = _graduationThresholdMps;
         fundsRecipientData = _fundsRecipientData;
 
+        if (_token == address(0)) revert TokenIsAddressZero();
+        if (_token == address(_currency)) revert TokenAndCurrencyCannotBeTheSame();
         if (totalSupply == 0) revert TotalSupplyIsZero();
-        if (fundsRecipient == address(0)) revert FundsRecipientIsZero();
         if (tokensRecipient == address(0)) revert TokensRecipientIsZero();
+        if (fundsRecipient == address(0)) revert FundsRecipientIsZero();
         if (graduationThresholdMps > AuctionStepLib.MPS) revert InvalidGraduationThresholdMps();
 
         // Calculate the required supply sold for graduation, rounding up to sell at least the amount required by the graduation threshold

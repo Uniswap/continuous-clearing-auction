@@ -41,6 +41,9 @@ contract TickStorageTest is Test {
         if (tickSpacing == 0) {
             vm.expectRevert(ITickStorage.TickSpacingIsZero.selector);
             _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
+        } else if (floorPrice == 0) {
+            vm.expectRevert(ITickStorage.FloorPriceIsZero.selector);
+            _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
         } else if (floorPrice % tickSpacing != 0) {
             vm.expectRevert(ITickStorage.TickPriceNotAtBoundary.selector);
             _tickStorage = new MockTickStorage(tickSpacing, floorPrice);

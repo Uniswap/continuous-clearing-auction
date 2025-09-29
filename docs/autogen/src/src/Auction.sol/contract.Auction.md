@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/8d90235fbf85ca4acff7718d92ef5e149af0d4dd/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/97736469ca9c341f9fa3e3f0d8f30f1ff55a4425/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -99,9 +99,9 @@ function onTokensReceived() external;
 
 ### isGraduated
 
-External function to check if the auction has graduated as of the latest checkpoint
+Whether the auction has sold more tokens than specified in the graduation threshold as of the latest checkpoint
 
-*The latest checkpoint may be out of date*
+*Be aware that the latest checkpoint may be out of date*
 
 
 ```solidity
@@ -111,22 +111,28 @@ function isGraduated() external view returns (bool);
 
 |Name|Type|Description|
 |----|----|-----------|
-|`<none>`|`bool`|bool Whether the auction has graduated or not|
+|`<none>`|`bool`|bool True if the auction has graduated, false otherwise|
 
 
 ### _isGraduated
 
-Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
+Whether the auction has graduated as of the given checkpoint (sold more than the graduation threshold)
 
 
 ```solidity
 function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool);
 ```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`_checkpoint`|`Checkpoint`|The checkpoint to check|
+
 **Returns**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`<none>`|`bool`|True if the auction has graduated, false otherwise|
+|`<none>`|`bool`|bool True if the auction has graduated, false otherwise|
 
 
 ### _transformCheckpoint

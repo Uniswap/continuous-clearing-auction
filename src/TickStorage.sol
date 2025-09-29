@@ -31,6 +31,7 @@ abstract contract TickStorage is ITickStorage {
     constructor(uint256 _tickSpacing, uint256 _floorPrice) {
         if (_tickSpacing == 0) revert TickSpacingIsZero();
         tickSpacing = _tickSpacing;
+        if (_floorPrice == 0) revert FloorPriceIsZero();
         // Ensure the floor price is at a tick boundary
         if (_floorPrice % tickSpacing != 0) revert TickPriceNotAtBoundary();
         floorPrice = _floorPrice;

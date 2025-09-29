@@ -5,6 +5,8 @@ import {AuctionStep} from '../libraries/AuctionStepLib.sol';
 
 /// @notice Interface for managing auction step storage
 interface IAuctionStepStorage {
+    /// @notice Error thrown when the end block is equal to or before the start block
+    error InvalidEndBlock();
     /// @notice Error thrown when the auction is over
     error AuctionIsOver();
     /// @notice Error thrown when the auction data length is invalid
@@ -12,9 +14,9 @@ interface IAuctionStepStorage {
     /// @notice Error thrown when the block delta in a step is zero
     error StepBlockDeltaCannotBeZero();
     /// @notice Error thrown when the mps is invalid
-    error InvalidMps();
+    error InvalidStepDataMps();
     /// @notice Error thrown when the end block is invalid
-    error InvalidEndBlock();
+    error InvalidEndBlockGivenStepData();
 
     /// @notice The block at which the auction starts
     /// @return The starting block number

@@ -1652,7 +1652,7 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_auctionConstruction_revertsWithFloorPriceZero() public {
         AuctionParameters memory paramsZeroFloorPrice = params.withFloorPrice(0);
-        vm.expectRevert(IAuction.FloorPriceIsZero.selector);
+        vm.expectRevert(ITickStorage.FloorPriceIsZero.selector);
         new Auction(address(token), TOTAL_SUPPLY, paramsZeroFloorPrice);
     }
 

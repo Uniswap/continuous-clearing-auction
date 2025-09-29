@@ -5,12 +5,13 @@ import {Auction} from '../src/Auction.sol';
 import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {MPSLib} from '../src/libraries/MPSLib.sol';
+
+import {SupplyLib} from '../src/libraries/SupplyLib.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {Test} from 'forge-std/Test.sol';
-import {SupplyLib} from '../src/libraries/SupplyLib.sol';
 
 /// @title AuctionStepDiffTest
 /// @notice Tests for different auction steps data combinations

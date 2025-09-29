@@ -53,8 +53,8 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
         ) revert InvalidAuctionDataLength();
 
         // Loop through the auction steps data and check if the mps is valid
-        uint256 sumMps;
-        uint64 sumBlockDelta;
+        uint256 sumMps = 0;
+        uint64 sumBlockDelta = 0;
         for (uint256 i = 0; i < _LENGTH; i += UINT64_SIZE) {
             (uint24 mps, uint40 blockDelta) = _auctionStepsData.get(i);
             sumMps += mps * blockDelta;

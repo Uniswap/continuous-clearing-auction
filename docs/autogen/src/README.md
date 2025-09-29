@@ -182,6 +182,155 @@ library FixedPoint96 {
 
 **Implementation**: The Q96 system enables exact price calculations during clearing price discovery and bid fill accounting, ensuring no rounding errors in critical financial operations.
 
+### X7 and X7X7 Precision Mathematics
+
+The auction employs a sophisticated dual-scaling system to maintain mathematical precision throughout complex time-weighted calculations, avoiding intermediate rounding errors that could compound over the auction lifecycle.
+
+#### MPS (Milli-Basis Points)
+
+The foundation of the scaling system is **MPS = 1e7** (10 million), representing one thousandth of a basis point:
+
+```solidity
+library MPSLib {
+    uint24 public constant MPS = 1e7; // 10,000,000
+}
+```
+
+#### ValueX7: Demand-Side Precision
+
+**ValueX7** represents values scaled up by MPS to preserve precision in demand calculations:
+
+```solidity
+/// @notice A ValueX7 is a uint256 value that has been multiplied by MPS
+/// @dev X7 values are used for demand values to avoid intermediate division by MPS
+type ValueX7 is uint256;
+```
+
+**Purpose**: Demand calculations involve fractional distributions over time and price levels. By pre-scaling demand values by MPS, the system avoids precision loss from repeated division operations.
+
+**Use Cases**:
+
+- Bid demand aggregation across price ticks
+- Currency and token demand tracking
+- Partial fill ratio calculations
+
+#### ValueX7X7: Supply-Side Double Precision
+
+**ValueX7X7** represents values scaled up by MPS twice (total scaling of 1e14) for supply-related calculations:
+
+```solidity
+/// @notice A ValueX7X7 is a ValueX7 value that has been multiplied by MPS
+/// @dev X7X7 values are used for supply values to avoid intermediate division by MPS
+type ValueX7X7 is uint256;
+```
+
+**Purpose**: Supply calculations are more complex, involving time-weighted distributions, cumulative tracking, and clearing price interactions. The double scaling ensures precision is maintained through multiple mathematical operations.
+
+**Use Cases**:
+
+- Total cleared supply tracking (`totalClearedX7X7`)
+- Cumulative supply sold to clearing price (`cumulativeSupplySoldToClearingPriceX7X7`)
+- Finding the total tokens sold in the auction for graudation threshold comparison
+
+#### Core Mathematical Operations
+
+The dual scaling system enables two critical mathematical operations that define the auction mechanism:
+
+<details>
+<summary><strong>1. Clearing Price Calculation</strong></summary>
+
+The clearing price calculation finds the ratio of currency demand to available token supply, following $\text{price} = \frac{\text{currency}}{\text{tokens}}$.
+
+**Initial Formula:**
+$$\frac{\text{currencyDemandX7} \times \text{Q96} \times \text{mps}}{\text{MPS}} \div \left[ \frac{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{mps}}{\text{MPS} - \text{cumulativeMps}} - \frac{\text{tokenDemandX7} \times \text{mps}}{\text{MPS}} \right]$$
+
+**Algebraic Simplification Steps:**
+
+1. **Find common denominator for the divisor:**
+   $$\frac{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{mps} \times \text{MPS} - \text{tokenDemandX7} \times \text{mps} \times (\text{MPS} - \text{cumulativeMps})}{(\text{MPS} - \text{cumulativeMps}) \times \text{MPS}}$$
+
+2. **Convert division to multiplication:**
+   $$\frac{\text{currencyDemandX7} \times \text{Q96} \times \text{mps}}{\text{MPS}} \times \frac{(\text{MPS} - \text{cumulativeMps}) \times \text{MPS}}{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{mps} \times \text{MPS} - \text{tokenDemandX7} \times \text{mps} \times (\text{MPS} - \text{cumulativeMps})}$$
+
+3. **Cancel common terms (mps and MPS):**
+   $$\text{currencyDemandX7} \times \text{Q96} \times \frac{(\text{MPS} - \text{cumulativeMps})}{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{MPS} - \text{tokenDemandX7} \times (\text{MPS} - \text{cumulativeMps})}$$
+
+4. **Substitute X7X7 values:**
+   Since $(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{MPS} = \text{remainingSupplyX7X7}$:
+
+$$\text{clearingPrice} = \text{currencyDemandX7} \times \frac{\text{Q96} \times \text{remainingMpsInAuction}}{\text{remainingSupplyX7X7} - (\text{tokenDemandX7} \times \text{remainingMpsInAuction})}$$
+
+**Implementation:**
+
+```solidity
+clearingPrice = currencyDemandX7.fullMulDivUp(
+    Q96 * remainingMpsInAuction,
+    remainingSupplyX7X7 - (tokenDemandX7 * remainingMpsInAuction)
+);
+```
+
+</details>
+
+<details>
+<summary><strong>2. Supply-Demand Comparison for Tick Walking</strong></summary>
+
+When determining which price ticks to clear, the system compares resolved demand against available supply while avoiding precision loss.
+
+**Original Comparison:**
+
+- $R = \frac{\text{resolvedDemand} \times \text{mps}}{\text{MPS}}$
+- $\text{supply} = \frac{(\text{totalSupply} - \text{totalCleared}) \times \text{step.mps}}{\text{MPS} - \text{cumulativeMps}}$
+- **Check:** $R \geq \text{supply}$
+
+**Algebraic Transformation to Avoid Division:**
+
+1. **Multiply both sides by $(\text{MPS} - \text{cumulativeMps})$:**
+   $$R \times (\text{MPS} - \text{cumulativeMps}) \geq \text{supply} \times \text{mps}$$
+
+2. **Substitute R and expand:**
+   $$\frac{\text{resolvedDemand} \times \text{mps}}{\text{MPS}} \times (\text{MPS} - \text{cumulativeMps}) \geq \text{supply} \times \text{mps}$$
+
+3. **Cancel mps terms:**
+   $$\frac{\text{resolvedDemand} \times (\text{MPS} - \text{cumulativeMps})}{\text{MPS}} \geq \text{supply}$$
+
+4. **Eliminate division by multiplying both sides by MPS:**
+   $$\text{resolvedDemand} \times (\text{MPS} - \text{cumulativeMps}) \geq \text{supply} \times \text{MPS}$$
+
+5. **Substitute X7X7 supply tracking:**
+   Since supply is tracked as X7X7 (already scaled by MPS):
+   $$\text{resolvedDemand} \times \text{remainingMpsInAuction} \geq \text{TOTAL\_SUPPLY\_X7\_X7} - \text{totalClearedX7X7}$$
+
+**Implementation:**
+
+```solidity
+resolvedDemand.mulUint256(remainingMpsInAuction).upcast()
+    .gte(TOTAL_SUPPLY_X7_X7.sub(checkpoint.totalClearedX7X7))
+```
+
+</details>
+
+#### Type Safety and Conversions
+
+The system provides safe conversion utilities between scaling levels:
+
+```solidity
+// X7 operations
+function scaleUpToX7(uint256 value) -> ValueX7
+function scaleDownToUint256(ValueX7 value) -> uint256
+
+// X7X7 operations
+function upcast(ValueX7 value) -> ValueX7X7
+function downcast(ValueX7X7 value) -> ValueX7
+function scaleDownToValueX7(ValueX7X7 value) -> ValueX7
+```
+
+**Implementation Benefits**:
+
+- **Precision**: Eliminates rounding errors in critical financial calculations
+- **Type Safety**: Prevents mixing scaled and unscaled values
+- **Gas Efficiency**: Avoids expensive division operations in loops
+- **Mathematical Correctness**: Ensures auction clearing prices and allocations are calculated exactly
+
 ### Auction steps (supply issuance schedule)
 
 The auction steps define the supply issuance schedule. The auction steps are packed into a bytes array and passed to the constructor along with the other parameters. Each step is a packed `uint64` with the first 24 bits being the per-block issuance rate in MPS (milli-bips), and the last 40 bits being the number of blocks to sell over.

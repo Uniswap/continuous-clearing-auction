@@ -138,7 +138,7 @@ contract Auction is
     {
         // This value should have been divided by MPS, we implicitly remove it to wrap it as a ValueX7X7
         ValueX7X7 resolvedDemandAboveClearingPriceX7X7 =
-            _checkpoint.sumDemandAboveClearingPrice.resolveRoundingUp(_checkpoint.clearingPrice).upcast();
+            _checkpoint.sumDemandAboveClearingPrice.resolveRoundingDown(_checkpoint.clearingPrice).upcast();
         // Calculate the supply to be cleared based on demand above the clearing price
         ValueX7X7 supplyClearedX7X7;
         // If the clearing price is above the floor price the auction is fully subscribed and we can sell the available supply
@@ -600,8 +600,8 @@ contract Auction is
         if (upperCheckpoint.clearingPrice == bidMaxPrice) {
             (uint256 partialTokensFilled, uint256 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
                 upperCheckpoint.cumulativeSupplySoldToClearingPriceX7X7,
-                bid.toDemand().resolveRoundingUp(bidMaxPrice),
-                getTick(bidMaxPrice).demand.resolveRoundingUp(bidMaxPrice),
+                bid.toDemand().resolveRoundingDown(bidMaxPrice),
+                getTick(bidMaxPrice).demand.resolveRoundingDown(bidMaxPrice),
                 bidMaxPrice
             );
             tokensFilled += partialTokensFilled;

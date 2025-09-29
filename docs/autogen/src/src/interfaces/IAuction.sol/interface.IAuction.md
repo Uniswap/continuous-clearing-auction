@@ -1,8 +1,8 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c93a502c43cc6579f7780b08fd2fc5515af395e2/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/d2fa994e75f232a6bfe496080d6fadb2906a187d/src/interfaces/IAuction.sol)
 
 **Inherits:**
-[IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
+[IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
 
 Interface for the Auction contract
 
@@ -53,15 +53,29 @@ Register a new checkpoint
 ```solidity
 function checkpoint() external returns (Checkpoint memory _checkpoint);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`_checkpoint`|`Checkpoint`|The checkpoint at the current block|
+
 
 ### isGraduated
 
-Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
+Whether the auction has sold more tokens than specified in the graduation threshold as of the latest checkpoint
+
+*Be aware that the latest checkpoint may be out of date*
 
 
 ```solidity
 function isGraduated() external view returns (bool);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`bool`|bool True if the auction has graduated, false otherwise|
+
 
 ### exitBid
 
@@ -122,8 +136,7 @@ function claimTokens(uint256 bidId) external;
 
 Withdraw all of the currency raised
 
-*Can only be called by the funds recipient after the auction has ended
-Must be called before the `claimBlock`*
+*Can be called by anyone after the auction has ended*
 
 
 ```solidity
@@ -157,6 +170,15 @@ Sweep any leftover tokens to the tokens recipient
 
 ```solidity
 function sweepUnsoldTokens() external;
+```
+
+### sumDemandAboveClearing
+
+The sum of demand in ticks above the clearing price
+
+
+```solidity
+function sumDemandAboveClearing() external view returns (Demand memory);
 ```
 
 ## Events
@@ -197,7 +219,9 @@ Emitted when a new checkpoint is created
 
 
 ```solidity
-event CheckpointUpdated(uint256 indexed blockNumber, uint256 clearingPrice, ValueX7 totalCleared, uint24 cumulativeMps);
+event CheckpointUpdated(
+    uint256 indexed blockNumber, uint256 clearingPrice, ValueX7X7 totalClearedX7X7, uint24 cumulativeMps
+);
 ```
 
 **Parameters**
@@ -206,7 +230,7 @@ event CheckpointUpdated(uint256 indexed blockNumber, uint256 clearingPrice, Valu
 |----|----|-----------|
 |`blockNumber`|`uint256`|The block number of the checkpoint|
 |`clearingPrice`|`uint256`|The clearing price of the checkpoint|
-|`totalCleared`|`ValueX7`|The total amount of tokens cleared|
+|`totalClearedX7X7`|`ValueX7X7`|The total amount of tokens cleared|
 |`cumulativeMps`|`uint24`|The cumulative percentage of total tokens allocated across all previous steps, represented in ten-millionths of the total supply (1e7 = 100%)|
 
 ### BidExited
@@ -243,12 +267,12 @@ event TokensClaimed(uint256 indexed bidId, address indexed owner, uint256 tokens
 |`tokensFilled`|`uint256`|The amount of tokens claimed|
 
 ## Errors
-### IDistributionContract__InvalidAmountReceived
+### InvalidTokenAmountReceived
 Error thrown when the amount received is invalid
 
 
 ```solidity
-error IDistributionContract__InvalidAmountReceived();
+error InvalidTokenAmountReceived();
 ```
 
 ### InvalidAmount
@@ -257,6 +281,14 @@ Error thrown when not enough amount is deposited
 
 ```solidity
 error InvalidAmount();
+```
+
+### CurrencyIsNotNative
+Error thrown when msg.value is non zero when currency is not ETH
+
+
+```solidity
+error CurrencyIsNotNative();
 ```
 
 ### AuctionNotStarted
@@ -273,22 +305,6 @@ Error thrown when the tokens required for the auction have not been received
 
 ```solidity
 error TokensNotReceived();
-```
-
-### FloorPriceIsZero
-Error thrown when the floor price is zero
-
-
-```solidity
-error FloorPriceIsZero();
-```
-
-### TickSpacingIsZero
-Error thrown when the tick spacing is zero
-
-
-```solidity
-error TickSpacingIsZero();
 ```
 
 ### ClaimBlockIsBeforeEndBlock
@@ -315,12 +331,28 @@ Error thrown when the bid is higher than the clearing price
 error CannotExitBid();
 ```
 
-### InvalidCheckpointHint
-Error thrown when the checkpoint hint is invalid
+### CannotPartiallyExitBidBeforeEndBlock
+Error thrown when the bid cannot be partially exited before the end block
 
 
 ```solidity
-error InvalidCheckpointHint();
+error CannotPartiallyExitBidBeforeEndBlock();
+```
+
+### InvalidLastFullyFilledCheckpointHint
+Error thrown when the last fully filled checkpoint hint is invalid
+
+
+```solidity
+error InvalidLastFullyFilledCheckpointHint();
+```
+
+### InvalidOutbidBlockCheckpointHint
+Error thrown when the outbid block checkpoint hint is invalid
+
+
+```solidity
+error InvalidOutbidBlockCheckpointHint();
 ```
 
 ### NotClaimable
@@ -361,5 +393,13 @@ Error thrown when a new bid is less than or equal to the clearing price
 
 ```solidity
 error InvalidBidPrice();
+```
+
+### AuctionSoldOut
+Error thrown when the auction has sold the entire total supply of tokens
+
+
+```solidity
+error AuctionSoldOut();
 ```
 

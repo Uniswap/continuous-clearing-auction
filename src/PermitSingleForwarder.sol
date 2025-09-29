@@ -6,6 +6,8 @@ import {IAllowanceTransfer, IPermitSingleForwarder} from './interfaces/IPermitSi
 /// @notice PermitSingleForwarder allows permitting this contract as a spender on permit2
 /// @dev This contract does not enforce the spender to be this contract, but that is the intended use case
 abstract contract PermitSingleForwarder is IPermitSingleForwarder {
+    /// @notice Permit2 address
+    address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     /// @notice the Permit2 contract to forward approvals
     IAllowanceTransfer public immutable permit2;
 

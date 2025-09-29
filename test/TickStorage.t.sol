@@ -3,7 +3,9 @@ pragma solidity 0.8.26;
 
 import {Tick, TickStorage} from '../src/TickStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
+import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {Test} from 'forge-std/Test.sol';
+import {console} from 'forge-std/console.sol';
 
 contract MockTickStorage is TickStorage {
     constructor(uint256 _tickSpacing, uint256 _floorPrice) TickStorage(_tickSpacing, _floorPrice) {}
@@ -23,17 +25,42 @@ contract MockTickStorage is TickStorage {
 }
 
 contract TickStorageTest is Test {
-    MockTickStorage public tickStorage;
-    uint256 public constant TICK_SPACING = 100;
-    uint256 public constant FLOOR_PRICE = 100e6; // 100 in X96 format
+    uint256 $floorPrice_rounded;
+    uint256 $tickSpacing;
 
-    function setUp() public {
-        tickStorage = new MockTickStorage(TICK_SPACING, FLOOR_PRICE);
+    MockTickStorage public tickStorage;
+
+    modifier givenValidDeploymentParams(uint256 _tickSpacing, uint256 _floorPrice) {
+        $tickSpacing = _tickSpacing;
+        vm.assume(_tickSpacing > 0);
+        $floorPrice_rounded = helper__roundPriceDownToTickSpacing(_floorPrice, $tickSpacing);
+        vm.assume($floorPrice_rounded > 0);
+        _;
     }
 
-    /// Helper function to convert a tick number to a priceX96
-    function tickNumberToPriceX96(uint256 tickNumber) internal pure returns (uint256) {
-        return FLOOR_PRICE + (tickNumber - 1) * TICK_SPACING;
+    function helper__roundPriceDownToTickSpacing(uint256 _price, uint256 _tickSpacing)
+        internal
+        pure
+        returns (uint256)
+    {
+        return _price - (_price % _tickSpacing);
+    }
+
+    function helper__assumeValidPrice(uint256 _price) internal returns (uint256) {
+        _price = helper__roundPriceDownToTickSpacing(_price, $tickSpacing);
+        vm.assume(_price % $tickSpacing == 0 && _price > $floorPrice_rounded && _price != tickStorage.MAX_TICK_PRICE());
+        return _price;
+    }
+
+    function helper__assumeUninitializedTick(uint256 _price) internal {
+        vm.assume(tickStorage.getTick(_price).next == 0);
+    }
+
+    function helper__assumeValidPreviousHint(uint256 _prevPrice, uint256 _price) internal {
+        // Assume ordering is right
+        vm.assume(_prevPrice < _price);
+        // Assume that next price is greater than or equal to the price, also checks initialized for free
+        vm.assume(tickStorage.getTick(_prevPrice).next >= _price);
     }
 
     function test_tickStorage_canBeConstructed_fuzz(uint256 tickSpacing, uint256 floorPrice) public {
@@ -56,124 +83,182 @@ contract TickStorageTest is Test {
         }
     }
 
-    function test_initializeTick_succeeds() public {
-        uint256 prev = FLOOR_PRICE;
-        // 2e18 << FixedPoint96.RESOLUTION
-        uint256 price = tickNumberToPriceX96(2);
-        tickStorage.initializeTickIfNeeded(prev, price);
-        Tick memory tick = tickStorage.getTick(price);
+    function test_initializeUnintializedTick_succeeds(uint256 _floorPrice, uint256 _tickSpacing, uint256 _price)
+        public
+        givenValidDeploymentParams(_tickSpacing, _floorPrice)
+    {
+        tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
+        _price = helper__assumeValidPrice(_price);
+
+        vm.expectEmit(true, true, true, true);
+        emit ITickStorage.TickInitialized(_price);
+        // $floorPrice_rounded is guaranteed to be initialized already
+        tickStorage.initializeTickIfNeeded($floorPrice_rounded, _price);
+        Tick memory tick = tickStorage.getTick(_price);
         assertEq(tick.demand.currencyDemand, 0);
         assertEq(tick.demand.tokenDemand, 0);
         // Assert there is no next tick (type(uint256).max)
-        assertEq(tick.next, type(uint256).max);
+        assertEq(tick.next, tickStorage.MAX_TICK_PRICE());
         // Assert the nextActiveTick is unchanged
-        assertEq(tickStorage.nextActiveTickPrice(), FLOOR_PRICE);
+        assertEq(tickStorage.nextActiveTickPrice(), $floorPrice_rounded);
+
+        tick = tickStorage.getTick($floorPrice_rounded);
+        // Assert the next tick from the floor price is the new tick
+        assertEq(tick.next, _price);
     }
 
-    function test_initializeTickAtFloorPrice_returnsTick() public {
-        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, FLOOR_PRICE);
-        Tick memory tick = tickStorage.getTick(FLOOR_PRICE);
+    function test_initializeFloorPrice_returnsTick(
+        uint256 _floorPrice,
+        uint256 _tickSpacing,
+        // Hint can be whatever here since the floor price is guaranteed to be initialized
+        uint256 _prevPrice,
+        uint256 _price
+    ) public givenValidDeploymentParams(_tickSpacing, _floorPrice) {
+        tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
+        _prevPrice = helper__assumeValidPrice(_prevPrice);
+        _price = helper__assumeValidPrice(_price);
+
+        // Intialze the floor price since it is guaranteed to be initialized already
+        tickStorage.initializeTickIfNeeded(_prevPrice, $floorPrice_rounded);
+        Tick memory tick = tickStorage.getTick($floorPrice_rounded);
         assertEq(tick.next, type(uint256).max);
-        assertEq(tickStorage.nextActiveTickPrice(), FLOOR_PRICE);
+        assertEq(tickStorage.nextActiveTickPrice(), $floorPrice_rounded);
     }
 
-    function test_initializeTickWithPrev_succeeds() public {
-        uint256 _nextActiveTickPrice = tickStorage.nextActiveTickPrice();
-        assertEq(_nextActiveTickPrice, FLOOR_PRICE);
+    function test_initializeTick_returnsTick(
+        uint256 _floorPrice,
+        uint256 _tickSpacing,
+        // Hint can be whatever here since the floor price is guaranteed to be initialized
+        uint256 _prevPrice,
+        uint256 _randomPrice,
+        uint256 _price
+    ) public givenValidDeploymentParams(_tickSpacing, _floorPrice) {
+        tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
+        _prevPrice = helper__assumeValidPrice(_prevPrice);
+        _price = helper__assumeValidPrice(_price);
+        // Assume that `price` is not initialized yet
+        helper__assumeUninitializedTick(_price);
 
-        uint256 price = tickNumberToPriceX96(2);
-        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, price);
-        Tick memory tick = tickStorage.getTick(price);
+        vm.expectEmit(true, true, true, true);
+        emit ITickStorage.TickInitialized(_price);
+        // $floorPrice_rounded is guaranteed to be initialized already
+        tickStorage.initializeTickIfNeeded($floorPrice_rounded, _price);
+        Tick memory tick = tickStorage.getTick(_price);
         assertEq(tick.next, type(uint256).max);
-        // new tick is not before nextActiveTick, so nextActiveTick is not updated
-        assertEq(tickStorage.nextActiveTickPrice(), _nextActiveTickPrice);
+
+        // Does not revert, returns the tick
+        tickStorage.initializeTickIfNeeded(_randomPrice, _price);
     }
 
-    function test_initializeTickSetsNext_succeeds() public {
-        uint256 prev = FLOOR_PRICE;
-        uint256 price = tickNumberToPriceX96(2);
-        tickStorage.initializeTickIfNeeded(prev, price);
-        Tick memory tick = tickStorage.getTick(price);
-        assertEq(tick.next, type(uint256).max);
-
-        tickStorage.initializeTickIfNeeded(price, tickNumberToPriceX96(3));
-        tick = tickStorage.getTick(tickNumberToPriceX96(3));
-        assertEq(tick.next, type(uint256).max);
-
-        tick = tickStorage.getTick(tickNumberToPriceX96(2));
-        assertEq(tick.next, tickNumberToPriceX96(3));
-    }
-
-    function test_initializeTickSetsNextActiveTickPrice_whenNextActiveTickPriceIsMax_succeeds() public {
-        uint256 price = tickNumberToPriceX96(2);
-        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, price);
-        Tick memory tick = tickStorage.getTick(price);
-        assertEq(tick.next, type(uint256).max);
-
+    function test_initializeTickSetsNextActiveTickPrice_whenNextActiveTickPriceIsMax_succeeds(
+        uint256 _floorPrice,
+        uint256 _tickSpacing,
+        uint256 _price
+    ) public givenValidDeploymentParams(_tickSpacing, _floorPrice) {
+        tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
+        _price = helper__assumeValidPrice(_price);
+        // Assume that `price` is not initialized yet
+        helper__assumeUninitializedTick(_price);
         // Set nextActiveTickPrice to MAX_TICK_PRICE
         tickStorage.setNextActiveTickPrice(type(uint256).max);
         assertEq(tickStorage.nextActiveTickPrice(), type(uint256).max);
 
         // Initializing a tick above the highest tick in the book should set nextActiveTickPrice to the new tick
-        tickStorage.initializeTickIfNeeded(price, tickNumberToPriceX96(3));
-        assertEq(tickStorage.nextActiveTickPrice(), tickNumberToPriceX96(3));
+        tickStorage.initializeTickIfNeeded($floorPrice_rounded, _price);
+        assertEq(tickStorage.nextActiveTickPrice(), _price);
     }
 
-    function test_initializeTickUpdatesNextActiveTickPrice_succeeds() public {
-        // Set nextActiveTickPrice to a high value
-        uint256 maxTickPrice = type(uint256).max;
-        vm.store(address(tickStorage), bytes32(uint256(1)), bytes32(maxTickPrice));
+    function test_initializeTickPerformsSearchForNextTick_succeeds(
+        uint256 _floorPrice,
+        uint256 _tickSpacing,
+        uint256 _price,
+        uint256 _nextPrice
+    ) public givenValidDeploymentParams(_tickSpacing, _floorPrice) {
+        tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
+        // Assume all valid prices
+        _price = helper__assumeValidPrice(_price);
+        _nextPrice = helper__assumeValidPrice(_nextPrice);
+        vm.assume(_price != _nextPrice);
+        // Assume both are not initialized
+        helper__assumeUninitializedTick(_price);
+        helper__assumeUninitializedTick(_nextPrice);
 
-        // When we call initializeTickIfNeeded, the new tick should update nextActiveTickPrice
-        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, tickNumberToPriceX96(2));
-        assertEq(tickStorage.nextActiveTickPrice(), tickNumberToPriceX96(2));
-    }
-
-    function test_initializeTickPerformsSearchForNextTick_succeeds() public {
-        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, tickNumberToPriceX96(2));
-        Tick memory tick = tickStorage.getTick(tickNumberToPriceX96(2));
-        // Assert next is MAX_TICK_PRICE
+        vm.expectEmit(true, true, true, true);
+        emit ITickStorage.TickInitialized(_price);
+        tickStorage.initializeTickIfNeeded($floorPrice_rounded, _price);
+        Tick memory tick = tickStorage.getTick(_price);
         assertEq(tick.next, type(uint256).max);
-        // This should preform a search from FLOOR_PRICE to tick #3
-        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, tickNumberToPriceX96(3));
-        // Get tick at 2 again
-        tick = tickStorage.getTick(tickNumberToPriceX96(2));
-        // Assert next is tick #3
-        assertEq(tick.next, tickNumberToPriceX96(3));
-        // Get tick at 3
-        tick = tickStorage.getTick(tickNumberToPriceX96(3));
-        // Assert next is MAX_TICK_PRICE
-        assertEq(tick.next, type(uint256).max);
+
+        vm.expectEmit(true, true, true, true);
+        emit ITickStorage.TickInitialized(_nextPrice);
+        // You can pass in $floorPrice_rounded and trigger the search for the next hint
+        tickStorage.initializeTickIfNeeded($floorPrice_rounded, _nextPrice);
     }
 
-    function test_initializeTickAtMaxTickPrice_reverts() public {
-        // Create a new tick storage with a tick spacing of 1 to avoid the check for tick spacing
-        MockTickStorage _tickStorage = new MockTickStorage(1, FLOOR_PRICE);
+    function test_initializeTickAtMaxTickPrice_reverts(uint256 _floorPrice, uint256 _prevPrice)
+        // Hardcode the tick spacing to 1 for the test to support MAX_PRICE being a valid tick
+        public
+        givenValidDeploymentParams(1, _floorPrice)
+    {
+        tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
+        _prevPrice = helper__assumeValidPrice(_prevPrice);
         vm.expectRevert(ITickStorage.InvalidTickPrice.selector);
-        _tickStorage.initializeTickIfNeeded(FLOOR_PRICE, type(uint256).max);
+        tickStorage.initializeTickIfNeeded(_prevPrice, type(uint256).max);
     }
 
-    function test_initializeTickWithWrongPrice_reverts() public {
+    function test_initializeTickWithZeroPrice_reverts(uint256 _floorPrice, uint256 _tickSpacing, uint256 _prevPrice)
+        public
+        givenValidDeploymentParams(_tickSpacing, _floorPrice)
+    {
+        tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
+        _prevPrice = helper__assumeValidPrice(_prevPrice);
         vm.expectRevert(ITickStorage.TickPreviousPriceInvalid.selector);
-        tickStorage.initializeTickIfNeeded(FLOOR_PRICE, 0);
+        tickStorage.initializeTickIfNeeded(_prevPrice, 0);
     }
 
     // The tick at 0 id should never be initialized, thus its next value is 0, which should cause a revert
-    function test_initializeTickWithZeroPrev_reverts() public {
+    function test_initializeTickWithZeroPrev_reverts(uint256 _floorPrice, uint256 _tickSpacing, uint256 _price)
+        public
+        givenValidDeploymentParams(_tickSpacing, _floorPrice)
+    {
+        tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
+        _price = helper__assumeValidPrice(_price);
+        helper__assumeUninitializedTick(_price);
         vm.expectRevert(ITickStorage.TickPreviousPriceInvalid.selector);
-        tickStorage.initializeTickIfNeeded(0, tickNumberToPriceX96(2));
+        tickStorage.initializeTickIfNeeded(0, _price);
     }
 
-    function test_initializeTickWithNonExistentPrev_reverts() public {
+    function test_initializeTickWithNonExistentPrev_reverts(
+        uint256 _floorPrice,
+        uint256 _tickSpacing,
+        uint256 _prevPrice,
+        uint256 _price
+    ) public givenValidDeploymentParams(_tickSpacing, _floorPrice) {
+        tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
+        _prevPrice = helper__assumeValidPrice(_prevPrice);
+        _price = helper__assumeValidPrice(_price);
+        helper__assumeUninitializedTick(_prevPrice);
+        helper__assumeUninitializedTick(_price);
+        // Assume correct ordering of hints
+        vm.assume(_prevPrice < _price);
+
         vm.expectRevert(ITickStorage.TickPreviousPriceInvalid.selector);
-        // Tick 2 has not been initialized yet
-        tickStorage.initializeTickIfNeeded(tickNumberToPriceX96(2), tickNumberToPriceX96(3));
+        tickStorage.initializeTickIfNeeded(_prevPrice, _price);
     }
 
-    function test_initializeTickIfNeeded_withPrevIdGreaterThanId_reverts() public {
-        // Try to initialize a tick at price 2 with prevId=3, but prevId > id
-        // And 2 is not initialized yet
+    function test_initializeTickIfNeeded_withPrevIdGreaterThanId_reverts(
+        uint256 _floorPrice,
+        uint256 _tickSpacing,
+        uint256 _prevPrice,
+        uint256 _price
+    ) public givenValidDeploymentParams(_tickSpacing, _floorPrice) {
+        tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
+        _prevPrice = helper__assumeValidPrice(_prevPrice);
+        _price = helper__assumeValidPrice(_price);
+        // Assume incorrect ordering of hints
+        vm.assume(_prevPrice >= _price);
+
         vm.expectRevert(ITickStorage.TickPreviousPriceInvalid.selector);
-        tickStorage.initializeTickIfNeeded(tickNumberToPriceX96(3), tickNumberToPriceX96(2));
+        tickStorage.initializeTickIfNeeded(_prevPrice, _price);
     }
 }

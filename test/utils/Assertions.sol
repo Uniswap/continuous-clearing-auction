@@ -24,31 +24,31 @@ abstract contract Assertions is StdAssertions {
         );
     }
 
-    function assertEq(Checkpoint memory a, Checkpoint memory b) internal pure returns (bool) {
+    function assertEq(Checkpoint memory a, Checkpoint memory b) internal pure {
         assertEq(hash(a), hash(b));
     }
 
-    function assertEq(ValueX7 a, ValueX7 b) internal pure returns (bool) {
+    function assertEq(ValueX7 a, ValueX7 b) internal pure {
         assertEq(ValueX7.unwrap(a), ValueX7.unwrap(b));
     }
 
-    function assertGt(ValueX7 a, ValueX7 b) internal pure returns (bool) {
+    function assertGt(ValueX7 a, ValueX7 b) internal pure {
         assertGt(ValueX7.unwrap(a), ValueX7.unwrap(b));
     }
 
-    function assertGe(ValueX7 a, ValueX7 b) internal pure returns (bool) {
+    function assertGe(ValueX7 a, ValueX7 b) internal pure {
         assertGe(ValueX7.unwrap(a), ValueX7.unwrap(b));
     }
 
-    function assertGe(ValueX7 a, ValueX7 b, string memory err) internal pure returns (bool, string memory) {
+    function assertGe(ValueX7 a, ValueX7 b, string memory err) internal pure {
         assertGe(ValueX7.unwrap(a), ValueX7.unwrap(b), err);
     }
 
-    function assertLt(ValueX7 a, ValueX7 b) internal pure returns (bool) {
+    function assertLt(ValueX7 a, ValueX7 b) internal pure {
         assertLt(ValueX7.unwrap(a), ValueX7.unwrap(b));
     }
 
-    function assertLe(ValueX7 a, ValueX7 b) internal pure returns (bool) {
+    function assertLe(ValueX7 a, ValueX7 b) internal pure {
         assertLe(ValueX7.unwrap(a), ValueX7.unwrap(b));
     }
 }

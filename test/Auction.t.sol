@@ -11,7 +11,6 @@ import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {AuctionStep} from '../src/libraries/AuctionStepLib.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
-
 import {BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
@@ -30,12 +29,10 @@ import {MockToken} from './utils/MockToken.sol';
 import {MockValidationHook} from './utils/MockValidationHook.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
-import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
-
 import {TickBitmap, TickBitmapLib} from './utils/TickBitmap.sol';
-
+import {console2} from 'forge-std/console2.sol';
 import {console} from 'forge-std/console.sol';
 
 contract AuctionTest is AuctionBaseTest {
@@ -44,6 +41,10 @@ contract AuctionTest is AuctionBaseTest {
     using AuctionStepsBuilder for bytes;
     using ValueX7Lib for *;
     using ValueX7X7Lib for *;
+    using TickBitmapLib for TickBitmap;
+
+    bool exactIn = true;
+    TickBitmap private tickBitmap;
 
     function setUp() public {
         setUpAuction();

@@ -9,7 +9,7 @@ import {Assertions} from './utils/Assertions.sol';
 import {Test} from 'forge-std/Test.sol';
 
 contract AssertionsTest is Assertions, Test {
-    function test_assertValueX7(uint256 a, uint256 b) public {
+    function test_assertValueX7(uint256 a, uint256 b) public pure {
         if (a == b) {
             assertEq(ValueX7.wrap(a), ValueX7.wrap(b));
             assertGe(ValueX7.wrap(a), ValueX7.wrap(b));
@@ -21,7 +21,7 @@ contract AssertionsTest is Assertions, Test {
         }
     }
 
-    function test_assertValueX7X7(uint256 a, uint256 b) public {
+    function test_assertValueX7X7(uint256 a, uint256 b) public pure {
         if (a == b) {
             assertEq(ValueX7X7.wrap(a), ValueX7X7.wrap(b));
             assertGe(ValueX7X7.wrap(a), ValueX7X7.wrap(b));
@@ -33,7 +33,7 @@ contract AssertionsTest is Assertions, Test {
         }
     }
 
-    function test_assertDemand(Demand memory a, Demand memory b) public {
+    function test_assertDemand(Demand memory a, Demand memory b) public pure {
         if (hash(a) == hash(b)) {
             assertEq(a, b);
         } else {
@@ -41,7 +41,7 @@ contract AssertionsTest is Assertions, Test {
         }
     }
 
-    function test_assertCheckpoint(Checkpoint memory a, Checkpoint memory b) public {
+    function test_assertCheckpoint(Checkpoint memory a, Checkpoint memory b) public pure {
         if (hash(a) == hash(b)) {
             assertEq(a, b);
         } else {

@@ -39,11 +39,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     uint256 public sweepCurrencyBlock;
     /// @notice The block at which the tokens were swept
     uint256 public sweepUnsoldTokensBlock;
-
-
-    // TODO: make 1e14 constant
-    uint256 constant X7_UPPER_BOUND = (type(uint256).max) / 1e14;
-
+    
     constructor(
         address _token,
         address _currency,

@@ -120,18 +120,18 @@ contract Auction is
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
-    ///         This function updates the cumulative values of the checkpoint, requiring that
-    ///         `clearingPrice` is up to to date
-    /// @param _checkpoint The checkpoint to transform
-    /// @param deltaMps The number of mps to add
-    /// @return The transformed checkpoint
-    function _transformCheckpoint(Checkpoint memory _checkpoint, uint24 deltaMps)
+    ///         This function updates the cumulative values of the checkpoint, and
+    ///         requires that the clearing price is up to date
+    /// @param _checkpoint The checkpoint to sell tokens at its clearing price
+    /// @param deltaMps The number of mps to sell
+    /// @return The checkpoint with all cumulative values updated
+    function _sellTokensAtClearingPrice(Checkpoint memory _checkpoint, uint24 deltaMps)
         internal
         returns (Checkpoint memory)
     {
         // This value should have been divided by MPS, we implicitly remove it to wrap it as a ValueX7X7
         ValueX7X7 resolvedDemandAboveClearingPriceX7X7 =
-            _checkpoint.sumDemandAboveClearingPrice.resolveRoundingDown(_checkpoint.clearingPrice).upcast();
+            $sumDemandAboveClearing.resolveRoundingDown(_checkpoint.clearingPrice).upcast();
         // Calculate the supply to be cleared based on demand above the clearing price
         ValueX7X7 supplyClearedX7X7;
         // If the clearing price is above the floor price the auction is fully subscribed and we can sell the available supply
@@ -202,8 +202,8 @@ contract Auction is
         return _checkpoint;
     }
 
-    /// @notice Advance the current step until the current block is within the step
-    /// @dev The checkpoint must be up to date since `transform` depends on the clearingPrice
+    /// @notice Fast forward to the current step, selling tokens at the current clearing price according to the supply schedule
+    /// @dev The checkpoint MUST have the most up to date clearing price since `sellTokensAtClearingPrice` depends on it
     function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint64 blockNumber)
         internal
         returns (Checkpoint memory)
@@ -215,7 +215,7 @@ contract Auction is
 
         uint24 mps = $step.mps;
         while (blockNumber > end) {
-            _checkpoint = _transformCheckpoint(_checkpoint, uint24((end - start) * mps));
+            _checkpoint = _sellTokensAtClearingPrice(_checkpoint, uint24((end - start) * mps));
             start = end;
             if (end == END_BLOCK) break;
             AuctionStep memory _step = _advanceStep();
@@ -372,13 +372,9 @@ contract Auction is
             _checkpoint.clearingPrice = clearingPrice;
             _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 = ValueX7X7.wrap(0);
         }
-        _checkpoint.sumDemandAboveClearingPrice = $sumDemandAboveClearing;
 
-        /// We can now advance the `step` to the current step for the block
-        /// This modifies the `_checkpoint` to ensure the cumulative variables are correctly accounted for
-        /// Checkpoint.transform is dependent on:
-        /// - clearing price
-        /// - sumDemandAboveClearingPrice
+        // Sine the clearing price is now up to date, we can advance the auction to the current step
+        // and sell tokens at the current clearing price according to the supply schedule
         _checkpoint = _advanceToCurrentStep(_checkpoint, blockNumber);
         // Set the mps to the mps of the current step
         _checkpoint.mps = $step.mps;
@@ -388,7 +384,9 @@ contract Auction is
             blockNumber - ($step.startBlock > $lastCheckpointedBlock ? $step.startBlock : $lastCheckpointedBlock);
         uint24 mpsSinceLastCheckpoint = uint256(_checkpoint.mps * blockDelta).toUint24();
 
-        _checkpoint = _transformCheckpoint(_checkpoint, mpsSinceLastCheckpoint);
+        // Sell the percentage of outstanding tokens since the last checkpoint to the current clearing price
+        _checkpoint = _sellTokensAtClearingPrice(_checkpoint, mpsSinceLastCheckpoint);
+        // Insert the checkpoint into storage, updating latest pointer and the linked list
         _insertCheckpoint(_checkpoint, blockNumber);
 
         emit CheckpointUpdated(

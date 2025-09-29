@@ -13,7 +13,6 @@ struct Checkpoint {
     uint256 clearingPrice; // The X96 price which the auction is currently clearing at
     ValueX7X7 totalClearedX7X7; // The actualized number of tokens sold so far in the auction
     ValueX7X7 cumulativeSupplySoldToClearingPriceX7X7; // The tokens sold so far to this clearing price
-    Demand sumDemandAboveClearingPrice; // The total demand above the clearing price
     uint256 cumulativeMpsPerPrice; // A running sum of the ratio between mps and price
     uint24 cumulativeMps; // The number of mps sold in the auction so far (via the original supply schedule)
     uint24 mps; // The number of mps being sold in the step when the checkpoint is created

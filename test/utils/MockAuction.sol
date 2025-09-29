@@ -26,7 +26,7 @@ contract MockAuction is Auction {
     }
 
     /// @notice Wrapper around internal function for testing
-    function iterateOverTicksAndFindClearingPrice(Checkpoint memory checkpoint) external view returns (uint256) {
+    function iterateOverTicksAndFindClearingPrice(Checkpoint memory checkpoint) external returns (uint256) {
         return _iterateOverTicksAndFindClearingPrice(checkpoint);
     }
 

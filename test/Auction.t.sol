@@ -11,7 +11,6 @@ import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {AuctionStep} from '../src/libraries/AuctionStepLib.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
-
 import {BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
@@ -40,6 +39,7 @@ contract AuctionTest is AuctionBaseTest {
     using AuctionStepsBuilder for bytes;
     using ValueX7Lib for *;
     using ValueX7X7Lib for *;
+    using BidLib for *;
 
     function setUp() public {
         setUpAuction();
@@ -1295,7 +1295,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         // Assert that there is no supply sold in this checkpoint
         emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7X7.wrap(0), 0);
-        mockAuction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
+        uint256 bidId = mockAuction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
             true,
             inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
@@ -1304,8 +1304,8 @@ contract AuctionTest is AuctionBaseTest {
             bytes('')
         );
         Demand memory demand = mockAuction.sumDemandAboveClearing();
-        assertEq(demand.currencyDemandX7, ValueX7.wrap(inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))));
-        assertEq(demand.tokenDemandX7, ValueX7.wrap(0));
+        // Demand should be the same as the bid demand
+        assertEq(demand, mockAuction.getBid(bidId).toDemand());
         /**
          * Roll one more block and checkpoint
          * blockNumber:     1                11   12                              111
@@ -1390,7 +1390,7 @@ contract AuctionTest is AuctionBaseTest {
          */
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7X7.wrap(0), 100e3 * 10);
-        mockAuction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
+        uint256 bidId = mockAuction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
             true,
             inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
@@ -1399,8 +1399,8 @@ contract AuctionTest is AuctionBaseTest {
             bytes('')
         );
         Demand memory demand = mockAuction.sumDemandAboveClearing();
-        assertEq(demand.currencyDemandX7, ValueX7.wrap(inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))));
-        assertEq(demand.tokenDemandX7, ValueX7.wrap(0));
+        // Demand should be the same as the bid demand
+        assertEq(demand, mockAuction.getBid(bidId).toDemand());
         /**
          * Roll one more block and checkpoint
          * blockNumber:     1                11   12                              111

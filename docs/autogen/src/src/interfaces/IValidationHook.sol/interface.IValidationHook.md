@@ -1,5 +1,5 @@
 # IValidationHook
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4b5db70c66f2f87cfdcac5395a992035255a2267/src/interfaces/IValidationHook.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/4c9af76a705eb813cc2e0ec768b3771f7a342ec1/src/interfaces/IValidationHook.sol)
 
 
 ## Functions
@@ -18,7 +18,7 @@ function validate(
     address owner,
     address sender,
     bytes calldata hookData
-) external;
+) external view;
 ```
 **Parameters**
 

@@ -1,13 +1,8 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/9b332e9ae711433b888783601b4b8b92cce6d905/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/3ae5c7802ad9830c8939d6dbff65ade7ca715a97/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
-
-Implements a time weighted uniform clearing price auction
-
-*Can be constructed directly or through the AuctionFactory. In either case, users must validate
-that the auction parameters are correct and it has sufficient token balance.*
 
 
 ## State Variables
@@ -60,7 +55,8 @@ constructor(address _token, uint128 _totalSupply, AuctionParameters memory _para
         _totalSupply,
         _parameters.tokensRecipient,
         _parameters.fundsRecipient,
-        _parameters.graduationThresholdMps
+        _parameters.graduationThresholdMps,
+        _parameters.fundsRecipientData
     )
     TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
     PermitSingleForwarder(IAllowanceTransfer(PERMIT2));
@@ -92,33 +88,6 @@ Whether the auction has graduated as of the latest checkpoint (sold more than th
 ```solidity
 function isGraduated() public view returns (bool);
 ```
-
-### _transformCheckpoint
-
-Return a new checkpoint after advancing the current checkpoint by some `mps`
-This function updates the cumulative values of the checkpoint, requiring that
-`clearingPrice` is up to to date
-
-
-```solidity
-function _transformCheckpoint(Checkpoint memory _checkpoint, uint24 deltaMps)
-    internal
-    view
-    returns (Checkpoint memory);
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`_checkpoint`|`Checkpoint`|The checkpoint to transform|
-|`deltaMps`|`uint24`|The number of mps to add|
-
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`Checkpoint`|The transformed checkpoint|
-
 
 ### _advanceToCurrentStep
 
@@ -158,12 +127,7 @@ function _calculateNewClearingPrice(
 
 Update the latest checkpoint to the current step
 
-*This updates the state of the auction accounting for the bids placed after the last checkpoint
-Checkpoints are created at the top of each block with a new bid and does NOT include that bid
-Because of this, we need to calculate what the new state of the Auction should be before updating
-purely on the supply we will sell to the potentially updated `sumDemandAboveClearing` value
-After the checkpoint is made up to date we can use those values to update the cumulative values
-depending on how much time has passed since the last checkpoint*
+*This updates the state of the auction accounting for the bids placed after the last checkpoint*
 
 
 ```solidity
@@ -291,7 +255,7 @@ Exit a bid which has been partially filled
 
 
 ```solidity
-function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 outbidBlock) external;
+function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 upper) external;
 ```
 **Parameters**
 
@@ -299,7 +263,7 @@ function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 outbidBlock)
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
 |`lower`|`uint64`|The last checkpointed block where the clearing price is strictly < bid.maxPrice|
-|`outbidBlock`|`uint64`|The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction|
+|`upper`|`uint64`|The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction|
 
 
 ### claimTokens

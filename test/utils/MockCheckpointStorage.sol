@@ -14,24 +14,6 @@ contract MockCheckpointStorage is CheckpointStorage {
         _insertCheckpoint(checkpoint, blockNumber);
     }
 
-    function accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memory startCheckpoint, Bid memory bid)
-        public
-        view
-        returns (uint128 tokensFilled, uint128 currencySpent)
-    {
-        return _accountFullyFilledCheckpoints(upper, startCheckpoint, bid);
-    }
-
-    function accountPartiallyFilledCheckpoints(
-        uint256 cumulativeSupplySoldToClearingPrice,
-        uint128 bidDemand,
-        uint128 tickDemand,
-        uint256 bidMaxPrice
-    ) public pure returns (uint128 tokensFilled, uint128 currencySpent) {
-        return
-            _accountPartiallyFilledCheckpoints(cumulativeSupplySoldToClearingPrice, bidDemand, tickDemand, bidMaxPrice);
-    }
-
     function calculateFill(
         Bid memory bid,
         uint256 cumulativeMpsPerPriceDelta,

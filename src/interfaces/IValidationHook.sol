@@ -19,5 +19,5 @@ interface IValidationHook {
         address owner,
         address sender,
         bytes calldata hookData
-    ) external;
+    ) external view;
 }

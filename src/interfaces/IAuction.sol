@@ -22,6 +22,7 @@ struct AuctionParameters {
     address validationHook; // Optional hook called before a bid
     uint256 floorPrice; // Starting floor price for the auction
     bytes auctionStepsData; // Packed bytes describing token issuance schedule
+    bytes fundsRecipientData; // Optional data to call the fundsRecipient with after the currency is swept
 }
 
 /// @notice Interface for the Auction contract
@@ -68,7 +69,7 @@ interface IAuction is
     /// @param price The price of the bid
     /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
-    event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, bool exactIn, uint128 amount);
+    event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, bool exactIn, uint256 amount);
 
     /// @notice Emitted when a new checkpoint is created
     /// @param blockNumber The block number of the checkpoint
@@ -76,21 +77,18 @@ interface IAuction is
     /// @param totalCleared The total amount of tokens cleared
     /// @param cumulativeMps The cumulative percentage of total tokens allocated across all previous steps, represented in ten-millionths of the total supply (1e7 = 100%)
     event CheckpointUpdated(
-        uint256 indexed blockNumber, uint256 clearingPrice, uint128 totalCleared, uint24 cumulativeMps
+        uint256 indexed blockNumber, uint256 clearingPrice, uint256 totalCleared, uint24 cumulativeMps
     );
 
     /// @notice Emitted when a bid is exited
     /// @param bidId The id of the bid
     /// @param owner The owner of the bid
-    /// @param tokensFilled The amount of tokens filled
-    /// @param currencyRefunded The amount of currency refunded
-    event BidExited(uint256 indexed bidId, address indexed owner, uint128 tokensFilled, uint128 currencyRefunded);
+    event BidExited(uint256 indexed bidId, address indexed owner);
 
     /// @notice Emitted when a bid is claimed
-    /// @param bidId The id of the bid
     /// @param owner The owner of the bid
     /// @param tokensFilled The amount of tokens claimed
-    event TokensClaimed(uint256 indexed bidId, address indexed owner, uint128 tokensFilled);
+    event TokensClaimed(address indexed owner, uint256 tokensFilled);
 
     /// @notice Submit a new bid
     /// @param maxPrice The maximum price the bidder is willing to pay
@@ -125,8 +123,8 @@ interface IAuction is
     /// @dev This function can be used for fully filled or partially filled bids. For fully filled bids, `exitBid` is more efficient
     /// @param bidId The id of the bid
     /// @param lower The last checkpointed block where the clearing price is strictly < bid.maxPrice
-    /// @param outbidBlock The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction
-    function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 outbidBlock) external;
+    /// @param upper The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction
+    function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 upper) external;
 
     /// @notice Claim tokens after the auction's claim block
     /// @notice The bid must be exited before claiming tokens

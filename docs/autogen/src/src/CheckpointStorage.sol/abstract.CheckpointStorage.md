@@ -1,5 +1,5 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/eb1997cae9e49254904b75da348b365b9f8f37de/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/3ae5c7802ad9830c8939d6dbff65ade7ca715a97/src/CheckpointStorage.sol)
 
 **Inherits:**
 [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
@@ -92,9 +92,9 @@ because it uses lazy accounting to calculate the tokens filled*
 
 
 ```solidity
-function _accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memory startCheckpoint, Bid memory bid)
+function _accountFullyFilledCheckpoints(Checkpoint memory upper, Bid memory bid)
     internal
-    pure
+    view
     returns (uint128 tokensFilled, uint128 currencySpent);
 ```
 **Parameters**
@@ -102,7 +102,6 @@ function _accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memo
 |Name|Type|Description|
 |----|----|-----------|
 |`upper`|`Checkpoint`|The upper checkpoint|
-|`startCheckpoint`|`Checkpoint`|The start checkpoint of the bid|
 |`bid`|`Bid`|The bid|
 
 **Returns**
@@ -120,20 +119,24 @@ Calculate the tokens sold, proportion of input used, and the block number of the
 
 ```solidity
 function _accountPartiallyFilledCheckpoints(
-    uint256 cumulativeSupplySoldToClearingPrice,
+    Checkpoint memory upperCheckpoint,
     uint128 bidDemand,
     uint128 tickDemand,
-    uint256 bidMaxPrice
+    uint256 bidMaxPrice,
+    uint24 cumulativeMpsDelta,
+    uint24 mpsDenominator
 ) internal pure returns (uint128 tokensFilled, uint128 currencySpent);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`cumulativeSupplySoldToClearingPrice`|`uint256`|The cumulative supply sold to the clearing price|
+|`upperCheckpoint`|`Checkpoint`|The last checkpoint where clearing price is equal to bid.maxPrice|
 |`bidDemand`|`uint128`|The demand of the bid|
 |`tickDemand`|`uint128`||
 |`bidMaxPrice`|`uint256`|The max price of the bid|
+|`cumulativeMpsDelta`|`uint24`|The cumulative sum of mps values across the block range|
+|`mpsDenominator`|`uint24`|The percentage of the auction which the bid was spread over|
 
 **Returns**
 

@@ -1,5 +1,5 @@
 # TokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/9b332e9ae711433b888783601b4b8b92cce6d905/src/TokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/1c5771863c4021bfedcc36824eaa17f627dc43e0/src/TokenCurrencyStorage.sol)
 
 **Inherits:**
 [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -80,6 +80,15 @@ uint256 public sweepUnsoldTokensBlock;
 ```
 
 
+### fundsRecipientData
+The data to pass to the fundsRecipient
+
+
+```solidity
+bytes public fundsRecipientData;
+```
+
+
 ## Functions
 ### constructor
 
@@ -91,7 +100,8 @@ constructor(
     uint128 _totalSupply,
     address _tokensRecipient,
     address _fundsRecipient,
-    uint24 _graduationThresholdMps
+    uint24 _graduationThresholdMps,
+    bytes memory _fundsRecipientData
 );
 ```
 

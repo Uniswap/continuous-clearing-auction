@@ -1,5 +1,5 @@
 # BidLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/e6ae006b4d791723cfa088f0c2d93768cc82ee16/src/libraries/BidLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/4c9af76a705eb813cc2e0ec768b3771f7a342ec1/src/libraries/BidLib.sol)
 
 
 ## State Variables
@@ -11,42 +11,19 @@ uint256 public constant PRECISION = 1e18;
 
 
 ## Functions
-### effectiveAmount
-
-Calculate the effective amount of a bid based on the mps denominator
-
-
-```solidity
-function effectiveAmount(uint128 amount, uint24 mpsDenominator) internal pure returns (uint128);
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`amount`|`uint128`|The amount of the bid|
-|`mpsDenominator`|`uint24`|The percentage of the auction which the bid was spread over|
-
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`uint128`|The effective amount of the bid|
-
-
 ### demand
 
 Resolve the demand of a bid at its maxPrice
 
 
 ```solidity
-function demand(Bid memory bid, uint24 mpsDenominator) internal pure returns (uint128);
+function demand(Bid memory bid) internal pure returns (uint128);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`bid`|`Bid`|The bid|
-|`mpsDenominator`|`uint24`|The percentage of the auction which the bid was spread over|
 
 **Returns**
 

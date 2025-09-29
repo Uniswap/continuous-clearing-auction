@@ -16,7 +16,7 @@ library DemandLib {
     using AuctionStepLib for uint128;
 
     function resolve(Demand memory _demand, uint256 price) internal pure returns (uint128) {
-        return _demand.currencyDemand.resolveCurrencyDemand(price) + _demand.tokenDemand;
+        return price == 0 ? 0 : _demand.currencyDemand.resolveCurrencyDemand(price) + _demand.tokenDemand;
     }
 
     function resolveCurrencyDemand(uint128 amount, uint256 price) internal pure returns (uint128) {

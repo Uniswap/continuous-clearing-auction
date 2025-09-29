@@ -7,6 +7,7 @@ import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
+
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
@@ -62,41 +63,48 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     /// @dev This function MUST only be used for checkpoints where the bid's max price is strictly greater than the clearing price
     ///      because it uses lazy accounting to calculate the tokens filled
     /// @param upper The upper checkpoint
-    /// @param startCheckpoint The start checkpoint of the bid
     /// @param bid The bid
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent
-    function _accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memory startCheckpoint, Bid memory bid)
+    function _accountFullyFilledCheckpoints(Checkpoint memory upper, Bid memory bid)
         internal
-        pure
+        view
         returns (uint128 tokensFilled, uint128 currencySpent)
     {
+        Checkpoint memory lower = _getCheckpoint(bid.startBlock);
         (tokensFilled, currencySpent) = _calculateFill(
             bid,
-            upper.cumulativeMpsPerPrice - startCheckpoint.cumulativeMpsPerPrice,
-            upper.cumulativeMps - startCheckpoint.cumulativeMps,
-            AuctionStepLib.MPS - startCheckpoint.cumulativeMps
+            upper.cumulativeMpsPerPrice - lower.cumulativeMpsPerPrice,
+            upper.cumulativeMps - lower.cumulativeMps,
+            AuctionStepLib.MPS - lower.cumulativeMps
         );
     }
 
     /// @notice Calculate the tokens sold, proportion of input used, and the block number of the next checkpoint under the bid's max price
-    /// @param cumulativeSupplySoldToClearingPrice The cumulative supply sold to the clearing price
+    /// @param upperCheckpoint The last checkpoint where clearing price is equal to bid.maxPrice
     /// @param bidDemand The demand of the bid
     /// @param bidMaxPrice The max price of the bid
+    /// @param cumulativeMpsDelta The cumulative sum of mps values across the block range
+    /// @param mpsDenominator The percentage of the auction which the bid was spread over
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent
     function _accountPartiallyFilledCheckpoints(
-        uint256 cumulativeSupplySoldToClearingPrice,
+        Checkpoint memory upperCheckpoint,
         uint128 bidDemand,
         uint128 tickDemand,
-        uint256 bidMaxPrice
+        uint256 bidMaxPrice,
+        uint24 cumulativeMpsDelta,
+        uint24 mpsDenominator
     ) internal pure returns (uint128 tokensFilled, uint128 currencySpent) {
-        if (tickDemand == 0) return (0, 0);
-        // Expanded version of the math:
-        // tokensFilled = bidDemand * runningPartialFillRate * cumulativeMpsDelta / (MPS * Q96)
-        // tokensFilled = bidDemand * (cumulativeSupply * Q96 * MPS / tickDemand * cumulativeMpsDelta) * cumulativeMpsDelta / (mpsDenominator * Q96)
-        //              = bidDemand * (cumulativeSupply / tickDemand)
-        tokensFilled = uint128(bidDemand.fullMulDiv(cumulativeSupplySoldToClearingPrice, tickDemand));
+        if (cumulativeMpsDelta == 0 || tickDemand == 0) return (0, 0);
+        // Given the sum of the supply sold to the clearing price over time, divide by the tick demand
+        uint256 runningPartialFillRate = upperCheckpoint.cumulativeSupplySoldToClearingPrice.fullMulDiv(
+            FixedPoint96.Q96 * mpsDenominator, tickDemand * cumulativeMpsDelta
+        );
+        // Shorthand for (bidDemand * cumulativeMpsDelta / mpsDenominator) * runningPartialFillRate / Q96;
+        tokensFilled = uint128(
+            bidDemand.fullMulDiv(runningPartialFillRate * cumulativeMpsDelta, FixedPoint96.Q96 * mpsDenominator)
+        );
         currencySpent = uint128(tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96));
     }
 
@@ -121,7 +129,7 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         // If tokensFilled is 0 then currencySpent must be 0
         if (tokensFilled != 0) {
             currencySpent = bid.exactIn
-                ? uint128(bid.amount.fullMulDivUp(cumulativeMpsDelta, mpsDenominator))
+                ? uint128(bid.amount.fullMulDiv(cumulativeMpsDelta, mpsDenominator))
                 : uint128(tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPriceDelta));
         }
     }

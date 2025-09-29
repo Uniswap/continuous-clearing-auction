@@ -1,5 +1,5 @@
 # DemandLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/d2fa994e75f232a6bfe496080d6fadb2906a187d/src/libraries/DemandLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/91c505699ed85a7d0194c9a8cabc334c99e11f9f/src/libraries/DemandLib.sol)
 
 Library for demand calculations and operations
 

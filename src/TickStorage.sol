@@ -51,33 +51,36 @@ abstract contract TickStorage is ITickStorage {
     }
 
     /// @notice Initialize a tick at `price` if it does not exist already
-    /// @dev Requires `prevId` to be the id of the tick immediately preceding the desired price
-    ///      NextActiveTick will be updated if the new tick is right before it
+    /// @dev `prevPrice` MUST be the price of an initialized tick before the new price.
+    ///      Ideally, it is the price of the tick immediately preceding the desired price. If not,
+    ///      we will iterate through the ticks until we find the next price which requires more gas.
+    ///      If `price` is < `nextActiveTickPrice`, then `price` will be set as the nextActiveTickPrice
     /// @param prevPrice The price of the previous tick
     /// @param price The price of the tick
     function _initializeTickIfNeeded(uint256 prevPrice, uint256 price) internal {
-        // No previous price can be greater than or equal to the new price
-        uint256 nextPrice = $_ticks[prevPrice].next;
-
-        if (prevPrice >= price) {
-            revert TickPreviousPriceInvalid();
-        }
-
-        if (nextPrice != MAX_TICK_PRICE && nextPrice < price) {
-            revert TickPriceNotIncreasing();
-        }
-
+        // Validate `price` is at a boundary designated by the tick spacing
         if (price % TICK_SPACING != 0) revert TickPriceNotAtBoundary();
-
-        // The tick already exists, early return
-        if (nextPrice == price) return;
-
-        Tick storage newTick = $_ticks[price];
-        newTick.next = nextPrice;
-
-        // Link prev to new tick
+        if (price == MAX_TICK_PRICE) revert InvalidTickPrice();
+        Tick storage $newTick = $_ticks[price];
+        // Early return if the tick is already initialized
+        if ($newTick.next != 0) return;
+        // Otherwise, we need to iterate through the linked list to find the correct position for the new tick
+        // Require that `prevPrice` is less than `price` since we can only iterate forward
+        if (prevPrice >= price) revert TickPreviousPriceInvalid();
+        uint256 nextPrice = $_ticks[prevPrice].next;
+        // Revert if the next price is 0 as that means the `prevPrice` hint was not an initialized tick
+        if (nextPrice == 0) revert TickPreviousPriceInvalid();
+        // Move the `prevPrice` pointer up until its next pointer is a tick greater than or equal to `price`
+        // If `price` would be the highest tick in the list, this will iterate until `nextPrice` == MAX_TICK_PRICE,
+        // which will end the loop since we don't allow for ticks to be initialized at MAX_TICK_PRICE.
+        // Iterating to find the tick right before `price` ensures that it is correctly positioned in the linked list.
+        while (nextPrice < price) {
+            prevPrice = nextPrice;
+            nextPrice = $_ticks[nextPrice].next;
+        }
+        // Update linked list pointers
+        $newTick.next = nextPrice;
         $_ticks[prevPrice].next = price;
-
         // If the next tick is the nextActiveTick, update nextActiveTick to the new tick
         // In the base case, where next == 0 and nextActiveTickPrice == 0, this will set nextActiveTickPrice to price
         if (nextPrice == $nextActiveTickPrice) {

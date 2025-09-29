@@ -1304,7 +1304,7 @@ contract AuctionTest is AuctionBaseTest {
             bytes('')
         );
         Demand memory demand = mockAuction.sumDemandAboveClearing();
-        assertEq(demand.currencyDemandX7, ValueX7.wrap(inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))));
+        assertEq(demand.currencyDemandX7, inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)).scaleUpToX7());
         assertEq(demand.tokenDemandX7, ValueX7.wrap(0));
         /**
          * Roll one more block and checkpoint
@@ -1390,7 +1390,7 @@ contract AuctionTest is AuctionBaseTest {
          */
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7X7.wrap(0), 100e3 * 10);
-        mockAuction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
+        uint256 bidId = mockAuction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
             true,
             inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
@@ -1398,8 +1398,15 @@ contract AuctionTest is AuctionBaseTest {
             tickNumberToPriceX96(1),
             bytes('')
         );
+        Bid memory bid = mockAuction.getBid(bidId);
         Demand memory demand = mockAuction.sumDemandAboveClearing();
-        assertEq(demand.currencyDemandX7, ValueX7.wrap(inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))));
+        // Assert that the bid amount is correct
+        assertEq(bid.amount, inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)));
+        // Assert that the auction demand is only this bid's demand
+        assertEq(
+            demand,
+            BidLib.toDemand(bid)
+        );
         assertEq(demand.tokenDemandX7, ValueX7.wrap(0));
         /**
          * Roll one more block and checkpoint
@@ -1408,12 +1415,12 @@ contract AuctionTest is AuctionBaseTest {
          *          stepStart          stepEnd
          *                             stepStart                              stepEnd
          *                                         ^
-         * The current block number is 12, which is > than the end of the current step (ended block 11). That means we have to advance forward
+         * The current block number is 12, which is > than the end of the current step (ended block 11). That means we have to advance forward.
+         *
          * Before we can advance to the next step, there could have been blocks that were not checkpointed in between the last checkpoint we made
          * and the end of the last step. In this case both of those values are equal (block 11) so we don't transform the checkpoint.
-         * However, we do advance to the next step such that the step is up to date with the schedule.
          *
-         * Once the step is made current, we can find the `clearingPrice` and `sumDemandAboveClearing` values which affect the Checkpointed values.
+         * We can find the `clearingPrice` and `sumDemandAboveClearing` values which affect the Checkpointed values.
          * It's important to remember that these values are calculated at the TOP of block 12, one block after the bid was submitted
          * This is correct because it reflects the state of the auction UP UNTIL block 12, not including.
          *
@@ -1425,12 +1432,12 @@ contract AuctionTest is AuctionBaseTest {
         emit IAuctionStepStorage.AuctionStepRecorded(step.endBlock, endBlock, 300e3);
         vm.expectEmit(true, true, true, true);
         // Expect 1 block to be have been cleared
-        uint24 expectedCumulativeMps = 100e3 * 10 + 300e3;
+        uint24 expectedCumulativeMps = 100e3 * 10 + 300e3 * 1;
+        // The supply being sold is equal to the total supply * mps / MPS - cumulativeMps
+        // We multiply by MPS to move into X7X7 form, then divide by (MPS - the amount of mps sold already (100e3 * 10))
+        ValueX7X7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().scaleUpToX7X7().mulUint256(300e3).divUint256(MPSLib.MPS - 100e3 * 10);
         emit IAuction.CheckpointUpdated(
-            block.number,
-            tickNumberToPriceX96(2),
-            TOTAL_SUPPLY.scaleUpToX7().scaleUpToX7X7().divUint256(30),
-            expectedCumulativeMps
+            block.number, tickNumberToPriceX96(2), expectedTotalCleared, expectedCumulativeMps
         );
         mockAuction.checkpoint();
 

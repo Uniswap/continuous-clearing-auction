@@ -7,10 +7,6 @@ import {Checkpoint} from '../../src/libraries/CheckpointLib.sol';
 import {ValueX7} from '../../src/libraries/MPSLib.sol';
 
 contract MockCheckpointStorage is CheckpointStorage {
-    function getCheckpoint(uint64 blockNumber) external view returns (Checkpoint memory) {
-        return _getCheckpoint(blockNumber);
-    }
-
     function insertCheckpoint(Checkpoint memory checkpoint, uint64 blockNumber) external {
         _insertCheckpoint(checkpoint, blockNumber);
     }

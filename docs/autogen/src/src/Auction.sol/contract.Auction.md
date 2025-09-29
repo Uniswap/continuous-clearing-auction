@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f80ba18b60de4b770005741879dfdddb0bfb58e3/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/97b9f50fc290e1d145d29832b96438e6ecfe03de/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -394,4 +394,27 @@ The address of the validation hook for the auction
 ```solidity
 function validationHook() external view override(IAuction) returns (IValidationHook);
 ```
+
+### getBidRequiredCurrencyAmount
+
+Getters
+
+
+```solidity
+function getBidRequiredCurrencyAmount(bool exactIn, uint256 amount, uint256 maxPrice) external pure returns (uint256);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`exactIn`|`bool`|Whether the bid is exact in|
+|`amount`|`uint256`|The amount of the bid|
+|`maxPrice`|`uint256`|The max price of the bid|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The required currency amount for a bid|
+
 

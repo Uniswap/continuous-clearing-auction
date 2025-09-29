@@ -1,5 +1,5 @@
 # BidStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f80ba18b60de4b770005741879dfdddb0bfb58e3/src/BidStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/97b9f50fc290e1d145d29832b96438e6ecfe03de/src/BidStorage.sol)
 
 
 ## State Variables
@@ -100,5 +100,26 @@ function _deleteBid(uint256 bidId) internal;
 |Name|Type|Description|
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid to delete|
+
+
+### getBid
+
+Get a bid from storage
+
+
+```solidity
+function getBid(uint256 bidId) external view returns (Bid memory);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`bidId`|`uint256`|The id of the bid to get|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`Bid`|bid The bid|
 
 

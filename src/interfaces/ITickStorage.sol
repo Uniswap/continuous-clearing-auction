@@ -30,4 +30,9 @@ interface ITickStorage {
 
     /// @notice Get the tick spacing enforced for bid prices
     function tickSpacing() external view returns (uint256);
+
+    /// @notice Get a tick at a price
+    /// @dev The returned tick is not guaranteed to be initialized
+    /// @param price The price of the tick
+    function getTick(uint256 price) external view returns (Tick memory);
 }

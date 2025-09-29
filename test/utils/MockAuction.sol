@@ -3,18 +3,33 @@ pragma solidity 0.8.26;
 
 import {Auction} from '../../src/Auction.sol';
 import {AuctionParameters} from '../../src/Auction.sol';
-import {ValueX7} from '../../src/libraries/MPSLib.sol';
+
+import {SupplyLib, SupplyRolloverMultiplier} from '../../src/libraries/SupplyLib.sol';
+import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
+import {ValueX7X7} from '../../src/libraries/ValueX7X7Lib.sol';
 
 contract MockAuction is Auction {
     constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
         Auction(_token, _totalSupply, _parameters)
     {}
 
-    function calculateNewClearingPrice(uint256 minimumClearingPrice, ValueX7 quotientX7)
+    function calculateNewClearingPrice(
+        uint256 minimumClearingPrice,
+        uint24 remainingMpsInAuction,
+        ValueX7X7 remainingSupplyX7X7
+    ) external view returns (uint256) {
+        return _calculateNewClearingPrice(minimumClearingPrice, remainingMpsInAuction, remainingSupplyX7X7);
+    }
+
+    function unpackSupplyRolloverMultiplier()
         external
         view
-        returns (uint256)
+        returns (bool isSet, uint24 remainingMps, ValueX7X7 remainingSupplyX7X7)
     {
-        return _calculateNewClearingPrice(minimumClearingPrice, quotientX7);
+        return SupplyLib.unpack(_supplyRolloverMultiplier);
+    }
+
+    function setSupplyRolloverMultiplier(bool set, uint24 remainingMps, ValueX7X7 remainingSupplyX7X7) external {
+        _supplyRolloverMultiplier = SupplyLib.packSupplyRolloverMultiplier(set, remainingMps, remainingSupplyX7X7);
     }
 }

@@ -7,15 +7,18 @@ import {AuctionParameters, IAuction} from '../../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
 import {Demand} from '../../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
+
+import {Assertions} from './Assertions.sol';
 import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
-
 import {MockFundsRecipient} from './MockFundsRecipient.sol';
 import {TokenHandler} from './TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @notice Handler contract for setting up an auction
-abstract contract AuctionBaseTest is TokenHandler, Test {
+abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
+    using FixedPointMathLib for uint256;
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
 
@@ -63,6 +66,11 @@ abstract contract AuctionBaseTest is TokenHandler, Test {
     /// @dev Helper function to convert a tick number to a priceX96
     function tickNumberToPriceX96(uint256 tickNumber) internal pure returns (uint256) {
         return FLOOR_PRICE + (tickNumber - 1) * TICK_SPACING;
+    }
+
+    /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice
+    function inputAmountForTokens(uint256 tokens, uint256 maxPrice) internal pure returns (uint256) {
+        return tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96);
     }
 
     /// @notice Helper function to return the tick at the given price

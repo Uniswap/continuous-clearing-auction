@@ -13,8 +13,10 @@ import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
 
+import {MPSLib} from '../src/libraries/MPSLib.sol';
+import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
+import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {Test} from 'forge-std/Test.sol';
@@ -24,7 +26,8 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 contract AuctionInvariantHandler is Test, Assertions {
     using CurrencyLibrary for Currency;
     using FixedPointMathLib for uint256;
-    using MPSLib for *;
+    using ValueX7Lib for *;
+    using ValueX7X7Lib for *;
 
     Auction public auction;
     IPermit2 public permit2;
@@ -69,7 +72,9 @@ contract AuctionInvariantHandler is Test, Assertions {
         // Check that the clearing price is always increasing
         assertGe(checkpoint.clearingPrice, _checkpoint.clearingPrice, 'Checkpoint clearing price is not increasing');
         // Check that the cumulative variables are always increasing
-        assertGe(checkpoint.totalCleared, _checkpoint.totalCleared, 'Checkpoint total cleared is not increasing');
+        assertGe(
+            checkpoint.totalClearedX7X7, _checkpoint.totalClearedX7X7, 'Checkpoint total cleared is not increasing'
+        );
         assertGe(checkpoint.cumulativeMps, _checkpoint.cumulativeMps, 'Checkpoint cumulative mps is not increasing');
         assertGe(
             checkpoint.cumulativeMpsPerPrice,
@@ -200,10 +205,10 @@ contract AuctionInvariantTest is AuctionBaseTest {
     function getCheckpoint(uint64 blockNumber) public view returns (Checkpoint memory) {
         (
             uint256 clearingPrice,
-            ValueX7 totalCleared,
+            ValueX7X7 totalClearedX7X7,
+            ValueX7X7 cumulativeSupplySoldToClearingPriceX7X7,
             Demand memory sumDemandAboveClearingPrice,
             uint256 cumulativeMpsPerPrice,
-            ValueX7 cumulativeSupplySoldToClearingPriceX7,
             uint24 cumulativeMps,
             uint24 mps,
             uint64 prev,
@@ -211,10 +216,10 @@ contract AuctionInvariantTest is AuctionBaseTest {
         ) = auction.checkpoints(blockNumber);
         return Checkpoint({
             clearingPrice: clearingPrice,
-            totalCleared: totalCleared,
+            totalClearedX7X7: totalClearedX7X7,
+            cumulativeSupplySoldToClearingPriceX7X7: cumulativeSupplySoldToClearingPriceX7X7,
             sumDemandAboveClearingPrice: sumDemandAboveClearingPrice,
             cumulativeMpsPerPrice: cumulativeMpsPerPrice,
-            cumulativeSupplySoldToClearingPriceX7: cumulativeSupplySoldToClearingPriceX7,
             cumulativeMps: cumulativeMps,
             mps: mps,
             prev: prev,

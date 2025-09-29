@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/2ab6f1f651f977062136e0144a4f3e636a17d226/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/d2fa994e75f232a6bfe496080d6fadb2906a187d/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -9,17 +9,11 @@ Implements a time weighted uniform clearing price auction
 *Can be constructed directly or through the AuctionFactory. In either case, users must validate
 that the auction parameters are correct and it has sufficient token balance.*
 
+**Note:**
+security-contact: security@uniswap.org
+
 
 ## State Variables
-### PERMIT2
-Permit2 address
-
-
-```solidity
-address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
-```
-
-
 ### CLAIM_BLOCK
 The block at which purchased tokens can be claimed
 
@@ -38,31 +32,31 @@ IValidationHook internal immutable VALIDATION_HOOK;
 ```
 
 
-### sumDemandAboveClearing
+### $sumDemandAboveClearing
 The sum of demand in ticks above the clearing price
 
 
 ```solidity
-Demand public sumDemandAboveClearing;
+Demand internal $sumDemandAboveClearing;
 ```
 
 
-### _tokensReceived
+### $_tokensReceived
 Whether the TOTAL_SUPPLY of tokens has been received
 
 
 ```solidity
-bool private _tokensReceived;
+bool private $_tokensReceived;
 ```
 
 
-### _supplyRolloverMultiplier
+### $_supplyRolloverMultiplier
 A packed uint256 containing `set`, `remainingSupplyX7X7`, and `remainingMps` values derived from the checkpoint
 immediately before the auction becomes fully subscribed. The ratio of these helps account for rollover supply.
 
 
 ```solidity
-SupplyRolloverMultiplier internal _supplyRolloverMultiplier;
+SupplyRolloverMultiplier internal $_supplyRolloverMultiplier;
 ```
 
 
@@ -114,9 +108,9 @@ function onTokensReceived() external;
 
 ### isGraduated
 
-External function to check if the auction has graduated as of the latest checkpoint
+Whether the auction has sold more tokens than specified in the graduation threshold as of the latest checkpoint
 
-*The latest checkpoint may be out of date*
+*Be aware that the latest checkpoint may be out of date*
 
 
 ```solidity
@@ -126,7 +120,7 @@ function isGraduated() external view returns (bool);
 
 |Name|Type|Description|
 |----|----|-----------|
-|`<none>`|`bool`|bool Whether the auction has graduated or not|
+|`<none>`|`bool`|bool True if the auction has graduated, false otherwise|
 
 
 ### _isGraduated
@@ -144,7 +138,7 @@ Get the remaining mps left in the auction at the given checkpoint
 
 
 ```solidity
-function _remainingMpsInAuction(Checkpoint memory _checkpoint) internal view returns (uint24);
+function _remainingMpsInAuction(Checkpoint memory _checkpoint) internal pure returns (uint24);
 ```
 **Parameters**
 
@@ -257,7 +251,7 @@ any future calls to `step.mps` will return the mps of the last step in the aucti
 
 
 ```solidity
-function _getFinalCheckpoint() internal returns (Checkpoint memory _checkpoint);
+function _getFinalCheckpoint() internal returns (Checkpoint memory);
 ```
 
 ### _submitBid
@@ -291,8 +285,14 @@ Register a new checkpoint
 
 
 ```solidity
-function checkpoint() public onlyActiveAuction returns (Checkpoint memory _checkpoint);
+function checkpoint() public onlyActiveAuction returns (Checkpoint memory);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`Checkpoint`|_checkpoint The checkpoint at the current block|
+
 
 ### submitBid
 
@@ -354,14 +354,14 @@ Exit a bid which has been partially filled
 
 
 ```solidity
-function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 outbidBlock) external;
+function exitPartiallyFilledBid(uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock) external;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
-|`lower`|`uint64`|The last checkpointed block where the clearing price is strictly < bid.maxPrice|
+|`lastFullyFilledCheckpointBlock`|`uint64`||
 |`outbidBlock`|`uint64`|The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction|
 
 
@@ -386,8 +386,7 @@ function claimTokens(uint256 bidId) external;
 
 Withdraw all of the currency raised
 
-*Can only be called by the funds recipient after the auction has ended
-Must be called before the `claimBlock`*
+*Can be called by anyone after the auction has ended*
 
 
 ```solidity
@@ -421,5 +420,14 @@ The address of the validation hook for the auction
 
 ```solidity
 function validationHook() external view override(IAuction) returns (IValidationHook);
+```
+
+### sumDemandAboveClearing
+
+The sum of demand in ticks above the clearing price
+
+
+```solidity
+function sumDemandAboveClearing() external view override(IAuction) returns (Demand memory);
 ```
 

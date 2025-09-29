@@ -4,8 +4,9 @@ pragma solidity ^0.8.0;
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
 import {ValueX7} from '../libraries/ValueX7Lib.sol';
 import {ValueX7X7} from '../libraries/ValueX7X7Lib.sol';
+import {Demand} from '../libraries/DemandLib.sol';
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
-
+import {IBidStorage} from './IBidStorage.sol';
 import {ICheckpointStorage} from './ICheckpointStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
 import {ITokenCurrencyStorage} from './ITokenCurrencyStorage.sol';
@@ -34,29 +35,32 @@ interface IAuction is
     ICheckpointStorage,
     ITickStorage,
     IAuctionStepStorage,
-    ITokenCurrencyStorage
+    ITokenCurrencyStorage,
+    IBidStorage
 {
     /// @notice Error thrown when the amount received is invalid
-    error IDistributionContract__InvalidAmountReceived();
+    error InvalidTokenAmountReceived();
 
     /// @notice Error thrown when not enough amount is deposited
     error InvalidAmount();
+    /// @notice Error thrown when msg.value is non zero when currency is not ETH
+    error CurrencyIsNotNative();
     /// @notice Error thrown when the auction is not started
     error AuctionNotStarted();
     /// @notice Error thrown when the tokens required for the auction have not been received
     error TokensNotReceived();
-    /// @notice Error thrown when the floor price is zero
-    error FloorPriceIsZero();
-    /// @notice Error thrown when the tick spacing is zero
-    error TickSpacingIsZero();
     /// @notice Error thrown when the claim block is before the end block
     error ClaimBlockIsBeforeEndBlock();
     /// @notice Error thrown when the bid has already been exited
     error BidAlreadyExited();
     /// @notice Error thrown when the bid is higher than the clearing price
     error CannotExitBid();
-    /// @notice Error thrown when the checkpoint hint is invalid
-    error InvalidCheckpointHint();
+    /// @notice Error thrown when the bid cannot be partially exited before the end block
+    error CannotPartiallyExitBidBeforeEndBlock();
+    /// @notice Error thrown when the last fully filled checkpoint hint is invalid
+    error InvalidLastFullyFilledCheckpointHint();
+    /// @notice Error thrown when the outbid block checkpoint hint is invalid
+    error InvalidOutbidBlockCheckpointHint();
     /// @notice Error thrown when the bid is not claimable
     error NotClaimable();
     /// @notice Error thrown when the bid has not been exited
@@ -124,9 +128,12 @@ interface IAuction is
     /// @notice Register a new checkpoint
     /// @dev This function is called every time a new bid is submitted above the current clearing price
     /// @dev If the auction is over, it returns the final checkpoint
+    /// @return _checkpoint The checkpoint at the current block
     function checkpoint() external returns (Checkpoint memory _checkpoint);
 
-    /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
+    /// @notice Whether the auction has sold more tokens than specified in the graduation threshold as of the latest checkpoint
+    /// @dev Be aware that the latest checkpoint may be out of date
+    /// @return bool True if the auction has graduated, false otherwise
     function isGraduated() external view returns (bool);
 
     /// @notice Exit a bid
@@ -148,8 +155,7 @@ interface IAuction is
     function claimTokens(uint256 bidId) external;
 
     /// @notice Withdraw all of the currency raised
-    /// @dev Can only be called by the funds recipient after the auction has ended
-    ///      Must be called before the `claimBlock`
+    /// @dev Can be called by anyone after the auction has ended
     function sweepCurrency() external;
 
     /// @notice The block at which the auction can be claimed
@@ -161,4 +167,7 @@ interface IAuction is
     /// @notice Sweep any leftover tokens to the tokens recipient
     /// @dev This function can only be called after the auction has ended
     function sweepUnsoldTokens() external;
+
+    /// @notice The sum of demand in ticks above the clearing price
+    function sumDemandAboveClearing() external view returns (Demand memory);
 }

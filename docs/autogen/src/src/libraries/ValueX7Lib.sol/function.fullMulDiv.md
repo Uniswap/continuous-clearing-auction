@@ -1,5 +1,5 @@
 # fullMulDiv
-[Git Source](https://github.com/Uniswap/twap-auction/blob/2ab6f1f651f977062136e0144a4f3e636a17d226/src/libraries/ValueX7Lib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/d2fa994e75f232a6bfe496080d6fadb2906a187d/src/libraries/ValueX7Lib.sol)
 
 Wrapper around FixedPointMathLib.fullMulDiv to support ValueX7 values
 

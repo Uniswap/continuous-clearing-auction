@@ -7,6 +7,7 @@ struct AuctionStep {
     uint64 endBlock; // Ending block of the step (exclusive)
 }
 
+/// @notice Library for auction step calculations and parsing
 library AuctionStepLib {
     using AuctionStepLib for *;
 

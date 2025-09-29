@@ -7,6 +7,7 @@ import {AuctionParameters, IAuction} from '../../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
 import {Demand} from '../../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
+import {SupplyLib} from '../../src/libraries/SupplyLib.sol';
 import {Assertions} from './Assertions.sol';
 import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
@@ -53,32 +54,31 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     function helper__validFuzzDeploymentParams(
         FuzzDeploymentParams memory _deploymentParams
-    ) public returns (AuctionParameters memory) {
+    ) public view returns (AuctionParameters memory) {
         // Hard coded for tests
         _deploymentParams.auctionParams.currency = ETH_SENTINEL;
         _deploymentParams.auctionParams.tokensRecipient = tokensRecipient;
         _deploymentParams.auctionParams.fundsRecipient = fundsRecipient;
         _deploymentParams.auctionParams.validationHook = address(0);
 
-        // vm.assume(_deploymentParams.totalSupply <= type(uint224).max / (MPSLib.MPS ** 2));
-
-        // TODO: constantify
-        uint256 X7_UPPER_BOUND = (type(uint256).max) / 1e14;
-        _deploymentParams.totalSupply = bound(_deploymentParams.totalSupply, 1, X7_UPPER_BOUND);
-
+        _deploymentParams.totalSupply = _bound(_deploymentParams.totalSupply, 1, SupplyLib.MAX_TOTAL_SUPPLY);
 
         // -2 because we need to account for the endBlock and claimBlock
-        _deploymentParams.auctionParams.startBlock = uint64(bound(_deploymentParams.auctionParams.startBlock, block.number, type(uint64).max - _deploymentParams.numberOfSteps - 2));
+        _deploymentParams.auctionParams.startBlock = uint64(_bound(_deploymentParams.auctionParams.startBlock, block.number, type(uint64).max - _deploymentParams.numberOfSteps - 2));
         _deploymentParams.auctionParams.endBlock = _deploymentParams.auctionParams.startBlock + uint64(_deploymentParams.numberOfSteps);
         _deploymentParams.auctionParams.claimBlock = _deploymentParams.auctionParams.endBlock + 1;
 
         vm.assume(_deploymentParams.auctionParams.graduationThresholdMps != 0);
         
         // Dont have tick spacing or floor price too large
-        _deploymentParams.auctionParams.floorPrice = bound(_deploymentParams.auctionParams.floorPrice, 0, type(uint128).max);
-        _deploymentParams.auctionParams.tickSpacing = bound(_deploymentParams.auctionParams.tickSpacing, 0, type(uint128).max);
+        _deploymentParams.auctionParams.floorPrice = _bound(_deploymentParams.auctionParams.floorPrice, 0, type(uint128).max);
+        _deploymentParams.auctionParams.tickSpacing = _bound(_deploymentParams.auctionParams.tickSpacing, 0, type(uint128).max);
 
+        // first assume that tick spacing is not zero to avoid division by zero
         vm.assume(_deploymentParams.auctionParams.tickSpacing != 0);
+        // round down to the closest floor price to the tick spacing
+        _deploymentParams.auctionParams.floorPrice = _deploymentParams.auctionParams.floorPrice / _deploymentParams.auctionParams.tickSpacing * _deploymentParams.auctionParams.tickSpacing;
+        // then assume that floor price is non zero
         vm.assume(_deploymentParams.auctionParams.floorPrice != 0);
 
         vm.assume(_deploymentParams.numberOfSteps > 0);

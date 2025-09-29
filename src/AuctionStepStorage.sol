@@ -28,6 +28,7 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
     AuctionStep internal $step;
 
     constructor(bytes memory _auctionStepsData, uint64 _startBlock, uint64 _endBlock) {
+        if (_startBlock >= _endBlock) revert InvalidEndBlock();
         startBlock = _startBlock;
         endBlock = _endBlock;
 
@@ -59,8 +60,8 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
             sumMps += mps * blockDelta;
             sumBlockDelta += blockDelta;
         }
-        if (sumMps != AuctionStepLib.MPS) revert InvalidMps();
-        if (sumBlockDelta + startBlock != endBlock) revert InvalidEndBlock();
+        if (sumMps != AuctionStepLib.MPS) revert InvalidStepDataMps();
+        if (sumBlockDelta + startBlock != endBlock) revert InvalidEndBlockGivenStepData();
     }
 
     /// @notice Advance the current auction step

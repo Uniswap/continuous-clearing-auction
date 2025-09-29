@@ -113,7 +113,7 @@ contract AuctionInvariantHandler is Test, Assertions {
         uint256 _cachedPrice = _price;
         while (_price < maxPrice) {
             // Set _price to the next price
-            (_price,) = auction.ticks(_price);
+            _price = auction.ticks(_price).next;
             // If the next price is >= than our max price, break
             if (_price >= maxPrice) {
                 break;
@@ -198,51 +198,11 @@ contract AuctionInvariantTest is AuctionBaseTest {
     }
 
     function getCheckpoint(uint64 blockNumber) public view returns (Checkpoint memory) {
-        (
-            uint256 clearingPrice,
-            ValueX7 totalCleared,
-            ValueX7 resolvedDemandAboveClearingPrice,
-            uint256 cumulativeMpsPerPrice,
-            ValueX7 cumulativeSupplySoldToClearingPriceX7,
-            uint24 cumulativeMps,
-            uint24 mps,
-            uint64 prev,
-            uint64 next
-        ) = auction.checkpoints(blockNumber);
-        return Checkpoint({
-            clearingPrice: clearingPrice,
-            totalCleared: totalCleared,
-            resolvedDemandAboveClearingPrice: resolvedDemandAboveClearingPrice,
-            cumulativeMpsPerPrice: cumulativeMpsPerPrice,
-            cumulativeSupplySoldToClearingPriceX7: cumulativeSupplySoldToClearingPriceX7,
-            cumulativeMps: cumulativeMps,
-            mps: mps,
-            prev: prev,
-            next: next
-        });
+        return auction.checkpoints(blockNumber);
     }
 
     function getBid(uint256 bidId) public view returns (Bid memory) {
-        (
-            bool exactIn,
-            uint64 startBlock,
-            uint24 startCumulativeMps,
-            uint64 exitedBlock,
-            uint256 maxPrice,
-            address owner,
-            uint256 amount,
-            uint256 tokensFilled
-        ) = auction.bids(bidId);
-        return Bid({
-            exactIn: exactIn,
-            startBlock: startBlock,
-            exitedBlock: exitedBlock,
-            startCumulativeMps: startCumulativeMps,
-            maxPrice: maxPrice,
-            owner: owner,
-            amount: amount,
-            tokensFilled: tokensFilled
-        });
+        return auction.bids(bidId);
     }
 
     /// Helper function to return the correct checkpoint hints for a partiallFilledBid

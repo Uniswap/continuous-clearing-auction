@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {ICheckpointStorage} from './interfaces/ICheckpointStorage.sol';
-import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
+import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
@@ -22,42 +22,43 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     using CheckpointLib for Checkpoint;
     using MPSLib for *;
 
+    /// @notice Maximum block number value used as sentinel for last checkpoint
     uint64 public constant MAX_BLOCK_NUMBER = type(uint64).max;
 
     /// @notice Storage of checkpoints
-    mapping(uint64 blockNumber => Checkpoint) public checkpoints;
+    mapping(uint64 blockNumber => Checkpoint) private $_checkpoints;
     /// @notice The block number of the last checkpointed block
-    uint64 public lastCheckpointedBlock;
+    uint64 internal $lastCheckpointedBlock;
 
     /// @inheritdoc ICheckpointStorage
     function latestCheckpoint() public view returns (Checkpoint memory) {
-        return _getCheckpoint(lastCheckpointedBlock);
+        return _getCheckpoint($lastCheckpointedBlock);
     }
 
     /// @inheritdoc ICheckpointStorage
     function clearingPrice() public view returns (uint256) {
-        return _getCheckpoint(lastCheckpointedBlock).clearingPrice;
+        return _getCheckpoint($lastCheckpointedBlock).clearingPrice;
     }
 
     /// @inheritdoc ICheckpointStorage
     function currencyRaised() public view returns (uint256) {
-        return _getCheckpoint(lastCheckpointedBlock).getCurrencyRaised();
+        return _getCheckpoint($lastCheckpointedBlock).getCurrencyRaised();
     }
 
     /// @notice Get a checkpoint from storage
     function _getCheckpoint(uint64 blockNumber) internal view returns (Checkpoint memory) {
-        return checkpoints[blockNumber];
+        return $_checkpoints[blockNumber];
     }
 
     /// @notice Insert a checkpoint into storage
     /// @dev This function updates the prev and next pointers of the latest checkpoint and the new checkpoint
     function _insertCheckpoint(Checkpoint memory checkpoint, uint64 blockNumber) internal {
-        uint64 _lastCheckpointedBlock = lastCheckpointedBlock;
-        if (_lastCheckpointedBlock != 0) checkpoints[_lastCheckpointedBlock].next = blockNumber;
+        uint64 _lastCheckpointedBlock = $lastCheckpointedBlock;
+        if (_lastCheckpointedBlock != 0) $_checkpoints[_lastCheckpointedBlock].next = blockNumber;
         checkpoint.prev = _lastCheckpointedBlock;
         checkpoint.next = MAX_BLOCK_NUMBER;
-        checkpoints[blockNumber] = checkpoint;
-        lastCheckpointedBlock = blockNumber;
+        $_checkpoints[blockNumber] = checkpoint;
+        $lastCheckpointedBlock = blockNumber;
     }
 
     /// @notice Calculate the tokens sold and proportion of input used for a fully filled bid between two checkpoints
@@ -80,10 +81,10 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         );
     }
 
-    /// @notice Calculate the tokens sold, proportion of input used, and the block number of the next checkpoint under the bid's max price
+    /// @notice Calculate the tokens sold and currency spent for a partially filled bid
     /// @param cumulativeSupplySoldToClearingPriceX7 The cumulative supply sold to the clearing price
     /// @param bidDemandX7 The demand of the bid
-    /// @param tickDemandX7 The demand of the tick
+    /// @param tickDemandX7 The total demand at the tick
     /// @param bidMaxPrice The max price of the bid
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent
@@ -127,5 +128,15 @@ abstract contract CheckpointStorage is ICheckpointStorage {
                 ? bid.amount.fullMulDivUp(cumulativeMpsDelta, mpsRemainingInAuction)
                 : tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPriceDelta);
         }
+    }
+
+    /// @inheritdoc ICheckpointStorage
+    function lastCheckpointedBlock() external view override(ICheckpointStorage) returns (uint64) {
+        return $lastCheckpointedBlock;
+    }
+
+    /// @inheritdoc ICheckpointStorage
+    function checkpoints(uint64 blockNumber) external view override(ICheckpointStorage) returns (Checkpoint memory) {
+        return $_checkpoints[blockNumber];
     }
 }

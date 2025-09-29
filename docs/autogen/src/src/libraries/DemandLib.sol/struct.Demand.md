@@ -1,5 +1,5 @@
 # Demand
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f80ba18b60de4b770005741879dfdddb0bfb58e3/src/libraries/DemandLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/eddb06d9f9e6a95363d90d7326e355d98c8b0712/src/libraries/DemandLib.sol)
 
 Struct containing currency demand and token demand
 

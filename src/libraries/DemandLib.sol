@@ -14,6 +14,7 @@ struct Demand {
 }
 
 /// @title DemandLib
+/// @notice Library for demand calculations and operations
 library DemandLib {
     using DemandLib for ValueX7;
     using MPSLib for *;

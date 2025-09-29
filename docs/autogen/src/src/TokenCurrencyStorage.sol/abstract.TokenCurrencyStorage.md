@@ -1,5 +1,5 @@
 # TokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f80ba18b60de4b770005741879dfdddb0bfb58e3/src/TokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/eddb06d9f9e6a95363d90d7326e355d98c8b0712/src/TokenCurrencyStorage.sol)
 
 **Inherits:**
 [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -68,6 +68,15 @@ The minimum portion (in MPS) of the total supply that must be sold
 
 ```solidity
 uint24 internal immutable GRADUATION_THRESHOLD_MPS;
+```
+
+
+### REQUIRED_SUPPLY_SOLD_FOR_GRADUATION_X7
+The amount of supply that must be sold for the auction to graduate, saved for gas optimization
+
+
+```solidity
+ValueX7 internal immutable REQUIRED_SUPPLY_SOLD_FOR_GRADUATION_X7;
 ```
 
 

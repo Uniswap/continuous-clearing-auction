@@ -1,5 +1,5 @@
 # IERC20Minimal
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c2dd0a6c704cd1292624039dee42341e0a61b05d/src/interfaces/external/IERC20Minimal.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/eddb06d9f9e6a95363d90d7326e355d98c8b0712/src/interfaces/external/IERC20Minimal.sol)
 
 Minimal ERC20 interface
 

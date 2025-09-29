@@ -6,7 +6,6 @@ import {Demand, DemandLib} from './DemandLib.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
 import {MPSLib, ValueX7} from './MPSLib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
 struct Bid {
     bool exactIn; // If amount below is denoted in currency or tokens

@@ -2,9 +2,7 @@
 pragma solidity 0.8.26;
 
 import {ITickStorage} from './interfaces/ITickStorage.sol';
-import {Bid} from './libraries/BidLib.sol';
 import {Demand, DemandLib} from './libraries/DemandLib.sol';
-import {FixedPoint96} from './libraries/FixedPoint96.sol';
 
 struct Tick {
     uint256 next;
@@ -16,10 +14,11 @@ struct Tick {
 abstract contract TickStorage is ITickStorage {
     using DemandLib for Demand;
 
-    mapping(uint256 price => Tick) public ticks;
+    /// @notice Mapping of price levels to tick data
+    mapping(uint256 price => Tick) private $_ticks;
 
     /// @inheritdoc ITickStorage
-    uint256 public nextActiveTickPrice;
+    uint256 internal $nextActiveTickPrice;
     /// @notice The floor price of the auction
     uint256 internal immutable FLOOR_PRICE;
     /// @notice The tick spacing of the auction - bids must be placed at discrete tick intervals
@@ -29,26 +28,25 @@ abstract contract TickStorage is ITickStorage {
     uint256 public constant MAX_TICK_PRICE = type(uint256).max;
 
     constructor(uint256 _tickSpacing, uint256 _floorPrice) {
+        if (_tickSpacing == 0) revert TickSpacingIsZero();
         TICK_SPACING = _tickSpacing;
+        if (_floorPrice == 0) revert FloorPriceIsZero();
+        // Ensure the floor price is at a tick boundary
+        if (_floorPrice % TICK_SPACING != 0) revert TickPriceNotAtBoundary();
         FLOOR_PRICE = _floorPrice;
-        _unsafeInitializeTick(_floorPrice);
+        // Initialize the floor price as the first tick
+        $_ticks[FLOOR_PRICE].next = MAX_TICK_PRICE;
+        $nextActiveTickPrice = FLOOR_PRICE;
+        emit NextActiveTickUpdated(FLOOR_PRICE);
+        emit TickInitialized(FLOOR_PRICE);
     }
 
     /// @notice Get a tick at a price
     /// @dev The returned tick is not guaranteed to be initialized
     /// @param price The price of the tick
+    /// @return The tick at the given price
     function getTick(uint256 price) public view returns (Tick memory) {
-        return ticks[price];
-    }
-
-    /// @notice Initialize a tick at `price` without checking for existing ticks
-    /// @dev This function is unsafe and should only be used when the tick is guaranteed to be the first in the book
-    /// @param price The price of the tick
-    function _unsafeInitializeTick(uint256 price) internal {
-        ticks[price].next = MAX_TICK_PRICE;
-        nextActiveTickPrice = price;
-        emit NextActiveTickUpdated(price);
-        emit TickInitialized(price);
+        return $_ticks[price];
     }
 
     /// @notice Initialize a tick at `price` if it does not exist already
@@ -58,7 +56,7 @@ abstract contract TickStorage is ITickStorage {
     /// @param price The price of the tick
     function _initializeTickIfNeeded(uint256 prevPrice, uint256 price) internal {
         // No previous price can be greater than or equal to the new price
-        uint256 nextPrice = ticks[prevPrice].next;
+        uint256 nextPrice = $_ticks[prevPrice].next;
 
         if (prevPrice >= price) {
             revert TickPreviousPriceInvalid();
@@ -73,16 +71,16 @@ abstract contract TickStorage is ITickStorage {
         // The tick already exists, early return
         if (nextPrice == price) return;
 
-        Tick storage newTick = ticks[price];
+        Tick storage newTick = $_ticks[price];
         newTick.next = nextPrice;
 
         // Link prev to new tick
-        ticks[prevPrice].next = price;
+        $_ticks[prevPrice].next = price;
 
         // If the next tick is the nextActiveTick, update nextActiveTick to the new tick
         // In the base case, where next == 0 and nextActiveTickPrice == 0, this will set nextActiveTickPrice to price
-        if (nextPrice == nextActiveTickPrice) {
-            nextActiveTickPrice = price;
+        if (nextPrice == $nextActiveTickPrice) {
+            $nextActiveTickPrice = price;
             emit NextActiveTickUpdated(price);
         }
 
@@ -93,7 +91,7 @@ abstract contract TickStorage is ITickStorage {
     /// @param price The price of the tick
     /// @param demand The demand to add
     function _updateTickDemand(uint256 price, Demand memory demand) internal {
-        Tick storage tick = ticks[price];
+        Tick storage tick = $_ticks[price];
         tick.demand = tick.demand.add(demand);
     }
 
@@ -106,5 +104,15 @@ abstract contract TickStorage is ITickStorage {
     /// @inheritdoc ITickStorage
     function tickSpacing() external view override(ITickStorage) returns (uint256) {
         return TICK_SPACING;
+    }
+
+    /// @inheritdoc ITickStorage
+    function nextActiveTickPrice() external view override(ITickStorage) returns (uint256) {
+        return $nextActiveTickPrice;
+    }
+
+    /// @inheritdoc ITickStorage
+    function ticks(uint256 price) external view override(ITickStorage) returns (Tick memory) {
+        return $_ticks[price];
     }
 }

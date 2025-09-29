@@ -5,6 +5,9 @@ import {Auction, AuctionParameters} from '../src/Auction.sol';
 import {AuctionFactory} from '../src/AuctionFactory.sol';
 
 import {IAuctionFactory} from '../src/interfaces/IAuctionFactory.sol';
+
+import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
+import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {IDistributionContract} from '../src/interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
 
@@ -76,6 +79,26 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         assertEq(auction.startBlock(), block.number);
         assertEq(auction.endBlock(), block.number + AUCTION_DURATION);
         assertEq(auction.claimBlock(), block.number + AUCTION_DURATION);
+    }
+
+    function test_initializeDistribution_createsAuction_withMsgSenderAsFundsRecipient() public {
+        params = params.withFundsRecipient(address(1));
+        bytes memory configData = abi.encode(params);
+
+        address sender = makeAddr('sender');
+        bytes memory expectedConfigData = abi.encode(params.withFundsRecipient(address(sender)));
+
+        // Expect the AuctionCreated event (don't check the auction address since it's deterministic)
+        vm.expectEmit(false, true, true, true);
+        emit IAuctionFactory.AuctionCreated(address(0), address(token), TOTAL_SUPPLY, expectedConfigData);
+
+        vm.prank(sender);
+        IDistributionContract distributionContract =
+            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
+
+        // Verify the auction was created correctly
+        auction = Auction(payable(address(distributionContract)));
+        assertEq(auction.fundsRecipient(), address(sender));
     }
 
     function test_initializeDistribution_createsUniqueAddresses() public {
@@ -235,5 +258,43 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
             factory.initializeDistribution(_token, _totalSupply, configData, _salt);
 
         assertEq(auctionAddress, address(distributionContract));
+    }
+    
+    function test_initializeDistribution_withZeroTotalSupply_reverts() public {
+        bytes memory configData = abi.encode(params);
+
+        vm.expectRevert(ITokenCurrencyStorage.TotalSupplyIsZero.selector);
+        factory.initializeDistribution(address(token), 0, configData, bytes32(0));
+    }
+
+    function test_initializeDistribution_withZeroFloorPrice_reverts() public {
+        params = params.withFloorPrice(0);
+        bytes memory configData = abi.encode(params);
+
+        vm.expectRevert(ITickStorage.FloorPriceIsZero.selector);
+        factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
+    }
+
+    function test_initializeDistribution_withZeroTickSpacing_reverts() public {
+        params = params.withTickSpacing(0);
+        bytes memory configData = abi.encode(params);
+
+        vm.expectRevert(ITickStorage.TickSpacingIsZero.selector);
+        factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
+    }
+
+    function test_initializeDistribution_withTokenIsAddressZero_reverts() public {
+        bytes memory configData = abi.encode(params);
+
+        vm.expectRevert(ITokenCurrencyStorage.TokenIsAddressZero.selector);
+        factory.initializeDistribution(address(0), TOTAL_SUPPLY, configData, bytes32(0));
+    }
+
+    function test_initializeDistribution_withTokenAndCurrencyAreTheSame_reverts() public {
+        params = params.withCurrency(address(token));
+        bytes memory configData = abi.encode(params);
+
+        vm.expectRevert(ITokenCurrencyStorage.TokenAndCurrencyCannotBeTheSame.selector);
+        factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
     }
 }

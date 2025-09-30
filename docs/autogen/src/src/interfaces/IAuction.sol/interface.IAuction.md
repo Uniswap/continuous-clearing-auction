@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/d2fa994e75f232a6bfe496080d6fadb2906a187d/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/cfe064d2fdebcf6b4861fcd47553d75e33aa20ae/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
@@ -32,6 +32,37 @@ function submitBid(
 |`amount`|`uint256`|The amount of the bid|
 |`owner`|`address`|The owner of the bid|
 |`prevTickPrice`|`uint256`|The price of the previous tick|
+|`hookData`|`bytes`|Additional data to pass to the hook required for validation|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`bidId`|`uint256`|The id of the bid|
+
+
+### submitBid
+
+Submit a new bid without specifying the previous tick price
+
+*It is NOT recommended to use this function unless you are sure that `maxPrice` is already initialized
+as this function will iterate through every tick starting from the floor price if it is not.*
+
+
+```solidity
+function submitBid(uint256 maxPrice, bool exactIn, uint256 amount, address owner, bytes calldata hookData)
+    external
+    payable
+    returns (uint256 bidId);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`maxPrice`|`uint256`|The maximum price the bidder is willing to pay|
+|`exactIn`|`bool`|Whether the bid is exact in|
+|`amount`|`uint256`|The amount of the bid|
+|`owner`|`address`|The owner of the bid|
 |`hookData`|`bytes`|Additional data to pass to the hook required for validation|
 
 **Returns**

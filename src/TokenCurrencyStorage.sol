@@ -39,7 +39,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     uint256 public sweepCurrencyBlock;
     /// @notice The block at which the tokens were swept
     uint256 public sweepUnsoldTokensBlock;
-    
+
     constructor(
         address _token,
         address _currency,

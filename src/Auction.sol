@@ -222,7 +222,7 @@ contract Auction is
         uint64 start = $step.startBlock < $lastCheckpointedBlock ? $lastCheckpointedBlock : $step.startBlock;
         uint64 end = $step.endBlock;
 
-        console.log("advance to current step: before while");
+        console.log('advance to current step: before while');
         uint24 mps = $step.mps;
         while (blockNumber > end) {
             _checkpoint = _transformCheckpoint(_checkpoint, uint24((end - start) * mps));
@@ -393,18 +393,18 @@ contract Auction is
     function _unsafeCheckpoint(uint64 blockNumber) internal returns (Checkpoint memory _checkpoint) {
         if (blockNumber == $lastCheckpointedBlock) return latestCheckpoint();
 
-        console.log("before updateLatestCheckpointToCurrentStep");
+        console.log('before updateLatestCheckpointToCurrentStep');
         // Update the latest checkpoint, accounting for new bids and advances in supply schedule
         _checkpoint = _updateLatestCheckpointToCurrentStep(blockNumber);
         _checkpoint.mps = $step.mps;
 
-        console.log("checkpoint: before blockDelta");
+        console.log('checkpoint: before blockDelta');
         // Now account for any time in between this checkpoint and the greater of the start of the step or the last checkpointed block
         uint64 blockDelta =
             blockNumber - ($step.startBlock > $lastCheckpointedBlock ? $step.startBlock : $lastCheckpointedBlock);
         uint24 mpsSinceLastCheckpoint = uint256(_checkpoint.mps * blockDelta).toUint24();
 
-        console.log("checkpoint: before transformCheckpoint");
+        console.log('checkpoint: before transformCheckpoint');
         _checkpoint = _transformCheckpoint(_checkpoint, mpsSinceLastCheckpoint);
         _insertCheckpoint(_checkpoint, blockNumber);
 
@@ -428,15 +428,14 @@ contract Auction is
         uint256 prevTickPrice,
         bytes calldata hookData
     ) internal returns (uint256 bidId) {
-        console.log("before checkpoint");
+        console.log('before checkpoint');
         Checkpoint memory _checkpoint = checkpoint();
         // Revert if there are no more tokens to be sold
         if (_remainingMpsInAuction(_checkpoint) == 0) revert AuctionSoldOut();
 
-        console.log("before initializeTickIfNeeded");
+        console.log('before initializeTickIfNeeded');
         _initializeTickIfNeeded(prevTickPrice, maxPrice);
-        console.log("after initializeTickIfNeeded");
-
+        console.log('after initializeTickIfNeeded');
 
         VALIDATION_HOOK.handleValidate(maxPrice, exactIn, amount, owner, msg.sender, hookData);
         // ClearingPrice will be set to floor price in checkpoint() if not set already
@@ -445,14 +444,14 @@ contract Auction is
         // Scale the amount according to the rest of the supply schedule, accounting for past blocks
         // This is only used in demand related internal calculations
         Bid memory bid;
-        console.log("before createBid");
+        console.log('before createBid');
         (bid, bidId) = _createBid(exactIn, amount, owner, maxPrice, _checkpoint.cumulativeMps);
         Demand memory bidDemand = bid.toDemand();
 
-        console.log("before updateTickDemand");
+        console.log('before updateTickDemand');
         _updateTickDemand(maxPrice, bidDemand);
 
-        console.log("before add to sumDemandAboveClearing");
+        console.log('before add to sumDemandAboveClearing');
         $sumDemandAboveClearing = $sumDemandAboveClearing.add(bidDemand);
 
         emit BidSubmitted(bidId, owner, maxPrice, exactIn, amount);
@@ -513,6 +512,16 @@ contract Auction is
             );
         }
         return _submitBid(maxPrice, exactIn, amount, owner, prevTickPrice, hookData);
+    }
+
+    /// @inheritdoc IAuction
+    function submitBid(uint256 maxPrice, bool exactIn, uint256 amount, address owner, bytes calldata hookData)
+        external
+        payable
+        onlyActiveAuction
+        returns (uint256)
+    {
+        return _submitBid(maxPrice, exactIn, amount, owner, FLOOR_PRICE, hookData);
     }
 
     /// @inheritdoc IAuction

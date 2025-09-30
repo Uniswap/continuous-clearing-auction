@@ -1,8 +1,29 @@
 # CheckpointLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/d2fa994e75f232a6bfe496080d6fadb2906a187d/src/libraries/CheckpointLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/4e79543472823ca4f19066f04f5392aba6563627/src/libraries/CheckpointLib.sol)
 
 
 ## Functions
+### remainingMpsInAuction
+
+Get the remaining mps in the auction at the given checkpoint
+
+
+```solidity
+function remainingMpsInAuction(Checkpoint memory _checkpoint) internal pure returns (uint24);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`_checkpoint`|`Checkpoint`|The checkpoint with `cumulativeMps` so far|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint24`|The remaining mps in the auction|
+
+
 ### getMpsPerPrice
 
 Calculate the supply to price ratio. Will return zero if `price` is zero

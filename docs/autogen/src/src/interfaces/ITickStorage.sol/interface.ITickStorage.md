@@ -1,5 +1,5 @@
 # ITickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/eddb06d9f9e6a95363d90d7326e355d98c8b0712/src/interfaces/ITickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/4e79543472823ca4f19066f04f5392aba6563627/src/interfaces/ITickStorage.sol)
 
 Interface for the TickStorage contract
 
@@ -129,5 +129,13 @@ Error thrown when the price is not at a boundary designated by the tick spacing
 
 ```solidity
 error TickPriceNotAtBoundary();
+```
+
+### InvalidTickPrice
+Error thrown when the tick price is invalid
+
+
+```solidity
+error InvalidTickPrice();
 ```
 

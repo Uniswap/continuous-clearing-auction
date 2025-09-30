@@ -1,5 +1,5 @@
 # DemandLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/d2fa994e75f232a6bfe496080d6fadb2906a187d/src/libraries/DemandLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/4e79543472823ca4f19066f04f5392aba6563627/src/libraries/DemandLib.sol)
 
 Library for demand calculations and operations
 
@@ -7,7 +7,8 @@ Library for demand calculations and operations
 ## Functions
 ### resolveRoundingUp
 
-Resolve the demand at a given price, rounding up
+Resolve the demand at a given price, rounding up.
+We only round up when we compare demand to supply so we never find a price that is too low.
 
 *"Resolving" means converting all demand into token terms, which requires dividing the currency demand by a price*
 
@@ -29,11 +30,43 @@ function resolveRoundingUp(Demand memory _demand, uint256 price) internal pure r
 |`<none>`|`ValueX7`|The resolved demand as a ValueX7|
 
 
+### resolveRoundingDown
+
+Resolve the demand at a given price, rounding down
+We always round demand down in all other cases (calculating supply sold to a price and bid withdrawals)
+
+*"Resolving" means converting all demand into token terms, which requires dividing the currency demand by a price*
+
+
+```solidity
+function resolveRoundingDown(Demand memory _demand, uint256 price) internal pure returns (ValueX7);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`_demand`|`Demand`|The demand to resolve|
+|`price`|`uint256`|The price to resolve the demand at|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`ValueX7`|The resolved demand as a ValueX7|
+
+
 ### _resolveCurrencyDemandRoundingUp
 
 
 ```solidity
 function _resolveCurrencyDemandRoundingUp(ValueX7 amount, uint256 price) private pure returns (ValueX7);
+```
+
+### _resolveCurrencyDemandRoundingDown
+
+
+```solidity
+function _resolveCurrencyDemandRoundingDown(ValueX7 amount, uint256 price) private pure returns (ValueX7);
 ```
 
 ### add

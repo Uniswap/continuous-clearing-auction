@@ -1,5 +1,4 @@
 import {
-  ActionType,
   TestInteractionData,
   Group,
   BidData,
@@ -7,17 +6,23 @@ import {
   AmountType,
   PriceType,
   AdminActionMethod,
-  Address,
   AmountConfig,
   PriceConfig,
 } from "../schemas/TestInteractionSchema";
 import { Contract, ContractTransaction } from "ethers";
-import hre from "hardhat";
-import { PERMIT2_ADDRESS, MAX_UINT256, ZERO_ADDRESS, UINT_160_MAX, UINT_48_MAX, LOG_PREFIXES } from "./constants";
+import {
+  PERMIT2_ADDRESS,
+  MAX_UINT256,
+  ZERO_ADDRESS,
+  UINT_160_MAX,
+  UINT_48_MAX,
+  LOG_PREFIXES,
+  ERROR_MESSAGES,
+} from "./constants";
 import { IAllowanceTransfer } from "../../../typechain-types/test/e2e/artifacts/permit2/src/interfaces/IAllowanceTransfer";
-import { Signer } from "ethers";
 import { TransactionInfo } from "./types";
 import { TransferAction } from "../schemas/TestInteractionSchema";
+import hre from "hardhat";
 
 export enum BiddersType {
   NAMED = "named",
@@ -55,7 +60,7 @@ export class BidSimulator {
         return await tokenContract.getAddress();
       }
     }
-    throw new Error(`Token with identifier ${tokenIdentifier} not found.`);
+    throw new Error(ERROR_MESSAGES.TOKEN_IDENTIFIER_NOT_FOUND(tokenIdentifier));
   }
 
   async setupLabels(interactionData: TestInteractionData): Promise<void> {
@@ -272,7 +277,7 @@ export class BidSimulator {
 
     // Check if the revert data contains the expected string
     if (!actualRevertData.includes(expectedRevert)) {
-      throw new Error(`Expected revert data to contain "${expectedRevert}", but got: ${actualRevertData}`);
+      throw new Error(ERROR_MESSAGES.EXPECTED_REVERT_NOT_FOUND(expectedRevert, actualRevertData));
     }
     console.log(LOG_PREFIXES.SUCCESS, "Expected revert validated:", expectedRevert);
   }
@@ -288,7 +293,7 @@ export class BidSimulator {
     if (amountConfig.type === AmountType.PERCENT_OF_SUPPLY) {
       // PERCENT_OF_SUPPLY can only be used for auctioned token (output), not currency (input)
       if (amountConfig.side === Side.INPUT) {
-        throw new Error("PERCENT_OF_SUPPLY can only be used for auctioned token (OUTPUT), not currency (INPUT)");
+        throw new Error(ERROR_MESSAGES.PERCENT_OF_SUPPLY_INVALID_SIDE);
       }
 
       // Calculate percentage of total token supply

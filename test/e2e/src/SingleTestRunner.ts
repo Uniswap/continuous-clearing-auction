@@ -12,11 +12,11 @@ import { BidSimulator, InternalBidData } from "./BidSimulator";
 import { AssertionEngine, AuctionState } from "./AssertionEngine";
 import { Contract, Interface } from "ethers";
 import { Network } from "hardhat/types";
-import { PERMIT2_ADDRESS, LOG_PREFIXES } from "./constants";
-import hre from "hardhat";
+import { PERMIT2_ADDRESS, LOG_PREFIXES, ERROR_MESSAGES } from "./constants";
 import { artifacts } from "hardhat";
 import { HashWithRevert, TransactionInfo } from "./types";
 import { TransactionRequest } from "ethers";
+import hre from "hardhat";
 
 export interface TestResult {
   setupData: TestSetupData;
@@ -80,7 +80,7 @@ export class SingleTestRunner {
       await hre.ethers.provider.send("hardhat_mine", [`0x${blocksToMine.toString(16)}`]);
       console.log(LOG_PREFIXES.INFO, "Mined", blocksToMine, "blocks to reach auction start block", auctionStartBlock);
     } else if (currentBlock > auctionStartBlock) {
-      throw new Error(`Current block ${currentBlock} is already past auction start block ${auctionStartBlock}`);
+      throw new Error(ERROR_MESSAGES.BLOCK_ALREADY_PAST_START(currentBlock, auctionStartBlock));
     }
 
     let setupTransactions: TransactionInfo[] = [];
@@ -295,7 +295,7 @@ export class SingleTestRunner {
           await this.network.provider.send("hardhat_mine", [`0x${blocksToMine.toString(16)}`]);
         } else if (blocksToMine < 0) {
           console.log(LOG_PREFIXES.WARNING, "Block", blockNum, "is already mined. Current block:", currentBlock);
-          throw new Error(`Block ${blockNum} is already mined`);
+          throw new Error(ERROR_MESSAGES.BLOCK_ALREADY_MINED(blockNum));
         }
 
         // Execute the event
@@ -380,7 +380,12 @@ export class SingleTestRunner {
           }
         }
         if (!matched) {
-          throw new Error(`Expected revert "${txInfo.expectRevert || "none"}" but got: ${error}`);
+          throw new Error(
+            ERROR_MESSAGES.EXPECTED_REVERT_MISMATCH(
+              txInfo.expectRevert || "none",
+              error instanceof Error ? error.message : String(error),
+            ),
+          );
         }
       }
 
@@ -413,7 +418,7 @@ export class SingleTestRunner {
         } else {
           continue;
         }
-        throw new Error(`Expected revert "${pendingHash.expectRevert || "none"}" but got: ${decodedRevert}`);
+        throw new Error(ERROR_MESSAGES.EXPECTED_REVERT_MISMATCH(pendingHash.expectRevert || "none", decodedRevert));
       }
     }
 

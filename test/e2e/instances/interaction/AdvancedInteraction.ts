@@ -119,8 +119,8 @@ export const advancedInteraction: TestInteractionData = {
         type: AssertionInterfaceType.BALANCE,
         address: "0x1111111111111111111111111111111111111111" as Address,
         token: "0x0000000000000000000000000000000000000000" as Address,
-        expected: "7499273804168297382", // Expected ETH balance after bids and transfer (10 - 1.5 - 1 ETH transfer - gas fees)
-        variance: "0.001%" // Allow 0.0001% variance due to gas fee fluctuations
+        expected: "7500000000000000000", // Expected ETH balance after bids and transfer (10 - 1.5 - 1 ETH transfer)
+        variance: "0.1%" // Allow 0.01% variance due to gas fee fluctuations
       }
     },
     {

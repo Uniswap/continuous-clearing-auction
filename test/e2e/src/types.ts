@@ -1,4 +1,4 @@
-import { Contract, ContractTransaction, Signer, TransactionLike } from "ethers";
+import { Contract, ContractTransaction, TransactionLike } from "ethers";
 import { Address } from "../schemas/TestSetupSchema";
 
 // Import contract artifacts to get proper typing
@@ -108,33 +108,4 @@ export interface TransactionInfo {
 export interface HashWithRevert {
   hash: string;
   expectRevert?: string;
-}
-
-// Error types
-export class E2ETestError extends Error {
-  constructor(message: string, public readonly context?: Record<string, any>) {
-    super(message);
-    this.name = "E2ETestError";
-  }
-}
-
-export class AuctionDeploymentError extends E2ETestError {
-  constructor(message: string, context?: Record<string, any>) {
-    super(message, context);
-    this.name = "AuctionDeploymentError";
-  }
-}
-
-export class BidExecutionError extends E2ETestError {
-  constructor(message: string, context?: Record<string, any>) {
-    super(message, context);
-    this.name = "BidExecutionError";
-  }
-}
-
-export class AssertionError extends E2ETestError {
-  constructor(message: string, context?: Record<string, any>) {
-    super(message, context);
-    this.name = "AssertionError";
-  }
 }

@@ -4,7 +4,7 @@ import { MultiTestRunner, CombinationResult } from "./MultiTestRunner";
 import { TestInstance } from "./SchemaValidator";
 import { TestSetupData } from "../schemas/TestSetupSchema";
 import { TestInteractionData } from "../schemas/TestInteractionSchema";
-import { LOG_PREFIXES } from "./constants";
+import { LOG_PREFIXES, ERROR_MESSAGES } from "./constants";
 
 // Import the actual TypeScript instances
 import { simpleSetup } from "../instances/setup/SimpleSetup";
@@ -137,12 +137,14 @@ function loadInstanceFromFile(filePath: string, type: "setup" | "interaction"): 
     const instance = module.default || module[cleanPath] || Object.values(module)[0];
 
     if (!instance) {
-      throw new Error(`No instance found in ${filePath}`);
+      throw new Error(ERROR_MESSAGES.NO_INSTANCE_FOUND(filePath));
     }
 
     return instance;
   } catch (error) {
-    throw new Error(`Failed to load ${filePath}: ${error}`);
+    throw new Error(
+      ERROR_MESSAGES.FAILED_TO_LOAD_FILE(filePath, error instanceof Error ? error.message : String(error)),
+    );
   }
 }
 

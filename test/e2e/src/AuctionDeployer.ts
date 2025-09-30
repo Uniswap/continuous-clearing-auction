@@ -13,7 +13,7 @@ import {
   ERROR_MESSAGES,
   LOG_PREFIXES,
 } from "./constants";
-import { AuctionContract, TokenContract, AuctionFactoryContract, AuctionConfig, AuctionDeploymentError } from "./types";
+import { AuctionContract, TokenContract, AuctionFactoryContract, AuctionConfig } from "./types";
 import hre from "hardhat";
 
 export class AuctionDeployer {
@@ -139,15 +139,13 @@ export class AuctionDeployer {
 
   async createAuction(setupData: TestSetupData, setupTransactions: TransactionInfo[]): Promise<AuctionContract> {
     if (!this.auctionFactory) {
-      throw new AuctionDeploymentError("AuctionDeployer not initialized. Call initialize() first.");
+      throw new Error(ERROR_MESSAGES.AUCTION_DEPLOYER_NOT_INITIALIZED);
     }
 
     // Get the auctioned token and currency (tokens should already be deployed)
     const auctionedToken = this.getTokenByName(setupData.auctionParameters.auctionedToken);
     if (!auctionedToken) {
-      throw new AuctionDeploymentError(
-        ERROR_MESSAGES.AUCTIONED_TOKEN_NOT_FOUND(setupData.auctionParameters.auctionedToken),
-      );
+      throw new Error(ERROR_MESSAGES.AUCTIONED_TOKEN_NOT_FOUND(setupData.auctionParameters.auctionedToken));
     }
 
     const currencyAddress = await this.resolveCurrencyAddress(setupData.auctionParameters.currency);
@@ -177,7 +175,7 @@ export class AuctionDeployer {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(LOG_PREFIXES.ERROR, "Auction creation failed:", errorMessage);
-      throw new AuctionDeploymentError("Auction creation failed", { originalError: error });
+      throw new Error(ERROR_MESSAGES.AUCTION_CREATION_FAILED(errorMessage));
     }
   }
 
@@ -241,7 +239,7 @@ export class AuctionDeployer {
       ?.inputs.find((input: any) => input.internalType === "struct AuctionParameters");
 
     if (!auctionParametersType) {
-      throw new AuctionDeploymentError(ERROR_MESSAGES.AUCTION_PARAMETERS_NOT_FOUND);
+      throw new Error(ERROR_MESSAGES.AUCTION_PARAMETERS_NOT_FOUND);
     }
 
     // Construct the tuple type string from the ABI components
@@ -280,7 +278,7 @@ export class AuctionDeployer {
     setupTransactions: TransactionInfo[],
   ): Promise<string> {
     if (!this.auctionFactory) {
-      throw new AuctionDeploymentError(ERROR_MESSAGES.AUCTION_FACTORY_NOT_DEPLOYED);
+      throw new Error(ERROR_MESSAGES.AUCTION_FACTORY_NOT_DEPLOYED);
     }
 
     const salt = this.ethers.keccak256(this.ethers.toUtf8Bytes("test-salt"));
@@ -314,7 +312,7 @@ export class AuctionDeployer {
     // Otherwise, look up the token by name
     const address = await this.getTokenAddress(currency);
     if (!address) {
-      throw new AuctionDeploymentError(ERROR_MESSAGES.TOKEN_NOT_FOUND(currency));
+      throw new Error(ERROR_MESSAGES.TOKEN_NOT_FOUND(currency));
     }
     return address;
   }
@@ -322,7 +320,7 @@ export class AuctionDeployer {
   calculateAuctionAmount(tokenName: string, additionalTokens: AdditionalToken[]): bigint {
     const tokenConfig = additionalTokens.find((t) => t.name === tokenName);
     if (!tokenConfig) {
-      throw new AuctionDeploymentError(ERROR_MESSAGES.TOKEN_NOT_FOUND(tokenName));
+      throw new Error(ERROR_MESSAGES.TOKEN_NOT_FOUND(tokenName));
     }
 
     const totalSupply = BigInt(tokenConfig.totalSupply);

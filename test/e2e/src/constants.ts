@@ -29,16 +29,52 @@ export const HEX_PADDING_LENGTH = 16;
 export const DEFAULT_TOTAL_SUPPLY = "1000000000000000000000"; // 1000 tokens with 18 decimals
 // Error messages
 export const ERROR_MESSAGES = {
-  TOKEN_NOT_FOUND: (tokenName: string) => `Token ${tokenName} not found`,
+  // AuctionDeployer errors
   AUCTIONED_TOKEN_NOT_FOUND: (tokenName: string) => `Auctioned token ${tokenName} not found`,
   AUCTION_PARAMETERS_NOT_FOUND: "AuctionParameters struct not found in auction artifact",
   AUCTION_FACTORY_NOT_DEPLOYED: "AuctionFactory not deployed. Call initialize() first.",
+  AUCTION_DEPLOYER_NOT_INITIALIZED: "AuctionDeployer not initialized. Call initialize() first.",
+  AUCTION_CREATION_FAILED: (errorMessage: string) => `Auction creation failed. Original error: ${errorMessage}`,
+  TOKEN_NOT_FOUND: (tokenName: string) => `Token ${tokenName} not found`,
+
+  // AssertionEngine errors
+  TOKEN_IDENTIFIER_NOT_FOUND: (tokenIdentifier: string) => `Token with identifier ${tokenIdentifier} not found.`,
+  CANNOT_VALIDATE_EQUALITY: "Can only validate equality for non-object types",
+  TOKEN_NOT_FOUND_BY_ADDRESS: (tokenAddress: string) => `Token not found for address: ${tokenAddress}`,
+  TOTAL_SUPPLY_ASSERTION_FAILED: (expected: string, actual: string) =>
+    `Total supply assertion failed: expected ${expected}, got ${actual}`,
+  AUCTION_ASSERTION_FAILED: (expected: any, actual: any) =>
+    `Auction assertion failed: expected ${expected}, got ${actual}`,
+  AUCTION_CHECKPOINT_ASSERTION_FAILED: (expected: any, actual: any) =>
+    `Auction latestCheckpoint assertion failed: expected ${expected}, got ${actual}`,
+  BLOCK_NOT_FOUND: (currentBlock: number) => `Block ${currentBlock} not found`,
+  EVENT_ASSERTION_FAILED: (eventName: string) =>
+    `Event assertion failed: Event '${eventName}' not found with expected arguments`,
   BALANCE_ASSERTION_FAILED: (address: string, token: string, expected: string, actual: string) =>
     `Balance assertion failed for ${address} token ${token}. Expected ${expected}, got ${actual}`,
+
+  // BidSimulator errors
+  PERCENT_OF_SUPPLY_INVALID_SIDE:
+    "PERCENT_OF_SUPPLY can only be used for auctioned token (OUTPUT), not currency (INPUT)",
   EXPECTED_REVERT_NOT_FOUND: (expected: string, actual: string) =>
     `Expected revert data to contain "${expected}", but got: ${actual}`,
-  UNSUPPORTED_AMOUNT_TYPE: (type: string) => `Unknown amount type: ${type}`,
-  UNSUPPORTED_PRICE_TYPE: (type: string) => `Unknown price type: ${type}`,
+
+  // E2ECliRunner errors
+  NO_INSTANCE_FOUND: (filePath: string) => `No instance found in ${filePath}`,
+  FAILED_TO_LOAD_FILE: (filePath: string, error: string) => `Failed to load ${filePath}: ${error}`,
+
+  // SingleTestRunner errors
+  BLOCK_ALREADY_PAST_START: (currentBlock: number, auctionStartBlock: number) =>
+    `Current block ${currentBlock} is already past auction start block ${auctionStartBlock}`,
+  BLOCK_ALREADY_MINED: (blockNum: number) => `Block ${blockNum} is already mined`,
+  EXPECTED_REVERT_MISMATCH: (expected: string, actual: string) => `Expected revert "${expected}" but got: ${actual}`,
+
+  // SchemaValidator errors
+  TYPESCRIPT_FILE_NOT_FOUND: (tsFilePath: string) => `TypeScript test instance file not found: ${tsFilePath}`,
+  NO_EXPORT_FOUND: (filename: string, availableExports: string) =>
+    `No export found in ${filename}.ts. Available exports: ${availableExports}`,
+  FAILED_TO_LOAD_TYPESCRIPT_INSTANCE: (filename: string, error: string) =>
+    `Failed to load TypeScript instance ${filename}: ${error}`,
 } as const;
 
 // Logging prefixes

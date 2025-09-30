@@ -4,7 +4,7 @@ export const advancedSetup: TestSetupData = {
   name: "AdvancedSetup",
   env: {
     chainId: 31337,
-    startBlock: "2",
+    startBlock: "10",
     blockTimeSec: 12,
     blockGasLimit: "100000000",
     txGasLimit: "30000000",

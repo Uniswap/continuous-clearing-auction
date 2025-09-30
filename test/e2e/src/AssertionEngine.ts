@@ -11,7 +11,7 @@ import {
 import { Contract } from "ethers";
 import { TokenContract } from "./types";
 import { AuctionDeployer } from "./AuctionDeployer";
-import { ZERO_ADDRESS, LOG_PREFIXES } from "./constants";
+import { ZERO_ADDRESS, LOG_PREFIXES, ERROR_MESSAGES } from "./constants";
 import { CheckpointStruct } from "../../../typechain-types/out/Auction";
 import hre from "hardhat";
 
@@ -68,7 +68,7 @@ export class AssertionEngine {
     if (tokenContract) {
       return await tokenContract.getAddress();
     }
-    throw new Error(`Token with identifier ${tokenIdentifier} not found.`);
+    throw new Error(ERROR_MESSAGES.TOKEN_IDENTIFIER_NOT_FOUND(tokenIdentifier));
   }
 
   /**
@@ -113,7 +113,7 @@ export class AssertionEngine {
     if (expected && typeof expected === "object") {
       let keys = Object.keys(expected);
       if (keys.length !== 2 || !keys.includes("amount") || !keys.includes("variation")) {
-        throw new Error(`Can only validate equality for non-object types`);
+        throw new Error(ERROR_MESSAGES.CANNOT_VALIDATE_EQUALITY);
       }
       let expectedStruct = expected as VariableAmount;
       if (!this.isWithinVariance(actual, BigInt(expectedStruct.amount), Number(expectedStruct.variation))) {
@@ -165,7 +165,7 @@ export class AssertionEngine {
     let expectedVariance = variance ? this.parseVariance(variance) : 0;
     if (!this.isWithinVariance(actualBalance, expectedBalance, expectedVariance)) {
       throw new Error(
-        `Balance assertion failed for ${address} token ${token}. Expected ${expectedBalance} (±${variance}), got ${actualBalance}`,
+        ERROR_MESSAGES.BALANCE_ASSERTION_FAILED(address, token, expectedBalance.toString(), actualBalance.toString()),
       );
     }
     console.log(LOG_PREFIXES.SUCCESS, "Assertion validated (within variance of", variance + ")");
@@ -177,7 +177,7 @@ export class AssertionEngine {
       const token = await this.auctionDeployer.getTokenByAddress(tokenAddress);
 
       if (!token) {
-        throw new Error(`Token not found for address: ${tokenAddress}`);
+        throw new Error(ERROR_MESSAGES.TOKEN_NOT_FOUND_BY_ADDRESS(tokenAddress));
       }
       const _addr = await token.getAddress();
       console.log(LOG_PREFIXES.INFO, "Token address for totalSupply():", _addr);
@@ -196,7 +196,7 @@ export class AssertionEngine {
 
       if (actualSupply !== expectedSupply) {
         throw new Error(
-          `Total supply assertion failed: expected ${expectedSupply.toString()}, got ${actualSupply.toString()}`,
+          ERROR_MESSAGES.TOTAL_SUPPLY_ASSERTION_FAILED(expectedSupply.toString(), actualSupply.toString()),
         );
       }
     }
@@ -216,9 +216,10 @@ export class AssertionEngine {
         if (expected != undefined && expected != null) {
           if (!this.validateEquality(expected, auctionState[key as keyof AuctionState])) {
             throw new Error(
-              `Auction assertion failed: expected ${assertion[key as keyof AuctionAssertion]}, got ${
-                auctionState[key as keyof AuctionState]
-              }`,
+              ERROR_MESSAGES.AUCTION_ASSERTION_FAILED(
+                assertion[key as keyof AuctionAssertion],
+                auctionState[key as keyof AuctionState],
+              ),
             );
           }
         }
@@ -231,9 +232,10 @@ export class AssertionEngine {
           if (expected != undefined && expected != null) {
             if (!this.validateEquality(expected, auctionState.latestCheckpoint[key as keyof CheckpointStruct])) {
               throw new Error(
-                `Auction latestCheckpoint assertion failed: expected ${
-                  assertion.latestCheckpoint[key as keyof CheckpointStruct]
-                }, got ${auctionState.latestCheckpoint[key as keyof CheckpointStruct]}`,
+                ERROR_MESSAGES.AUCTION_CHECKPOINT_ASSERTION_FAILED(
+                  assertion.latestCheckpoint[key as keyof CheckpointStruct],
+                  auctionState.latestCheckpoint[key as keyof CheckpointStruct],
+                ),
               );
             }
           }
@@ -259,14 +261,14 @@ export class AssertionEngine {
       const block = await hre.ethers.provider.getBlock(currentBlock);
 
       if (!block) {
-        throw new Error(`Block ${currentBlock} not found`);
+        throw new Error(ERROR_MESSAGES.BLOCK_NOT_FOUND(currentBlock));
       }
 
       // Get all transaction receipts for this block
       const eventFound = await this.checkForEventInBlock(block, assertion);
 
       if (!eventFound) {
-        throw new Error(`Event assertion failed: Event '${assertion.eventName}' not found with expected arguments`);
+        throw new Error(ERROR_MESSAGES.EVENT_ASSERTION_FAILED(assertion.eventName));
       }
 
       console.log(LOG_PREFIXES.SUCCESS, "Event assertion validated:", assertion.eventName);

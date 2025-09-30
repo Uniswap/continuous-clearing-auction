@@ -3,6 +3,7 @@ import * as path from "path";
 import { TestSetupData } from "../schemas/TestSetupSchema";
 import { TestInteractionData } from "../schemas/TestInteractionSchema";
 import { register } from "ts-node";
+import { ERROR_MESSAGES } from "./constants";
 
 export interface TestInstance {
   filename: string;
@@ -22,7 +23,7 @@ export class SchemaValidator {
       if (fs.existsSync(tsFilePath)) {
         return this.loadTypeScriptInstance(type, filename);
       } else {
-        throw new Error(`TypeScript test instance file not found: ${tsFilePath}`);
+        throw new Error(ERROR_MESSAGES.TYPESCRIPT_FILE_NOT_FOUND(tsFilePath));
       }
     }
   }
@@ -60,13 +61,16 @@ export class SchemaValidator {
         module[`${filename}Interaction`];
 
       if (!data) {
-        throw new Error(`No export found in ${filename}.ts. Available exports: ${Object.keys(module).join(", ")}`);
+        throw new Error(ERROR_MESSAGES.NO_EXPORT_FOUND(filename, Object.keys(module).join(", ")));
       }
 
       return data;
     } catch (error) {
       throw new Error(
-        `Failed to load TypeScript instance ${filename}: ${error instanceof Error ? error.message : String(error)}`,
+        ERROR_MESSAGES.FAILED_TO_LOAD_TYPESCRIPT_INSTANCE(
+          filename,
+          error instanceof Error ? error.message : String(error),
+        ),
       );
     }
   }

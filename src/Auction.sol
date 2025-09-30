@@ -493,7 +493,7 @@ contract Auction is
         address owner,
         uint256 prevTickPrice,
         bytes calldata hookData
-    ) external payable onlyActiveAuction returns (uint256) {
+    ) public payable onlyActiveAuction returns (uint256) {
         // Bids cannot be submitted at the endBlock or after
         if (block.number >= END_BLOCK) revert AuctionIsOver();
         console.log('block.number', block.number);
@@ -516,12 +516,12 @@ contract Auction is
 
     /// @inheritdoc IAuction
     function submitBid(uint256 maxPrice, bool exactIn, uint256 amount, address owner, bytes calldata hookData)
-        external
+        public
         payable
         onlyActiveAuction
         returns (uint256)
     {
-        return _submitBid(maxPrice, exactIn, amount, owner, FLOOR_PRICE, hookData);
+        return submitBid(maxPrice, exactIn, amount, owner, FLOOR_PRICE, hookData);
     }
 
     /// @inheritdoc IAuction

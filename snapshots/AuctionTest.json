@@ -5,9 +5,9 @@
   "claimTokens": "85365",
   "exitBid": "94383",
   "exitPartiallyFilledBid": "308805",
-  "submitBidWithoutPrevTickPrice": "169508",
-  "submitBidWithoutPrevTickPrice_initializeTick_search": "217210",
-  "submitBidWithoutPrevTickPrice_initializeTick_updateCheckpoint": "343804",
+  "submitBidWithoutPrevTickPrice": "171842",
+  "submitBidWithoutPrevTickPrice_initializeTick_search": "219544",
+  "submitBidWithoutPrevTickPrice_initializeTick_updateCheckpoint": "346140",
   "submitBid_recordStep_updateCheckpoint_initializeTick": "346060",
   "submitBid_updateCheckpoint": "323692",
   "submitBid_withValidationHook": "350315"

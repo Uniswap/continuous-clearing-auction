@@ -1,17 +1,19 @@
 # DemandLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f80ba18b60de4b770005741879dfdddb0bfb58e3/src/libraries/DemandLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/07712f11fafad883cb4261b09b8cf07d1b82d868/src/libraries/DemandLib.sol)
+
+Library for demand calculations and operations
 
 
 ## Functions
-### resolve
+### resolveRoundingUp
 
-Resolve the demand at a given price
+Resolve the demand at a given price, rounding up
 
 *"Resolving" means converting all demand into token terms, which requires dividing the currency demand by a price*
 
 
 ```solidity
-function resolve(Demand memory _demand, uint256 price) internal pure returns (ValueX7);
+function resolveRoundingUp(Demand memory _demand, uint256 price) internal pure returns (ValueX7);
 ```
 **Parameters**
 
@@ -27,13 +29,11 @@ function resolve(Demand memory _demand, uint256 price) internal pure returns (Va
 |`<none>`|`ValueX7`|The resolved demand as a ValueX7|
 
 
-### _resolveCurrencyDemand
-
-Resolve the currency demand at a given price
+### _resolveCurrencyDemandRoundingUp
 
 
 ```solidity
-function _resolveCurrencyDemand(ValueX7 amount, uint256 price) private pure returns (ValueX7);
+function _resolveCurrencyDemandRoundingUp(ValueX7 amount, uint256 price) private pure returns (ValueX7);
 ```
 
 ### add
@@ -50,14 +50,10 @@ function add(Demand memory _demand, Demand memory _other) internal pure returns 
 function sub(Demand memory _demand, Demand memory _other) internal pure returns (Demand memory);
 ```
 
-### scaleByMps
-
-Apply mps to a Demand struct
-
-*Shorthand for calling `scaleByMps` on both currencyDemandX7 and tokenDemandX7*
+### mulUint256
 
 
 ```solidity
-function scaleByMps(Demand memory _demand, uint24 mps) internal pure returns (Demand memory);
+function mulUint256(Demand memory _demand, uint256 value) internal pure returns (Demand memory);
 ```
 

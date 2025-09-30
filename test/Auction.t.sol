@@ -2,14 +2,25 @@
 pragma solidity 0.8.26;
 
 import {Auction, AuctionParameters} from '../src/Auction.sol';
+
+import {Bid} from '../src/BidStorage.sol';
+import {Checkpoint} from '../src/CheckpointStorage.sol';
 import {IAuction} from '../src/interfaces/IAuction.sol';
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
+import {AuctionStep} from '../src/libraries/AuctionStepLib.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
+
+import {BidLib} from '../src/libraries/BidLib.sol';
+import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
+import {Demand} from '../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
+import {MPSLib} from '../src/libraries/MPSLib.sol';
+import {SupplyLib} from '../src/libraries/SupplyLib.sol';
+import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
+import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
@@ -19,6 +30,7 @@ import {MockToken} from './utils/MockToken.sol';
 import {MockValidationHook} from './utils/MockValidationHook.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
+import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
@@ -26,15 +38,11 @@ contract AuctionTest is AuctionBaseTest {
     using FixedPointMathLib for uint256;
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
-    using MPSLib for *;
+    using ValueX7Lib for *;
+    using ValueX7X7Lib for *;
 
     function setUp() public {
         setUpAuction();
-    }
-
-    /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice
-    function inputAmountForTokens(uint256 tokens, uint256 maxPrice) internal pure returns (uint256) {
-        return tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96);
     }
 
     function test_submitBid_beforeTokensReceived_reverts() public {
@@ -116,7 +124,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.snapshotGasLastCall('submitBid_recordStep_updateCheckpoint_initializeTick');
 
         vm.roll(block.number + 1);
-        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().mulUint256(100e3).divUint256(MPSLib.MPS);
+        ValueX7X7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().upcast().mulUint256(100e3);
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(
@@ -136,7 +144,7 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(block.number + 1);
-        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().mulUint256(100e3).divUint256(MPSLib.MPS);
+        ValueX7X7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().upcast().mulUint256(100e3);
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(
@@ -150,7 +158,7 @@ contract AuctionTest is AuctionBaseTest {
     function test_submitBid_updatesClearingPrice_succeeds() public {
         vm.expectEmit(true, true, true, true);
         // Expect the checkpoint to be made for the previous block
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7.wrap(0), 0);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7X7.wrap(0), 0);
         // Bid enough to purchase the entire supply (1000e18) at a higher price (2e18)
         auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
@@ -163,7 +171,7 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(block.number + 1);
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
-        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().mulUint256(100e3).divUint256(MPSLib.MPS);
+        ValueX7X7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().upcast().mulUint256(100e3);
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(
             block.number, tickNumberToPriceX96(2), expectedTotalCleared, expectedCumulativeMps
@@ -172,12 +180,12 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_submitBid_multipleTicks_succeeds() public {
-        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().mulUint256(100e3).divUint256(MPSLib.MPS);
+        ValueX7X7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().upcast().mulUint256(100e3);
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
 
         vm.expectEmit(true, true, true, true);
         // First checkpoint is blank
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7.wrap(0), 0);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7X7.wrap(0), 0);
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(tickNumberToPriceX96(2));
 
@@ -269,7 +277,7 @@ contract AuctionTest is AuctionBaseTest {
         // Bid over the total supply
         uint256 inputAmount = inputAmountForTokens(2000e18, tickNumberToPriceX96(2));
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7.wrap(0), 0);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7X7.wrap(0), 0);
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(0, alice, tickNumberToPriceX96(2), true, inputAmount);
         uint256 bidId = auction.submitBid{value: inputAmount}(
@@ -279,14 +287,15 @@ contract AuctionTest is AuctionBaseTest {
         // Advance to the next block to get the next checkpoint
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7.wrap(0), 0);
+        // Expect the price to increase, but no tokens to be sold
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), ValueX7X7.wrap(0), 0);
         auction.checkpoint();
         vm.snapshotGasLastCall('checkpoint_zeroSupply');
 
         // Advance to the end of the first step
         vm.roll(auction.startBlock() + 101);
 
-        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().mulUint256(100e3).divUint256(MPSLib.MPS);
+        ValueX7X7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().upcast().mulUint256(100e3);
         // Now the auction should start clearing
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), expectedTotalCleared, 100e3);
@@ -296,7 +305,7 @@ contract AuctionTest is AuctionBaseTest {
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
-        auction.exitPartiallyFilledBid(bidId, 2, 0);
+        auction.exitPartiallyFilledBid(bidId, 1, 0);
         assertEq(address(alice).balance, aliceBalanceBefore + inputAmount / 2);
 
         vm.roll(auction.claimBlock());
@@ -314,7 +323,7 @@ contract AuctionTest is AuctionBaseTest {
 
         uint256 inputAmount = inputAmountForTokens(1000e18, tickNumberToPriceX96(1));
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7.wrap(0), 0);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7X7.wrap(0), 0);
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(
             0, alice, tickNumberToPriceX96(2), true, inputAmountForTokens(1000e18, tickNumberToPriceX96(1))
@@ -326,13 +335,13 @@ contract AuctionTest is AuctionBaseTest {
         // Advance to the next block to get the next checkpoint
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7.wrap(0), 0);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7X7.wrap(0), 0);
         auction.checkpoint();
 
         // Advance to the end of the first step
         vm.roll(auction.startBlock() + 101);
 
-        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().mulUint256(100e3).divUint256(MPSLib.MPS);
+        ValueX7X7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().upcast().mulUint256(100e3);
         // Now the auction should start clearing
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), expectedTotalCleared, 100e3);
@@ -383,6 +392,29 @@ contract AuctionTest is AuctionBaseTest {
         assertLt(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 500e18);
     }
 
+    /// forge-config: default.isolate = true
+    /// forge-config: ci.isolate = true
+    function test_submitBid_withoutPrevTickPrice_isInitialized_succeeds_gas() public {
+        vm.expectEmit(true, true, true, true);
+        emit ITickStorage.TickInitialized(tickNumberToPriceX96(2));
+        auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2), true, inputAmountForTokens(100e18, tickNumberToPriceX96(2)), alice, bytes('')
+        );
+        vm.snapshotGasLastCall('submitBidWithoutPrevTickPrice_initializeTick_updateCheckpoint');
+
+        // Submit another bid at the same price, which is now initialized
+        auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2), true, inputAmountForTokens(100e18, tickNumberToPriceX96(2)), alice, bytes('')
+        );
+        vm.snapshotGasLastCall('submitBidWithoutPrevTickPrice');
+
+        // Submit a bid at a higher price which is not initialized, requiring the protocol to search
+        auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(3))}(
+            tickNumberToPriceX96(3), true, inputAmountForTokens(100e18, tickNumberToPriceX96(3)), alice, bytes('')
+        );
+        vm.snapshotGasLastCall('submitBidWithoutPrevTickPrice_initializeTick_search');
+    }
+
     function test_checkpoint_startBlock_succeeds() public {
         vm.roll(auction.startBlock());
         auction.checkpoint();
@@ -406,7 +438,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_submitBid_exactIn_atFloorPrice_reverts() public {
-        vm.expectRevert(ITickStorage.TickPreviousPriceInvalid.selector);
+        vm.expectRevert(IAuction.InvalidBidPrice.selector);
         auction.submitBid{value: inputAmountForTokens(10e18, tickNumberToPriceX96(1))}(
             tickNumberToPriceX96(1),
             true,
@@ -418,7 +450,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_submitBid_exactOut_atFloorPrice_reverts() public {
-        vm.expectRevert(ITickStorage.TickPreviousPriceInvalid.selector);
+        vm.expectRevert(IAuction.InvalidBidPrice.selector);
         auction.submitBid{value: inputAmountForTokens(10e18, tickNumberToPriceX96(1))}(
             tickNumberToPriceX96(1), false, 10e18, alice, tickNumberToPriceX96(1), bytes('')
         );
@@ -492,7 +524,7 @@ contract AuctionTest is AuctionBaseTest {
             tickNumberToPriceX96(2),
             bytes('')
         );
-        ValueX7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().mulUint256(100e3).divUint256(MPSLib.MPS);
+        ValueX7X7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().upcast().mulUint256(100e3);
 
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
@@ -575,10 +607,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(
-            block.number,
-            tickNumberToPriceX96(1),
-            TOTAL_SUPPLY.scaleUpToX7().mulUint256(100e3).divUint256(MPSLib.MPS),
-            100e3
+            block.number, tickNumberToPriceX96(1), TOTAL_SUPPLY.scaleUpToX7().upcast().mulUint256(100e3), 100e3
         );
         auction.checkpoint();
 
@@ -939,6 +968,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_onTokensReceived_withCorrectTokenAndAmount_succeeds() public {
+        // Should not revert since tokens are already minted in setUp()
         vm.expectEmit(true, true, true, true);
         emit IAuction.TokensReceived(TOTAL_SUPPLY);
         auction.onTokensReceived();
@@ -950,7 +980,7 @@ contract AuctionTest is AuctionBaseTest {
 
         token.mint(address(newAuction), TOTAL_SUPPLY - 1);
 
-        vm.expectRevert(IAuction.IDistributionContract__InvalidAmountReceived.selector);
+        vm.expectRevert(IAuction.InvalidTokenAmountReceived.selector);
         newAuction.onTokensReceived();
     }
 
@@ -987,7 +1017,7 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(auction.clearingPrice(), auction.nextActiveTickPrice());
     }
 
-    function test_exitPartiallyFilledBid_withInvalidCheckpointHint_reverts() public {
+    function test_exitPartiallyFilledBid_withInvalidOutbidBlockCheckpointHint_reverts() public {
         // Submit a bid at price 2
         uint256 bidId = auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
@@ -1018,13 +1048,201 @@ contract AuctionTest is AuctionBaseTest {
         // Try to exit with checkpoint 2 as the outbid checkpoint
         // But checkpoint 2 has clearing price = tickNumberToPriceX96(2), which equals bid.maxPrice
         // This violates the condition: outbidCheckpoint.clearingPrice < bid.maxPrice
-        vm.expectRevert(IAuction.InvalidCheckpointHint.selector);
+        vm.expectRevert(IAuction.InvalidOutbidBlockCheckpointHint.selector);
         auction.exitPartiallyFilledBid(bidId, 2, 2);
     }
 
+    function test_exitPartiallyfilledBid_outbid_succeeds() public {
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(1, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(1, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3))}(
+            tickNumberToPriceX96(3),
+            true,
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3)),
+            alice,
+            tickNumberToPriceX96(2),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+
+        // Bid 1 should be immediately exitable because it has been outbid
+        auction.exitPartiallyFilledBid(bidId, 2, 3);
+    }
+
+    function test_exitPartiallyfilledBid_outbidBlockIsCurrentBlock_succeeds() public {
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(1, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(1, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3))}(
+            tickNumberToPriceX96(3),
+            true,
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3)),
+            alice,
+            tickNumberToPriceX96(2),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        // Lower hint is the last fully filled checkpoint (2), since it includes the first bid but not the second
+        // Outbid checkpoint block is the current block (3)
+        auction.exitPartiallyFilledBid(bidId, 2, uint64(block.number));
+    }
+
+    function test_exitPartiallyfilledBid_withHigherOutbidBlockHint_reverts() public {
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(1, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(1, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3))}(
+            tickNumberToPriceX96(3),
+            true,
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3)),
+            alice,
+            tickNumberToPriceX96(2),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        // Block 3 is the correct first outbid block
+        auction.checkpoint();
+
+        vm.roll(block.number + 1);
+        // While the bid is outbid as of block 4, it is an incorrect hint
+        auction.checkpoint();
+
+        vm.expectRevert(IAuction.InvalidOutbidBlockCheckpointHint.selector);
+        auction.exitPartiallyFilledBid(bidId, 2, uint64(block.number));
+
+        // Expect the revert to still happen at the endBlock
+        vm.roll(auction.endBlock());
+        vm.expectRevert(IAuction.InvalidOutbidBlockCheckpointHint.selector);
+        auction.exitPartiallyFilledBid(bidId, 2, uint64(block.number));
+
+        // As well as after the endBlock
+        vm.roll(auction.endBlock() + 1);
+        uint64 endBlock = uint64(auction.endBlock());
+        vm.expectRevert(IAuction.InvalidOutbidBlockCheckpointHint.selector);
+        auction.exitPartiallyFilledBid(bidId, 2, endBlock);
+    }
+
+    function test_exitPartiallyFilledBid_finalCheckpointPriceEqual_revertsWithCannotPartiallyExitBidBeforeEndBlock()
+        public
+    {
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(auction.endBlock() - 1);
+        auction.checkpoint();
+
+        vm.expectRevert(IAuction.CannotPartiallyExitBidBeforeEndBlock.selector);
+        // Checkpoint hints are:
+        // - lower: 1 (last fully filled checkpoint)
+        // - upper: 0 because the bid was never outbid
+        auction.exitPartiallyFilledBid(bidId, 1, 0);
+    }
+
+    function test_exitPartiallyFilledBid_finalCheckpointPriceEqual_succeeds() public {
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        // We need to checkpoint after the bid is submitted since otherwise the check on lastFullyFilledCheckpoint.next will revert
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+
+        vm.roll(auction.endBlock());
+        // Expect the final checkpoint to be made
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.CheckpointUpdated(
+            block.number, tickNumberToPriceX96(2), TOTAL_SUPPLY.scaleUpToX7().scaleUpToX7X7(), MPSLib.MPS
+        );
+        // Checkpoint hints are:
+        // - lower: 1 (last fully filled checkpoint)
+        // - upper: 0 because the bid was never outbid
+        auction.exitPartiallyFilledBid(bidId, 1, 0);
+    }
+
+    function test_exitPartiallyFilledBid_lowerHintIsValidated() public {
+        MockAuction mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(mockAuction), TOTAL_SUPPLY);
+        mockAuction.onTokensReceived();
+
+        Checkpoint memory _checkpointOne;
+        _checkpointOne.clearingPrice = tickNumberToPriceX96(1);
+        Checkpoint memory _checkpointTwo;
+        _checkpointTwo.clearingPrice = tickNumberToPriceX96(2);
+        Checkpoint memory _checkpointThree;
+        _checkpointThree.clearingPrice = tickNumberToPriceX96(2);
+        Checkpoint memory _checkpointFour;
+        _checkpointFour.clearingPrice = tickNumberToPriceX96(2);
+        Checkpoint memory _checkpointFive;
+        _checkpointFive.clearingPrice = tickNumberToPriceX96(3);
+
+        vm.roll(1);
+        // Create a bid which was entered with a max price of tickNumberToPriceX96(2) at checkpoint 1
+        (Bid memory bid, uint256 bidId) = mockAuction.createBid(true, 100e18, alice, tickNumberToPriceX96(2), 0);
+        assertEq(bid.startBlock, 1);
+        mockAuction.insertCheckpoint(_checkpointOne, 1);
+        vm.roll(2);
+        mockAuction.insertCheckpoint(_checkpointTwo, 2);
+        vm.roll(3);
+        mockAuction.insertCheckpoint(_checkpointThree, 3);
+        vm.roll(4);
+        mockAuction.insertCheckpoint(_checkpointFour, 4);
+        vm.roll(5);
+        mockAuction.insertCheckpoint(_checkpointFive, 5);
+
+        // The bid is fully filled at checkpoint 1
+        // The bid is partially filled from checkpoints (2, 3, 4), inclusive
+        // The bid is outbid at checkpoint 5
+
+        // Test failure cases
+        // Provide an invalid lower hint (i being not 1)
+        for (uint64 i = 0; i <= 5; i++) {
+            if (i == 1) continue;
+            vm.expectRevert(IAuction.InvalidLastFullyFilledCheckpointHint.selector);
+            mockAuction.exitPartiallyFilledBid(bidId, i, 5);
+        }
+    }
+
     function test_advanceToCurrentStep_withMultipleStepsAndClearingPrice() public {
-        auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 20).addStep(150e3, 20).addStep(250e3, 20);
-        params = params.withEndBlock(block.number + 60).withAuctionStepsData(auctionStepsData);
+        params = params.withEndBlock(block.number + 60).withAuctionStepsData(
+            AuctionStepsBuilder.init().addStep(100e3, 20).addStep(150e3, 20).addStep(250e3, 20)
+        );
 
         Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(newAuction), TOTAL_SUPPLY);
@@ -1045,48 +1263,208 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(block.number + 15);
         newAuction.checkpoint();
 
-        (uint24 mps,,) = newAuction.step();
+        uint24 mps = newAuction.step().mps;
         assertEq(mps, 150e3);
 
         vm.roll(block.number + 20);
         newAuction.checkpoint();
 
-        (mps,,) = newAuction.step();
-        assertEq(mps, 250e3);
+        AuctionStep memory step = newAuction.step();
+        assertEq(step.mps, 250e3);
     }
 
-    function test_calculateNewClearingPrice_belowFloorPrice_returnsFloorPrice() public {
-        params = params.withFloorPrice(10e6 << FixedPoint96.RESOLUTION);
-
+    // Test the edge case where the blockNumber happens to be on the end of a step, which is exclusive
+    // Test the case where the current step is 0 mps and we have to call advanceToCurrentStep before calculating the clearing price
+    function test_advanceToCurrentStep_blockNumberIsEndOfZeroMpsStep() public {
+        // 10 blocks of 0 mps, then 100 blocks of 100e3 mps (1%) each
+        uint64 startBlock = uint64(block.number);
+        uint64 endBlock = startBlock + 110;
+        params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(0, 10).addStep(100e3, 100)).withEndBlock(
+            block.number + 110
+        );
         MockAuction mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(mockAuction), TOTAL_SUPPLY);
         mockAuction.onTokensReceived();
 
-        // Set up the auction state by submitting a bid and checkpointing
-        uint256 bidPrice = 12e6 << FixedPoint96.RESOLUTION;
-        mockAuction.submitBid{value: inputAmountForTokens(100e18, bidPrice)}(
-            bidPrice, true, inputAmountForTokens(100e18, bidPrice), alice, 10e6 << FixedPoint96.RESOLUTION, bytes('')
-        );
+        AuctionStep memory step = mockAuction.step();
+        assertEq(step.mps, 0);
+        assertEq(step.startBlock, startBlock);
+        assertEq(step.endBlock, startBlock + 10);
 
+        /**
+         * Current state of the auction steps
+         * blockNumber:     1                11                                    111
+         *                  |                |                                      |
+         *          stepStart          stepEnd
+         *                             stepStart                              stepEnd
+         *                  ^
+         */
+        // Roll to the end of the first step (top of block)
+        vm.roll(step.endBlock);
+        /**
+         * blockNumber:     1                11                                    111
+         *                  |                |                                      |
+         *          stepStart          stepEnd
+         *                             stepStart                              stepEnd
+         *                                   ^
+         * We are at the END of the first step, which is the start of the second step
+         * If we make a checkpoint in this block (number 11), which step is valid?
+         * - It should be the second step, because AuctionSteps are inclusive of the start block and exclusive of the end block
+         *   So for blocks [1, 10), we sold 0 mps for blocks 1,2,3,4,5,6,7,8,9,10
+         * Since Checkpoints are made top of the block, they reflect the state of the auction UP UNTIL, but not including, that block.
+         *
+         * Thus the bid below makes a checkpoint which does not show that any mps or tokens have been sold (because they haven't).
+         */
+        vm.expectEmit(true, true, true, true);
+        // Assert that there is no supply sold in this checkpoint
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7X7.wrap(0), 0);
+        mockAuction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+        Demand memory demand = mockAuction.sumDemandAboveClearing();
+        assertEq(demand.currencyDemandX7, ValueX7.wrap(inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))));
+        assertEq(demand.tokenDemandX7, ValueX7.wrap(0));
+        /**
+         * Roll one more block and checkpoint
+         * blockNumber:     1                11   12                              111
+         *                  |                |     .                                |
+         *          stepStart          stepEnd
+         *                             stepStart                              stepEnd
+         *                                         ^
+         * The current block number is 12, which is > than the end of the current step (ended block 11). That means we have to advance forward
+         * Before we can advance to the next step, there could have been blocks that were not checkpointed in between the last checkpoint we made
+         * and the end of the last step. In this case both of those values are equal (block 11) so we don't transform the checkpoint.
+         * However, we do advance to the next step such that the step is up to date with the schedule.
+         *
+         * Once the step is made current, we can find the `clearingPrice` and `sumDemandAboveClearing` values which affect the Checkpointed values.
+         * It's important to remember that these values are calculated at the TOP of block 12, one block after the bid was submitted
+         * This is correct because it reflects the state of the auction UP UNTIL block 12, not including.
+         *
+         * And we show that at the end of the last step of the auction, 1e7 or 100% of all `mps` were sold in the auction
+         */
         vm.roll(block.number + 1);
-        mockAuction.checkpoint(); // This sets up sumDemandAboveClearing properly
-
-        // We need: minimumClearingPrice < calculated_price < floorPrice
-        // Use a much smaller minimumClearingPrice so the calculated price will be above it
-        uint256 minimumClearingPrice = 1e1 << FixedPoint96.RESOLUTION; // Much much smaller than floor price (10e6 << 96)
-
-        // Use a blockTokenSupply that will give a calculated price between minimumClearingPrice and floorPrice
-        // The formula is: clearingPrice = currencyDemandX7 * Q96 / (blockTokenSupply - tokenDemandX7)
-        // We want: minimumClearingPrice < calculated_price < floorPrice
-        // With currencyDemandX7 = 120e18 and tokenDemandX7 = 100e18, we need to find the right blockTokenSupply
-        ValueX7 blockTokenSupply = MPSLib.scaleUpToX7(1e22); // Even larger supply to get a smaller calculated price
-
-        uint256 result = mockAuction.calculateNewClearingPrice(
-            minimumClearingPrice, // minimumClearingPrice in X96 (below floor price)
-            blockTokenSupply // blockTokenSupply
+        vm.expectEmit(true, true, true, true);
+        // Expect the second step to be recorded
+        emit IAuctionStepStorage.AuctionStepRecorded(step.endBlock, endBlock, 100e3);
+        vm.expectEmit(true, true, true, true);
+        // Expect 1 block to be have been cleared
+        emit IAuction.CheckpointUpdated(
+            block.number,
+            tickNumberToPriceX96(2),
+            // Instead of multiplying by 100e3 and dividing by MPS, we don't divide and upcast to X7X7
+            TOTAL_SUPPLY.scaleUpToX7().mulUint256(100e3).upcast(),
+            100e3
         );
+        mockAuction.checkpoint();
 
-        assertEq(result, 10e6 << FixedPoint96.RESOLUTION);
+        // Roll to end of the auction
+        vm.roll(endBlock);
+        vm.expectEmit(true, true, true, true);
+        // Expect that we sold the total supply at price of 2
+        emit IAuction.CheckpointUpdated(
+            block.number, tickNumberToPriceX96(2), TOTAL_SUPPLY.scaleUpToX7().scaleUpToX7X7(), MPSLib.MPS
+        );
+        mockAuction.checkpoint();
+    }
+
+    function test_advanceToCurrentStep_blockNumberIsEndOfStep() public {
+        // 10 blocks of 0 mps, then 100 blocks of 100e3 mps (1%) each
+        uint64 startBlock = uint64(block.number);
+        uint64 endBlock = startBlock + 40;
+        params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(100e3, 10).addStep(300e3, 30))
+            .withEndBlock(block.number + 40);
+        MockAuction mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(mockAuction), TOTAL_SUPPLY);
+        mockAuction.onTokensReceived();
+
+        AuctionStep memory step = mockAuction.step();
+        assertEq(step.mps, 100e3);
+        assertEq(step.startBlock, startBlock);
+        assertEq(step.endBlock, startBlock + 10);
+
+        /**
+         * Current state of the auction steps
+         * blockNumber:     1                11                                    111
+         *                  |                |                                      |
+         *          stepStart          stepEnd
+         *                             stepStart                              stepEnd
+         *                  ^
+         */
+        // Roll to the end of the first step (top of block)
+        vm.roll(step.endBlock);
+        /**
+         * blockNumber:     1                11                                    111
+         *                  |                |                                      |
+         *          stepStart          stepEnd
+         *                             stepStart                              stepEnd
+         *                                   ^
+         * We are at the END of the first step, which is the start of the second step
+         * If we make a checkpoint in this block (number 11), which step is valid?
+         * - It should be the second step, because AuctionSteps are inclusive of the start block and exclusive of the end block
+         *   So for blocks [1, 10), we sold 100e3 mps for blocks 1,2,3,4,5,6,7,8,9,10
+         * Since Checkpoints are made top of the block, they reflect the state of the auction UP UNTIL, but not including, that block.
+         *
+         * Thus the bid below makes a checkpoint which shows that 100e3 * 10 mps were sold but no supply was cleared
+         */
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7X7.wrap(0), 100e3 * 10);
+        mockAuction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+        Demand memory demand = mockAuction.sumDemandAboveClearing();
+        assertEq(demand.currencyDemandX7, ValueX7.wrap(inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))));
+        assertEq(demand.tokenDemandX7, ValueX7.wrap(0));
+        /**
+         * Roll one more block and checkpoint
+         * blockNumber:     1                11   12                              111
+         *                  |                |     .                                |
+         *          stepStart          stepEnd
+         *                             stepStart                              stepEnd
+         *                                         ^
+         * The current block number is 12, which is > than the end of the current step (ended block 11). That means we have to advance forward
+         * Before we can advance to the next step, there could have been blocks that were not checkpointed in between the last checkpoint we made
+         * and the end of the last step. In this case both of those values are equal (block 11) so we don't transform the checkpoint.
+         * However, we do advance to the next step such that the step is up to date with the schedule.
+         *
+         * Once the step is made current, we can find the `clearingPrice` and `sumDemandAboveClearing` values which affect the Checkpointed values.
+         * It's important to remember that these values are calculated at the TOP of block 12, one block after the bid was submitted
+         * This is correct because it reflects the state of the auction UP UNTIL block 12, not including.
+         *
+         * And we show that at the end of the last step of the auction, 1e7 or 100% of all `mps` were sold in the auction
+         */
+        vm.roll(block.number + 1);
+        vm.expectEmit(true, true, true, true);
+        // Expect the second step to be recorded
+        emit IAuctionStepStorage.AuctionStepRecorded(step.endBlock, endBlock, 300e3);
+        vm.expectEmit(true, true, true, true);
+        // Expect 1 block to be have been cleared
+        uint24 expectedCumulativeMps = 100e3 * 10 + 300e3;
+        emit IAuction.CheckpointUpdated(
+            block.number,
+            tickNumberToPriceX96(2),
+            TOTAL_SUPPLY.scaleUpToX7().scaleUpToX7X7().divUint256(30),
+            expectedCumulativeMps
+        );
+        mockAuction.checkpoint();
+
+        // Roll to end of the auction
+        vm.roll(endBlock);
+        vm.expectEmit(true, true, true, true);
+        // Expect that we sold the total supply at price of 2
+        emit IAuction.CheckpointUpdated(
+            startBlock + 40, tickNumberToPriceX96(2), TOTAL_SUPPLY.scaleUpToX7().scaleUpToX7X7(), MPSLib.MPS
+        );
+        mockAuction.checkpoint();
     }
 
     /// forge-config: default.isolate = true
@@ -1140,7 +1518,32 @@ contract AuctionTest is AuctionBaseTest {
         );
     }
 
-    function test_exitPartiallyFilledBid_withInvalidCheckpointHint_atEndBlock_reverts() public {
+    function test_submitBid_withERC20Currency_nonZeroMsgValue_reverts() public {
+        // Create auction parameters with ERC20 currency instead of ETH
+        params = params.withCurrency(address(currency));
+        Auction erc20Auction = new Auction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(erc20Auction), TOTAL_SUPPLY);
+        erc20Auction.onTokensReceived();
+
+        // Mint currency tokens to alice
+        currency.mint(alice, 1000e18);
+
+        // For now, let's just verify that the currency is set correctly
+        assertEq(Currency.unwrap(erc20Auction.currency()), address(currency));
+        assertFalse(erc20Auction.currency().isAddressZero());
+
+        vm.expectRevert(IAuction.CurrencyIsNotNative.selector);
+        erc20Auction.submitBid{value: 100e18}(
+            tickNumberToPriceX96(2),
+            true,
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+    }
+
+    function test_exitPartiallyFilledBid_withInvalidLowerCheckpointHint_atEndBlock_reverts() public {
         uint256 bidId = auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
             true,
@@ -1154,26 +1557,50 @@ contract AuctionTest is AuctionBaseTest {
         auction.checkpoint();
 
         vm.roll(auction.endBlock() + 1);
-        vm.expectRevert(IAuction.InvalidCheckpointHint.selector);
+        vm.expectRevert(IAuction.InvalidLastFullyFilledCheckpointHint.selector);
         auction.exitPartiallyFilledBid(bidId, 2, 2);
     }
 
-    function test_auctionConstruction_reverts() public {
+    function test_auctionConstruction_revertsWithTotalSupplyZero() public {
         vm.expectRevert(ITokenCurrencyStorage.TotalSupplyIsZero.selector);
         new Auction(address(token), 0, params);
+    }
 
+    function test_auctionConstruction_revertsWithTickSpacingZero() public {
+        AuctionParameters memory paramsZeroTickSpacing = params.withTickSpacing(0);
+        vm.expectRevert(ITickStorage.TickSpacingIsZero.selector);
+        new Auction(address(token), TOTAL_SUPPLY, paramsZeroTickSpacing);
+    }
+
+    function test_auctionConstruction_revertsWithFloorPriceZero() public {
         AuctionParameters memory paramsZeroFloorPrice = params.withFloorPrice(0);
-        vm.expectRevert(IAuction.FloorPriceIsZero.selector);
+        vm.expectRevert(ITickStorage.FloorPriceIsZero.selector);
         new Auction(address(token), TOTAL_SUPPLY, paramsZeroFloorPrice);
+    }
 
+    function test_auctionConstruction_revertsWithClaimBlockBeforeEndBlock() public {
         AuctionParameters memory paramsClaimBlockBeforeEndBlock =
             params.withClaimBlock(block.number + AUCTION_DURATION - 1).withEndBlock(block.number + AUCTION_DURATION);
         vm.expectRevert(IAuction.ClaimBlockIsBeforeEndBlock.selector);
         new Auction(address(token), TOTAL_SUPPLY, paramsClaimBlockBeforeEndBlock);
+    }
 
+    function test_auctionConstruction_revertsWithFundsRecipientZero() public {
         AuctionParameters memory paramsFundsRecipientZero = params.withFundsRecipient(address(0));
         vm.expectRevert(ITokenCurrencyStorage.FundsRecipientIsZero.selector);
         new Auction(address(token), TOTAL_SUPPLY, paramsFundsRecipientZero);
+    }
+
+    function test_auctionConstruction_revertsWithTokensRecipientZero() public {
+        AuctionParameters memory paramsTokensRecipientZero = params.withTokensRecipient(address(0));
+        vm.expectRevert(ITokenCurrencyStorage.TokensRecipientIsZero.selector);
+        new Auction(address(token), TOTAL_SUPPLY, paramsTokensRecipientZero);
+    }
+
+    function test_auctionConstruction_revertsWithInvalidGraduationThresholdMps() public {
+        AuctionParameters memory paramsInvalidGraduationThresholdMps = params.withGraduationThresholdMps(1e7 + 1);
+        vm.expectRevert(ITokenCurrencyStorage.InvalidGraduationThresholdMps.selector);
+        new Auction(address(token), TOTAL_SUPPLY, paramsInvalidGraduationThresholdMps);
     }
 
     function test_checkpoint_beforeAuctionStarts_reverts() public {
@@ -1272,42 +1699,6 @@ contract AuctionTest is AuctionBaseTest {
         // Try to exit the same bid again - this should revert with BidAlreadyExited on line 294
         vm.expectRevert(IAuction.BidAlreadyExited.selector);
         auction.exitPartiallyFilledBid(bidId, 1, 0);
-
-        vm.stopPrank();
-    }
-
-    function test_exitPartiallyFilledBid_withInvalidCheckpointHint_onLine308_reverts() public {
-        // Submit a bid at a lower price
-        uint256 bidId = auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
-            tickNumberToPriceX96(2),
-            true,
-            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
-            alice,
-            tickNumberToPriceX96(1),
-            bytes('')
-        );
-
-        // Submit a much larger bid to move the clearing price above the first bid
-        auction.submitBid{value: inputAmountForTokens(1000e18, tickNumberToPriceX96(3))}(
-            tickNumberToPriceX96(3),
-            true,
-            inputAmountForTokens(1000e18, tickNumberToPriceX96(3)),
-            alice,
-            tickNumberToPriceX96(2),
-            bytes('')
-        );
-
-        vm.roll(block.number + 1);
-        auction.checkpoint();
-
-        // Now the clearing price should be above the first bid's max price
-        // But we'll try to exit with a checkpoint hint that points to a checkpoint
-        // where the clearing price is not strictly greater than the bid's max price
-        vm.startPrank(alice);
-
-        // Try to exit with checkpoint 1, which should have clearing price <= bid.maxPrice
-        vm.expectRevert(IAuction.InvalidCheckpointHint.selector);
-        auction.exitPartiallyFilledBid(bidId, 1, 1);
 
         vm.stopPrank();
     }
@@ -1611,5 +2002,181 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(auction.tickSpacing(), TICK_SPACING);
         assertEq(address(auction.validationHook()), address(0));
         assertEq(auction.floorPrice(), FLOOR_PRICE);
+    }
+
+    function test_unpackSupplyRolloverMultiplier_fuzz(
+        uint256 totalSupply,
+        uint256 remainingSupplyX7X7Raw,
+        uint24 remainingMps
+    ) public {
+        vm.assume(totalSupply > 0);
+        vm.assume(totalSupply <= SupplyLib.MAX_TOTAL_SUPPLY);
+
+        // Ensure remainingSupplyX7X7 fits within 231 bits
+        vm.assume(remainingSupplyX7X7Raw < (1 << 231));
+        ValueX7X7 remainingSupplyX7X7 = ValueX7X7.wrap(remainingSupplyX7X7Raw);
+        vm.assume(ValueX7X7.unwrap(remainingSupplyX7X7) <= ValueX7X7.unwrap(totalSupply.scaleUpToX7().scaleUpToX7X7()));
+
+        MockAuction mockAuction = new MockAuction(address(token), totalSupply, params);
+        token.mint(address(mockAuction), totalSupply);
+        mockAuction.onTokensReceived();
+
+        (bool isSet, uint24 cachedRemainingMps, ValueX7X7 cachedRemainingSupplyX7X7) =
+            mockAuction.unpackSupplyRolloverMultiplier();
+        // Assert base case
+        assertFalse(isSet);
+        assertEq(cachedRemainingMps, 0);
+        assertEq(ValueX7X7.unwrap(cachedRemainingSupplyX7X7), 0);
+
+        // Set initial values
+        mockAuction.setSupplyRolloverMultiplier(true, remainingMps, remainingSupplyX7X7);
+        (isSet, cachedRemainingMps, cachedRemainingSupplyX7X7) = mockAuction.unpackSupplyRolloverMultiplier();
+        // Assert the getter fetches them correctly
+        assertTrue(isSet);
+        assertEq(cachedRemainingMps, remainingMps);
+        assertEq(cachedRemainingSupplyX7X7, remainingSupplyX7X7);
+    }
+
+    /// @dev Reproduces rounding issue caused by 1 tick spacing
+    /// the _nextActiveTick demand could be above sumDemandAboveClearing, causing an underflow when transforming the checkpoint
+    function test_repro_rounding_error_underflow_transform_checkpoint(uint8 numBids) public {
+        vm.assume(numBids > 0);
+        vm.assume(numBids < 15);
+
+        uint256 AUCTION_DURATION = 20;
+        uint256 TICK_SPACING = 1;
+        uint128 TOTAL_SUPPLY = 1000e18;
+        uint256 FLOOR_PRICE = (25 << FixedPoint96.RESOLUTION) / 1_000_000;
+
+        AuctionParameters memory params = AuctionParameters({
+            currency: address(0),
+            floorPrice: FLOOR_PRICE,
+            tickSpacing: TICK_SPACING,
+            validationHook: address(0),
+            fundsRecipient: msg.sender,
+            tokensRecipient: msg.sender,
+            startBlock: uint64(block.number + 1),
+            endBlock: uint64(block.number + 1 + AUCTION_DURATION),
+            claimBlock: uint64(block.number + 1 + AUCTION_DURATION),
+            graduationThresholdMps: 0,
+            auctionStepsData: abi.encodePacked(
+                uint24(0),
+                uint40(1), // 0% for 1 blocks
+                abi.encodePacked(
+                    uint24(1000e3),
+                    uint40(1), // 10% for 1 block
+                    abi.encodePacked(uint24(500e3), uint40(18)) // 5% for 18 blocks
+                )
+            )
+        });
+
+        auction = new Auction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(auction), TOTAL_SUPPLY);
+        auction.onTokensReceived();
+
+        uint256 maxPrice = FLOOR_PRICE;
+        uint256 lastTickPrice = FLOOR_PRICE;
+
+        vm.roll(params.startBlock + 1);
+
+        for (uint256 i = 0; i < numBids; i++) {
+            maxPrice += FLOOR_PRICE; // Increase the maxPrice by FLOOR_PRICE every bid
+
+            // purchase at max price
+            uint256 amount = inputAmountForTokens(200 ether, maxPrice);
+
+            console2.log('\n========================================');
+            console2.log('Bid Number: ', i + 1);
+            logQ96AmountWithDecimal('Token Price (ETH)', maxPrice);
+            logAmountWithDecimal('Amount Paid (ETH)', amount);
+            logAmountWithDecimal('Estimated tokens: ', uint128((amount * 1e8) / ((maxPrice * 1e8) >> 96)));
+            console2.log('\n========================================\n');
+
+            auction.submitBid{value: amount, gas: 1_000_000}(
+                maxPrice, // maxPrice
+                true, // exactIn
+                amount, // amount
+                msg.sender, // owner
+                lastTickPrice, // previousPrice
+                '' // hookData
+            );
+
+            // Advance block
+            console2.log('Advancing block to: ', block.number + 1);
+            vm.roll(block.number + 1);
+
+            // set the new price as lastTickPrice
+            lastTickPrice = maxPrice;
+        }
+    }
+
+    /// @dev Reproduces rounding error caused by rounding up bid
+    function test_repro_rounding_error_tokens_sold_without_moving_clearing_price() public {
+        uint256 AUCTION_DURATION = 20;
+        uint128 TOTAL_SUPPLY = 1000e18;
+        uint256 FLOOR_PRICE = (25 << FixedPoint96.RESOLUTION) / 1_000_000;
+        uint256 TICK_SPACING = FLOOR_PRICE;
+
+        AuctionParameters memory params = AuctionParameters({
+            currency: address(0),
+            floorPrice: FLOOR_PRICE,
+            tickSpacing: TICK_SPACING,
+            validationHook: address(0),
+            fundsRecipient: msg.sender,
+            tokensRecipient: msg.sender,
+            startBlock: uint64(block.number + 1),
+            endBlock: uint64(block.number + 1 + AUCTION_DURATION),
+            claimBlock: uint64(block.number + 1 + AUCTION_DURATION),
+            graduationThresholdMps: 0,
+            auctionStepsData: abi.encodePacked(
+                uint24(0),
+                uint40(1), // 0% for 1 blocks
+                abi.encodePacked(
+                    uint24(1000e3),
+                    uint40(1), // 10% for 1 block
+                    abi.encodePacked(uint24(500e3), uint40(18)) // 5% for 18 blocks
+                )
+            )
+        });
+
+        auction = new Auction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(auction), TOTAL_SUPPLY);
+        auction.onTokensReceived();
+
+        vm.roll(params.startBlock + 1);
+
+        uint256 maxPrice = FLOOR_PRICE;
+        maxPrice += TICK_SPACING; // Increase the maxPrice by FLOOR_PRICE on every iteration
+        uint256 lastTickPrice = FLOOR_PRICE;
+
+        // purchase all the tokens
+        uint256 amount = inputAmountForTokens(TOTAL_SUPPLY, maxPrice);
+
+        uint256 bidId = auction.submitBid{value: amount, gas: 1_000_000}(
+            maxPrice, // maxPrice
+            true, // exactIn
+            amount, // amount
+            alice, // owner
+            lastTickPrice, // previousPrice
+            '' // hookData
+        );
+
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+
+        // Advance to the end of the auction
+        vm.roll(auction.endBlock() + 1);
+
+        // Exit the bids and claim ATP
+        auction.exitPartiallyFilledBid(bidId, 3, 0);
+        auction.claimTokens(bidId);
+    }
+
+    function logAmountWithDecimal(string memory key, uint256 amount) internal {
+        emit log_named_decimal_uint(key, amount, 18);
+    }
+
+    function logQ96AmountWithDecimal(string memory key, uint256 amount) internal {
+        emit log_named_decimal_uint(key, ((amount * 1e18) >> FixedPoint96.RESOLUTION), 18);
     }
 }

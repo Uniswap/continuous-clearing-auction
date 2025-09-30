@@ -1,5 +1,5 @@
 # mulUint256
-[Git Source](https://github.com/Uniswap/twap-auction/blob/60abcc13bc954ef69471e1981dc9965a554c3331/src/libraries/MPSLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/d2fa994e75f232a6bfe496080d6fadb2906a187d/src/libraries/ValueX7Lib.sol)
 
 Multiply a ValueX7 value by a uint256
 

@@ -2,9 +2,12 @@
 pragma solidity ^0.8.0;
 
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
-import {ValueX7} from '../libraries/MPSLib.sol';
-import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
 
+import {Demand} from '../libraries/DemandLib.sol';
+import {ValueX7} from '../libraries/ValueX7Lib.sol';
+import {ValueX7X7} from '../libraries/ValueX7X7Lib.sol';
+import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
+import {IBidStorage} from './IBidStorage.sol';
 import {ICheckpointStorage} from './ICheckpointStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
 import {ITokenCurrencyStorage} from './ITokenCurrencyStorage.sol';
@@ -33,29 +36,32 @@ interface IAuction is
     ICheckpointStorage,
     ITickStorage,
     IAuctionStepStorage,
-    ITokenCurrencyStorage
+    ITokenCurrencyStorage,
+    IBidStorage
 {
     /// @notice Error thrown when the amount received is invalid
-    error IDistributionContract__InvalidAmountReceived();
+    error InvalidTokenAmountReceived();
 
     /// @notice Error thrown when not enough amount is deposited
     error InvalidAmount();
+    /// @notice Error thrown when msg.value is non zero when currency is not ETH
+    error CurrencyIsNotNative();
     /// @notice Error thrown when the auction is not started
     error AuctionNotStarted();
     /// @notice Error thrown when the tokens required for the auction have not been received
     error TokensNotReceived();
-    /// @notice Error thrown when the floor price is zero
-    error FloorPriceIsZero();
-    /// @notice Error thrown when the tick spacing is zero
-    error TickSpacingIsZero();
     /// @notice Error thrown when the claim block is before the end block
     error ClaimBlockIsBeforeEndBlock();
     /// @notice Error thrown when the bid has already been exited
     error BidAlreadyExited();
     /// @notice Error thrown when the bid is higher than the clearing price
     error CannotExitBid();
-    /// @notice Error thrown when the checkpoint hint is invalid
-    error InvalidCheckpointHint();
+    /// @notice Error thrown when the bid cannot be partially exited before the end block
+    error CannotPartiallyExitBidBeforeEndBlock();
+    /// @notice Error thrown when the last fully filled checkpoint hint is invalid
+    error InvalidLastFullyFilledCheckpointHint();
+    /// @notice Error thrown when the outbid block checkpoint hint is invalid
+    error InvalidOutbidBlockCheckpointHint();
     /// @notice Error thrown when the bid is not claimable
     error NotClaimable();
     /// @notice Error thrown when the bid has not been exited
@@ -66,6 +72,8 @@ interface IAuction is
     error AuctionIsNotOver();
     /// @notice Error thrown when a new bid is less than or equal to the clearing price
     error InvalidBidPrice();
+    /// @notice Error thrown when the auction has sold the entire total supply of tokens
+    error AuctionSoldOut();
 
     /// @notice Emitted when the tokens are received
     /// @param totalSupply The total supply of tokens received
@@ -82,10 +90,10 @@ interface IAuction is
     /// @notice Emitted when a new checkpoint is created
     /// @param blockNumber The block number of the checkpoint
     /// @param clearingPrice The clearing price of the checkpoint
-    /// @param totalCleared The total amount of tokens cleared
+    /// @param totalClearedX7X7 The total amount of tokens cleared
     /// @param cumulativeMps The cumulative percentage of total tokens allocated across all previous steps, represented in ten-millionths of the total supply (1e7 = 100%)
     event CheckpointUpdated(
-        uint256 indexed blockNumber, uint256 clearingPrice, ValueX7 totalCleared, uint24 cumulativeMps
+        uint256 indexed blockNumber, uint256 clearingPrice, ValueX7X7 totalClearedX7X7, uint24 cumulativeMps
     );
 
     /// @notice Emitted when a bid is exited
@@ -118,12 +126,29 @@ interface IAuction is
         bytes calldata hookData
     ) external payable returns (uint256 bidId);
 
+    /// @notice Submit a new bid without specifying the previous tick price
+    /// @dev It is NOT recommended to use this function unless you are sure that `maxPrice` is already initialized
+    ///      as this function will iterate through every tick starting from the floor price if it is not.
+    /// @param maxPrice The maximum price the bidder is willing to pay
+    /// @param exactIn Whether the bid is exact in
+    /// @param amount The amount of the bid
+    /// @param owner The owner of the bid
+    /// @param hookData Additional data to pass to the hook required for validation
+    /// @return bidId The id of the bid
+    function submitBid(uint256 maxPrice, bool exactIn, uint256 amount, address owner, bytes calldata hookData)
+        external
+        payable
+        returns (uint256 bidId);
+
     /// @notice Register a new checkpoint
     /// @dev This function is called every time a new bid is submitted above the current clearing price
     /// @dev If the auction is over, it returns the final checkpoint
+    /// @return _checkpoint The checkpoint at the current block
     function checkpoint() external returns (Checkpoint memory _checkpoint);
 
-    /// @notice Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
+    /// @notice Whether the auction has sold more tokens than specified in the graduation threshold as of the latest checkpoint
+    /// @dev Be aware that the latest checkpoint may be out of date
+    /// @return bool True if the auction has graduated, false otherwise
     function isGraduated() external view returns (bool);
 
     /// @notice Exit a bid
@@ -145,8 +170,7 @@ interface IAuction is
     function claimTokens(uint256 bidId) external;
 
     /// @notice Withdraw all of the currency raised
-    /// @dev Can only be called by the funds recipient after the auction has ended
-    ///      Must be called before the `claimBlock`
+    /// @dev Can be called by anyone after the auction has ended
     function sweepCurrency() external;
 
     /// @notice The block at which the auction can be claimed
@@ -158,4 +182,7 @@ interface IAuction is
     /// @notice Sweep any leftover tokens to the tokens recipient
     /// @dev This function can only be called after the auction has ended
     function sweepUnsoldTokens() external;
+
+    /// @notice The sum of demand in ticks above the clearing price
+    function sumDemandAboveClearing() external view returns (Demand memory);
 }

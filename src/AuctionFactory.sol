@@ -27,7 +27,7 @@ contract AuctionFactory is IAuctionFactory {
             address(new Auction{salt: keccak256(abi.encode(msg.sender, salt))}(token, amount, parameters))
         );
 
-        emit AuctionCreated(address(distributionContract), token, amount, configData);
+        emit AuctionCreated(address(distributionContract), token, amount, abi.encode(parameters));
     }
 
     /// @inheritdoc IAuctionFactory

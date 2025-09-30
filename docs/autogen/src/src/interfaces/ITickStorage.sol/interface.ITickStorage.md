@@ -1,5 +1,5 @@
 # ITickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/67125c85f3326c7fe287a8da9446ecc07698d947/src/interfaces/ITickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/eddb06d9f9e6a95363d90d7326e355d98c8b0712/src/interfaces/ITickStorage.sol)
 
 Interface for the TickStorage contract
 
@@ -15,6 +15,12 @@ The price of the next initialized tick above the clearing price
 ```solidity
 function nextActiveTickPrice() external view returns (uint256);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The price of the next active tick|
+
 
 ### floorPrice
 
@@ -24,6 +30,12 @@ Get the floor price of the auction
 ```solidity
 function floorPrice() external view returns (uint256);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The minimum price for bids|
+
 
 ### tickSpacing
 
@@ -32,6 +44,21 @@ Get the tick spacing enforced for bid prices
 
 ```solidity
 function tickSpacing() external view returns (uint256);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The tick spacing value|
+
+
+### ticks
+
+Get a tick at a price
+
+
+```solidity
+function ticks(uint256 price) external view returns (Tick memory);
 ```
 
 ## Events
@@ -64,6 +91,22 @@ event NextActiveTickUpdated(uint256 price);
 |`price`|`uint256`|The price of the tick|
 
 ## Errors
+### TickSpacingIsZero
+Error thrown when the tick spacing is zero
+
+
+```solidity
+error TickSpacingIsZero();
+```
+
+### FloorPriceIsZero
+Error thrown when the floor price is zero
+
+
+```solidity
+error FloorPriceIsZero();
+```
+
 ### TickPreviousPriceInvalid
 Error thrown when the previous price hint is invalid (higher than the new price)
 

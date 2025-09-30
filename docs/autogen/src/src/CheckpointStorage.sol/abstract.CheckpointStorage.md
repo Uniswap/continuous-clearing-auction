@@ -1,5 +1,5 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f80ba18b60de4b770005741879dfdddb0bfb58e3/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/07712f11fafad883cb4261b09b8cf07d1b82d868/src/CheckpointStorage.sol)
 
 **Inherits:**
 [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
@@ -9,27 +9,29 @@ Abstract contract for managing auction checkpoints and bid fill calculations
 
 ## State Variables
 ### MAX_BLOCK_NUMBER
+Maximum block number value used as sentinel for last checkpoint
+
 
 ```solidity
 uint64 public constant MAX_BLOCK_NUMBER = type(uint64).max;
 ```
 
 
-### checkpoints
+### $_checkpoints
 Storage of checkpoints
 
 
 ```solidity
-mapping(uint64 blockNumber => Checkpoint) public checkpoints;
+mapping(uint64 blockNumber => Checkpoint) private $_checkpoints;
 ```
 
 
-### lastCheckpointedBlock
+### $lastCheckpointedBlock
 The block number of the last checkpointed block
 
 
 ```solidity
-uint64 public lastCheckpointedBlock;
+uint64 internal $lastCheckpointedBlock;
 ```
 
 
@@ -42,6 +44,12 @@ Get the latest checkpoint at the last checkpointed block
 ```solidity
 function latestCheckpoint() public view returns (Checkpoint memory);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`Checkpoint`|The latest checkpoint|
+
 
 ### clearingPrice
 
@@ -51,6 +59,12 @@ Get the clearing price at the last checkpointed block
 ```solidity
 function clearingPrice() public view returns (uint256);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The current clearing price|
+
 
 ### currencyRaised
 
@@ -115,12 +129,12 @@ function _accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memo
 
 ### _accountPartiallyFilledCheckpoints
 
-Calculate the tokens sold, proportion of input used, and the block number of the next checkpoint under the bid's max price
+Calculate the tokens sold and currency spent for a partially filled bid
 
 
 ```solidity
 function _accountPartiallyFilledCheckpoints(
-    ValueX7 cumulativeSupplySoldToClearingPriceX7,
+    ValueX7X7 cumulativeSupplySoldToClearingPriceX7X7,
     ValueX7 bidDemandX7,
     ValueX7 tickDemandX7,
     uint256 bidMaxPrice
@@ -130,9 +144,9 @@ function _accountPartiallyFilledCheckpoints(
 
 |Name|Type|Description|
 |----|----|-----------|
-|`cumulativeSupplySoldToClearingPriceX7`|`ValueX7`|The cumulative supply sold to the clearing price|
+|`cumulativeSupplySoldToClearingPriceX7X7`|`ValueX7X7`|The cumulative supply sold to the clearing price|
 |`bidDemandX7`|`ValueX7`|The demand of the bid|
-|`tickDemandX7`|`ValueX7`|The demand of the tick|
+|`tickDemandX7`|`ValueX7`|The total demand at the tick|
 |`bidMaxPrice`|`uint256`|The max price of the bid|
 
 **Returns**
@@ -172,4 +186,28 @@ function _calculateFill(Bid memory bid, uint256 cumulativeMpsPerPriceDelta, uint
 |`tokensFilled`|`uint256`|the amount of tokens filled for this bid|
 |`currencySpent`|`uint256`|the amount of currency spent by this bid|
 
+
+### lastCheckpointedBlock
+
+Get the number of the last checkpointed block
+
+
+```solidity
+function lastCheckpointedBlock() external view override(ICheckpointStorage) returns (uint64);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint64`|The block number of the last checkpoint|
+
+
+### checkpoints
+
+Get a checkpoint at a block number
+
+
+```solidity
+function checkpoints(uint64 blockNumber) external view override(ICheckpointStorage) returns (Checkpoint memory);
+```
 

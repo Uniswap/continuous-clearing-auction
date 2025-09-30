@@ -1,5 +1,7 @@
 # IAuctionStepStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/da50bb7a07b27dca661d22f04fb3c44d8922d9da/src/interfaces/IAuctionStepStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/07712f11fafad883cb4261b09b8cf07d1b82d868/src/interfaces/IAuctionStepStorage.sol)
+
+Interface for managing auction step storage
 
 
 ## Functions
@@ -11,6 +13,12 @@ The block at which the auction starts
 ```solidity
 function startBlock() external view returns (uint64);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint64`|The starting block number|
+
 
 ### endBlock
 
@@ -19,6 +27,21 @@ The block at which the auction ends
 
 ```solidity
 function endBlock() external view returns (uint64);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint64`|The ending block number|
+
+
+### step
+
+Get the current active auction step
+
+
+```solidity
+function step() external view returns (AuctionStep memory);
 ```
 
 ## Events
@@ -39,12 +62,12 @@ event AuctionStepRecorded(uint256 indexed startBlock, uint256 indexed endBlock, 
 |`mps`|`uint24`|The percentage of total tokens to sell per block during this auction step, represented in ten-millionths of the total supply (1e7 = 100%)|
 
 ## Errors
-### InvalidPointer
-Error thrown when the SSTORE2 pointer is the zero address
+### InvalidEndBlock
+Error thrown when the end block is equal to or before the start block
 
 
 ```solidity
-error InvalidPointer();
+error InvalidEndBlock();
 ```
 
 ### AuctionIsOver
@@ -63,19 +86,27 @@ Error thrown when the auction data length is invalid
 error InvalidAuctionDataLength();
 ```
 
-### InvalidMps
+### StepBlockDeltaCannotBeZero
+Error thrown when the block delta in a step is zero
+
+
+```solidity
+error StepBlockDeltaCannotBeZero();
+```
+
+### InvalidStepDataMps
 Error thrown when the mps is invalid
 
 
 ```solidity
-error InvalidMps();
+error InvalidStepDataMps();
 ```
 
-### InvalidEndBlock
+### InvalidEndBlockGivenStepData
 Error thrown when the end block is invalid
 
 
 ```solidity
-error InvalidEndBlock();
+error InvalidEndBlockGivenStepData();
 ```
 

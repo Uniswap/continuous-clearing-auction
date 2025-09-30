@@ -1,5 +1,5 @@
 # PermitSingleForwarder
-[Git Source](https://github.com/Uniswap/twap-auction/blob/a40941ed6c71ce668b5d7c2923b5830fe9b23869/src/PermitSingleForwarder.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/07712f11fafad883cb4261b09b8cf07d1b82d868/src/PermitSingleForwarder.sol)
 
 **Inherits:**
 [IPermitSingleForwarder](/src/interfaces/IPermitSingleForwarder.sol/interface.IPermitSingleForwarder.md)
@@ -10,6 +10,15 @@ PermitSingleForwarder allows permitting this contract as a spender on permit2
 
 
 ## State Variables
+### PERMIT2
+Permit2 address
+
+
+```solidity
+address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+```
+
+
 ### permit2
 the Permit2 contract to forward approvals
 

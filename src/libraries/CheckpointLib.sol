@@ -14,7 +14,6 @@ struct Checkpoint {
     ValueX7X7 cumulativeSupplySoldToClearingPriceX7X7; // The tokens sold so far to this clearing price
     uint256 cumulativeMpsPerPrice; // A running sum of the ratio between mps and price
     uint24 cumulativeMps; // The number of mps sold in the auction so far (via the original supply schedule)
-    uint24 mps; // The number of mps being sold in the step when the checkpoint is created
     uint64 prev; // Block number of the previous checkpoint
     uint64 next; // Block number of the next checkpoint
 }

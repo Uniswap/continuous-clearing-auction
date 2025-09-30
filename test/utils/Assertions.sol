@@ -16,7 +16,6 @@ abstract contract Assertions is StdAssertions {
                 _checkpoint.clearingPrice,
                 _checkpoint.totalClearedX7X7,
                 _checkpoint.cumulativeMps,
-                _checkpoint.mps,
                 _checkpoint.prev,
                 _checkpoint.next,
                 _checkpoint.cumulativeMpsPerPrice,

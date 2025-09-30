@@ -376,13 +376,11 @@ contract Auction is
         // Sine the clearing price is now up to date, we can advance the auction to the current step
         // and sell tokens at the current clearing price according to the supply schedule
         _checkpoint = _advanceToCurrentStep(_checkpoint, blockNumber);
-        // Set the mps to the mps of the current step
-        _checkpoint.mps = $step.mps;
 
         // Now account for any time in between this checkpoint and the greater of the start of the step or the last checkpointed block
         uint64 blockDelta =
             blockNumber - ($step.startBlock > $lastCheckpointedBlock ? $step.startBlock : $lastCheckpointedBlock);
-        uint24 mpsSinceLastCheckpoint = uint256(_checkpoint.mps * blockDelta).toUint24();
+        uint24 mpsSinceLastCheckpoint = uint256($step.mps * blockDelta).toUint24();
 
         // Sell the percentage of outstanding tokens since the last checkpoint to the current clearing price
         _checkpoint = _sellTokensAtClearingPrice(_checkpoint, mpsSinceLastCheckpoint);

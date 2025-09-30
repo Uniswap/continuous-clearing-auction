@@ -65,13 +65,25 @@ contract MockAuction is Auction {
         return _createBid(exactIn, amount, owner, maxPrice, startCumulativeMps);
     }
 
+    function uncheckedInitializeTickIfNeeded(uint256 prevPrice, uint256 price) external {
+        _initializeTickIfNeeded(prevPrice, price);
+    }
+
+    function uncheckedSetNextActiveTickPrice(uint256 price) external {
+        $nextActiveTickPrice = price;
+    }
+
     /// @notice Update the tick demand
     function uncheckedUpdateTickDemand(uint256 price, Demand memory demand) external {
         _updateTickDemand(price, demand);
     }
 
-    /// @notice Update the $sumDemandAboveClearing
-    function uncheckedUpdateSumDemandAboveClearing(Demand memory demand) external {
+    /// @notice Set the $sumDemandAboveClearing
+    function uncheckedSetSumDemandAboveClearing(Demand memory demand) external {
+        $sumDemandAboveClearing = demand;
+    }
+
+    function uncheckedAddToSumDemandAboveClearing(Demand memory demand) external {
         $sumDemandAboveClearing = $sumDemandAboveClearing.add(demand);
     }
 }

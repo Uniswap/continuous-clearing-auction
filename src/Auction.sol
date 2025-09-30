@@ -330,6 +330,14 @@ contract Auction is
          * so we can substitute in TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7) for `supply`:
          *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps) >= TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
          */
+        console.log(
+            'sumDemandAboveClearing_.resolveRoundingUp(nextActiveTickPrice_).mulUint256(_REMAINING_MPS_IN_AUCTION).upcast()',
+            ValueX7X7.unwrap(
+                sumDemandAboveClearing_.resolveRoundingUp(nextActiveTickPrice_).mulUint256(_REMAINING_MPS_IN_AUCTION)
+                    .upcast()
+            )
+        );
+        console.log('_REMAINING_SUPPLY_X7_X7', ValueX7X7.unwrap(_REMAINING_SUPPLY_X7_X7));
         while (
             sumDemandAboveClearing_.resolveRoundingUp(nextActiveTickPrice_).mulUint256(_REMAINING_MPS_IN_AUCTION).upcast(
             )

@@ -23,12 +23,13 @@ import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
+
+import {FuzzBid, FuzzDeploymentParams} from './utils/FuzzStructs.sol';
 import {MockAuction} from './utils/MockAuction.sol';
 import {MockFundsRecipient} from './utils/MockFundsRecipient.sol';
 import {MockToken} from './utils/MockToken.sol';
 import {MockValidationHook} from './utils/MockValidationHook.sol';
 import {TickBitmap, TickBitmapLib} from './utils/TickBitmap.sol';
-import {FuzzDeploymentParams, FuzzBid} from './utils/FuzzStructs.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
 

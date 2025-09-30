@@ -9,15 +9,17 @@ import {Demand} from '../../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {MPSLib} from '../../src/libraries/MPSLib.sol';
 import {SupplyLib} from '../../src/libraries/SupplyLib.sol';
+
+import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 import {Assertions} from './Assertions.sol';
 import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
 import {FuzzBid, FuzzDeploymentParams} from './FuzzStructs.sol';
 import {MockFundsRecipient} from './MockFundsRecipient.sol';
+import {TickBitmap, TickBitmapLib} from './TickBitmap.sol';
 import {TokenHandler} from './TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {TickBitmap, TickBitmapLib} from './TickBitmap.sol';
 
 /// @notice Handler contract for setting up an auction
 abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
@@ -25,6 +27,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
     using TickBitmapLib for TickBitmap;
+    using ValueX7Lib for *;
 
     bool internal $exactIn = true;
     TickBitmap private tickBitmap;
@@ -110,6 +113,26 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         vm.roll(auction.startBlock());
     }
 
+    function helper__roundPriceDownToTickSpacing(uint256 _price, uint256 _tickSpacing)
+        internal
+        pure
+        returns (uint256)
+    {
+        return _price - (_price % _tickSpacing);
+    }
+
+    function helper__roundPriceUpToTickSpacing(uint256 _price, uint256 _tickSpacing) internal pure returns (uint256) {
+        uint256 remainder = _price % _tickSpacing;
+        if (remainder != 0) {
+            require(
+                _price <= type(uint256).max - (_tickSpacing - remainder),
+                'helper__roundPriceUpToTickSpacing: Price would overflow uint256'
+            );
+            return _price + (_tickSpacing - remainder);
+        }
+        return _price;
+    }
+
     /// @dev Given a tick number, return it as a multiple of the tick spacing above the floor price - as q96
     function helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(uint256 _tickNumber)
         internal
@@ -126,7 +149,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Find the first value above floorPrice that is a multiple of tickSpacing
         uint256 tickAboveFloorPrice = ((floorPrice / tickSpacing) + 1) * tickSpacing;
 
-        maxPrice = bound(maxPrice, tickAboveFloorPrice, uint256(type(uint256).max));
+        maxPrice = _bound(maxPrice, tickAboveFloorPrice, uint256(type(uint256).max));
         maxPriceQ96 = maxPrice << FixedPoint96.RESOLUTION;
     }
 
@@ -180,12 +203,26 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         }
     }
 
+    function helper__toDemand(FuzzBid memory _bid, bool _exactIn, uint24 _startCumulativeMps)
+        internal
+        pure
+        returns (Demand memory demand)
+    {
+        ValueX7 bidDemandOverRemainingAuctionX7 =
+            _bid.bidAmount.scaleUpToX7().mulUint256(MPSLib.MPS).divUint256(MPSLib.MPS - _startCumulativeMps);
+        if (_exactIn) {
+            demand.currencyDemandX7 = bidDemandOverRemainingAuctionX7;
+        } else {
+            demand.tokenDemandX7 = bidDemandOverRemainingAuctionX7;
+        }
+    }
+
     /// @dev All bids provided to bid fuzz must have some value and a positive tick number
     modifier setUpBidsFuzz(FuzzBid[] memory _bids) {
         for (uint256 i = 0; i < _bids.length; i++) {
             // Note(md): errors when bumped to uint128
-            _bids[i].bidAmount = uint64(bound(_bids[i].bidAmount, 1, type(uint64).max));
-            _bids[i].tickNumber = uint8(bound(_bids[i].tickNumber, 1, type(uint8).max));
+            _bids[i].bidAmount = uint64(_bound(_bids[i].bidAmount, 1, type(uint64).max));
+            _bids[i].tickNumber = uint8(_bound(_bids[i].tickNumber, 1, type(uint8).max));
         }
         _;
     }

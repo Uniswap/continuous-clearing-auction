@@ -17,11 +17,8 @@ export const simpleInteraction: TestInteractionData = {
       recurringBids: []
     }
   ],
-  
   groups: [],
-
   actions: [],
-
   assertions: [
     {
       atBlock: 30,
@@ -30,7 +27,8 @@ export const simpleInteraction: TestInteractionData = {
         type: AssertionInterfaceType.BALANCE,
         address: "0x1111111111111111111111111111111111111111" as Address,
         token: "0x0000000000000000000000000000000000000000" as Address,
-        expected: "999630166045056162"
+        expected: "999622633006543701",
+        variance: "0.01%"
       }
     }
   ]

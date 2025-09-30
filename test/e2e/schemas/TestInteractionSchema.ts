@@ -1,6 +1,4 @@
 // TypeScript interfaces for test interaction schema
-import { CheckpointStruct } from '../../../typechain-types/out/Auction';
-
 export type Address = `0x${string}` & { readonly length: 42 };
 
 export enum AssertionInterfaceType {
@@ -8,6 +6,7 @@ export enum AssertionInterfaceType {
   TOTAL_SUPPLY = 'totalSupply',
   EVENT = 'event',
   AUCTION = 'auction',
+  REVERT = 'revert',
 }
 
 export enum ActionType {
@@ -67,6 +66,8 @@ export interface RecurringBid {
   amountFactor?: number;
   priceFactor?: number;
   hookData?: string;
+  previousTick?: number;
+  previousTickIncrement?: number;
 }
 
 export interface NamedBidder {
@@ -101,6 +102,7 @@ export interface TransferAction {
     to: Address | string;
     token: Address | string;
     amount: string;
+    expectRevert?: string;
   };
 }
 
@@ -109,6 +111,7 @@ export interface BalanceAssertion {
   address: Address;
   token: Address | string;
   expected: string;
+  variance?: string; // Optional variance field. Can be a ratio (e.g., "0.05") or percentage (e.g., "5%")
 }
 
 export interface TotalSupplyAssertion {
@@ -123,13 +126,34 @@ export interface EventAssertion {
   expectedArgs: Record<string, any>;
 }
 
+export interface RevertAssertion {
+  type: AssertionInterfaceType.REVERT;
+  expected: string;
+}
+
 export interface AuctionAssertion {
   type: AssertionInterfaceType.AUCTION;
-  currentBlock: number;
   isGraduated: boolean;
-  clearingPrice: string;
-  currencyRaised: string;
-  latestCheckpoint: CheckpointStruct;
+  clearingPrice: string | VariableAmount;
+  currencyRaised: string | VariableAmount;
+  latestCheckpoint: InternalCheckpointStruct;
+}
+
+export interface InternalCheckpointStruct {
+  clearingPrice: string | VariableAmount;
+  totalCleared: string | VariableAmount;
+  resolvedDemandAboveClearingPrice: string | VariableAmount;
+  cumulativeMps: string | VariableAmount;
+  mps: string | VariableAmount;
+  prev: string | VariableAmount;
+  next: string | VariableAmount;
+  cumulativeMpsPerPrice: string | VariableAmount;
+  cumulativeSupplySoldToClearingPrice: string | VariableAmount;
+}
+
+export interface VariableAmount {
+  amount: string;
+  variation: string;
 }
 
 export type Assertion = BalanceAssertion | TotalSupplyAssertion | EventAssertion | AuctionAssertion;

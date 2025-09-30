@@ -4,9 +4,9 @@ export const advancedSetup: TestSetupData = {
   name: "AdvancedSetup",
   env: {
     chainId: 31337,
-    startBlock: "10",
+    startBlock: "2",
     blockTimeSec: 12,
-    blockGasLimit: "30000000",
+    blockGasLimit: "100000000",
     txGasLimit: "30000000",
     baseFeePerGasWei: "0",
     fork: {
@@ -17,10 +17,20 @@ export const advancedSetup: TestSetupData = {
       {
         address: "0x1111111111111111111111111111111111111111" as Address,
         token: "0x0000000000000000000000000000000000000000",
-        amount: "20000000000000000000000" // 20,000 ETH for complex operations
+        amount: "10000000000000000000" // 10 ETH for complex operations
       },
       {
         address: "0x2222222222222222222222222222222222222222" as Address,
+        token: "0x0000000000000000000000000000000000000000",
+        amount: "1000000000000000000" // 1 ETH
+      },
+      {
+        address: "0x3333333333333333333333333333333333333333" as Address,
+        token: "0x0000000000000000000000000000000000000000",
+        amount: "10000000000000000000" // 10 ETH
+      },
+      {
+        address: "0x4444444444444444444444444444444444444444" as Address,
         token: "0x0000000000000000000000000000000000000000",
         amount: "1000000000000000000" // 1 ETH
       }

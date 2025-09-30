@@ -2,46 +2,10 @@
 
 This directory contains the end-to-end (E2E) test suite for the TWAP Auction system. The test suite allows one to define complex auction scenarios using TypeScript interfaces and validate the entire auction lifecycle from deployment to completion.
 
-## 🚧 TODO: Unimplemented Features
+## ⚠️ Important Notes
 
-The following features are defined in the schemas but not yet implemented. These represent the roadmap for expanding the e2e test capabilities:
-
-### 🎯 Bid System Enhancements
-- **Recurring Bids** - Support for `recurringBids` with `startBlock`, `intervalBlocks`, `occurrences`
-- **Growth Factors** - `amountFactor` and `priceFactor` for recurring bid progression
-- **Amount Variations** - Random sampling for amount and price variations
-- **Advanced Amount Types**:
-  - `percentOfSupply` - Calculate percentage of total token supply
-  - `basisPoints` - Calculate basis points (1/10000) of total supply
-  - `percentOfGroup` - Calculate percentage of group total
-
-### ⚙️ Allow arbitary addresses to start auctions
-- **Arbitrary Address Auction Creation** - Allow any address to start auctions through the factory
-- **Instance Specification** - Add the ability to specify which addresses to start the auction
-
-
-### 🔄 Transfer Actions
-- **Token Transfers** - Execute transfers between addresses during test execution
-- **Multi-Token Support** - Handle both ERC20 tokens and native currency transfers
-- **Label Resolution** - Resolve symbolic labels to concrete addresses for transfer destinations
-
-### 📊 Advanced Assertions
-- **Event Assertions** - Validate that specific events were emitted during execution
-- **Pool State Assertions** - Check tick, sqrtPriceX96, and liquidity values
-- **Complex State Validation** - Beyond current balance checking capabilities
-
-### 🌐 Environment Configuration
-- **Chain Configuration** - `chainId`, `blockTimeSec`, `blockGasLimit`, `txGasLimit`
-- **Gas Management** - `baseFeePerGasWei` configuration
-- **Fork Support** - `rpcUrl` and `blockNumber` for testing against specific blockchain states
-
-### 🔧 Infrastructure Improvements
-- **Enhanced Error Handling** - Better error messages and debugging capabilities
-- **Performance Optimization** - Parallel execution and caching improvements
-
----
-
-*These features are documented with TODO comments throughout the codebase. Each TODO includes implementation guidance and context.*
+- **Auction Start Block**: Cannot be block 0 or 1 (must be block 2 or later)
+- **Interaction Timing**: Interactions can begin on the same block as the auction start block, but not before
 
 ## ✨ Key Features
 

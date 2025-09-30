@@ -7,6 +7,94 @@ This directory contains the end-to-end (E2E) test suite for the TWAP Auction sys
 - **Auction Start Block**: Cannot be block 0 or 1 (must be block 2 or later)
 - **Interaction Timing**: Interactions can begin on the same block as the auction start block, but not before
 
+## ❓ Frequently Asked Questions
+
+### How can I check events?
+
+You can check events by defining an assertion with the `EVENT` type:
+
+```typescript
+{
+  atBlock: 50,
+  reason: "Check event emission",
+  assert: {
+    type: AssertionInterfaceType.EVENT,
+    eventName: "BidSubmitted",
+    expectedArgs: {
+      bidder: "0x1111111111111111111111111111111111111111",
+      amount: "90000000000000000000000000000000"
+    }
+  }
+}
+```
+
+**How it works:**
+- Events emitted on-chain are reconstructed from the contract ABI
+- Each event is formatted as `"EventName(arg1,arg2,arg3)"`
+- The test checks if the event name and arguments match your assertion
+- `expectedArgs` is optional - keys are for logging clarity only
+- You can use the exact event format: `"EventName(arg1,arg2,arg3)"` as the `eventName`
+
+### How can I check for expected reverts?
+
+For any action you wish to check a revert on, add the `expectRevert` field:
+
+```typescript
+{
+  type: ActionType.TRANSFER_ACTION,
+  interactions: [
+    [
+      {
+        atBlock: 200,
+        value: {
+          from: "0x4444444444444444444444444444444444444444" as Address,
+          to: "0x2222222222222222222222222222222222222222" as Address,
+          token: "USDC",
+          amount: "1000000", // 1 USDC
+          expectRevert: "ERC20InsufficientBalance"
+        }
+      }
+    ]
+  ]
+}
+```
+
+**How it works:**
+- On-chain reverts are decoded using the contract ABI
+- Reverts are formatted as `"ExampleRevert(arg1,arg2,arg3)"`
+- The test checks if the revert contains your `expectRevert` string
+- You can use just the revert name or include arguments
+
+### How can I add variance to checkpoint fields?
+
+You can add variance to any checkpoint field to accommodate bid variance by using the `VariableAmount` structure:
+
+```typescript
+{
+  atBlock: 50,
+  reason: "Check auction state with variance",
+  assert: {
+    type: AssertionInterfaceType.AUCTION,
+    currencyRaised: {
+      amount: "1000000000000000000000", // Expected amount
+      variation: "5%" // 5% variance allowed
+    },
+    clearingPrice: {
+      amount: "79228162514264337593543950336000", // Expected price
+      variation: "0.1" // 10% variance allowed (decimal format)
+    }
+  }
+}
+```
+
+**How it works:**
+- Use `amount` for the expected value
+- Use `variation` for the allowed variance (supports both percentage "5%" and decimal "0.05" formats)
+- The test checks if the actual value is within the variance bounds
+- Useful for accommodating bid variance and MEV scenarios
+- Works with all auction state fields: `currencyRaised`, `clearingPrice`, `isGraduated`
+- Also works with checkpoint fields like `totalCleared`, `totalBids`, etc.
+
 ## ✨ Key Features
 
 - **🎯 Targeted Testing** - Run only compatible setup/interaction combinations
@@ -30,6 +118,7 @@ The E2E test suite is built on top of Hardhat and consists of several key compon
 - **`src/SingleTestRunner.ts`** - Orchestrates the complete test execution
 - **`src/MultiTestRunner.ts`** - Manages multiple test combinations
 - **`src/E2ECliRunner.ts`** - Command-line interface for running specific combinations
+- **`src/constants.ts`** - Centralized configuration and error messages
 
 ### Test Data
 
@@ -375,6 +464,13 @@ Assertions (formerly checkpoints) allow you to validate auction state at specifi
 6. **TypeScript Type Errors** - Use `as Address` type assertions for 42-character hex addresses
 7. **Export Name Mismatches** - Ensure export names match the expected patterns (camelCase for PascalCase filenames)
 
+### Enhanced Error Handling
+
+The test suite now features centralized error messages and enhanced debugging:
+
+- **🎯 Centralized Error Messages** - All error messages are defined in `src/constants.ts` for consistency
+- **📊 Structured Error Context** - Error messages include relevant debugging informationtroubleshooting
+
 ### Debug Output
 
 The test suite provides detailed logging:
@@ -406,7 +502,9 @@ test/e2e/
 │   ├── AssertionEngine.ts    # Assertion validation
 │   ├── SingleTestRunner.ts   # Test orchestration
 │   ├── MultiTestRunner.ts    # Multi-test management
-│   └── E2ECliRunner.ts       # CLI interface
+│   ├── E2ECliRunner.ts       # CLI interface
+│   ├── constants.ts          # Centralized configuration and error messages
+│   └── types.ts              # TypeScript type definitions
 ├── instances/                # Test data
 │   ├── setup/               # Auction setup TypeScript files
 │   │   └── SimpleSetup.ts

@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/cfe064d2fdebcf6b4861fcd47553d75e33aa20ae/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/6199a07349a5d22f79f49db95ea478090bd8c68d/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -132,56 +132,37 @@ Whether the auction has graduated as of the given checkpoint (sold more than the
 function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool);
 ```
 
-### _remainingMpsInAuction
-
-Get the remaining mps left in the auction at the given checkpoint
-
-
-```solidity
-function _remainingMpsInAuction(Checkpoint memory _checkpoint) internal pure returns (uint24);
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`_checkpoint`|`Checkpoint`|The checkpoint with `cumulativeMps` so far|
-
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`uint24`|The remaining mps in the auction|
-
-
-### _transformCheckpoint
+### _sellTokensAtClearingPrice
 
 Return a new checkpoint after advancing the current checkpoint by some `mps`
-This function updates the cumulative values of the checkpoint, requiring that
-`clearingPrice` is up to to date
+This function updates the cumulative values of the checkpoint, and
+requires that the clearing price is up to date
 
 
 ```solidity
-function _transformCheckpoint(Checkpoint memory _checkpoint, uint24 deltaMps) internal returns (Checkpoint memory);
+function _sellTokensAtClearingPrice(Checkpoint memory _checkpoint, uint24 deltaMps)
+    internal
+    returns (Checkpoint memory);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`_checkpoint`|`Checkpoint`|The checkpoint to transform|
-|`deltaMps`|`uint24`|The number of mps to add|
+|`_checkpoint`|`Checkpoint`|The checkpoint to sell tokens at its clearing price|
+|`deltaMps`|`uint24`|The number of mps to sell|
 
 **Returns**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`<none>`|`Checkpoint`|The transformed checkpoint|
+|`<none>`|`Checkpoint`|The checkpoint with all cumulative values updated|
 
 
 ### _advanceToCurrentStep
 
-Advance the current step until the current block is within the step
+Fast forward to the current step, selling tokens at the current clearing price according to the supply schedule
 
-*The checkpoint must be up to date since `transform` depends on the clearingPrice*
+*The checkpoint MUST have the most up to date clearing price since `sellTokensAtClearingPrice` depends on it*
 
 
 ```solidity
@@ -192,44 +173,56 @@ function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint64 blockNumber
 
 ### _calculateNewClearingPrice
 
-Calculate the new clearing price, given the minimum clearing price and the remaining supply in the auction
+Calculate the new clearing price, given the cumulative demand and the remaining supply in the auction
 
 
 ```solidity
 function _calculateNewClearingPrice(
-    uint256 minimumClearingPrice,
-    uint24 remainingMpsInAuction,
-    ValueX7X7 remainingSupplyX7X7
+    Demand memory _sumDemandAboveClearing,
+    ValueX7X7 _remainingSupplyX7X7,
+    uint24 _remainingMpsInAuction
 ) internal view returns (uint256);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`minimumClearingPrice`|`uint256`|The minimum clearing price, which will either be the floor price or the last iterated `nextActiveTickPrice`|
-|`remainingMpsInAuction`|`uint24`|The remaining mps in the auction which is MPSLib.MPS minus the cumulative mps so far|
-|`remainingSupplyX7X7`|`ValueX7X7`|The result of TOTAL_SUPPLY_X7_X7 minus the total cleared supply so far|
+|`_sumDemandAboveClearing`|`Demand`|The sum of demand above the clearing price|
+|`_remainingSupplyX7X7`|`ValueX7X7`|The result of TOTAL_SUPPLY_X7_X7 minus the total cleared supply so far|
+|`_remainingMpsInAuction`|`uint24`|The remaining mps in the auction which is MPSLib.MPS minus the cumulative mps so far|
 
 
-### _updateLatestCheckpointToCurrentStep
+### _iterateOverTicksAndFindClearingPrice
 
-Update the latest checkpoint to the current step
+Iterate to find the tick where the total demand at and above it is strictly less than the remaining supply in the auction
 
-*This updates the state of the auction accounting for the bids placed after the last checkpoint
-Checkpoints are created at the top of each block with a new bid and does NOT include that bid
-Because of this, we need to calculate what the new state of the Auction should be before updating
-purely on the supply we will sell to the potentially updated `sumDemandAboveClearing` value
-After the checkpoint is made up to date we can use those values to update the cumulative values
-depending on how much time has passed since the last checkpoint*
+*If the loop reaches the highest tick in the book, `nextActiveTickPrice` will be set to MAX_TICK_PRICE*
 
 
 ```solidity
-function _updateLatestCheckpointToCurrentStep(uint64 blockNumber) internal returns (Checkpoint memory);
+function _iterateOverTicksAndFindClearingPrice(Checkpoint memory _checkpoint) internal returns (uint256);
 ```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`_checkpoint`|`Checkpoint`|The latest checkpoint|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The new clearing price|
+
 
 ### _unsafeCheckpoint
 
 Internal function for checkpointing at a specific block number
+
+*This updates the state of the auction accounting for the bids placed after the last checkpoint
+Checkpoints are created at the top of each block with a new bid and does NOT include that bid
+Because of this, we need to calculate what the new state of the Auction should be before updating
+purely on the supply we will sell to the potentially updated `sumDemandAboveClearing` value*
 
 
 ```solidity
@@ -309,7 +302,7 @@ function submitBid(
     address owner,
     uint256 prevTickPrice,
     bytes calldata hookData
-) external payable onlyActiveAuction returns (uint256);
+) public payable onlyActiveAuction returns (uint256);
 ```
 **Parameters**
 
@@ -336,7 +329,7 @@ Submit a new bid
 
 ```solidity
 function submitBid(uint256 maxPrice, bool exactIn, uint256 amount, address owner, bytes calldata hookData)
-    external
+    public
     payable
     onlyActiveAuction
     returns (uint256);

@@ -23,7 +23,8 @@ library DemandLib {
     using FixedPointMathLib for uint256;
     using AuctionStepLib for uint256;
 
-    /// @notice Resolve the demand at a given price, rounding up
+    /// @notice Resolve the demand at a given price, rounding up.
+    ///         We only round up when we compare demand to supply so we never find a price that is too low.
     /// @dev "Resolving" means converting all demand into token terms, which requires dividing the currency demand by a price
     /// @param _demand The demand to resolve
     /// @param price The price to resolve the demand at
@@ -32,8 +33,22 @@ library DemandLib {
         return _resolveCurrencyDemandRoundingUp(_demand.currencyDemandX7, price).add(_demand.tokenDemandX7);
     }
 
+    /// @notice Resolve the demand at a given price, rounding down
+    ///         We always round demand down in all other cases (calculating supply sold to a price and bid withdrawals)
+    /// @dev "Resolving" means converting all demand into token terms, which requires dividing the currency demand by a price
+    /// @param _demand The demand to resolve
+    /// @param price The price to resolve the demand at
+    /// @return The resolved demand as a ValueX7
+    function resolveRoundingDown(Demand memory _demand, uint256 price) internal pure returns (ValueX7) {
+        return _resolveCurrencyDemandRoundingDown(_demand.currencyDemandX7, price).add(_demand.tokenDemandX7);
+    }
+
     function _resolveCurrencyDemandRoundingUp(ValueX7 amount, uint256 price) private pure returns (ValueX7) {
         return price == 0 ? ValueX7.wrap(0) : amount.wrapAndFullMulDivUp(FixedPoint96.Q96, price);
+    }
+
+    function _resolveCurrencyDemandRoundingDown(ValueX7 amount, uint256 price) private pure returns (ValueX7) {
+        return price == 0 ? ValueX7.wrap(0) : amount.wrapAndFullMulDiv(FixedPoint96.Q96, price);
     }
 
     function add(Demand memory _demand, Demand memory _other) internal pure returns (Demand memory) {

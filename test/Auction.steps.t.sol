@@ -147,7 +147,6 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         assertEq(
             finalCheckpoint.cumulativeSupplySoldToClearingPriceX7X7, checkpoint.cumulativeSupplySoldToClearingPriceX7X7
         );
-        assertEq(finalCheckpoint.sumDemandAboveClearingPrice, checkpoint.sumDemandAboveClearingPrice);
         assertEq(finalCheckpoint.cumulativeMpsPerPrice, checkpoint.cumulativeMpsPerPrice);
         // Don't check mps, prev, and next because they will be different
 

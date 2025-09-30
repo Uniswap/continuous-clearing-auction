@@ -16,10 +16,8 @@ abstract contract Assertions is StdAssertions {
                 _checkpoint.clearingPrice,
                 _checkpoint.totalClearedX7X7,
                 _checkpoint.cumulativeMps,
-                _checkpoint.mps,
                 _checkpoint.prev,
                 _checkpoint.next,
-                keccak256(abi.encode(_checkpoint.sumDemandAboveClearingPrice)),
                 _checkpoint.cumulativeMpsPerPrice,
                 _checkpoint.cumulativeSupplySoldToClearingPriceX7X7
             )

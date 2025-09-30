@@ -27,8 +27,8 @@ import {MockAuction} from './utils/MockAuction.sol';
 import {MockFundsRecipient} from './utils/MockFundsRecipient.sol';
 import {MockToken} from './utils/MockToken.sol';
 import {MockValidationHook} from './utils/MockValidationHook.sol';
-
 import {TickBitmap, TickBitmapLib} from './utils/TickBitmap.sol';
+import {FuzzDeploymentParams, FuzzBid} from './utils/FuzzStructs.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
 
@@ -46,114 +46,8 @@ contract AuctionTest is AuctionBaseTest {
     using TickBitmapLib for TickBitmap;
     using BidLib for *;
 
-    bool internal $exactIn = true;
-    TickBitmap private tickBitmap;
-
     function setUp() public {
         setUpAuction();
-    }
-
-    /// @dev Sets up the auction for fuzzing, ensuring valid parameters
-    modifier setUpAuctionFuzz(FuzzDeploymentParams memory _deploymentParams) {
-        setUpAuction(_deploymentParams);
-        _;
-    }
-
-    /// @dev All bids provided to bid fuzz must have some value and a positive tick number
-    modifier setUpBidsFuzz(FuzzBid[] memory _bids) {
-        for (uint256 i = 0; i < _bids.length; i++) {
-            // Note(md): errors when bumped to uint128
-            _bids[i].bidAmount = uint64(bound(_bids[i].bidAmount, 1, type(uint64).max));
-            _bids[i].tickNumber = uint8(bound(_bids[i].tickNumber, 1, type(uint8).max));
-        }
-        _;
-    }
-
-    modifier givenAuctionHasStarted() {
-        helper__goToAuctionStartBlock();
-        _;
-    }
-
-    modifier givenFullyFundedAccount() {
-        vm.deal(address(this), uint256(type(uint256).max));
-        _;
-    }
-
-    modifier givenNonZeroTickNumber(uint8 _tickNumber) {
-        vm.assume(_tickNumber > 0);
-        _;
-    }
-
-    modifier givenExactIn() {
-        $exactIn = true;
-        _;
-    }
-
-    modifier givenExactOut() {
-        $exactIn = false;
-        _;
-    }
-
-    function helper__goToAuctionStartBlock() public {
-        vm.roll(auction.startBlock());
-    }
-
-    /// @dev Given a tick number, return it as a multiple of the tick spacing above the floor price - as q96
-    function helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(uint256 _tickNumber)
-        internal
-        view
-        returns (uint256 maxPriceQ96)
-    {
-        uint256 tickSpacing = params.tickSpacing;
-        uint256 floorPrice = params.floorPrice;
-
-        if (_tickNumber == 0) return floorPrice;
-
-        uint256 maxPrice = ((floorPrice + (_tickNumber * tickSpacing)) / tickSpacing) * tickSpacing;
-
-        // Find the first value above floorPrice that is a multiple of tickSpacing
-        uint256 tickAboveFloorPrice = ((floorPrice / tickSpacing) + 1) * tickSpacing;
-
-        maxPrice = bound(maxPrice, tickAboveFloorPrice, uint256(type(uint256).max));
-        maxPriceQ96 = maxPrice << FixedPoint96.RESOLUTION;
-    }
-
-    /// @dev Submit a bid for a given tick number, amount, and owner
-    /// @dev if the bid was not successfully placed - i.e. it would not have succeeded at clearing - bidPlaced is false and bidId is 0
-    function helper__trySubmitBid(uint256 _i, FuzzBid memory _bid, address _owner)
-        internal
-        returns (bool bidPlaced, uint256 bidId)
-    {
-        uint256 clearingPrice = auction.clearingPrice();
-
-        // Get the correct bid prices for the bid
-        uint256 maxPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(_bid.tickNumber);
-
-        // if the bid if not above the clearing price, don't submit the bid
-        if (maxPrice <= clearingPrice) return (false, 0);
-
-        uint256 ethInputAmount = inputAmountForTokens(_bid.bidAmount, maxPrice);
-
-        // Get the correct last tick price for the bid
-        uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
-        uint256 lastTickPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(lowerTickNumber);
-
-        vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(_i, _owner, maxPrice, $exactIn, $exactIn ? ethInputAmount : _bid.bidAmount);
-        bidId = auction.submitBid{value: ethInputAmount}(
-            maxPrice,
-            $exactIn,
-            // if the bid is exact in, use the eth input amount, otherwise use the bid amount in tokens
-            $exactIn ? ethInputAmount : _bid.bidAmount,
-            _owner,
-            lastTickPrice,
-            bytes('')
-        );
-
-        // Set the tick in the bitmap for future bids
-        tickBitmap.set(_bid.tickNumber);
-
-        return (true, bidId);
     }
 
     function test_submitBid_beforeTokensReceived_reverts() public {
@@ -176,76 +70,6 @@ contract AuctionTest is AuctionBaseTest {
         token.mint(address(newAuction), TOTAL_SUPPLY);
         vm.expectRevert(IAuction.TokensNotReceived.selector);
         newAuction.checkpoint();
-    }
-
-    /// @dev if iteration block has bottom two bits set, roll to the next block - 25% chance
-    function helper__maybeRollToNextBlock(uint256 _iteration) internal {
-        uint256 endBlock = auction.endBlock();
-
-        uint256 rand = uint256(keccak256(abi.encode(block.prevrandao, _iteration)));
-        bool rollToNextBlock = rand & 0x3 == 0;
-        // Randomly roll to the next block
-        if (rollToNextBlock && block.number < endBlock - 1) {
-            vm.roll(block.number + 1);
-        }
-    }
-
-    function test_submitBid_exactIn_succeeds_gas(FuzzDeploymentParams memory _deploymentParams, FuzzBid[] memory _bids)
-        public
-        setUpAuctionFuzz(_deploymentParams)
-        setUpBidsFuzz(_bids)
-        givenAuctionHasStarted
-        givenExactIn
-        givenFullyFundedAccount
-    {
-        uint256 expectedBidId;
-        for (uint256 i = 0; i < _bids.length; i++) {
-            // TODO(md): Temporary to ensure that we dont place bids that will not succeed if the clearing price moves above them during the tx
-            auction.checkpoint();
-
-            (bool bidPlaced, uint256 bidId) = helper__trySubmitBid(expectedBidId, _bids[i], alice);
-            if (bidPlaced) expectedBidId++;
-
-            helper__maybeRollToNextBlock(i);
-        }
-    }
-
-    function test_submitBid_exactOut_succeeds_gas(FuzzDeploymentParams memory _deploymentParams, FuzzBid[] memory _bids)
-        public
-        setUpAuctionFuzz(_deploymentParams)
-        setUpBidsFuzz(_bids)
-        givenAuctionHasStarted
-        givenExactOut
-        givenFullyFundedAccount
-    {
-        uint256 expectedBidId;
-        for (uint256 i = 0; i < _bids.length; i++) {
-            // TODO(md): Temporary to ensure that we dont place bids that will not succeed if the clearing price moves above them during the tx
-            auction.checkpoint();
-
-            (bool bidPlaced, uint256 bidId) = helper__trySubmitBid(expectedBidId, _bids[i], alice);
-            if (bidPlaced) expectedBidId++;
-
-            helper__maybeRollToNextBlock(i);
-        }
-    }
-
-    function test_submitBid_mixedExactInAndOut_succeeds_gas(
-        FuzzDeploymentParams memory _deploymentParams,
-        FuzzBid[] memory _bids
-    ) public setUpAuctionFuzz(_deploymentParams) setUpBidsFuzz(_bids) givenAuctionHasStarted givenFullyFundedAccount {
-        uint256 expectedBidId;
-        for (uint256 i = 0; i < _bids.length; i++) {
-            // TODO(md): Temporary to ensure that we dont place bids that will not succeed if the clearing price moves above them during the tx
-            auction.checkpoint();
-
-            $exactIn = block.number % 2 == 0;
-            console2.log('exactIn', $exactIn);
-            (bool bidPlaced, uint256 bidId) = helper__trySubmitBid(expectedBidId, _bids[i], alice);
-            if (bidPlaced) expectedBidId++;
-
-            helper__maybeRollToNextBlock(i);
-        }
     }
 
     /// forge-config: default.isolate = true
@@ -1387,7 +1211,8 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(1);
         // Create a bid which was entered with a max price of tickNumberToPriceX96(2) at checkpoint 1
-        (Bid memory bid, uint256 bidId) = mockAuction.createBid(true, 100e18, alice, tickNumberToPriceX96(2), 0);
+        (Bid memory bid, uint256 bidId) =
+            mockAuction.uncheckedCreateBid(true, 100e18, alice, tickNumberToPriceX96(2), 0);
         assertEq(bid.startBlock, 1);
         mockAuction.insertCheckpoint(_checkpointOne, 1);
         vm.roll(2);

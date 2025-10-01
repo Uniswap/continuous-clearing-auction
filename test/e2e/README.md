@@ -4,7 +4,7 @@ This directory contains the end-to-end (E2E) test suite for the TWAP Auction sys
 
 ## ⚠️ Important Notes
 
-- **Auction Start Block**: Cannot be block 0 or 1 (must be block 2 or later)
+- **Auction Start Block**: Cannot be block 1. Must be block 2 or later.
 - **Interaction Timing**: Interactions can begin on the same block as the auction start block, but not before
 
 ## ❓ Frequently Asked Questions

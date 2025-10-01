@@ -11,6 +11,13 @@ export interface TestInstance {
 }
 
 export class SchemaValidator {
+  /**
+   * Loads a test instance from a TypeScript file.
+   * @param type - Type of test instance ("setup" or "interaction")
+   * @param filename - Name of the file to load
+   * @returns The loaded test instance data
+   * @throws Error if file is not found or no export is found
+   */
   loadTestInstance(type: "setup" | "interaction", filename: string): TestSetupData | TestInteractionData {
     // Only load TypeScript files
     if (filename.endsWith(".ts")) {
@@ -28,6 +35,13 @@ export class SchemaValidator {
     }
   }
 
+  /**
+   * Loads a TypeScript instance from a file using ts-node.
+   * @param type - Type of test instance ("setup" or "interaction")
+   * @param filename - Name of the file to load
+   * @returns The loaded test instance data
+   * @throws Error if file is not found or no export is found
+   */
   private loadTypeScriptInstance(type: "setup" | "interaction", filename: string): TestSetupData | TestInteractionData {
     let modulePath: string;
     try {
@@ -75,6 +89,11 @@ export class SchemaValidator {
     }
   }
 
+  /**
+   * Gets all available test instances of a specific type.
+   * @param type - Type of test instances to retrieve ("setup" or "interaction")
+   * @returns Array of test instances with filename and data
+   */
   getAllTestInstances(type: "setup" | "interaction"): TestInstance[] {
     const instancesDir = path.join(__dirname, `../instances/${type}`);
     if (!fs.existsSync(instancesDir)) return [];

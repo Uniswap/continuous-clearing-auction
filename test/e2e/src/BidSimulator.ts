@@ -4,10 +4,8 @@ import {
   BidData,
   Side,
   AmountType,
-  PriceType,
   AdminActionMethod,
   AmountConfig,
-  PriceConfig,
 } from "../schemas/TestInteractionSchema";
 import { Contract, ContractTransaction } from "ethers";
 import {
@@ -21,7 +19,8 @@ import {
 } from "./constants";
 import { IAllowanceTransfer } from "../../../typechain-types/test/e2e/artifacts/permit2/src/interfaces/IAllowanceTransfer";
 import { TransactionInfo } from "./types";
-import { TransferAction } from "../schemas/TestInteractionSchema";
+import { TransferAction, AdminAction } from "../schemas/TestInteractionSchema";
+import { calculatePrice, calculateRequiredCurrencyAmount, resolveTokenAddress, tickNumberToPriceX96 } from "./Utils";
 import hre from "hardhat";
 
 export enum BiddersType {
@@ -49,20 +48,10 @@ export class BidSimulator {
     this.auctionDeployer = auctionDeployer;
   }
 
-  async resolveTokenAddress(tokenIdentifier: string): Promise<string> {
-    if (tokenIdentifier.startsWith("0x")) {
-      return tokenIdentifier; // It's already an address
-    }
-    // Look up by name in the deployed tokens (from AuctionDeployer)
-    if (this.auctionDeployer) {
-      const tokenContract = this.auctionDeployer.getTokenByName(tokenIdentifier);
-      if (tokenContract) {
-        return await tokenContract.getAddress();
-      }
-    }
-    throw new Error(ERROR_MESSAGES.TOKEN_IDENTIFIER_NOT_FOUND(tokenIdentifier));
-  }
-
+  /**
+   * Sets up label mappings for symbolic addresses and group bidders.
+   * @param interactionData - Test interaction data containing named bidders and groups
+   */
   async setupLabels(interactionData: TestInteractionData): Promise<void> {
     // Map symbolic labels to actual addresses
     this.labelMap.set("Auction", await this.auction.getAddress());
@@ -80,6 +69,10 @@ export class BidSimulator {
     }
   }
 
+  /**
+   * Generates group bidders and maps them to their group names.
+   * @param groups - Array of group configurations
+   */
   async generateGroupBidders(groups: Group[]): Promise<void> {
     for (const group of groups) {
       const bidders: string[] = [];
@@ -92,6 +85,11 @@ export class BidSimulator {
     }
   }
 
+  /**
+   * Collects all bids from named bidders and groups.
+   * @param interactionData - Test interaction data containing bidders and groups
+   * @returns Array of internal bid data for execution
+   */
   public collectAllBids(interactionData: TestInteractionData): InternalBidData[] {
     const bids: InternalBidData[] = [];
 
@@ -192,6 +190,12 @@ export class BidSimulator {
     return bids;
   }
 
+  /**
+   * Executes a single bid by creating and submitting the transaction.
+   * @param bid - Internal bid data containing bidder, bid data, and type
+   * @param transactionInfos - Array to collect transaction information
+   * @throws Error if bid execution fails or expected revert validation fails
+   */
   async executeBid(bid: InternalBidData, transactionInfos: TransactionInfo[]): Promise<void> {
     // This method just executes the bid transaction
 
@@ -200,13 +204,13 @@ export class BidSimulator {
 
     // For the first bid, use tick 1 as prevTickPrice (floor price)
     // For subsequent bids, we use the previous tick
-    let previousTickPrice: bigint = this.tickNumberToPriceX96(bidData.previousTick);
+    let previousTickPrice: bigint = tickNumberToPriceX96(bidData.previousTick);
 
     const amount = await this.calculateAmount(bidData.amount);
-    const price = await this.calculatePrice(bidData.price);
+    const price = await calculatePrice(bidData.price);
 
     // Calculate required currency amount for the bid
-    const requiredCurrencyAmount = await this.calculateRequiredCurrencyAmount(
+    const requiredCurrencyAmount = await calculateRequiredCurrencyAmount(
       bidData.amount.side === Side.INPUT,
       amount,
       price,
@@ -247,6 +251,12 @@ export class BidSimulator {
     transactionInfos.push({ tx, from: bidder, msg, expectRevert: bidData.expectRevert });
   }
 
+  /**
+   * Validates that a transaction reverted with the expected error message.
+   * @param error - The error object from the failed transaction
+   * @param expectedRevert - The expected revert message to match
+   * @throws Error if the revert message doesn't match the expected value
+   */
   async validateExpectedRevert(error: unknown, expectedRevert: string): Promise<void> {
     // Extract the revert data string from the error
     const errorObj = error as any;
@@ -282,6 +292,12 @@ export class BidSimulator {
     console.log(LOG_PREFIXES.SUCCESS, "Expected revert validated:", expectedRevert);
   }
 
+  /**
+   * Calculates the actual bid amount based on the amount configuration.
+   * @param amountConfig - Amount configuration specifying type, side, value, and optional variance
+   * @returns The calculated amount as a bigint
+   * @throws Error if amount type is unsupported or PERCENT_OF_SUPPLY is used incorrectly
+   */
   async calculateAmount(amountConfig: AmountConfig): Promise<bigint> {
     // Implementation depends on amount type (raw, percentOfSupply, etc.)
     let value: bigint = 0n;
@@ -317,51 +333,11 @@ export class BidSimulator {
     return value;
   }
 
-  async calculatePrice(priceConfig: PriceConfig): Promise<bigint> {
-    let value: bigint;
-
-    if (priceConfig.type === PriceType.TICK) {
-      // Convert tick to actual price using the same logic as the Foundry tests
-      value = this.tickNumberToPriceX96(parseInt(priceConfig.value.toString()));
-    } else {
-      // Ensure the value is treated as a string to avoid scientific notation conversion
-      value = BigInt(priceConfig.value.toString());
-    }
-
-    // Implement price variation
-    if (priceConfig.variation) {
-      const variationPercent = parseFloat(priceConfig.variation);
-      const variationAmount = (Number(value) * variationPercent) / 100;
-      const randomVariation = (Math.random() - 0.5) * 2 * variationAmount; // -variation to +variation
-      const adjustedValue = Number(value) + randomVariation;
-
-      // Ensure the price doesn't go negative
-      value = BigInt(Math.max(0, Math.floor(adjustedValue)));
-    }
-
-    return value;
-  }
-
-  tickNumberToPriceX96(tickNumber: number): bigint {
-    // This mirrors the logic from AuctionBaseTest.sol
-    const FLOOR_PRICE = 1000n * 2n ** 96n; // 1000 * 2^96
-    const TICK_SPACING = 100n; // From our setup (matches Foundry test)
-
-    return ((FLOOR_PRICE >> 96n) + (BigInt(tickNumber) - 1n) * TICK_SPACING) << 96n;
-  }
-
-  async calculateRequiredCurrencyAmount(exactIn: boolean, amount: bigint, maxPrice: bigint): Promise<bigint> {
-    // This mirrors the BidLib.inputAmount logic
-    if (exactIn) {
-      // For exactIn bids, the amount is in currency units
-      return amount;
-    } else {
-      // For non-exactIn bids, calculate amount * maxPrice / Q96
-      const Q96 = BigInt(2) ** BigInt(96);
-      return (amount * maxPrice) / Q96;
-    }
-  }
-
+  /**
+   * Executes token transfer actions.
+   * @param transferInteractions - Array of transfer actions to execute
+   * @param transactionInfos - Array to collect transaction information
+   */
   async executeTransfers(transferInteractions: TransferAction[], transactionInfos: TransactionInfo[]): Promise<void> {
     // This handles token transfers between addresses
     // Support for both ERC20 tokens and native currency
@@ -383,7 +359,7 @@ export class BidSimulator {
         );
       } else {
         // ERC20 token transfer - resolve token address first
-        const resolvedTokenAddress = await this.resolveTokenAddress(token);
+        const resolvedTokenAddress = await resolveTokenAddress(token, this.auctionDeployer);
         await this.executeTokenTransfer(
           from,
           toAddress,
@@ -396,6 +372,14 @@ export class BidSimulator {
     }
   }
 
+  /**
+   * Executes a native ETH transfer between addresses.
+   * @param from - The sender address
+   * @param to - The recipient address
+   * @param amount - The amount to transfer in wei
+   * @param expectRevert - Expected revert message if the transfer should fail
+   * @param transactionInfos - Array to collect transaction information
+   */
   private async executeNativeTransfer(
     from: string,
     to: string,
@@ -403,7 +387,7 @@ export class BidSimulator {
     expectRevert: string,
     transactionInfos: TransactionInfo[],
   ): Promise<void> {
-    // Send native ETH
+    // Send native currency
     const tx = {
       to,
       value: amount,
@@ -412,7 +396,16 @@ export class BidSimulator {
     transactionInfos.push({ tx, from, msg, expectRevert });
   }
 
-  private async executeTokenTransfer(
+  /**
+   * Executes a token transfer between addresses.
+   * @param from - The sender address
+   * @param to - The recipient address
+   * @param tokenAddress - The token contract address
+   * @param amount - The amount to transfer
+   * @param expectRevert - Expected revert message if the transfer should fail
+   * @param transactionInfos - Array to collect transaction information
+   */
+  async executeTokenTransfer(
     from: string,
     to: string,
     tokenAddress: string,
@@ -430,23 +423,31 @@ export class BidSimulator {
     transactionInfos.push({ tx, from, msg, expectRevert });
   }
 
-  async executeAdminActions(adminInteractions: any[], transactionInfos: TransactionInfo[]): Promise<void> {
-    for (const interactionGroup of adminInteractions) {
-      for (const interaction of interactionGroup) {
-        const { kind } = interaction.value;
-        if (kind === AdminActionMethod.SWEEP_CURRENCY) {
-          let tx = await this.auction.getFunction("sweepCurrency").populateTransaction();
-          let msg = `   ✅ Sweeping currency`;
-          transactionInfos.push({ tx, from: null, msg });
-        } else if (kind === AdminActionMethod.SWEEP_UNSOLD_TOKENS) {
-          let tx = await this.auction.getFunction("sweepUnsoldTokens").populateTransaction();
-          let msg = `   ✅ Sweeping unsold tokens`;
-          transactionInfos.push({ tx, from: null, msg });
-        }
+  /**
+   * Executes admin actions on the auction contract.
+   * @param adminInteractions - Array of admin action groups to execute
+   * @param transactionInfos - Array to collect transaction information
+   */
+  async executeAdminActions(adminInteractions: AdminAction[], transactionInfos: TransactionInfo[]): Promise<void> {
+    for (const interaction of adminInteractions) {
+      if (interaction.method === AdminActionMethod.SWEEP_CURRENCY) {
+        let tx = await this.auction.getFunction("sweepCurrency").populateTransaction();
+        let msg = `   ✅ Sweeping currency`;
+        transactionInfos.push({ tx, from: null, msg });
+      } else if (interaction.method === AdminActionMethod.SWEEP_UNSOLD_TOKENS) {
+        let tx = await this.auction.getFunction("sweepUnsoldTokens").populateTransaction();
+        let msg = `   ✅ Sweeping unsold tokens`;
+        transactionInfos.push({ tx, from: null, msg });
       }
     }
   }
 
+  /**
+   * Grants Permit2 allowances for a bidder to interact with the auction.
+   * @param currency - The currency contract to grant allowance for
+   * @param bidder - The bidder address to grant allowance to
+   * @param transactionInfos - Array to collect transaction information
+   */
   async grantPermit2Allowances(currency: Contract, bidder: string, transactionInfos: TransactionInfo[]): Promise<void> {
     // First, approve Permit2 to spend the tokens
     const approveTx = await currency.getFunction("approve").populateTransaction(PERMIT2_ADDRESS, MAX_UINT256);

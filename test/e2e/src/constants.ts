@@ -96,3 +96,28 @@ export const LOG_PREFIXES = {
   NOTE: "💡",
   FILES: "📁",
 } as const;
+
+export enum NATIVE_TYPES {
+  OBJECT = "object",
+}
+
+export const METHODS = {
+  HARDHAT: {
+    IMPERSONATE_ACCOUNT: "hardhat_impersonateAccount",
+    STOP_IMPERSONATING_ACCOUNT: "hardhat_stopImpersonatingAccount",
+    SET_BALANCE: "hardhat_setBalance",
+    MINE: "hardhat_mine",
+    RESET: "hardhat_reset",
+    SET_CODE: "hardhat_setCode",
+  },
+  DEBUG: {
+    TRACE_TRANSACTION: "debug_traceTransaction",
+  },
+  EVM: {
+    SET_AUTOMINE: "evm_setAutomine",
+    SET_INTERVAL_MINING: "evm_setIntervalMining",
+    MINE: "evm_mine",
+  },
+};
+
+export const TYPE_FIELD = "type";

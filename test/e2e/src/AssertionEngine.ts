@@ -11,11 +11,12 @@ import {
 import { Contract } from "ethers";
 import { TokenContract } from "./types";
 import { AuctionDeployer } from "./AuctionDeployer";
-import { ZERO_ADDRESS, LOG_PREFIXES, ERROR_MESSAGES } from "./constants";
+import { ZERO_ADDRESS, LOG_PREFIXES, ERROR_MESSAGES, NATIVE_TYPES, TYPE_FIELD } from "./constants";
 import { CheckpointStruct } from "../../../typechain-types/out/Auction";
+import { resolveTokenAddress } from "./Utils";
 import hre from "hardhat";
 
-// NOTE: Different from interface defined in the schema as it uses bigint since this comes directly from the contract
+// NOTE: Different from interface defined in the schema as it uses bigint, and no variance, since this comes directly from the contract
 export interface AuctionState {
   isGraduated: boolean;
   clearingPrice: bigint;
@@ -47,6 +48,11 @@ export class AssertionEngine {
     this.auctionDeployer = auctionDeployer;
   }
 
+  /**
+   * Validates a single assertion by routing to the appropriate validation method.
+   * @param assertion - The assertion to validate
+   * @throws Error if the assertion fails validation
+   */
   async validateAssertion(assertion: Assertion): Promise<void> {
     if (assertion.type === AssertionInterfaceType.BALANCE) {
       await this.validateBalanceAssertion(assertion);
@@ -57,18 +63,6 @@ export class AssertionEngine {
     } else if (assertion.type === AssertionInterfaceType.AUCTION) {
       await this.validateAuctionAssertion([assertion]);
     }
-  }
-
-  async resolveTokenAddress(tokenIdentifier: string): Promise<string> {
-    if (tokenIdentifier.startsWith("0x")) {
-      return tokenIdentifier; // It's already an address
-    }
-    // Look up by name in the deployed tokens (from AuctionDeployer)
-    const tokenContract = this.auctionDeployer.getTokenByName(tokenIdentifier);
-    if (tokenContract) {
-      return await tokenContract.getAddress();
-    }
-    throw new Error(ERROR_MESSAGES.TOKEN_IDENTIFIER_NOT_FOUND(tokenIdentifier));
   }
 
   /**
@@ -109,8 +103,15 @@ export class AssertionEngine {
     return actualNum >= lowerBound && actualNum <= upperBound;
   }
 
+  /**
+   * Validates equality between expected and actual values, supporting VariableAmount structures.
+   * @param expected - Expected value (can be primitive or VariableAmount object)
+   * @param actual - Actual value from the contract
+   * @returns True if values are equal or within variance bounds
+   * @throws Error if expected is an invalid object structure
+   */
   private validateEquality(expected: any, actual: any): boolean {
-    if (expected && typeof expected === "object") {
+    if (expected && typeof expected === NATIVE_TYPES.OBJECT) {
       let keys = Object.keys(expected);
       if (keys.length !== 2 || !keys.includes("amount") || !keys.includes("variation")) {
         throw new Error(ERROR_MESSAGES.CANNOT_VALIDATE_EQUALITY);
@@ -126,41 +127,26 @@ export class AssertionEngine {
     }
   }
 
+  /**
+   * Validates a balance assertion for a specific address and token.
+   * @param assertion - Balance assertion containing address, token, expected balance, and optional variance
+   * @throws Error if balance assertion fails or token is not found
+   */
   async validateBalanceAssertion(assertion: BalanceAssertion): Promise<void> {
     const { address, token, expected, variance } = assertion;
 
     let actualBalance: bigint;
     const expectedBalance = BigInt(expected);
 
-    const resolvedTokenAddress = await this.resolveTokenAddress(token);
+    const resolvedTokenAddress = await resolveTokenAddress(token, this.auctionDeployer);
 
     if (resolvedTokenAddress === ZERO_ADDRESS) {
       // Native currency
       actualBalance = await hre.ethers.provider.getBalance(address);
-      console.log(
-        LOG_PREFIXES.ASSERTION,
-        "Native currency balance check:",
-        address,
-        "has",
-        actualBalance,
-        "wei, expected",
-        expectedBalance,
-      );
     } else {
       // ERC20 token
       const tokenContract = await hre.ethers.getContractAt("IERC20Minimal", resolvedTokenAddress);
       actualBalance = await tokenContract.balanceOf(address);
-      console.log(
-        LOG_PREFIXES.ASSERTION,
-        "ERC20 token balance check:",
-        address,
-        "has",
-        actualBalance,
-        "of",
-        token,
-        ", expected",
-        expectedBalance,
-      );
     }
     let expectedVariance = variance ? this.parseVariance(variance) : 0;
     if (!this.isWithinVariance(actualBalance, expectedBalance, expectedVariance)) {
@@ -171,9 +157,14 @@ export class AssertionEngine {
     console.log(LOG_PREFIXES.SUCCESS, "Assertion validated (within variance of", variance + ")");
   }
 
+  /**
+   * Validates total supply assertions for multiple tokens.
+   * @param totalSupplyAssertion - Array of total supply assertions to validate
+   * @throws Error if any total supply assertion fails or token is not found
+   */
   async validateTotalSupplyAssertion(totalSupplyAssertion: TotalSupplyAssertion[]): Promise<void> {
     for (const assertion of totalSupplyAssertion) {
-      const tokenAddress = await this.resolveTokenAddress(assertion.token);
+      const tokenAddress = await resolveTokenAddress(assertion.token, this.auctionDeployer);
       const token = await this.auctionDeployer.getTokenByAddress(tokenAddress);
 
       if (!token) {
@@ -184,6 +175,12 @@ export class AssertionEngine {
       const actualSupply = await token.totalSupply();
       const expectedSupply = BigInt(assertion.expected);
 
+      if (actualSupply !== expectedSupply) {
+        throw new Error(
+          ERROR_MESSAGES.TOTAL_SUPPLY_ASSERTION_FAILED(expectedSupply.toString(), actualSupply.toString()),
+        );
+      }
+
       console.log(
         LOG_PREFIXES.ASSERTION,
         "Total supply check:",
@@ -193,15 +190,14 @@ export class AssertionEngine {
         "total supply, expected",
         expectedSupply.toString(),
       );
-
-      if (actualSupply !== expectedSupply) {
-        throw new Error(
-          ERROR_MESSAGES.TOTAL_SUPPLY_ASSERTION_FAILED(expectedSupply.toString(), actualSupply.toString()),
-        );
-      }
     }
   }
 
+  /**
+   * Validates auction state assertions including main auction fields and checkpoint data.
+   * @param auctionAssertions - Array of auction assertions, optionally including variances, to validate
+   * @throws Error if any auction assertion fails
+   */
   async validateAuctionAssertion(auctionAssertions: AuctionAssertion[]): Promise<void> {
     for (const assertion of auctionAssertions) {
       console.log(LOG_PREFIXES.INFO, "Auction assertion validation");
@@ -210,7 +206,7 @@ export class AssertionEngine {
       const auctionState = await this.getAuctionState();
 
       for (const key of Object.keys(assertion)) {
-        if (key === "type") continue;
+        if (key === TYPE_FIELD) continue;
         if (key === "latestCheckpoint") continue;
         let expected = assertion[key as keyof AuctionAssertion];
         if (expected != undefined && expected != null) {
@@ -227,7 +223,7 @@ export class AssertionEngine {
 
       if (assertion.latestCheckpoint) {
         for (const key of Object.keys(assertion.latestCheckpoint)) {
-          if (key === "type") continue;
+          if (key === TYPE_FIELD) continue;
           let expected = assertion.latestCheckpoint[key as keyof CheckpointStruct];
           if (expected != undefined && expected != null) {
             if (!this.validateEquality(expected, auctionState.latestCheckpoint[key as keyof CheckpointStruct])) {
@@ -252,6 +248,11 @@ export class AssertionEngine {
     }
   }
 
+  /**
+   * Validates event assertions by checking if specific events were emitted in the current block.
+   * @param eventAssertion - Array of event assertions to validate
+   * @throws Error if any event assertion fails or block is not found
+   */
   async validateEventAssertion(eventAssertion: EventAssertion[]): Promise<void> {
     for (const assertion of eventAssertion) {
       console.log(LOG_PREFIXES.INFO, "Event assertion validation for event:", assertion.eventName);
@@ -275,6 +276,12 @@ export class AssertionEngine {
     }
   }
 
+  /**
+   * Checks if a specific event was emitted in a given block.
+   * @param block - The block to search for events
+   * @param assertion - Event assertion containing event name and expected arguments
+   * @returns True if the event is found with matching arguments, false otherwise
+   */
   private async checkForEventInBlock(block: any, assertion: EventAssertion): Promise<boolean> {
     // Check all transactions in the block for the event
     console.log(LOG_PREFIXES.INFO, "Checking for event in block:", block.number);
@@ -307,6 +314,12 @@ export class AssertionEngine {
     return false;
   }
 
+  /**
+   * Checks if event arguments match the expected values.
+   * @param actualArgs - Array of actual event arguments from the contract
+   * @param expectedArgs - Object containing expected argument values
+   * @returns True if all expected arguments are found in the actual arguments, false otherwise
+   */
   private checkEventArguments(actualArgs: any, expectedArgs: Record<string, any>): boolean {
     for (const [, expectedValue] of Object.entries(expectedArgs)) {
       let contains = false;
@@ -323,6 +336,10 @@ export class AssertionEngine {
     return true;
   }
 
+  /**
+   * Retrieves the current auction state from the contract.
+   * @returns AuctionState object containing isGraduated, clearingPrice, currencyRaised, and latestCheckpoint
+   */
   async getAuctionState(): Promise<AuctionState> {
     const [isGraduated, clearingPrice, currencyRaised, latestCheckpoint] = await Promise.all([
       this.auction.isGraduated(),
@@ -339,6 +356,11 @@ export class AssertionEngine {
     };
   }
 
+  /**
+   * Retrieves the current state of a bidder including token and currency balances.
+   * @param bidderAddress - The address of the bidder to check
+   * @returns BidderState object containing address, tokenBalance, and currencyBalance
+   */
   async getBidderState(bidderAddress: Address): Promise<BidderState> {
     const tokenBalance = this.token ? await this.token.balanceOf(bidderAddress) : 0n;
     const currencyBalance = this.currency ? await this.currency.balanceOf(bidderAddress) : 0n;

@@ -12,6 +12,7 @@ import {
   DEFAULT_TOTAL_SUPPLY,
   ERROR_MESSAGES,
   LOG_PREFIXES,
+  METHODS,
 } from "./constants";
 import { AuctionContract, TokenContract, AuctionFactoryContract, AuctionConfig } from "./types";
 import hre from "hardhat";
@@ -26,16 +27,27 @@ export class AuctionDeployer {
     this.ethers = hre.ethers;
   }
 
+  /**
+   * Sets the auction factory contract reference.
+   * @param auctionFactory - The auction factory contract instance
+   */
   setAuctionFactory(auctionFactory: AuctionFactoryContract): void {
     this.auctionFactory = auctionFactory;
   }
+  /**
+   * Sets a token contract reference by name.
+   * @param name - The token name
+   * @param token - The token contract instance
+   */
   setToken(name: string, token: TokenContract): void {
     this.tokens.set(name, token);
   }
 
   /**
-   * Initialize the deployer with tokens and factory
-   * This should be called once per test setup
+   * Initializes the deployer by deploying tokens and setting up the auction factory.
+   * @param setupData - Test setup data containing auction parameters and additional tokens
+   * @param setupTransactions - Array to collect setup transaction information
+   * @throws Error if auction factory is not deployed or token deployment fails
    */
   async initialize(setupData: TestSetupData, setupTransactions: TransactionInfo[]): Promise<void> {
     // Deploy auction factory
@@ -52,6 +64,12 @@ export class AuctionDeployer {
     );
   }
 
+  /**
+   * Deploys additional tokens for the test setup.
+   * @param additionalTokens - Array of additional token configurations
+   * @param setupTransactions - Array to collect setup transaction information
+   * @param increment - Starting increment value for deployment
+   */
   async deployAdditionalTokens(
     additionalTokens: AdditionalToken[],
     setupTransactions: TransactionInfo[],
@@ -66,7 +84,10 @@ export class AuctionDeployer {
   }
 
   /**
-   * Deploy a single token
+   * Deploys a single token contract.
+   * @param tokenConfig - Token configuration containing name, symbol, decimals, and total supply
+   * @param setupTransactions - Array to collect setup transaction information
+   * @param increment - Increment value for deployment
    */
   private async deployToken(
     tokenConfig: AdditionalToken,
@@ -94,15 +115,30 @@ export class AuctionDeployer {
     return;
   }
 
+  /**
+   * Gets a token contract by name.
+   * @param tokenName - The name of the token
+   * @returns The token contract instance or undefined if not found
+   */
   getTokenByName(tokenName: string): TokenContract | undefined {
     return this.tokens.get(tokenName);
   }
 
+  /**
+   * Gets the address of a token by name.
+   * @param tokenName - The name of the token
+   * @returns The token address or null if not found
+   */
   async getTokenAddress(tokenName: string): Promise<Address | null> {
     const token = this.tokens.get(tokenName);
     return token ? ((await token.getAddress()) as Address) : null;
   }
 
+  /**
+   * Gets a token contract by its address.
+   * @param tokenAddress - The address of the token
+   * @returns The token contract instance or undefined if not found
+   */
   async getTokenByAddress(tokenAddress: string): Promise<TokenContract | undefined> {
     // Find token by address in the tokens map
     for (const [, token] of this.tokens) {
@@ -114,6 +150,11 @@ export class AuctionDeployer {
     return undefined;
   }
 
+  /**
+   * Deploys the auction factory contract.
+   * @param setupTransactions - Array to collect setup transaction information
+   * @param increment - Increment value for deployment
+   */
   async deployAuctionFactory(setupTransactions: TransactionInfo[], increment: number): Promise<void> {
     // Load artifact directly from Foundry's out directory
     const AuctionFactory = await this.ethers.getContractFactory(
@@ -137,6 +178,13 @@ export class AuctionDeployer {
     return;
   }
 
+  /**
+   * Creates a new auction using the auction factory.
+   * @param setupData - Test setup data containing auction parameters
+   * @param setupTransactions - Array to collect setup transaction information
+   * @returns The deployed auction contract instance
+   * @throws Error if auction factory is not initialized or auction creation fails
+   */
   async createAuction(setupData: TestSetupData, setupTransactions: TransactionInfo[]): Promise<AuctionContract> {
     if (!this.auctionFactory) {
       throw new Error(ERROR_MESSAGES.AUCTION_DEPLOYER_NOT_INITIALIZED);
@@ -180,7 +228,10 @@ export class AuctionDeployer {
   }
 
   /**
-   * Calculate auction timing parameters
+   * Calculates auction parameters from setup data.
+   * @param setupData - Test setup data containing auction parameters and environment
+   * @param currencyAddress - The resolved currency address
+   * @returns Auction configuration object
    */
   private calculateAuctionParameters(setupData: TestSetupData, currencyAddress: Address): AuctionConfig {
     const { auctionParameters, env } = setupData;
@@ -205,7 +256,11 @@ export class AuctionDeployer {
   }
 
   /**
-   * Log auction configuration for debugging
+   * Logs auction configuration details for debugging purposes.
+   * @param config - The auction configuration object
+   * @param auctionAmount - The amount of tokens to be auctioned
+   * @param currencyAddress - The address of the currency token
+   * @param auctionedToken - The token contract being auctioned
    */
   private async logAuctionConfiguration(
     config: AuctionConfig,
@@ -225,7 +280,10 @@ export class AuctionDeployer {
   }
 
   /**
-   * Encode auction parameters for contract deployment
+   * Encodes auction parameters into the format expected by the contract.
+   * @param config - Auction configuration object
+   * @returns Encoded auction parameters as a hex string
+   * @throws Error if auction parameters type is not found in ABI
    */
   private encodeAuctionParameters(config: AuctionConfig): string {
     // Extract AuctionParameters struct definition from the auction artifact
@@ -269,7 +327,13 @@ export class AuctionDeployer {
   }
 
   /**
-   * Deploy the auction contract
+   * Deploys the auction contract with the specified parameters.
+   * @param auctionedToken - The token contract to be auctioned
+   * @param auctionAmount - The amount of tokens to be auctioned
+   * @param configData - Encoded auction configuration data
+   * @param setupTransactions - Array to collect setup transaction information
+   * @returns The deployed auction contract address
+   * @throws Error if auction factory is not initialized or deployment fails
    */
   private async deployAuctionContract(
     auctionedToken: TokenContract,
@@ -304,6 +368,12 @@ export class AuctionDeployer {
     return auctionAddress;
   }
 
+  /**
+   * Resolves a currency identifier to its address.
+   * @param currency - Currency address or identifier
+   * @returns The resolved currency address
+   * @throws Error if currency is not found
+   */
   async resolveCurrencyAddress(currency: Address | string): Promise<Address> {
     // If it's an address, return it directly
     if (currency.startsWith("0x")) {
@@ -317,6 +387,13 @@ export class AuctionDeployer {
     return address;
   }
 
+  /**
+   * Calculates the auction amount for a given token.
+   * @param tokenName - The name of the token
+   * @param additionalTokens - Array of additional token configurations
+   * @returns The calculated auction amount as a bigint
+   * @throws Error if token configuration is not found
+   */
   calculateAuctionAmount(tokenName: string, additionalTokens: AdditionalToken[]): bigint {
     const tokenConfig = additionalTokens.find((t) => t.name === tokenName);
     if (!tokenConfig) {
@@ -328,6 +405,11 @@ export class AuctionDeployer {
     return (totalSupply * BigInt(Math.floor(percentAuctioned * 100))) / BigInt(10000);
   }
 
+  /**
+   * Creates simple auction steps data for a given duration.
+   * @param auctionDurationBlocks - The duration of the auction in blocks
+   * @returns The encoded auction steps data
+   */
   createSimpleAuctionStepsData(auctionDurationBlocks: number): string {
     // Create a simple auction steps data that satisfies the validation
     // Format: each step is 8 bytes (uint64): 3 bytes mps + 5 bytes blockDelta
@@ -355,6 +437,11 @@ export class AuctionDeployer {
     return result;
   }
 
+  /**
+   * Sets up initial balances for test environment.
+   * @param setupData - Test setup data containing environment configuration
+   * @param setupTransactions - Array to collect setup transaction information
+   */
   async setupBalances(setupData: TestSetupData, setupTransactions: TransactionInfo[]): Promise<void> {
     const { env } = setupData;
     if (!env.balances) return;
@@ -378,16 +465,22 @@ export class AuctionDeployer {
   }
 
   /**
-   * Setup native currency balance
+   * Sets up native currency balance for an address.
+   * @param address - The address to set the balance for
+   * @param amount - The amount in wei as a string
    */
   private async setupNativeCurrencyBalance(address: Address, amount: string): Promise<void> {
     const hexAmount = "0x" + BigInt(amount).toString(16);
-    await hre.network.provider.send("hardhat_setBalance", [address, hexAmount]);
+    await hre.network.provider.send(METHODS.HARDHAT.SET_BALANCE, [address, hexAmount]);
     console.log(LOG_PREFIXES.SUCCESS, "Set native currency balance:", address, "=", amount, "wei");
   }
 
   /**
-   * Setup token balance by contract address
+   * Sets a token balance at bootup for an address using token address.
+   * @param address - The address to set the balance for
+   * @param tokenAddress - The token contract address
+   * @param amount - The amount to set
+   * @param setupTransactions - Array to collect setup transaction information
    */
   private async setupTokenBalanceByAddress(
     address: Address,
@@ -413,7 +506,11 @@ export class AuctionDeployer {
   }
 
   /**
-   * Setup token balance by token name
+   * Sets a token balance at bootup for an address using token name.
+   * @param address - The address to set the balance for
+   * @param tokenName - The name of the token
+   * @param amount - The amount to set
+   * @param setupTransactions - Array to collect setup transaction information
    */
   private async setupTokenBalanceByName(
     address: Address,

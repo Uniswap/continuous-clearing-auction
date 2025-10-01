@@ -38,6 +38,10 @@ class E2ECliRunner {
     this.runner = new MultiTestRunner();
   }
 
+  /**
+   * Gets available setup and interaction files for testing.
+   * @returns Object containing arrays of available setup and interaction files
+   */
   getAvailableFiles(): AvailableFiles {
     const setupInstances = this.runner["singleTestRunner"]["schemaValidator"].getAllTestInstances("setup");
     const interactionInstances = this.runner["singleTestRunner"]["schemaValidator"].getAllTestInstances("interaction");
@@ -48,6 +52,11 @@ class E2ECliRunner {
     };
   }
 
+  /**
+   * Runs all specified test combinations.
+   * @param combinations - Array of combinations to run
+   * @returns Array of combination results
+   */
   async runAllCombinations(combinations: CombinationToRun[]): Promise<CombinationResult[]> {
     const results: CombinationResult[] = [];
 
@@ -75,7 +84,8 @@ class E2ECliRunner {
 }
 
 /**
- * Load combinations from CLI arguments or return predefined combinations
+ * Loads test combinations from CLI arguments or returns predefined combinations.
+ * @returns Array of combinations to run
  */
 async function loadCombinationsFromArgs(): Promise<CombinationToRun[]> {
   const args = process.argv.slice(2);
@@ -118,7 +128,11 @@ async function loadCombinationsFromArgs(): Promise<CombinationToRun[]> {
 }
 
 /**
- * Load a TypeScript instance from a file path
+ * Loads a TypeScript instance from a file path.
+ * @param filePath - The file path to load the instance from
+ * @param type - The type of instance to load ("setup" or "interaction")
+ * @returns The loaded test instance data
+ * @throws Error if the file cannot be loaded or no instance is found
  */
 function loadInstanceFromFile(filePath: string, type: "setup"): TestSetupData;
 function loadInstanceFromFile(filePath: string, type: "interaction"): TestInteractionData;
@@ -148,6 +162,11 @@ function loadInstanceFromFile(filePath: string, type: "setup" | "interaction"): 
   }
 }
 
+/**
+ * Main entry point for the E2E test runner.
+ * Loads test combinations from CLI arguments or uses predefined combinations,
+ * runs all tests, and displays results with success/failure statistics.
+ */
 async function main(): Promise<void> {
   const runner = new E2ECliRunner();
 

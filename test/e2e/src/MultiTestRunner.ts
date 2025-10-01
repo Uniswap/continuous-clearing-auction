@@ -30,7 +30,10 @@ export class MultiTestRunner {
   }
 
   /**
-   * Run a specific setup + interaction combination
+   * Runs a specific setup and interaction combination.
+   * @param setupData - Test setup data
+   * @param interactionData - Test interaction data
+   * @returns Combination result with success status and any errors
    */
   async runCombination(setupData: TestSetupData, interactionData: TestInteractionData): Promise<CombinationResult> {
     const setupName = setupData.name;
@@ -50,7 +53,9 @@ export class MultiTestRunner {
   }
 
   /**
-   * Run all predefined combinations
+   * Runs all test combinations and returns results.
+   * @param combinations - Array of setup and interaction combinations to test
+   * @returns Array of combination results
    */
   async runAllCombinations(combinations: Combination[]): Promise<CombinationResult[]> {
     console.log(LOG_PREFIXES.INFO, "Running", combinations.length, "test combinations...");
@@ -79,7 +84,8 @@ export class MultiTestRunner {
   }
 
   /**
-   * Get all available setup and interaction files
+   * Gets available setup and interaction files for testing.
+   * @returns Object containing arrays of available setup and interaction files
    */
   getAvailableFiles(): AvailableFiles {
     const setupFiles = this.singleTestRunner["schemaValidator"].getAllTestInstances("setup");

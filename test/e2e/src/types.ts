@@ -5,6 +5,8 @@ import { Address } from "../schemas/TestSetupSchema";
 import auctionArtifact from "../../../out/Auction.sol/Auction.json";
 import auctionFactoryArtifact from "../../../out/AuctionFactory.sol/AuctionFactory.json";
 import mockTokenArtifact from "../../../out/WorkingCustomMockToken.sol/WorkingCustomMockToken.json";
+import { ActionType, AdminAction, AssertionInfo, TransferAction } from "../schemas/TestInteractionSchema";
+import { InternalBidData } from "./BidSimulator";
 
 // Contract types with proper ABI-based typing
 export type AuctionContract = Contract & {
@@ -108,4 +110,21 @@ export interface TransactionInfo {
 export interface HashWithRevert {
   hash: string;
   expectRevert?: string;
+}
+
+export enum EventType {
+  BID = "bid",
+  ACTION = "action",
+  ASSERTION = "assertion",
+}
+
+export type ActionData = { actionType: ActionType } & (AdminAction | TransferAction);
+
+// Union type for all possible event data types
+export type EventInternalData = InternalBidData | ActionData | AssertionInfo;
+
+export interface EventData {
+  type: EventType;
+  atBlock: number;
+  data: EventInternalData;
 }

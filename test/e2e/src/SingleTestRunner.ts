@@ -12,9 +12,9 @@ import { BidSimulator, InternalBidData } from "./BidSimulator";
 import { AssertionEngine, AuctionState } from "./AssertionEngine";
 import { Contract, Interface } from "ethers";
 import { Network } from "hardhat/types";
-import { PERMIT2_ADDRESS, LOG_PREFIXES, ERROR_MESSAGES } from "./constants";
+import { PERMIT2_ADDRESS, LOG_PREFIXES, ERROR_MESSAGES, METHODS } from "./constants";
 import { artifacts } from "hardhat";
-import { HashWithRevert, TransactionInfo } from "./types";
+import { EventData, HashWithRevert, TransactionInfo, EventType, ActionData } from "./types";
 import { TransactionRequest } from "ethers";
 import hre from "hardhat";
 
@@ -26,23 +26,6 @@ export interface TestResult {
   currencyToken: Address | null;
   finalState: AuctionState;
   success: boolean;
-}
-
-export enum EventType {
-  BID = "bid",
-  ACTION = "action",
-  ASSERTION = "assertion",
-}
-
-export type ActionData = { actionType: ActionType } & (AdminAction | TransferAction);
-
-// Union type for all possible event data types
-export type EventInternalData = InternalBidData | ActionData | AssertionInfo;
-
-export interface EventData {
-  type: EventType;
-  atBlock: number;
-  data: EventInternalData;
 }
 
 export class SingleTestRunner {
@@ -57,6 +40,13 @@ export class SingleTestRunner {
     this.deployer = new AuctionDeployer();
   }
 
+  /**
+   * Runs a complete E2E test from setup to completion.
+   * @param setupData - Test setup data containing auction parameters and environment
+   * @param interactionData - Test interaction data containing bids, actions, and assertions
+   * @returns Test result containing success status and any errors
+   * @throws Error if test setup fails or current block is past auction start block
+   */
   async runFullTest(setupData: TestSetupData, interactionData: TestInteractionData): Promise<TestResult> {
     console.log(LOG_PREFIXES.TEST, "Running test:", setupData.name, "+", interactionData.name);
 
@@ -77,7 +67,7 @@ export class SingleTestRunner {
 
     if (currentBlock < auctionStartBlock) {
       const blocksToMine = auctionStartBlock - currentBlock;
-      await hre.ethers.provider.send("hardhat_mine", [`0x${blocksToMine.toString(16)}`]);
+      await hre.ethers.provider.send(METHODS.HARDHAT.MINE, [`0x${blocksToMine.toString(16)}`]);
       console.log(LOG_PREFIXES.INFO, "Mined", blocksToMine, "blocks to reach auction start block", auctionStartBlock);
     } else if (currentBlock > auctionStartBlock) {
       throw new Error(ERROR_MESSAGES.BLOCK_ALREADY_PAST_START(currentBlock, auctionStartBlock));
@@ -136,12 +126,16 @@ export class SingleTestRunner {
     };
   }
 
+  /**
+   * Handles initialization transactions for test setup.
+   * @param setupTransactions - Array of setup transactions to execute
+   */
   async handleInitializeTransactions(setupTransactions: TransactionInfo[]): Promise<void> {
-    const provider = hre.ethers.provider as any;
+    const provider = hre.ethers.provider;
 
     // Pause automine so all txs pile up
-    await provider.send("evm_setAutomine", [false]);
-    await provider.send("evm_setIntervalMining", [0]);
+    await provider.send(METHODS.EVM.SET_AUTOMINE, [false]);
+    await provider.send(METHODS.EVM.SET_INTERVAL_MINING, [0]);
 
     const nextNonce = new Map<string, number>();
 
@@ -154,7 +148,7 @@ export class SingleTestRunner {
       const defaultFrom = await (await hre.ethers.getSigners())[0].getAddress();
       const from = hre.ethers.getAddress(job.from ?? defaultFrom); // canonical
 
-      if (job.from) await provider.send("hardhat_impersonateAccount", [from]);
+      if (job.from) await provider.send(METHODS.HARDHAT.IMPERSONATE_ACCOUNT, [from]);
       const signer = await hre.ethers.getSigner(from);
 
       const n = nextNonce.has(from) ? nextNonce.get(from)! : await signer.getNonce("pending");
@@ -175,20 +169,25 @@ export class SingleTestRunner {
 
       await signer.sendTransaction(req); // enqueued; not mined
       nextNonce.set(from, n + 1);
-      if (job.from) await provider.send("hardhat_stopImpersonatingAccount", [from]);
+      if (job.from) await provider.send(METHODS.HARDHAT.STOP_IMPERSONATING_ACCOUNT, [from]);
     }
 
     // mine exactly one block
-    await provider.send("evm_mine", []);
+    await provider.send(METHODS.EVM.MINE, []);
 
-    await provider.send("evm_setAutomine", [true]);
+    await provider.send(METHODS.EVM.SET_AUTOMINE, [true]);
   }
 
   /**
-   * Execute all events (bids, actions, assertions) with integrated validation
-   * All events are collected and sorted by block to ensure proper chronological order
-   * Assertions are validated at their specific blocks during execution
-   * Multiple events in the same block are executed together
+   * Executes all events (bids, actions, assertions) with integrated validation.
+   * All events are collected and sorted by block to ensure proper chronological order.
+   * Assertions are validated at their specific blocks during execution.
+   * Multiple events in the same block are executed together.
+   * @param bidSimulator - The bid simulator instance
+   * @param assertionEngine - The assertion engine instance
+   * @param interactionData - Test interaction data containing bids, actions, and assertions
+   * @param remainingTransactions - Array of remaining transactions to execute
+   * @param createAuctionBlock - The block number when the auction was started
    */
   async executeWithAssertions(
     bidSimulator: BidSimulator,
@@ -292,7 +291,7 @@ export class SingleTestRunner {
         }
 
         if (blocksToMine > 0) {
-          await this.network.provider.send("hardhat_mine", [`0x${blocksToMine.toString(16)}`]);
+          await this.network.provider.send(METHODS.HARDHAT.MINE, [`0x${blocksToMine.toString(16)}`]);
         } else if (blocksToMine < 0) {
           console.log(LOG_PREFIXES.WARNING, "Block", blockNum, "is already mined. Current block:", currentBlock);
           throw new Error(ERROR_MESSAGES.BLOCK_ALREADY_MINED(blockNum));
@@ -308,7 +307,7 @@ export class SingleTestRunner {
             if (actionData.actionType === ActionType.TRANSFER_ACTION) {
               await bidSimulator.executeTransfers([actionData as TransferAction], accumulatedTransactions);
             } else if (actionData.actionType === ActionType.ADMIN_ACTION) {
-              await bidSimulator.executeAdminActions([[actionData]], accumulatedTransactions);
+              await bidSimulator.executeAdminActions([actionData as AdminAction], accumulatedTransactions);
             }
             break;
           case EventType.ASSERTION:
@@ -323,12 +322,16 @@ export class SingleTestRunner {
     }
   }
 
-  async handleTransactions(transactions: any[]): Promise<void> {
-    const provider = hre.network.provider as any;
+  /**
+   * Handles transaction execution with same-block support and revert validation.
+   * @param transactions - Array of transactions to execute
+   */
+  async handleTransactions(transactions: TransactionInfo[]): Promise<void> {
+    const provider = hre.network.provider;
 
     // Pause automining so txs pile up in the mempool
-    await provider.send("evm_setAutomine", [false]);
-    await provider.send("evm_setIntervalMining", [0]); // ensure no timer mines a block
+    await provider.send(METHODS.EVM.SET_AUTOMINE, [false]);
+    await provider.send(METHODS.EVM.SET_INTERVAL_MINING, [0]); // ensure no timer mines a block
 
     const pendingHashes: HashWithRevert[] = [];
     const nextNonce = new Map<string, number>();
@@ -337,17 +340,24 @@ export class SingleTestRunner {
       await this.submitTransactions(transactions, pendingHashes, nextNonce, provider);
 
       // Mine exactly one block containing all pending txs
-      await provider.send("evm_mine", []);
+      await provider.send(METHODS.EVM.MINE, []);
 
       await this.validateReceipts(pendingHashes);
     } finally {
       // Restore automining
-      await provider.send("evm_setAutomine", [true]);
+      await provider.send(METHODS.EVM.SET_AUTOMINE, [true]);
     }
   }
 
+  /**
+   * Submits transactions to the network and tracks them for validation.
+   * @param transactions - Array of transactions to submit
+   * @param pendingHashes - Array to track transaction hashes with revert information
+   * @param nextNonce - Map of addresses to their next nonce values
+   * @param provider - The network provider instance
+   */
   private async submitTransactions(
-    transactions: any[],
+    transactions: TransactionInfo[],
     pendingHashes: HashWithRevert[],
     nextNonce: Map<string, number>,
     provider: any,
@@ -358,7 +368,7 @@ export class SingleTestRunner {
 
       if (from) {
         console.log(LOG_PREFIXES.INFO, "From:", from);
-        await provider.send("hardhat_impersonateAccount", [from]);
+        await provider.send(METHODS.HARDHAT.IMPERSONATE_ACCOUNT, [from]);
       }
 
       const signer = await hre.ethers.getSigner(from);
@@ -389,11 +399,15 @@ export class SingleTestRunner {
         }
       }
 
-      if (from) await provider.send("hardhat_stopImpersonatingAccount", [from]);
+      if (from) await provider.send(METHODS.HARDHAT.STOP_IMPERSONATING_ACCOUNT, [from]);
       if (txInfo.msg) console.log(txInfo.msg);
     }
   }
 
+  /**
+   * Validates transaction receipts and checks for expected reverts.
+   * @param pendingHashes - Array of transaction hashes with expected revert information
+   */
   private async validateReceipts(pendingHashes: HashWithRevert[]): Promise<void> {
     // Collect receipts (all from the same block)
     const receipts = await Promise.all(pendingHashes.map((h) => hre.ethers.provider.getTransactionReceipt(h.hash)));
@@ -403,11 +417,13 @@ export class SingleTestRunner {
       if (receipt) {
         let decodedRevert: string = "transaction succeeded";
         if (pendingHash.expectRevert === "true" || pendingHash.expectRevert === "1") {
+          // Status 0 means revert
           if (receipt.status === 0) {
             console.log(LOG_PREFIXES.SUCCESS, `Expected revert caught: ${pendingHash.expectRevert}`);
             continue;
           }
         } else if (pendingHash.expectRevert) {
+          // Status 0 means revert
           if (receipt.status === 0) {
             decodedRevert = await this.decodeRevert(pendingHash.hash);
             if (decodedRevert.toLowerCase().includes(pendingHash.expectRevert.toLowerCase())) {
@@ -428,13 +444,17 @@ export class SingleTestRunner {
     }
   }
 
+  /**
+   * Builds an ethers.js Interface for decoding project-specific errors.
+   * @returns Interface containing all project error definitions
+   */
   async getProjectErrorInterface(): Promise<Interface> {
     if (this.cachedInterface) return this.cachedInterface;
 
     const fqns = await artifacts.getAllFullyQualifiedNames();
 
     // Collect JSON ABI items for all custom errors
-    const allErrorItems: any[] = [
+    const allErrorItems: string[] = [
       // Also include the built-ins as strings
       "error Error(string)",
       "error Panic(uint256)",
@@ -459,8 +479,13 @@ export class SingleTestRunner {
     return this.cachedInterface!;
   }
 
+  /**
+   * Decodes revert reason from a failed transaction.
+   * @param hash - The transaction hash to decode
+   * @returns The decoded revert reason
+   */
   private async decodeRevert(hash: string): Promise<string> {
-    const trace = await hre.network.provider.send("debug_traceTransaction", [
+    const trace = await hre.network.provider.send(METHODS.DEBUG.TRACE_TRANSACTION, [
       hash,
       { disableStorage: true, disableMemory: true, disableStack: false },
     ]);
@@ -477,8 +502,11 @@ export class SingleTestRunner {
     }
   }
 
+  /**
+   * Resets the blockchain and deploys Permit2 at the canonical address.
+   */
   private async resetChainWithPermit2(): Promise<void> {
-    await hre.network.provider.send("hardhat_reset");
+    await hre.network.provider.send(METHODS.HARDHAT.RESET);
     // Check if Permit2 is already deployed at the canonical address
     const code = await hre.ethers.provider.getCode(PERMIT2_ADDRESS);
 
@@ -486,6 +514,7 @@ export class SingleTestRunner {
       console.log(LOG_PREFIXES.INFO, "Deploying Permit2 at canonical address...");
 
       // Load the Permit2 artifact
+      // TODO: find a way to avoid require
       const permit2Artifact = require("../../../lib/permit2/out/Permit2.sol/Permit2.json");
 
       // Deploy Permit2 using the factory pattern first, then move to canonical address
@@ -498,9 +527,9 @@ export class SingleTestRunner {
 
       // Get the deployed bytecode
       const deployedCode = await hre.ethers.provider.getCode(permit2Address);
-      await hre.network.provider.send("hardhat_reset");
-      // Use hardhat_setCode to deploy at canonical address
-      await hre.network.provider.send("hardhat_setCode", [PERMIT2_ADDRESS, deployedCode]);
+      await hre.network.provider.send(METHODS.HARDHAT.RESET);
+      // Set code at canonical address
+      await hre.network.provider.send(METHODS.HARDHAT.SET_CODE, [PERMIT2_ADDRESS, deployedCode]);
 
       console.log(LOG_PREFIXES.SUCCESS, "Permit2 deployed at canonical address");
     } else {

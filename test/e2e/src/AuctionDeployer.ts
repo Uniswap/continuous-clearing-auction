@@ -237,7 +237,15 @@ export class AuctionDeployer {
   private calculateAuctionParameters(setupData: TestSetupData, currencyAddress: Address): AuctionConfig {
     const { auctionParameters, env } = setupData;
 
-    const startBlock = BigInt(env.startBlock) + BigInt(auctionParameters.startOffsetBlocks);
+    const startBlock = BigInt(env.startBlock) + BigInt(env.offsetBlocks ?? 0);
+
+    // Ensure auction start block is always greater than 1
+    if (startBlock <= 1n) {
+      throw new Error(
+        `Auction start block must be greater than 1. Calculated start block: ${startBlock.toString()}. Please increase env.startBlock or env.startOffsetBlocks.`,
+      );
+    }
+
     const endBlock = startBlock + BigInt(auctionParameters.auctionDurationBlocks);
     const claimBlock = endBlock + BigInt(auctionParameters.claimDelayBlocks);
 

@@ -42,7 +42,6 @@ export const advancedSetup: TestSetupData = {
     auctionedToken: "AdvancedToken",
     tokensRecipient: "0x3333333333333333333333333333333333333333" as Address,
     fundsRecipient: "0x4444444444444444444444444444444444444444" as Address,
-    startOffsetBlocks: 0,
     auctionDurationBlocks: 100, 
     claimDelayBlocks: 20,
     graduationThresholdMps: "2000",

@@ -32,7 +32,6 @@ export const erc20Setup: TestSetupData = {
     auctionedToken: "SimpleToken",
     tokensRecipient: "0x2222222222222222222222222222222222222222" as Address,
     fundsRecipient: "0x3333333333333333333333333333333333333333" as Address,
-    startOffsetBlocks: 0,
     auctionDurationBlocks: 50,
     claimDelayBlocks: 10,
     graduationThresholdMps: "1000",

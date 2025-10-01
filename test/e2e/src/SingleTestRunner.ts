@@ -63,7 +63,7 @@ export class SingleTestRunner {
 
     // Check current block and auction start block
     const currentBlock = await hre.ethers.provider.getBlockNumber();
-    const auctionStartBlock = parseInt(setupData.env.startBlock) + setupData.auctionParameters.startOffsetBlocks;
+    const auctionStartBlock = parseInt(setupData.env.startBlock) + (setupData.env.offsetBlocks ?? 0);
     console.log(LOG_PREFIXES.CONFIG, "Current block:", currentBlock, ", Auction start block:", auctionStartBlock);
 
     if (currentBlock < auctionStartBlock) {
@@ -106,6 +106,7 @@ export class SingleTestRunner {
       interactionData,
       setupTransactions,
       setupData.env.startBlock,
+      setupData.env.offsetBlocks ?? 0,
     );
 
     console.log(LOG_PREFIXES.SUCCESS, "Bids executed and assertions validated successfully");
@@ -196,6 +197,7 @@ export class SingleTestRunner {
     interactionData: TestInteractionData,
     remainingTransactions: TransactionInfo[],
     createAuctionBlock: string,
+    offsetBlocks: number,
   ): Promise<void> {
     // Collect all events (bids, actions, assertions) and sort by block
     const allEvents: EventData[] = [];
@@ -205,7 +207,7 @@ export class SingleTestRunner {
     allBids.forEach((bid) => {
       allEvents.push({
         type: EventType.BID,
-        atBlock: bid.bidData.atBlock,
+        atBlock: bid.bidData.atBlock + offsetBlocks,
         data: bid,
       });
     });
@@ -217,7 +219,7 @@ export class SingleTestRunner {
           interactionGroup.forEach((interaction: AdminAction | TransferAction) => {
             allEvents.push({
               type: EventType.ACTION,
-              atBlock: interaction.atBlock,
+              atBlock: interaction.atBlock + offsetBlocks,
               data: { actionType: action.type, ...interaction },
             });
           });
@@ -230,7 +232,7 @@ export class SingleTestRunner {
       interactionData.assertions.forEach((checkpoint) => {
         allEvents.push({
           type: EventType.ASSERTION,
-          atBlock: checkpoint.atBlock,
+          atBlock: checkpoint.atBlock + offsetBlocks,
           data: checkpoint,
         });
       });

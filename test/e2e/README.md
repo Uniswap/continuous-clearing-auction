@@ -238,7 +238,7 @@ import { TestSetupData, Address } from '../schemas/TestSetupSchema';
 export const simpleSetup: TestSetupData = {
   env: {
     chainId: 31337,
-    startBlock: "1",
+    startBlock: "2",
     balances: [
       {
         address: "0x1111111111111111111111111111111111111111" as Address,
@@ -252,7 +252,6 @@ export const simpleSetup: TestSetupData = {
     auctionedToken: "SimpleToken",
     tokensRecipient: "0x2222222222222222222222222222222222222222" as Address,
     fundsRecipient: "0x3333333333333333333333333333333333333333" as Address,
-    startOffsetBlocks: 0,
     auctionDurationBlocks: 50,
     claimDelayBlocks: 10,
     graduationThresholdMps: "1000",

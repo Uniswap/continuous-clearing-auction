@@ -17,6 +17,7 @@ export interface BalanceItem {
 export interface Environment {
   chainId?: ChainId | 31337; // 31337 is local Hardhat network
   startBlock: string;
+  offsetBlocks?: number;
   blockTimeSec?: number;
   blockGasLimit?: string;
   txGasLimit?: string;
@@ -30,7 +31,6 @@ export interface AuctionParameters {
   auctionedToken: Address | string;
   tokensRecipient: Address;
   fundsRecipient: Address;
-  startOffsetBlocks: number;
   auctionDurationBlocks: number;
   claimDelayBlocks: number;
   graduationThresholdMps: string;

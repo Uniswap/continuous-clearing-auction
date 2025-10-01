@@ -447,12 +447,22 @@ contract AuctionTest is AuctionBaseTest {
             tickNumberToPriceX96(1),
             bytes('')
         );
+
+        vm.expectRevert(IAuction.InvalidBidPrice.selector);
+        auction.submitBid{value: inputAmountForTokens(10e18, tickNumberToPriceX96(1))}(
+            tickNumberToPriceX96(1), true, inputAmountForTokens(10e18, tickNumberToPriceX96(1)), alice, bytes('')
+        );
     }
 
     function test_submitBid_exactOut_atFloorPrice_reverts() public {
         vm.expectRevert(IAuction.InvalidBidPrice.selector);
         auction.submitBid{value: inputAmountForTokens(10e18, tickNumberToPriceX96(1))}(
             tickNumberToPriceX96(1), false, 10e18, alice, tickNumberToPriceX96(1), bytes('')
+        );
+
+        vm.expectRevert(IAuction.InvalidBidPrice.selector);
+        auction.submitBid{value: inputAmountForTokens(10e18, tickNumberToPriceX96(1))}(
+            tickNumberToPriceX96(1), false, 10e18, alice, bytes('')
         );
     }
 
@@ -462,11 +472,17 @@ contract AuctionTest is AuctionBaseTest {
         auction.submitBid{value: 2000e18}(
             tickNumberToPriceX96(2), true, 1000e18, alice, tickNumberToPriceX96(1), bytes('')
         );
+
+        vm.expectRevert(IAuction.InvalidAmount.selector);
+        auction.submitBid{value: 2000e18}(tickNumberToPriceX96(2), true, 1000e18, alice, bytes(''));
     }
 
     function test_submitBid_exactInZeroMsgValue_revertsWithInvalidAmount() public {
         vm.expectRevert(IAuction.InvalidAmount.selector);
         auction.submitBid{value: 0}(tickNumberToPriceX96(2), true, 1000e18, alice, tickNumberToPriceX96(1), bytes(''));
+
+        vm.expectRevert(IAuction.InvalidAmount.selector);
+        auction.submitBid{value: 0}(tickNumberToPriceX96(2), true, 1000e18, alice, bytes(''));
     }
 
     function test_submitBid_exactOutMsgValue_revertsWithInvalidAmount() public {
@@ -475,22 +491,36 @@ contract AuctionTest is AuctionBaseTest {
         auction.submitBid{value: 1000e18}(
             tickNumberToPriceX96(2), false, 1000e18, alice, tickNumberToPriceX96(1), bytes('')
         );
+
+        vm.expectRevert(IAuction.InvalidAmount.selector);
+        auction.submitBid{value: 1000e18}(tickNumberToPriceX96(2), false, 1000e18, alice, bytes(''));
     }
 
     function test_submitBid_exactInZeroAmount_revertsWithInvalidAmount() public {
         vm.expectRevert(IAuction.InvalidAmount.selector);
         auction.submitBid{value: 1000e18}(tickNumberToPriceX96(2), true, 0, alice, tickNumberToPriceX96(1), bytes(''));
+
+        vm.expectRevert(IAuction.InvalidAmount.selector);
+        auction.submitBid{value: 1000e18}(tickNumberToPriceX96(2), true, 0, alice, bytes(''));
     }
 
     function test_submitBid_exactOutZeroAmount_revertsWithInvalidAmount() public {
         vm.expectRevert(IAuction.InvalidAmount.selector);
         auction.submitBid{value: 1000e18}(tickNumberToPriceX96(2), false, 0, alice, tickNumberToPriceX96(1), bytes(''));
+
+        vm.expectRevert(IAuction.InvalidAmount.selector);
+        auction.submitBid{value: 1000e18}(tickNumberToPriceX96(2), false, 0, alice, bytes(''));
     }
 
     function test_submitBid_endBlock_reverts() public {
         vm.roll(auction.endBlock());
         vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
-        auction.submitBid{value: 1000e18}(tickNumberToPriceX96(2), true, 1000e18, alice, 1, bytes(''));
+        auction.submitBid{value: 1000e18}(
+            tickNumberToPriceX96(2), true, 1000e18, alice, tickNumberToPriceX96(1), bytes('')
+        );
+
+        vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
+        auction.submitBid{value: 1000e18}(tickNumberToPriceX96(2), true, 1000e18, alice, bytes(''));
     }
 
     /// forge-config: default.isolate = true

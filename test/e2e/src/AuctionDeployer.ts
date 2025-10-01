@@ -13,6 +13,7 @@ import {
   ERROR_MESSAGES,
   LOG_PREFIXES,
   METHODS,
+  PENDING_STATE,
 } from "./constants";
 import { AuctionContract, TokenContract, AuctionFactoryContract, AuctionConfig } from "./types";
 import hre from "hardhat";
@@ -102,7 +103,7 @@ export class AuctionDeployer {
     const defaultFrom = await (await hre.ethers.getSigners())[0].getAddress();
     const from = hre.ethers.getAddress(defaultFrom);
     const signer = await hre.ethers.getSigner(from);
-    const nonce = await signer.getNonce("pending");
+    const nonce = await signer.getNonce(PENDING_STATE);
     const predicted = hre.ethers.getCreateAddress({ from, nonce: nonce + increment });
     const tx = await mockToken.getDeployTransaction(tokenConfig.name, symbol, decimals, totalSupply);
     setupTransactions.push({
@@ -165,7 +166,7 @@ export class AuctionDeployer {
     const defaultFrom = await (await hre.ethers.getSigners())[0].getAddress();
     const from = hre.ethers.getAddress(defaultFrom);
     const signer = await hre.ethers.getSigner(from);
-    const nonce = await signer.getNonce("pending");
+    const nonce = await signer.getNonce(PENDING_STATE);
     const predicted = hre.ethers.getCreateAddress({ from, nonce: nonce + increment });
     const tx = await AuctionFactory.getDeployTransaction();
     setupTransactions.push({

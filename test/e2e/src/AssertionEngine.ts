@@ -11,7 +11,7 @@ import {
 import { Contract } from "ethers";
 import { TokenContract } from "./types";
 import { AuctionDeployer } from "./AuctionDeployer";
-import { ZERO_ADDRESS, LOG_PREFIXES, ERROR_MESSAGES, NATIVE_TYPES, TYPE_FIELD } from "./constants";
+import { ZERO_ADDRESS, LOG_PREFIXES, ERROR_MESSAGES, TYPES, TYPE_FIELD } from "./constants";
 import { CheckpointStruct } from "../../../typechain-types/out/Auction";
 import { resolveTokenAddress } from "./Utils";
 import hre from "hardhat";
@@ -111,7 +111,7 @@ export class AssertionEngine {
    * @throws Error if expected is an invalid object structure
    */
   private validateEquality(expected: any, actual: any): boolean {
-    if (expected && typeof expected === NATIVE_TYPES.OBJECT) {
+    if (expected && typeof expected === TYPES.OBJECT) {
       let keys = Object.keys(expected);
       if (keys.length !== 2 || !keys.includes("amount") || !keys.includes("variation")) {
         throw new Error(ERROR_MESSAGES.CANNOT_VALIDATE_EQUALITY);

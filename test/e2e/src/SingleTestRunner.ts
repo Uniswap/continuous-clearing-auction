@@ -12,7 +12,7 @@ import { BidSimulator, InternalBidData } from "./BidSimulator";
 import { AssertionEngine, AuctionState } from "./AssertionEngine";
 import { Contract, Interface } from "ethers";
 import { Network } from "hardhat/types";
-import { PERMIT2_ADDRESS, LOG_PREFIXES, ERROR_MESSAGES, METHODS } from "./constants";
+import { PERMIT2_ADDRESS, LOG_PREFIXES, ERROR_MESSAGES, METHODS, TYPES, PENDING_STATE } from "./constants";
 import { artifacts } from "hardhat";
 import { EventData, HashWithRevert, TransactionInfo, EventType, ActionData } from "./types";
 import { TransactionRequest } from "ethers";
@@ -151,7 +151,7 @@ export class SingleTestRunner {
       if (job.from) await provider.send(METHODS.HARDHAT.IMPERSONATE_ACCOUNT, [from]);
       const signer = await hre.ethers.getSigner(from);
 
-      const n = nextNonce.has(from) ? nextNonce.get(from)! : await signer.getNonce("pending");
+      const n = nextNonce.has(from) ? nextNonce.get(from)! : await signer.getNonce(PENDING_STATE);
 
       // base request + fees (don’t rely on global defaults)
       let req: TransactionRequest = {
@@ -377,7 +377,7 @@ export class SingleTestRunner {
       const signer = await hre.ethers.getSigner(from);
 
       // maintain nonce continuity per sender (using "pending" base)
-      const n = nextNonce.has(from) ? nextNonce.get(from)! : await signer.getNonce("pending");
+      const n = nextNonce.has(from) ? nextNonce.get(from)! : await signer.getNonce(PENDING_STATE);
       const req = { ...txInfo.tx, nonce: n };
       try {
         const resp = await signer.sendTransaction(req); // just enqueues; not mined
@@ -468,7 +468,7 @@ export class SingleTestRunner {
     for (const fqn of fqns) {
       const art = await artifacts.readArtifact(fqn);
       for (const item of art.abi) {
-        if (item.type === "error") {
+        if (item.type === TYPES.ERROR) {
           // Build a signature to dedupe
           const sig = `${item.name}(` + (item.inputs ?? []).map((i: any) => i.type).join(",") + `)`;
           if (seen.has(sig)) continue;

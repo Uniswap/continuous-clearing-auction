@@ -23,6 +23,8 @@ import {SupplyLib, SupplyRolloverMultiplier} from './libraries/SupplyLib.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
+
+import {console} from 'forge-std/console.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
@@ -441,6 +443,9 @@ contract Auction is
             bid.exitedBlock = uint64(block.number);
             _updateBid(bidId, bid);
         }
+
+        console.log('tokensFilled', tokensFilled);
+        console.log('refund', refund);
 
         if (refund > 0) {
             CURRENCY.transfer(_owner, refund);

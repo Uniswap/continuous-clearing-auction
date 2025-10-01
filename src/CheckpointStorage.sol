@@ -9,6 +9,8 @@ import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
+
+import {console} from 'forge-std/console.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @title CheckpointStorage
@@ -122,16 +124,22 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         pure
         returns (uint256 tokensFilled, uint256 currencySpent)
     {
-        uint24 mpsRemainingInAuction = bid.mpsRemainingInAuction();
-        tokensFilled = bid.exactIn
-            ? bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsRemainingInAuction)
-            : bid.amount.fullMulDiv(cumulativeMpsDelta, mpsRemainingInAuction);
-        // If tokensFilled is 0 then currencySpent must be 0
-        if (tokensFilled != 0) {
-            currencySpent = bid.exactIn
-                ? bid.amount.fullMulDivUp(cumulativeMpsDelta, mpsRemainingInAuction)
-                : tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPriceDelta);
-        }
+        uint24 mpsRemainingInAuction = bid.mpsRemainingInAuctionAfterSubmission();
+        // Defer the division of `mpsRemainingInAuction` to the end to prevent intermediate overflow
+        uint256 tempTokensFilled = bid.exactIn
+            ? bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96)
+            : bid.amount * cumulativeMpsDelta;
+        // Integer division to get the actual tokens filled
+        console.log('bid.amount', bid.amount);
+        console.log('cumulativeMpsPerPriceDelta', cumulativeMpsPerPriceDelta);
+        console.log('FixedPoint96.Q96', FixedPoint96.Q96);
+        console.log('tempTokensFilled', tempTokensFilled);
+        console.log('mpsRemainingInAuction', mpsRemainingInAuction);
+        tokensFilled = tempTokensFilled / mpsRemainingInAuction;
+
+        currencySpent = bid.exactIn
+            ? bid.amount.fullMulDivUp(cumulativeMpsDelta, mpsRemainingInAuction)
+            : tempTokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPriceDelta * mpsRemainingInAuction);
     }
 
     /// @inheritdoc ICheckpointStorage

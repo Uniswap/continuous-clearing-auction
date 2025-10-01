@@ -67,6 +67,25 @@ contract AuctionTest is AuctionBaseTest {
         newAuction.checkpoint();
     }
 
+    function test_submitBid_smallBidLessThanMpsRemainingInAuctionAfterSubmission_purchasesNoTokens(
+        uint256 smallBidAmount
+    ) public {
+        vm.assume(smallBidAmount < MPSLib.MPS);
+        // Submit a small bid, one that is less than the mpsRemainingInAuctionAfterSubmission (1e7)
+        auction.submitBid{value: smallBidAmount}(tickNumberToPriceX96(2), true, smallBidAmount, alice, bytes(''));
+
+        vm.roll(auction.endBlock());
+
+        address fundsRecipient = auction.fundsRecipient();
+        vm.expectEmit(true, true, true, true);
+        emit ITokenCurrencyStorage.CurrencySwept(fundsRecipient, smallBidAmount);
+        auction.sweepCurrency();
+        vm.expectEmit(true, true, true, true);
+        // Expect no tokens filled since 100 is < bid.mpsRemainingInAuctionAfterSubmission (1e7)
+        emit IAuction.BidExited(0, alice, 0, 0);
+        auction.exitBid(0);
+    }
+
     /// forge-config: default.isolate = true
     /// forge-config: ci.isolate = true
     function test_submitBid_exactIn_succeeds_gas() public {

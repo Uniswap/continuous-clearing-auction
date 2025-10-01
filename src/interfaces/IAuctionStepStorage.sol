@@ -25,6 +25,10 @@ interface IAuctionStepStorage {
     /// @return The ending block number
     function endBlock() external view returns (uint64);
 
+    /// @notice The address pointer to the contract deployed by SSTORE2
+    /// @return The address pointer
+    function pointer() external view returns (address);
+
     /// @notice Get the current active auction step
     function step() external view returns (AuctionStep memory);
 

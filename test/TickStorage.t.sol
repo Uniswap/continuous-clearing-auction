@@ -28,6 +28,10 @@ contract MockTickStorage is TickStorage {
     }
 }
 
+// Fuzzer has a tendency to assume too many values and I think 5000 is enough to test
+// the tick storage logic
+/// forge-config: default.fuzz.runs = 5000
+/// forge-config: ci.fuzz.runs = 5000
 contract TickStorageTest is Test, Assertions {
     uint256 $floorPrice_rounded;
     uint256 $tickSpacing;
@@ -39,6 +43,7 @@ contract TickStorageTest is Test, Assertions {
         vm.assume(_tickSpacing > 0);
         $floorPrice_rounded = helper__roundPriceDownToTickSpacing(_floorPrice, $tickSpacing);
         vm.assume($floorPrice_rounded > 0);
+        vm.assume($floorPrice_rounded < type(uint256).max - $tickSpacing);
         _;
     }
 
@@ -50,9 +55,20 @@ contract TickStorageTest is Test, Assertions {
         return _price - (_price % _tickSpacing);
     }
 
+    function helper__roundPriceUpToTickSpacing(uint256 _price, uint256 _tickSpacing) internal pure returns (uint256) {
+        return _price + (_tickSpacing - (_price % _tickSpacing));
+    }
+
     function helper__assumeValidPrice(uint256 _price) internal returns (uint256) {
+        _price = _bound(
+            _price,
+            helper__roundPriceUpToTickSpacing($floorPrice_rounded, $tickSpacing),
+            helper__roundPriceDownToTickSpacing(tickStorage.MAX_TICK_PRICE(), $tickSpacing)
+        );
         _price = helper__roundPriceDownToTickSpacing(_price, $tickSpacing);
-        vm.assume(_price % $tickSpacing == 0 && _price > $floorPrice_rounded && _price != tickStorage.MAX_TICK_PRICE());
+        vm.assume(_price % $tickSpacing == 0);
+        vm.assume(_price > $floorPrice_rounded);
+        vm.assume(_price < tickStorage.MAX_TICK_PRICE());
         return _price;
     }
 
@@ -168,6 +184,8 @@ contract TickStorageTest is Test, Assertions {
         assertEq(tickStorage.nextActiveTickPrice(), type(uint256).max);
 
         // Initializing a tick above the highest tick in the book should set nextActiveTickPrice to the new tick
+        vm.expectEmit(true, true, true, true);
+        emit ITickStorage.NextActiveTickUpdated(_price);
         tickStorage.initializeTickIfNeeded($floorPrice_rounded, _price);
         assertEq(tickStorage.nextActiveTickPrice(), _price);
     }

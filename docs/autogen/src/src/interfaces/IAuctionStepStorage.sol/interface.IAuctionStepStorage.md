@@ -1,5 +1,5 @@
 # IAuctionStepStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/6199a07349a5d22f79f49db95ea478090bd8c68d/src/interfaces/IAuctionStepStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/f53d7155325c22ef28d878c4d9443735141b48d7/src/interfaces/IAuctionStepStorage.sol)
 
 Interface for managing auction step storage
 
@@ -33,6 +33,21 @@ function endBlock() external view returns (uint64);
 |Name|Type|Description|
 |----|----|-----------|
 |`<none>`|`uint64`|The ending block number|
+
+
+### pointer
+
+The address pointer to the contract deployed by SSTORE2
+
+
+```solidity
+function pointer() external view returns (address);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`address`|The address pointer|
 
 
 ### step

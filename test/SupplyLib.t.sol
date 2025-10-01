@@ -146,8 +146,8 @@ contract SupplyLibTest is Test {
     }
 
     function testFuzz_remainingSupplyDoesNotOverflow(uint24 mps, uint256 supply1, uint256 supply2) public view {
-        vm.assume(supply1 <= SupplyLib.MAX_REMAINING_SUPPLY);
-        vm.assume(supply2 <= SupplyLib.MAX_REMAINING_SUPPLY);
+        supply1 = _bound(supply1, 0, SupplyLib.MAX_REMAINING_SUPPLY);
+        supply2 = _bound(supply2, 0, SupplyLib.MAX_REMAINING_SUPPLY);
         vm.assume(supply1 < supply2);
 
         // Pack with same set flag and mps, different supplies

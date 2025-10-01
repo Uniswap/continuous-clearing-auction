@@ -3,7 +3,7 @@ import * as path from "path";
 import { TestSetupData } from "../schemas/TestSetupSchema";
 import { TestInteractionData } from "../schemas/TestInteractionSchema";
 import { register } from "ts-node";
-import { ERROR_MESSAGES } from "./constants";
+import { ERROR_MESSAGES, SETUP } from "./constants";
 
 export interface TestInstance {
   filename: string;
@@ -45,7 +45,7 @@ export class SchemaValidator {
   private loadTypeScriptInstance(type: "setup" | "interaction", filename: string): TestSetupData | TestInteractionData {
     let modulePath: string;
     try {
-      if (type === "setup") {
+      if (type === SETUP) {
         // Use ts-node to load TypeScript files directly
         modulePath = path.join(__dirname, `../instances/setup/${filename}.ts`);
       } else {

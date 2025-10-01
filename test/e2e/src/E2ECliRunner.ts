@@ -4,7 +4,7 @@ import { MultiTestRunner, CombinationResult } from "./MultiTestRunner";
 import { TestInstance } from "./SchemaValidator";
 import { TestSetupData } from "../schemas/TestSetupSchema";
 import { TestInteractionData } from "../schemas/TestInteractionSchema";
-import { LOG_PREFIXES, ERROR_MESSAGES } from "./constants";
+import { LOG_PREFIXES, ERROR_MESSAGES, SETUP, INTERACTION } from "./constants";
 
 // Import the actual TypeScript instances
 import { simpleSetup } from "../instances/setup/SimpleSetup";
@@ -43,8 +43,8 @@ class E2ECliRunner {
    * @returns Object containing arrays of available setup and interaction files
    */
   getAvailableFiles(): AvailableFiles {
-    const setupInstances = this.runner["singleTestRunner"]["schemaValidator"].getAllTestInstances("setup");
-    const interactionInstances = this.runner["singleTestRunner"]["schemaValidator"].getAllTestInstances("interaction");
+    const setupInstances = this.runner["singleTestRunner"]["schemaValidator"].getAllTestInstances(SETUP);
+    const interactionInstances = this.runner["singleTestRunner"]["schemaValidator"].getAllTestInstances(INTERACTION);
 
     return {
       setup: setupInstances.map((instance: TestInstance) => instance.filename),
@@ -109,8 +109,8 @@ async function loadCombinationsFromArgs(): Promise<CombinationToRun[]> {
     const interactionFile = args[i + 1];
 
     try {
-      const setupData = loadInstanceFromFile(setupFile, "setup");
-      const interactionData = loadInstanceFromFile(interactionFile, "interaction");
+      const setupData = loadInstanceFromFile(setupFile, SETUP);
+      const interactionData = loadInstanceFromFile(interactionFile, INTERACTION);
 
       combinations.push({
         setup: setupData,

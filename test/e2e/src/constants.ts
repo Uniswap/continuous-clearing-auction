@@ -123,3 +123,5 @@ export const METHODS = {
 
 export const TYPE_FIELD = "type";
 export const PENDING_STATE = "pending";
+export const SETUP = "setup";
+export const INTERACTION = "interaction";

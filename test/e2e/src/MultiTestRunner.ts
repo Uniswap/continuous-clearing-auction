@@ -2,7 +2,7 @@ import { SingleTestRunner, TestResult } from "./SingleTestRunner";
 import { TestInstance } from "./SchemaValidator";
 import { TestSetupData } from "../schemas/TestSetupSchema";
 import { TestInteractionData } from "../schemas/TestInteractionSchema";
-import { LOG_PREFIXES } from "./constants";
+import { INTERACTION, LOG_PREFIXES, SETUP } from "./constants";
 
 export interface CombinationResult {
   success: boolean;
@@ -88,8 +88,8 @@ export class MultiTestRunner {
    * @returns Object containing arrays of available setup and interaction files
    */
   getAvailableFiles(): AvailableFiles {
-    const setupFiles = this.singleTestRunner["schemaValidator"].getAllTestInstances("setup");
-    const interactionFiles = this.singleTestRunner["schemaValidator"].getAllTestInstances("interaction");
+    const setupFiles = this.singleTestRunner["schemaValidator"].getAllTestInstances(SETUP);
+    const interactionFiles = this.singleTestRunner["schemaValidator"].getAllTestInstances(INTERACTION);
 
     return {
       setup: setupFiles.map((f: TestInstance) => f.filename),

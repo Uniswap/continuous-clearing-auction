@@ -23,6 +23,8 @@ import {SupplyLib, SupplyRolloverMultiplier} from './libraries/SupplyLib.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
+
+import {console} from 'forge-std/console.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
@@ -325,11 +327,11 @@ contract Auction is
          *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps) >= TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
          */
         while (
-            sumDemandAboveClearing_.resolveRoundingUp(nextActiveTickPrice_).mulUint256(_REMAINING_MPS_IN_AUCTION).upcast(
-            )
-                // Round up for demand here to bias towards finding a higher price
-                // This ensures that demand is never greater than supply, and in the case of rounding, we simply sell less tokens
-                .gte(_REMAINING_SUPPLY_X7_X7)
+            nextActiveTickPrice_ != type(uint256).max
+                && sumDemandAboveClearing_.mulUint256(_REMAINING_MPS_IN_AUCTION).mulUint256(FixedPoint96.Q96).upcast()
+                    // Round up for demand here to bias towards finding a higher price
+                    // This ensures that demand is never greater than supply, and in the case of rounding, we simply sell less tokens
+                    .gte(_REMAINING_SUPPLY_X7_X7.mulUint256(nextActiveTickPrice_))
         ) {
             // Subtract the demand at the current nextActiveTick from the total demand
             sumDemandAboveClearing_ = sumDemandAboveClearing_.sub(nextActiveTick.demand);
@@ -460,7 +462,7 @@ contract Auction is
     {
         // Bids cannot be submitted at the endBlock or after
         if (block.number >= END_BLOCK) revert AuctionIsOver();
-        uint256 requiredCurrencyAmount = BidLib.inputAmount(amount, maxPrice);
+        uint256 requiredCurrencyAmount = amount;
         if (requiredCurrencyAmount == 0) revert InvalidAmount();
         if (CURRENCY.isAddressZero()) {
             if (msg.value != requiredCurrencyAmount) revert InvalidAmount();
@@ -490,7 +492,7 @@ contract Auction is
         Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
         if (!_isGraduated(finalCheckpoint)) {
             // In the case that the auction did not graduate, fully refund the bid
-            return _processExit(bidId, bid, 0, bid.inputAmount());
+            return _processExit(bidId, bid, 0, bid.amount);
         }
 
         if (bid.maxPrice <= finalCheckpoint.clearingPrice) revert CannotExitBid();
@@ -498,7 +500,7 @@ contract Auction is
         (uint256 tokensFilled, uint256 currencySpent) =
             _accountFullyFilledCheckpoints(finalCheckpoint, _getCheckpoint(bid.startBlock), bid);
 
-        _processExit(bidId, bid, tokensFilled, bid.inputAmount() - currencySpent);
+        _processExit(bidId, bid, tokensFilled, bid.amount - currencySpent);
     }
 
     /// @inheritdoc IAuction
@@ -594,7 +596,7 @@ contract Auction is
             currencySpent += partialCurrencySpent;
         }
 
-        _processExit(bidId, bid, tokensFilled, bid.inputAmount() - currencySpent);
+        _processExit(bidId, bid, tokensFilled, bid.amount - currencySpent);
     }
 
     /// @inheritdoc IAuction

@@ -41,19 +41,4 @@ library BidLib {
         bidAmountOverRemainingAuctionX7 =
             bid.amount.scaleUpToX7().mulUint256(MPSLib.MPS).divUint256(bid.mpsRemainingInAuction());
     }
-
-    /// @notice Calculate the input amount required for an amount and maxPrice
-    /// @param amount The amount of the bid
-    /// @param maxPrice The max price of the bid
-    /// @return The input amount required for an amount and maxPrice
-    function inputAmount(uint256 amount, uint256 maxPrice) internal pure returns (uint256) {
-        return amount;
-    }
-
-    /// @notice Calculate the input amount required to place the bid
-    /// @param bid The bid
-    /// @return The input amount required to place the bid
-    function inputAmount(Bid memory bid) internal pure returns (uint256) {
-        return inputAmount(bid.amount, bid.maxPrice);
-    }
 }

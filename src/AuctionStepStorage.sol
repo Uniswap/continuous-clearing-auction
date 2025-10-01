@@ -91,12 +91,17 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
 
     // Getters
     /// @inheritdoc IAuctionStepStorage
-    function startBlock() external view returns (uint64) {
+    function startBlock() external view override(IAuctionStepStorage) returns (uint64) {
         return START_BLOCK;
     }
 
     /// @inheritdoc IAuctionStepStorage
-    function endBlock() external view returns (uint64) {
+    function endBlock() external view override(IAuctionStepStorage) returns (uint64) {
         return END_BLOCK;
+    }
+
+    /// @inheritdoc IAuctionStepStorage
+    function pointer() external view override(IAuctionStepStorage) returns (address) {
+        return $_pointer;
     }
 }

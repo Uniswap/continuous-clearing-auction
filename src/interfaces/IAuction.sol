@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
 
-import {Demand} from '../libraries/DemandLib.sol';
 import {ValueX7} from '../libraries/ValueX7Lib.sol';
 import {ValueX7X7} from '../libraries/ValueX7X7Lib.sol';
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
@@ -83,9 +82,8 @@ interface IAuction is
     /// @param id The id of the bid
     /// @param owner The owner of the bid
     /// @param price The price of the bid
-    /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
-    event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, bool exactIn, uint256 amount);
+    event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, uint256 amount);
 
     /// @notice Emitted when a new checkpoint is created
     /// @param blockNumber The block number of the checkpoint
@@ -111,31 +109,25 @@ interface IAuction is
 
     /// @notice Submit a new bid
     /// @param maxPrice The maximum price the bidder is willing to pay
-    /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
     /// @param owner The owner of the bid
     /// @param prevTickPrice The price of the previous tick
     /// @param hookData Additional data to pass to the hook required for validation
     /// @return bidId The id of the bid
-    function submitBid(
-        uint256 maxPrice,
-        bool exactIn,
-        uint256 amount,
-        address owner,
-        uint256 prevTickPrice,
-        bytes calldata hookData
-    ) external payable returns (uint256 bidId);
+    function submitBid(uint256 maxPrice, uint256 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
+        external
+        payable
+        returns (uint256 bidId);
 
     /// @notice Submit a new bid without specifying the previous tick price
     /// @dev It is NOT recommended to use this function unless you are sure that `maxPrice` is already initialized
     ///      as this function will iterate through every tick starting from the floor price if it is not.
     /// @param maxPrice The maximum price the bidder is willing to pay
-    /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
     /// @param owner The owner of the bid
     /// @param hookData Additional data to pass to the hook required for validation
     /// @return bidId The id of the bid
-    function submitBid(uint256 maxPrice, bool exactIn, uint256 amount, address owner, bytes calldata hookData)
+    function submitBid(uint256 maxPrice, uint256 amount, address owner, bytes calldata hookData)
         external
         payable
         returns (uint256 bidId);
@@ -184,5 +176,5 @@ interface IAuction is
     function sweepUnsoldTokens() external;
 
     /// @notice The sum of demand in ticks above the clearing price
-    function sumDemandAboveClearing() external view returns (Demand memory);
+    function sumDemandAboveClearing() external view returns (ValueX7);
 }

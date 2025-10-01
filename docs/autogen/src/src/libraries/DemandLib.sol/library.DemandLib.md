@@ -1,7 +1,7 @@
 # DemandLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4e79543472823ca4f19066f04f5392aba6563627/src/libraries/DemandLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/7481976d9a045c9df236ecc1331ce832ed4d18a0/src/libraries/DemandLib.sol)
 
-Library for demand calculations and operations
+Library for helper functions related to demand resolution
 
 
 ## Functions
@@ -14,13 +14,13 @@ We only round up when we compare demand to supply so we never find a price that 
 
 
 ```solidity
-function resolveRoundingUp(Demand memory _demand, uint256 price) internal pure returns (ValueX7);
+function resolveRoundingUp(ValueX7 currencyDemandX7, uint256 price) internal pure returns (ValueX7);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`_demand`|`Demand`|The demand to resolve|
+|`currencyDemandX7`|`ValueX7`|The demand to resolve|
 |`price`|`uint256`|The price to resolve the demand at|
 
 **Returns**
@@ -39,13 +39,13 @@ We always round demand down in all other cases (calculating supply sold to a pri
 
 
 ```solidity
-function resolveRoundingDown(Demand memory _demand, uint256 price) internal pure returns (ValueX7);
+function resolveRoundingDown(ValueX7 currencyDemandX7, uint256 price) internal pure returns (ValueX7);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`_demand`|`Demand`|The demand to resolve|
+|`currencyDemandX7`|`ValueX7`|The demand to resolve|
 |`price`|`uint256`|The price to resolve the demand at|
 
 **Returns**
@@ -54,39 +54,4 @@ function resolveRoundingDown(Demand memory _demand, uint256 price) internal pure
 |----|----|-----------|
 |`<none>`|`ValueX7`|The resolved demand as a ValueX7|
 
-
-### _resolveCurrencyDemandRoundingUp
-
-
-```solidity
-function _resolveCurrencyDemandRoundingUp(ValueX7 amount, uint256 price) private pure returns (ValueX7);
-```
-
-### _resolveCurrencyDemandRoundingDown
-
-
-```solidity
-function _resolveCurrencyDemandRoundingDown(ValueX7 amount, uint256 price) private pure returns (ValueX7);
-```
-
-### add
-
-
-```solidity
-function add(Demand memory _demand, Demand memory _other) internal pure returns (Demand memory);
-```
-
-### sub
-
-
-```solidity
-function sub(Demand memory _demand, Demand memory _other) internal pure returns (Demand memory);
-```
-
-### mulUint256
-
-
-```solidity
-function mulUint256(Demand memory _demand, uint256 value) internal pure returns (Demand memory);
-```
 

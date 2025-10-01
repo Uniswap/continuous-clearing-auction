@@ -1,5 +1,5 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4e79543472823ca4f19066f04f5392aba6563627/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/7481976d9a045c9df236ecc1331ce832ed4d18a0/src/TickStorage.sol)
 
 **Inherits:**
 [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
@@ -113,14 +113,14 @@ Internal function to add demand to a tick
 
 
 ```solidity
-function _updateTickDemand(uint256 price, Demand memory demand) internal;
+function _updateTickDemand(uint256 price, ValueX7 currencyDemandX7) internal;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`price`|`uint256`|The price of the tick|
-|`demand`|`Demand`|The demand to add|
+|`currencyDemandX7`|`ValueX7`|The demand to add|
 
 
 ### floorPrice

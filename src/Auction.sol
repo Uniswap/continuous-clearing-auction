@@ -15,7 +15,7 @@ import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
-import {Demand, DemandLib} from './libraries/DemandLib.sol';
+import {DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {MPSLib} from './libraries/MPSLib.sol';
 
@@ -47,7 +47,7 @@ contract Auction is
     using BidLib for *;
     using AuctionStepLib for *;
     using CheckpointLib for Checkpoint;
-    using DemandLib for Demand;
+    using DemandLib for ValueX7;
     using SafeCastLib for uint256;
     using ValidationHookLib for IValidationHook;
     using ValueX7Lib for *;
@@ -60,7 +60,7 @@ contract Auction is
     IValidationHook internal immutable VALIDATION_HOOK;
 
     /// @notice The sum of demand in ticks above the clearing price
-    Demand internal $sumDemandAboveClearing;
+    ValueX7 internal $sumDemandAboveClearing;
     /// @notice Whether the TOTAL_SUPPLY of tokens has been received
     bool private $_tokensReceived;
     /// @notice A packed uint256 containing `set`, `remainingSupplyX7X7`, and `remainingMps` values derived from the checkpoint
@@ -230,7 +230,7 @@ contract Auction is
     /// @param _remainingMpsInAuction The remaining mps in the auction which is MPSLib.MPS minus the cumulative mps so far
     /// @param _remainingSupplyX7X7 The result of TOTAL_SUPPLY_X7_X7 minus the total cleared supply so far
     function _calculateNewClearingPrice(
-        Demand memory _sumDemandAboveClearing,
+        ValueX7 _sumDemandAboveClearing,
         ValueX7X7 _remainingSupplyX7X7,
         uint24 _remainingMpsInAuction
     ) internal view returns (uint256) {
@@ -264,11 +264,8 @@ contract Auction is
          * higher prices which results in less tokens being sold (since price is currency / token).
          */
         uint256 clearingPrice = ValueX7.unwrap(
-            _sumDemandAboveClearing.currencyDemandX7.fullMulDivUp(
-                ValueX7.wrap(FixedPoint96.Q96 * uint256(_remainingMpsInAuction)),
-                _remainingSupplyX7X7.downcast().sub(
-                    _sumDemandAboveClearing.tokenDemandX7.mulUint256(_remainingMpsInAuction)
-                )
+            _sumDemandAboveClearing.fullMulDivUp(
+                ValueX7.wrap(FixedPoint96.Q96 * uint256(_remainingMpsInAuction)), _remainingSupplyX7X7.downcast()
             )
         );
 
@@ -295,7 +292,7 @@ contract Auction is
         // and we can return the minimum clearing price above
         if (_REMAINING_MPS_IN_AUCTION == 0) return minimumClearingPrice;
 
-        Demand memory sumDemandAboveClearing_ = $sumDemandAboveClearing;
+        ValueX7 sumDemandAboveClearing_ = $sumDemandAboveClearing;
         uint256 nextActiveTickPrice_ = $nextActiveTickPrice;
 
         Tick memory nextActiveTick = getTick(nextActiveTickPrice_);
@@ -399,35 +396,31 @@ contract Auction is
         return _unsafeCheckpoint(END_BLOCK);
     }
 
-    function _submitBid(
-        uint256 maxPrice,
-        bool exactIn,
-        uint256 amount,
-        address owner,
-        uint256 prevTickPrice,
-        bytes calldata hookData
-    ) internal returns (uint256 bidId) {
+    function _submitBid(uint256 maxPrice, uint256 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
+        internal
+        returns (uint256 bidId)
+    {
         Checkpoint memory _checkpoint = checkpoint();
         // Revert if there are no more tokens to be sold
         if (_checkpoint.remainingMpsInAuction() == 0) revert AuctionSoldOut();
 
         _initializeTickIfNeeded(prevTickPrice, maxPrice);
 
-        VALIDATION_HOOK.handleValidate(maxPrice, exactIn, amount, owner, msg.sender, hookData);
+        VALIDATION_HOOK.handleValidate(maxPrice, amount, owner, msg.sender, hookData);
         // ClearingPrice will be set to floor price in checkpoint() if not set already
         if (maxPrice <= _checkpoint.clearingPrice) revert InvalidBidPrice();
 
         // Scale the amount according to the rest of the supply schedule, accounting for past blocks
         // This is only used in demand related internal calculations
         Bid memory bid;
-        (bid, bidId) = _createBid(exactIn, amount, owner, maxPrice, _checkpoint.cumulativeMps);
-        Demand memory bidDemand = bid.toDemand();
+        (bid, bidId) = _createBid(amount, owner, maxPrice, _checkpoint.cumulativeMps);
+        ValueX7 bidEffectiveAmount = bid.toEffectiveAmount();
 
-        _updateTickDemand(maxPrice, bidDemand);
+        _updateTickDemand(maxPrice, bidEffectiveAmount);
 
-        $sumDemandAboveClearing = $sumDemandAboveClearing.add(bidDemand);
+        $sumDemandAboveClearing = $sumDemandAboveClearing.add(bidEffectiveAmount);
 
-        emit BidSubmitted(bidId, owner, maxPrice, exactIn, amount);
+        emit BidSubmitted(bidId, owner, maxPrice, amount);
     }
 
     /// @notice Given a bid, tokens filled and refund, process the transfers and refund
@@ -459,17 +452,15 @@ contract Auction is
 
     /// @inheritdoc IAuction
     /// @dev Bids can be submitted anytime between the startBlock and the endBlock.
-    function submitBid(
-        uint256 maxPrice,
-        bool exactIn,
-        uint256 amount,
-        address owner,
-        uint256 prevTickPrice,
-        bytes calldata hookData
-    ) public payable onlyActiveAuction returns (uint256) {
+    function submitBid(uint256 maxPrice, uint256 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
+        public
+        payable
+        onlyActiveAuction
+        returns (uint256)
+    {
         // Bids cannot be submitted at the endBlock or after
         if (block.number >= END_BLOCK) revert AuctionIsOver();
-        uint256 requiredCurrencyAmount = BidLib.inputAmount(exactIn, amount, maxPrice);
+        uint256 requiredCurrencyAmount = BidLib.inputAmount(amount, maxPrice);
         if (requiredCurrencyAmount == 0) revert InvalidAmount();
         if (CURRENCY.isAddressZero()) {
             if (msg.value != requiredCurrencyAmount) revert InvalidAmount();
@@ -479,17 +470,17 @@ contract Auction is
                 Currency.unwrap(CURRENCY), msg.sender, address(this), requiredCurrencyAmount
             );
         }
-        return _submitBid(maxPrice, exactIn, amount, owner, prevTickPrice, hookData);
+        return _submitBid(maxPrice, amount, owner, prevTickPrice, hookData);
     }
 
     /// @inheritdoc IAuction
-    function submitBid(uint256 maxPrice, bool exactIn, uint256 amount, address owner, bytes calldata hookData)
+    function submitBid(uint256 maxPrice, uint256 amount, address owner, bytes calldata hookData)
         public
         payable
         onlyActiveAuction
         returns (uint256)
     {
-        return submitBid(maxPrice, exactIn, amount, owner, FLOOR_PRICE, hookData);
+        return submitBid(maxPrice, amount, owner, FLOOR_PRICE, hookData);
     }
 
     /// @inheritdoc IAuction
@@ -595,7 +586,7 @@ contract Auction is
         if (upperCheckpoint.clearingPrice == bidMaxPrice) {
             (uint256 partialTokensFilled, uint256 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
                 upperCheckpoint.cumulativeSupplySoldToClearingPriceX7X7,
-                bid.toDemand().resolveRoundingDown(bidMaxPrice),
+                bid.toEffectiveAmount().resolveRoundingDown(bidMaxPrice),
                 getTick(bidMaxPrice).demand.resolveRoundingUp(bidMaxPrice),
                 bidMaxPrice
             );
@@ -661,7 +652,7 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function sumDemandAboveClearing() external view override(IAuction) returns (Demand memory) {
+    function sumDemandAboveClearing() external view override(IAuction) returns (ValueX7) {
         return $sumDemandAboveClearing;
     }
 }

@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4e79543472823ca4f19066f04f5392aba6563627/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/7481976d9a045c9df236ecc1331ce832ed4d18a0/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -37,7 +37,7 @@ The sum of demand in ticks above the clearing price
 
 
 ```solidity
-Demand internal $sumDemandAboveClearing;
+ValueX7 internal $sumDemandAboveClearing;
 ```
 
 
@@ -178,7 +178,7 @@ Calculate the new clearing price, given the cumulative demand and the remaining 
 
 ```solidity
 function _calculateNewClearingPrice(
-    Demand memory _sumDemandAboveClearing,
+    ValueX7 _sumDemandAboveClearing,
     ValueX7X7 _remainingSupplyX7X7,
     uint24 _remainingMpsInAuction
 ) internal view returns (uint256);
@@ -187,7 +187,7 @@ function _calculateNewClearingPrice(
 
 |Name|Type|Description|
 |----|----|-----------|
-|`_sumDemandAboveClearing`|`Demand`|The sum of demand above the clearing price|
+|`_sumDemandAboveClearing`|`ValueX7`|The sum of demand above the clearing price|
 |`_remainingSupplyX7X7`|`ValueX7X7`|The result of TOTAL_SUPPLY_X7_X7 minus the total cleared supply so far|
 |`_remainingMpsInAuction`|`uint24`|The remaining mps in the auction which is MPSLib.MPS minus the cumulative mps so far|
 
@@ -251,14 +251,9 @@ function _getFinalCheckpoint() internal returns (Checkpoint memory);
 
 
 ```solidity
-function _submitBid(
-    uint256 maxPrice,
-    bool exactIn,
-    uint256 amount,
-    address owner,
-    uint256 prevTickPrice,
-    bytes calldata hookData
-) internal returns (uint256 bidId);
+function _submitBid(uint256 maxPrice, uint256 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
+    internal
+    returns (uint256 bidId);
 ```
 
 ### _processExit
@@ -295,21 +290,17 @@ Submit a new bid
 
 
 ```solidity
-function submitBid(
-    uint256 maxPrice,
-    bool exactIn,
-    uint256 amount,
-    address owner,
-    uint256 prevTickPrice,
-    bytes calldata hookData
-) external payable onlyActiveAuction returns (uint256);
+function submitBid(uint256 maxPrice, uint256 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
+    public
+    payable
+    onlyActiveAuction
+    returns (uint256);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`maxPrice`|`uint256`|The maximum price the bidder is willing to pay|
-|`exactIn`|`bool`|Whether the bid is exact in|
 |`amount`|`uint256`|The amount of the bid|
 |`owner`|`address`|The owner of the bid|
 |`prevTickPrice`|`uint256`|The price of the previous tick|
@@ -328,8 +319,8 @@ Submit a new bid
 
 
 ```solidity
-function submitBid(uint256 maxPrice, bool exactIn, uint256 amount, address owner, bytes calldata hookData)
-    external
+function submitBid(uint256 maxPrice, uint256 amount, address owner, bytes calldata hookData)
+    public
     payable
     onlyActiveAuction
     returns (uint256);
@@ -339,7 +330,6 @@ function submitBid(uint256 maxPrice, bool exactIn, uint256 amount, address owner
 |Name|Type|Description|
 |----|----|-----------|
 |`maxPrice`|`uint256`|The maximum price the bidder is willing to pay|
-|`exactIn`|`bool`|Whether the bid is exact in|
 |`amount`|`uint256`|The amount of the bid|
 |`owner`|`address`|The owner of the bid|
 |`hookData`|`bytes`|Additional data to pass to the hook required for validation|
@@ -450,6 +440,6 @@ The sum of demand in ticks above the clearing price
 
 
 ```solidity
-function sumDemandAboveClearing() external view override(IAuction) returns (Demand memory);
+function sumDemandAboveClearing() external view override(IAuction) returns (ValueX7);
 ```
 

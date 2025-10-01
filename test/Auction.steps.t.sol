@@ -87,10 +87,10 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         // Submit same bid to both auctions
         uint256 inputAmount = inputAmountForTokens(1000e18, tickNumberToPriceX96(2));
         firstAuction.submitBid{value: inputAmount}(
-            tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
+            tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
         secondAuction.submitBid{value: inputAmount}(
-            tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
+            tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
 
         vm.roll(firstAuction.endBlock());
@@ -122,7 +122,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         uint256 inputAmount = inputAmountForTokens(totalSupply, tickNumberToPriceX96(2));
         vm.deal(address(this), inputAmount);
         uint256 bidId = newAuction.submitBid{value: inputAmount}(
-            tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
+            tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
 
         // Show you can checkpoint when the step is zero mps
@@ -135,7 +135,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         vm.deal(address(this), inputAmount);
         vm.expectRevert(IAuction.AuctionSoldOut.selector);
         newAuction.submitBid{value: inputAmount}(
-            tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
+            tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
 
         vm.roll(endBlock);

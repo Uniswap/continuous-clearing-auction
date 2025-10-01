@@ -6,7 +6,6 @@ import {AuctionParameters} from '../../src/Auction.sol';
 
 import {Bid} from '../../src/BidStorage.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
-import {Demand} from '../../src/libraries/DemandLib.sol';
 import {SupplyLib, SupplyRolloverMultiplier} from '../../src/libraries/SupplyLib.sol';
 import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7} from '../../src/libraries/ValueX7X7Lib.sol';
@@ -18,7 +17,7 @@ contract MockAuction is Auction {
 
     /// @notice Wrapper around internal function for testing
     function calculateNewClearingPrice(
-        Demand memory sumDemandAboveClearing,
+        ValueX7 sumDemandAboveClearing,
         ValueX7X7 remainingSupplyX7X7,
         uint24 remainingMpsInAuction
     ) external view returns (uint256) {
@@ -53,10 +52,10 @@ contract MockAuction is Auction {
         return _getBid(bidId);
     }
 
-    function createBid(bool exactIn, uint128 amount, address owner, uint256 maxPrice, uint24 startCumulativeMps)
+    function createBid(uint128 amount, address owner, uint256 maxPrice, uint24 startCumulativeMps)
         external
         returns (Bid memory, uint256)
     {
-        return _createBid(exactIn, amount, owner, maxPrice, startCumulativeMps);
+        return _createBid(amount, owner, maxPrice, startCumulativeMps);
     }
 }

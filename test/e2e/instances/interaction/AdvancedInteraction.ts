@@ -1,4 +1,4 @@
-import { TestInteractionData, Address, AssertionInterfaceType, Side, AmountType, PriceType, ActionType } from '../../schemas/TestInteractionSchema';
+import { TestInteractionData, Address, AssertionInterfaceType, Side, AmountType, PriceType, ActionType, AdminActionMethod } from '../../schemas/TestInteractionSchema';
 
 export const advancedInteraction: TestInteractionData = {
   name: "AdvancedInteraction",
@@ -56,6 +56,17 @@ export const advancedInteraction: TestInteractionData = {
                 amount: "1000000000000000000" // 1 ETH
               }
             }
+        ]
+      ]
+    },
+    {
+      type: ActionType.ADMIN_ACTION,
+      interactions: [
+        [
+          {
+            atBlock: 172,
+            method: AdminActionMethod.SWEEP_CURRENCY
+          }
         ]
       ]
     },

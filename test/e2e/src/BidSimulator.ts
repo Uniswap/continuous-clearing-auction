@@ -429,6 +429,7 @@ export class BidSimulator {
    * @param transactionInfos - Array to collect transaction information
    */
   async executeAdminActions(adminInteractions: AdminAction[], transactionInfos: TransactionInfo[]): Promise<void> {
+    console.log(LOG_PREFIXES.INFO, "Executing admin actions:", adminInteractions);
     for (const interaction of adminInteractions) {
       if (interaction.method === AdminActionMethod.SWEEP_CURRENCY) {
         let tx = await this.auction.getFunction("sweepCurrency").populateTransaction();

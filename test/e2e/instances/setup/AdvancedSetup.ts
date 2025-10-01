@@ -43,9 +43,9 @@ export const advancedSetup: TestSetupData = {
     tokensRecipient: "0x3333333333333333333333333333333333333333" as Address,
     fundsRecipient: "0x4444444444444444444444444444444444444444" as Address,
     startOffsetBlocks: 0,
-    auctionDurationBlocks: 100, // Longer auction for complex testing
+    auctionDurationBlocks: 100, 
     claimDelayBlocks: 20,
-    graduationThresholdMps: "2000", // Higher threshold for testing
+    graduationThresholdMps: "2000",
     tickSpacing: 200,
     validationHook: "0x0000000000000000000000000000000000000000" as Address,
     floorPrice: "79228162514264337593543950336000"

@@ -364,11 +364,14 @@ export class SingleTestRunner {
   ): Promise<void> {
     while (transactions.length > 0) {
       const txInfo = transactions.shift()!;
-      const from = txInfo.from as string;
+      let from = txInfo.from as string;
 
       if (from) {
         console.log(LOG_PREFIXES.INFO, "From:", from);
         await provider.send(METHODS.HARDHAT.IMPERSONATE_ACCOUNT, [from]);
+      } else {
+        const defaultFrom = await (await hre.ethers.getSigners())[0].getAddress();
+        from = hre.ethers.getAddress(defaultFrom); // canonical
       }
 
       const signer = await hre.ethers.getSigner(from);

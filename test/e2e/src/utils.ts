@@ -88,6 +88,11 @@ export async function calculatePrice(priceConfig: PriceConfig): Promise<bigint> 
   return value;
 }
 
+/**
+ * Checks if a string is any possible stringified version of a true boolean value.
+ * @param value - The string to parse
+ * @returns True if the string is a stringified version of a true boolean value, false otherwise
+ */
 export function parseBoolean(value: string): boolean {
-  return value === "true" || value === "1";
+  return value.toLowerCase() === "true" || value === "1";
 }

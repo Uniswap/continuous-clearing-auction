@@ -16,6 +16,7 @@ import { PERMIT2_ADDRESS, LOG_PREFIXES, ERROR_MESSAGES, METHODS, TYPES, PENDING_
 import { artifacts } from "hardhat";
 import { EventData, HashWithRevert, TransactionInfo, EventType, ActionData } from "./types";
 import { TransactionRequest } from "ethers";
+import { parseBoolean } from "./Utils";
 import hre from "hardhat";
 
 export interface TestResult {
@@ -419,7 +420,7 @@ export class SingleTestRunner {
       const receipt = receipts.find((r) => r?.hash === pendingHash.hash);
       if (receipt) {
         let decodedRevert: string = "transaction succeeded";
-        if (pendingHash.expectRevert === "true" || pendingHash.expectRevert === "1") {
+        if (parseBoolean(pendingHash.expectRevert ?? "")) {
           // Status 0 means revert
           if (receipt.status === 0) {
             console.log(LOG_PREFIXES.SUCCESS, `Expected revert caught: ${pendingHash.expectRevert}`);

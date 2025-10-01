@@ -87,3 +87,7 @@ export async function calculatePrice(priceConfig: PriceConfig): Promise<bigint> 
 
   return value;
 }
+
+export function parseBoolean(value: string): boolean {
+  return value === "true" || value === "1";
+}

@@ -354,8 +354,7 @@ export class AuctionDeployer {
       configData,
       salt,
     );
-
-    // Execute the actual transaction
+    // Generate the transaction
     const tx = await this.auctionFactory
       .getFunction("initializeDistribution")
       .populateTransaction(await auctionedToken.getAddress(), auctionAmount, configData, salt);

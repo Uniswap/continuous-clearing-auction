@@ -470,7 +470,7 @@ export class SingleTestRunner {
       const art = await artifacts.readArtifact(fqn);
       for (const item of art.abi) {
         if (item.type === TYPES.ERROR) {
-          // Build a signature to dedupe
+          // Build a signature
           const sig = `${item.name}(` + (item.inputs ?? []).map((i: any) => i.type).join(",") + `)`;
           if (seen.has(sig)) continue;
           seen.add(sig);

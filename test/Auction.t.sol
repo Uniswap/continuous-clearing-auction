@@ -848,7 +848,7 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(block.number + 1);
         uint256 bidId4 = auction.submitBid{value: inputAmountForTokens(1, tickNumberToPriceX96(6))}(
-            tickNumberToPriceX96(6), 1, charlie, tickNumberToPriceX96(5), bytes('')
+            tickNumberToPriceX96(6), inputAmountForTokens(1, tickNumberToPriceX96(6)), charlie, tickNumberToPriceX96(5), bytes('')
         );
 
         vm.roll(block.number + 1);

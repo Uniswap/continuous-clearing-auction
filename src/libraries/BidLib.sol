@@ -47,7 +47,7 @@ library BidLib {
     /// @param maxPrice The max price of the bid
     /// @return The input amount required for an amount and maxPrice
     function inputAmount(uint256 amount, uint256 maxPrice) internal pure returns (uint256) {
-        return amount.fullMulDivUp(maxPrice, FixedPoint96.Q96);
+        return amount;
     }
 
     /// @notice Calculate the input amount required to place the bid

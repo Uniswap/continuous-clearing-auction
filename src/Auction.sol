@@ -328,8 +328,8 @@ contract Auction is
          */
         while (
             nextActiveTickPrice_ != type(uint256).max
-                && sumCurrencyDemandAboveClearingX7_.mulUint256(_REMAINING_MPS_IN_AUCTION).mulUint256(FixedPoint96.Q96)
-                    .upcast().gte(_REMAINING_SUPPLY_X7_X7.mulUint256(nextActiveTickPrice_))
+                && sumCurrencyDemandAboveClearingX7_.resolveRoundingUp(nextActiveTickPrice_).mulUint256(_REMAINING_MPS_IN_AUCTION)
+                    .upcast().gte(_REMAINING_SUPPLY_X7_X7)
         ) {
             // Subtract the demand at the current nextActiveTick from the total demand
             sumCurrencyDemandAboveClearingX7_ = sumCurrencyDemandAboveClearingX7_.sub(nextActiveTick.currencyDemandX7);

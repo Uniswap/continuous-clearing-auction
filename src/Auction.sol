@@ -432,7 +432,7 @@ contract Auction is
         // If the sumDemandAboveClearing becomes large enough to overflow a multiplication by an X7X7 value, revert
         if (
             ValueX7.unwrap($sumDemandAboveClearing.resolveRoundingUp($nextActiveTickPrice))
-                >= ConstantsLib.X7X7_UPPER_BOUND
+                >= ConstantsLib.X7_UPPER_BOUND
         ) revert InvalidBidUnableToClear();
 
         emit BidSubmitted(bidId, owner, maxPrice, exactIn, amount);

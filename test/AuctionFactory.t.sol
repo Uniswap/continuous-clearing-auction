@@ -212,8 +212,8 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
     ) public pure returns (uint256 totalSupply) {
         _totalSupply = bound(_totalSupply, 1, SupplyLib.MAX_TOTAL_SUPPLY);
         vm.assume(_token != address(0));
-
         vm.assume(_params.currency != address(0));
+        vm.assume(_token != _params.currency);
         vm.assume(_params.tokensRecipient != address(0));
         vm.assume(_params.fundsRecipient != address(0));
         vm.assume(_params.startBlock != 0);
@@ -227,9 +227,11 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         vm.assume(_params.graduationThresholdMps != 0);
         vm.assume(_params.validationHook != address(0));
         vm.assume(_params.tickSpacing != 0);
-        vm.assume(_params.floorPrice != 0 && _params.floorPrice % _params.tickSpacing == 0);
-        vm.assume(_salt != bytes32(0));
+        // Round down to the tick spacing, easier way than vm.assume which doesn't reject too many values
+        _params.floorPrice = _params.floorPrice - (_params.floorPrice % _params.tickSpacing);
+        vm.assume(_params.floorPrice != 0);
 
+        vm.assume(_salt != bytes32(0));
         vm.assume(_numberOfSteps > 0);
         vm.assume(MPSLib.MPS % _numberOfSteps == 0); // such that it is divisible
 

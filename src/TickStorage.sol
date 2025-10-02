@@ -2,17 +2,18 @@
 pragma solidity 0.8.26;
 
 import {ITickStorage} from './interfaces/ITickStorage.sol';
-import {Demand, DemandLib} from './libraries/DemandLib.sol';
+import {DemandLib} from './libraries/DemandLib.sol';
+import {ValueX7} from './libraries/ValueX7Lib.sol';
 
 struct Tick {
     uint256 next;
-    Demand demand;
+    ValueX7 currencyDemandX7;
 }
 
 /// @title TickStorage
 /// @notice Abstract contract for handling tick storage
 abstract contract TickStorage is ITickStorage {
-    using DemandLib for Demand;
+    using DemandLib for ValueX7;
 
     /// @notice Mapping of price levels to tick data
     mapping(uint256 price => Tick) private $_ticks;
@@ -93,10 +94,10 @@ abstract contract TickStorage is ITickStorage {
 
     /// @notice Internal function to add demand to a tick
     /// @param price The price of the tick
-    /// @param demand The demand to add
-    function _updateTickDemand(uint256 price, Demand memory demand) internal {
+    /// @param currencyDemandX7 The demand to add
+    function _updateTickDemand(uint256 price, ValueX7 currencyDemandX7) internal {
         Tick storage tick = $_ticks[price];
-        tick.demand = tick.demand.add(demand);
+        tick.currencyDemandX7 = tick.currencyDemandX7.add(currencyDemandX7);
     }
 
     // Getters

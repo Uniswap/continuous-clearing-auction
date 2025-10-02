@@ -11,7 +11,7 @@ import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
-import {Demand, DemandLib} from '../src/libraries/DemandLib.sol';
+import {DemandLib} from '../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 
 import {MPSLib} from '../src/libraries/MPSLib.sol';
@@ -87,24 +87,15 @@ contract AuctionInvariantHandler is Test, Assertions {
 
     /// @notice Generate random values for amount and max price given a desired resolved amount of tokens to purchase
     /// @dev Bounded by purchasing the total supply of tokens and some reasonable max price for bids to prevent overflow
-    function _useAmountMaxPrice(bool exactIn, uint256 amount, uint256 tickNumber)
-        internal
-        view
-        returns (uint256, uint256)
-    {
+    function _useAmountMaxPrice(uint256 amount, uint256 tickNumber) internal view returns (uint256, uint256) {
         tickNumber = _bound(tickNumber, 0, type(uint8).max);
         uint256 tickNumberPrice = auction.floorPrice() + tickNumber * auction.tickSpacing();
         uint256 maxPrice = _bound(tickNumberPrice, BID_MIN_PRICE, BID_MAX_PRICE);
         // Round down to the nearest tick boundary
         maxPrice -= (maxPrice % auction.tickSpacing());
 
-        if (exactIn) {
-            uint256 inputAmount = amount;
-            return (inputAmount, maxPrice);
-        } else {
-            uint256 inputAmount = amount.fullMulDivUp(maxPrice, FixedPoint96.Q96);
-            return (inputAmount, maxPrice);
-        }
+        uint256 inputAmount = amount;
+        return (inputAmount, maxPrice);
     }
 
     /// @notice Return the tick immediately equal to or below the given price
@@ -139,7 +130,7 @@ contract AuctionInvariantHandler is Test, Assertions {
     }
 
     /// @notice Handle a bid submission, ensuring that the actor has enough funds and the bid parameters are valid
-    function handleSubmitBid(bool exactIn, uint256 actorIndexSeed, uint256 tickNumber)
+    function handleSubmitBid(uint256 actorIndexSeed, uint256 tickNumber)
         public
         payable
         useActor(actorIndexSeed)
@@ -147,7 +138,7 @@ contract AuctionInvariantHandler is Test, Assertions {
     {
         // Bid requests for anything between 1 and 2x the total supply of tokens
         uint256 amount = _bound(tickNumber, 1, auction.totalSupply() * 2);
-        (uint256 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(exactIn, amount, tickNumber);
+        (uint256 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(amount, tickNumber);
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
         } else {
@@ -160,7 +151,7 @@ contract AuctionInvariantHandler is Test, Assertions {
         uint256 prevTickPrice = _getLowerTick(maxPrice);
         uint256 nextBidId = auction.nextBidId();
         try auction.submitBid{value: currency.isAddressZero() ? inputAmount : 0}(
-            maxPrice, exactIn, exactIn ? inputAmount : amount, currentActor, prevTickPrice, bytes('')
+            maxPrice, inputAmount, currentActor, prevTickPrice, bytes('')
         ) {
             bidIds.push(nextBidId);
             bidCount++;
@@ -259,8 +250,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
             if (bid.tokensFilled != 0) continue;
 
             uint256 ownerBalanceBefore = address(bid.owner).balance;
-            uint256 bidInputAmount =
-                bid.exactIn ? bid.amount : BidLib.inputAmount(bid.exactIn, bid.amount, bid.maxPrice);
+            uint256 bidInputAmount = bid.amount;
 
             if (bid.maxPrice > clearingPrice) {
                 auction.exitBid(i);

@@ -209,25 +209,16 @@ type ValueX7 is uint256;
 **Purpose**: Demand calculations involve fractional distributions over time and price levels. By pre-scaling demand values by MPS, the system avoids precision loss from repeated division operations.
 
 **Use Cases**:
-<<<<<<< HEAD
-- Bid demand aggregation across price ticks
-- Currency and token demand tracking  
-=======
 
 - Bid demand aggregation across price ticks
-- Currency and token demand tracking
->>>>>>> dev
+- Currency demand tracking
 - Partial fill ratio calculations
 
 #### ValueX7X7: Supply-Side Double Precision
 
 **ValueX7X7** represents values scaled up by MPS twice (total scaling of 1e14) for supply-related calculations:
 
-<<<<<<< HEAD
-```solidity  
-=======
 ```solidity
->>>>>>> dev
 /// @notice A ValueX7X7 is a ValueX7 value that has been multiplied by MPS
 /// @dev X7X7 values are used for supply values to avoid intermediate division by MPS
 type ValueX7X7 is uint256;
@@ -236,17 +227,10 @@ type ValueX7X7 is uint256;
 **Purpose**: Supply calculations are more complex, involving time-weighted distributions, cumulative tracking, and clearing price interactions. The double scaling ensures precision is maintained through multiple mathematical operations.
 
 **Use Cases**:
-<<<<<<< HEAD
-- Total cleared supply tracking (`totalClearedX7X7`)
-- Cumulative supply sold to clearing price (`cumulativeSupplySoldToClearingPriceX7X7`)
-- Supply allocation across auction steps
-- Graduation threshold comparisons
-=======
 
 - Total cleared supply tracking (`totalClearedX7X7`)
 - Cumulative supply sold to clearing price (`cumulativeSupplySoldToClearingPriceX7X7`)
 - Finding the total tokens sold in the auction for graudation threshold comparison
->>>>>>> dev
 
 #### Core Mathematical Operations
 
@@ -258,46 +242,27 @@ The dual scaling system enables two critical mathematical operations that define
 The clearing price calculation finds the ratio of currency demand to available token supply, following $\text{price} = \frac{\text{currency}}{\text{tokens}}$.
 
 **Initial Formula:**
-$$\frac{\text{currencyDemandX7} \times \text{Q96} \times \text{mps}}{\text{MPS}} \div \left[ \frac{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{mps}}{\text{MPS} - \text{cumulativeMps}} - \frac{\text{tokenDemandX7} \times \text{mps}}{\text{MPS}} \right]$$
+$$\frac{\text{currencyDemandX7} \times \text{Q96} \times \text{mps}}{\text{MPS}} \div \frac{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{mps}}{\text{MPS} - \text{cumulativeMps}}$$
 
 **Algebraic Simplification Steps:**
 
-1. **Find common denominator for the divisor:**
-<<<<<<< HEAD
-$$\frac{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{mps} \times \text{MPS} - \text{tokenDemandX7} \times \text{mps} \times (\text{MPS} - \text{cumulativeMps})}{(\text{MPS} - \text{cumulativeMps}) \times \text{MPS}}$$
+1. **Convert division to multiplication:**
+   $$\frac{\text{currencyDemandX7} \times \text{Q96} \times \text{mps}}{\text{MPS}} \times \frac{\text{MPS} - \text{cumulativeMps}}{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{mps}}$$
 
-2. **Convert division to multiplication:**
-$$\frac{\text{currencyDemandX7} \times \text{Q96} \times \text{mps}}{\text{MPS}} \times \frac{(\text{MPS} - \text{cumulativeMps}) \times \text{MPS}}{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{mps} \times \text{MPS} - \text{tokenDemandX7} \times \text{mps} \times (\text{MPS} - \text{cumulativeMps})}$$
+2. **Cancel common terms (mps and MPS):**
+   $$\text{currencyDemandX7} \times \text{Q96} \times \frac{\text{MPS} - \text{cumulativeMps}}{(\text{totalSupplyX7} - \text{totalClearedX7})}$$
 
-3. **Cancel common terms (mps and MPS):**
-$$\text{currencyDemandX7} \times \text{Q96} \times \frac{(\text{MPS} - \text{cumulativeMps})}{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{MPS} - \text{tokenDemandX7} \times (\text{MPS} - \text{cumulativeMps})}$$
-
-4. **Substitute X7X7 values:**
-Since $(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{MPS} = \text{remainingSupplyX7X7}$:
-=======
-   $$\frac{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{mps} \times \text{MPS} - \text{tokenDemandX7} \times \text{mps} \times (\text{MPS} - \text{cumulativeMps})}{(\text{MPS} - \text{cumulativeMps}) \times \text{MPS}}$$
-
-2. **Convert division to multiplication:**
-   $$\frac{\text{currencyDemandX7} \times \text{Q96} \times \text{mps}}{\text{MPS}} \times \frac{(\text{MPS} - \text{cumulativeMps}) \times \text{MPS}}{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{mps} \times \text{MPS} - \text{tokenDemandX7} \times \text{mps} \times (\text{MPS} - \text{cumulativeMps})}$$
-
-3. **Cancel common terms (mps and MPS):**
-   $$\text{currencyDemandX7} \times \text{Q96} \times \frac{(\text{MPS} - \text{cumulativeMps})}{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{MPS} - \text{tokenDemandX7} \times (\text{MPS} - \text{cumulativeMps})}$$
-
-4. **Substitute X7X7 values:**
+3. **Substitute X7X7 values:**
    Since $(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{MPS} = \text{remainingSupplyX7X7}$:
->>>>>>> dev
 
-$$\text{clearingPrice} = \text{currencyDemandX7} \times \frac{\text{Q96} \times \text{remainingMpsInAuction}}{\text{remainingSupplyX7X7} - (\text{tokenDemandX7} \times \text{remainingMpsInAuction})}$$
+$$\text{clearingPrice} = \text{currencyDemandX7} \times \frac{\text{Q96} \times \text{remainingMpsInAuction}}{\text{remainingSupplyX7X7}}$$
 
 **Implementation:**
-<<<<<<< HEAD
-=======
 
->>>>>>> dev
 ```solidity
 clearingPrice = currencyDemandX7.fullMulDivUp(
     Q96 * remainingMpsInAuction,
-    remainingSupplyX7X7 - (tokenDemandX7 * remainingMpsInAuction)
+    remainingSupplyX7X7
 );
 ```
 
@@ -309,10 +274,7 @@ clearingPrice = currencyDemandX7.fullMulDivUp(
 When determining which price ticks to clear, the system compares resolved demand against available supply while avoiding precision loss.
 
 **Original Comparison:**
-<<<<<<< HEAD
-=======
 
->>>>>>> dev
 - $R = \frac{\text{resolvedDemand} \times \text{mps}}{\text{MPS}}$
 - $\text{supply} = \frac{(\text{totalSupply} - \text{totalCleared}) \times \text{step.mps}}{\text{MPS} - \text{cumulativeMps}}$
 - **Check:** $R \geq \text{supply}$
@@ -320,24 +282,6 @@ When determining which price ticks to clear, the system compares resolved demand
 **Algebraic Transformation to Avoid Division:**
 
 1. **Multiply both sides by $(\text{MPS} - \text{cumulativeMps})$:**
-<<<<<<< HEAD
-$$R \times (\text{MPS} - \text{cumulativeMps}) \geq \text{supply} \times \text{mps}$$
-
-2. **Substitute R and expand:**
-$$\frac{\text{resolvedDemand} \times \text{mps}}{\text{MPS}} \times (\text{MPS} - \text{cumulativeMps}) \geq \text{supply} \times \text{mps}$$
-
-3. **Cancel mps terms:**
-$$\frac{\text{resolvedDemand} \times (\text{MPS} - \text{cumulativeMps})}{\text{MPS}} \geq \text{supply}$$
-
-4. **Eliminate division by multiplying both sides by MPS:**
-$$\text{resolvedDemand} \times (\text{MPS} - \text{cumulativeMps}) \geq \text{supply} \times \text{MPS}$$
-
-5. **Substitute X7X7 supply tracking:**
-Since supply is tracked as X7X7 (already scaled by MPS):
-$$\text{resolvedDemand} \times \text{remainingMpsInAuction} \geq \text{TOTAL\_SUPPLY\_X7\_X7} - \text{totalClearedX7X7}$$
-
-**Implementation:**
-=======
    $$R \times (\text{MPS} - \text{cumulativeMps}) \geq \text{supply} \times \text{mps}$$
 
 2. **Substitute R and expand:**
@@ -355,7 +299,6 @@ $$\text{resolvedDemand} \times \text{remainingMpsInAuction} \geq \text{TOTAL\_SU
 
 **Implementation:**
 
->>>>>>> dev
 ```solidity
 resolvedDemand.mulUint256(remainingMpsInAuction).upcast()
     .gte(TOTAL_SUPPLY_X7_X7.sub(checkpoint.totalClearedX7X7))
@@ -372,21 +315,14 @@ The system provides safe conversion utilities between scaling levels:
 function scaleUpToX7(uint256 value) -> ValueX7
 function scaleDownToUint256(ValueX7 value) -> uint256
 
-<<<<<<< HEAD
-// X7X7 operations  
-=======
 // X7X7 operations
->>>>>>> dev
 function upcast(ValueX7 value) -> ValueX7X7
 function downcast(ValueX7X7 value) -> ValueX7
 function scaleDownToValueX7(ValueX7X7 value) -> ValueX7
 ```
 
 **Implementation Benefits**:
-<<<<<<< HEAD
-=======
 
->>>>>>> dev
 - **Precision**: Eliminates rounding errors in critical financial calculations
 - **Type Safety**: Prevents mixing scaled and unscaled values
 - **Gas Efficiency**: Avoids expensive division operations in loops
@@ -643,7 +579,7 @@ sequenceDiagram
     end
     Auction->>TickStorage: _updateTickDemand(...)
     Auction->>BidStorage: _createBid(...)
-    Auction->>Auction: update sumDemandAboveClearing
+    Auction->>Auction: update sumCurrencyDemandAboveClearingX7
     Auction-->>User: bidId
 ```
 

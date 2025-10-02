@@ -5,7 +5,7 @@ import {ICheckpointStorage} from './interfaces/ICheckpointStorage.sol';
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
-import {Demand, DemandLib} from './libraries/DemandLib.sol';
+import {DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
@@ -17,7 +17,7 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     using FixedPointMathLib for *;
     using AuctionStepLib for *;
     using BidLib for *;
-    using DemandLib for Demand;
+    using DemandLib for ValueX7;
     using CheckpointLib for Checkpoint;
     using ValueX7Lib for *;
     using ValueX7X7Lib for *;
@@ -123,14 +123,10 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         returns (uint256 tokensFilled, uint256 currencySpent)
     {
         uint24 mpsRemainingInAuction = bid.mpsRemainingInAuction();
-        tokensFilled = bid.exactIn
-            ? bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsRemainingInAuction)
-            : bid.amount.fullMulDiv(cumulativeMpsDelta, mpsRemainingInAuction);
+        tokensFilled = bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsRemainingInAuction);
         // If tokensFilled is 0 then currencySpent must be 0
         if (tokensFilled != 0) {
-            currencySpent = bid.exactIn
-                ? bid.amount.fullMulDivUp(cumulativeMpsDelta, mpsRemainingInAuction)
-                : tokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPriceDelta);
+            currencySpent = bid.amount.fullMulDivUp(cumulativeMpsDelta, mpsRemainingInAuction);
         }
     }
 

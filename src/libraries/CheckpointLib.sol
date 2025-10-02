@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Demand} from './DemandLib.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
 import {MPSLib} from './MPSLib.sol';
 import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';

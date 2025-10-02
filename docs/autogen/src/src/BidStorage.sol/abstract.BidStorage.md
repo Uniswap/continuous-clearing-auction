@@ -1,23 +1,28 @@
 # BidStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/d1e7b82f3777bade51fea369dcee7819652c8bdc/src/BidStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/17cd795efcd7da4447d3746773588de7c190a183/src/BidStorage.sol)
+
+**Inherits:**
+[IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
+
+Abstract contract for managing bid storage
 
 
 ## State Variables
-### nextBidId
+### $_nextBidId
 The id of the next bid to be created
 
 
 ```solidity
-uint256 public nextBidId;
+uint256 private $_nextBidId;
 ```
 
 
-### bids
+### $_bids
 The mapping of bid ids to bids
 
 
 ```solidity
-mapping(uint256 bidId => Bid bid) public bids;
+mapping(uint256 bidId => Bid bid) private $_bids;
 ```
 
 
@@ -49,7 +54,7 @@ Create a new bid
 
 
 ```solidity
-function _createBid(bool exactIn, uint256 amount, address owner, uint256 maxPrice, uint24 startCumulativeMps)
+function _createBid(uint256 amount, address owner, uint256 maxPrice, uint24 startCumulativeMps)
     internal
     returns (Bid memory bid, uint256 bidId);
 ```
@@ -57,7 +62,6 @@ function _createBid(bool exactIn, uint256 amount, address owner, uint256 maxPric
 
 |Name|Type|Description|
 |----|----|-----------|
-|`exactIn`|`bool`|Whether the bid is exact in|
 |`amount`|`uint256`|The amount of the bid|
 |`owner`|`address`|The owner of the bid|
 |`maxPrice`|`uint256`|The maximum price for the bid|
@@ -101,4 +105,22 @@ function _deleteBid(uint256 bidId) internal;
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid to delete|
 
+
+### nextBidId
+
+Getters
+
+
+```solidity
+function nextBidId() external view override(IBidStorage) returns (uint256);
+```
+
+### bids
+
+Get a bid from storage
+
+
+```solidity
+function bids(uint256 bidId) external view override(IBidStorage) returns (Bid memory);
+```
 

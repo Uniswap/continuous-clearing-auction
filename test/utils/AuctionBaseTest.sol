@@ -5,7 +5,6 @@ import {Auction} from '../../src/Auction.sol';
 import {Tick} from '../../src/TickStorage.sol';
 import {AuctionParameters, IAuction} from '../../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
-import {Demand} from '../../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 
 import {Assertions} from './Assertions.sol';

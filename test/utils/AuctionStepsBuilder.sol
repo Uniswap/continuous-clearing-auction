@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {MPSLib} from '../../src/libraries/MPSLib.sol';
+import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 
 library AuctionStepsBuilder {
     function init() internal pure returns (bytes memory) {
@@ -9,7 +9,7 @@ library AuctionStepsBuilder {
     }
 
     function splitEvenlyAmongSteps(uint40 numberOfSteps) internal pure returns (bytes memory) {
-        uint24 mps = uint24(MPSLib.MPS / numberOfSteps);
+        uint24 mps = uint24(ConstantsLib.MPS / numberOfSteps);
         return abi.encodePacked(mps, numberOfSteps);
     }
 

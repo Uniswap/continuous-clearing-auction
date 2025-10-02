@@ -1,5 +1,5 @@
 # eq
-[Git Source](https://github.com/Uniswap/twap-auction/blob/2ab6f1f651f977062136e0144a4f3e636a17d226/src/libraries/ValueX7Lib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/68d18000c60b2a641f136e527165de89b151504d/src/libraries/ValueX7Lib.sol)
 
 Check if a ValueX7 value is equal to another ValueX7 value
 

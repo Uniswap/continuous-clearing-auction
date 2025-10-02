@@ -2,7 +2,6 @@
 pragma solidity 0.8.26;
 
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
-import {Demand} from '../src/libraries/DemandLib.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
 import {Assertions} from './utils/Assertions.sol';
@@ -30,14 +29,6 @@ contract AssertionsTest is Assertions, Test {
             assertGt(ValueX7X7.wrap(a), ValueX7X7.wrap(b));
         } else if (a < b) {
             assertLt(ValueX7X7.wrap(a), ValueX7X7.wrap(b));
-        }
-    }
-
-    function test_assertDemand(Demand memory a, Demand memory b) public pure {
-        if (hash(a) == hash(b)) {
-            assertEq(a, b);
-        } else {
-            assertNotEq(a, b);
         }
     }
 

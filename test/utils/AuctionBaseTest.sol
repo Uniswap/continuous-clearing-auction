@@ -5,11 +5,11 @@ import {Auction} from '../../src/Auction.sol';
 import {Tick} from '../../src/TickStorage.sol';
 import {AuctionParameters, IAuction} from '../../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
-import {Demand} from '../../src/libraries/DemandLib.sol';
-import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
-import {MPSLib} from '../../src/libraries/MPSLib.sol';
-import {SupplyLib} from '../../src/libraries/SupplyLib.sol';
 
+import {BidLib} from '../../src/libraries/BidLib.sol';
+import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
+import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
+import {SupplyLib} from '../../src/libraries/SupplyLib.sol';
 import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 import {Assertions} from './Assertions.sol';
 import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
@@ -29,7 +29,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     using TickBitmapLib for TickBitmap;
     using ValueX7Lib for *;
 
-    bool internal $exactIn = true;
     TickBitmap private tickBitmap;
 
     Auction public auction;
@@ -89,13 +88,13 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         vm.assume(_deploymentParams.auctionParams.floorPrice != 0);
 
         vm.assume(_deploymentParams.numberOfSteps > 0);
-        vm.assume(MPSLib.MPS % _deploymentParams.numberOfSteps == 0); // such that it is divisible
+        vm.assume(ConstantsLib.MPS % _deploymentParams.numberOfSteps == 0); // such that it is divisible
 
         // TODO(md): fix and have variation in the step sizes
 
         // Replace auction steps data with a valid one
         // Divide steps by number of bips
-        uint256 _numberOfMps = MPSLib.MPS / _deploymentParams.numberOfSteps;
+        uint256 _numberOfMps = ConstantsLib.MPS / _deploymentParams.numberOfSteps;
         bytes memory _auctionStepsData = new bytes(0);
         for (uint8 i = 0; i < _deploymentParams.numberOfSteps; i++) {
             _auctionStepsData = AuctionStepsBuilder.addStep(_auctionStepsData, uint24(_numberOfMps), uint40(1));
@@ -104,7 +103,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
         // Bound graduation threshold mps
         _deploymentParams.auctionParams.graduationThresholdMps =
-            uint24(bound(_deploymentParams.auctionParams.graduationThresholdMps, 0, uint24(MPSLib.MPS)));
+            uint24(bound(_deploymentParams.auctionParams.graduationThresholdMps, 0, uint24(ConstantsLib.MPS)));
 
         return _deploymentParams.auctionParams;
     }
@@ -163,6 +162,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
         // Get the correct bid prices for the bid
         uint256 maxPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(_bid.tickNumber);
+        // if the bid is above the max price, don't submit the bid
+        if (maxPrice >= BidLib.MAX_BID_PRICE) return (false, 0);
 
         // if the bid if not above the clearing price, don't submit the bid
         if (maxPrice <= clearingPrice) return (false, 0);
@@ -174,16 +175,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         uint256 lastTickPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(lowerTickNumber);
 
         vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(_i, _owner, maxPrice, $exactIn, $exactIn ? ethInputAmount : _bid.bidAmount);
-        bidId = auction.submitBid{value: ethInputAmount}(
-            maxPrice,
-            $exactIn,
-            // if the bid is exact in, use the eth input amount, otherwise use the bid amount in tokens
-            $exactIn ? ethInputAmount : _bid.bidAmount,
-            _owner,
-            lastTickPrice,
-            bytes('')
-        );
+        emit IAuction.BidSubmitted(_i, _owner, maxPrice, ethInputAmount);
+        bidId = auction.submitBid{value: ethInputAmount}(maxPrice, ethInputAmount, _owner, lastTickPrice, bytes(''));
 
         // Set the tick in the bitmap for future bids
         tickBitmap.set(_bid.tickNumber);
@@ -203,18 +196,13 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         }
     }
 
-    function helper__toDemand(FuzzBid memory _bid, bool _exactIn, uint24 _startCumulativeMps)
+    function helper__toDemand(FuzzBid memory _bid, uint24 _startCumulativeMps)
         internal
         pure
-        returns (Demand memory demand)
+        returns (ValueX7 currencyDemandX7)
     {
-        ValueX7 bidDemandOverRemainingAuctionX7 =
-            _bid.bidAmount.scaleUpToX7().mulUint256(MPSLib.MPS).divUint256(MPSLib.MPS - _startCumulativeMps);
-        if (_exactIn) {
-            demand.currencyDemandX7 = bidDemandOverRemainingAuctionX7;
-        } else {
-            demand.tokenDemandX7 = bidDemandOverRemainingAuctionX7;
-        }
+        currencyDemandX7 =
+            _bid.bidAmount.scaleUpToX7().mulUint256(ConstantsLib.MPS).divUint256(ConstantsLib.MPS - _startCumulativeMps);
     }
 
     /// @dev All bids provided to bid fuzz must have some value and a positive tick number
@@ -273,16 +261,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _;
     }
 
-    modifier givenExactIn() {
-        $exactIn = true;
-        _;
-    }
-
-    modifier givenExactOut() {
-        $exactIn = false;
-        _;
-    }
-
     // Non fuzzing variant of setUpAuction
     function setUpAuction() public requireAuctionNotSetup {
         setUpTokens();
@@ -313,6 +291,15 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     /// @dev Helper function to convert a tick number to a priceX96
     function tickNumberToPriceX96(uint256 tickNumber) internal pure returns (uint256) {
         return FLOOR_PRICE + (tickNumber - 1) * TICK_SPACING;
+    }
+
+    /// @dev Helper function to get price of a tick above floor price
+    function tickNumberToPriceAboveFloorX96(uint256 tickNumber, uint256 floorPrice, uint256 tickSpacing)
+        internal
+        pure
+        returns (uint256)
+    {
+        return ((floorPrice + (tickNumber * tickSpacing)) / tickSpacing) * tickSpacing;
     }
 
     /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice

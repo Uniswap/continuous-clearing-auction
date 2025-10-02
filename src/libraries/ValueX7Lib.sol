@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {MPSLib} from './MPSLib.sol';
+import {ConstantsLib} from './ConstantsLib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @notice A ValueX7 is a uint256 value that has been multiplied by MPS
@@ -49,8 +49,8 @@ function fullMulDivUp(ValueX7 a, ValueX7 b, ValueX7 c) pure returns (ValueX7) {
 library ValueX7Lib {
     using ValueX7Lib for ValueX7;
 
-    /// @notice The scaling factor for ValueX7 values (MPSLib.MPS)
-    uint256 public constant X7 = MPSLib.MPS;
+    /// @notice The scaling factor for ValueX7 values (ConstantsLib.MPS)
+    uint256 public constant X7 = ConstantsLib.MPS;
 
     /// @notice Multiply a uint256 value by MPS
     /// @dev This ensures that future operations (ex. scaleByMps) will not lose precision

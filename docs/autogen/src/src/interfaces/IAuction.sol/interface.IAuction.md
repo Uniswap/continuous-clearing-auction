@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f53d7155325c22ef28d878c4d9443735141b48d7/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/68d18000c60b2a641f136e527165de89b151504d/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
@@ -14,21 +14,16 @@ Submit a new bid
 
 
 ```solidity
-function submitBid(
-    uint256 maxPrice,
-    bool exactIn,
-    uint256 amount,
-    address owner,
-    uint256 prevTickPrice,
-    bytes calldata hookData
-) external payable returns (uint256 bidId);
+function submitBid(uint256 maxPrice, uint256 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
+    external
+    payable
+    returns (uint256 bidId);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`maxPrice`|`uint256`|The maximum price the bidder is willing to pay|
-|`exactIn`|`bool`|Whether the bid is exact in|
 |`amount`|`uint256`|The amount of the bid|
 |`owner`|`address`|The owner of the bid|
 |`prevTickPrice`|`uint256`|The price of the previous tick|
@@ -50,7 +45,7 @@ as this function will iterate through every tick starting from the floor price i
 
 
 ```solidity
-function submitBid(uint256 maxPrice, bool exactIn, uint256 amount, address owner, bytes calldata hookData)
+function submitBid(uint256 maxPrice, uint256 amount, address owner, bytes calldata hookData)
     external
     payable
     returns (uint256 bidId);
@@ -60,7 +55,6 @@ function submitBid(uint256 maxPrice, bool exactIn, uint256 amount, address owner
 |Name|Type|Description|
 |----|----|-----------|
 |`maxPrice`|`uint256`|The maximum price the bidder is willing to pay|
-|`exactIn`|`bool`|Whether the bid is exact in|
 |`amount`|`uint256`|The amount of the bid|
 |`owner`|`address`|The owner of the bid|
 |`hookData`|`bytes`|Additional data to pass to the hook required for validation|
@@ -203,13 +197,13 @@ Sweep any leftover tokens to the tokens recipient
 function sweepUnsoldTokens() external;
 ```
 
-### sumDemandAboveClearing
+### sumCurrencyDemandAboveClearingX7
 
 The sum of demand in ticks above the clearing price
 
 
 ```solidity
-function sumDemandAboveClearing() external view returns (Demand memory);
+function sumCurrencyDemandAboveClearingX7() external view returns (ValueX7);
 ```
 
 ## Events
@@ -232,7 +226,7 @@ Emitted when a bid is submitted
 
 
 ```solidity
-event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, bool exactIn, uint256 amount);
+event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, uint256 amount);
 ```
 
 **Parameters**
@@ -242,7 +236,6 @@ event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, boo
 |`id`|`uint256`|The id of the bid|
 |`owner`|`address`|The owner of the bid|
 |`price`|`uint256`|The price of the bid|
-|`exactIn`|`bool`|Whether the bid is exact in|
 |`amount`|`uint256`|The amount of the bid|
 
 ### CheckpointUpdated
@@ -424,6 +417,14 @@ Error thrown when a new bid is less than or equal to the clearing price
 
 ```solidity
 error InvalidBidPrice();
+```
+
+### InvalidBidUnableToClear
+Error thrown when the bid is too large
+
+
+```solidity
+error InvalidBidUnableToClear();
 ```
 
 ### AuctionSoldOut

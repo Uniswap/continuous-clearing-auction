@@ -15,12 +15,11 @@ import {console2} from 'forge-std/console2.sol';
 contract AuctionSubmitBidTest is AuctionBaseTest {
     using BidLib for *;
 
-    function test_submitBid_exactIn_succeeds_gas(FuzzDeploymentParams memory _deploymentParams, FuzzBid[] memory _bids)
+    function test_submitBid_exactIn_succeeds(FuzzDeploymentParams memory _deploymentParams, FuzzBid[] memory _bids)
         public
         setUpAuctionFuzz(_deploymentParams)
         setUpBidsFuzz(_bids)
         givenAuctionHasStarted
-        givenExactIn
         givenFullyFundedAccount
     {
         uint256 expectedBidId;
@@ -28,44 +27,6 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
             // TODO(md): Temporary to ensure that we dont place bids that will not succeed if the clearing price moves above them during the tx
             auction.checkpoint();
 
-            (bool bidPlaced, uint256 bidId) = helper__trySubmitBid(expectedBidId, _bids[i], alice);
-            if (bidPlaced) expectedBidId++;
-
-            helper__maybeRollToNextBlock(i);
-        }
-    }
-
-    function test_submitBid_exactOut_succeeds_gas(FuzzDeploymentParams memory _deploymentParams, FuzzBid[] memory _bids)
-        public
-        setUpAuctionFuzz(_deploymentParams)
-        setUpBidsFuzz(_bids)
-        givenAuctionHasStarted
-        givenExactOut
-        givenFullyFundedAccount
-    {
-        uint256 expectedBidId;
-        for (uint256 i = 0; i < _bids.length; i++) {
-            // TODO(md): Temporary to ensure that we dont place bids that will not succeed if the clearing price moves above them during the tx
-            auction.checkpoint();
-
-            (bool bidPlaced, uint256 bidId) = helper__trySubmitBid(expectedBidId, _bids[i], alice);
-            if (bidPlaced) expectedBidId++;
-
-            helper__maybeRollToNextBlock(i);
-        }
-    }
-
-    function test_submitBid_mixedExactInAndOut_succeeds_gas(
-        FuzzDeploymentParams memory _deploymentParams,
-        FuzzBid[] memory _bids
-    ) public setUpAuctionFuzz(_deploymentParams) setUpBidsFuzz(_bids) givenAuctionHasStarted givenFullyFundedAccount {
-        uint256 expectedBidId;
-        for (uint256 i = 0; i < _bids.length; i++) {
-            // TODO(md): Temporary to ensure that we dont place bids that will not succeed if the clearing price moves above them during the tx
-            auction.checkpoint();
-
-            $exactIn = block.number % 2 == 0;
-            console2.log('exactIn', $exactIn);
             (bool bidPlaced, uint256 bidId) = helper__trySubmitBid(expectedBidId, _bids[i], alice);
             if (bidPlaced) expectedBidId++;
 

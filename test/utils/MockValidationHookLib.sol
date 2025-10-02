@@ -9,12 +9,11 @@ contract MockValidationHookLib {
     function handleValidate(
         IValidationHook hook,
         uint256 maxPrice,
-        bool exactIn,
         uint128 amount,
         address owner,
         address sender,
         bytes calldata hookData
     ) external {
-        return ValidationHookLib.handleValidate(hook, maxPrice, exactIn, amount, owner, sender, hookData);
+        return ValidationHookLib.handleValidate(hook, maxPrice, amount, owner, sender, hookData);
     }
 }

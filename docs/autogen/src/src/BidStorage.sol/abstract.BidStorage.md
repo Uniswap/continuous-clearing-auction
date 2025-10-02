@@ -1,5 +1,5 @@
 # BidStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f53d7155325c22ef28d878c4d9443735141b48d7/src/BidStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/68d18000c60b2a641f136e527165de89b151504d/src/BidStorage.sol)
 
 **Inherits:**
 [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
@@ -54,7 +54,7 @@ Create a new bid
 
 
 ```solidity
-function _createBid(bool exactIn, uint256 amount, address owner, uint256 maxPrice, uint24 startCumulativeMps)
+function _createBid(uint256 amount, address owner, uint256 maxPrice, uint24 startCumulativeMps)
     internal
     returns (Bid memory bid, uint256 bidId);
 ```
@@ -62,7 +62,6 @@ function _createBid(bool exactIn, uint256 amount, address owner, uint256 maxPric
 
 |Name|Type|Description|
 |----|----|-----------|
-|`exactIn`|`bool`|Whether the bid is exact in|
 |`amount`|`uint256`|The amount of the bid|
 |`owner`|`address`|The owner of the bid|
 |`maxPrice`|`uint256`|The maximum price for the bid|

@@ -1,5 +1,5 @@
 # ITokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f53d7155325c22ef28d878c4d9443735141b48d7/src/interfaces/ITokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/68d18000c60b2a641f136e527165de89b151504d/src/interfaces/ITokenCurrencyStorage.sol)
 
 Interface for token and currency storage operations
 
@@ -177,5 +177,13 @@ Error thrown when the funds recipient data cannot be decoded
 
 ```solidity
 error FundsRecipientCallFailed();
+```
+
+### TotalSupplyIsGreaterThanX7X7UpperBound
+Error thrown when the total supply is too large
+
+
+```solidity
+error TotalSupplyIsGreaterThanX7X7UpperBound();
 ```
 

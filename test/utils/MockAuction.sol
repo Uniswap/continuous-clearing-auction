@@ -5,25 +5,24 @@ import {Auction} from '../../src/Auction.sol';
 import {AuctionParameters} from '../../src/Auction.sol';
 import {Bid} from '../../src/BidStorage.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
-import {Demand, DemandLib} from '../../src/libraries/DemandLib.sol';
 import {SupplyLib, SupplyRolloverMultiplier} from '../../src/libraries/SupplyLib.sol';
+import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
+
 import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7} from '../../src/libraries/ValueX7X7Lib.sol';
 
 contract MockAuction is Auction {
-    using DemandLib for Demand;
-
     constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
         Auction(_token, _totalSupply, _parameters)
     {}
 
     /// @notice Wrapper around internal function for testing
     function calculateNewClearingPrice(
-        Demand memory sumDemandAboveClearing,
+        ValueX7 sumCurrencyDemandAboveClearingX7,
         ValueX7X7 remainingSupplyX7X7,
         uint24 remainingMpsInAuction
     ) external view returns (uint256) {
-        return _calculateNewClearingPrice(sumDemandAboveClearing, remainingSupplyX7X7, remainingMpsInAuction);
+        return _calculateNewClearingPrice(sumCurrencyDemandAboveClearingX7, remainingSupplyX7X7, remainingMpsInAuction);
     }
 
     /// @notice Wrapper around internal function for testing
@@ -55,14 +54,11 @@ contract MockAuction is Auction {
     }
 
     /// @notice Add a bid to storage without updating the tick demand or $sumDemandAboveClearing
-    function uncheckedCreateBid(
-        bool exactIn,
-        uint128 amount,
-        address owner,
-        uint256 maxPrice,
-        uint24 startCumulativeMps
-    ) external returns (Bid memory, uint256) {
-        return _createBid(exactIn, amount, owner, maxPrice, startCumulativeMps);
+    function uncheckedCreateBid(uint128 amount, address owner, uint256 maxPrice, uint24 startCumulativeMps)
+        external
+        returns (Bid memory, uint256)
+    {
+        return _createBid(amount, owner, maxPrice, startCumulativeMps);
     }
 
     function uncheckedInitializeTickIfNeeded(uint256 prevPrice, uint256 price) external {
@@ -74,16 +70,16 @@ contract MockAuction is Auction {
     }
 
     /// @notice Update the tick demand
-    function uncheckedUpdateTickDemand(uint256 price, Demand memory demand) external {
-        _updateTickDemand(price, demand);
+    function uncheckedUpdateTickDemand(uint256 price, ValueX7 currencyDemandX7) external {
+        _updateTickDemand(price, currencyDemandX7);
     }
 
     /// @notice Set the $sumDemandAboveClearing
-    function uncheckedSetSumDemandAboveClearing(Demand memory demand) external {
-        $sumDemandAboveClearing = demand;
+    function uncheckedSetSumDemandAboveClearing(ValueX7 currencyDemandX7) external {
+        $sumCurrencyDemandAboveClearingX7 = currencyDemandX7;
     }
 
-    function uncheckedAddToSumDemandAboveClearing(Demand memory demand) external {
-        $sumDemandAboveClearing = $sumDemandAboveClearing.add(demand);
+    function uncheckedAddToSumDemandAboveClearing(ValueX7 currencyDemandX7) external {
+        $sumCurrencyDemandAboveClearingX7 = $sumCurrencyDemandAboveClearingX7.add(currencyDemandX7);
     }
 }

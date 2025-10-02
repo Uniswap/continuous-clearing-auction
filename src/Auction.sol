@@ -272,12 +272,6 @@ contract Auction is
             )
         );
 
-        // Round up to the nearest tick boundary
-        // This will result in a higher price which means less tokens will be sold than expected
-        uint256 remainder = clearingPrice % TICK_SPACING;
-        if (remainder != 0) {
-            return ((clearingPrice + TICK_SPACING) - remainder);
-        }
         return clearingPrice;
     }
 

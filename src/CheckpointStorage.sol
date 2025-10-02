@@ -5,7 +5,7 @@ import {ICheckpointStorage} from './interfaces/ICheckpointStorage.sol';
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
-import {Demand, DemandLib} from './libraries/DemandLib.sol';
+import {DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
@@ -19,7 +19,7 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     using FixedPointMathLib for *;
     using AuctionStepLib for *;
     using BidLib for *;
-    using DemandLib for Demand;
+    using DemandLib for ValueX7;
     using CheckpointLib for Checkpoint;
     using ValueX7Lib for *;
     using ValueX7X7Lib for *;
@@ -122,19 +122,13 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     {
         uint24 mpsRemainingInAuction = bid.mpsRemainingInAuctionAfterSubmission();
         // Defer the division of `mpsRemainingInAuction` to the end to prevent intermediate overflow
-        uint256 tempTokensFilled = bid.exactIn
-            ? bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96)
-            : bid.amount * cumulativeMpsDelta;
+        uint256 tempTokensFilled = bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96);
         // Integer division to get the actual tokens filled
         tokensFilled = tempTokensFilled / mpsRemainingInAuction;
 
         // if no tokens were filled, then no currency was spent
         if (tempTokensFilled != 0) {
-            currencySpent = bid.exactIn
-                ? bid.amount.fullMulDivUp(cumulativeMpsDelta, mpsRemainingInAuction)
-                : tempTokensFilled.fullMulDivUp(
-                    cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPriceDelta * mpsRemainingInAuction
-                );
+            currencySpent = bid.amount.fullMulDivUp(cumulativeMpsDelta, mpsRemainingInAuction);
         }
     }
 

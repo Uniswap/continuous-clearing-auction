@@ -1,11 +1,11 @@
 # Tick
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4e79543472823ca4f19066f04f5392aba6563627/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c968c963f6b2d0d8603af50fad60d232a645daef/src/TickStorage.sol)
 
 
 ```solidity
 struct Tick {
     uint256 next;
-    Demand demand;
+    ValueX7 currencyDemandX7;
 }
 ```
 

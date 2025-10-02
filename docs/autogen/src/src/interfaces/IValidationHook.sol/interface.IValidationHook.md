@@ -1,5 +1,5 @@
 # IValidationHook
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4e79543472823ca4f19066f04f5392aba6563627/src/interfaces/IValidationHook.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/7481976d9a045c9df236ecc1331ce832ed4d18a0/src/interfaces/IValidationHook.sol)
 
 Interface for custom bid validation logic
 
@@ -13,21 +13,13 @@ Validate a bid
 
 
 ```solidity
-function validate(
-    uint256 maxPrice,
-    bool exactIn,
-    uint256 amount,
-    address owner,
-    address sender,
-    bytes calldata hookData
-) external;
+function validate(uint256 maxPrice, uint256 amount, address owner, address sender, bytes calldata hookData) external;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`maxPrice`|`uint256`|The maximum price the bidder is willing to pay|
-|`exactIn`|`bool`|Whether the bid is exact in|
 |`amount`|`uint256`|The amount of the bid|
 |`owner`|`address`|The owner of the bid|
 |`sender`|`address`|The sender of the bid|

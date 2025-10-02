@@ -1,5 +1,5 @@
 # AuctionStepStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4e79543472823ca4f19066f04f5392aba6563627/src/AuctionStepStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/7481976d9a045c9df236ecc1331ce832ed4d18a0/src/AuctionStepStorage.sol)
 
 **Inherits:**
 [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md)
@@ -116,7 +116,7 @@ The block at which the auction starts
 
 
 ```solidity
-function startBlock() external view returns (uint64);
+function startBlock() external view override(IAuctionStepStorage) returns (uint64);
 ```
 **Returns**
 
@@ -131,12 +131,27 @@ The block at which the auction ends
 
 
 ```solidity
-function endBlock() external view returns (uint64);
+function endBlock() external view override(IAuctionStepStorage) returns (uint64);
 ```
 **Returns**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`<none>`|`uint64`|The ending block number|
+
+
+### pointer
+
+The address pointer to the contract deployed by SSTORE2
+
+
+```solidity
+function pointer() external view override(IAuctionStepStorage) returns (address);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`address`|The address pointer|
 
 

@@ -582,7 +582,7 @@ sequenceDiagram
     end
     Auction->>TickStorage: _updateTickDemand(...)
     Auction->>BidStorage: _createBid(...)
-    Auction->>Auction: update sumDemandAboveClearing
+    Auction->>Auction: update sumCurrencyDemandAboveClearingX7
     Auction-->>User: bidId
 ```
 

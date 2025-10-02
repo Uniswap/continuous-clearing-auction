@@ -62,7 +62,7 @@ contract Auction is
     IValidationHook internal immutable VALIDATION_HOOK;
 
     /// @notice The sum of demand in ticks above the clearing price
-    ValueX7 internal $sumDemandAboveClearing;
+    ValueX7 internal $sumCurrencyDemandAboveClearingX7;
     /// @notice Whether the TOTAL_SUPPLY of tokens has been received
     bool private $_tokensReceived;
     /// @notice A packed uint256 containing `set`, `remainingSupplyX7X7`, and `remainingMps` values derived from the checkpoint
@@ -133,7 +133,7 @@ contract Auction is
     {
         // This value should have been divided by MPS, we implicitly remove it to wrap it as a ValueX7X7
         ValueX7X7 resolvedDemandAboveClearingPriceX7X7 =
-            $sumDemandAboveClearing.resolveRoundingDown(_checkpoint.clearingPrice).upcast();
+            $sumCurrencyDemandAboveClearingX7.resolveRoundingDown(_checkpoint.clearingPrice).upcast();
         // Calculate the supply to be cleared based on demand above the clearing price
         ValueX7X7 supplyClearedX7X7;
         // If the clearing price is above the floor price the auction is fully subscribed and we can sell the available supply
@@ -228,11 +228,11 @@ contract Auction is
     }
 
     /// @notice Calculate the new clearing price, given the cumulative demand and the remaining supply in the auction
-    /// @param _sumDemandAboveClearing The sum of demand above the clearing price
+    /// @param _sumCurrencyDemandAboveClearingX7 The sum of demand above the clearing price
     /// @param _remainingMpsInAuction The remaining mps in the auction which is MPSLib.MPS minus the cumulative mps so far
     /// @param _remainingSupplyX7X7 The result of TOTAL_SUPPLY_X7_X7 minus the total cleared supply so far
     function _calculateNewClearingPrice(
-        ValueX7 _sumDemandAboveClearing,
+        ValueX7 _sumCurrencyDemandAboveClearingX7,
         ValueX7X7 _remainingSupplyX7X7,
         uint24 _remainingMpsInAuction
     ) internal view returns (uint256) {
@@ -266,7 +266,7 @@ contract Auction is
          * higher prices which results in less tokens being sold (since price is currency / token).
          */
         uint256 clearingPrice = ValueX7.unwrap(
-            _sumDemandAboveClearing.fullMulDivUp(
+            _sumCurrencyDemandAboveClearingX7.fullMulDivUp(
                 ValueX7.wrap(FixedPoint96.Q96 * uint256(_remainingMpsInAuction)), _remainingSupplyX7X7.downcast()
             )
         );
@@ -294,7 +294,7 @@ contract Auction is
         // and we can return the minimum clearing price above
         if (_REMAINING_MPS_IN_AUCTION == 0) return minimumClearingPrice;
 
-        ValueX7 sumDemandAboveClearing_ = $sumDemandAboveClearing;
+        ValueX7 sumCurrencyDemandAboveClearingX7_ = $sumCurrencyDemandAboveClearingX7;
         uint256 nextActiveTickPrice_ = $nextActiveTickPrice;
 
         Tick memory nextActiveTick = getTick(nextActiveTickPrice_);
@@ -328,13 +328,14 @@ contract Auction is
          */
         while (
             nextActiveTickPrice_ != type(uint256).max
-                && sumDemandAboveClearing_.mulUint256(_REMAINING_MPS_IN_AUCTION).mulUint256(FixedPoint96.Q96).upcast()
+                && sumCurrencyDemandAboveClearingX7_.mulUint256(_REMAINING_MPS_IN_AUCTION).mulUint256(FixedPoint96.Q96)
+                    .upcast()
                     // Round up for demand here to bias towards finding a higher price
                     // This ensures that demand is never greater than supply, and in the case of rounding, we simply sell less tokens
                     .gte(_REMAINING_SUPPLY_X7_X7.mulUint256(nextActiveTickPrice_))
         ) {
             // Subtract the demand at the current nextActiveTick from the total demand
-            sumDemandAboveClearing_ = sumDemandAboveClearing_.sub(nextActiveTick.demand);
+            sumCurrencyDemandAboveClearingX7_ = sumCurrencyDemandAboveClearingX7_.sub(nextActiveTick.currencyDemandX7);
             // Save the previous next active tick price
             minimumClearingPrice = nextActiveTickPrice_;
             // Advance to the next tick
@@ -343,13 +344,14 @@ contract Auction is
         }
         // Set the values into storage if we found a new next active tick price
         if (nextActiveTickPrice_ != $nextActiveTickPrice) {
-            $sumDemandAboveClearing = sumDemandAboveClearing_;
+            $sumCurrencyDemandAboveClearingX7 = sumCurrencyDemandAboveClearingX7_;
             $nextActiveTickPrice = nextActiveTickPrice_;
         }
 
         // Calculate the new clearing price
-        uint256 clearingPrice =
-            _calculateNewClearingPrice(sumDemandAboveClearing_, _REMAINING_SUPPLY_X7_X7, _REMAINING_MPS_IN_AUCTION);
+        uint256 clearingPrice = _calculateNewClearingPrice(
+            sumCurrencyDemandAboveClearingX7_, _REMAINING_SUPPLY_X7_X7, _REMAINING_MPS_IN_AUCTION
+        );
         // If the new clearing price is below the minimum clearing price return the minimum clearing price
         if (clearingPrice < minimumClearingPrice) return minimumClearingPrice;
         return clearingPrice;
@@ -359,7 +361,7 @@ contract Auction is
     /// @dev This updates the state of the auction accounting for the bids placed after the last checkpoint
     ///      Checkpoints are created at the top of each block with a new bid and does NOT include that bid
     ///      Because of this, we need to calculate what the new state of the Auction should be before updating
-    ///      purely on the supply we will sell to the potentially updated `sumDemandAboveClearing` value
+    ///      purely on the supply we will sell to the potentially updated `sumCurrencyDemandAboveClearingX7` value
     /// @param blockNumber The block number to checkpoint at
     function _unsafeCheckpoint(uint64 blockNumber) internal returns (Checkpoint memory _checkpoint) {
         if (blockNumber == $lastCheckpointedBlock) return latestCheckpoint();
@@ -420,7 +422,7 @@ contract Auction is
 
         _updateTickDemand(maxPrice, bidEffectiveAmount);
 
-        $sumDemandAboveClearing = $sumDemandAboveClearing.add(bidEffectiveAmount);
+        $sumCurrencyDemandAboveClearingX7 = $sumCurrencyDemandAboveClearingX7.add(bidEffectiveAmount);
 
         emit BidSubmitted(bidId, owner, maxPrice, amount);
     }
@@ -589,7 +591,7 @@ contract Auction is
             (uint256 partialTokensFilled, uint256 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
                 upperCheckpoint.cumulativeSupplySoldToClearingPriceX7X7,
                 bid.toEffectiveAmount().resolveRoundingDown(bidMaxPrice),
-                getTick(bidMaxPrice).demand.resolveRoundingUp(bidMaxPrice),
+                getTick(bidMaxPrice).currencyDemandX7.resolveRoundingUp(bidMaxPrice),
                 bidMaxPrice
             );
             tokensFilled += partialTokensFilled;
@@ -654,7 +656,7 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function sumDemandAboveClearing() external view override(IAuction) returns (ValueX7) {
-        return $sumDemandAboveClearing;
+    function sumCurrencyDemandAboveClearingX7() external view override(IAuction) returns (ValueX7) {
+        return $sumCurrencyDemandAboveClearingX7;
     }
 }

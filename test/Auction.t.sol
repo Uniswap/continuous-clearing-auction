@@ -1238,7 +1238,7 @@ contract AuctionTest is AuctionBaseTest {
             tickNumberToPriceX96(1),
             bytes('')
         );
-        ValueX7 demand = mockAuction.sumDemandAboveClearing();
+        ValueX7 demand = mockAuction.sumCurrencyDemandAboveClearingX7();
         // Demand should be the same as the bid demand
         assertEq(demand, mockAuction.getBid(bidId).toEffectiveAmount());
         /**
@@ -1253,7 +1253,7 @@ contract AuctionTest is AuctionBaseTest {
          * and the end of the last step. In this case both of those values are equal (block 11) so we don't transform the checkpoint.
          * However, we do advance to the next step such that the step is up to date with the schedule.
          *
-         * Once the step is made current, we can find the `clearingPrice` and `sumDemandAboveClearing` values which affect the Checkpointed values.
+         * Once the step is made current, we can find the `clearingPrice` and `sumCurrencyDemandAboveClearingX7` values which affect the Checkpointed values.
          * It's important to remember that these values are calculated at the TOP of block 12, one block after the bid was submitted
          * This is correct because it reflects the state of the auction UP UNTIL block 12, not including.
          *
@@ -1332,7 +1332,7 @@ contract AuctionTest is AuctionBaseTest {
             tickNumberToPriceX96(1),
             bytes('')
         );
-        ValueX7 demand = mockAuction.sumDemandAboveClearing();
+        ValueX7 demand = mockAuction.sumCurrencyDemandAboveClearingX7();
         // Demand should be the same as the bid demand
         assertEq(demand, mockAuction.getBid(bidId).toEffectiveAmount());
         /**
@@ -1347,7 +1347,7 @@ contract AuctionTest is AuctionBaseTest {
          * and the end of the last step. In this case both of those values are equal (block 11) so we don't transform the checkpoint.
          * However, we do advance to the next step such that the step is up to date with the schedule.
          *
-         * Once the step is made current, we can find the `clearingPrice` and `sumDemandAboveClearing` values which affect the Checkpointed values.
+         * Once the step is made current, we can find the `clearingPrice` and `sumCurrencyDemandAboveClearingX7` values which affect the Checkpointed values.
          * It's important to remember that these values are calculated at the TOP of block 12, one block after the bid was submitted
          * This is correct because it reflects the state of the auction UP UNTIL block 12, not including.
          *
@@ -1935,7 +1935,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     /// @dev Reproduces rounding issue caused by 1 tick spacing
-    /// the _nextActiveTick demand could be above sumDemandAboveClearing, causing an underflow when transforming the checkpoint
+    /// the _nextActiveTick demand could be above sumCurrencyDemandAboveClearingX7, causing an underflow when transforming the checkpoint
     function test_repro_rounding_error_underflow_transform_checkpoint(uint8 numBids) public {
         vm.assume(numBids > 0);
         vm.assume(numBids < 15);

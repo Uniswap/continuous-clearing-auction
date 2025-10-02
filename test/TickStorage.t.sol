@@ -114,7 +114,7 @@ contract TickStorageTest is Test, Assertions {
         // $floorPrice_rounded is guaranteed to be initialized already
         tickStorage.initializeTickIfNeeded($floorPrice_rounded, _price);
         Tick memory tick = tickStorage.getTick(_price);
-        assertEq(tick.demand, ValueX7.wrap(0));
+        assertEq(tick.currencyDemandX7, ValueX7.wrap(0));
         // Assert there is no next tick (type(uint256).max)
         assertEq(tick.next, tickStorage.MAX_TICK_PRICE());
         // Assert the nextActiveTick is unchanged

@@ -176,5 +176,5 @@ interface IAuction is
     function sweepUnsoldTokens() external;
 
     /// @notice The sum of demand in ticks above the clearing price
-    function sumDemandAboveClearing() external view returns (ValueX7);
+    function sumCurrencyDemandAboveClearingX7() external view returns (ValueX7);
 }

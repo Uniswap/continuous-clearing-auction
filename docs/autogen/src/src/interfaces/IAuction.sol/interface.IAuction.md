@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/7481976d9a045c9df236ecc1331ce832ed4d18a0/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c968c963f6b2d0d8603af50fad60d232a645daef/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
@@ -197,13 +197,13 @@ Sweep any leftover tokens to the tokens recipient
 function sweepUnsoldTokens() external;
 ```
 
-### sumDemandAboveClearing
+### sumCurrencyDemandAboveClearingX7
 
 The sum of demand in ticks above the clearing price
 
 
 ```solidity
-function sumDemandAboveClearing() external view returns (ValueX7);
+function sumCurrencyDemandAboveClearingX7() external view returns (ValueX7);
 ```
 
 ## Events

@@ -7,7 +7,7 @@ import {ValueX7} from './libraries/ValueX7Lib.sol';
 
 struct Tick {
     uint256 next;
-    ValueX7 demand;
+    ValueX7 currencyDemandX7;
 }
 
 /// @title TickStorage
@@ -97,7 +97,7 @@ abstract contract TickStorage is ITickStorage {
     /// @param currencyDemandX7 The demand to add
     function _updateTickDemand(uint256 price, ValueX7 currencyDemandX7) internal {
         Tick storage tick = $_ticks[price];
-        tick.demand = tick.demand.add(currencyDemandX7);
+        tick.currencyDemandX7 = tick.currencyDemandX7.add(currencyDemandX7);
     }
 
     // Getters

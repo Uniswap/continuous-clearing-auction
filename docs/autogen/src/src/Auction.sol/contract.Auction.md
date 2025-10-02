@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/7481976d9a045c9df236ecc1331ce832ed4d18a0/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c968c963f6b2d0d8603af50fad60d232a645daef/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -32,12 +32,12 @@ IValidationHook internal immutable VALIDATION_HOOK;
 ```
 
 
-### $sumDemandAboveClearing
+### $sumCurrencyDemandAboveClearingX7
 The sum of demand in ticks above the clearing price
 
 
 ```solidity
-ValueX7 internal $sumDemandAboveClearing;
+ValueX7 internal $sumCurrencyDemandAboveClearingX7;
 ```
 
 
@@ -178,7 +178,7 @@ Calculate the new clearing price, given the cumulative demand and the remaining 
 
 ```solidity
 function _calculateNewClearingPrice(
-    ValueX7 _sumDemandAboveClearing,
+    ValueX7 _sumCurrencyDemandAboveClearingX7,
     ValueX7X7 _remainingSupplyX7X7,
     uint24 _remainingMpsInAuction
 ) internal view returns (uint256);
@@ -187,7 +187,7 @@ function _calculateNewClearingPrice(
 
 |Name|Type|Description|
 |----|----|-----------|
-|`_sumDemandAboveClearing`|`ValueX7`|The sum of demand above the clearing price|
+|`_sumCurrencyDemandAboveClearingX7`|`ValueX7`|The sum of demand above the clearing price|
 |`_remainingSupplyX7X7`|`ValueX7X7`|The result of TOTAL_SUPPLY_X7_X7 minus the total cleared supply so far|
 |`_remainingMpsInAuction`|`uint24`|The remaining mps in the auction which is MPSLib.MPS minus the cumulative mps so far|
 
@@ -222,7 +222,7 @@ Internal function for checkpointing at a specific block number
 *This updates the state of the auction accounting for the bids placed after the last checkpoint
 Checkpoints are created at the top of each block with a new bid and does NOT include that bid
 Because of this, we need to calculate what the new state of the Auction should be before updating
-purely on the supply we will sell to the potentially updated `sumDemandAboveClearing` value*
+purely on the supply we will sell to the potentially updated `sumCurrencyDemandAboveClearingX7` value*
 
 
 ```solidity
@@ -434,12 +434,12 @@ The address of the validation hook for the auction
 function validationHook() external view override(IAuction) returns (IValidationHook);
 ```
 
-### sumDemandAboveClearing
+### sumCurrencyDemandAboveClearingX7
 
 The sum of demand in ticks above the clearing price
 
 
 ```solidity
-function sumDemandAboveClearing() external view override(IAuction) returns (ValueX7);
+function sumCurrencyDemandAboveClearingX7() external view override(IAuction) returns (ValueX7);
 ```
 

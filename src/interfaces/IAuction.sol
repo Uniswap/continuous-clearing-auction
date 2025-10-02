@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
-
 import {ValueX7} from '../libraries/ValueX7Lib.sol';
 import {ValueX7X7} from '../libraries/ValueX7X7Lib.sol';
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
@@ -71,6 +70,8 @@ interface IAuction is
     error AuctionIsNotOver();
     /// @notice Error thrown when a new bid is less than or equal to the clearing price
     error InvalidBidPrice();
+    /// @notice Error thrown when the bid is too large
+    error InvalidBidUnableToClear();
     /// @notice Error thrown when the auction has sold the entire total supply of tokens
     error AuctionSoldOut();
 

@@ -1,5 +1,5 @@
 # PermitSingleForwarder
-[Git Source](https://github.com/Uniswap/twap-auction/blob/e9af49823643874ce6f39c92957bfa37dac24e02/src/PermitSingleForwarder.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/23d1996d53fc32e05713e0f370c3682331c7b03b/src/PermitSingleForwarder.sol)
 
 **Inherits:**
 [IPermitSingleForwarder](/src/interfaces/IPermitSingleForwarder.sol/interface.IPermitSingleForwarder.md)

@@ -74,6 +74,8 @@ interface IAuction is
     error InvalidBidPrice();
     /// @notice Error thrown when the auction has sold the entire total supply of tokens
     error AuctionSoldOut();
+    /// @notice Error thrown when the bid is too large
+    error InvalidBidUnableToClear();
 
     /// @notice Emitted when the tokens are received
     /// @param totalSupply The total supply of tokens received

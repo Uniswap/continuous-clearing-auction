@@ -14,6 +14,7 @@ import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
+import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {Demand} from '../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {MPSLib} from '../src/libraries/MPSLib.sol';
@@ -2227,6 +2228,34 @@ contract AuctionTest is AuctionBaseTest {
         // Exit the bids and claim ATP
         auction.exitPartiallyFilledBid(bidId, 3, 0);
         auction.claimTokens(bidId);
+    }
+
+    /// Super large tick spacing
+    /// Bids sufficiently large become unable to clear
+    function test_disallow_bids_too_large_to_clear(uint256 totalSupply, uint256 inputAmount) public {
+        vm.assume(totalSupply > 0 && totalSupply <= SupplyLib.MAX_TOTAL_SUPPLY);
+
+        vm.deal(address(this), type(uint256).max);
+        uint256 floorPrice = 1;
+        uint256 tickSpacing = 1;
+        params = params.withFloorPrice(floorPrice).withTickSpacing(tickSpacing);
+        auction = new Auction(address(token), totalSupply, params);
+        token.mint(address(auction), totalSupply);
+        auction.onTokensReceived();
+
+        // Do ConstantsLib.X7_UPPER_BOUND because that will trigger the revert
+        // Divide by 1e7 because we will at most scale it up by 1e7 when doing bid.toDemand()
+        // Divide by Q96 because we resolve the demand by multiplying by Q96 then dividing by price (in this case, 1)
+        uint256 inputAmount = ConstantsLib.X7_UPPER_BOUND / (FixedPoint96.Q96 * 1e7) + 1;
+        vm.expectRevert(IAuction.InvalidBidUnableToClear.selector);
+        auction.submitBid{value: inputAmount}(
+            2,
+            true,
+            inputAmount,
+            alice,
+            1,
+            ''
+        );
     }
 
     function logAmountWithDecimal(string memory key, uint256 amount) internal {

@@ -25,7 +25,8 @@ contract DeriveMaxPriceScript is Script {
         // (1 << 96 / K) ** 2 = MIN_SQRT_PRICE ** 2
         // Finally, need to shift it to the right 96 bits to get the price, which is zero.
         // This means that the MIN_SQRT_PRICE ^ 2 is so small that it cannot be represented in a 64.96 fixed point number.
-        // Thus, zero, which is greater than MIN_SQRT_PRICE ^ 2, can be used as a minimum floor price
+        // Thus, the smallest value representable in a X96 value, 1, is greater than MIN_SQRT_PRICE ^ 2, can be used as a minimum floor price
+        // This is why in the contract we require the floor price to be > 0, or at minimum, 1.
         uint256 k = (1 << FixedPoint96.RESOLUTION) / MIN_SQRT_PRICE;
         console2.log(
             '(((1 << 96) / K) ** 2) >> 96', (((1 << FixedPoint96.RESOLUTION) / k) ** 2) >> FixedPoint96.RESOLUTION

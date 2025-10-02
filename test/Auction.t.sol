@@ -13,6 +13,8 @@ import {AuctionStep} from '../src/libraries/AuctionStepLib.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
+
+import {CheckpointLib} from '../src/libraries/CheckpointLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {MPSLib} from '../src/libraries/MPSLib.sol';
@@ -68,7 +70,9 @@ contract AuctionTest is AuctionBaseTest {
     function test_submitBid_exactIn_smallBidLessThanMpsRemainingInAuctionAfterSubmission_purchasesNoTokens(
         uint256 smallBidAmount
     ) public {
-        vm.assume(smallBidAmount < MPSLib.MPS && smallBidAmount > 0);
+        uint256 expectedMpsPerPrice = CheckpointLib.getMpsPerPrice(MPSLib.MPS, tickNumberToPriceX96(1));
+        vm.assume(smallBidAmount < type(uint256).max / expectedMpsPerPrice);
+        vm.assume(smallBidAmount * expectedMpsPerPrice < FixedPoint96.Q96 * MPSLib.MPS && smallBidAmount > 0);
         // Submit a small bid, one that is less than the mpsRemainingInAuctionAfterSubmission (1e7)
         auction.submitBid{value: smallBidAmount}(tickNumberToPriceX96(2), smallBidAmount, alice, bytes(''));
 
@@ -81,12 +85,16 @@ contract AuctionTest is AuctionBaseTest {
         emit ITokenCurrencyStorage.CurrencySwept(fundsRecipient, smallBidAmount);
         auction.sweepCurrency();
 
-        uint256 expectedTokensFilled =
-            smallBidAmount.fullMulDiv(checkpoint.cumulativeMpsPerPrice, FixedPoint96.Q96) / MPSLib.MPS;
-        uint256 expectedCurrencyRefunded = 0;
+        uint24 mpsRemainingInAuctionAfterBid = MPSLib.MPS;
+        uint256 expectedTokensFilled = smallBidAmount.fullMulDiv(
+            checkpoint.cumulativeMpsPerPrice, FixedPoint96.Q96 * mpsRemainingInAuctionAfterBid
+        );
 
         vm.expectEmit(true, true, true, true);
-        emit IAuction.BidExited(0, alice, expectedTokensFilled, expectedCurrencyRefunded);
+        // Expect that the bid is exited with:
+        // - 0 tokens filled
+        // - 0 currency refunded
+        emit IAuction.BidExited(0, alice, 0, 0);
         auction.exitBid(0);
     }
 

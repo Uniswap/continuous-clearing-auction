@@ -268,7 +268,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
                 bidInputAmount,
                 'Bid owner can never be refunded more Currency than provided'
             );
-            
+
             // Bid might be deleted if tokensFilled = 0
             bid = getBid(i);
             if (bid.tokensFilled == 0) continue;

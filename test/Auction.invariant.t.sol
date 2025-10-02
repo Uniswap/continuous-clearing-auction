@@ -240,7 +240,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
         }
     }
 
-    function invariant_canExitAndClaimFullyFilledBids() public {
+    function invariant_canExitAndClaimAllBids() public {
         // Roll to end of the auction
         vm.roll(auction.endBlock());
         auction.checkpoint();
@@ -258,12 +258,14 @@ contract AuctionInvariantTest is AuctionBaseTest {
             if (bid.exitedBlock != 0) continue;
             if (bid.tokensFilled != 0) continue;
 
-            uint256 ownerBalanceBefore = address(bid.owner).balance;
             uint256 bidInputAmount =
                 bid.exactIn ? bid.amount : BidLib.inputAmount(bid.exactIn, bid.amount, bid.maxPrice);
 
+            uint256 currencyBalanceBefore = currency.balanceOf(bid.owner);
             if (bid.maxPrice > clearingPrice) {
                 auction.exitBid(i);
+                // Must not have received refund for a fully filled bid
+                assertEq(currency.balanceOf(bid.owner), currencyBalanceBefore);
             } else {
                 (uint64 lower, uint64 upper) = getLowerUpperCheckpointHints(bid.maxPrice);
                 auction.exitPartiallyFilledBid(i, lower, upper);
@@ -271,10 +273,14 @@ contract AuctionInvariantTest is AuctionBaseTest {
 
             // can never gain more Currency than provided
             assertLe(
-                address(bid.owner).balance - ownerBalanceBefore,
+                currency.balanceOf(bid.owner) - currencyBalanceBefore,
                 bidInputAmount,
                 'Bid owner can never be refunded more Currency than provided'
             );
+
+            if (!bid.exactIn) {
+                assertLe(bid.tokensFilled, bid.amount, 'Exact out bid can never purchase more tokens than requested');
+            }
 
             // Bid might be deleted if tokensFilled = 0
             bid = getBid(i);

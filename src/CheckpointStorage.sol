@@ -9,10 +9,12 @@ import {Demand, DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+
 import {console} from 'forge-std/console.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 /// @title CheckpointStorage
 /// @notice Abstract contract for managing auction checkpoints and bid fill calculations
+
 abstract contract CheckpointStorage is ICheckpointStorage {
     using FixedPointMathLib for *;
     using AuctionStepLib for *;
@@ -95,20 +97,13 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         uint256 bidMaxPrice
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
         if (tickDemandX7.eq(ValueX7.wrap(0))) return (0, 0);
-        // Expanded version of the math:
-        // tokensFilled = bidDemandX7 * runningPartialFillRate * cumulativeMpsDelta / (MPS * Q96)
-        // tokensFilled = bidDemandX7 * (cumulativeSupplyX7 * Q96 * MPS / tickDemandX7 * cumulativeMpsDelta) * cumulativeMpsDelta / (mpsDenominator * Q96)
-        //              = bidDemandX7 * (cumulativeSupplyX7 / tickDemandX7)
-        // BidDemand and tickDemand are both ValueX7 values, so the X7 cancels out. However, we need to scale down the result due to cumulativeSupplySoldToClearingPriceX7X7 being a ValueX7 value
-        console.log('cumulativeSupplySoldToClearingPriceX7X7', ValueX7X7.unwrap(cumulativeSupplySoldToClearingPriceX7X7));
-        console.log('bidDemandX7', ValueX7.unwrap(bidDemandX7));
-        console.log('tickDemandX7', ValueX7.unwrap(tickDemandX7));
+        // BidDemand and tickDemand are both ValueX7 values, so the X7 cancels out.
+        // However, we need to scale down the result due to cumulativeSupplySoldToClearingPriceX7X7 being a ValueX7X7 value
+        // To prevent intermediate division, scale up the denominator instead by multiplying tickDemandX7 by 1e7 to be a ValueX7X7 value
         tokensFilled = (
             bidDemandX7.upcast().fullMulDiv(cumulativeSupplySoldToClearingPriceX7X7, tickDemandX7.scaleUpToX7X7())
                 .downcast()
-        )
-            // We need to scale the X7X7 value down, but to prevent intermediate division, scale up the denominator instead
-            .scaleDownToUint256();
+        ).scaleDownToUint256();
         currencySpent = tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96);
     }
 

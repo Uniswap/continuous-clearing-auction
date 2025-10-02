@@ -191,7 +191,7 @@ The auction employs a sophisticated dual-scaling system to maintain mathematical
 The foundation of the scaling system is **MPS = 1e7** (10 million), representing one thousandth of a basis point:
 
 ```solidity
-library MPSLib {
+library ConstantsLib {
     uint24 public constant MPS = 1e7; // 10,000,000
 }
 ```

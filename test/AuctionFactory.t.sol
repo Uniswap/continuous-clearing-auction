@@ -12,8 +12,8 @@ import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStr
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 
 import {BidLib} from '../src/libraries/BidLib.sol';
+import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {MPSLib} from '../src/libraries/MPSLib.sol';
 import {SupplyLib} from '../src/libraries/SupplyLib.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
@@ -238,11 +238,11 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
 
         vm.assume(_salt != bytes32(0));
         vm.assume(_numberOfSteps > 0);
-        vm.assume(MPSLib.MPS % _numberOfSteps == 0); // such that it is divisible
+        vm.assume(ConstantsLib.MPS % _numberOfSteps == 0); // such that it is divisible
 
         // Replace auction steps data with a valid one
         // Divide steps by number of bips
-        uint256 _numberOfMps = MPSLib.MPS / _numberOfSteps;
+        uint256 _numberOfMps = ConstantsLib.MPS / _numberOfSteps;
         bytes memory _auctionStepsData = new bytes(0);
         for (uint8 i = 0; i < _numberOfSteps; i++) {
             _auctionStepsData = AuctionStepsBuilder.addStep(_auctionStepsData, uint24(_numberOfMps), uint40(1));
@@ -251,7 +251,7 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         vm.assume(_params.claimBlock > _params.endBlock);
 
         // Bound graduation threshold mps
-        _params.graduationThresholdMps = uint24(bound(_params.graduationThresholdMps, 0, uint24(MPSLib.MPS)));
+        _params.graduationThresholdMps = uint24(bound(_params.graduationThresholdMps, 0, uint24(ConstantsLib.MPS)));
 
         return _totalSupply;
     }

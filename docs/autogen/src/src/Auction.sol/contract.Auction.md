@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/23d1996d53fc32e05713e0f370c3682331c7b03b/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/59b7d659b3235f2d439f7b56a32e81cd862bcc31/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -189,7 +189,7 @@ function _calculateNewClearingPrice(
 |----|----|-----------|
 |`_sumCurrencyDemandAboveClearingX7`|`ValueX7`|The sum of demand above the clearing price|
 |`_remainingSupplyX7X7`|`ValueX7X7`|The result of TOTAL_SUPPLY_X7_X7 minus the total cleared supply so far|
-|`_remainingMpsInAuction`|`uint24`|The remaining mps in the auction which is MPSLib.MPS minus the cumulative mps so far|
+|`_remainingMpsInAuction`|`uint24`|The remaining mps in the auction which is ConstantsLib.MPS minus the cumulative mps so far|
 
 
 ### _iterateOverTicksAndFindClearingPrice

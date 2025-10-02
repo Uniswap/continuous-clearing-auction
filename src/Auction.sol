@@ -14,18 +14,14 @@ import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
-
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
-import {MPSLib} from './libraries/MPSLib.sol';
-
 import {SupplyLib, SupplyRolloverMultiplier} from './libraries/SupplyLib.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
-
 import {console} from 'forge-std/console.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -147,7 +143,7 @@ contract Auction is
                 $_supplyRolloverMultiplier.unpack();
             if (!isSet) {
                 // Locally set the variables to save gas
-                cachedRemainingMps = MPSLib.MPS - _checkpoint.cumulativeMps;
+                cachedRemainingMps = ConstantsLib.MPS - _checkpoint.cumulativeMps;
                 cachedRemainingSupplyX7X7 = TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7);
                 // Set the cache with the values in _checkpoint, which represents the state of the auction before it becomes fully subscribed
                 $_supplyRolloverMultiplier =
@@ -168,16 +164,16 @@ contract Auction is
              * Writing out the full equation:
              *       cachedRemainingSupplyX7X7                     resolvedDemandAboveClearingPriceX7 * deltaMps
              *      ------------------------------- * deltaMps -      -------------------------------------
-             *            cachedRemainingMps                                        MPSLib.MPS
+             *            cachedRemainingMps                                        ConstantsLib.MPS
              *
-             * !! We multiply the RHS (demand) by MPSLib.MPS to remove the division and turn the result into an X7X7 value !!
+             * !! We multiply the RHS (demand) by ConstantsLib.MPS to remove the division and turn the result into an X7X7 value !!
              *
              * Finding common denominator of cachedRemainingMps
              *       cachedRemainingSupplyX7X7 * deltaMps - resolvedDemandAboveClearingPriceX7 * deltaMps * cachedRemainingMps
              *      -----------------------------------------------------------------------------------------------------------------------
              *            cachedRemainingMps
              *
-             * Moving out `deltaMps` and multiply by MPSLib.MPS to turn it into a ValueX7X7
+             * Moving out `deltaMps` and multiply by ConstantsLib.MPS to turn it into a ValueX7X7
              *       deltaMps * (cachedRemainingSupplyX7X7 - resolvedDemandAboveClearingPriceX7 * cachedRemainingMps)
              *      -----------------------------------------------------------------------------------------------------------------------
              *            cachedRemainingMps
@@ -231,7 +227,7 @@ contract Auction is
 
     /// @notice Calculate the new clearing price, given the cumulative demand and the remaining supply in the auction
     /// @param _sumCurrencyDemandAboveClearingX7 The sum of demand above the clearing price
-    /// @param _remainingMpsInAuction The remaining mps in the auction which is MPSLib.MPS minus the cumulative mps so far
+    /// @param _remainingMpsInAuction The remaining mps in the auction which is ConstantsLib.MPS minus the cumulative mps so far
     /// @param _remainingSupplyX7X7 The result of TOTAL_SUPPLY_X7_X7 minus the total cleared supply so far
     function _calculateNewClearingPrice(
         ValueX7 _sumCurrencyDemandAboveClearingX7,
@@ -246,19 +242,19 @@ contract Auction is
          * We can use the following equation to find the price:
          *   currencyDemandX7 * Q96 * mps            (totalSupplyX7 - totalClearedX7) * mps
          *   ---------------------------------  /    ---------------------------------
-         *             MPSLib.MPS                       MPSLib.MPS - cumulativeMps
+         *             ConstantsLib.MPS                       ConstantsLib.MPS - cumulativeMps
          *
          * Rewriting as multiplication by reciprocal:
-         *   currencyDemandX7 * Q96 * mps            MPSLib.MPS - cumulativeMps
+         *   currencyDemandX7 * Q96 * mps            ConstantsLib.MPS - cumulativeMps
          *   ---------------------------------  *    ---------------------------------
-         *             MPSLib.MPS                    (totalSupplyX7 - totalClearedX7) * mps
+         *             ConstantsLib.MPS                    (totalSupplyX7 - totalClearedX7) * mps
          *
-         * Cancelling out the `mps` terms and lone `MPSLib.MPS` terms:
-         *                                           MPSLib.MPS - cumulativeMps
+         * Cancelling out the `mps` terms and lone `ConstantsLib.MPS` terms:
+         *                                           ConstantsLib.MPS - cumulativeMps
          *   currencyDemandX7 * Q96             *    ---------------------------------
          *                                           (totalSupplyX7 - totalClearedX7)
          *
-         * Observe that (totalSupplyX7 - totalClearedX7) * MPSLib.MPS is equal to `remainingSupplyX7X7`, since it is scaled up by MPSLib.MPS a second time
+         * Observe that (totalSupplyX7 - totalClearedX7) * ConstantsLib.MPS is equal to `remainingSupplyX7X7`, since it is scaled up by ConstantsLib.MPS a second time
          * Now we can substitute in `remainingSupplyX7X7` and `remainingMpsInAuction` into the equation
          * We use fullMulDivUp to allow for intermediate overflows and ensure that the final clearing price is rounded up because we bias towards
          * higher prices which results in less tokens being sold (since price is currency / token).
@@ -300,33 +296,33 @@ contract Auction is
          * Tick iteration loop inequality explained:
          *
          * To compare the resolved demand to the supply being sold, we have the orignal equation:
-         *   R = resolvedDemand * mps / MPSLib.MPS
-         *   supply = (totalSupply - _checkpoint.totalCleared) * step.mps / (MPSLib.MPS - _checkpoint.cumulativeMps)
+         *   R = resolvedDemand * mps / ConstantsLib.MPS
+         *   supply = (totalSupply - _checkpoint.totalCleared) * step.mps / (ConstantsLib.MPS - _checkpoint.cumulativeMps)
          * We are looking for R >= supply
          *
-         * Observe that because of the inequality, we can multiply both sides by `(MPSLib.MPS - _checkpoint.cumulativeMps)` to get:
-         *   R * (MPSLib.MPS - _checkpoint.cumulativeMps) >= supply * mps
+         * Observe that because of the inequality, we can multiply both sides by `(ConstantsLib.MPS - _checkpoint.cumulativeMps)` to get:
+         *   R * (ConstantsLib.MPS - _checkpoint.cumulativeMps) >= supply * mps
          *
          * Substituting R back into the equation to get:
-         *   (resolvedDemand * mps / MPSLib.MPS) * (MPSLib.MPS - _checkpoint.cumulativeMps) >= supply * mps
+         *   (resolvedDemand * mps / ConstantsLib.MPS) * (ConstantsLib.MPS - _checkpoint.cumulativeMps) >= supply * mps
          * Or,
-         *   (resolvedDemand * mps) * (MPSLib.MPS - _checkpoint.cumulativeMps)
+         *   (resolvedDemand * mps) * (ConstantsLib.MPS - _checkpoint.cumulativeMps)
          *   ----------------------------------------------------------------- >= supply * mps
-         *                            MPSLib.MPS
+         *                            ConstantsLib.MPS
          * We can eliminate the `mps` term on both sides to get:
-         *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps)
+         *   resolvedDemand * (ConstantsLib.MPS - _checkpoint.cumulativeMps)
          *   ----------------------------------------------------------------- >= supply
-         *                            MPSLib.MPS
-         * And multiply both sides by `MPSLib.MPS` to remove the division entirely:
-         *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps) >= supply * MPSLib.MPS
+         *                            ConstantsLib.MPS
+         * And multiply both sides by `ConstantsLib.MPS` to remove the division entirely:
+         *   resolvedDemand * (ConstantsLib.MPS - _checkpoint.cumulativeMps) >= supply * ConstantsLib.MPS
          *
-         * Conveniently, we are already tracking supply in terms of X7X7, which is already scaled up by MPSLib.MPS,
+         * Conveniently, we are already tracking supply in terms of X7X7, which is already scaled up by ConstantsLib.MPS,
          * so we can substitute in TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7) for `supply`:
-         *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps) >= TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
+         *   resolvedDemand * (ConstantsLib.MPS - _checkpoint.cumulativeMps) >= TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
          *
          * Expand out resolvedDemand to get: resolvedDemand = currencyDemandX7 * Q96 / price;
          * Move the price to the RHS to remove the division:
-         *   currencyDemandX7 * Q96 * (MPSLib.MPS - _checkpoint.cumulativeMps) >= TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7) * price
+         *   currencyDemandX7 * Q96 * (ConstantsLib.MPS - _checkpoint.cumulativeMps) >= TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7) * price
          */
         while (
             nextActiveTickPrice_ != type(uint256).max

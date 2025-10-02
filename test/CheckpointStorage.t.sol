@@ -6,9 +6,10 @@ import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {CheckpointLib} from '../src/libraries/CheckpointLib.sol';
+
+import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {DemandLib} from '../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {MPSLib} from '../src/libraries/MPSLib.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
 import {Assertions} from './utils/Assertions.sol';
@@ -23,9 +24,8 @@ contract CheckpointStorageTest is Assertions, Test {
     using DemandLib for ValueX7;
     using FixedPointMathLib for uint256;
     using AuctionStepLib for uint256;
-    using MPSLib for *;
+    using ConstantsLib for *;
 
-    uint24 public constant MPS = 1e7;
     uint256 public constant TICK_SPACING = 100;
     uint256 public constant ETH_AMOUNT = 10 ether;
     uint256 public constant FLOOR_PRICE = 100 << FixedPoint96.RESOLUTION;
@@ -96,7 +96,7 @@ contract CheckpointStorageTest is Assertions, Test {
         view
     {
         vm.assume(ETH_AMOUNT * (cumulativeMpsPerPriceDelta >> FixedPoint96.RESOLUTION) <= type(uint256).max);
-        vm.assume(cumulativeMpsDelta <= MPS);
+        vm.assume(cumulativeMpsDelta <= ConstantsLib.MPS);
         // Setup: User commits 10 ETH to buy tokens
         Bid memory bid = Bid({
             owner: address(this),
@@ -111,9 +111,9 @@ contract CheckpointStorageTest is Assertions, Test {
         (uint256 tokensFilled, uint256 currencySpent) =
             mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
 
-        assertEq(tokensFilled, ETH_AMOUNT.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * MPS));
+        assertEq(tokensFilled, ETH_AMOUNT.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * ConstantsLib.MPS));
         if (tokensFilled != 0) {
-            assertEq(currencySpent, ETH_AMOUNT * cumulativeMpsDelta / MPS);
+            assertEq(currencySpent, ETH_AMOUNT * cumulativeMpsDelta / ConstantsLib.MPS);
         } else {
             assertEq(currencySpent, 0);
         }
@@ -138,7 +138,7 @@ contract CheckpointStorageTest is Assertions, Test {
         uint256 _cumulativeMpsPerPrice;
 
         for (uint256 i = 0; i < 3; i++) {
-            uint256 currencySpentInBlock = ETH_AMOUNT * mpsArray[i] / MPS;
+            uint256 currencySpentInBlock = ETH_AMOUNT * mpsArray[i] / ConstantsLib.MPS;
             uint256 tokensFilledInBlock = uint256(currencySpentInBlock.fullMulDiv(FixedPoint96.Q96, pricesArray[i]));
             _tokensFilled += tokensFilledInBlock;
             _currencySpent += currencySpentInBlock;
@@ -168,7 +168,7 @@ contract CheckpointStorageTest is Assertions, Test {
         uint24[] memory mpsArray = new uint24[](1);
         uint256[] memory pricesArray = new uint256[](1);
 
-        mpsArray[0] = MPS;
+        mpsArray[0] = ConstantsLib.MPS;
         pricesArray[0] = MAX_PRICE;
 
         // Setup: Large ETH bid
@@ -184,8 +184,8 @@ contract CheckpointStorageTest is Assertions, Test {
         });
 
         uint256 cumulativeMpsPerPriceDelta = CheckpointLib.getMpsPerPrice(mpsArray[0], pricesArray[0]);
-        uint24 cumulativeMpsDelta = MPS;
-        uint256 expectedCurrencySpent = largeAmount * cumulativeMpsDelta / MPS;
+        uint24 cumulativeMpsDelta = ConstantsLib.MPS;
+        uint256 expectedCurrencySpent = largeAmount * cumulativeMpsDelta / ConstantsLib.MPS;
 
         uint256 expectedTokensFilled = uint256(expectedCurrencySpent.fullMulDiv(FixedPoint96.Q96, MAX_PRICE));
 

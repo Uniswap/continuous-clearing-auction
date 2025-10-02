@@ -1,5 +1,5 @@
 # BidLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/e9af49823643874ce6f39c92957bfa37dac24e02/src/libraries/BidLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0a5b39a6c7a8e647dc0617b7ec4d2db5ff917aa5/src/libraries/BidLib.sol)
 
 
 ## State Variables
@@ -35,15 +35,15 @@ function mpsRemainingInAuction(Bid memory bid) internal pure returns (uint24);
 |`<none>`|`uint24`|The number of mps remaining in the auction|
 
 
-### toDemand
+### toEffectiveAmount
 
-Convert a bid to a demand
+Scale a bid amount to its effective amount over the remaining percentage of the auction
 
-*The demand is scaled based on the remaining mps such that it is fully allocated over the remaining parts of the auction*
+*The amount is scaled based on the remaining mps such that it is fully allocated over the remaining parts of the auction*
 
 
 ```solidity
-function toDemand(Bid memory bid) internal pure returns (Demand memory demand);
+function toEffectiveAmount(Bid memory bid) internal pure returns (ValueX7 bidAmountOverRemainingAuctionX7);
 ```
 **Parameters**
 
@@ -55,50 +55,6 @@ function toDemand(Bid memory bid) internal pure returns (Demand memory demand);
 
 |Name|Type|Description|
 |----|----|-----------|
-|`demand`|`Demand`|The demand struct representing the bid|
-
-
-### inputAmount
-
-Calculate the input amount required for an amount and maxPrice
-
-
-```solidity
-function inputAmount(bool exactIn, uint256 amount, uint256 maxPrice) internal pure returns (uint256);
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`exactIn`|`bool`|Whether the bid is exact in|
-|`amount`|`uint256`|The amount of the bid|
-|`maxPrice`|`uint256`|The max price of the bid|
-
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`uint256`|The input amount required for an amount and maxPrice|
-
-
-### inputAmount
-
-Calculate the input amount required to place the bid
-
-
-```solidity
-function inputAmount(Bid memory bid) internal pure returns (uint256);
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`bid`|`Bid`|The bid|
-
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`uint256`|The input amount required to place the bid|
+|`bidAmountOverRemainingAuctionX7`|`ValueX7`|The bid amount in ValueX7 scaled to the remaining percentage of the auction|
 
 

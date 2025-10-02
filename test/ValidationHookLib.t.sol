@@ -29,12 +29,12 @@ contract ValidationHookLibTest is Test {
     }
 
     function test_handleValidate_withValidationHook_doesNotRevert() public {
-        validationHookLib.handleValidate(validationHook, 1, true, 1, address(0), address(0), bytes(''));
+        validationHookLib.handleValidate(validationHook, 1, 1, address(0), address(0), bytes(''));
     }
 
     function test_handleValidate_withRevertingValidationHook_reverts() public {
         vm.expectRevert();
-        validationHookLib.handleValidate(revertingValidationHook, 1, true, 1, address(0), address(0), bytes(''));
+        validationHookLib.handleValidate(revertingValidationHook, 1, 1, address(0), address(0), bytes(''));
     }
 
     function test_handleValidate_withRevertingValidationHookWithCustomError_reverts() public {
@@ -44,7 +44,7 @@ contract ValidationHookLibTest is Test {
         );
         vm.expectRevert(revertData);
         validationHookLib.handleValidate(
-            revertingValidationHookWithCustomError, 1, true, 1, address(0), address(0), bytes('')
+            revertingValidationHookWithCustomError, 1, 1, address(0), address(0), bytes('')
         );
     }
 
@@ -54,9 +54,7 @@ contract ValidationHookLibTest is Test {
             abi.encodeWithSelector(MockRevertingValidationHookCustomErrorWithString.StringError.selector, 'reason')
         );
         vm.expectRevert(revertData);
-        validationHookLib.handleValidate(
-            revertingValidationHookWithString, 1, true, 1, address(0), address(0), bytes('')
-        );
+        validationHookLib.handleValidate(revertingValidationHookWithString, 1, 1, address(0), address(0), bytes(''));
     }
 
     function test_handleValidate_withRevertingValidationHookWithErrorWithString_reverts() public {
@@ -67,7 +65,7 @@ contract ValidationHookLibTest is Test {
         );
         vm.expectRevert(revertData);
         validationHookLib.handleValidate(
-            revertingValidationHookWithErrorWithString, 1, true, 1, address(0), address(0), bytes('')
+            revertingValidationHookWithErrorWithString, 1, 1, address(0), address(0), bytes('')
         );
     }
 }

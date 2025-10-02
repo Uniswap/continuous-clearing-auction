@@ -10,7 +10,7 @@ import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-
+import {console} from 'forge-std/console.sol';
 /// @title CheckpointStorage
 /// @notice Abstract contract for managing auction checkpoints and bid fill calculations
 abstract contract CheckpointStorage is ICheckpointStorage {
@@ -100,6 +100,9 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         // tokensFilled = bidDemandX7 * (cumulativeSupplyX7 * Q96 * MPS / tickDemandX7 * cumulativeMpsDelta) * cumulativeMpsDelta / (mpsDenominator * Q96)
         //              = bidDemandX7 * (cumulativeSupplyX7 / tickDemandX7)
         // BidDemand and tickDemand are both ValueX7 values, so the X7 cancels out. However, we need to scale down the result due to cumulativeSupplySoldToClearingPriceX7X7 being a ValueX7 value
+        console.log('cumulativeSupplySoldToClearingPriceX7X7', ValueX7X7.unwrap(cumulativeSupplySoldToClearingPriceX7X7));
+        console.log('bidDemandX7', ValueX7.unwrap(bidDemandX7));
+        console.log('tickDemandX7', ValueX7.unwrap(tickDemandX7));
         tokensFilled = (
             bidDemandX7.upcast().fullMulDiv(cumulativeSupplySoldToClearingPriceX7X7, tickDemandX7.scaleUpToX7X7())
                 .downcast()

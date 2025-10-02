@@ -22,16 +22,18 @@ import {SupplyLib, SupplyRolloverMultiplier} from './libraries/SupplyLib.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
+
+import {console} from 'forge-std/console.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
-
 /// @title Auction
 /// @custom:security-contact security@uniswap.org
 /// @notice Implements a time weighted uniform clearing price auction
 /// @dev Can be constructed directly or through the AuctionFactory. In either case, users must validate
 ///      that the auction parameters are correct and it has sufficient token balance.
+
 contract Auction is
     BidStorage,
     CheckpointStorage,
@@ -591,6 +593,15 @@ contract Auction is
          *
          */
         uint256 bidMaxPrice = bid.maxPrice; // place on stack
+        console.log('bid.amount', bid.amount);
+        console.log(
+            'bid.toDemand().resolveRoundingDown(bidMaxPrice)',
+            ValueX7.unwrap(bid.toDemand().resolveRoundingDown(bidMaxPrice))
+        );
+        console.log(
+            'getTick(bidMaxPrice).demand.resolveRoundingUp(bidMaxPrice)',
+            ValueX7.unwrap(getTick(bidMaxPrice).demand.resolveRoundingUp(bidMaxPrice))
+        );
         if (upperCheckpoint.clearingPrice == bidMaxPrice) {
             (uint256 partialTokensFilled, uint256 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
                 upperCheckpoint.cumulativeSupplySoldToClearingPriceX7X7,
@@ -601,6 +612,10 @@ contract Auction is
             tokensFilled += partialTokensFilled;
             currencySpent += partialCurrencySpent;
         }
+
+        console.log('tokensFilled', tokensFilled);
+        console.log('bid.inputAmount()', bid.inputAmount());
+        console.log('currencySpent', currencySpent);
 
         _processExit(bidId, bid, tokensFilled, bid.inputAmount() - currencySpent);
     }

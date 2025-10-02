@@ -83,8 +83,8 @@ contract AuctionTest is AuctionBaseTest {
         emit ITokenCurrencyStorage.CurrencySwept(fundsRecipient, smallBidAmount);
         auction.sweepCurrency();
 
-
-        uint256 expectedTokensFilled = smallBidAmount.fullMulDiv(checkpoint.cumulativeMpsPerPrice, FixedPoint96.Q96) / MPSLib.MPS;
+        uint256 expectedTokensFilled =
+            smallBidAmount.fullMulDiv(checkpoint.cumulativeMpsPerPrice, FixedPoint96.Q96) / MPSLib.MPS;
         uint256 expectedCurrencyRefunded = 0;
 
         vm.expectEmit(true, true, true, true);
@@ -2252,6 +2252,139 @@ contract AuctionTest is AuctionBaseTest {
         // Exit the bids and claim ATP
         auction.exitPartiallyFilledBid(bidId, 3, 0);
         auction.claimTokens(bidId);
+    }
+
+    function test_repro_1() public {
+        auction.submitBid{value: 209_506_721_369_216_634_833_600}(
+            823_972_890_148_349_110_972_857_083_494_400,
+            false,
+            20_144_877_054_732_368_734,
+            alice,
+            79_228_162_514_264_337_593_543_950_336_000,
+            bytes('')
+        );
+
+        auction.submitBid{value: 4_438_970_493_170_220_784_898_400}(
+            2_012_395_327_862_314_174_876_016_338_534_400,
+            false,
+            174_762_617_841_347_274_996,
+            alice,
+            823_972_890_148_349_110_972_857_083_494_400,
+            bytes('')
+        );
+
+        auction.submitBid{value: 1_186_074_734_765_439_068_068}(
+            1_378_570_027_748_199_474_127_664_735_846_400,
+            true,
+            1_186_074_734_765_439_068_068,
+            alice,
+            823_972_890_148_349_110_972_857_083_494_400,
+            bytes('')
+        );
+
+        auction.submitBid{value: 29_312_800}(
+            174_301_957_531_381_542_705_796_690_739_200,
+            false,
+            13_324,
+            alice,
+            79_228_162_514_264_337_593_543_950_336_000,
+            bytes('')
+        );
+
+        auction.submitBid{value: 3_896_654_261_399_615_250_213_500}(
+            705_130_646_376_952_604_582_541_157_990_400,
+            false,
+            437_826_321_505_574_747_215,
+            alice,
+            174_301_957_531_381_542_705_796_690_739_200,
+            bytes('')
+        );
+
+        auction.submitBid{value: 1_523_212_767_590_528_454_589}(
+            1_576_640_434_033_860_318_111_524_611_686_400,
+            true,
+            1_523_212_767_590_528_454_589,
+            alice,
+            1_378_570_027_748_199_474_127_664_735_846_400,
+            bytes('')
+        );
+
+        auction.submitBid{value: 84_860_045_780_360_711_024}(
+            966_583_582_674_024_918_641_236_194_099_200,
+            true,
+            84_860_045_780_360_711_024,
+            alice,
+            823_972_890_148_349_110_972_857_083_494_400,
+            bytes('')
+        );
+
+        auction.submitBid{value: 114_683_868_699_643_267_867_200}(
+            649_670_932_616_967_568_267_060_392_755_200,
+            false,
+            13_985_837_646_297_959_496,
+            alice,
+            174_301_957_531_381_542_705_796_690_739_200,
+            bytes('')
+        );
+
+        auction.submitBid{value: 41_871_842_549_122_885_518}(
+            1_204_268_070_216_817_931_421_868_045_107_200,
+            true,
+            41_871_842_549_122_885_518,
+            alice,
+            966_583_582_674_024_918_641_236_194_099_200,
+            bytes('')
+        );
+
+        auction.submitBid{value: 1_330_088_016_778_700_997_840_800}(
+            301_067_017_554_204_482_855_467_011_276_800,
+            false,
+            350_023_162_310_184_473_116,
+            alice,
+            174_301_957_531_381_542_705_796_690_739_200,
+            bytes('')
+        );
+
+        vm.roll(2);
+
+        auction.submitBid{value: 1_999_999_999_999_999_999_999}(
+            2_091_623_490_376_578_512_469_560_288_870_400,
+            true,
+            1_999_999_999_999_999_999_999,
+            alice,
+            2_012_395_327_862_314_174_876_016_338_534_400,
+            bytes('')
+        );
+
+        vm.roll(3);
+
+        auction.submitBid{value: 149_089_020_974_450_553_291}(
+            1_687_559_861_553_830_390_742_486_142_156_800,
+            true,
+            149_089_020_974_450_553_291,
+            alice,
+            1_576_640_434_033_860_318_111_524_611_686_400,
+            bytes('')
+        );
+
+        vm.roll(4);
+        vm.roll(5);
+
+        auction.submitBid{value: 1_781_371_603_622_236_120_450}(
+            1_109_194_275_199_700_726_309_615_304_704_000,
+            true,
+            1_781_371_603_622_236_120_450,
+            alice,
+            966_583_582_674_024_918_641_236_194_099_200,
+            bytes('')
+        );
+
+        vm.roll(101);
+        auction.checkpoint();
+        auction.exitBid(0);
+        auction.exitBid(1);
+        auction.exitBid(2);
+        auction.exitPartiallyFilledBid(3, 5, 0);
     }
 
     function logAmountWithDecimal(string memory key, uint256 amount) internal {

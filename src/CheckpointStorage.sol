@@ -130,16 +130,16 @@ abstract contract CheckpointStorage is ICheckpointStorage {
             ? bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96)
             : bid.amount * cumulativeMpsDelta;
         // Integer division to get the actual tokens filled
-        console.log('bid.amount', bid.amount);
-        console.log('cumulativeMpsPerPriceDelta', cumulativeMpsPerPriceDelta);
-        console.log('FixedPoint96.Q96', FixedPoint96.Q96);
-        console.log('tempTokensFilled', tempTokensFilled);
-        console.log('mpsRemainingInAuction', mpsRemainingInAuction);
         tokensFilled = tempTokensFilled / mpsRemainingInAuction;
 
-        currencySpent = bid.exactIn
-            ? bid.amount.fullMulDivUp(cumulativeMpsDelta, mpsRemainingInAuction)
-            : tempTokensFilled.fullMulDivUp(cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPriceDelta * mpsRemainingInAuction);
+        // if no tokens were filled, then no currency was spent
+        if (tempTokensFilled != 0) {
+            currencySpent = bid.exactIn
+                ? bid.amount.fullMulDivUp(cumulativeMpsDelta, mpsRemainingInAuction)
+                : tempTokensFilled.fullMulDivUp(
+                    cumulativeMpsDelta * FixedPoint96.Q96, cumulativeMpsPerPriceDelta * mpsRemainingInAuction
+                );
+        }
     }
 
     /// @inheritdoc ICheckpointStorage

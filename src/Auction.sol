@@ -444,9 +444,6 @@ contract Auction is
             _updateBid(bidId, bid);
         }
 
-        console.log('tokensFilled', tokensFilled);
-        console.log('refund', refund);
-
         if (refund > 0) {
             CURRENCY.transfer(_owner, refund);
         }

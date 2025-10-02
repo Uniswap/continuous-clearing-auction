@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import {IERC20Minimal} from '../interfaces/external/IERC20Minimal.sol';
-import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 type Currency is address;
 
@@ -66,14 +65,6 @@ library CurrencyLibrary {
             if (!success) {
                 revert ERC20TransferFailed();
             }
-        }
-    }
-
-    function balanceOfSelf(Currency currency) internal view returns (uint256) {
-        if (currency.isAddressZero()) {
-            return address(this).balance;
-        } else {
-            return IERC20Minimal(Currency.unwrap(currency)).balanceOf(address(this));
         }
     }
 

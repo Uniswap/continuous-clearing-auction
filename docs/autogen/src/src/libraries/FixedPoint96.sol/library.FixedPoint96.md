@@ -1,7 +1,9 @@
 # FixedPoint96
-[Git Source](https://github.com/Uniswap/twap-auction/blob/a40941ed6c71ce668b5d7c2923b5830fe9b23869/src/libraries/FixedPoint96.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/4e79543472823ca4f19066f04f5392aba6563627/src/libraries/FixedPoint96.sol)
 
 A library for handling binary fixed point numbers, see https://en.wikipedia.org/wiki/Q_(number_format)
+
+*Copied from https://github.com/Uniswap/v4-core/blob/main/src/libraries/FixedPoint96.sol*
 
 
 ## State Variables

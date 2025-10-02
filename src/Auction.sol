@@ -14,6 +14,8 @@ import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
+
+import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
@@ -421,6 +423,12 @@ contract Auction is
         _updateTickDemand(maxPrice, bidEffectiveAmount);
 
         $sumCurrencyDemandAboveClearingX7 = $sumCurrencyDemandAboveClearingX7.add(bidEffectiveAmount);
+
+        // If the sumDemandAboveClearing becomes large enough to overflow a multiplication by an X7X7 value, revert
+        if (
+            ValueX7.unwrap($sumCurrencyDemandAboveClearingX7.resolveRoundingUp($nextActiveTickPrice))
+                >= ConstantsLib.X7_UPPER_BOUND
+        ) revert InvalidBidUnableToClear();
 
         emit BidSubmitted(bidId, owner, maxPrice, amount);
     }

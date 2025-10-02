@@ -67,6 +67,15 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return FLOOR_PRICE + (tickNumber - 1) * TICK_SPACING;
     }
 
+    /// @dev Helper function to get price of a tick above floor price
+    function tickNumberToPriceAboveFloorX96(uint256 tickNumber, uint256 floorPrice, uint256 tickSpacing)
+        internal
+        pure
+        returns (uint256)
+    {
+        return ((floorPrice + (tickNumber * tickSpacing)) / tickSpacing) * tickSpacing;
+    }
+
     /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice
     function inputAmountForTokens(uint256 tokens, uint256 maxPrice) internal pure returns (uint256) {
         return tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96);

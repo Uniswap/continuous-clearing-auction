@@ -24,9 +24,6 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
     {
         uint256 expectedBidId;
         for (uint256 i = 0; i < _bids.length; i++) {
-            // TODO(md): Temporary to ensure that we dont place bids that will not succeed if the clearing price moves above them during the tx
-            auction.checkpoint();
-
             (bool bidPlaced, uint256 bidId) = helper__trySubmitBid(expectedBidId, _bids[i], alice);
             if (bidPlaced) expectedBidId++;
 

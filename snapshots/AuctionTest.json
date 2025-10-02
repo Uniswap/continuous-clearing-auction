@@ -1,5 +1,16 @@
 {
+  "checkpoint_advanceToCurrentStep": "163599",
+  "checkpoint_noBids": "147180",
+  "checkpoint_zeroSupply": "147590",
+  "claimTokens": "80586",
+  "exitBid": "84998",
+  "exitPartiallyFilledBid": "259667",
   "submitBid": "154745",
+  "submitBidWithoutPrevTickPrice": "154801",
+  "submitBidWithoutPrevTickPrice_initializeTick_search": "200503",
+  "submitBidWithoutPrevTickPrice_initializeTick_updateCheckpoint": "315989",
   "submitBid_recordStep_updateCheckpoint": "315911",
-  "submitBid_updateCheckpoint": "266237"
+  "submitBid_recordStep_updateCheckpoint_initializeTick": "315911",
+  "submitBid_updateCheckpoint": "293683",
+  "submitBid_withValidationHook": "320059"
 }

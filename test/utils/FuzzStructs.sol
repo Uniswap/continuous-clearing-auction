@@ -12,7 +12,6 @@ struct FuzzDeploymentParams {
 
 /// @dev Parameters for fuzzing the bids
 struct FuzzBid {
-    // TODO(md): errors when bumped to uin128
-    uint64 bidAmount;
+    uint128 bidAmount;
     uint8 tickNumber;
 }

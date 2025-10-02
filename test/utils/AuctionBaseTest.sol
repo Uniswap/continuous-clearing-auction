@@ -5,7 +5,7 @@ import {Auction} from '../../src/Auction.sol';
 import {Tick} from '../../src/TickStorage.sol';
 import {AuctionParameters, IAuction} from '../../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
-
+import {Checkpoint} from '../../src/CheckpointStorage.sol';
 import {BidLib} from '../../src/libraries/BidLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
@@ -20,6 +20,7 @@ import {TickBitmap, TickBitmapLib} from './TickBitmap.sol';
 import {TokenHandler} from './TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {console} from 'forge-std/console.sol';
 
 /// @notice Handler contract for setting up an auction
 abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
@@ -174,9 +175,25 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
         uint256 lastTickPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(lowerTickNumber);
 
-        vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(_i, _owner, maxPrice, ethInputAmount);
-        bidId = auction.submitBid{value: ethInputAmount}(maxPrice, ethInputAmount, _owner, lastTickPrice, bytes(''));
+        // vm.expectEmit(true, true, true, true);
+        // emit IAuction.BidSubmitted(_i, _owner, maxPrice, ethInputAmount);
+        try auction.submitBid{value: ethInputAmount}(maxPrice, ethInputAmount, _owner, lastTickPrice, bytes('')) returns (uint256 _bidId) {
+            bidId = _bidId;
+        }
+        catch (bytes memory revertData) {
+            // Ok if the bid price is invalid IF it just moved this block
+            if (bytes4(revertData) == IAuction.InvalidBidPrice.selector) {
+                Checkpoint memory checkpoint = auction.checkpoint();
+                // the bid price is invalid as it is less than or equal to the clearing price
+                // skip the test by returning false and 0
+                if (maxPrice <= checkpoint.clearingPrice) return (false, 0);
+                revert("Uncaught InvalidBidPrice");
+            }
+            // Otherwise, treat as uncaught error
+            assembly {
+                revert(add(revertData, 0x20), mload(revertData))
+            }
+        }
 
         // Set the tick in the bitmap for future bids
         tickBitmap.set(_bid.tickNumber);

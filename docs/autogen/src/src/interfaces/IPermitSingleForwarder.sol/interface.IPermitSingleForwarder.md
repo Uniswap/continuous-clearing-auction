@@ -1,5 +1,5 @@
 # IPermitSingleForwarder
-[Git Source](https://github.com/Uniswap/twap-auction/blob/a40941ed6c71ce668b5d7c2923b5830fe9b23869/src/interfaces/IPermitSingleForwarder.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/f4ca3ef3995c04dfc87924fa2a7301b4b6eb60a2/src/interfaces/IPermitSingleForwarder.sol)
 
 Interface for the PermitSingleForwarder contract
 

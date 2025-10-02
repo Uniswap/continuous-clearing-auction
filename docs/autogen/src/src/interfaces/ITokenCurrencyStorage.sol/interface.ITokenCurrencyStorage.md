@@ -1,5 +1,7 @@
 # ITokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f66249e6bb5ebf3be6698edff5f27719f8f33c6e/src/interfaces/ITokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/f4ca3ef3995c04dfc87924fa2a7301b4b6eb60a2/src/interfaces/ITokenCurrencyStorage.sol)
+
+Interface for token and currency storage operations
 
 
 ## Functions
@@ -89,6 +91,30 @@ event CurrencySwept(address indexed fundsRecipient, uint256 currencyAmount);
 |`currencyAmount`|`uint256`|The amount of currency swept|
 
 ## Errors
+### TotalSupplyIsTooLarge
+Error thrown when the total supply is too large
+
+
+```solidity
+error TotalSupplyIsTooLarge();
+```
+
+### TokenIsAddressZero
+Error thrown when the token is the native currency
+
+
+```solidity
+error TokenIsAddressZero();
+```
+
+### TokenAndCurrencyCannotBeTheSame
+Error thrown when the token and currency are the same
+
+
+```solidity
+error TokenAndCurrencyCannotBeTheSame();
+```
+
 ### TotalSupplyIsZero
 Error thrown when the total supply is zero
 
@@ -105,12 +131,12 @@ Error thrown when the funds recipient is the zero address
 error FundsRecipientIsZero();
 ```
 
-### OnlyFundsRecipient
-Error thrown when the function is called by an address other than the funds recipient
+### TokensRecipientIsZero
+Error thrown when the tokens recipient is the zero address
 
 
 ```solidity
-error OnlyFundsRecipient();
+error TokensRecipientIsZero();
 ```
 
 ### CannotSweepCurrency
@@ -151,5 +177,13 @@ Error thrown when the funds recipient data cannot be decoded
 
 ```solidity
 error FundsRecipientCallFailed();
+```
+
+### TotalSupplyIsGreaterThanX7X7UpperBound
+Error thrown when the total supply is too large
+
+
+```solidity
+error TotalSupplyIsGreaterThanX7X7UpperBound();
 ```
 

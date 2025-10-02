@@ -1,5 +1,7 @@
 # ICheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/ce0cdcca7cbcb44361047d64c159d39b69b75e36/src/interfaces/ICheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/f4ca3ef3995c04dfc87924fa2a7301b4b6eb60a2/src/interfaces/ICheckpointStorage.sol)
+
+Interface for checkpoint storage operations
 
 
 ## Functions
@@ -11,6 +13,12 @@ Get the latest checkpoint at the last checkpointed block
 ```solidity
 function latestCheckpoint() external view returns (Checkpoint memory);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`Checkpoint`|The latest checkpoint|
+
 
 ### clearingPrice
 
@@ -20,6 +28,12 @@ Get the clearing price at the last checkpointed block
 ```solidity
 function clearingPrice() external view returns (uint256);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The current clearing price|
+
 
 ### currencyRaised
 
@@ -39,5 +53,20 @@ Get the number of the last checkpointed block
 
 ```solidity
 function lastCheckpointedBlock() external view returns (uint64);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint64`|The block number of the last checkpoint|
+
+
+### checkpoints
+
+Get a checkpoint at a block number
+
+
+```solidity
+function checkpoints(uint64 blockNumber) external view returns (Checkpoint memory);
 ```
 

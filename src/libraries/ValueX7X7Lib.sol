@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {MPSLib} from './MPSLib.sol';
-import {ValueX7} from './ValueX7Lib.sol';
+import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @notice A ValueX7X7 is a ValueX7 value that has been multiplied by MPS
@@ -59,7 +59,7 @@ library ValueX7X7Lib {
     /// @dev This ensures that future operations (ex. scaleByMps) will not lose precision
     /// @return The result as a ValueX7X7
     function scaleUpToX7X7(ValueX7 value) internal pure returns (ValueX7X7) {
-        return value.upcast().mulUint256(MPSLib.MPS);
+        return value.upcast().mulUint256(ValueX7Lib.X7);
     }
 
     /// @notice Upcast a ValueX7 value to a ValueX7X7 value
@@ -77,12 +77,18 @@ library ValueX7X7Lib {
     /// @notice Divide a ValueX7X7 value by MPS
     /// @return The result as a ValueX7
     function scaleDownToValueX7(ValueX7X7 value) internal pure returns (ValueX7) {
-        return ValueX7.wrap(ValueX7X7.unwrap(value.divUint256(MPSLib.MPS)));
+        return ValueX7.wrap(ValueX7X7.unwrap(value.divUint256(ValueX7Lib.X7)));
     }
 
     /// @notice Wrapper around free fullMulDiv function to support cases where we want to use uint256 values
     /// @dev Ensure that `b` and `c` should be compared against the ValueX7X7 value
     function wrapAndFullMulDiv(ValueX7X7 a, uint256 b, uint256 c) internal pure returns (ValueX7X7) {
         return a.fullMulDiv(ValueX7X7.wrap(b), ValueX7X7.wrap(c));
+    }
+
+    /// @notice Wrapper around free fullMulDivUp function to support cases where we want to use uint256 values
+    /// @dev Ensure that `b` and `c` should be compared against the ValueX7X7 value
+    function wrapAndFullMulDivUp(ValueX7X7 a, uint256 b, uint256 c) internal pure returns (ValueX7X7) {
+        return a.fullMulDivUp(ValueX7X7.wrap(b), ValueX7X7.wrap(c));
     }
 }

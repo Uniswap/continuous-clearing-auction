@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {AuctionStepLib} from './AuctionStepLib.sol';
-import {BidLib} from './BidLib.sol';
 import {Demand} from './DemandLib.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
 import {MPSLib} from './MPSLib.sol';
@@ -11,24 +9,28 @@ import {ValueX7X7, ValueX7X7Lib} from './ValueX7X7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 struct Checkpoint {
-    uint256 clearingPrice;
-    ValueX7X7 totalClearedX7X7;
-    ValueX7X7 cumulativeSupplySoldToClearingPriceX7X7;
-    Demand sumDemandAboveClearingPrice;
-    uint256 cumulativeMpsPerPrice;
-    uint24 cumulativeMps;
-    uint24 mps;
-    uint64 prev;
-    uint64 next;
+    uint256 clearingPrice; // The X96 price which the auction is currently clearing at
+    ValueX7X7 totalClearedX7X7; // The actualized number of tokens sold so far in the auction
+    ValueX7X7 cumulativeSupplySoldToClearingPriceX7X7; // The tokens sold so far to this clearing price
+    uint256 cumulativeMpsPerPrice; // A running sum of the ratio between mps and price
+    uint24 cumulativeMps; // The number of mps sold in the auction so far (via the original supply schedule)
+    uint64 prev; // Block number of the previous checkpoint
+    uint64 next; // Block number of the next checkpoint
 }
 
 /// @title CheckpointLib
 library CheckpointLib {
     using FixedPointMathLib for *;
-    using AuctionStepLib for uint256;
     using ValueX7Lib for *;
     using ValueX7X7Lib for *;
     using CheckpointLib for Checkpoint;
+
+    /// @notice Get the remaining mps in the auction at the given checkpoint
+    /// @param _checkpoint The checkpoint with `cumulativeMps` so far
+    /// @return The remaining mps in the auction
+    function remainingMpsInAuction(Checkpoint memory _checkpoint) internal pure returns (uint24) {
+        return MPSLib.MPS - _checkpoint.cumulativeMps;
+    }
 
     /// @notice Calculate the supply to price ratio. Will return zero if `price` is zero
     /// @dev This function returns a value in Q96 form

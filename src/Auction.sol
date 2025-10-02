@@ -325,14 +325,15 @@ contract Auction is
          * Conveniently, we are already tracking supply in terms of X7X7, which is already scaled up by MPSLib.MPS,
          * so we can substitute in TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7) for `supply`:
          *   resolvedDemand * (MPSLib.MPS - _checkpoint.cumulativeMps) >= TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
+         *
+         * Expand out resolvedDemand to get: resolvedDemand = currencyDemandX7 * Q96 / price;
+         * Move the price to the RHS to remove the division:
+         *   currencyDemandX7 * Q96 * (MPSLib.MPS - _checkpoint.cumulativeMps) >= TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7) * price
          */
         while (
             nextActiveTickPrice_ != type(uint256).max
                 && sumCurrencyDemandAboveClearingX7_.mulUint256(_REMAINING_MPS_IN_AUCTION).mulUint256(FixedPoint96.Q96)
-                    .upcast()
-                    // Round up for demand here to bias towards finding a higher price
-                    // This ensures that demand is never greater than supply, and in the case of rounding, we simply sell less tokens
-                    .gte(_REMAINING_SUPPLY_X7_X7.mulUint256(nextActiveTickPrice_))
+                    .upcast().gte(_REMAINING_SUPPLY_X7_X7.mulUint256(nextActiveTickPrice_))
         ) {
             // Subtract the demand at the current nextActiveTick from the total demand
             sumCurrencyDemandAboveClearingX7_ = sumCurrencyDemandAboveClearingX7_.sub(nextActiveTick.currencyDemandX7);

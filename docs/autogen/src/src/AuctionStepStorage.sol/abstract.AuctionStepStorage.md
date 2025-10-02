@@ -1,5 +1,5 @@
 # AuctionStepStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/178972dc4928b279780e4b89ace792a3f28b8ea5/src/AuctionStepStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/57168f679cba2e43cc601572a1c8354914505aab/src/AuctionStepStorage.sol)
 
 **Inherits:**
 [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md)
@@ -44,30 +44,30 @@ uint256 internal immutable _LENGTH;
 ```
 
 
-### pointer
+### $_pointer
 The address pointer to the contract deployed by SSTORE2
 
 
 ```solidity
-address public pointer;
+address private immutable $_pointer;
 ```
 
 
-### offset
+### $_offset
 The word offset of the last read step in `auctionStepsData` bytes
 
 
 ```solidity
-uint256 public offset;
+uint256 private $_offset;
 ```
 
 
-### step
+### $step
 The current active auction step
 
 
 ```solidity
-AuctionStep public step;
+AuctionStep internal $step;
 ```
 
 
@@ -101,14 +101,29 @@ Advance the current auction step
 function _advanceStep() internal returns (AuctionStep memory);
 ```
 
+### step
+
+Get the current active auction step
+
+
+```solidity
+function step() external view override(IAuctionStepStorage) returns (AuctionStep memory);
+```
+
 ### startBlock
 
 The block at which the auction starts
 
 
 ```solidity
-function startBlock() external view returns (uint64);
+function startBlock() external view override(IAuctionStepStorage) returns (uint64);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint64`|The starting block number|
+
 
 ### endBlock
 
@@ -116,6 +131,27 @@ The block at which the auction ends
 
 
 ```solidity
-function endBlock() external view returns (uint64);
+function endBlock() external view override(IAuctionStepStorage) returns (uint64);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint64`|The ending block number|
+
+
+### pointer
+
+The address pointer to the contract deployed by SSTORE2
+
+
+```solidity
+function pointer() external view override(IAuctionStepStorage) returns (address);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`address`|The address pointer|
+
 

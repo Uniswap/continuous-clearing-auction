@@ -1,5 +1,5 @@
 # divUint256
-[Git Source](https://github.com/Uniswap/twap-auction/blob/7f8e9557cd2f0bf0814d12508e520cf2664be393/src/libraries/MPSLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/57168f679cba2e43cc601572a1c8354914505aab/src/libraries/ValueX7Lib.sol)
 
 Divide a ValueX7 value by a uint256
 

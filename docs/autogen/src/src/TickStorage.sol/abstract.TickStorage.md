@@ -1,5 +1,5 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/178972dc4928b279780e4b89ace792a3f28b8ea5/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/57168f679cba2e43cc601572a1c8354914505aab/src/TickStorage.sol)
 
 **Inherits:**
 [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
@@ -8,21 +8,23 @@ Abstract contract for handling tick storage
 
 
 ## State Variables
-### ticks
+### $_ticks
+Mapping of price levels to tick data
+
 
 ```solidity
-mapping(uint256 price => Tick) public ticks;
+mapping(uint256 price => Tick) private $_ticks;
 ```
 
 
-### nextActiveTickPrice
+### $nextActiveTickPrice
 The price of the next initialized tick above the clearing price
 
 *This will be equal to the clearingPrice if no ticks have been initialized yet*
 
 
 ```solidity
-uint256 public nextActiveTickPrice;
+uint256 internal $nextActiveTickPrice;
 ```
 
 
@@ -44,21 +46,12 @@ uint256 internal immutable TICK_SPACING;
 ```
 
 
-### MAX_TICK_PRICE
-Sentinel value for the next value of the highest tick in the book
+### MAX_TICK_PTR
+Sentinel value for the next pointer of the highest tick in the book
 
 
 ```solidity
-uint256 public constant MAX_TICK_PRICE = type(uint256).max;
-```
-
-
-### MIN_FLOOR_PRICE
-The minimum floor price such that a Uniswap V4 pool can be created with the auction proceeds
-
-
-```solidity
-uint256 public constant MIN_FLOOR_PRICE = 118_448_130_884_583_730_121;
+uint256 public constant MAX_TICK_PTR = type(uint256).max;
 ```
 
 
@@ -86,30 +79,21 @@ function getTick(uint256 price) public view returns (Tick memory);
 |----|----|-----------|
 |`price`|`uint256`|The price of the tick|
 
-
-### _unsafeInitializeTick
-
-Initialize a tick at `price` without checking for existing ticks
-
-*This function is unsafe and should only be used when the tick is guaranteed to be the first in the book*
-
-
-```solidity
-function _unsafeInitializeTick(uint256 price) internal;
-```
-**Parameters**
+**Returns**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`price`|`uint256`|The price of the tick|
+|`<none>`|`Tick`|The tick at the given price|
 
 
 ### _initializeTickIfNeeded
 
 Initialize a tick at `price` if it does not exist already
 
-*Requires `prevId` to be the id of the tick immediately preceding the desired price
-NextActiveTick will be updated if the new tick is right before it*
+*`prevPrice` MUST be the price of an initialized tick before the new price.
+Ideally, it is the price of the tick immediately preceding the desired price. If not,
+we will iterate through the ticks until we find the next price which requires more gas.
+If `price` is < `nextActiveTickPrice`, then `price` will be set as the nextActiveTickPrice*
 
 
 ```solidity
@@ -147,6 +131,12 @@ Get the floor price of the auction
 ```solidity
 function floorPrice() external view override(ITickStorage) returns (uint256);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The minimum price for bids|
+
 
 ### tickSpacing
 
@@ -155,5 +145,37 @@ Get the tick spacing enforced for bid prices
 
 ```solidity
 function tickSpacing() external view override(ITickStorage) returns (uint256);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The tick spacing value|
+
+
+### nextActiveTickPrice
+
+The price of the next initialized tick above the clearing price
+
+*This will be equal to the clearingPrice if no ticks have been initialized yet*
+
+
+```solidity
+function nextActiveTickPrice() external view override(ITickStorage) returns (uint256);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The price of the next active tick|
+
+
+### ticks
+
+Get a tick at a price
+
+
+```solidity
+function ticks(uint256 price) external view override(ITickStorage) returns (Tick memory);
 ```
 

@@ -3,26 +3,32 @@ pragma solidity 0.8.26;
 
 import {Auction, AuctionParameters} from '../src/Auction.sol';
 import {AuctionFactory} from '../src/AuctionFactory.sol';
-import {TickStorage} from '../src/TickStorage.sol';
+import {IAuction} from '../src/interfaces/IAuction.sol';
 import {IAuctionFactory} from '../src/interfaces/IAuctionFactory.sol';
+import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
+import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {IDistributionContract} from '../src/interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
-
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
+
 import {BidLib} from '../src/libraries/BidLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
-import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
+import {MPSLib} from '../src/libraries/MPSLib.sol';
+import {SupplyLib} from '../src/libraries/SupplyLib.sol';
+import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
+import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
+
 import {Test} from 'forge-std/Test.sol';
 
 contract AuctionFactoryTest is TokenHandler, Test, Assertions {
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
-    using MPSLib for *;
+    using ValueX7Lib for *;
+    using ValueX7X7Lib for *;
 
     AuctionFactory factory;
     Auction auction;
@@ -79,6 +85,33 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         assertEq(auction.startBlock(), block.number);
         assertEq(auction.endBlock(), block.number + AUCTION_DURATION);
         assertEq(auction.claimBlock(), block.number + AUCTION_DURATION);
+    }
+
+    function test_initializeDistribution_revertsWithInvalidClaimBlock() public {
+        uint256 endBlock = block.number + AUCTION_DURATION;
+        bytes memory configData = abi.encode(params.withClaimBlock(endBlock - 1));
+        vm.expectRevert(IAuction.ClaimBlockIsBeforeEndBlock.selector);
+        factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
+    }
+
+    function test_initializeDistribution_createsAuction_withMsgSenderAsFundsRecipient() public {
+        params = params.withFundsRecipient(address(1));
+        bytes memory configData = abi.encode(params);
+
+        address sender = makeAddr('sender');
+        bytes memory expectedConfigData = abi.encode(params.withFundsRecipient(address(sender)));
+
+        // Expect the AuctionCreated event (don't check the auction address since it's deterministic)
+        vm.expectEmit(false, true, true, true);
+        emit IAuctionFactory.AuctionCreated(address(0), address(token), TOTAL_SUPPLY, expectedConfigData);
+
+        vm.prank(sender);
+        IDistributionContract distributionContract =
+            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
+
+        // Verify the auction was created correctly
+        auction = Auction(payable(address(distributionContract)));
+        assertEq(auction.fundsRecipient(), address(sender));
     }
 
     function test_initializeDistribution_createsUniqueAddresses() public {
@@ -180,9 +213,8 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         bytes32 _salt,
         AuctionParameters memory _params,
         uint8 _numberOfSteps
-    ) public pure {
-        vm.assume(_totalSupply <= type(uint224).max);
-        vm.assume(_totalSupply > 0);
+    ) public pure returns (uint256 totalSupply) {
+        _totalSupply = bound(_totalSupply, 1, SupplyLib.MAX_TOTAL_SUPPLY);
         vm.assume(_token != address(0));
 
         vm.assume(_params.currency != address(0));
@@ -197,10 +229,12 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         _params.claimBlock = _params.endBlock + 1;
 
         vm.assume(_params.graduationThresholdMps != 0);
-        vm.assume(_params.tickSpacing != 0);
         vm.assume(_params.validationHook != address(0));
-        // TickStorage.MIN_FLOOR_PRICE
-        vm.assume(_params.floorPrice >= 118_448_130_884_583_730_121 && _params.floorPrice <= BidLib.MAX_BID_PRICE);
+        vm.assume(_params.tickSpacing != 0);
+        vm.assume(
+            _params.floorPrice != 0 && _params.floorPrice <= BidLib.MAX_BID_PRICE
+                && _params.floorPrice % _params.tickSpacing == 0
+        );
         vm.assume(_salt != bytes32(0));
 
         vm.assume(_numberOfSteps > 0);
@@ -218,6 +252,8 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
 
         // Bound graduation threshold mps
         _params.graduationThresholdMps = uint24(bound(_params.graduationThresholdMps, 0, uint24(MPSLib.MPS)));
+
+        return _totalSupply;
     }
 
     function testFuzz_getAuctionAddress(
@@ -227,7 +263,7 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         uint8 _numberOfSteps,
         AuctionParameters memory _params
     ) public {
-        helper__assumeValidDeploymentParams(_token, _totalSupply, _salt, _params, _numberOfSteps);
+        _totalSupply = helper__assumeValidDeploymentParams(_token, _totalSupply, _salt, _params, _numberOfSteps);
 
         bytes memory configData = abi.encode(_params);
 
@@ -239,5 +275,43 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
             factory.initializeDistribution(_token, _totalSupply, configData, _salt);
 
         assertEq(auctionAddress, address(distributionContract));
+    }
+
+    function test_initializeDistribution_withZeroTotalSupply_reverts() public {
+        bytes memory configData = abi.encode(params);
+
+        vm.expectRevert(ITokenCurrencyStorage.TotalSupplyIsZero.selector);
+        factory.initializeDistribution(address(token), 0, configData, bytes32(0));
+    }
+
+    function test_initializeDistribution_withZeroFloorPrice_reverts() public {
+        params = params.withFloorPrice(0);
+        bytes memory configData = abi.encode(params);
+
+        vm.expectRevert(ITickStorage.FloorPriceIsZero.selector);
+        factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
+    }
+
+    function test_initializeDistribution_withZeroTickSpacing_reverts() public {
+        params = params.withTickSpacing(0);
+        bytes memory configData = abi.encode(params);
+
+        vm.expectRevert(ITickStorage.TickSpacingIsZero.selector);
+        factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
+    }
+
+    function test_initializeDistribution_withTokenIsAddressZero_reverts() public {
+        bytes memory configData = abi.encode(params);
+
+        vm.expectRevert(ITokenCurrencyStorage.TokenIsAddressZero.selector);
+        factory.initializeDistribution(address(0), TOTAL_SUPPLY, configData, bytes32(0));
+    }
+
+    function test_initializeDistribution_withTokenAndCurrencyAreTheSame_reverts() public {
+        params = params.withCurrency(address(token));
+        bytes memory configData = abi.encode(params);
+
+        vm.expectRevert(ITokenCurrencyStorage.TokenAndCurrencyCannotBeTheSame.selector);
+        factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
     }
 }

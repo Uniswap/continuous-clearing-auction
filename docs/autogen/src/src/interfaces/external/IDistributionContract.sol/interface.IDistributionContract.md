@@ -1,5 +1,5 @@
 # IDistributionContract
-[Git Source](https://github.com/Uniswap/twap-auction/blob/da50bb7a07b27dca661d22f04fb3c44d8922d9da/src/interfaces/external/IDistributionContract.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/57168f679cba2e43cc601572a1c8354914505aab/src/interfaces/external/IDistributionContract.sol)
 
 Interface for token distribution contracts.
 

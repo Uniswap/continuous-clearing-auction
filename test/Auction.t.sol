@@ -67,22 +67,28 @@ contract AuctionTest is AuctionBaseTest {
         newAuction.checkpoint();
     }
 
-    function test_submitBid_smallBidLessThanMpsRemainingInAuctionAfterSubmission_purchasesNoTokens(
+    function test_submitBid_exactIn_smallBidLessThanMpsRemainingInAuctionAfterSubmission_purchasesNoTokens(
         uint256 smallBidAmount
     ) public {
-        vm.assume(smallBidAmount < MPSLib.MPS);
+        vm.assume(smallBidAmount < MPSLib.MPS && smallBidAmount > 0);
         // Submit a small bid, one that is less than the mpsRemainingInAuctionAfterSubmission (1e7)
         auction.submitBid{value: smallBidAmount}(tickNumberToPriceX96(2), true, smallBidAmount, alice, bytes(''));
 
         vm.roll(auction.endBlock());
+        Checkpoint memory checkpoint = auction.checkpoint();
 
         address fundsRecipient = auction.fundsRecipient();
         vm.expectEmit(true, true, true, true);
+        // Expect that all of the bid amount can be swept
         emit ITokenCurrencyStorage.CurrencySwept(fundsRecipient, smallBidAmount);
         auction.sweepCurrency();
+
+
+        uint256 expectedTokensFilled = smallBidAmount.fullMulDiv(checkpoint.cumulativeMpsPerPrice, FixedPoint96.Q96) / MPSLib.MPS;
+        uint256 expectedCurrencyRefunded = 0;
+
         vm.expectEmit(true, true, true, true);
-        // Expect no tokens filled since 100 is < bid.mpsRemainingInAuctionAfterSubmission (1e7)
-        emit IAuction.BidExited(0, alice, 0, 0);
+        emit IAuction.BidExited(0, alice, expectedTokensFilled, expectedCurrencyRefunded);
         auction.exitBid(0);
     }
 

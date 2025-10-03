@@ -149,46 +149,54 @@ contract Auction is
                 $_supplyRolloverMultiplier =
                     SupplyLib.packSupplyRolloverMultiplier(true, cachedRemainingMps, cachedRemainingSupplyX7X7);
             }
-            /**
-             * The supply sold to the clearing price is the supply sold minus the tokens sold to bidders above the clearing price
-             * Supply is calculated as:
-             *       (totalSupply - totalCleared) * mps                            (TOTAL_SUPPLY_X7_X7 - totalClearedX7X7)
-             *      ------------------------------------ , also can be written as  --------------------------------------- * deltaMps
-             *              MPS - cumulativeMps                                                 MPS - cumulativeMps
-             *
-             * Substituting in the cached remaining supply and remaining mps:
-             *       cachedRemainingSupplyX7X7
-             *      ---------------------------- * deltaMps
-             *            cachedRemainingMps
-             *
-             * Writing out the full equation:
-             *       cachedRemainingSupplyX7X7                     resolvedDemandAboveClearingPriceX7 * deltaMps
-             *      ------------------------------- * deltaMps -      -------------------------------------
-             *            cachedRemainingMps                                        ConstantsLib.MPS
-             *
-             * !! We multiply the RHS (demand) by ConstantsLib.MPS to remove the division and turn the result into an X7X7 value !!
-             *
-             * Finding common denominator of cachedRemainingMps
-             *       cachedRemainingSupplyX7X7 * deltaMps - resolvedDemandAboveClearingPriceX7 * deltaMps * cachedRemainingMps
-             *      -----------------------------------------------------------------------------------------------------------------------
-             *            cachedRemainingMps
-             *
-             * Moving out `deltaMps` and multiply by ConstantsLib.MPS to turn it into a ValueX7X7
-             *       deltaMps * (cachedRemainingSupplyX7X7 - resolvedDemandAboveClearingPriceX7 * cachedRemainingMps)
-             *      -----------------------------------------------------------------------------------------------------------------------
-             *            cachedRemainingMps
-             *
-             * Arriving at the final fullMulDiv below.
-             */
-            ValueX7X7 supplySoldToClearingPriceX7X7 = (
-                cachedRemainingSupplyX7X7.sub(resolvedDemandAboveClearingPriceX7X7.mulUint256(cachedRemainingMps))
-            ).wrapAndFullMulDiv(deltaMps, cachedRemainingMps);
-            // After finding the supply sold to the clearing price, we add the demand above the clearing price to get the total supply sold
-            supplyClearedX7X7 =
-                supplySoldToClearingPriceX7X7.add(resolvedDemandAboveClearingPriceX7X7.mulUint256(deltaMps));
-            // Finally, update the cumulative supply sold to the clearing price value
-            _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 =
-                _checkpoint.cumulativeSupplySoldToClearingPriceX7X7.add(supplySoldToClearingPriceX7X7);
+            // If the clearing price is at a tick boundary, we have to track the supply sold to that price
+            if (_checkpoint.clearingPrice % TICK_SPACING == 0) {
+                /**
+                 * The supply sold to the clearing price is the supply sold minus the tokens sold to bidders above the clearing price
+                 * Supply is calculated as:
+                 *       (totalSupply - totalCleared) * mps                            (TOTAL_SUPPLY_X7_X7 - totalClearedX7X7)
+                 *      ------------------------------------ , also can be written as  --------------------------------------- * deltaMps
+                 *              MPS - cumulativeMps                                                 MPS - cumulativeMps
+                 *
+                 * Substituting in the cached remaining supply and remaining mps:
+                 *       cachedRemainingSupplyX7X7
+                 *      ---------------------------- * deltaMps
+                 *            cachedRemainingMps
+                 *
+                 * Writing out the full equation:
+                 *       cachedRemainingSupplyX7X7                     resolvedDemandAboveClearingPriceX7 * deltaMps
+                 *      ------------------------------- * deltaMps -      -------------------------------------
+                 *            cachedRemainingMps                                        ConstantsLib.MPS
+                 *
+                 * !! We multiply the RHS (demand) by ConstantsLib.MPS to remove the division and turn the result into an X7X7 value !!
+                 *
+                 * Finding common denominator of cachedRemainingMps
+                 *       cachedRemainingSupplyX7X7 * deltaMps - resolvedDemandAboveClearingPriceX7 * deltaMps * cachedRemainingMps
+                 *      -----------------------------------------------------------------------------------------------------------------------
+                 *            cachedRemainingMps
+                 *
+                 * Moving out `deltaMps` and multiply by ConstantsLib.MPS to turn it into a ValueX7X7
+                 *       deltaMps * (cachedRemainingSupplyX7X7 - resolvedDemandAboveClearingPriceX7 * cachedRemainingMps)
+                 *      -----------------------------------------------------------------------------------------------------------------------
+                 *            cachedRemainingMps
+                 *
+                 * Arriving at the final fullMulDiv below.
+                 */
+                ValueX7X7 supplySoldToClearingPriceX7X7 = (
+                    cachedRemainingSupplyX7X7.sub(resolvedDemandAboveClearingPriceX7X7.mulUint256(cachedRemainingMps))
+                ).wrapAndFullMulDiv(deltaMps, cachedRemainingMps);
+                // After finding the supply sold to the clearing price, we add the demand above the clearing price to get the total supply sold
+                supplyClearedX7X7 =
+                    supplySoldToClearingPriceX7X7.add(resolvedDemandAboveClearingPriceX7X7.mulUint256(deltaMps));
+                // Finally, update the cumulative supply sold to the clearing price value
+                _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 =
+                    _checkpoint.cumulativeSupplySoldToClearingPriceX7X7.add(supplySoldToClearingPriceX7X7);
+            }
+            // Otherwise, it is not possible for there to be bids at `_checkpoint.clearingPrice`, so all bids must be above the clearing price.
+            // That means all bids are fully filled and we don't need to track the supply sold to the clearing price.
+            else {
+                supplyClearedX7X7 = cachedRemainingSupplyX7X7.mulUint256(deltaMps).divUint256(cachedRemainingMps);
+            }
         }
         // Otherwise, we can only sell tokens equal to the current demand above the clearing price
         else {

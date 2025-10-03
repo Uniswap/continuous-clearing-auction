@@ -191,7 +191,7 @@ The auction employs a sophisticated dual-scaling system to maintain mathematical
 The foundation of the scaling system is **MPS = 1e7** (10 million), representing one thousandth of a basis point:
 
 ```solidity
-library MPSLib {
+library ConstantsLib {
     uint24 public constant MPS = 1e7; // 10,000,000
 }
 ```
@@ -211,7 +211,7 @@ type ValueX7 is uint256;
 **Use Cases**:
 
 - Bid demand aggregation across price ticks
-- Currency and token demand tracking
+- Currency demand tracking
 - Partial fill ratio calculations
 
 #### ValueX7X7: Supply-Side Double Precision
@@ -242,30 +242,27 @@ The dual scaling system enables two critical mathematical operations that define
 The clearing price calculation finds the ratio of currency demand to available token supply, following $\text{price} = \frac{\text{currency}}{\text{tokens}}$.
 
 **Initial Formula:**
-$$\frac{\text{currencyDemandX7} \times \text{Q96} \times \text{mps}}{\text{MPS}} \div \left[ \frac{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{mps}}{\text{MPS} - \text{cumulativeMps}} - \frac{\text{tokenDemandX7} \times \text{mps}}{\text{MPS}} \right]$$
+$$\frac{\text{currencyDemandX7} \times \text{Q96} \times \text{mps}}{\text{MPS}} \div \frac{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{mps}}{\text{MPS} - \text{cumulativeMps}}$$
 
 **Algebraic Simplification Steps:**
 
-1. **Find common denominator for the divisor:**
-   $$\frac{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{mps} \times \text{MPS} - \text{tokenDemandX7} \times \text{mps} \times (\text{MPS} - \text{cumulativeMps})}{(\text{MPS} - \text{cumulativeMps}) \times \text{MPS}}$$
+1. **Convert division to multiplication:**
+   $$\frac{\text{currencyDemandX7} \times \text{Q96} \times \text{mps}}{\text{MPS}} \times \frac{\text{MPS} - \text{cumulativeMps}}{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{mps}}$$
 
-2. **Convert division to multiplication:**
-   $$\frac{\text{currencyDemandX7} \times \text{Q96} \times \text{mps}}{\text{MPS}} \times \frac{(\text{MPS} - \text{cumulativeMps}) \times \text{MPS}}{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{mps} \times \text{MPS} - \text{tokenDemandX7} \times \text{mps} \times (\text{MPS} - \text{cumulativeMps})}$$
+2. **Cancel common terms (mps and MPS):**
+   $$\text{currencyDemandX7} \times \text{Q96} \times \frac{\text{MPS} - \text{cumulativeMps}}{(\text{totalSupplyX7} - \text{totalClearedX7})}$$
 
-3. **Cancel common terms (mps and MPS):**
-   $$\text{currencyDemandX7} \times \text{Q96} \times \frac{(\text{MPS} - \text{cumulativeMps})}{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{MPS} - \text{tokenDemandX7} \times (\text{MPS} - \text{cumulativeMps})}$$
-
-4. **Substitute X7X7 values:**
+3. **Substitute X7X7 values:**
    Since $(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{MPS} = \text{remainingSupplyX7X7}$:
 
-$$\text{clearingPrice} = \text{currencyDemandX7} \times \frac{\text{Q96} \times \text{remainingMpsInAuction}}{\text{remainingSupplyX7X7} - (\text{tokenDemandX7} \times \text{remainingMpsInAuction})}$$
+$$\text{clearingPrice} = \text{currencyDemandX7} \times \frac{\text{Q96} \times \text{remainingMpsInAuction}}{\text{remainingSupplyX7X7}}$$
 
 **Implementation:**
 
 ```solidity
 clearingPrice = currencyDemandX7.fullMulDivUp(
     Q96 * remainingMpsInAuction,
-    remainingSupplyX7X7 - (tokenDemandX7 * remainingMpsInAuction)
+    remainingSupplyX7X7
 );
 ```
 
@@ -582,7 +579,7 @@ sequenceDiagram
     end
     Auction->>TickStorage: _updateTickDemand(...)
     Auction->>BidStorage: _createBid(...)
-    Auction->>Auction: update sumDemandAboveClearing
+    Auction->>Auction: update sumCurrencyDemandAboveClearingX7
     Auction-->>User: bidId
 ```
 

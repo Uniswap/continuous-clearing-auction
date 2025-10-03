@@ -10,7 +10,10 @@ import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol
 import {IDistributionContract} from '../src/interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
-import {MPSLib} from '../src/libraries/MPSLib.sol';
+
+import {BidLib} from '../src/libraries/BidLib.sol';
+import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
+import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {SupplyLib} from '../src/libraries/SupplyLib.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
@@ -18,6 +21,7 @@ import {Assertions} from './utils/Assertions.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
+
 import {Test} from 'forge-std/Test.sol';
 
 contract AuctionFactoryTest is TokenHandler, Test, Assertions {
@@ -31,8 +35,8 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
 
     uint256 public constant AUCTION_DURATION = 100;
     uint256 public constant TICK_SPACING = 1e6;
-    uint256 public constant FLOOR_PRICE = 1e6;
-    uint256 public constant TOTAL_SUPPLY = 1000e18;
+    uint256 public constant FLOOR_PRICE = 1e6 << FixedPoint96.RESOLUTION;
+    uint128 public constant TOTAL_SUPPLY = 1000e18;
 
     address public alice;
     address public tokensRecipient;
@@ -227,17 +231,18 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         vm.assume(_params.graduationThresholdMps != 0);
         vm.assume(_params.validationHook != address(0));
         vm.assume(_params.tickSpacing != 0);
+        vm.assume(_params.floorPrice != 0 && _params.floorPrice <= BidLib.MAX_BID_PRICE);
         // Round down to the tick spacing, easier way than vm.assume which doesn't reject too many values
         _params.floorPrice = _params.floorPrice - (_params.floorPrice % _params.tickSpacing);
         vm.assume(_params.floorPrice != 0);
 
         vm.assume(_salt != bytes32(0));
         vm.assume(_numberOfSteps > 0);
-        vm.assume(MPSLib.MPS % _numberOfSteps == 0); // such that it is divisible
+        vm.assume(ConstantsLib.MPS % _numberOfSteps == 0); // such that it is divisible
 
         // Replace auction steps data with a valid one
         // Divide steps by number of bips
-        uint256 _numberOfMps = MPSLib.MPS / _numberOfSteps;
+        uint256 _numberOfMps = ConstantsLib.MPS / _numberOfSteps;
         bytes memory _auctionStepsData = new bytes(0);
         for (uint8 i = 0; i < _numberOfSteps; i++) {
             _auctionStepsData = AuctionStepsBuilder.addStep(_auctionStepsData, uint24(_numberOfMps), uint40(1));
@@ -246,7 +251,7 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         vm.assume(_params.claimBlock > _params.endBlock);
 
         // Bound graduation threshold mps
-        _params.graduationThresholdMps = uint24(bound(_params.graduationThresholdMps, 0, uint24(MPSLib.MPS)));
+        _params.graduationThresholdMps = uint24(bound(_params.graduationThresholdMps, 0, uint24(ConstantsLib.MPS)));
 
         return _totalSupply;
     }

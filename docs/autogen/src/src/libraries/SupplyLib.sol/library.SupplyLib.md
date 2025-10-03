@@ -1,5 +1,5 @@
 # SupplyLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/2ab6f1f651f977062136e0144a4f3e636a17d226/src/libraries/SupplyLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/23d1996d53fc32e05713e0f370c3682331c7b03b/src/libraries/SupplyLib.sol)
 
 Library for supply related functions
 

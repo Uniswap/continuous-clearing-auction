@@ -3,8 +3,9 @@ pragma solidity 0.8.26;
 
 import {ITokenCurrencyStorage} from './interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
+
+import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
-import {MPSLib} from './libraries/MPSLib.sol';
 import {SupplyLib} from './libraries/SupplyLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
@@ -63,11 +64,11 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         if (_token == address(_currency)) revert TokenAndCurrencyCannotBeTheSame();
         if (TOKENS_RECIPIENT == address(0)) revert TokensRecipientIsZero();
         if (FUNDS_RECIPIENT == address(0)) revert FundsRecipientIsZero();
-        if (GRADUATION_THRESHOLD_MPS > MPSLib.MPS) revert InvalidGraduationThresholdMps();
+        if (GRADUATION_THRESHOLD_MPS > ConstantsLib.MPS) revert InvalidGraduationThresholdMps();
 
         // Calculate the required supply sold for graduation, rounding up to sell at least the amount required by the graduation threshold
         REQUIRED_SUPPLY_SOLD_FOR_GRADUATION_X7_X7 =
-            TOTAL_SUPPLY_X7_X7.wrapAndFullMulDivUp(GRADUATION_THRESHOLD_MPS, MPSLib.MPS);
+            TOTAL_SUPPLY_X7_X7.wrapAndFullMulDivUp(GRADUATION_THRESHOLD_MPS, ConstantsLib.MPS);
     }
 
     function _sweepCurrency(uint256 amount) internal {

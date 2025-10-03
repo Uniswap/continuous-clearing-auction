@@ -2,17 +2,19 @@
 pragma solidity 0.8.26;
 
 import {ITickStorage} from './interfaces/ITickStorage.sol';
-import {Demand, DemandLib} from './libraries/DemandLib.sol';
+import {BidLib} from './libraries/BidLib.sol';
+import {DemandLib} from './libraries/DemandLib.sol';
+import {ValueX7} from './libraries/ValueX7Lib.sol';
 
 struct Tick {
     uint256 next;
-    Demand demand;
+    ValueX7 currencyDemandX7;
 }
 
 /// @title TickStorage
 /// @notice Abstract contract for handling tick storage
 abstract contract TickStorage is ITickStorage {
-    using DemandLib for Demand;
+    using DemandLib for ValueX7;
 
     /// @notice Mapping of price levels to tick data
     mapping(uint256 price => Tick) private $_ticks;
@@ -25,18 +27,19 @@ abstract contract TickStorage is ITickStorage {
     /// @notice The tick spacing of the auction - bids must be placed at discrete tick intervals
     uint256 internal immutable TICK_SPACING;
 
-    /// @notice Sentinel value for the next value of the highest tick in the book
-    uint256 public constant MAX_TICK_PRICE = type(uint256).max;
+    /// @notice Sentinel value for the next pointer of the highest tick in the book
+    uint256 public constant MAX_TICK_PTR = type(uint256).max;
 
     constructor(uint256 _tickSpacing, uint256 _floorPrice) {
         if (_tickSpacing == 0) revert TickSpacingIsZero();
         TICK_SPACING = _tickSpacing;
         if (_floorPrice == 0) revert FloorPriceIsZero();
+        if (_floorPrice >= BidLib.MAX_BID_PRICE) revert FloorPriceAboveMaxBidPrice();
         // Ensure the floor price is at a tick boundary
         if (_floorPrice % TICK_SPACING != 0) revert TickPriceNotAtBoundary();
         FLOOR_PRICE = _floorPrice;
         // Initialize the floor price as the first tick
-        $_ticks[FLOOR_PRICE].next = MAX_TICK_PRICE;
+        $_ticks[FLOOR_PRICE].next = MAX_TICK_PTR;
         $nextActiveTickPrice = FLOOR_PRICE;
         emit NextActiveTickUpdated(FLOOR_PRICE);
         emit TickInitialized(FLOOR_PRICE);
@@ -60,7 +63,7 @@ abstract contract TickStorage is ITickStorage {
     function _initializeTickIfNeeded(uint256 prevPrice, uint256 price) internal {
         // Validate `price` is at a boundary designated by the tick spacing
         if (price % TICK_SPACING != 0) revert TickPriceNotAtBoundary();
-        if (price == MAX_TICK_PRICE) revert InvalidTickPrice();
+        if (price == MAX_TICK_PTR) revert InvalidTickPrice();
         Tick storage $newTick = $_ticks[price];
         // Early return if the tick is already initialized
         if ($newTick.next != 0) return;
@@ -71,8 +74,8 @@ abstract contract TickStorage is ITickStorage {
         // Revert if the next price is 0 as that means the `prevPrice` hint was not an initialized tick
         if (nextPrice == 0) revert TickPreviousPriceInvalid();
         // Move the `prevPrice` pointer up until its next pointer is a tick greater than or equal to `price`
-        // If `price` would be the highest tick in the list, this will iterate until `nextPrice` == MAX_TICK_PRICE,
-        // which will end the loop since we don't allow for ticks to be initialized at MAX_TICK_PRICE.
+        // If `price` would be the highest tick in the list, this will iterate until `nextPrice` == MAX_TICK_PTR,
+        // which will end the loop since we don't allow for ticks to be initialized at MAX_TICK_PTR.
         // Iterating to find the tick right before `price` ensures that it is correctly positioned in the linked list.
         while (nextPrice < price) {
             prevPrice = nextPrice;
@@ -93,10 +96,10 @@ abstract contract TickStorage is ITickStorage {
 
     /// @notice Internal function to add demand to a tick
     /// @param price The price of the tick
-    /// @param demand The demand to add
-    function _updateTickDemand(uint256 price, Demand memory demand) internal {
+    /// @param currencyDemandX7 The demand to add
+    function _updateTickDemand(uint256 price, ValueX7 currencyDemandX7) internal {
         Tick storage tick = $_ticks[price];
-        tick.demand = tick.demand.add(demand);
+        tick.currencyDemandX7 = tick.currencyDemandX7.add(currencyDemandX7);
     }
 
     // Getters

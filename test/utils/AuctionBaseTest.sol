@@ -5,7 +5,6 @@ import {Auction} from '../../src/Auction.sol';
 import {Tick} from '../../src/TickStorage.sol';
 import {AuctionParameters, IAuction} from '../../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
-import {Demand} from '../../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 
 import {Assertions} from './Assertions.sol';
@@ -66,6 +65,15 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     /// @dev Helper function to convert a tick number to a priceX96
     function tickNumberToPriceX96(uint256 tickNumber) internal pure returns (uint256) {
         return FLOOR_PRICE + (tickNumber - 1) * TICK_SPACING;
+    }
+
+    /// @dev Helper function to get price of a tick above floor price
+    function tickNumberToPriceAboveFloorX96(uint256 tickNumber, uint256 floorPrice, uint256 tickSpacing)
+        internal
+        pure
+        returns (uint256)
+    {
+        return ((floorPrice + (tickNumber * tickSpacing)) / tickSpacing) * tickSpacing;
     }
 
     /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice

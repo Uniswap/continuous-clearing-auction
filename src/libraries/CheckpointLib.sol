@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Demand} from './DemandLib.sol';
+import {ConstantsLib} from './ConstantsLib.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
-import {MPSLib} from './MPSLib.sol';
 import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './ValueX7X7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -29,7 +28,7 @@ library CheckpointLib {
     /// @param _checkpoint The checkpoint with `cumulativeMps` so far
     /// @return The remaining mps in the auction
     function remainingMpsInAuction(Checkpoint memory _checkpoint) internal pure returns (uint24) {
-        return MPSLib.MPS - _checkpoint.cumulativeMps;
+        return ConstantsLib.MPS - _checkpoint.cumulativeMps;
     }
 
     /// @notice Calculate the supply to price ratio. Will return zero if `price` is zero

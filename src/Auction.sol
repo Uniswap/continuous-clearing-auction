@@ -633,14 +633,7 @@ contract Auction is
     function sweepUnsoldTokens() external onlyAfterAuctionIsOver {
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
         Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
-        if (_isGraduated(finalCheckpoint)) {
-            _sweepUnsoldTokens(
-                TOKEN.balanceOf(address(this)) - TOTAL_SUPPLY_X7_X7.scaleDownToValueX7().scaleDownToUint256()
-            );
-        } else {
-            // For simplicity we use the uint256 totalSupply value here instead of the scaled up X7 value
-            _sweepUnsoldTokens(TOTAL_SUPPLY);
-        }
+        _sweepUnsoldTokens(_isGraduated(finalCheckpoint) ? 0 : TOTAL_SUPPLY);
     }
 
     // Getters

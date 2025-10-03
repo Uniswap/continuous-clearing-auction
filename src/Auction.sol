@@ -74,8 +74,7 @@ contract Auction is
             _parameters.currency,
             _totalSupply,
             _parameters.tokensRecipient,
-            _parameters.fundsRecipient,
-            _parameters.graduationThresholdMps
+            _parameters.fundsRecipient
         )
         TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
         PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
@@ -114,9 +113,11 @@ contract Auction is
         return _isGraduated(latestCheckpoint());
     }
 
-    /// @notice Whether the auction has graduated as of the given checkpoint (sold more than the graduation threshold)
+    /// @notice Whether the auction has graduated as of the given checkpoint
+    /// @dev The auction is considered `graudated` if the clearing price is greater than the floor price
+    ///      since that means it has sold all of the total supply of tokens.
     function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool) {
-        return _checkpoint.totalClearedX7X7.gte(REQUIRED_SUPPLY_SOLD_FOR_GRADUATION_X7_X7);
+        return _checkpoint.clearingPrice > FLOOR_PRICE;
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
@@ -599,6 +600,8 @@ contract Auction is
             tokensFilled += partialTokensFilled;
             currencySpent += partialCurrencySpent;
         }
+        console.log("tokensFilled", tokensFilled);
+        console.log("currencySpent", currencySpent);
 
         _processExit(bidId, bid, tokensFilled, bid.amount - currencySpent);
     }
@@ -635,10 +638,7 @@ contract Auction is
         Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
         if (_isGraduated(finalCheckpoint)) {
             _sweepUnsoldTokens(
-                // Subtract the total cleared from the total supply before scaling down to X7
-                (TOTAL_SUPPLY_X7_X7.sub(_getFinalCheckpoint().totalClearedX7X7).scaleDownToValueX7())
-                    // Then finally scale down to uint256
-                    .scaleDownToUint256()
+                TOKEN.balanceOf(address(this)) - TOTAL_SUPPLY_X7_X7.scaleDownToValueX7().scaleDownToUint256()
             );
         } else {
             // For simplicity we use the uint256 totalSupply value here instead of the scaled up X7 value

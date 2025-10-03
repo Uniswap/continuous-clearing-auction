@@ -231,10 +231,10 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         vm.assume(_params.graduationThresholdMps != 0);
         vm.assume(_params.validationHook != address(0));
         vm.assume(_params.tickSpacing != 0);
-        vm.assume(_params.floorPrice != 0 && _params.floorPrice <= BidLib.MAX_BID_PRICE);
+        _params.floorPrice = _bound(_params.floorPrice, 1, BidLib.MAX_BID_PRICE - 1);
         // Round down to the tick spacing, easier way than vm.assume which doesn't reject too many values
         _params.floorPrice = _params.floorPrice - (_params.floorPrice % _params.tickSpacing);
-        vm.assume(_params.floorPrice != 0);
+        vm.assume(_params.floorPrice > 0);
 
         vm.assume(_salt != bytes32(0));
         vm.assume(_numberOfSteps > 0);

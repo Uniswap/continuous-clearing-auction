@@ -250,7 +250,8 @@ contract CheckpointStorageTest is StdHelpers, Test {
                 < type(uint256).max / ValueX7X7.unwrap(_cumulativeSupplySoldToClearingPriceX7X7)
         );
         // Detect case where tokensFilled rounds to zero
-        ValueX7X7 numeratorX7X7 = _bidCurrencyDemandX7.upcast().mul(_cumulativeSupplySoldToClearingPriceX7X7);
+        ValueX7X7 numeratorX7X7 =
+            _cumulativeSupplySoldToClearingPriceX7X7.mulUint256(ValueX7.unwrap(_bidCurrencyDemandX7));
         ValueX7X7 denominatorX7X7 = _tickCurrencyDemandX7.scaleUpToX7X7().mulUint256(ValueX7Lib.X7);
 
         // Currency spent is calculated independently of tokensFilled
@@ -265,7 +266,7 @@ contract CheckpointStorageTest is StdHelpers, Test {
         if (numeratorX7X7.lt(denominatorX7X7)) {
             assertEq(tokensFilled, 0);
         } else {
-            assertEq(tokensFilled, ValueX7X7.unwrap(numeratorX7X7.div(denominatorX7X7)));
+            assertEq(tokensFilled, ValueX7X7.unwrap(numeratorX7X7) / ValueX7X7.unwrap(denominatorX7X7));
         }
         assertEq(currencySpent, expectedCurrencySpent);
     }

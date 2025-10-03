@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/e7838afaee0b76864b5fb72172033ecfd2b9b40f/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c75a18452d582dc4b60352d99658fcf9bfc9466f/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
@@ -271,22 +271,6 @@ event ClearingPriceUpdated(uint256 indexed blockNumber, uint256 clearingPrice);
 |----|----|-----------|
 |`blockNumber`|`uint256`||
 |`clearingPrice`|`uint256`|The new clearing price|
-
-### TicksOutbid
-Emitted when a range of ticks are outbid
-
-
-```solidity
-event TicksOutbid(uint256 indexed blockNumber, uint256 indexed tickLower, uint256 indexed tickUpper);
-```
-
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`blockNumber`|`uint256`|The block number of the checkpoint|
-|`tickLower`|`uint256`|The first tick of the range which was outbid|
-|`tickUpper`|`uint256`|The last tick of the range|
 
 ### BidExited
 Emitted when a bid is exited

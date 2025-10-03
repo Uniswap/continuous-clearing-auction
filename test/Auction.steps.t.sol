@@ -6,10 +6,11 @@ import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {SupplyLib} from '../src/libraries/SupplyLib.sol';
-import {Assertions} from './utils/Assertions.sol';
+
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
+import {StdHelpers} from './utils/StdHelpers.sol';
 import {Test} from 'forge-std/Test.sol';
 
 /// @title AuctionStepDiffTest
@@ -103,8 +104,8 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         assertEq(finalCheckpoint1.clearingPrice, finalCheckpoint2.clearingPrice);
     }
 
-    function test_stepsDataEndingWithZeroMps_succeeds(uint256 totalSupply) public {
-        vm.assume(totalSupply > 0 && totalSupply <= SupplyLib.MAX_TOTAL_SUPPLY);
+    function test_stepsDataEndingWithZeroMps_succeeds(uint256 _totalSupply) public {
+        vm.assume(_totalSupply > 0 && _totalSupply <= type(uint128).max);
         bytes memory data = AuctionStepsBuilder.init().addStep(1, 1e7).addStep(0, 1e7);
         uint256 startBlock = block.number;
         uint256 endBlock = startBlock + 2e7;
@@ -113,12 +114,12 @@ contract AuctionStepDiffTest is AuctionBaseTest {
             endBlock
         ).withClaimBlock(claimBlock);
 
-        Auction newAuction = new Auction(address(token), totalSupply, params);
-        token.mint(address(newAuction), totalSupply);
+        Auction newAuction = new Auction(address(token), _totalSupply, params);
+        token.mint(address(newAuction), _totalSupply);
         newAuction.onTokensReceived();
 
         vm.roll(startBlock);
-        uint256 inputAmount = inputAmountForTokens(totalSupply, tickNumberToPriceX96(2));
+        uint256 inputAmount = inputAmountForTokens(_totalSupply, tickNumberToPriceX96(2));
         vm.deal(address(this), inputAmount);
         uint256 bidId = newAuction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
@@ -152,6 +153,6 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         newAuction.exitPartiallyFilledBid(bidId, 1, 0);
         vm.roll(claimBlock);
         newAuction.claimTokens(bidId);
-        assertEq(token.balanceOf(address(alice)), totalSupply);
+        assertEq(token.balanceOf(address(alice)), _totalSupply);
     }
 }

@@ -7,7 +7,7 @@ import {BidLib} from '../src/libraries/BidLib.sol';
 
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
-import {Assertions} from './utils/Assertions.sol';
+import {StdHelpers} from './utils/StdHelpers.sol';
 import {Test} from 'forge-std/Test.sol';
 import {console} from 'forge-std/console.sol';
 
@@ -32,7 +32,7 @@ contract MockTickStorage is TickStorage {
 // the tick storage logic
 /// forge-config: default.fuzz.runs = 5000
 /// forge-config: ci.fuzz.runs = 5000
-contract TickStorageTest is Test, Assertions {
+contract TickStorageTest is Test, StdHelpers {
     uint256 $floorPrice_rounded;
     uint256 $tickSpacing;
 

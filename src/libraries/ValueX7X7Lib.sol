@@ -9,7 +9,7 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 /// @dev X7X7 values are used for supply values to avoid intermediate division by MPS
 type ValueX7X7 is uint256;
 
-using {add, sub, eq, mulUint256, divUint256, gte, fullMulDiv, fullMulDivUp} for ValueX7X7 global;
+using {add, sub, mul, div, eq, mulUint256, divUint256, gte, lt, fullMulDiv, fullMulDivUp} for ValueX7X7 global;
 
 /// @notice Add two ValueX7 values
 function add(ValueX7X7 a, ValueX7X7 b) pure returns (ValueX7X7) {
@@ -21,6 +21,14 @@ function sub(ValueX7X7 a, ValueX7X7 b) pure returns (ValueX7X7) {
     return ValueX7X7.wrap(ValueX7X7.unwrap(a) - ValueX7X7.unwrap(b));
 }
 
+function mul(ValueX7X7 a, ValueX7X7 b) pure returns (ValueX7X7) {
+    return ValueX7X7.wrap(ValueX7X7.unwrap(a) * ValueX7X7.unwrap(b));
+}
+
+function div(ValueX7X7 a, ValueX7X7 b) pure returns (ValueX7X7) {
+    return ValueX7X7.wrap(ValueX7X7.unwrap(a) / ValueX7X7.unwrap(b));
+}
+
 /// @notice Check if a ValueX7X7 value is equal to another ValueX7X7 value
 function eq(ValueX7X7 a, ValueX7X7 b) pure returns (bool) {
     return ValueX7X7.unwrap(a) == ValueX7X7.unwrap(b);
@@ -29,6 +37,10 @@ function eq(ValueX7X7 a, ValueX7X7 b) pure returns (bool) {
 /// @notice Check if a ValueX7 value is greater than or equal to another ValueX7X7 value
 function gte(ValueX7X7 a, ValueX7X7 b) pure returns (bool) {
     return ValueX7X7.unwrap(a) >= ValueX7X7.unwrap(b);
+}
+
+function lt(ValueX7X7 a, ValueX7X7 b) pure returns (bool) {
+    return ValueX7X7.unwrap(a) < ValueX7X7.unwrap(b);
 }
 
 /// @notice Multiply a ValueX7 value by a uint256

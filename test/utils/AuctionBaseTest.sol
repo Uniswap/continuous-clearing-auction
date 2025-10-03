@@ -7,16 +7,16 @@ import {AuctionParameters, IAuction} from '../../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 
-import {Assertions} from './Assertions.sol';
 import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
 import {MockFundsRecipient} from './MockFundsRecipient.sol';
+import {StdHelpers} from './StdHelpers.sol';
 import {TokenHandler} from './TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @notice Handler contract for setting up an auction
-abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
+abstract contract AuctionBaseTest is TokenHandler, StdHelpers, Test {
     using FixedPointMathLib for uint256;
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;

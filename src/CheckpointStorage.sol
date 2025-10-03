@@ -9,10 +9,12 @@ import {DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
+import {console} from 'forge-std/console.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 /// @title CheckpointStorage
 /// @notice Abstract contract for managing auction checkpoints and bid fill calculations
+
 abstract contract CheckpointStorage is ICheckpointStorage {
     using FixedPointMathLib for *;
     using AuctionStepLib for *;
@@ -95,16 +97,20 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         uint256 bidMaxPrice
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
         if (tickCurrencyDemandX7.eq(ValueX7.wrap(0))) return (0, 0);
+        ValueX7X7 tickCurrencyDemandX7X7MultipliedByX7 = tickCurrencyDemandX7.scaleUpToX7X7().mulUint256(ValueX7Lib.X7);
         // We need to divide by X7 because cumulativeSupplySoldToClearingPriceX7X7 is a ValueX7X7 value
-        // To prevent intermediate divisions, we scale up the denominator by multiplying tickDemandX7 by 1e7 to be a ValueX7X7 value
-        tokensFilled = (
+        // To prevent intermediate divisions, we scale up the denominator by multiplying tickCurrencyDemandX7 by 1e7 to be a ValueX7X7 value
+        tokensFilled = ValueX7X7.unwrap(
             bidCurrencyDemandX7.upcast().fullMulDiv(
-                cumulativeSupplySoldToClearingPriceX7X7, tickCurrencyDemandX7.scaleUpToX7X7()
-            ).downcast()
-        )
-            // We need to scale the X7X7 value down, but to prevent intermediate division, scale up the denominator instead
-            .scaleDownToUint256();
-        currencySpent = tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96);
+                cumulativeSupplySoldToClearingPriceX7X7, tickCurrencyDemandX7X7MultipliedByX7
+            )
+        );
+        currencySpent = ValueX7X7.unwrap(
+            bidCurrencyDemandX7.upcast().fullMulDivUp(
+                cumulativeSupplySoldToClearingPriceX7X7.wrapAndFullMulDivUp(bidMaxPrice, FixedPoint96.Q96),
+                tickCurrencyDemandX7X7MultipliedByX7
+            )
+        );
     }
 
     /// @notice Calculate the tokens filled and currency spent for a bid

@@ -6,18 +6,19 @@ import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {CheckpointLib} from '../src/libraries/CheckpointLib.sol';
-
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {DemandLib} from '../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
+import {SupplyLib} from '../src/libraries/SupplyLib.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
-import {Assertions} from './utils/Assertions.sol';
+
 import {MockCheckpointStorage} from './utils/MockCheckpointStorage.sol';
+import {StdHelpers} from './utils/StdHelpers.sol';
 import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
-contract CheckpointStorageTest is Assertions, Test {
+contract CheckpointStorageTest is StdHelpers, Test {
     MockCheckpointStorage public mockCheckpointStorage;
 
     using BidLib for Bid;
@@ -25,6 +26,8 @@ contract CheckpointStorageTest is Assertions, Test {
     using FixedPointMathLib for uint256;
     using AuctionStepLib for uint256;
     using ConstantsLib for *;
+    using ValueX7Lib for *;
+    using ValueX7X7Lib for *;
 
     uint256 public constant TICK_SPACING = 100;
     uint256 public constant ETH_AMOUNT = 10 ether;
@@ -217,5 +220,53 @@ contract CheckpointStorageTest is Assertions, Test {
         );
         assertEq(tokensFilled, 0);
         assertEq(currencySpent, 0);
+    }
+
+    function test_accountPartiallyFilledCheckpoints_fuzz_succeeds(
+        ValueX7X7 _cumulativeSupplySoldToClearingPriceX7X7,
+        uint128 _bidAmount,
+        ValueX7 _tickCurrencyDemandX7,
+        uint256 _bidMaxPrice
+    ) public {
+        ValueX7 _bidCurrencyDemandX7 = _bidAmount.scaleUpToX7();
+        _bidCurrencyDemandX7 = _bound(_bidCurrencyDemandX7, 1, type(uint128).max - 1);
+        // Assume remainingMps is 100%, so effective demand is just bid scaled up by 1e7
+        _cumulativeSupplySoldToClearingPriceX7X7 =
+            _bound(_cumulativeSupplySoldToClearingPriceX7X7, 1, SupplyLib.MAX_TOTAL_SUPPLY);
+        _tickCurrencyDemandX7 = _bound(_tickCurrencyDemandX7, _bidCurrencyDemandX7, ValueX7.wrap(type(uint128).max));
+
+        _bidMaxPrice = _bound(_bidMaxPrice, 1, type(uint256).max / FixedPoint96.Q96);
+        // for currency intermediate multiplication to not overflow
+        vm.assume(_bidMaxPrice < type(uint256).max / ValueX7X7.unwrap(_cumulativeSupplySoldToClearingPriceX7X7));
+        vm.assume(ValueX7X7.unwrap(_tickCurrencyDemandX7.scaleUpToX7X7()) < type(uint256).max / FixedPoint96.Q96 / 1e7);
+
+        (uint256 tokensFilled, uint256 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
+            _cumulativeSupplySoldToClearingPriceX7X7, _bidCurrencyDemandX7, _tickCurrencyDemandX7, _bidMaxPrice
+        );
+
+        // Calculate tokensFilled manually
+        vm.assume(
+            ValueX7.unwrap(_bidCurrencyDemandX7)
+                < type(uint256).max / ValueX7X7.unwrap(_cumulativeSupplySoldToClearingPriceX7X7)
+        );
+        // Detect case where tokensFilled rounds to zero
+        ValueX7X7 numeratorX7X7 = _bidCurrencyDemandX7.upcast().mul(_cumulativeSupplySoldToClearingPriceX7X7);
+        ValueX7X7 denominatorX7X7 = _tickCurrencyDemandX7.scaleUpToX7X7().mulUint256(ValueX7Lib.X7);
+
+        // Currency spent is calculated independently of tokensFilled
+        uint256 expectedCurrencySpent = ValueX7X7.unwrap(
+            _bidCurrencyDemandX7.upcast().fullMulDivUp(
+                _cumulativeSupplySoldToClearingPriceX7X7.mulUint256(_bidMaxPrice),
+                _tickCurrencyDemandX7.scaleUpToX7X7().mulUint256(ValueX7Lib.X7).mulUint256(FixedPoint96.Q96)
+            )
+        );
+
+        // Catch the case where tokens filled rounds to zero
+        if (numeratorX7X7.lt(denominatorX7X7)) {
+            assertEq(tokensFilled, 0);
+        } else {
+            assertEq(tokensFilled, ValueX7X7.unwrap(numeratorX7X7.div(denominatorX7X7)));
+        }
+        assertEq(currencySpent, expectedCurrencySpent);
     }
 }

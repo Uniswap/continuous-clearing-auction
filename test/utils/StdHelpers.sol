@@ -5,9 +5,27 @@ import {Checkpoint} from '../../src/libraries/CheckpointLib.sol';
 import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../../src/libraries/ValueX7X7Lib.sol';
 import {StdAssertions} from 'forge-std/StdAssertions.sol';
+import {StdUtils} from 'forge-std/StdUtils.sol';
 
-abstract contract Assertions is StdAssertions {
+abstract contract StdHelpers is StdAssertions, StdUtils {
     using ValueX7Lib for ValueX7;
+    using ValueX7X7Lib for ValueX7X7;
+
+    function _bound(ValueX7X7 x, ValueX7X7 min, ValueX7X7 max) internal pure returns (ValueX7X7) {
+        return ValueX7X7.wrap(_bound(ValueX7X7.unwrap(x), ValueX7X7.unwrap(min), ValueX7X7.unwrap(max)));
+    }
+
+    function _bound(ValueX7X7 x, uint256 min, uint256 max) internal pure returns (ValueX7X7) {
+        return ValueX7X7.wrap(_bound(ValueX7X7.unwrap(x), min, max));
+    }
+
+    function _bound(ValueX7 x, ValueX7 min, ValueX7 max) internal pure returns (ValueX7) {
+        return ValueX7.wrap(_bound(ValueX7.unwrap(x), ValueX7.unwrap(min), ValueX7.unwrap(max)));
+    }
+
+    function _bound(ValueX7 x, uint256 min, uint256 max) internal pure returns (ValueX7) {
+        return ValueX7.wrap(_bound(ValueX7.unwrap(x), min, max));
+    }
 
     function hash(Checkpoint memory _checkpoint) internal pure returns (bytes32) {
         return keccak256(

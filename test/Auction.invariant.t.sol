@@ -17,13 +17,14 @@ import {DemandLib} from '../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
-import {Assertions} from './utils/Assertions.sol';
+
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
+import {StdHelpers} from './utils/StdHelpers.sol';
 import {Test} from 'forge-std/Test.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
-contract AuctionInvariantHandler is Test, Assertions {
+contract AuctionInvariantHandler is Test, StdHelpers {
     using CurrencyLibrary for Currency;
     using FixedPointMathLib for uint256;
     using ValueX7Lib for *;

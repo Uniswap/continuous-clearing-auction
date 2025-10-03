@@ -83,26 +83,24 @@ abstract contract CheckpointStorage is ICheckpointStorage {
 
     /// @notice Calculate the tokens sold and currency spent for a partially filled bid
     /// @param cumulativeSupplySoldToClearingPriceX7X7 The cumulative supply sold to the clearing price
-    /// @param bidDemandX7 The demand of the bid
-    /// @param tickDemandX7 The total demand at the tick
+    /// @param bidCurrencyDemandX7 The demand of the bid
+    /// @param tickCurrencyDemandX7 The total demand at the tick
     /// @param bidMaxPrice The max price of the bid
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent
     function _accountPartiallyFilledCheckpoints(
         ValueX7X7 cumulativeSupplySoldToClearingPriceX7X7,
-        ValueX7 bidDemandX7,
-        ValueX7 tickDemandX7,
+        ValueX7 bidCurrencyDemandX7,
+        ValueX7 tickCurrencyDemandX7,
         uint256 bidMaxPrice
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
-        if (tickDemandX7.eq(ValueX7.wrap(0))) return (0, 0);
-        // Expanded version of the math:
-        // tokensFilled = bidDemandX7 * runningPartialFillRate * cumulativeMpsDelta / (MPS * Q96)
-        // tokensFilled = bidDemandX7 * (cumulativeSupplyX7 * Q96 * MPS / tickDemandX7 * cumulativeMpsDelta) * cumulativeMpsDelta / (mpsDenominator * Q96)
-        //              = bidDemandX7 * (cumulativeSupplyX7 / tickDemandX7)
-        // BidDemand and tickDemand are both ValueX7 values, so the X7 cancels out. However, we need to scale down the result due to cumulativeSupplySoldToClearingPriceX7X7 being a ValueX7 value
+        if (tickCurrencyDemandX7.eq(ValueX7.wrap(0))) return (0, 0);
+        // We need to divide by X7 because cumulativeSupplySoldToClearingPriceX7X7 is a ValueX7X7 value
+        // To prevent intermediate divisions, we scale up the denominator by multiplying tickDemandX7 by 1e7 to be a ValueX7X7 value
         tokensFilled = (
-            bidDemandX7.upcast().fullMulDiv(cumulativeSupplySoldToClearingPriceX7X7, tickDemandX7.scaleUpToX7X7())
-                .downcast()
+            bidCurrencyDemandX7.upcast().fullMulDiv(
+                cumulativeSupplySoldToClearingPriceX7X7, tickCurrencyDemandX7.scaleUpToX7X7()
+            ).downcast()
         )
             // We need to scale the X7X7 value down, but to prevent intermediate division, scale up the denominator instead
             .scaleDownToUint256();

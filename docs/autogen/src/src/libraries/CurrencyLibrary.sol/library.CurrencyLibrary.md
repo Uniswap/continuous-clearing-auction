@@ -1,5 +1,5 @@
 # CurrencyLibrary
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4e79543472823ca4f19066f04f5392aba6563627/src/libraries/CurrencyLibrary.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/371cb0f36b92bd941e1e8d26644b52a674dda04d/src/libraries/CurrencyLibrary.sol)
 
 *This library allows for transferring and holding native tokens and ERC20 tokens*
 

@@ -2,8 +2,8 @@
 pragma solidity ^0.8.0;
 
 import {AuctionStepLib} from './AuctionStepLib.sol';
+import {ConstantsLib} from './ConstantsLib.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
-import {MPSLib} from './MPSLib.sol';
 import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './ValueX7X7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -26,11 +26,15 @@ library BidLib {
     using BidLib for *;
     using FixedPointMathLib for *;
 
+    /// @notice The maximum allowable price for a bid, defined as the square of MAX_SQRT_PRICE from Uniswap v4's TickMath library.
+    uint256 public constant MAX_BID_PRICE =
+        26_957_920_004_054_754_506_022_898_809_067_591_261_277_585_227_686_421_694_841_721_768_917;
+
     /// @notice Calculate the number of mps remaining in the auction since the bid was submitted
     /// @param bid The bid to calculate the remaining mps for
     /// @return The number of mps remaining in the auction
     function mpsRemainingInAuctionAfterSubmission(Bid memory bid) internal pure returns (uint24) {
-        return MPSLib.MPS - bid.startCumulativeMps;
+        return ConstantsLib.MPS - bid.startCumulativeMps;
     }
 
     /// @notice Scale a bid amount to its effective amount over the remaining percentage of the auction
@@ -39,6 +43,6 @@ library BidLib {
     /// @return bidAmountOverRemainingAuctionX7 The bid amount in ValueX7 scaled to the remaining percentage of the auction
     function toEffectiveAmount(Bid memory bid) internal pure returns (ValueX7 bidAmountOverRemainingAuctionX7) {
         bidAmountOverRemainingAuctionX7 =
-            bid.amount.scaleUpToX7().mulUint256(MPSLib.MPS).divUint256(bid.mpsRemainingInAuctionAfterSubmission());
+            bid.amount.scaleUpToX7().mulUint256(ConstantsLib.MPS).divUint256(bid.mpsRemainingInAuctionAfterSubmission());
     }
 }

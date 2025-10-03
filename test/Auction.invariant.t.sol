@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {Auction} from '../src/Auction.sol';
-import {Tick} from '../src/TickStorage.sol';
+import {Tick, TickStorage} from '../src/TickStorage.sol';
 import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
@@ -10,11 +10,11 @@ import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
+
+import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {DemandLib} from '../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-
-import {MPSLib} from '../src/libraries/MPSLib.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
 import {Assertions} from './utils/Assertions.sol';
@@ -38,7 +38,7 @@ contract AuctionInvariantHandler is Test, Assertions {
     Currency public currency;
     IERC20Minimal public token;
 
-    uint256 public constant BID_MAX_PRICE = type(uint256).max;
+    uint256 public constant BID_MAX_PRICE = BidLib.MAX_BID_PRICE;
     uint256 public BID_MIN_PRICE;
 
     // Ghost variables
@@ -238,7 +238,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
 
         Checkpoint memory finalCheckpoint = getCheckpoint(uint64(block.number));
         // Assert the only thing we know for sure is that the schedule must be 100% at the endBlock
-        assertEq(finalCheckpoint.cumulativeMps, MPSLib.MPS, 'Final checkpoint must be 1e7');
+        assertEq(finalCheckpoint.cumulativeMps, ConstantsLib.MPS, 'Final checkpoint must be 1e7');
         uint256 clearingPrice = auction.clearingPrice();
 
         uint256 bidCount = handler.bidCount();

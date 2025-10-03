@@ -2,7 +2,6 @@
 pragma solidity 0.8.26;
 
 import {Auction, AuctionParameters} from '../src/Auction.sol';
-
 import {Bid} from '../src/BidStorage.sol';
 import {Checkpoint} from '../src/CheckpointStorage.sol';
 import {IAuction} from '../src/interfaces/IAuction.sol';
@@ -13,11 +12,10 @@ import {AuctionStep} from '../src/libraries/AuctionStepLib.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
-
 import {CheckpointLib} from '../src/libraries/CheckpointLib.sol';
+import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {MPSLib} from '../src/libraries/MPSLib.sol';
 import {SupplyLib} from '../src/libraries/SupplyLib.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
@@ -70,9 +68,9 @@ contract AuctionTest is AuctionBaseTest {
     function test_submitBid_exactIn_smallBidLessThanMpsRemainingInAuctionAfterSubmission_purchasesNoTokens(
         uint256 smallBidAmount
     ) public {
-        uint256 expectedMpsPerPrice = CheckpointLib.getMpsPerPrice(MPSLib.MPS, tickNumberToPriceX96(1));
+        uint256 expectedMpsPerPrice = CheckpointLib.getMpsPerPrice(ConstantsLib.MPS, tickNumberToPriceX96(1));
         vm.assume(smallBidAmount < type(uint256).max / expectedMpsPerPrice);
-        vm.assume(smallBidAmount * expectedMpsPerPrice < FixedPoint96.Q96 * MPSLib.MPS && smallBidAmount > 0);
+        vm.assume(smallBidAmount * expectedMpsPerPrice < FixedPoint96.Q96 * ConstantsLib.MPS && smallBidAmount > 0);
         // Submit a small bid, one that is less than the mpsRemainingInAuctionAfterSubmission (1e7)
         auction.submitBid{value: smallBidAmount}(tickNumberToPriceX96(2), smallBidAmount, alice, bytes(''));
 
@@ -85,7 +83,7 @@ contract AuctionTest is AuctionBaseTest {
         emit ITokenCurrencyStorage.CurrencySwept(fundsRecipient, smallBidAmount);
         auction.sweepCurrency();
 
-        uint24 mpsRemainingInAuctionAfterBid = MPSLib.MPS;
+        uint24 mpsRemainingInAuctionAfterBid = ConstantsLib.MPS;
         uint256 expectedTokensFilled = smallBidAmount.fullMulDiv(
             checkpoint.cumulativeMpsPerPrice, FixedPoint96.Q96 * mpsRemainingInAuctionAfterBid
         );
@@ -1135,7 +1133,7 @@ contract AuctionTest is AuctionBaseTest {
         // Expect the final checkpoint to be made
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(
-            block.number, tickNumberToPriceX96(2), TOTAL_SUPPLY.scaleUpToX7().scaleUpToX7X7(), MPSLib.MPS
+            block.number, tickNumberToPriceX96(2), TOTAL_SUPPLY.scaleUpToX7().scaleUpToX7X7(), ConstantsLib.MPS
         );
         // Checkpoint hints are:
         // - lower: 1 (last fully filled checkpoint)
@@ -1312,7 +1310,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         // Expect that we sold the total supply at price of 2
         emit IAuction.CheckpointUpdated(
-            block.number, tickNumberToPriceX96(2), TOTAL_SUPPLY.scaleUpToX7().scaleUpToX7X7(), MPSLib.MPS
+            block.number, tickNumberToPriceX96(2), TOTAL_SUPPLY.scaleUpToX7().scaleUpToX7X7(), ConstantsLib.MPS
         );
         mockAuction.checkpoint();
     }
@@ -1406,7 +1404,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         // Expect that we sold the total supply at price of 2
         emit IAuction.CheckpointUpdated(
-            startBlock + 40, tickNumberToPriceX96(2), TOTAL_SUPPLY.scaleUpToX7().scaleUpToX7X7(), MPSLib.MPS
+            startBlock + 40, tickNumberToPriceX96(2), TOTAL_SUPPLY.scaleUpToX7().scaleUpToX7X7(), ConstantsLib.MPS
         );
         mockAuction.checkpoint();
     }
@@ -1516,6 +1514,12 @@ contract AuctionTest is AuctionBaseTest {
         AuctionParameters memory paramsZeroFloorPrice = params.withFloorPrice(0);
         vm.expectRevert(ITickStorage.FloorPriceIsZero.selector);
         new Auction(address(token), TOTAL_SUPPLY, paramsZeroFloorPrice);
+    }
+
+    function test_auctionConstruction_revertsWithFloorPriceAboveMaxBidPrice() public {
+        AuctionParameters memory paramsMaxFloorPrice = params.withFloorPrice(BidLib.MAX_BID_PRICE);
+        vm.expectRevert(ITickStorage.FloorPriceAboveMaxBidPrice.selector);
+        new Auction(address(token), TOTAL_SUPPLY, paramsMaxFloorPrice);
     }
 
     function test_auctionConstruction_revertsWithClaimBlockBeforeEndBlock() public {
@@ -2098,6 +2102,36 @@ contract AuctionTest is AuctionBaseTest {
         // Exit the bids and claim ATP
         auction.exitPartiallyFilledBid(bidId, 3, 0);
         auction.claimTokens(bidId);
+    }
+
+    /// Super large tick spacing
+    /// Bids sufficiently large become unable to clear
+    function test_disallow_bids_too_large_to_clear(uint256 totalSupply, uint256 inputAmount) public {
+        vm.assume(totalSupply > 0 && totalSupply <= SupplyLib.MAX_TOTAL_SUPPLY);
+
+        vm.deal(address(this), type(uint256).max);
+        uint256 floorPrice = 1;
+        uint256 tickSpacing = 1;
+        params = params.withFloorPrice(floorPrice).withTickSpacing(tickSpacing);
+        auction = new Auction(address(token), totalSupply, params);
+        token.mint(address(auction), totalSupply);
+        auction.onTokensReceived();
+
+        // Do ConstantsLib.X7_UPPER_BOUND because that will trigger the revert
+        // Divide by 1e7 because we will at most scale it up by 1e7 when doing bid.toDemand()
+        // Divide by Q96 because we resolve the demand by multiplying by Q96 then dividing by price (in this case, 1)
+        uint256 overMaxAmount = ConstantsLib.X7_UPPER_BOUND / (FixedPoint96.Q96 * 1e7) + 1;
+        vm.expectRevert(IAuction.InvalidBidUnableToClear.selector);
+        auction.submitBid{value: overMaxAmount}(2, overMaxAmount, alice, 1, '');
+
+        inputAmount = _bound(inputAmount, 1, overMaxAmount - 1);
+
+        // Now submit a valid amount
+        auction.submitBid{value: inputAmount}(2, inputAmount, alice, 1, '');
+
+        vm.roll(block.number + 1);
+        // Expect that we can call checkpoint
+        auction.checkpoint();
     }
 
     function logAmountWithDecimal(string memory key, uint256 amount) internal {

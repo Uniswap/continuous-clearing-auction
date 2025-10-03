@@ -63,36 +63,36 @@ abstract contract Assertions is StdAssertions {
         assertEq(ValueX7X7.unwrap(a), ValueX7X7.unwrap(b));
     }
 
-    function assertGt(ValueX7X7 a, ValueX7X7 b) internal pure {
-        assertGt(ValueX7X7.unwrap(a), ValueX7X7.unwrap(b));
-    }
-
-    function assertGe(ValueX7X7 a, ValueX7X7 b) internal pure {
-        assertGe(ValueX7X7.unwrap(a), ValueX7X7.unwrap(b));
-    }
-
-    function assertLt(ValueX7X7 a, ValueX7X7 b) internal pure {
-        assertLt(ValueX7X7.unwrap(a), ValueX7X7.unwrap(b));
-    }
-
-    function assertLe(ValueX7X7 a, ValueX7X7 b) internal pure {
-        assertLe(ValueX7X7.unwrap(a), ValueX7X7.unwrap(b));
-    }
-
     function assertEq(ValueX7X7 a, ValueX7X7 b, string memory err) internal pure {
         assertEq(ValueX7X7.unwrap(a), ValueX7X7.unwrap(b), err);
+    }
+
+    function assertGt(ValueX7X7 a, ValueX7X7 b) internal pure {
+        assertGt(ValueX7X7.unwrap(a), ValueX7X7.unwrap(b));
     }
 
     function assertGt(ValueX7X7 a, ValueX7X7 b, string memory err) internal pure {
         assertGt(ValueX7X7.unwrap(a), ValueX7X7.unwrap(b), err);
     }
 
+    function assertGe(ValueX7X7 a, ValueX7X7 b) internal pure {
+        assertGe(ValueX7X7.unwrap(a), ValueX7X7.unwrap(b));
+    }
+
     function assertGe(ValueX7X7 a, ValueX7X7 b, string memory err) internal pure {
         assertGe(ValueX7X7.unwrap(a), ValueX7X7.unwrap(b), err);
     }
 
+    function assertLt(ValueX7X7 a, ValueX7X7 b) internal pure {
+        assertLt(ValueX7X7.unwrap(a), ValueX7X7.unwrap(b));
+    }
+
     function assertLt(ValueX7X7 a, ValueX7X7 b, string memory err) internal pure {
         assertLt(ValueX7X7.unwrap(a), ValueX7X7.unwrap(b), err);
+    }
+
+    function assertLe(ValueX7X7 a, ValueX7X7 b) internal pure {
+        assertLe(ValueX7X7.unwrap(a), ValueX7X7.unwrap(b));
     }
 
     function assertLe(ValueX7X7 a, ValueX7X7 b, string memory err) internal pure {

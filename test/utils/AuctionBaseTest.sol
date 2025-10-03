@@ -28,6 +28,9 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     uint256 public constant FLOOR_PRICE = 1000 << FixedPoint96.RESOLUTION;
     uint256 public constant TOTAL_SUPPLY = 1000e18;
 
+    // Max amount of wei that can be lost in totalClearedX7X7 calculations
+    uint256 public constant MAX_TOTAL_CLEARED_PRECISION_LOSS = 1;
+
     address public alice;
     address public tokensRecipient;
     address public fundsRecipient;

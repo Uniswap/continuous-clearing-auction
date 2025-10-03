@@ -467,15 +467,12 @@ contract Auction is
     {
         // Bids cannot be submitted at the endBlock or after
         if (block.number >= END_BLOCK) revert AuctionIsOver();
-        uint256 requiredCurrencyAmount = amount;
-        if (requiredCurrencyAmount == 0) revert InvalidAmount();
+        if (amount == 0) revert InvalidAmount();
         if (CURRENCY.isAddressZero()) {
-            if (msg.value != requiredCurrencyAmount) revert InvalidAmount();
+            if (msg.value != amount) revert InvalidAmount();
         } else {
             if (msg.value != 0) revert CurrencyIsNotNative();
-            SafeTransferLib.permit2TransferFrom(
-                Currency.unwrap(CURRENCY), msg.sender, address(this), requiredCurrencyAmount
-            );
+            SafeTransferLib.permit2TransferFrom(Currency.unwrap(CURRENCY), msg.sender, address(this), amount);
         }
         return _submitBid(maxPrice, amount, owner, prevTickPrice, hookData);
     }
@@ -600,8 +597,8 @@ contract Auction is
             tokensFilled += partialTokensFilled;
             currencySpent += partialCurrencySpent;
         }
-        console.log("tokensFilled", tokensFilled);
-        console.log("currencySpent", currencySpent);
+        console.log('tokensFilled', tokensFilled);
+        console.log('currencySpent', currencySpent);
 
         _processExit(bidId, bid, tokensFilled, bid.amount - currencySpent);
     }

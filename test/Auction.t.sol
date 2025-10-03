@@ -267,7 +267,11 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
     }
 
-    function test_submitBid_zeroSupply_exitBid_succeeds(uint256 _bidAmount) public givenGraduatedAuction(_bidAmount) givenFullyFundedAccount {
+    function test_submitBid_zeroSupply_exitBid_succeeds(uint256 _bidAmount)
+        public
+        givenGraduatedAuction(_bidAmount)
+        givenFullyFundedAccount
+    {
         // 0 mps for first 50 blocks, then 200mps for the last 50 blocks
         params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(0, 100).addStep(100e3, 100))
             .withEndBlock(block.number + 200).withClaimBlock(block.number + 200);
@@ -566,12 +570,27 @@ contract AuctionTest is AuctionBaseTest {
         vm.stopPrank();
     }
 
-    function test_exitBid_joinedLate_succeeds() public {
+    function test_exitBid_joinedLate_succeeds(uint256 _bidAmount1, uint256 _bidAmount2)
+        public
+        givenFullyFundedAccount
+    {
+        // Neither bid can fully fill the auction, but both together will
+        _bidAmount1 = _bound(_bidAmount1, 1, TOTAL_SUPPLY - 1);
+
         vm.roll(auction.endBlock() - 1);
-        // Bid at 2 but only provide 1000e18 ETH, such that the auction is only fully filled at 1e6
-        uint256 bidId = auction.submitBid{value: inputAmountForTokens(1000e18, tickNumberToPriceX96(1))}(
+        uint256 bidId1 = auction.submitBid{value: inputAmountForTokens(_bidAmount1, tickNumberToPriceX96(3))}(
+            tickNumberToPriceX96(3),
+            inputAmountForTokens(_bidAmount1, tickNumberToPriceX96(3)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        _bidAmount2 = TOTAL_SUPPLY - _bidAmount1;
+        // Bid2 is at a lower price such that bid 1 will be fully filled, and this one will be partially filled
+        uint256 bidId2 = auction.submitBid{value: inputAmountForTokens(_bidAmount2, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
-            inputAmountForTokens(1000e18, tickNumberToPriceX96(1)),
+            inputAmountForTokens(_bidAmount2, tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -579,13 +598,26 @@ contract AuctionTest is AuctionBaseTest {
 
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
-        vm.roll(auction.endBlock() + 1);
-        auction.exitBid(bidId);
+        vm.roll(auction.endBlock());
+        Checkpoint memory checkpoint = auction.checkpoint();
+        assertEq(checkpoint.totalClearedX7X7, TOTAL_SUPPLY.scaleUpToX7().scaleUpToX7X7());
+        assertEq(checkpoint.clearingPrice, tickNumberToPriceX96(2));
+
+        // Expect that bid1 is fully filled and can be exited as such
+        auction.exitBid(bidId1);
         // Expect no refund since the bid was fully exited
         assertEq(address(alice).balance, aliceBalanceBefore);
         vm.roll(auction.claimBlock());
-        auction.claimTokens(bidId);
-        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
+        auction.claimTokens(bidId1);
+        // Expect that bid2 is partially filled
+        auction.exitPartiallyFilledBid(bidId2, auction.endBlock() - 1, 0);
+        vm.roll(auction.claimBlock());
+        auction.claimTokens(bidId2);
+
+        // At the end, alice should have purchased all of the token supply
+        assertApproxEqAbs(
+            token.balanceOf(address(alice)), aliceTokenBalanceBefore + TOTAL_SUPPLY, MAX_TOTAL_CLEARED_PRECISION_LOSS
+        );
     }
 
     function test_exitBid_beforeEndBlock_revertsWithCannotExitBid() public {
@@ -1625,7 +1657,11 @@ contract AuctionTest is AuctionBaseTest {
         vm.stopPrank();
     }
 
-    function test_claimTokens_beforeClaimBlock_reverts(uint256 _bidAmount) public givenGraduatedAuction(_bidAmount) givenFullyFundedAccount {
+    function test_claimTokens_beforeClaimBlock_reverts(uint256 _bidAmount)
+        public
+        givenGraduatedAuction(_bidAmount)
+        givenFullyFundedAccount
+    {
         uint256 bidId = auction.submitBid{value: inputAmountForTokens($bidAmount, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
             inputAmountForTokens($bidAmount, tickNumberToPriceX96(2)),
@@ -1646,7 +1682,11 @@ contract AuctionTest is AuctionBaseTest {
         auction.claimTokens(bidId);
     }
 
-    function test_claimTokens_tokenTransferFails_reverts(uint256 _bidAmount) public givenGraduatedAuction(_bidAmount) givenFullyFundedAccount {
+    function test_claimTokens_tokenTransferFails_reverts(uint256 _bidAmount)
+        public
+        givenGraduatedAuction(_bidAmount)
+        givenFullyFundedAccount
+    {
         MockToken failingToken = new MockToken();
         Auction failingAuction = new Auction(address(failingToken), TOTAL_SUPPLY, params);
         failingToken.mint(address(failingAuction), TOTAL_SUPPLY);
@@ -1724,7 +1764,11 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepCurrency();
     }
 
-    function test_sweepCurrency_graduated_succeeds(uint256 _bidAmount, uint64 tickNumber) public givenGraduatedAuction(_bidAmount) givenFullyFundedAccount {
+    function test_sweepCurrency_graduated_succeeds(uint256 _bidAmount, uint64 tickNumber)
+        public
+        givenGraduatedAuction(_bidAmount)
+        givenFullyFundedAccount
+    {
         // Use uint128 max as a reasonable upper bound
         uint256 inputAmount = inputAmountForTokens($bidAmount, tickNumberToPriceX96(tickNumber));
         auction.submitBid{value: inputAmount}(
@@ -1755,7 +1799,10 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepUnsoldTokens();
     }
 
-    function test_sweepUnsoldTokens_graduated_sweepsUnsold(uint256 _bidAmount, uint256 extraTokensBalance) public givenGraduatedAuction(_bidAmount) {
+    function test_sweepUnsoldTokens_graduated_sweepsUnsold(uint256 _bidAmount, uint256 extraTokensBalance)
+        public
+        givenGraduatedAuction(_bidAmount)
+    {
         vm.assume(extraTokensBalance < type(uint256).max - TOTAL_SUPPLY);
         deal(address(token), address(auction), extraTokensBalance);
         // Bid more than the total supply
@@ -1774,7 +1821,10 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(token.balanceOf(tokensRecipient), extraTokensBalance);
     }
 
-    function test_sweepUnsoldTokens_notGraduated_sweepsAll(uint256 _bidAmount) public givenNotGraduatedAuction(_bidAmount) {
+    function test_sweepUnsoldTokens_notGraduated_sweepsAll(uint256 _bidAmount)
+        public
+        givenNotGraduatedAuction(_bidAmount)
+    {
         // Submit a small bid for 10% of supply (below 50% threshold, so not graduated)
         uint256 inputAmount = inputAmountForTokens($bidAmount, tickNumberToPriceX96(1));
         auction.submitBid{value: inputAmount}(
@@ -1825,7 +1875,10 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(token.balanceOf(tokensRecipient), extraTokensBalance);
     }
 
-    function test_sweepTokens_notGraduated_cannotSweepCurrency(uint256 _bidAmount) public givenNotGraduatedAuction(_bidAmount) {
+    function test_sweepTokens_notGraduated_cannotSweepCurrency(uint256 _bidAmount)
+        public
+        givenNotGraduatedAuction(_bidAmount)
+    {
         uint256 inputAmount = inputAmountForTokens($bidAmount, tickNumberToPriceX96(1));
         auction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')

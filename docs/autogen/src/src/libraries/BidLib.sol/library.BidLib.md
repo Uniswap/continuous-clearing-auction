@@ -1,15 +1,15 @@
 # BidLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c968c963f6b2d0d8603af50fad60d232a645daef/src/libraries/BidLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/b374dbc5fedf03ae3965f1bb963360c94caf82aa/src/libraries/BidLib.sol)
 
 
 ## Functions
-### mpsRemainingInAuction
+### mpsRemainingInAuctionAfterSubmission
 
 Calculate the number of mps remaining in the auction since the bid was submitted
 
 
 ```solidity
-function mpsRemainingInAuction(Bid memory bid) internal pure returns (uint24);
+function mpsRemainingInAuctionAfterSubmission(Bid memory bid) internal pure returns (uint24);
 ```
 **Parameters**
 

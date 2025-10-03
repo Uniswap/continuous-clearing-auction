@@ -229,6 +229,7 @@ contract Auction is
     /// @param _sumCurrencyDemandAboveClearingX7 The sum of demand above the clearing price
     /// @param _remainingMpsInAuction The remaining mps in the auction which is ConstantsLib.MPS minus the cumulative mps so far
     /// @param _remainingSupplyX7X7 The result of TOTAL_SUPPLY_X7_X7 minus the total cleared supply so far
+    /// @return The new clearing price
     function _calculateNewClearingPrice(
         ValueX7 _sumCurrencyDemandAboveClearingX7,
         ValueX7X7 _remainingSupplyX7X7,

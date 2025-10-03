@@ -342,6 +342,7 @@ contract Auction is
         if (nextActiveTickPrice_ != $nextActiveTickPrice) {
             $sumCurrencyDemandAboveClearingX7 = sumCurrencyDemandAboveClearingX7_;
             $nextActiveTickPrice = nextActiveTickPrice_;
+            emit NextActiveTickUpdated(nextActiveTickPrice_);
         }
 
         // Calculate the new clearing price
@@ -368,6 +369,7 @@ contract Auction is
             // Set the new clearing price
             _checkpoint.clearingPrice = clearingPrice;
             _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 = ValueX7X7.wrap(0);
+            emit ClearingPriceUpdated(blockNumber, clearingPrice);
         }
 
         // Sine the clearing price is now up to date, we can advance the auction to the current step

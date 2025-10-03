@@ -55,7 +55,6 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         if (_totalSupply > SupplyLib.MAX_TOTAL_SUPPLY) revert TotalSupplyIsTooLarge();
         if (_totalSupply == 0) revert TotalSupplyIsZero();
         TOTAL_SUPPLY_X7_X7 = _totalSupply.toX7X7();
-        CURRENCY = Currency.wrap(_currency);
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;
         GRADUATION_THRESHOLD_MPS = _graduationThresholdMps;

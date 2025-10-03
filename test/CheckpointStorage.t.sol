@@ -113,13 +113,8 @@ contract CheckpointStorageTest is Assertions, Test {
         (uint256 tokensFilled, uint256 currencySpent) =
             mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
 
-        uint256 tempTokensFilled = inputAmount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96);
-        assertEq(tokensFilled, tempTokensFilled / MPS);
-        if (tempTokensFilled != 0) {
-            assertEq(currencySpent, inputAmount.fullMulDivUp(cumulativeMpsDelta, MPS));
-        } else {
-            assertEq(currencySpent, 0);
-        }
+        assertEq(tokensFilled, inputAmount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * MPS));
+        assertEq(currencySpent, inputAmount.fullMulDivUp(cumulativeMpsDelta, MPS));
     }
 
     function test_calculateFill_exactIn_iterative() public view {
@@ -197,6 +192,29 @@ contract CheckpointStorageTest is Assertions, Test {
 
         assertEq(tokensFilled, expectedTokensFilled);
         assertEq(currencySpent, expectedCurrencySpent);
+    }
+
+    function test_calculateFill_roundsSmallValuesToZero(
+        uint256 _inputAmount,
+        uint256 _cumulativeMpsPerPriceDelta,
+        uint24 _cumulativeMpsDelta
+    ) public view {
+        vm.assume(_inputAmount > 0);
+        _cumulativeMpsDelta = uint24(_bound(_cumulativeMpsDelta, 1, MPS));
+        // prevent overflow
+        _cumulativeMpsPerPriceDelta = _bound(_cumulativeMpsPerPriceDelta, 1, type(uint256).max / _inputAmount);
+        // Assume that the bid amount when multiplied by the cumulative mps per price delta will be rounded to zero
+        vm.assume(_inputAmount * _cumulativeMpsPerPriceDelta < FixedPoint96.Q96 * MPS);
+
+        Bid memory bid;
+        bid.amount = _inputAmount;
+
+        (uint256 tokensFilled, uint256 currencySpent) =
+            mockCheckpointStorage.calculateFill(bid, _cumulativeMpsPerPriceDelta, _cumulativeMpsDelta);
+
+        assertEq(tokensFilled, 0);
+        // Currency spent is independent of the tokensFilled
+        assertEq(currencySpent, _inputAmount.fullMulDivUp(_cumulativeMpsDelta, MPS));
     }
 
     function test_accountPartiallyFilledCheckpoints_zeroCumulativeSupplySoldToClearingPrice_returnsZero() public view {

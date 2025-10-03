@@ -1,12 +1,4 @@
-import {
-  TestInteractionData,
-  Group,
-  BidData,
-  Side,
-  AmountType,
-  AdminActionMethod,
-  AmountConfig,
-} from "../schemas/TestInteractionSchema";
+import { TestInteractionData, Group, BidData, AdminActionMethod, AmountConfig } from "../schemas/TestInteractionSchema";
 import { Contract, ContractTransaction } from "ethers";
 import {
   PERMIT2_ADDRESS,
@@ -20,7 +12,7 @@ import {
 import { IAllowanceTransfer } from "../../../typechain-types/test/e2e/artifacts/permit2/src/interfaces/IAllowanceTransfer";
 import { TransactionInfo } from "./types";
 import { TransferAction, AdminAction } from "../schemas/TestInteractionSchema";
-import { calculatePrice, calculateRequiredCurrencyAmount, resolveTokenAddress, tickNumberToPriceX96 } from "./Utils";
+import { calculatePrice, resolveTokenAddress, tickNumberToPriceX96 } from "./utils";
 import hre from "hardhat";
 
 export enum BiddersType {
@@ -209,13 +201,6 @@ export class BidSimulator {
     const amount = await this.calculateAmount(bidData.amount);
     const price = await calculatePrice(bidData.price);
 
-    // Calculate required currency amount for the bid
-    const requiredCurrencyAmount = await calculateRequiredCurrencyAmount(
-      bidData.amount.side === Side.INPUT,
-      amount,
-      price,
-    );
-
     if (this.currency) {
       await this.grantPermit2Allowances(this.currency, bidder, transactionInfos);
     }
@@ -224,29 +209,14 @@ export class BidSimulator {
     if (this.currency) {
       msg = `   🔍 Bidding with ERC20 currency: ${await this.currency.getAddress()}`;
       tx = await this.auction
-        .getFunction("submitBid")
-        .populateTransaction(
-          price,
-          bidData.amount.side === Side.INPUT,
-          amount,
-          bidder,
-          previousTickPrice,
-          bidData.hookData || "0x",
-        );
+        .getFunction("submitBid(uint256,uint256,address,uint256,bytes)")
+        .populateTransaction(price, amount, bidder, previousTickPrice, bidData.hookData || "0x");
     } else {
-      // For ETH currency, send the required amount as msg.value
+      // For native currency, send the required amount as msg.value
       msg = `   🔍 Bidding with Native currency`;
       tx = await this.auction
-        .getFunction("submitBid")
-        .populateTransaction(
-          price,
-          bidData.amount.side === Side.INPUT,
-          amount,
-          bidder,
-          previousTickPrice,
-          bidData.hookData || "0x",
-          { value: requiredCurrencyAmount },
-        );
+        .getFunction("submitBid(uint256,uint256,address,uint256,bytes)")
+        .populateTransaction(price, amount, bidder, previousTickPrice, bidData.hookData || "0x", { value: amount });
     }
     transactionInfos.push({ tx, from: bidder, msg, expectRevert: bidData.expectRevert });
   }
@@ -299,29 +269,8 @@ export class BidSimulator {
    * @throws Error if amount type is unsupported or PERCENT_OF_SUPPLY is used incorrectly
    */
   async calculateAmount(amountConfig: AmountConfig): Promise<bigint> {
-    // Implementation depends on amount type (raw, percentOfSupply, etc.)
-    let value: bigint = 0n;
-    if (amountConfig.type === AmountType.RAW) {
-      // Ensure the value is treated as a string to avoid scientific notation conversion
-      value = BigInt(amountConfig.value.toString());
-    }
-
-    if (amountConfig.type === AmountType.PERCENT_OF_SUPPLY) {
-      // PERCENT_OF_SUPPLY can only be used for auctioned token (output), not currency (input)
-      if (amountConfig.side === Side.INPUT) {
-        throw new Error(ERROR_MESSAGES.PERCENT_OF_SUPPLY_INVALID_SIDE);
-      }
-
-      // Calculate percentage of total token supply
-      // Get the total supply from the auction contract
-      const totalSupply = await this.auction.totalSupply();
-      console.log(LOG_PREFIXES.INFO, "Total supply from auction:", totalSupply.toString());
-
-      // Parse decimal percentage (e.g., "5.5" = 5.5%)
-      const percentageValue = parseFloat(amountConfig.value);
-      const percentage = BigInt(Math.floor(percentageValue * 100)); // Convert to basis points (5.5% = 550 basis points)
-      value = (totalSupply * percentage) / 10000n;
-    }
+    // Ensure the value is treated as a string to avoid scientific notation conversion
+    let value: bigint = BigInt(amountConfig.value.toString());
 
     if (amountConfig.variation) {
       const variation = BigInt(amountConfig.variation.toString());

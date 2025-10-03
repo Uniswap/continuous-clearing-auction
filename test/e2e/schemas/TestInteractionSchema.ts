@@ -14,16 +14,6 @@ export enum ActionType {
   TRANSFER_ACTION = 'TransferAction',
 }
 
-export enum Side {
-  INPUT = 'input',
-  OUTPUT = 'output',
-}
-
-export enum AmountType {
-  RAW = 'raw',
-  PERCENT_OF_SUPPLY = 'percentOfSupply',
-}
-
 export enum PriceType {
   RAW = 'raw',
   TICK = 'tick',
@@ -35,8 +25,6 @@ export enum AdminActionMethod {
 }
 
 export interface AmountConfig {
-  side: Side;
-  type: AmountType;
   value: string;
   variation?: string;
   token?: Address | string;
@@ -141,14 +129,12 @@ export interface AuctionAssertion {
 
 export interface InternalCheckpointStruct {
   clearingPrice: string | VariableAmount;
-  totalCleared: string | VariableAmount;
-  resolvedDemandAboveClearingPrice: string | VariableAmount;
+  totalClearedX7X7: string | VariableAmount;
+  cumulativeSupplySoldToClearingPriceX7X7: string | VariableAmount;
+  cumulativeMpsPerPrice: string | VariableAmount;
   cumulativeMps: string | VariableAmount;
-  mps: string | VariableAmount;
   prev: string | VariableAmount;
   next: string | VariableAmount;
-  cumulativeMpsPerPrice: string | VariableAmount;
-  cumulativeSupplySoldToClearingPrice: string | VariableAmount;
 }
 
 export interface VariableAmount {
@@ -177,16 +163,8 @@ export interface TestInteractionData {
 
 // Type guards for runtime validation
 
-export function isValidAmountType(type: string): type is AmountConfig['type'] {
-  return Object.values(AmountType).includes(type as AmountType);
-}
-
 export function isValidPriceType(type: string): type is PriceConfig['type'] {
   return Object.values(PriceType).includes(type as PriceType);
-}
-
-export function isValidAmountSide(side: string): side is AmountConfig['side'] {
-  return side === Side.INPUT || side === Side.OUTPUT;
 }
 
 export function isValidAdminActionKind(kind: string): kind is AdminAction['method'] {

@@ -35,29 +35,6 @@ export function tickNumberToPriceX96(tickNumber: number): bigint {
 }
 
 /**
- * Calculates the required currency amount for a bid.
- * @param exactIn - Whether the input amount is exact
- * @param amount - The input amount
- * @param maxPrice - The maximum price for the calculation
- * @returns The required currency amount as a bigint
- */
-export async function calculateRequiredCurrencyAmount(
-  exactIn: boolean,
-  amount: bigint,
-  maxPrice: bigint,
-): Promise<bigint> {
-  // This mirrors the BidLib.inputAmount logic
-  if (exactIn) {
-    // For exactIn bids, the amount is in currency units
-    return amount;
-  } else {
-    // For non-exactIn bids, calculate amount * maxPrice / Q96
-    const Q96 = BigInt(2) ** BigInt(96);
-    return (amount * maxPrice) / Q96;
-  }
-}
-
-/**
  * Calculates the bid price based on the price configuration.
  * @param priceConfig - Price configuration specifying type and value
  * @returns The calculated price as a bigint

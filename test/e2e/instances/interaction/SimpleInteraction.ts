@@ -1,4 +1,4 @@
-import { TestInteractionData, Address, AssertionInterfaceType, Side, AmountType, PriceType } from '../../schemas/TestInteractionSchema';
+import { TestInteractionData, Address, AssertionInterfaceType, PriceType } from '../../schemas/TestInteractionSchema';
 
 export const simpleInteraction: TestInteractionData = {
   name: "SimpleInteraction",
@@ -9,7 +9,7 @@ export const simpleInteraction: TestInteractionData = {
       bids: [
         {
           atBlock: 20,
-          amount: { side: Side.INPUT, type: AmountType.RAW, value: "1000000000000000000" },
+          amount: { value: "1000000000000000000" },
           price: { type: PriceType.RAW, value: "87150978765690771352898345369600" },
           previousTick: 1
         }

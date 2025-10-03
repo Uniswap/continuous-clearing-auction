@@ -13,7 +13,7 @@ import { TokenContract } from "./types";
 import { AuctionDeployer } from "./AuctionDeployer";
 import { ZERO_ADDRESS, LOG_PREFIXES, ERROR_MESSAGES, TYPES, TYPE_FIELD } from "./constants";
 import { CheckpointStruct } from "../../../typechain-types/out/Auction";
-import { resolveTokenAddress } from "./Utils";
+import { resolveTokenAddress } from "./utils";
 import hre from "hardhat";
 
 // NOTE: Different from interface defined in the schema as it uses bigint, and no variance, since this comes directly from the contract
@@ -151,7 +151,13 @@ export class AssertionEngine {
     let expectedVariance = variance ? this.parseVariance(variance) : 0;
     if (!this.isWithinVariance(actualBalance, expectedBalance, expectedVariance)) {
       throw new Error(
-        ERROR_MESSAGES.BALANCE_ASSERTION_FAILED(address, token, expectedBalance.toString(), actualBalance.toString()),
+        ERROR_MESSAGES.BALANCE_ASSERTION_FAILED(
+          address,
+          token,
+          expectedBalance.toString(),
+          actualBalance.toString(),
+          variance,
+        ),
       );
     }
     console.log(LOG_PREFIXES.SUCCESS, "Assertion validated (within variance of", variance + ")");
@@ -211,10 +217,16 @@ export class AssertionEngine {
         let expected = assertion[key as keyof AuctionAssertion];
         if (expected != undefined && expected != null) {
           if (!this.validateEquality(expected, auctionState[key as keyof AuctionState])) {
+            // Check if this is a VariableAmount with variance
+            const variance = typeof expected === "object" && "variation" in expected ? expected.variation : undefined;
             throw new Error(
               ERROR_MESSAGES.AUCTION_ASSERTION_FAILED(
-                assertion[key as keyof AuctionAssertion],
+                typeof expected === "object" && "amount" in expected
+                  ? expected.amount
+                  : assertion[key as keyof AuctionAssertion],
                 auctionState[key as keyof AuctionState],
+                key,
+                variance,
               ),
             );
           }
@@ -227,10 +239,16 @@ export class AssertionEngine {
           let expected = assertion.latestCheckpoint[key as keyof CheckpointStruct];
           if (expected != undefined && expected != null) {
             if (!this.validateEquality(expected, auctionState.latestCheckpoint[key as keyof CheckpointStruct])) {
+              // Check if this is a VariableAmount with variance
+              const variance = typeof expected === "object" && "variation" in expected ? expected.variation : undefined;
               throw new Error(
                 ERROR_MESSAGES.AUCTION_CHECKPOINT_ASSERTION_FAILED(
-                  assertion.latestCheckpoint[key as keyof CheckpointStruct],
+                  typeof expected === "object" && "amount" in expected
+                    ? expected.amount
+                    : assertion.latestCheckpoint[key as keyof CheckpointStruct],
                   auctionState.latestCheckpoint[key as keyof CheckpointStruct],
+                  key,
+                  variance,
                 ),
               );
             }
@@ -265,7 +283,6 @@ export class AssertionEngine {
         throw new Error(ERROR_MESSAGES.BLOCK_NOT_FOUND(currentBlock));
       }
 
-      // Get all transaction receipts for this block
       const eventFound = await this.checkForEventInBlock(block, assertion);
 
       if (!eventFound) {
@@ -301,6 +318,12 @@ export class AssertionEngine {
             // Check if the event arguments match expected values
             const matches = this.checkEventArguments(parsedLog.args, assertion.expectedArgs);
             if (matches) {
+              return true;
+            }
+          }
+          if (parsedLog) {
+            let joinedEvent = parsedLog.name + "(" + parsedLog.args.join(",") + ")";
+            if (joinedEvent.toLowerCase().includes(assertion.eventName.toLowerCase())) {
               return true;
             }
           }

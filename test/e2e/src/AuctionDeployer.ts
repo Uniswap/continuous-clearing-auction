@@ -220,12 +220,44 @@ export class AuctionDeployer {
       );
 
       this.auction = (await this.ethers.getContractAt(auctionArtifact.abi, auctionAddress)) as AuctionContract;
+
+      await this.transferToAuction(auctionedToken, auctionAddress, auctionAmount, setupTransactions);
+
+      await this.callOnTokensReceived(setupTransactions);
+
       return this.auction;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(LOG_PREFIXES.ERROR, "Auction creation failed:", errorMessage);
       throw new Error(ERROR_MESSAGES.AUCTION_CREATION_FAILED(errorMessage));
     }
+  }
+
+  async transferToAuction(
+    auctionedToken: TokenContract,
+    auctionAddress: string,
+    auctionAmount: bigint,
+    setupTransactions: TransactionInfo[],
+  ): Promise<void> {
+    // Transfer tokens to the auction contract before calling onTokensReceived()
+    const transferTx = await auctionedToken.getFunction("transfer").populateTransaction(auctionAddress, auctionAmount);
+    setupTransactions.push({
+      tx: transferTx,
+      from: null,
+      msg: `Transferred ${auctionAmount} tokens to auction`,
+    });
+  }
+
+  async callOnTokensReceived(setupTransactions: TransactionInfo[]): Promise<void> {
+    if (!this.auction) {
+      throw new Error(ERROR_MESSAGES.AUCTION_NOT_DEPLOYED);
+    }
+    const onTokensReceivedTx = await this.auction.getFunction("onTokensReceived").populateTransaction();
+    setupTransactions.push({
+      tx: onTokensReceivedTx,
+      from: null,
+      msg: "Called onTokensReceived on auction",
+    });
   }
 
   /**

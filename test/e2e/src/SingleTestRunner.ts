@@ -16,7 +16,7 @@ import { PERMIT2_ADDRESS, LOG_PREFIXES, ERROR_MESSAGES, METHODS, TYPES, PENDING_
 import { artifacts } from "hardhat";
 import { EventData, HashWithRevert, TransactionInfo, EventType, ActionData } from "./types";
 import { TransactionRequest } from "ethers";
-import { parseBoolean } from "./Utils";
+import { parseBoolean } from "./utils";
 import hre from "hardhat";
 
 export interface TestResult {

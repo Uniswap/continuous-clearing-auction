@@ -36,6 +36,7 @@ export const ERROR_MESSAGES = {
   AUCTION_DEPLOYER_NOT_INITIALIZED: "AuctionDeployer not initialized. Call initialize() first.",
   AUCTION_CREATION_FAILED: (errorMessage: string) => `Auction creation failed. Original error: ${errorMessage}`,
   TOKEN_NOT_FOUND: (tokenName: string) => `Token ${tokenName} not found`,
+  AUCTION_NOT_DEPLOYED: "Auction not deployed. Call createAuction() first.",
 
   // AssertionEngine errors
   TOKEN_IDENTIFIER_NOT_FOUND: (tokenIdentifier: string) => `Token with identifier ${tokenIdentifier} not found.`,
@@ -43,15 +44,23 @@ export const ERROR_MESSAGES = {
   TOKEN_NOT_FOUND_BY_ADDRESS: (tokenAddress: string) => `Token not found for address: ${tokenAddress}`,
   TOTAL_SUPPLY_ASSERTION_FAILED: (expected: string, actual: string) =>
     `Total supply assertion failed: expected ${expected}, got ${actual}`,
-  AUCTION_ASSERTION_FAILED: (expected: any, actual: any) =>
-    `Auction assertion failed: expected ${expected}, got ${actual}`,
-  AUCTION_CHECKPOINT_ASSERTION_FAILED: (expected: any, actual: any) =>
-    `Auction latestCheckpoint assertion failed: expected ${expected}, got ${actual}`,
+  AUCTION_ASSERTION_FAILED: (expected: any, actual: any, field?: string, variance?: string) =>
+    variance
+      ? `Auction assertion failed${field ? ` for ${field}` : ""}. Expected ${expected} ± ${variance}, got ${actual}`
+      : `Auction assertion failed${field ? ` for ${field}` : ""}. Expected ${expected}, got ${actual}`,
+  AUCTION_CHECKPOINT_ASSERTION_FAILED: (expected: any, actual: any, field?: string, variance?: string) =>
+    variance
+      ? `Auction latestCheckpoint assertion failed${
+          field ? ` for ${field}` : ""
+        }. Expected ${expected} ± ${variance}, got ${actual}`
+      : `Auction latestCheckpoint assertion failed${field ? ` for ${field}` : ""}. Expected ${expected}, got ${actual}`,
   BLOCK_NOT_FOUND: (currentBlock: number) => `Block ${currentBlock} not found`,
   EVENT_ASSERTION_FAILED: (eventName: string) =>
     `Event assertion failed: Event '${eventName}' not found with expected arguments`,
-  BALANCE_ASSERTION_FAILED: (address: string, token: string, expected: string, actual: string) =>
-    `Balance assertion failed for ${address} token ${token}. Expected ${expected}, got ${actual}`,
+  BALANCE_ASSERTION_FAILED: (address: string, token: string, expected: string, actual: string, variance?: string) =>
+    variance
+      ? `Balance assertion failed for ${address} token ${token}. Expected ${expected} ± ${variance}, got ${actual}`
+      : `Balance assertion failed for ${address} token ${token}. Expected ${expected}, got ${actual}`,
 
   // BidSimulator errors
   PERCENT_OF_SUPPLY_INVALID_SIDE:

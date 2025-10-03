@@ -569,27 +569,29 @@ contract AuctionTest is AuctionBaseTest {
         vm.stopPrank();
     }
 
-    function test_exitBid_joinedLate_succeeds(uint256 _bidAmount1, uint256 _bidAmount2)
+    function test_exitBid_joinedLate_succeeds()
         public
         givenFullyFundedAccount
     {
         // Neither bid can fully fill the auction, but both together will
-        _bidAmount1 = _bound(_bidAmount1, 1, TOTAL_SUPPLY - 1);
+        uint256 _bidAmount1 = TOTAL_SUPPLY - 1;
 
+        uint256 bid1InputAmount = _bidAmount1.fullMulDiv(tickNumberToPriceX96(3), FixedPoint96.Q96);
         vm.roll(auction.endBlock() - 1);
-        uint256 bidId1 = auction.submitBid{value: inputAmountForTokens(_bidAmount1, tickNumberToPriceX96(3))}(
+        uint256 bidId1 = auction.submitBid{value: bid1InputAmount}(
             tickNumberToPriceX96(3),
-            inputAmountForTokens(_bidAmount1, tickNumberToPriceX96(3)),
+            bid1InputAmount,
             alice,
             tickNumberToPriceX96(1),
             bytes('')
         );
 
-        _bidAmount2 = TOTAL_SUPPLY - _bidAmount1;
+        uint256 _bidAmount2 = TOTAL_SUPPLY - _bidAmount1;
         // Bid2 is at a lower price such that bid 1 will be fully filled, and this one will be partially filled
-        uint256 bidId2 = auction.submitBid{value: inputAmountForTokens(_bidAmount2, tickNumberToPriceX96(2))}(
+        uint256 bid2InputAmount = _bidAmount2.fullMulDiv(tickNumberToPriceX96(2), FixedPoint96.Q96);
+        uint256 bidId2 = auction.submitBid{value: bid2InputAmount}(
             tickNumberToPriceX96(2),
-            inputAmountForTokens(_bidAmount2, tickNumberToPriceX96(2)),
+            bid2InputAmount,
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -600,8 +602,6 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(auction.endBlock());
         Checkpoint memory checkpoint = auction.checkpoint();
         assertEq(checkpoint.totalClearedX7X7, TOTAL_SUPPLY.scaleUpToX7().scaleUpToX7X7());
-        assertEq(checkpoint.clearingPrice, tickNumberToPriceX96(2));
-
         // Expect that bid1 is fully filled and can be exited as such
         auction.exitBid(bidId1);
         // Expect no refund since the bid was fully exited

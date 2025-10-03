@@ -592,8 +592,6 @@ contract Auction is
             tokensFilled += partialTokensFilled;
             currencySpent += partialCurrencySpent;
         }
-        console.log('tokensFilled', tokensFilled);
-        console.log('currencySpent', currencySpent);
 
         _processExit(bidId, bid, tokensFilled, bid.amount - currencySpent);
     }

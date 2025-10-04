@@ -12,11 +12,10 @@ import {AuctionStep} from '../src/libraries/AuctionStepLib.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
-
+import {CheckpointLib} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-
 import {SupplyLib} from '../src/libraries/SupplyLib.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
@@ -64,6 +63,37 @@ contract AuctionTest is AuctionBaseTest {
         token.mint(address(newAuction), TOTAL_SUPPLY);
         vm.expectRevert(IAuction.TokensNotReceived.selector);
         newAuction.checkpoint();
+    }
+
+    function test_submitBid_exactIn_smallBidLessThanMpsRemainingInAuctionAfterSubmission_purchasesNoTokens(
+        uint256 smallBidAmount
+    ) public {
+        uint256 expectedMpsPerPrice = CheckpointLib.getMpsPerPrice(ConstantsLib.MPS, tickNumberToPriceX96(1));
+        vm.assume(smallBidAmount < type(uint256).max / expectedMpsPerPrice);
+        vm.assume(smallBidAmount * expectedMpsPerPrice < FixedPoint96.Q96 * ConstantsLib.MPS && smallBidAmount > 0);
+        // Submit a small bid, one that is less than the mpsRemainingInAuctionAfterSubmission (1e7)
+        auction.submitBid{value: smallBidAmount}(tickNumberToPriceX96(2), smallBidAmount, alice, bytes(''));
+
+        vm.roll(auction.endBlock());
+        Checkpoint memory checkpoint = auction.checkpoint();
+
+        address fundsRecipient = auction.fundsRecipient();
+        vm.expectEmit(true, true, true, true);
+        // Expect that all of the bid amount can be swept
+        emit ITokenCurrencyStorage.CurrencySwept(fundsRecipient, smallBidAmount);
+        auction.sweepCurrency();
+
+        uint24 mpsRemainingInAuctionAfterBid = ConstantsLib.MPS;
+        uint256 expectedTokensFilled = smallBidAmount.fullMulDiv(
+            checkpoint.cumulativeMpsPerPrice, FixedPoint96.Q96 * mpsRemainingInAuctionAfterBid
+        );
+
+        vm.expectEmit(true, true, true, true);
+        // Expect that the bid is exited with:
+        // - 0 tokens filled
+        // - 0 currency refunded
+        emit IAuction.BidExited(0, alice, 0, 0);
+        auction.exitBid(0);
     }
 
     /// forge-config: default.isolate = true

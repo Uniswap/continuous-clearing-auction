@@ -73,8 +73,7 @@ contract Auction is
             _parameters.currency,
             _totalSupply,
             _parameters.tokensRecipient,
-            _parameters.fundsRecipient,
-            _parameters.graduationThresholdMps
+            _parameters.fundsRecipient
         )
         TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
         PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
@@ -113,9 +112,11 @@ contract Auction is
         return _isGraduated(latestCheckpoint());
     }
 
-    /// @notice Whether the auction has graduated as of the given checkpoint (sold more than the graduation threshold)
+    /// @notice Whether the auction has graduated as of the given checkpoint
+    /// @dev The auction is considered `graudated` if the clearing price is greater than the floor price
+    ///      since that means it has sold all of the total supply of tokens.
     function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool) {
-        return _checkpoint.totalClearedX7X7.gte(REQUIRED_SUPPLY_SOLD_FOR_GRADUATION_X7_X7);
+        return _checkpoint.clearingPrice > FLOOR_PRICE;
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
@@ -465,15 +466,12 @@ contract Auction is
     {
         // Bids cannot be submitted at the endBlock or after
         if (block.number >= END_BLOCK) revert AuctionIsOver();
-        uint256 requiredCurrencyAmount = amount;
-        if (requiredCurrencyAmount == 0) revert InvalidAmount();
+        if (amount == 0) revert InvalidAmount();
         if (CURRENCY.isAddressZero()) {
-            if (msg.value != requiredCurrencyAmount) revert InvalidAmount();
+            if (msg.value != amount) revert InvalidAmount();
         } else {
             if (msg.value != 0) revert CurrencyIsNotNative();
-            SafeTransferLib.permit2TransferFrom(
-                Currency.unwrap(CURRENCY), msg.sender, address(this), requiredCurrencyAmount
-            );
+            SafeTransferLib.permit2TransferFrom(Currency.unwrap(CURRENCY), msg.sender, address(this), amount);
         }
         return _submitBid(maxPrice, amount, owner, prevTickPrice, hookData);
     }
@@ -632,17 +630,7 @@ contract Auction is
     function sweepUnsoldTokens() external onlyAfterAuctionIsOver {
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
         Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
-        if (_isGraduated(finalCheckpoint)) {
-            _sweepUnsoldTokens(
-                // Subtract the total cleared from the total supply before scaling down to X7
-                (TOTAL_SUPPLY_X7_X7.sub(_getFinalCheckpoint().totalClearedX7X7).scaleDownToValueX7())
-                    // Then finally scale down to uint256
-                    .scaleDownToUint256()
-            );
-        } else {
-            // For simplicity we use the uint256 totalSupply value here instead of the scaled up X7 value
-            _sweepUnsoldTokens(TOTAL_SUPPLY);
-        }
+        _sweepUnsoldTokens(_isGraduated(finalCheckpoint) ? 0 : TOTAL_SUPPLY);
     }
 
     // Getters

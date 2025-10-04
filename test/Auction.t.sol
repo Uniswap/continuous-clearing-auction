@@ -66,34 +66,31 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_submitBid_exactIn_smallBidLessThanMpsRemainingInAuctionAfterSubmission_purchasesNoTokens(
+        uint256 _bidAmount,
         uint256 smallBidAmount
-    ) public {
-        uint256 expectedMpsPerPrice = CheckpointLib.getMpsPerPrice(ConstantsLib.MPS, tickNumberToPriceX96(1));
+    ) public givenGraduatedAuction(_bidAmount) givenFullyFundedAccount {
+        uint256 inputAmount = inputAmountForTokens($bidAmount, tickNumberToPriceX96(2));
+        auction.submitBid{value: inputAmount}(tickNumberToPriceX96(2), inputAmount, alice, bytes(''));
+
+        uint256 expectedMpsPerPrice = CheckpointLib.getMpsPerPrice(ConstantsLib.MPS, tickNumberToPriceX96(2));
         vm.assume(smallBidAmount < type(uint256).max / expectedMpsPerPrice);
         vm.assume(smallBidAmount * expectedMpsPerPrice < FixedPoint96.Q96 * ConstantsLib.MPS && smallBidAmount > 0);
         // Submit a small bid, one that is less than the mpsRemainingInAuctionAfterSubmission (1e7)
-        auction.submitBid{value: smallBidAmount}(tickNumberToPriceX96(2), smallBidAmount, alice, bytes(''));
+        uint256 bidId2 =
+            auction.submitBid{value: smallBidAmount}(tickNumberToPriceX96(3), smallBidAmount, alice, bytes(''));
 
         vm.roll(auction.endBlock());
         Checkpoint memory checkpoint = auction.checkpoint();
-
-        address fundsRecipient = auction.fundsRecipient();
-        vm.expectEmit(true, true, true, true);
-        // Expect that all of the bid amount can be swept
-        emit ITokenCurrencyStorage.CurrencySwept(fundsRecipient, smallBidAmount);
-        auction.sweepCurrency();
 
         uint24 mpsRemainingInAuctionAfterBid = ConstantsLib.MPS;
         uint256 expectedTokensFilled = smallBidAmount.fullMulDiv(
             checkpoint.cumulativeMpsPerPrice, FixedPoint96.Q96 * mpsRemainingInAuctionAfterBid
         );
 
+        // Expect that the second, smaller bid is exited with 0 tokens filled and 0 currency refunded
         vm.expectEmit(true, true, true, true);
-        // Expect that the bid is exited with:
-        // - 0 tokens filled
-        // - 0 currency refunded
-        emit IAuction.BidExited(0, alice, 0, 0);
-        auction.exitBid(0);
+        emit IAuction.BidExited(bidId2, alice, 0, 0);
+        auction.exitBid(bidId2);
     }
 
     /// forge-config: default.isolate = true
@@ -297,7 +294,11 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
     }
 
-    function test_submitBid_zeroSupply_exitBid_succeeds() public {
+    function test_submitBid_zeroSupply_exitBid_succeeds(uint256 _bidAmount)
+        public
+        givenGraduatedAuction(_bidAmount)
+        givenFullyFundedAccount
+    {
         // 0 mps for first 50 blocks, then 200mps for the last 50 blocks
         params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(0, 100).addStep(100e3, 100))
             .withEndBlock(block.number + 200).withClaimBlock(block.number + 200);
@@ -305,12 +306,12 @@ contract AuctionTest is AuctionBaseTest {
         token.mint(address(auction), TOTAL_SUPPLY);
         auction.onTokensReceived();
 
-        uint256 inputAmount = inputAmountForTokens(1000e18, tickNumberToPriceX96(1));
+        uint256 inputAmount = inputAmountForTokens($bidAmount, tickNumberToPriceX96(2));
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7X7.wrap(0), 0);
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(
-            0, alice, tickNumberToPriceX96(2), inputAmountForTokens(1000e18, tickNumberToPriceX96(1))
+            0, alice, tickNumberToPriceX96(2), inputAmountForTokens($bidAmount, tickNumberToPriceX96(2))
         );
         uint256 bidId = auction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
@@ -319,7 +320,7 @@ contract AuctionTest is AuctionBaseTest {
         // Advance to the next block to get the next checkpoint
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7X7.wrap(0), 0);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), ValueX7X7.wrap(0), 0);
         auction.checkpoint();
 
         // Advance to the end of the first step
@@ -328,21 +329,22 @@ contract AuctionTest is AuctionBaseTest {
         ValueX7X7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().upcast().mulUint256(100e3);
         // Now the auction should start clearing
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), expectedTotalCleared, 100e3);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), expectedTotalCleared, 100e3);
         auction.checkpoint();
 
         vm.roll(auction.endBlock());
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
-        auction.exitBid(bidId);
-        assertEq(address(alice).balance, aliceBalanceBefore + 0);
+        auction.exitPartiallyFilledBid(bidId, 1, 0);
+        // Alice will have received a refund if the bid was higher than the total supply
+        assertGe(address(alice).balance, aliceBalanceBefore);
 
         vm.roll(auction.claimBlock());
         vm.expectEmit(true, true, true, true);
-        emit IAuction.TokensClaimed(bidId, alice, 1000e18);
+        emit IAuction.TokensClaimed(bidId, alice, TOTAL_SUPPLY);
         auction.claimTokens(bidId);
-        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
+        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + TOTAL_SUPPLY);
     }
 
     function test_submitBid_afterStartBlock_isPartiallyFilled() public {
@@ -558,11 +560,14 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepUnsoldTokens();
     }
 
-    function test_exitBid_afterEndBlock_succeeds() public {
-        // Bid at 3 but only provide 1000e18 ETH, such that the auction is only fully filled at 1e6
-        uint256 bidId = auction.submitBid{value: inputAmountForTokens(1000e18, tickNumberToPriceX96(1))}(
-            tickNumberToPriceX96(3),
-            inputAmountForTokens(1000e18, tickNumberToPriceX96(1)),
+    function test_exitBid_afterEndBlock_succeeds(uint256 _bidAmount)
+        public
+        givenGraduatedAuction(_bidAmount)
+        givenFullyFundedAccount
+    {
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens($bidAmount, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            inputAmountForTokens($bidAmount, tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -571,50 +576,61 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(
-            block.number, tickNumberToPriceX96(1), TOTAL_SUPPLY.scaleUpToX7().upcast().mulUint256(100e3), 100e3
+            block.number, tickNumberToPriceX96(2), TOTAL_SUPPLY.scaleUpToX7().upcast().mulUint256(100e3), 100e3
         );
         auction.checkpoint();
 
         // Before the auction ends, the bid should not be exitable since it is above the clearing price
         vm.startPrank(alice);
         vm.roll(auction.endBlock() - 1);
-        vm.expectRevert(IAuction.AuctionIsNotOver.selector);
-        auction.exitBid(bidId);
-
-        uint256 aliceBalanceBefore = address(alice).balance;
+        vm.expectRevert(IAuction.CannotPartiallyExitBidBeforeEndBlock.selector);
+        auction.exitPartiallyFilledBid(bidId, 1, 0);
 
         // Now that the auction has ended, the bid should be exitable
         vm.roll(auction.endBlock());
-        auction.exitBid(bidId);
-        // Expect no refund
-        assertEq(address(alice).balance, aliceBalanceBefore);
+        auction.exitPartiallyFilledBid(bidId, 1, 0);
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
-        // Expect purchased 1000e18 tokens
-        assertEq(token.balanceOf(address(alice)), 1000e18);
+        // Expect purchased TOTAL_SUPPLY tokens
+        assertEq(token.balanceOf(address(alice)), TOTAL_SUPPLY);
         vm.stopPrank();
     }
 
-    function test_exitBid_joinedLate_succeeds() public {
+    function test_exitBid_joinedLate_succeeds() public givenFullyFundedAccount {
+        // Neither bid can fully fill the auction, but both together will
+        uint256 _bidAmount1 = TOTAL_SUPPLY - 1;
+
+        uint256 bid1InputAmount = _bidAmount1.fullMulDiv(tickNumberToPriceX96(3), FixedPoint96.Q96);
         vm.roll(auction.endBlock() - 1);
-        // Bid at 2 but only provide 1000e18 ETH, such that the auction is only fully filled at 1e6
-        uint256 bidId = auction.submitBid{value: inputAmountForTokens(1000e18, tickNumberToPriceX96(1))}(
-            tickNumberToPriceX96(2),
-            inputAmountForTokens(1000e18, tickNumberToPriceX96(1)),
-            alice,
-            tickNumberToPriceX96(1),
-            bytes('')
+        uint256 bidId1 = auction.submitBid{value: bid1InputAmount}(
+            tickNumberToPriceX96(3), bid1InputAmount, alice, tickNumberToPriceX96(1), bytes('')
+        );
+
+        uint256 _bidAmount2 = TOTAL_SUPPLY - _bidAmount1;
+        // Bid2 is at a lower price such that bid 1 will be fully filled, and this one will be partially filled
+        uint256 bid2InputAmount = _bidAmount2.fullMulDiv(tickNumberToPriceX96(2), FixedPoint96.Q96);
+        uint256 bidId2 = auction.submitBid{value: bid2InputAmount}(
+            tickNumberToPriceX96(2), bid2InputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
 
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
-        vm.roll(auction.endBlock() + 1);
-        auction.exitBid(bidId);
+        vm.roll(auction.endBlock());
+        Checkpoint memory checkpoint = auction.checkpoint();
+        assertEq(checkpoint.totalClearedX7X7, TOTAL_SUPPLY.scaleUpToX7().scaleUpToX7X7());
+        // Expect that bid1 is fully filled and can be exited as such
+        auction.exitBid(bidId1);
         // Expect no refund since the bid was fully exited
         assertEq(address(alice).balance, aliceBalanceBefore);
+        // Expect that bid2 is partially filled
+        // It was outbid in the last checkpoint (this block)
+        auction.exitPartiallyFilledBid(bidId2, auction.endBlock() - 1, uint64(block.number));
+
         vm.roll(auction.claimBlock());
-        auction.claimTokens(bidId);
-        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
+        auction.claimTokens(bidId1);
+
+        // At the end, alice should have purchased all of the token supply
+        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + TOTAL_SUPPLY);
     }
 
     function test_exitBid_beforeEndBlock_revertsWithCannotExitBid() public {
@@ -632,21 +648,25 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitBid(bidId);
     }
 
-    function test_exitBid_alreadyExited_revertsWithBidAlreadyExited() public {
-        uint256 bidId = auction.submitBid{value: inputAmountForTokens(500e18, tickNumberToPriceX96(3))}(
+    function test_exitPartiallyFilledBid_alreadyExited_revertsWithBidAlreadyExited(uint256 _bidAmount)
+        public
+        givenGraduatedAuction(_bidAmount)
+        givenFullyFundedAccount
+    {
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens($bidAmount, tickNumberToPriceX96(3))}(
             tickNumberToPriceX96(3),
-            inputAmountForTokens(500e18, tickNumberToPriceX96(3)),
+            inputAmountForTokens($bidAmount, tickNumberToPriceX96(3)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
         );
         vm.roll(auction.endBlock());
 
-        // The clearing price is at tick 1 which is below our clearing price so we can use `exitBid`
+        // The clearing price is at our bid's max price so we use exitPartiallyFilledBid
         vm.startPrank(alice);
-        auction.exitBid(bidId);
+        auction.exitPartiallyFilledBid(bidId, 1, 0);
         vm.expectRevert(IAuction.BidAlreadyExited.selector);
-        auction.exitBid(bidId);
+        auction.exitPartiallyFilledBid(bidId, 1, 0);
         vm.stopPrank();
     }
 
@@ -1541,12 +1561,6 @@ contract AuctionTest is AuctionBaseTest {
         new Auction(address(token), TOTAL_SUPPLY, paramsTokensRecipientZero);
     }
 
-    function test_auctionConstruction_revertsWithInvalidGraduationThresholdMps() public {
-        AuctionParameters memory paramsInvalidGraduationThresholdMps = params.withGraduationThresholdMps(1e7 + 1);
-        vm.expectRevert(ITokenCurrencyStorage.InvalidGraduationThresholdMps.selector);
-        new Auction(address(token), TOTAL_SUPPLY, paramsInvalidGraduationThresholdMps);
-    }
-
     function test_checkpoint_beforeAuctionStarts_reverts() public {
         // Create an auction that starts in the future
         uint256 futureBlock = block.number + 10;
@@ -1660,10 +1674,14 @@ contract AuctionTest is AuctionBaseTest {
         vm.stopPrank();
     }
 
-    function test_claimTokens_beforeClaimBlock_reverts() public {
-        uint256 bidId = auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+    function test_claimTokens_beforeClaimBlock_reverts(uint256 _bidAmount)
+        public
+        givenGraduatedAuction(_bidAmount)
+        givenFullyFundedAccount
+    {
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens($bidAmount, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
-            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            inputAmountForTokens($bidAmount, tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -1671,8 +1689,7 @@ contract AuctionTest is AuctionBaseTest {
 
         // Exit the bid
         vm.roll(auction.endBlock());
-        vm.startPrank(alice);
-        auction.exitBid(bidId);
+        auction.exitPartiallyFilledBid(bidId, 1, 0);
 
         // Go back to before the claim block
         vm.roll(auction.claimBlock() - 1);
@@ -1680,32 +1697,33 @@ contract AuctionTest is AuctionBaseTest {
         // Try to claim tokens before the claim block
         vm.expectRevert(IAuction.NotClaimable.selector);
         auction.claimTokens(bidId);
-        vm.stopPrank();
     }
 
-    function test_claimTokens_tokenTransferFails_reverts() public {
+    function test_claimTokens_tokenTransferFails_reverts(uint256 _bidAmount)
+        public
+        givenGraduatedAuction(_bidAmount)
+        givenFullyFundedAccount
+    {
         MockToken failingToken = new MockToken();
         Auction failingAuction = new Auction(address(failingToken), TOTAL_SUPPLY, params);
         failingToken.mint(address(failingAuction), TOTAL_SUPPLY);
         failingAuction.onTokensReceived();
 
-        uint256 bidId = failingAuction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+        uint256 bidId = failingAuction.submitBid{value: inputAmountForTokens($bidAmount, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
-            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            inputAmountForTokens($bidAmount, tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
         );
 
         vm.roll(auction.endBlock() + 1);
-        vm.startPrank(alice);
-        failingAuction.exitBid(bidId);
+        failingAuction.exitPartiallyFilledBid(bidId, 1, 0);
 
         vm.roll(failingAuction.claimBlock());
 
         vm.expectRevert(CurrencyLibrary.ERC20TransferFailed.selector);
         failingAuction.claimTokens(bidId);
-        vm.stopPrank();
     }
 
     function test_sweepCurrency_beforeAuctionEnds_reverts() public {
@@ -1746,54 +1764,50 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepCurrency();
     }
 
-    function test_sweepCurrency_notGraduated_reverts() public {
-        // Create an auction with a high graduation threshold
-        params = params.withGraduationThresholdMps(1e7 / 2);
-
-        Auction auctionWithThreshold = new Auction(address(token), TOTAL_SUPPLY, params);
-        token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
-        auctionWithThreshold.onTokensReceived();
-
-        // Submit a small bid (only 10% of supply, below 50% threshold)
-        uint256 smallAmount = TOTAL_SUPPLY / 10;
-        auctionWithThreshold.submitBid{value: inputAmountForTokens(smallAmount, tickNumberToPriceX96(2))}(
+    function test_sweepCurrency_notGraduated_reverts(uint256 _bidAmount)
+        public
+        givenNotGraduatedAuction(_bidAmount)
+        givenFullyFundedAccount
+    {
+        auction.submitBid{value: inputAmountForTokens($bidAmount, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
-            inputAmountForTokens(smallAmount, tickNumberToPriceX96(2)),
+            inputAmountForTokens($bidAmount, tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
         );
 
-        vm.roll(auctionWithThreshold.endBlock());
+        vm.roll(auction.endBlock());
 
         vm.prank(fundsRecipient);
         vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
-        auctionWithThreshold.sweepCurrency();
+        auction.sweepCurrency();
     }
 
-    function test_sweepCurrency_graduated_succeeds() public {
-        // 30% graduation threshold
-        params = params.withGraduationThresholdMps(30e5);
-
-        Auction auctionWithThreshold = new Auction(address(token), TOTAL_SUPPLY, params);
-        token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
-        auctionWithThreshold.onTokensReceived();
-        // Submit a bid for 50% of supply (above 30% threshold)
-        uint256 halfSupply = TOTAL_SUPPLY / 2;
-        uint256 inputAmount = inputAmountForTokens(halfSupply, tickNumberToPriceX96(2));
-        auctionWithThreshold.submitBid{value: inputAmount}(
-            tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
+    function test_sweepCurrency_graduated_succeeds(uint256 _bidAmount, uint64 tickNumber)
+        public
+        givenGraduatedAuction(_bidAmount)
+        givenFullyFundedAccount
+    {
+        // Use uint128 max as a reasonable upper bound
+        uint256 inputAmount = inputAmountForTokens($bidAmount, tickNumberToPriceX96(tickNumber));
+        auction.submitBid{value: inputAmount}(
+            tickNumberToPriceX96(tickNumber), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
 
-        vm.roll(auctionWithThreshold.endBlock());
+        vm.roll(auction.endBlock());
+        Checkpoint memory checkpoint = auction.checkpoint();
+        uint256 expectedCurrencyRaised = TOTAL_SUPPLY.scaleUpToX7().wrapAndFullMulDiv(
+            FixedPoint96.Q96, checkpoint.cumulativeMpsPerPrice
+        ).scaleDownToUint256();
 
         vm.prank(fundsRecipient);
         vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.CurrencySwept(fundsRecipient, inputAmount);
-        auctionWithThreshold.sweepCurrency();
+        emit ITokenCurrencyStorage.CurrencySwept(fundsRecipient, expectedCurrencyRaised);
+        auction.sweepCurrency();
 
         // Verify funds were transferred
-        assertEq(fundsRecipient.balance, inputAmount);
+        assertEq(fundsRecipient.balance, expectedCurrencyRaised);
     }
 
     // sweepUnsoldTokens tests
@@ -1809,130 +1823,106 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepUnsoldTokens();
     }
 
-    function test_sweepUnsoldTokens_graduated_sweepsUnsold() public {
-        // 30% graduation threshold
-        params = params.withGraduationThresholdMps(30e5);
-
-        Auction auctionWithThreshold = new Auction(address(token), TOTAL_SUPPLY, params);
-        token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
-        auctionWithThreshold.onTokensReceived();
-        // Submit a bid for 60% of supply (above 30% threshold, so graduated)
-        uint256 soldAmount = (TOTAL_SUPPLY * 60) / 100;
-        uint256 inputAmount = inputAmountForTokens(soldAmount, tickNumberToPriceX96(1));
-        auctionWithThreshold.submitBid{value: inputAmount}(
+    function test_sweepUnsoldTokens_graduated(uint256 _bidAmount)
+        public
+        givenGraduatedAuction(_bidAmount)
+        givenFullyFundedAccount
+    {
+        // Send 1 wei additional token to the auction
+        deal(address(token), address(auction), 1);
+        uint256 inputAmount = inputAmountForTokens($bidAmount, tickNumberToPriceX96(2));
+        auction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
 
-        vm.roll(auctionWithThreshold.endBlock());
-
-        // Should sweep only unsold tokens (40% of supply)
-        uint256 expectedUnsoldTokens = TOTAL_SUPPLY - soldAmount;
-
+        vm.roll(auction.endBlock());
+        // Should sweep all tokens except for total supply
         vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, expectedUnsoldTokens);
-        auctionWithThreshold.sweepUnsoldTokens();
-
-        // Verify tokens were transferred
-        assertEq(token.balanceOf(tokensRecipient), expectedUnsoldTokens);
+        emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, 0);
+        auction.sweepUnsoldTokens();
     }
 
-    function test_sweepUnsoldTokens_notGraduated_sweepsAll() public {
-        // Create an auction with high graduation threshold (50%)
-        params = params.withGraduationThresholdMps(1e7 / 2);
-        Auction auctionWithThreshold = new Auction(address(token), TOTAL_SUPPLY, params);
-        token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
-        auctionWithThreshold.onTokensReceived();
-        // Submit a small bid for 10% of supply (below 50% threshold, so not graduated)
-        uint256 smallAmount = TOTAL_SUPPLY / 10;
-        uint256 inputAmount = inputAmountForTokens(smallAmount, tickNumberToPriceX96(1));
-        auctionWithThreshold.submitBid{value: inputAmount}(
+    function test_sweepUnsoldTokens_notGraduated_sweepsAll(uint256 _bidAmount)
+        public
+        givenNotGraduatedAuction(_bidAmount)
+    {
+        uint256 inputAmount = inputAmountForTokens($bidAmount, tickNumberToPriceX96(2));
+        auction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
 
-        vm.roll(auctionWithThreshold.endBlock());
+        vm.roll(auction.endBlock());
         // Update the lastCheckpoint
-        auctionWithThreshold.checkpoint();
+        auction.checkpoint();
 
         // Should sweep ALL tokens since auction didn't graduate
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, TOTAL_SUPPLY);
-        auctionWithThreshold.sweepUnsoldTokens();
+        auction.sweepUnsoldTokens();
 
         // Verify all tokens were transferred
         assertEq(token.balanceOf(tokensRecipient), TOTAL_SUPPLY);
     }
 
-    function test_sweepCurrency_thenSweepTokens_graduated_succeeds() public {
-        // Create an auction with graduation threshold (40%)
-        params = params.withGraduationThresholdMps(40e5);
-
-        Auction auctionWithThreshold = new Auction(address(token), TOTAL_SUPPLY, params);
-        token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
-        auctionWithThreshold.onTokensReceived();
+    function test_sweepCurrency_thenSweepTokens_graduated_succeeds(uint256 bidAmount)
+        public
+        givenGraduatedAuction(bidAmount)
+        givenFullyFundedAccount
+    {
+        deal(address(token), address(auction), 1);
         // Submit a bid for 70% of supply (above threshold)
-        uint256 soldAmount = (TOTAL_SUPPLY * 70) / 100;
-        uint256 inputAmount = inputAmountForTokens(soldAmount, tickNumberToPriceX96(1));
-        auctionWithThreshold.submitBid{value: inputAmount}(
+        uint256 inputAmount = inputAmountForTokens($bidAmount, tickNumberToPriceX96(2));
+        auction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
 
-        vm.roll(auctionWithThreshold.endBlock());
+        vm.roll(auction.endBlock());
 
         // Sweep currency first (should succeed as graduated)
-        uint256 expectedCurrencyRaised = inputAmountForTokens(soldAmount, tickNumberToPriceX96(1));
+        // Expected = totalSupply sold at price 2
+        uint256 expectedCurrencyRaised = inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2));
         vm.prank(fundsRecipient);
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.CurrencySwept(fundsRecipient, expectedCurrencyRaised);
-        auctionWithThreshold.sweepCurrency();
+        auction.sweepCurrency();
 
         // Then sweep unsold tokens
-        uint256 expectedUnsoldTokens = TOTAL_SUPPLY - soldAmount;
         vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, expectedUnsoldTokens);
-        auctionWithThreshold.sweepUnsoldTokens();
-
-        // Verify transfers
-        assertEq(fundsRecipient.balance, expectedCurrencyRaised);
-        assertEq(token.balanceOf(tokensRecipient), expectedUnsoldTokens);
+        emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, 0);
+        auction.sweepUnsoldTokens();
     }
 
-    function test_sweepTokens_notGraduated_cannotSweepCurrency() public {
-        // Create an auction with high graduation threshold (80%)
-        params = params.withGraduationThresholdMps(80e5);
-
-        Auction auctionWithThreshold = new Auction(address(token), TOTAL_SUPPLY, params);
-        token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
-        auctionWithThreshold.onTokensReceived();
-        // Submit a bid for only 20% of supply (below 80% threshold)
-        uint256 smallAmount = TOTAL_SUPPLY / 5;
-        uint256 inputAmount = inputAmountForTokens(smallAmount, tickNumberToPriceX96(1));
-        auctionWithThreshold.submitBid{value: inputAmount}(
+    function test_sweepTokens_notGraduated_cannotSweepCurrency(uint256 _bidAmount, uint256 _maxPrice)
+        public
+        givenNotGraduatedAuction(_bidAmount)
+    {
+        uint256 inputAmount = inputAmountForTokens($bidAmount, tickNumberToPriceX96(2));
+        auction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
 
-        vm.roll(auctionWithThreshold.endBlock());
+        vm.roll(auction.endBlock());
         // Update the lastCheckpoint
-        auctionWithThreshold.checkpoint();
+        auction.checkpoint();
 
         // Can sweep tokens (returns all since not graduated)
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, TOTAL_SUPPLY);
-        auctionWithThreshold.sweepUnsoldTokens();
+        auction.sweepUnsoldTokens();
 
         // Cannot sweep currency (not graduated)
         vm.prank(fundsRecipient);
         vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
-        auctionWithThreshold.sweepCurrency();
+        auction.sweepCurrency();
     }
 
     // Test that all of the state getters for constants / immutable variables are correct
-    function test_constructor_immuatble_getters() public {
+    function test_constructor_immutable_getters() public {
         assertEq(Currency.unwrap(auction.currency()), ETH_SENTINEL);
         assertEq(address(auction.token()), address(token));
         assertEq(auction.totalSupply(), TOTAL_SUPPLY);
         assertEq(auction.tokensRecipient(), tokensRecipient);
         assertEq(auction.fundsRecipient(), fundsRecipient);
-        assertEq(auction.graduationThresholdMps(), params.graduationThresholdMps);
         assertEq(auction.tickSpacing(), TICK_SPACING);
         assertEq(address(auction.validationHook()), address(0));
         assertEq(auction.floorPrice(), FLOOR_PRICE);
@@ -1992,7 +1982,6 @@ contract AuctionTest is AuctionBaseTest {
             startBlock: uint64(block.number + 1),
             endBlock: uint64(block.number + 1 + AUCTION_DURATION),
             claimBlock: uint64(block.number + 1 + AUCTION_DURATION),
-            graduationThresholdMps: 0,
             auctionStepsData: abi.encodePacked(
                 uint24(0),
                 uint40(1), // 0% for 1 blocks
@@ -2060,7 +2049,6 @@ contract AuctionTest is AuctionBaseTest {
             startBlock: uint64(block.number + 1),
             endBlock: uint64(block.number + 1 + AUCTION_DURATION),
             claimBlock: uint64(block.number + 1 + AUCTION_DURATION),
-            graduationThresholdMps: 0,
             auctionStepsData: abi.encodePacked(
                 uint24(0),
                 uint40(1), // 0% for 1 blocks

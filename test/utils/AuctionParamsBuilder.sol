@@ -15,7 +15,6 @@ library AuctionParamsBuilder {
             startBlock: 0,
             endBlock: 0,
             claimBlock: 0,
-            graduationThresholdMps: 0,
             auctionStepsData: new bytes(0)
         });
     }
@@ -131,15 +130,6 @@ library AuctionParamsBuilder {
     {
         require(claimBlock <= type(uint64).max, 'claimBlock too large');
         params.claimBlock = uint64(claimBlock);
-        return params;
-    }
-
-    function withGraduationThresholdMps(AuctionParameters memory params, uint24 graduationThresholdMps)
-        internal
-        pure
-        returns (AuctionParameters memory)
-    {
-        params.graduationThresholdMps = graduationThresholdMps;
         return params;
     }
 

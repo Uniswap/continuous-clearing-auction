@@ -640,7 +640,9 @@ contract AuctionTest is AuctionBaseTest {
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
         vm.roll(auction.endBlock());
         Checkpoint memory checkpoint = auction.checkpoint();
-        assertEq(checkpoint.totalClearedX7X7, TOTAL_SUPPLY.scaleUpToX7().scaleUpToX7X7());
+        assertEq(checkpoint.totalCurrencyRaisedX7X7, TOTAL_SUPPLY.scaleUpToX7().scaleUpToX7X7().wrapAndFullMulDiv(
+            tickNumberToPriceX96(2), FixedPoint96.Q96
+        ));
         // Expect that bid1 is fully filled and can be exited as such
         auction.exitBid(bidId1);
         // Expect no refund since the bid was fully exited

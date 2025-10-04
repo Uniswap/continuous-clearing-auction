@@ -11,7 +11,7 @@ import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7} from '../../src/libraries/ValueX7X7Lib.sol';
 
 contract MockAuction is Auction {
-    constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
+    constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
         Auction(_token, _totalSupply, _parameters)
     {}
 

@@ -22,7 +22,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     /// @notice The token being sold in the auction
     IERC20Minimal internal immutable TOKEN;
     /// @notice The total supply of tokens to sell
-    uint256 internal immutable TOTAL_SUPPLY;
+    uint128 internal immutable TOTAL_SUPPLY;
     /// @notice The total supply of tokens to sell, scaled up to a ValueX7X7
     ValueX7X7 internal immutable TOTAL_SUPPLY_X7_X7;
     /// @notice The recipient of any unsold tokens at the end of the auction
@@ -38,14 +38,13 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     constructor(
         address _token,
         address _currency,
-        uint256 _totalSupply,
+        uint128 _totalSupply,
         address _tokensRecipient,
         address _fundsRecipient
     ) {
         TOKEN = IERC20Minimal(_token);
         CURRENCY = Currency.wrap(_currency);
         TOTAL_SUPPLY = _totalSupply;
-        if (_totalSupply > SupplyLib.MAX_TOTAL_SUPPLY) revert TotalSupplyIsTooLarge();
         if (_totalSupply == 0) revert TotalSupplyIsZero();
         TOTAL_SUPPLY_X7_X7 = _totalSupply.toX7X7();
         CURRENCY = Currency.wrap(_currency);

@@ -161,7 +161,6 @@ contract AuctionTest is AuctionBaseTest {
         emit ITickStorage.TickInitialized(tickNumberToPriceX96(2));
 
         // Bid to purchase 500e18 tokens at a price of 2e6
-        uint256 inputAmount1 = inputAmountForTokens(500e18, tickNumberToPriceX96(2));
         auction.submitBid{value: inputAmountForTokens(500e18, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
             inputAmountForTokens(500e18, tickNumberToPriceX96(2)),
@@ -174,7 +173,6 @@ contract AuctionTest is AuctionBaseTest {
         emit ITickStorage.TickInitialized(tickNumberToPriceX96(3));
         // Bid 1503 ETH to purchase 501 tokens at a price of 3
         // This bid will move the clearing price because now demand > total supply but no checkpoint is made until the next block
-        uint256 inputAmount2 = inputAmountForTokens(501e18, tickNumberToPriceX96(3));
         auction.submitBid{value: inputAmountForTokens(501e18, tickNumberToPriceX96(3))}(
             tickNumberToPriceX96(3),
             inputAmountForTokens(501e18, tickNumberToPriceX96(3)),
@@ -275,7 +273,7 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
     }
 
-    function test_submitBid_zeroSupply_exitBid_succeeds(uint256 _bidAmount, uint256 _maxPrice)
+    function test_submitBid_zeroSupply_exitBid_succeeds(uint128 _bidAmount, uint128 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice)
         givenValidBidAmount(_bidAmount)
@@ -546,7 +544,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepUnsoldTokens();
     }
 
-    function test_exitBid_afterEndBlock_succeeds(uint256 _bidAmount, uint256 _maxPrice)
+    function test_exitBid_afterEndBlock_succeeds(uint128 _bidAmount, uint128 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice)
         givenValidBidAmount(_bidAmount)
@@ -633,8 +631,8 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_exitPartiallyFilledBid_alreadyExited_revertsWithBidAlreadyExited(
-        uint256 _bidAmount,
-        uint256 _maxPrice
+        uint128 _bidAmount,
+        uint128 _maxPrice
     )
         public
         givenValidMaxPrice(_maxPrice)
@@ -1663,7 +1661,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.stopPrank();
     }
 
-    function test_claimTokens_beforeClaimBlock_reverts(uint256 _bidAmount, uint256 _maxPrice)
+    function test_claimTokens_beforeClaimBlock_reverts(uint128 _bidAmount, uint128 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice)
         givenValidBidAmount(_bidAmount)
@@ -1686,7 +1684,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.claimTokens(bidId);
     }
 
-    function test_claimTokens_tokenTransferFails_reverts(uint256 _bidAmount, uint256 _maxPrice)
+    function test_claimTokens_tokenTransferFails_reverts(uint128 _bidAmount, uint128 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice)
         givenValidBidAmount(_bidAmount)
@@ -1769,7 +1767,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepCurrency();
     }
 
-    function test_sweepCurrency_graduated_succeeds(uint256 _bidAmount, uint256 _maxPrice)
+    function test_sweepCurrency_graduated_succeeds(uint128 _bidAmount, uint128 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice)
         givenValidBidAmount(_bidAmount)
@@ -1806,7 +1804,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepUnsoldTokens();
     }
 
-    function test_sweepUnsoldTokens_graduated(uint256 _bidAmount, uint256 _maxPrice)
+    function test_sweepUnsoldTokens_graduated(uint128 _bidAmount, uint128 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice)
         givenValidBidAmount(_bidAmount)
@@ -1847,7 +1845,7 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(token.balanceOf(tokensRecipient), TOTAL_SUPPLY);
     }
 
-    function test_sweepCurrency_thenSweepTokens_graduated_succeeds(uint256 bidAmount, uint256 _maxPrice)
+    function test_sweepCurrency_thenSweepTokens_graduated_succeeds(uint128 bidAmount, uint128 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice)
         givenValidBidAmount(bidAmount)
@@ -1912,12 +1910,11 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_unpackSupplyRolloverMultiplier_fuzz(
-        uint256 totalSupply,
+        uint128 totalSupply,
         uint256 remainingSupplyX7X7Raw,
         uint24 remainingMps
     ) public {
         vm.assume(totalSupply > 0);
-        vm.assume(totalSupply <= SupplyLib.MAX_TOTAL_SUPPLY);
 
         // Ensure remainingSupplyX7X7 fits within 231 bits
         vm.assume(remainingSupplyX7X7Raw < (1 << 231));
@@ -2077,8 +2074,8 @@ contract AuctionTest is AuctionBaseTest {
 
     /// Super large tick spacing
     /// Bids sufficiently large become unable to clear
-    function test_disallow_bids_too_large_to_clear(uint256 totalSupply) public {
-        vm.assume(totalSupply > 0 && totalSupply <= SupplyLib.MAX_TOTAL_SUPPLY);
+    function test_disallow_bids_too_large_to_clear(uint128 totalSupply) public {
+        vm.assume(totalSupply > 0);
 
         vm.deal(address(this), type(uint256).max);
         uint256 floorPrice = 2;
@@ -2092,10 +2089,9 @@ contract AuctionTest is AuctionBaseTest {
         uint256 underMaxAmount = ConstantsLib.X7X7_UPPER_BOUND - 1;
         auction.submitBid{value: underMaxAmount}(3, underMaxAmount, alice, 2, '');
 
-        // Now submit a bid that will push it over the limit
-        uint256 inputAmount = ConstantsLib.X7_UPPER_BOUND / 1e7;
+        // Now submit another one that will push it over the limit
         vm.expectRevert(IAuction.InvalidBidUnableToClear.selector);
-        auction.submitBid{value: inputAmount}(3, inputAmount, alice, 2, '');
+        auction.submitBid{value: underMaxAmount}(3, underMaxAmount, alice, 2, '');
 
         vm.roll(block.number + 1);
         // Expect that we can call checkpoint

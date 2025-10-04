@@ -71,7 +71,7 @@ contract Auction is
     /// @notice The total currency that will be raised selling total supply at the floor price
     ValueX7X7 internal immutable TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7;
 
-    constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
+    constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
         TokenCurrencyStorage(
             _token,
@@ -147,7 +147,6 @@ contract Auction is
 
         // If the clearing price is above the floor price the auction is fully subscribed and we can sell the available supply
         if (_checkpoint.clearingPrice > FLOOR_PRICE) {
-            console.log('Clearing price is above floor price');
             // The supply sold over `deltaMps` is deterministic once the auction becomes fully subscribed
             // We get the cached total cleared and remaining mps for use in the calculations below. These values
             // make up the multiplier which helps account for rollover supply.
@@ -167,13 +166,11 @@ contract Auction is
             currencySoldX7X7 = cachedRemainingCurrencyRaisedX7X7.wrapAndFullMulDiv(
                 _checkpoint.clearingPrice * uint256(deltaMps), uint256(cachedRemainingMps) * FLOOR_PRICE
             );
-            console.log('Currency sold based on schedule', ValueX7X7.unwrap(currencySoldX7X7));
 
             // Special case where the clearing price is at a tick boundary, we have to track the supply sold to that price
             // Otherwise, it is not possible for there to be bids at `_checkpoint.clearingPrice`, so all bids must be above the clearing price.
             // That means all bids are fully filled and we don't need to track the supply sold to the clearing price.
             if (_checkpoint.clearingPrice % TICK_SPACING == 0) {
-                console.log('Clearing price is at a tick boundary');
                 // Update the cumulative supply sold to the clearing price value
                 // A = demand above clearing
                 // B = demand at clearing
@@ -185,14 +182,11 @@ contract Auction is
                     currencySoldX7X7.sub(currencyRaisedFromDemandAboveClearingX7X7);
                 _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7 =
                     _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7.add(currencyRaisedAtClearingPriceX7X7);
-                console.log('Currency raised at clearing price', ValueX7X7.unwrap(currencyRaisedAtClearingPriceX7X7));
             }
         }
         // Otherwise, we can only sell tokens equal to the current demand above the clearing price
         else {
-            console.log('Clearing price is at floor price');
             currencySoldX7X7 = currencyRaisedFromDemandAboveClearingX7X7;
-            console.log('Currency sold', ValueX7X7.unwrap(currencySoldX7X7));
         }
         _checkpoint.totalCurrencyRaisedX7X7 = _checkpoint.totalCurrencyRaisedX7X7.add(currencySoldX7X7);
         _checkpoint.cumulativeMps += deltaMps;
@@ -229,23 +223,6 @@ contract Auction is
         ValueX7X7 _cachedRemainingCurrencyRaisedX7X7,
         uint24 _remainingMpsInAuction
     ) internal view returns (uint256) {
-        console.log(
-            'calculateNewClearingPrice: sumCurrencyDemandAboveClearingX7',
-            ValueX7.unwrap(_sumCurrencyDemandAboveClearingX7)
-        );
-        console.log(
-            'calculateNewClearingPrice: cachedRemainingCurrencyRaisedX7X7',
-            ValueX7X7.unwrap(_cachedRemainingCurrencyRaisedX7X7)
-        );
-        console.log('calculateNewClearingPrice: remainingMpsInAuction', _remainingMpsInAuction);
-        console.log('calculateNewClearingPrice: FLOOR_PRICE', FLOOR_PRICE);
-        console.log(
-            'calculateNewClearingPrice: numerator',
-            ValueX7.unwrap(_sumCurrencyDemandAboveClearingX7.mulUint256(uint256(_remainingMpsInAuction) * FLOOR_PRICE))
-        );
-        console.log(
-            'calculateNewClearingPrice: denominator', ValueX7.unwrap(_cachedRemainingCurrencyRaisedX7X7.downcast())
-        );
         uint256 clearingPrice = ValueX7.unwrap(
             _sumCurrencyDemandAboveClearingX7.fullMulDivUp(
                 ValueX7.wrap(uint256(_remainingMpsInAuction) * FLOOR_PRICE),
@@ -279,9 +256,6 @@ contract Auction is
 
         Tick memory nextActiveTick = getTick(nextActiveTickPrice_);
 
-        console.log('before sumCurrencyDemandAboveClearingX7_', ValueX7.unwrap(sumCurrencyDemandAboveClearingX7_));
-        console.log('before _REMAINING_MPS_IN_AUCTION', _REMAINING_MPS_IN_AUCTION);
-        console.log('after');
         // mps term in numerator removed, cancels with demand on LHS
         while (
             nextActiveTickPrice_ != MAX_TICK_PTR
@@ -291,10 +265,7 @@ contract Auction is
             )
         ) {
             // Subtract the demand at the current nextActiveTick from the total demand
-            console.log('while: nextActiveTickPrice_', nextActiveTickPrice_);
-            console.log('while: nextActiveTick.currencyDemandX7', ValueX7.unwrap(nextActiveTick.currencyDemandX7));
             sumCurrencyDemandAboveClearingX7_ = sumCurrencyDemandAboveClearingX7_.sub(nextActiveTick.currencyDemandX7);
-            console.log('while: sumCurrencyDemandAboveClearingX7_', ValueX7.unwrap(sumCurrencyDemandAboveClearingX7_));
             // Save the previous next active tick price
             minimumClearingPrice = nextActiveTickPrice_;
             // Advance to the next tick
@@ -307,15 +278,10 @@ contract Auction is
             $nextActiveTickPrice = nextActiveTickPrice_;
         }
 
-        console.log('minimumClearingPrice', minimumClearingPrice);
-        console.log('nextActiveTickPrice_', nextActiveTickPrice_);
-        console.log('sumCurrencyDemandAboveClearingX7_', ValueX7.unwrap(sumCurrencyDemandAboveClearingX7_));
-
         // Calculate the new clearing price
         uint256 clearingPrice = _calculateNewClearingPrice(
             sumCurrencyDemandAboveClearingX7_, _REMAINING_CURRENCY_RAISED_AT_FLOOR_X7_X7, _REMAINING_MPS_IN_AUCTION
         );
-        console.log('Clearing price', clearingPrice);
         // If the new clearing price is below the minimum clearing price return the minimum clearing price
         if (clearingPrice < minimumClearingPrice) return minimumClearingPrice;
         return clearingPrice;
@@ -566,12 +532,7 @@ contract Auction is
             tokensFilled += partialTokensFilled;
             currencySpent += partialCurrencySpent;
         }
-
-        console.log('tokensFilled', tokensFilled);
-        console.log('currencySpent', currencySpent);
-        console.log('bid.amount', bid.amount);
-        console.log('bid.amount - currencySpent', bid.amount - currencySpent);
-
+        
         _processExit(bidId, bid, tokensFilled, bid.amount - currencySpent);
     }
 

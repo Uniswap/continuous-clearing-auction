@@ -209,12 +209,11 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
 
     function helper__assumeValidDeploymentParams(
         address _token,
-        uint256 _totalSupply,
+        uint128 _totalSupply,
         bytes32 _salt,
         AuctionParameters memory _params,
         uint8 _numberOfSteps
-    ) public pure returns (uint256 totalSupply) {
-        _totalSupply = bound(_totalSupply, 1, SupplyLib.MAX_TOTAL_SUPPLY);
+    ) public pure {
         vm.assume(_token != address(0));
         vm.assume(_params.currency != address(0));
         vm.assume(_token != _params.currency);
@@ -248,18 +247,16 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         }
         _params.auctionStepsData = _auctionStepsData;
         vm.assume(_params.claimBlock > _params.endBlock);
-
-        return _totalSupply;
     }
 
     function testFuzz_getAuctionAddress(
         address _token,
-        uint256 _totalSupply,
+        uint128 _totalSupply,
         bytes32 _salt,
         uint8 _numberOfSteps,
         AuctionParameters memory _params
     ) public {
-        _totalSupply = helper__assumeValidDeploymentParams(_token, _totalSupply, _salt, _params, _numberOfSteps);
+        helper__assumeValidDeploymentParams(_token, _totalSupply, _salt, _params, _numberOfSteps);
 
         bytes memory configData = abi.encode(_params);
 

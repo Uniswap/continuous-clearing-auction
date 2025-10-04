@@ -36,8 +36,6 @@ library SupplyLib {
 
     // Max value for remainingSupplyX7X7 (all lower 231 bits set)
     uint256 public constant MAX_REMAINING_SUPPLY = REMAINING_SUPPLY_MASK;
-    /// @notice The maximum total supply of tokens than can be sold in the auction
-    uint256 public constant MAX_TOTAL_SUPPLY = MAX_REMAINING_SUPPLY / ValueX7Lib.X7 ** 2;
 
     /// @notice Convert the total supply to a ValueX7X7
     /// @dev This function must be checked for overflow before being called

@@ -110,24 +110,11 @@ contract SupplyLibTest is Test {
     }
 
     /// @notice Fuzz test for toX7X7 function
-    function testFuzz_toX7X7(uint256 totalSupply) public view {
-        // Bound to MAX_TOTAL_SUPPLY to avoid overflow
-        totalSupply = _bound(totalSupply, 0, SupplyLib.MAX_TOTAL_SUPPLY);
-
+    function testFuzz_toX7X7(uint128 totalSupply) public view {
         ValueX7X7 result = mockSupplyLib.toX7X7(totalSupply);
 
         // The result should be totalSupply * 1e7 * 1e7
         assertEq(ValueX7X7.unwrap(result), totalSupply * ValueX7Lib.X7 ** 2);
-    }
-
-    /// @notice Test toX7X7 with boundary values
-    function test_toX7X7_boundaries() public view {
-        // Test with 0
-        assertEq(ValueX7X7.unwrap(mockSupplyLib.toX7X7(0)), 0);
-
-        // Test with MAX_TOTAL_SUPPLY
-        ValueX7X7 maxResult = mockSupplyLib.toX7X7(SupplyLib.MAX_TOTAL_SUPPLY);
-        assertEq(ValueX7X7.unwrap(maxResult), SupplyLib.MAX_TOTAL_SUPPLY * ValueX7Lib.X7 ** 2);
     }
 
     /// @notice Test specific bit patterns to ensure correct masking

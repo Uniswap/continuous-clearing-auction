@@ -30,7 +30,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     uint256 public constant AUCTION_DURATION = 100;
     uint256 public constant TICK_SPACING = 100 << FixedPoint96.RESOLUTION;
     uint256 public constant FLOOR_PRICE = 1000 << FixedPoint96.RESOLUTION;
-    uint256 public constant TOTAL_SUPPLY = 1000e18;
+    uint128 public constant TOTAL_SUPPLY = 1000e18;
 
     // Max amount of wei that can be lost in totalClearedX7X7 calculations
     uint256 public constant MAX_TOTAL_CLEARED_PRECISION_LOSS = 1;
@@ -81,7 +81,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     }
 
     modifier givenValidMaxPrice(uint256 _maxPrice) {
-        vm.assume(_maxPrice > 0);
         _maxPrice = _bound(_maxPrice, FLOOR_PRICE, BidLib.MAX_BID_PRICE);
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, TICK_SPACING);
         vm.assume(_maxPrice > FLOOR_PRICE);
@@ -90,14 +89,22 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     }
 
     modifier givenValidBidAmount(uint256 _bidAmount) {
-        vm.assume(BidLib.MIN_BID_AMOUNT < (ConstantsLib.X7X7_UPPER_BOUND - 1) / $maxPrice);
-        $bidAmount = _bound(_bidAmount, BidLib.MIN_BID_AMOUNT, (ConstantsLib.X7X7_UPPER_BOUND - 1) / $maxPrice);
+        if(BidLib.MIN_BID_AMOUNT <= BidLib.MAX_BID_AMOUNT / $maxPrice) {
+            $bidAmount = BidLib.MIN_BID_AMOUNT;
+        } else {
+            vm.assume(BidLib.MIN_BID_AMOUNT < BidLib.MAX_BID_AMOUNT / $maxPrice);
+            $bidAmount = _bound(_bidAmount, BidLib.MIN_BID_AMOUNT, BidLib.MAX_BID_AMOUNT / $maxPrice);
+        }
         _;
     }
 
     modifier givenGraduatedAuction() {
-        vm.assume(TOTAL_SUPPLY < (ConstantsLib.X7X7_UPPER_BOUND - 1) / $maxPrice);
-        $bidAmount = _bound($bidAmount, TOTAL_SUPPLY, (ConstantsLib.X7X7_UPPER_BOUND - 1) / $maxPrice);
+        if(TOTAL_SUPPLY <= BidLib.MAX_BID_AMOUNT / $maxPrice) {
+            $bidAmount = TOTAL_SUPPLY;
+        } else {
+            vm.assume(TOTAL_SUPPLY < BidLib.MAX_BID_AMOUNT / $maxPrice);
+            $bidAmount = _bound($bidAmount, TOTAL_SUPPLY, BidLib.MAX_BID_AMOUNT / $maxPrice);
+        }
         _;
     }
 

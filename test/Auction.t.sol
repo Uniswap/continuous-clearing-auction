@@ -606,16 +606,16 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitBid(bidId1);
         // Expect no refund since the bid was fully exited
         assertEq(address(alice).balance, aliceBalanceBefore);
+        // Expect that bid2 is partially filled
+        // It was outbid in the last checkpoint (this block)
+        auction.exitPartiallyFilledBid(bidId2, auction.endBlock() - 1, uint64(block.number));
+
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId1);
-        // Expect that bid2 is partially filled
-        auction.exitPartiallyFilledBid(bidId2, auction.endBlock() - 1, 0);
-        vm.roll(auction.claimBlock());
-        auction.claimTokens(bidId2);
 
         // At the end, alice should have purchased all of the token supply
-        assertApproxEqAbs(
-            token.balanceOf(address(alice)), aliceTokenBalanceBefore + TOTAL_SUPPLY, MAX_TOTAL_CLEARED_PRECISION_LOSS
+        assertEq(
+            token.balanceOf(address(alice)), aliceTokenBalanceBefore + TOTAL_SUPPLY
         );
     }
 
@@ -1779,7 +1779,7 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(auction.endBlock());
         Checkpoint memory checkpoint = auction.checkpoint();
-        uint256 expectedCurrencyRaised = TOTAL_SUPPLY.fullMulDiv(FixedPoint96.Q96, checkpoint.cumulativeMpsPerPrice);
+        uint256 expectedCurrencyRaised = TOTAL_SUPPLY.scaleUpToX7().scaleUpToX7X7().wrapAndFullMulDiv(FixedPoint96.Q96, checkpoint.cumulativeMpsPerPrice).scaleDownToValueX7();
 
         vm.prank(fundsRecipient);
         vm.expectEmit(true, true, true, true);

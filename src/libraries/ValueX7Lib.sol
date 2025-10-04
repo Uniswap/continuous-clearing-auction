@@ -8,7 +8,7 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 /// @dev X7 values are used for demand values to avoid intermediate division by MPS
 type ValueX7 is uint256;
 
-using {add, sub, eq, mulUint256, divUint256, fullMulDiv, fullMulDivUp} for ValueX7 global;
+using {add, sub, eq, gte, mulUint256, divUint256, fullMulDiv, fullMulDivUp} for ValueX7 global;
 
 /// @notice Add two ValueX7 values
 function add(ValueX7 a, ValueX7 b) pure returns (ValueX7) {
@@ -23,6 +23,10 @@ function sub(ValueX7 a, ValueX7 b) pure returns (ValueX7) {
 /// @notice Check if a ValueX7 value is equal to another ValueX7 value
 function eq(ValueX7 a, ValueX7 b) pure returns (bool) {
     return ValueX7.unwrap(a) == ValueX7.unwrap(b);
+}
+
+function gte(ValueX7 a, ValueX7 b) pure returns (bool) {
+    return ValueX7.unwrap(a) >= ValueX7.unwrap(b);
 }
 
 /// @notice Multiply a ValueX7 value by a uint256

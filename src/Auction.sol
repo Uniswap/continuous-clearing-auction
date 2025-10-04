@@ -22,11 +22,12 @@ import {SupplyLib, SupplyRolloverMultiplier} from './libraries/SupplyLib.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
+
+import {console} from 'forge-std/console.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
-import {console} from 'forge-std/console.sol';
 
 /// @title Auction
 /// @custom:security-contact security@uniswap.org
@@ -228,14 +229,23 @@ contract Auction is
         ValueX7X7 _cachedRemainingCurrencyRaisedX7X7,
         uint24 _remainingMpsInAuction
     ) internal view returns (uint256) {
-        console.log('calculateNewClearingPrice: sumCurrencyDemandAboveClearingX7', ValueX7.unwrap(_sumCurrencyDemandAboveClearingX7));
-        console.log('calculateNewClearingPrice: cachedRemainingCurrencyRaisedX7X7', ValueX7X7.unwrap(_cachedRemainingCurrencyRaisedX7X7));
+        console.log(
+            'calculateNewClearingPrice: sumCurrencyDemandAboveClearingX7',
+            ValueX7.unwrap(_sumCurrencyDemandAboveClearingX7)
+        );
+        console.log(
+            'calculateNewClearingPrice: cachedRemainingCurrencyRaisedX7X7',
+            ValueX7X7.unwrap(_cachedRemainingCurrencyRaisedX7X7)
+        );
         console.log('calculateNewClearingPrice: remainingMpsInAuction', _remainingMpsInAuction);
         console.log('calculateNewClearingPrice: FLOOR_PRICE', FLOOR_PRICE);
-        console.log('calculateNewClearingPrice: numerator', ValueX7.unwrap(_sumCurrencyDemandAboveClearingX7.mulUint256(
-                uint256(_remainingMpsInAuction) * FLOOR_PRICE
-            )));
-        console.log('calculateNewClearingPrice: denominator', ValueX7.unwrap(_cachedRemainingCurrencyRaisedX7X7.downcast()));
+        console.log(
+            'calculateNewClearingPrice: numerator',
+            ValueX7.unwrap(_sumCurrencyDemandAboveClearingX7.mulUint256(uint256(_remainingMpsInAuction) * FLOOR_PRICE))
+        );
+        console.log(
+            'calculateNewClearingPrice: denominator', ValueX7.unwrap(_cachedRemainingCurrencyRaisedX7X7.downcast())
+        );
         uint256 clearingPrice = ValueX7.unwrap(
             _sumCurrencyDemandAboveClearingX7.fullMulDivUp(
                 ValueX7.wrap(uint256(_remainingMpsInAuction) * FLOOR_PRICE),
@@ -269,14 +279,15 @@ contract Auction is
 
         Tick memory nextActiveTick = getTick(nextActiveTickPrice_);
 
+        console.log('before sumCurrencyDemandAboveClearingX7_', ValueX7.unwrap(sumCurrencyDemandAboveClearingX7_));
+        console.log('before _REMAINING_MPS_IN_AUCTION', _REMAINING_MPS_IN_AUCTION);
+        console.log('after');
         // mps term in numerator removed, cancels with demand on LHS
         while (
             nextActiveTickPrice_ != MAX_TICK_PTR
             // Is the currency amount above `nextActiveTickPrice_` greater than the required currency at nextActiveTickPrice_?
-            && sumCurrencyDemandAboveClearingX7_.mulUint256(
-                _REMAINING_MPS_IN_AUCTION
-            ).mulUint256(FLOOR_PRICE).upcast().gte(
-                _REMAINING_CURRENCY_RAISED_AT_FLOOR_X7_X7.mulUint256(nextActiveTickPrice_)
+            && sumCurrencyDemandAboveClearingX7_.mulUint256(_REMAINING_MPS_IN_AUCTION).upcast().gte(
+                _REMAINING_CURRENCY_RAISED_AT_FLOOR_X7_X7.wrapAndFullMulDivUp(nextActiveTickPrice_, FLOOR_PRICE)
             )
         ) {
             // Subtract the demand at the current nextActiveTick from the total demand
@@ -377,11 +388,10 @@ contract Auction is
 
         $sumCurrencyDemandAboveClearingX7 = $sumCurrencyDemandAboveClearingX7.add(bidEffectiveAmount);
 
-        // If the sumDemandAboveClearing becomes large enough to overflow a multiplication by an X7X7 value, revert
-        if (
-            ValueX7.unwrap($sumCurrencyDemandAboveClearingX7.resolveRoundingUp($nextActiveTickPrice))
-                >= ConstantsLib.X7_UPPER_BOUND
-        ) revert InvalidBidUnableToClear();
+        // If the sumDemandAboveClearing becomes large enough to overflow a multiplication an X7 value, revert
+        if ($sumCurrencyDemandAboveClearingX7.gte(ValueX7.wrap(ConstantsLib.X7_UPPER_BOUND))) {
+            revert InvalidBidUnableToClear();
+        }
 
         emit BidSubmitted(bidId, owner, maxPrice, amount);
     }
@@ -423,7 +433,10 @@ contract Auction is
     {
         // Bids cannot be submitted at the endBlock or after
         if (block.number >= END_BLOCK) revert AuctionIsOver();
-        if (amount == 0) revert InvalidAmount();
+        // If the bid is too small such that it would be rounded down to zero, revert
+        if (amount < BidLib.MIN_BID_AMOUNT) revert BidAmountTooSmall();
+        // If the bid would overflow a ValueX7X7 value, revert
+        if (amount > BidLib.MAX_BID_AMOUNT) revert BidAmountTooLarge();
         if (CURRENCY.isAddressZero()) {
             if (msg.value != amount) revert InvalidAmount();
         } else {

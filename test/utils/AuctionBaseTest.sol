@@ -7,6 +7,7 @@ import {AuctionParameters, IAuction} from '../../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
 
 import {BidLib} from '../../src/libraries/BidLib.sol';
+import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {Assertions} from './Assertions.sol';
 import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
@@ -14,9 +15,11 @@ import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
 import {MockFundsRecipient} from './MockFundsRecipient.sol';
 import {TokenHandler} from './TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
+import {console} from 'forge-std/console.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 /// @notice Handler contract for setting up an auction
+
 abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     using FixedPointMathLib for uint256;
     using AuctionParamsBuilder for AuctionParameters;
@@ -41,6 +44,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     bytes public auctionStepsData;
 
     uint256 public $bidAmount;
+    uint256 public $maxPrice;
 
     function setUpAuction() public {
         setUpTokens();
@@ -76,14 +80,30 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return _price - (_price % _tickSpacing);
     }
 
-    modifier givenGraduatedAuction(uint256 _bidAmount) {
-        $bidAmount = _bound(_bidAmount, TOTAL_SUPPLY, type(uint128).max);
+    modifier givenValidMaxPrice(uint256 _maxPrice) {
+        vm.assume(_maxPrice > 0);
+        _maxPrice = _bound(_maxPrice, FLOOR_PRICE, BidLib.MAX_BID_PRICE);
+        _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, TICK_SPACING);
+        vm.assume(_maxPrice > FLOOR_PRICE);
+        $maxPrice = _maxPrice;
+        _;
+    }
+
+    modifier givenValidBidAmount(uint256 _bidAmount) {
+        vm.assume(BidLib.MIN_BID_AMOUNT < (ConstantsLib.X7X7_UPPER_BOUND - 1) / $maxPrice);
+        $bidAmount = _bound(_bidAmount, BidLib.MIN_BID_AMOUNT, (ConstantsLib.X7X7_UPPER_BOUND - 1) / $maxPrice);
+        _;
+    }
+
+    modifier givenGraduatedAuction() {
+        vm.assume(TOTAL_SUPPLY < (ConstantsLib.X7X7_UPPER_BOUND - 1) / $maxPrice);
+        $bidAmount = _bound($bidAmount, TOTAL_SUPPLY, (ConstantsLib.X7X7_UPPER_BOUND - 1) / $maxPrice);
         _;
     }
 
     modifier givenNotGraduatedAuction(uint256 _bidAmount) {
         // TODO(ez): some rounding in auction preventing this from being TOTAL_SUPPLY - 1
-        $bidAmount = _bound(_bidAmount, 1, TOTAL_SUPPLY / 2);
+        $bidAmount = _bound(_bidAmount, BidLib.MIN_BID_AMOUNT, TOTAL_SUPPLY / 2);
         _;
     }
 

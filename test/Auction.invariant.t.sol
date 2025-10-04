@@ -139,7 +139,7 @@ contract AuctionInvariantHandler is Test, Assertions {
         validateCheckpoint
     {
         // Bid requests for anything between 1 and 2x the total supply of tokens
-        uint256 amount = _bound(tickNumber, 1, auction.totalSupply() * 2);
+        uint256 amount = _bound(tickNumber, BidLib.MIN_BID_AMOUNT, auction.totalSupply() * 2);
         (uint256 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(amount, tickNumber);
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
@@ -161,7 +161,7 @@ contract AuctionInvariantHandler is Test, Assertions {
             if (block.number >= auction.endBlock()) {
                 assertEq(revertData, abi.encodeWithSelector(IAuctionStepStorage.AuctionIsOver.selector));
             } else if (inputAmount == 0) {
-                assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidAmount.selector));
+                assertEq(revertData, abi.encodeWithSelector(IAuction.BidAmountTooSmall.selector));
             } else if (prevTickPrice == 0) {
                 assertEq(revertData, abi.encodeWithSelector(ITickStorage.TickPriceNotIncreasing.selector));
             } else {

@@ -41,6 +41,10 @@ interface IAuction is
 
     /// @notice Error thrown when not enough amount is deposited
     error InvalidAmount();
+    /// @notice Error thrown when the bid amount is too small
+    error BidAmountTooSmall();
+    /// @notice Error thrown when the bid amount is over ConstantsLib.X7X7_UPPER_BOUND
+    error BidAmountTooLarge();
     /// @notice Error thrown when msg.value is non zero when currency is not ETH
     error CurrencyIsNotNative();
     /// @notice Error thrown when the auction is not started

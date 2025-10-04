@@ -146,7 +146,6 @@ contract Auction is
         // If the clearing price is above the floor price the auction is fully subscribed and we can sell the available supply
         if (_checkpoint.clearingPrice > FLOOR_PRICE) {
             console.log('Clearing price is above floor price');
-            console.log('TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7', ValueX7X7.unwrap(TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7));
             // The supply sold over `deltaMps` is deterministic once the auction becomes fully subscribed
             // We get the cached total cleared and remaining mps for use in the calculations below. These values
             // make up the multiplier which helps account for rollover supply.
@@ -164,7 +163,7 @@ contract Auction is
             // The total currency sold will be following the original supply schedule, using the cached multiplier values
             // to account for previous supply which is rolled over proportionally
             currencySoldX7X7 = cachedRemainingCurrencyRaisedX7X7.wrapAndFullMulDiv(
-                _checkpoint.clearingPrice * uint256(deltaMps), FLOOR_PRICE * uint256(cachedRemainingMps)
+                _checkpoint.clearingPrice * uint256(deltaMps), uint256(cachedRemainingMps) * FLOOR_PRICE
             );
             console.log('Currency sold based on schedule', ValueX7X7.unwrap(currencySoldX7X7));
 
@@ -223,43 +222,23 @@ contract Auction is
     }
 
     /// @notice Calculate the new clearing price, given the cumulative demand and the remaining supply in the auction
-    /// @param _sumCurrencyDemandAboveClearingX7 The sum of demand above the clearing price
-    /// @param _remainingMpsInAuction The remaining mps in the auction which is ConstantsLib.MPS minus the cumulative mps so far
-    /// @param _remainingSupplyX7X7 The result of TOTAL_SUPPLY_X7_X7 minus the total cleared supply so far
-    /// @return The new clearing price
     function _calculateNewClearingPrice(
         ValueX7 _sumCurrencyDemandAboveClearingX7,
-        ValueX7X7 _remainingSupplyX7X7,
+        ValueX7X7 _cachedRemainingCurrencyRaisedX7X7,
         uint24 _remainingMpsInAuction
     ) internal view returns (uint256) {
-        /**
-         * Calculate the clearing price by dividing the currencyDemandX7 by the supply following `currency / tokens = price`
-         * We find the ratio of all demand to the amount of remaining supply in the auction
-         *
-         * At this point, we know that the new clearing price must be between `minimumClearingPrice` and `nextActiveTickPrice`, inclusive of both bounds.
-         * We can use the following equation to find the price:
-         *   currencyDemandX7 * Q96 * mps            (totalSupplyX7 - totalClearedX7) * mps
-         *   ---------------------------------  /    ---------------------------------
-         *             ConstantsLib.MPS                       ConstantsLib.MPS - cumulativeMps
-         *
-         * Rewriting as multiplication by reciprocal:
-         *   currencyDemandX7 * Q96 * mps            ConstantsLib.MPS - cumulativeMps
-         *   ---------------------------------  *    ---------------------------------
-         *             ConstantsLib.MPS                    (totalSupplyX7 - totalClearedX7) * mps
-         *
-         * Cancelling out the `mps` terms and lone `ConstantsLib.MPS` terms:
-         *                                           ConstantsLib.MPS - cumulativeMps
-         *   currencyDemandX7 * Q96             *    ---------------------------------
-         *                                           (totalSupplyX7 - totalClearedX7)
-         *
-         * Observe that (totalSupplyX7 - totalClearedX7) * ConstantsLib.MPS is equal to `remainingSupplyX7X7`, since it is scaled up by ConstantsLib.MPS a second time
-         * Now we can substitute in `remainingSupplyX7X7` and `remainingMpsInAuction` into the equation
-         * We use fullMulDivUp to allow for intermediate overflows and ensure that the final clearing price is rounded up because we bias towards
-         * higher prices which results in less tokens being sold (since price is currency / token).
-         */
+        console.log('calculateNewClearingPrice: sumCurrencyDemandAboveClearingX7', ValueX7.unwrap(_sumCurrencyDemandAboveClearingX7));
+        console.log('calculateNewClearingPrice: cachedRemainingCurrencyRaisedX7X7', ValueX7X7.unwrap(_cachedRemainingCurrencyRaisedX7X7));
+        console.log('calculateNewClearingPrice: remainingMpsInAuction', _remainingMpsInAuction);
+        console.log('calculateNewClearingPrice: FLOOR_PRICE', FLOOR_PRICE);
+        console.log('calculateNewClearingPrice: numerator', ValueX7.unwrap(_sumCurrencyDemandAboveClearingX7.mulUint256(
+                uint256(_remainingMpsInAuction) * FLOOR_PRICE
+            )));
+        console.log('calculateNewClearingPrice: denominator', ValueX7.unwrap(_cachedRemainingCurrencyRaisedX7X7.downcast()));
         uint256 clearingPrice = ValueX7.unwrap(
             _sumCurrencyDemandAboveClearingX7.fullMulDivUp(
-                ValueX7.wrap(FixedPoint96.Q96 * uint256(_remainingMpsInAuction)), _remainingSupplyX7X7.downcast()
+                ValueX7.wrap(uint256(_remainingMpsInAuction) * FLOOR_PRICE),
+                _cachedRemainingCurrencyRaisedX7X7.downcast()
             )
         );
 
@@ -288,46 +267,22 @@ contract Auction is
         uint256 nextActiveTickPrice_ = $nextActiveTickPrice;
 
         Tick memory nextActiveTick = getTick(nextActiveTickPrice_);
-        /**
-         * Tick iteration loop inequality explained:
-         *
-         * To compare the resolved demand to the supply being sold, we have the orignal equation:
-         *   R = resolvedDemand * mps / ConstantsLib.MPS
-         *   supply = (totalSupply - _checkpoint.totalCleared) * step.mps / (ConstantsLib.MPS - _checkpoint.cumulativeMps)
-         * We are looking for R >= supply
-         *
-         * Observe that because of the inequality, we can multiply both sides by `(ConstantsLib.MPS - _checkpoint.cumulativeMps)` to get:
-         *   R * (ConstantsLib.MPS - _checkpoint.cumulativeMps) >= supply * mps
-         *
-         * Substituting R back into the equation to get:
-         *   (resolvedDemand * mps / ConstantsLib.MPS) * (ConstantsLib.MPS - _checkpoint.cumulativeMps) >= supply * mps
-         * Or,
-         *   (resolvedDemand * mps) * (ConstantsLib.MPS - _checkpoint.cumulativeMps)
-         *   ----------------------------------------------------------------- >= supply * mps
-         *                            ConstantsLib.MPS
-         * We can eliminate the `mps` term on both sides to get:
-         *   resolvedDemand * (ConstantsLib.MPS - _checkpoint.cumulativeMps)
-         *   ----------------------------------------------------------------- >= supply
-         *                            ConstantsLib.MPS
-         * And multiply both sides by `ConstantsLib.MPS` to remove the division entirely:
-         *   resolvedDemand * (ConstantsLib.MPS - _checkpoint.cumulativeMps) >= supply * ConstantsLib.MPS
-         *
-         * Conveniently, we are already tracking supply in terms of X7X7, which is already scaled up by ConstantsLib.MPS,
-         * so we can substitute in TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7) for `supply`:
-         *   resolvedDemand * (ConstantsLib.MPS - _checkpoint.cumulativeMps) >= TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
-         *
-         * Expand out resolvedDemand to get: resolvedDemand = currencyDemandX7 * Q96 / price;
-         * Move the price to the RHS to remove the division:
-         *   currencyDemandX7 * Q96 * (ConstantsLib.MPS - _checkpoint.cumulativeMps) >= TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7) * price
-         */
+
+        // mps term in numerator removed, cancels with demand on LHS
         while (
-            nextActiveTickPrice_ != type(uint256).max
-                && sumCurrencyDemandAboveClearingX7_.mulUint256(_REMAINING_MPS_IN_AUCTION).upcast().gte(
-                    _REMAINING_CURRENCY_RAISED_AT_FLOOR_X7_X7
-                )
+            nextActiveTickPrice_ != MAX_TICK_PTR
+            // Is the currency amount above `nextActiveTickPrice_` greater than the required currency at nextActiveTickPrice_?
+            && sumCurrencyDemandAboveClearingX7_.mulUint256(
+                _REMAINING_MPS_IN_AUCTION
+            ).mulUint256(FLOOR_PRICE).upcast().gte(
+                _REMAINING_CURRENCY_RAISED_AT_FLOOR_X7_X7.mulUint256(nextActiveTickPrice_)
+            )
         ) {
             // Subtract the demand at the current nextActiveTick from the total demand
+            console.log('while: nextActiveTickPrice_', nextActiveTickPrice_);
+            console.log('while: nextActiveTick.currencyDemandX7', ValueX7.unwrap(nextActiveTick.currencyDemandX7));
             sumCurrencyDemandAboveClearingX7_ = sumCurrencyDemandAboveClearingX7_.sub(nextActiveTick.currencyDemandX7);
+            console.log('while: sumCurrencyDemandAboveClearingX7_', ValueX7.unwrap(sumCurrencyDemandAboveClearingX7_));
             // Save the previous next active tick price
             minimumClearingPrice = nextActiveTickPrice_;
             // Advance to the next tick
@@ -340,10 +295,15 @@ contract Auction is
             $nextActiveTickPrice = nextActiveTickPrice_;
         }
 
+        console.log('minimumClearingPrice', minimumClearingPrice);
+        console.log('nextActiveTickPrice_', nextActiveTickPrice_);
+        console.log('sumCurrencyDemandAboveClearingX7_', ValueX7.unwrap(sumCurrencyDemandAboveClearingX7_));
+
         // Calculate the new clearing price
         uint256 clearingPrice = _calculateNewClearingPrice(
             sumCurrencyDemandAboveClearingX7_, _REMAINING_CURRENCY_RAISED_AT_FLOOR_X7_X7, _REMAINING_MPS_IN_AUCTION
         );
+        console.log('Clearing price', clearingPrice);
         // If the new clearing price is below the minimum clearing price return the minimum clearing price
         if (clearingPrice < minimumClearingPrice) return minimumClearingPrice;
         return clearingPrice;
@@ -595,6 +555,11 @@ contract Auction is
             tokensFilled += partialTokensFilled;
             currencySpent += partialCurrencySpent;
         }
+
+        console.log('tokensFilled', tokensFilled);
+        console.log('currencySpent', currencySpent);
+        console.log('bid.amount', bid.amount);
+        console.log('bid.amount - currencySpent', bid.amount - currencySpent);
 
         _processExit(bidId, bid, tokensFilled, bid.amount - currencySpent);
     }

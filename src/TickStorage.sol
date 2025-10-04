@@ -40,8 +40,8 @@ abstract contract TickStorage is ITickStorage {
         FLOOR_PRICE = _floorPrice;
         // Initialize the floor price as the first tick
         $_ticks[FLOOR_PRICE].next = MAX_TICK_PTR;
-        $nextActiveTickPrice = FLOOR_PRICE;
-        emit NextActiveTickUpdated(FLOOR_PRICE);
+        $nextActiveTickPrice = MAX_TICK_PTR;
+        emit NextActiveTickUpdated(MAX_TICK_PTR);
         emit TickInitialized(FLOOR_PRICE);
     }
 

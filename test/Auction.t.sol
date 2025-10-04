@@ -120,7 +120,9 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(block.number + 1);
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
-        ValueX7X7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().upcast().wrapAndFullMulDiv(tickNumberToPriceX96(2) * expectedCumulativeMps, FixedPoint96.Q96);
+        ValueX7X7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().upcast().wrapAndFullMulDiv(
+            tickNumberToPriceX96(2) * expectedCumulativeMps, FixedPoint96.Q96
+        );
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(
             block.number, tickNumberToPriceX96(2), expectedTotalCleared, expectedCumulativeMps
@@ -142,8 +144,9 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(block.number + 1);
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
-        ValueX7X7 expectedCurrencyRaised =
-            TOTAL_SUPPLY.scaleUpToX7().upcast().wrapAndFullMulDiv(tickNumberToPriceX96(2) * expectedCumulativeMps, FixedPoint96.Q96);
+        ValueX7X7 expectedCurrencyRaised = TOTAL_SUPPLY.scaleUpToX7().upcast().wrapAndFullMulDiv(
+            tickNumberToPriceX96(2) * expectedCumulativeMps, FixedPoint96.Q96
+        );
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(
             block.number, tickNumberToPriceX96(2), expectedCurrencyRaised, expectedCumulativeMps
@@ -183,8 +186,9 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(block.number + 1);
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
-        ValueX7X7 expectedCurrencyRaised =
-            TOTAL_SUPPLY.scaleUpToX7().upcast().wrapAndFullMulDiv(tickNumberToPriceX96(2) * expectedCumulativeMps, FixedPoint96.Q96);
+        ValueX7X7 expectedCurrencyRaised = TOTAL_SUPPLY.scaleUpToX7().upcast().wrapAndFullMulDiv(
+            tickNumberToPriceX96(2) * expectedCumulativeMps, FixedPoint96.Q96
+        );
         // New block, expect the clearing price to be updated and one block's worth of mps to be sold
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(
@@ -248,10 +252,14 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(auction.startBlock() + 101);
 
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
-        ValueX7X7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().upcast().wrapAndFullMulDiv(tickNumberToPriceX96(2) * expectedCumulativeMps, FixedPoint96.Q96);
+        ValueX7X7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().upcast().wrapAndFullMulDiv(
+            tickNumberToPriceX96(2) * expectedCumulativeMps, FixedPoint96.Q96
+        );
         // Now the auction should start clearing
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), expectedTotalCleared, expectedCumulativeMps);
+        emit IAuction.CheckpointUpdated(
+            block.number, tickNumberToPriceX96(2), expectedTotalCleared, expectedCumulativeMps
+        );
         auction.checkpoint();
 
         vm.roll(auction.endBlock());
@@ -297,10 +305,14 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(auction.startBlock() + 101);
 
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
-        ValueX7X7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().upcast().wrapAndFullMulDiv(tickNumberToPriceX96(2) * expectedCumulativeMps, FixedPoint96.Q96);
+        ValueX7X7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().upcast().wrapAndFullMulDiv(
+            tickNumberToPriceX96(1) * expectedCumulativeMps, FixedPoint96.Q96
+        );
         // Now the auction should start clearing
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), expectedTotalCleared, expectedCumulativeMps);
+        emit IAuction.CheckpointUpdated(
+            block.number, tickNumberToPriceX96(1), expectedTotalCleared, expectedCumulativeMps
+        );
         auction.checkpoint();
 
         vm.roll(auction.endBlock());
@@ -494,11 +506,15 @@ contract AuctionTest is AuctionBaseTest {
             bytes('')
         );
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
-        ValueX7X7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().upcast().wrapAndFullMulDiv(tickNumberToPriceX96(2) * expectedCumulativeMps, FixedPoint96.Q96);
+        ValueX7X7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().upcast().wrapAndFullMulDiv(
+            tickNumberToPriceX96(3) * expectedCumulativeMps, FixedPoint96.Q96
+        );
 
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(3), expectedTotalCleared, expectedCumulativeMps);
+        emit IAuction.CheckpointUpdated(
+            block.number, tickNumberToPriceX96(3), expectedTotalCleared, expectedCumulativeMps
+        );
         auction.checkpoint();
 
         uint256 aliceBalanceBefore = address(alice).balance;
@@ -543,8 +559,12 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
+        uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
+        ValueX7X7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().upcast().wrapAndFullMulDiv(
+            tickNumberToPriceX96(1) * expectedCumulativeMps, FixedPoint96.Q96
+        );
         emit IAuction.CheckpointUpdated(
-            block.number, tickNumberToPriceX96(1), TOTAL_SUPPLY.scaleUpToX7().upcast().mulUint256(100e3), 100e3
+            block.number, tickNumberToPriceX96(1), expectedTotalCleared, expectedCumulativeMps
         );
         auction.checkpoint();
 
@@ -605,21 +625,20 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitBid(bidId);
     }
 
-    function test_exitBid_alreadyExited_revertsWithBidAlreadyExited() public {
-        uint256 bidId = auction.submitBid{value: inputAmountForTokens(500e18, tickNumberToPriceX96(3))}(
-            tickNumberToPriceX96(3),
-            inputAmountForTokens(500e18, tickNumberToPriceX96(3)),
+    function test_exitPartiallyFilledBid_alreadyExited_revertsWithBidAlreadyExited() public {
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
         );
         vm.roll(auction.endBlock());
 
-        // The clearing price is at tick 1 which is below our clearing price so we can use `exitBid`
         vm.startPrank(alice);
-        auction.exitBid(bidId);
+        auction.exitPartiallyFilledBid(bidId, 1, 0);
         vm.expectRevert(IAuction.BidAlreadyExited.selector);
-        auction.exitBid(bidId);
+        auction.exitPartiallyFilledBid(bidId, 1, 0);
         vm.stopPrank();
     }
 
@@ -1105,8 +1124,12 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(auction.endBlock());
         // Expect the final checkpoint to be made
         vm.expectEmit(true, true, true, true);
+        uint24 expectedCumulativeMps = ConstantsLib.MPS;
+        ValueX7X7 expectedTotalCleared = TOTAL_SUPPLY.scaleUpToX7().upcast().wrapAndFullMulDiv(
+            tickNumberToPriceX96(2) * expectedCumulativeMps, FixedPoint96.Q96
+        );
         emit IAuction.CheckpointUpdated(
-            block.number, tickNumberToPriceX96(2), TOTAL_SUPPLY.scaleUpToX7().scaleUpToX7X7(), ConstantsLib.MPS
+            block.number, tickNumberToPriceX96(2), expectedTotalCleared, expectedCumulativeMps
         );
         // Checkpoint hints are:
         // - lower: 1 (last fully filled checkpoint)
@@ -1751,9 +1774,7 @@ contract AuctionTest is AuctionBaseTest {
         Auction auctionWithThreshold = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auctionWithThreshold), TOTAL_SUPPLY);
         auctionWithThreshold.onTokensReceived();
-        // Submit a bid for 50% of supply (above 30% threshold)
-        uint256 halfSupply = TOTAL_SUPPLY / 2;
-        uint256 inputAmount = inputAmountForTokens(halfSupply, tickNumberToPriceX96(2));
+        uint256 inputAmount = inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2));
         auctionWithThreshold.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );

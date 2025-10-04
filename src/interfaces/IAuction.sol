@@ -21,7 +21,6 @@ struct AuctionParameters {
     uint64 startBlock; // Block which the first step starts
     uint64 endBlock; // When the auction finishes
     uint64 claimBlock; // Block when the auction can claimed
-    uint24 graduationThresholdMps; // Minimum MPS (milli-bips) of tokens that must be sold to graduate the auction
     uint256 tickSpacing; // Fixed granularity for prices
     address validationHook; // Optional hook called before a bid
     uint256 floorPrice; // Starting floor price for the auction
@@ -139,7 +138,9 @@ interface IAuction is
     /// @return _checkpoint The checkpoint at the current block
     function checkpoint() external returns (Checkpoint memory _checkpoint);
 
-    /// @notice Whether the auction has sold more tokens than specified in the graduation threshold as of the latest checkpoint
+    /// @notice Whether the auction has graduated as of the given checkpoint
+    /// @dev The auction is considered `graudated` if the clearing price is greater than the floor price
+    ///      since that means it has sold all of the total supply of tokens.
     /// @dev Be aware that the latest checkpoint may be out of date
     /// @return bool True if the auction has graduated, false otherwise
     function isGraduated() external view returns (bool);

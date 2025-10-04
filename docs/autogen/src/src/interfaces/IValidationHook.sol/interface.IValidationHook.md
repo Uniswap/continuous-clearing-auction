@@ -1,5 +1,5 @@
 # IValidationHook
-[Git Source](https://github.com/Uniswap/twap-auction/blob/23d1996d53fc32e05713e0f370c3682331c7b03b/src/interfaces/IValidationHook.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/7481976d9a045c9df236ecc1331ce832ed4d18a0/src/interfaces/IValidationHook.sol)
 
 Interface for custom bid validation logic
 

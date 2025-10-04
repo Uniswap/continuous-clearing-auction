@@ -24,8 +24,6 @@ interface ITokenCurrencyStorage {
     error CannotSweepCurrency();
     /// @notice Error thrown when the tokens cannot be swept
     error CannotSweepTokens();
-    /// @notice Error thrown when the graduation threshold is invalid
-    error InvalidGraduationThresholdMps();
     /// @notice Error thrown when the auction has not graduated
     error NotGraduated();
     /// @notice Error thrown when the funds recipient data cannot be decoded
@@ -57,7 +55,4 @@ interface ITokenCurrencyStorage {
 
     /// @notice The recipient of the raised Currency from the auction
     function fundsRecipient() external view returns (address);
-
-    /// @notice The minimum portion (in MPS) of the total supply that must be sold
-    function graduationThresholdMps() external view returns (uint24);
 }

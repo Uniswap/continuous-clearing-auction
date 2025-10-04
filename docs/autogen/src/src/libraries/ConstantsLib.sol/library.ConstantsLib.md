@@ -1,5 +1,5 @@
 # ConstantsLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/59b7d659b3235f2d439f7b56a32e81cd862bcc31/src/libraries/ConstantsLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/371cb0f36b92bd941e1e8d26644b52a674dda04d/src/libraries/ConstantsLib.sol)
 
 Library containing protocol constants
 

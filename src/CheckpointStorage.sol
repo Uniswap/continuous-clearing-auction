@@ -118,12 +118,14 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         pure
         returns (uint256 tokensFilled, uint256 currencySpent)
     {
-        uint24 mpsRemainingInAuction = bid.mpsRemainingInAuction();
-        tokensFilled = bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsRemainingInAuction);
-        // If tokensFilled is 0 then currencySpent must be 0
-        if (tokensFilled != 0) {
-            currencySpent = bid.amount.fullMulDivUp(cumulativeMpsDelta, mpsRemainingInAuction);
-        }
+        uint24 mpsRemainingInAuctionAfterSubmission = bid.mpsRemainingInAuctionAfterSubmission();
+        // It's possible that bid.amount * cumulativeMpsPerPriceDelta is less than FixedPoint96.Q96 * mpsRemainingInAuction.
+        // That means the bid amount was too small to fill any tokens at the prices sold
+        tokensFilled =
+            bid.amount.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsRemainingInAuctionAfterSubmission);
+        // The currency spent is simply the original currency amount multiplied by the percentage of the auction which the bid was fully filled for
+        // and divided by the percentage of the auction which the bid was allocated over
+        currencySpent = bid.amount.fullMulDivUp(cumulativeMpsDelta, mpsRemainingInAuctionAfterSubmission);
     }
 
     /// @inheritdoc ICheckpointStorage

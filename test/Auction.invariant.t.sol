@@ -19,9 +19,10 @@ import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {Test} from 'forge-std/Test.sol';
+
+import {console} from 'forge-std/console.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {console} from 'forge-std/console.sol';
 
 contract AuctionInvariantHandler is Test, Assertions {
     using CurrencyLibrary for Currency;
@@ -264,11 +265,7 @@ contract AuctionInvariantTest is AuctionBaseTest {
             totalCurrencyRaised += bid.amount - refundAmount;
 
             // can never gain more Currency than provided
-            assertLe(
-                refundAmount,
-                bid.amount,
-                'Bid owner can never be refunded more Currency than provided'
-            );
+            assertLe(refundAmount, bid.amount, 'Bid owner can never be refunded more Currency than provided');
 
             // Bid might be deleted if tokensFilled = 0
             bid = getBid(bidId);
@@ -301,7 +298,9 @@ contract AuctionInvariantTest is AuctionBaseTest {
         emit log_named_decimal_uint('totalCurrencyRaised', totalCurrencyRaised, 18);
         emit log_named_decimal_uint('expectedCurrencyRaised', expectedCurrencyRaised, 18);
 
-        assertLe(expectedCurrencyRaised, address(auction).balance, 'Expected currency raised is greater than auction balance');
+        assertLe(
+            expectedCurrencyRaised, address(auction).balance, 'Expected currency raised is greater than auction balance'
+        );
 
         auction.sweepUnsoldTokens();
         if (auction.isGraduated()) {
@@ -310,9 +309,17 @@ contract AuctionInvariantTest is AuctionBaseTest {
             emit ITokenCurrencyStorage.CurrencySwept(auction.fundsRecipient(), expectedCurrencyRaised);
             auction.sweepCurrency();
             // Assert that the currency was swept and matches total currency raised
-            assertEq(expectedCurrencyRaised, totalCurrencyRaised, 'Expected currency raised does not match total currency raised');
+            assertEq(
+                expectedCurrencyRaised,
+                totalCurrencyRaised,
+                'Expected currency raised does not match total currency raised'
+            );
             // Assert that the funds recipient received the currency
-            assertEq(auction.fundsRecipient().balance, expectedCurrencyRaised, 'Funds recipient balance does not match expected currency raised');
+            assertEq(
+                auction.fundsRecipient().balance,
+                expectedCurrencyRaised,
+                'Funds recipient balance does not match expected currency raised'
+            );
         } else {
             vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
             auction.sweepCurrency();

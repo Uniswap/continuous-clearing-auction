@@ -98,6 +98,10 @@ interface IAuction is
         uint256 indexed blockNumber, uint256 clearingPrice, ValueX7X7 totalCurrencyRaisedX7X7, uint24 cumulativeMps
     );
 
+    /// @notice Emitted when the clearing price is updated
+    /// @param clearingPrice The new clearing price
+    event ClearingPriceUpdated(uint256 indexed blockNumber, uint256 clearingPrice);
+
     /// @notice Emitted when a bid is exited
     /// @param bidId The id of the bid
     /// @param owner The owner of the bid

@@ -124,7 +124,7 @@ contract AuctionTest is AuctionBaseTest {
         );
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(
-            block.number, tickNumberToPriceX96(2), expectedTotalCleared, expectedCumulativeMps
+            block.number, tickNumberToPriceX96(2), expectedTotalCurrencyRaised, expectedCumulativeMps
         );
         auction.checkpoint();
 
@@ -255,7 +255,7 @@ contract AuctionTest is AuctionBaseTest {
         // Now the auction should start clearing
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(
-            block.number, tickNumberToPriceX96(2), expectedTotalCleared, expectedCumulativeMps
+            block.number, tickNumberToPriceX96(2), expectedTotalCurrencyRaised, expectedCumulativeMps
         );
         auction.checkpoint();
 
@@ -308,7 +308,7 @@ contract AuctionTest is AuctionBaseTest {
             TOTAL_SUPPLY.scaleUpToX7().upcast().wrapAndFullMulDiv($maxPrice * expectedCumulativeMps, FixedPoint96.Q96);
         // Now the auction should start clearing
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, $maxPrice, expectedTotalCleared, expectedCumulativeMps);
+        emit IAuction.CheckpointUpdated(block.number, $maxPrice, expectedTotalCurrencyRaised, expectedCumulativeMps);
         auction.checkpoint();
 
         vm.roll(auction.endBlock());
@@ -510,7 +510,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
         emit IAuction.CheckpointUpdated(
-            block.number, tickNumberToPriceX96(3), expectedTotalCleared, expectedCumulativeMps
+            block.number, tickNumberToPriceX96(3), expectedTotalCurrencyRaised, expectedCumulativeMps
         );
         auction.checkpoint();
 
@@ -560,7 +560,7 @@ contract AuctionTest is AuctionBaseTest {
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
         ValueX7X7 expectedTotalCurrencyRaised =
             TOTAL_SUPPLY.scaleUpToX7().upcast().wrapAndFullMulDiv($maxPrice * expectedCumulativeMps, FixedPoint96.Q96);
-        emit IAuction.CheckpointUpdated(block.number, $maxPrice, expectedTotalCleared, expectedCumulativeMps);
+        emit IAuction.CheckpointUpdated(block.number, $maxPrice, expectedTotalCurrencyRaised, expectedCumulativeMps);
         auction.checkpoint();
 
         // Before the auction ends, the bid should not be exitable since it is at the clearing price
@@ -1141,7 +1141,7 @@ contract AuctionTest is AuctionBaseTest {
             tickNumberToPriceX96(2) * expectedCumulativeMps, FixedPoint96.Q96
         );
         emit IAuction.CheckpointUpdated(
-            block.number, tickNumberToPriceX96(2), expectedTotalCleared, expectedCumulativeMps
+            block.number, tickNumberToPriceX96(2), expectedTotalCurrencyRaised, expectedCumulativeMps
         );
         // Checkpoint hints are:
         // - lower: 1 (last fully filled checkpoint)
@@ -1302,15 +1302,6 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         // Expect the second step to be recorded
         emit IAuctionStepStorage.AuctionStepRecorded(step.endBlock, endBlock, 100e3);
-        vm.expectEmit(true, true, true, true);
-        // Expect 1 block to be have been cleared
-        emit IAuction.CheckpointUpdated(
-            block.number,
-            tickNumberToPriceX96(2),
-            // Instead of multiplying by 100e3 and dividing by MPS, we don't divide and upcast to X7X7
-            TOTAL_SUPPLY.scaleUpToX7().mulUint256(100e3).upcast(),
-            100e3
-        );
         mockAuction.checkpoint();
 
         // Roll to end of the auction
@@ -1318,7 +1309,12 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         // Expect that we sold the total supply at price of 2
         emit IAuction.CheckpointUpdated(
-            block.number, tickNumberToPriceX96(2), TOTAL_SUPPLY.scaleUpToX7().scaleUpToX7X7(), ConstantsLib.MPS
+            block.number,
+            tickNumberToPriceX96(2),
+            TOTAL_SUPPLY.scaleUpToX7().upcast().wrapAndFullMulDivUp(
+                tickNumberToPriceX96(2) * ConstantsLib.MPS, FixedPoint96.Q96
+            ),
+            ConstantsLib.MPS
         );
         mockAuction.checkpoint();
     }
@@ -1396,26 +1392,18 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         // Expect the second step to be recorded
         emit IAuctionStepStorage.AuctionStepRecorded(step.endBlock, endBlock, 300e3);
-        vm.expectEmit(true, true, true, true);
-        // Expect 1 block to be have been cleared
-        uint24 expectedCumulativeMps = 100e3 * 10 + 300e3;
-        ValueX7X7 expectedTotalCurrencyRaised =
-            TOTAL_SUPPLY.scaleUpToX7().upcast().wrapAndFullMulDiv(tickNumberToPriceX96(2) * 300e3, FixedPoint96.Q96);
-        emit IAuction.CheckpointUpdated(
-            block.number, tickNumberToPriceX96(2), expectedTotalCleared, expectedCumulativeMps
-        );
         mockAuction.checkpoint();
 
         // Roll to end of the auction
         vm.roll(endBlock);
         vm.expectEmit(true, true, true, true);
         // Expect that we sold the total supply at price of 2
-        expectedCumulativeMps = ConstantsLib.MPS;
-        expectedTotalCurrencyRaised = TOTAL_SUPPLY.scaleUpToX7().upcast().wrapAndFullMulDiv(
+        uint24 expectedCumulativeMps = ConstantsLib.MPS;
+        ValueX7X7 expectedTotalCurrencyRaised = TOTAL_SUPPLY.scaleUpToX7().upcast().wrapAndFullMulDivUp(
             tickNumberToPriceX96(2) * expectedCumulativeMps, FixedPoint96.Q96
         );
         emit IAuction.CheckpointUpdated(
-            startBlock + 40, tickNumberToPriceX96(2), expectedTotalCleared, expectedCumulativeMps
+            startBlock + 40, tickNumberToPriceX96(2), expectedTotalCurrencyRaised, expectedCumulativeMps
         );
         mockAuction.checkpoint();
     }

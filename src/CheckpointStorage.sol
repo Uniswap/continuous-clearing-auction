@@ -9,7 +9,6 @@ import {DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
-import {console} from 'forge-std/console.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 /// @title CheckpointStorage
 /// @notice Abstract contract for managing auction checkpoints and bid fill calculations
@@ -101,11 +100,9 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         ValueX7 currencySpentX7 = bidDemandX7.upcast().fullMulDivUp(
             cumulativeCurrencyRaisedAtClearingPriceX7X7, tickDemandX7.scaleUpToX7X7()
         ).downcast();
-
-        console.log('currencySpentX7', ValueX7.unwrap(currencySpentX7));
+        // Scale down the currency spent to a uint256
         currencySpent = currencySpentX7.scaleDownToUint256();
-        console.log('currencySpent', currencySpent);
-
+        // Use the X7 version of currency spent to calculate the tokens filled
         tokensFilled = currencySpentX7.wrapAndFullMulDiv(FixedPoint96.Q96, bidMaxPrice).scaleDownToUint256();
     }
 

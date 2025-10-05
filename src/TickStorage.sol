@@ -50,6 +50,11 @@ abstract contract TickStorage is ITickStorage {
     /// @param price The price of the tick
     /// @return The tick at the given price
     function getTick(uint256 price) public view returns (Tick memory) {
+        return _getTick(price);
+    }
+
+    /// @notice Internal function to get a tick at a price
+    function _getTick(uint256 price) internal view returns (Tick memory) {
         return $_ticks[price];
     }
 

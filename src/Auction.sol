@@ -22,8 +22,6 @@ import {SupplyLib, SupplyRolloverMultiplier} from './libraries/SupplyLib.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
-
-import {console} from 'forge-std/console.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
@@ -152,8 +150,9 @@ contract Auction is
                 cachedRemainingCurrencyRaisedX7X7 =
                     TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7.sub(_checkpoint.totalCurrencyRaisedX7X7);
                 // Set the cache with the values in _checkpoint, which represents the state of the auction before it becomes fully subscribed
-                $_supplyRolloverMultiplier =
-                    SupplyLib.packSupplyRolloverMultiplier(true, cachedRemainingPercentage, cachedRemainingCurrencyRaisedX7X7);
+                $_supplyRolloverMultiplier = SupplyLib.packSupplyRolloverMultiplier(
+                    true, cachedRemainingPercentage, cachedRemainingCurrencyRaisedX7X7
+                );
             }
             // The currency raised is equal to multiplying the ratio between actualized currency raised and expected
             // by the current clearing price, and the number of mps according to the original supply schedule
@@ -312,12 +311,12 @@ contract Auction is
          * by `(ConstantsLib.MPS - _checkpoint.cumulativeMps)` to get:
          *
          *   currencyRequiredAtNextActiveTickPrice * (ConstantsLib.MPS - _checkpoint.cumulativeMps)
-         *
+         * s
          *        >= (TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7 - totalCurrencyRaisedX7X7) * nextActiveTickPrice_
          *           --------------------------------------------------------------------------------------
          *                                            floorPrice
          */
-        Tick memory nextActiveTick = getTick(nextActiveTickPrice_);
+        Tick memory nextActiveTick = _getTick(nextActiveTickPrice_);
         while (
             nextActiveTickPrice_ != MAX_TICK_PTR
             // Loop while the currency amount above `nextActiveTickPrice_` is greater than the required currency at nextActiveTickPrice_
@@ -332,7 +331,7 @@ contract Auction is
             minimumClearingPrice = nextActiveTickPrice_;
             // Advance to the next tick
             nextActiveTickPrice_ = nextActiveTick.next;
-            nextActiveTick = getTick(nextActiveTickPrice_);
+            nextActiveTick = _getTick(nextActiveTickPrice_);
         }
         // Set the values into storage if we found a new next active tick price
         if (nextActiveTickPrice_ != $nextActiveTickPrice) {
@@ -588,7 +587,7 @@ contract Auction is
             (uint256 partialTokensFilled, uint256 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
                 upperCheckpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7,
                 bid.toEffectiveAmount().resolveRoundingDown(bidMaxPrice),
-                getTick(bidMaxPrice).currencyDemandX7.resolveRoundingUp(bidMaxPrice),
+                _getTick(bidMaxPrice).currencyDemandX7.resolveRoundingUp(bidMaxPrice),
                 bidMaxPrice
             );
             tokensFilled += partialTokensFilled;

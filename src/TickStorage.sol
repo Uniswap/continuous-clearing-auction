@@ -45,15 +45,13 @@ abstract contract TickStorage is ITickStorage {
         emit TickInitialized(FLOOR_PRICE);
     }
 
-    /// @notice Get a tick at a price
-    /// @dev The returned tick is not guaranteed to be initialized
-    /// @param price The price of the tick
-    /// @return The tick at the given price
+    /// @inheritdoc ITickStorage
     function getTick(uint256 price) public view returns (Tick memory) {
         return _getTick(price);
     }
 
     /// @notice Internal function to get a tick at a price
+    /// @dev The returned tick is not guaranteed to be initialized
     function _getTick(uint256 price) internal view returns (Tick memory) {
         return $_ticks[price];
     }

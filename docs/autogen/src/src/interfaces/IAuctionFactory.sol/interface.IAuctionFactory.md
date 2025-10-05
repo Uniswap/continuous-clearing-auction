@@ -1,5 +1,5 @@
 # IAuctionFactory
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4e79543472823ca4f19066f04f5392aba6563627/src/interfaces/IAuctionFactory.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ae5ec627b376e2746e108bdb684105b8397d2234/src/interfaces/IAuctionFactory.sol)
 
 **Inherits:**
 [IDistributionStrategy](/src/interfaces/external/IDistributionStrategy.sol/interface.IDistributionStrategy.md)
@@ -50,4 +50,13 @@ event AuctionCreated(address indexed auction, address token, uint256 amount, byt
 |`token`|`address`|The address of the token|
 |`amount`|`uint256`|The amount of tokens to sell|
 |`configData`|`bytes`|The configuration data for the auction|
+
+## Errors
+### InvalidAmount
+Error thrown when the amount is invalid
+
+
+```solidity
+error InvalidAmount(uint256 amount);
+```
 

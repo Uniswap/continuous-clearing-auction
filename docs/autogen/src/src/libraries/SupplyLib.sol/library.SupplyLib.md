@@ -1,7 +1,7 @@
 # SupplyLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/371cb0f36b92bd941e1e8d26644b52a674dda04d/src/libraries/SupplyLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ae5ec627b376e2746e108bdb684105b8397d2234/src/libraries/SupplyLib.sol)
 
-Library for supply related functions
+Library for supply related fsunctions
 
 
 ## State Variables
@@ -40,19 +40,10 @@ uint256 private constant REMAINING_SUPPLY_MASK = (1 << 231) - 1;
 ```
 
 
-### MAX_REMAINING_SUPPLY
+### MAX_REMAINING_CURRENCY_RAISED
 
 ```solidity
-uint256 public constant MAX_REMAINING_SUPPLY = REMAINING_SUPPLY_MASK;
-```
-
-
-### MAX_TOTAL_SUPPLY
-The maximum total supply of tokens than can be sold in the auction
-
-
-```solidity
-uint256 public constant MAX_TOTAL_SUPPLY = MAX_REMAINING_SUPPLY / ValueX7Lib.X7 ** 2;
+uint256 public constant MAX_REMAINING_CURRENCY_RAISED = REMAINING_SUPPLY_MASK;
 ```
 
 
@@ -79,11 +70,11 @@ function toX7X7(uint256 totalSupply) internal pure returns (ValueX7X7);
 Pack values into a SupplyRolloverMultiplier
 
 *This function does NOT check that `remainingSupplyX7X7` fits in 231 bits.
-TOTAL_SUPPLY_X7_X7, which bounds the value of `remainingSupplyX7X7`, must be validated.*
+TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7, which bounds the value of `remainingCurrencyRaisedX7X7`, must be validated.*
 
 
 ```solidity
-function packSupplyRolloverMultiplier(bool set, uint24 remainingMps, ValueX7X7 remainingSupplyX7X7)
+function packSupplyRolloverMultiplier(bool set, uint24 remainingPercentage, ValueX7X7 remainingCurrencyRaisedX7X7)
     internal
     pure
     returns (SupplyRolloverMultiplier);
@@ -93,8 +84,8 @@ function packSupplyRolloverMultiplier(bool set, uint24 remainingMps, ValueX7X7 r
 |Name|Type|Description|
 |----|----|-----------|
 |`set`|`bool`|Boolean flag indicating if the value is set which only happens after the auction becomes fully subscribed, at which point the supply schedule becomes deterministic based on the future supply schedule|
-|`remainingMps`|`uint24`|The remaining MPS value|
-|`remainingSupplyX7X7`|`ValueX7X7`|The remaining supply value|
+|`remainingPercentage`|`uint24`|The remaining percentage of the auction|
+|`remainingCurrencyRaisedX7X7`|`ValueX7X7`|The remaining currency which will be raised|
 
 **Returns**
 

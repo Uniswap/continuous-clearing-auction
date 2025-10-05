@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c968c963f6b2d0d8603af50fad60d232a645daef/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ae5ec627b376e2746e108bdb684105b8397d2234/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
@@ -87,7 +87,10 @@ function checkpoint() external returns (Checkpoint memory _checkpoint);
 
 ### isGraduated
 
-Whether the auction has sold more tokens than specified in the graduation threshold as of the latest checkpoint
+Whether the auction has graduated as of the given checkpoint
+
+*The auction is considered `graudated` if the clearing price is greater than the floor price
+since that means it has sold all of the total supply of tokens.*
 
 *Be aware that the latest checkpoint may be out of date*
 
@@ -244,7 +247,7 @@ Emitted when a new checkpoint is created
 
 ```solidity
 event CheckpointUpdated(
-    uint256 indexed blockNumber, uint256 clearingPrice, ValueX7X7 totalClearedX7X7, uint24 cumulativeMps
+    uint256 indexed blockNumber, uint256 clearingPrice, ValueX7X7 totalCurrencyRaisedX7X7, uint24 cumulativeMps
 );
 ```
 
@@ -254,7 +257,7 @@ event CheckpointUpdated(
 |----|----|-----------|
 |`blockNumber`|`uint256`|The block number of the checkpoint|
 |`clearingPrice`|`uint256`|The clearing price of the checkpoint|
-|`totalClearedX7X7`|`ValueX7X7`|The total amount of tokens cleared|
+|`totalCurrencyRaisedX7X7`|`ValueX7X7`|The total currency raised|
 |`cumulativeMps`|`uint24`|The cumulative percentage of total tokens allocated across all previous steps, represented in ten-millionths of the total supply (1e7 = 100%)|
 
 ### BidExited
@@ -305,6 +308,22 @@ Error thrown when not enough amount is deposited
 
 ```solidity
 error InvalidAmount();
+```
+
+### BidAmountTooSmall
+Error thrown when the bid amount is too small
+
+
+```solidity
+error BidAmountTooSmall();
+```
+
+### BidAmountTooLarge
+Error thrown when the bid amount is over ConstantsLib.X7X7_UPPER_BOUND
+
+
+```solidity
+error BidAmountTooLarge();
 ```
 
 ### CurrencyIsNotNative
@@ -417,6 +436,14 @@ Error thrown when a new bid is less than or equal to the clearing price
 
 ```solidity
 error InvalidBidPrice();
+```
+
+### InvalidBidUnableToClear
+Error thrown when the bid is too large
+
+
+```solidity
+error InvalidBidUnableToClear();
 ```
 
 ### AuctionSoldOut

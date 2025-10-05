@@ -1,5 +1,5 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/7481976d9a045c9df236ecc1331ce832ed4d18a0/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ae5ec627b376e2746e108bdb684105b8397d2234/src/TickStorage.sol)
 
 **Inherits:**
 [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
@@ -46,12 +46,12 @@ uint256 internal immutable TICK_SPACING;
 ```
 
 
-### MAX_TICK_PRICE
-Sentinel value for the next value of the highest tick in the book
+### MAX_TICK_PTR
+Sentinel value for the next pointer of the highest tick in the book
 
 
 ```solidity
-uint256 public constant MAX_TICK_PRICE = type(uint256).max;
+uint256 public constant MAX_TICK_PTR = type(uint256).max;
 ```
 
 
@@ -85,6 +85,17 @@ function getTick(uint256 price) public view returns (Tick memory);
 |----|----|-----------|
 |`<none>`|`Tick`|The tick at the given price|
 
+
+### _getTick
+
+Internal function to get a tick at a price
+
+*The returned tick is not guaranteed to be initialized*
+
+
+```solidity
+function _getTick(uint256 price) internal view returns (Tick memory);
+```
 
 ### _initializeTickIfNeeded
 

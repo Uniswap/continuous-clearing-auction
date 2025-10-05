@@ -352,7 +352,8 @@ contract Auction is
         return clearingPrice;
     }
 
-    /// @notice Internal function for checkpointing at a specific block number
+    /// @notice Internal function for checkpointing at a specific block number. 
+    ///         Called unsafe because no validation is done on the provided blockNumber
     /// @dev This updates the state of the auction accounting for the bids placed after the last checkpoint
     ///      Checkpoints are created at the top of each block with a new bid and does NOT include that bid
     ///      Because of this, we need to calculate what the new state of the Auction should be before updating

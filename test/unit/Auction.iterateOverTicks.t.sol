@@ -8,7 +8,6 @@ import {Checkpoint} from '../../src/CheckpointStorage.sol';
 import {BidLib} from '../../src/libraries/BidLib.sol';
 import {CheckpointLib} from '../../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
-import {DemandLib} from '../../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../../src/libraries/ValueX7X7Lib.sol';
@@ -21,7 +20,6 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 contract AuctionIterateOverTicksTest is AuctionUnitTest {
     using ValueX7Lib for *;
     using ValueX7X7Lib for *;
-    using DemandLib for ValueX7;
     using BidLib for Bid;
     using FixedPointMathLib for uint256;
     using CheckpointLib for Checkpoint;

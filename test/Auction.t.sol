@@ -933,9 +933,11 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_onTokensReceived_repeatedCall_succeeds() public {
+        address bob = makeAddr('bob');
+        uint256 balance = token.balanceOf(address(auction));
         vm.prank(address(auction));
         // Unset the balance of the auction
-        token.transfer(address(0), token.balanceOf(address(auction)));
+        token.transfer(bob, balance);
         // No revert happens, no event is emitted
         auction.onTokensReceived();
     }

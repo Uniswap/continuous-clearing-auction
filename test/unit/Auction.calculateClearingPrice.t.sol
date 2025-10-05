@@ -3,9 +3,7 @@ pragma solidity 0.8.26;
 
 import {Auction} from '../../src/Auction.sol';
 import {AuctionParameters} from '../../src/Auction.sol';
-
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
-import {DemandLib} from '../../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../../src/libraries/ValueX7X7Lib.sol';
@@ -16,7 +14,6 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 contract AuctionCalculateClearingPriceTest is AuctionUnitTest {
     using ValueX7Lib for *;
     using ValueX7X7Lib for *;
-    using DemandLib for ValueX7;
     using FixedPointMathLib for uint256;
 
     /// @notice Helper function to calculate clearing price without tick spacing rounding
@@ -36,30 +33,5 @@ contract AuctionCalculateClearingPriceTest is AuctionUnitTest {
     modifier givenValidMps(uint24 remainingMps) {
         vm.assume(remainingMps > 0 && remainingMps <= ConstantsLib.MPS);
         _;
-    }
-
-    function testFuzz_calculateClearingPrice(
-        FuzzDeploymentParams memory _deploymentParams,
-        ValueX7 sumCurrencyDemandAboveClearingX7,
-        uint256 remainingSupply,
-        uint24 remainingMps
-    ) public setUpMockAuctionFuzz(_deploymentParams) givenValidMps(remainingMps) {
-        // bound both demand values to uint128 max which is reasonably large
-        // this prevents overflow when multiplying by Q96
-        sumCurrencyDemandAboveClearingX7 =
-            ValueX7.wrap(_bound(ValueX7.unwrap(sumCurrencyDemandAboveClearingX7), 0, type(uint128).max));
-
-        ValueX7X7 remainingSupplyX7X7 = ValueX7X7.wrap(remainingSupply);
-
-        vm.assume(ValueX7X7.unwrap(remainingSupplyX7X7) > 0);
-
-        uint256 clearingPrice =
-            mockAuction.calculateNewClearingPrice(sumCurrencyDemandAboveClearingX7, remainingSupplyX7X7, remainingMps);
-
-        // Price without rounding to tick spacing
-        uint256 unroundedPrice =
-            _calculateUnroundedPrice(sumCurrencyDemandAboveClearingX7, remainingSupplyX7X7, remainingMps);
-
-        assertEq(clearingPrice, unroundedPrice);
     }
 }

@@ -22,11 +22,14 @@ contract MockAuction is Auction {
 
     /// @notice Wrapper around internal function for testing
     function calculateNewClearingPrice(
+        uint256 tickLowerPrice,
         ValueX7 sumCurrencyDemandAboveClearingX7,
         ValueX7X7 remainingSupplyX7X7,
         uint24 remainingMpsInAuction
     ) external view returns (uint256) {
-        return _calculateNewClearingPrice(sumCurrencyDemandAboveClearingX7, remainingSupplyX7X7, remainingMpsInAuction);
+        return _calculateNewClearingPrice(
+            tickLowerPrice, sumCurrencyDemandAboveClearingX7, remainingSupplyX7X7, remainingMpsInAuction
+        );
     }
 
     /// @notice Wrapper around internal function for testing

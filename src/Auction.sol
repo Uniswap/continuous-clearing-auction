@@ -219,18 +219,48 @@ contract Auction is
     }
 
     /// @notice Calculate the new clearing price, given the cumulative demand and the remaining supply in the auction
+    /// @param _tickLowerPrice The price of the tick which we know we have enough demand to clear
+    /// @param _sumCurrencyDemandAboveClearingX7 The cumulative demand above the clearing price
+    /// @param _cachedRemainingCurrencyRaisedX7X7 The cached remaining currency raised at the floor price
+    /// @param _cachedRemainingMps The cached remaining mps in the auction
+    /// @return The new clearing price
     function _calculateNewClearingPrice(
+        uint256 _tickLowerPrice,
         ValueX7 _sumCurrencyDemandAboveClearingX7,
         ValueX7X7 _cachedRemainingCurrencyRaisedX7X7,
-        uint24 _remainingMpsInAuction
+        uint24 _cachedRemainingMps
     ) internal view returns (uint256) {
+        /**
+         * We can calculate the new clearing price using the formula:
+         * currency demand above tick lower * tickLowerPrice
+         * -------------------------------------------------
+         * required currency at tick lower
+         *
+         * Remembering that we can find the required currency at tick lower by using the
+         * scaling factory of cachedRemainingCurrencyRaisedX7X7 and cachedRemainingMps,
+         * multiplying that by the tickLowerPrice and dividing by the floorPrice.
+         *
+         * Substituting that in, and multiplying by the reciprical we get:
+         *                                                                _cachedRemainingMps * floorPrice
+         * currency demand above tick lower * tickLowerPrice  * ---------------------------------------------------
+         *                                                      _cachedRemainingCurrencyRaisedX7X7 * tickLowerPrice
+         *
+         * Observe that we can cancel out the tickLowerPrice from the numerator and denominator,
+         * and we already have currency demand above tick lower from our iteration over ticks, leaving us with:
+         *
+         * sumCurrencyDemandAboveClearingX7 * floorPrice * _cachedRemainingMps
+         *    -------------------------------------------------
+         *              _cachedRemainingCurrencyRaisedX7X7
+         *
+         * The result of this may be lower than tickLowerPrice. That just means that we can't clear at any price above.
+         * And we should clear at tickLowerPrice instead.
+         */
         uint256 clearingPrice = ValueX7.unwrap(
             _sumCurrencyDemandAboveClearingX7.fullMulDivUp(
-                ValueX7.wrap(uint256(_remainingMpsInAuction) * FLOOR_PRICE),
-                _cachedRemainingCurrencyRaisedX7X7.downcast()
+                ValueX7.wrap(uint256(_cachedRemainingMps) * FLOOR_PRICE), _cachedRemainingCurrencyRaisedX7X7.downcast()
             )
         );
-
+        if (clearingPrice < _tickLowerPrice) return _tickLowerPrice;
         return clearingPrice;
     }
 
@@ -347,10 +377,11 @@ contract Auction is
 
         // Calculate the new clearing price
         uint256 clearingPrice = _calculateNewClearingPrice(
-            sumCurrencyDemandAboveClearingX7_, _REMAINING_CURRENCY_RAISED_AT_FLOOR_X7_X7, _REMAINING_MPS_IN_AUCTION
+            minimumClearingPrice,
+            sumCurrencyDemandAboveClearingX7_,
+            _REMAINING_CURRENCY_RAISED_AT_FLOOR_X7_X7,
+            _REMAINING_MPS_IN_AUCTION
         );
-        // If the new clearing price is below the minimum clearing price return the minimum clearing price
-        if (clearingPrice < minimumClearingPrice) return minimumClearingPrice;
         return clearingPrice;
     }
 
@@ -605,19 +636,52 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function claimTokens(uint256 bidId) external {
-        Bid memory bid = _getBid(bidId);
-        if (bid.exitedBlock == 0) revert BidNotExited();
+    function claimTokens(uint256 _bidId) external {
         if (block.number < CLAIM_BLOCK) revert NotClaimable();
         if (!_isGraduated(_getFinalCheckpoint())) revert NotGraduated();
 
-        uint256 tokensFilled = bid.tokensFilled;
+        (address owner, uint256 tokensFilled) = _internalClaimTokens(_bidId);
+        Currency.wrap(address(TOKEN)).transfer(owner, tokensFilled);
+
+        emit TokensClaimed(_bidId, owner, tokensFilled);
+    }
+
+    /// @inheritdoc IAuction
+    function claimTokensBatch(address _owner, uint256[] calldata _bidIds) external {
+        if (block.number < CLAIM_BLOCK) revert NotClaimable();
+        if (!_isGraduated(_getFinalCheckpoint())) revert NotGraduated();
+
+        uint256 tokensFilled = 0;
+        for (uint256 i = 0; i < _bidIds.length; i++) {
+            (address bidOwner, uint256 bidTokensFilled) = _internalClaimTokens(_bidIds[i]);
+
+            if (bidOwner != _owner) {
+                revert BatchClaimDifferentOwner(_owner, bidOwner);
+            }
+
+            tokensFilled += bidTokensFilled;
+
+            emit TokensClaimed(_bidIds[i], bidOwner, bidTokensFilled);
+        }
+
+        Currency.wrap(address(TOKEN)).transfer(_owner, tokensFilled);
+    }
+
+    /// @notice Internal function to claim tokens for a single bid
+    /// @param bidId The id of the bid
+    /// @return owner The owner of the bid
+    /// @return tokensFilled The amount of tokens filled
+    function _internalClaimTokens(uint256 bidId) internal returns (address owner, uint256 tokensFilled) {
+        Bid memory bid = _getBid(bidId);
+        if (bid.exitedBlock == 0) revert BidNotExited();
+
+        // Set return values
+        owner = bid.owner;
+        tokensFilled = bid.tokensFilled;
+
+        // Set the tokens filled to 0
         bid.tokensFilled = 0;
         _updateBid(bidId, bid);
-
-        Currency.wrap(address(TOKEN)).transfer(bid.owner, tokensFilled);
-
-        emit TokensClaimed(bidId, bid.owner, tokensFilled);
     }
 
     /// @inheritdoc IAuction

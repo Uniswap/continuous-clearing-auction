@@ -26,7 +26,6 @@ import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {FuzzBid, FuzzDeploymentParams} from './utils/FuzzStructs.sol';
 import {MockAuction} from './utils/MockAuction.sol';
 import {MockFundsRecipient} from './utils/MockFundsRecipient.sol';
-import {MockToken} from './utils/MockToken.sol';
 import {MockValidationHook} from './utils/MockValidationHook.sol';
 import {TickBitmap, TickBitmapLib} from './utils/TickBitmap.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
@@ -36,6 +35,8 @@ import {console} from 'forge-std/console.sol';
 import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
+
+import {Checkpoint} from 'src/CheckpointStorage.sol';
 
 contract AuctionTest is AuctionBaseTest {
     using FixedPointMathLib for uint256;
@@ -1644,14 +1645,16 @@ contract AuctionTest is AuctionBaseTest {
         vm.stopPrank();
     }
 
-    function test_claimTokens_beforeBidExited_reverts() public {
+    function test_claimTokens_beforeBidExited_reverts(uint256 _bidAmount, uint256 _maxPrice)
+        public
+        givenValidMaxPrice(_maxPrice)
+        givenValidBidAmount(_bidAmount)
+        givenGraduatedAuction
+        givenFullyFundedAccount
+    {
         // Submit a bid but don't exit it
-        uint256 bidId = auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
-            tickNumberToPriceX96(2),
-            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
-            alice,
-            tickNumberToPriceX96(1),
-            bytes('')
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens($bidAmount, $maxPrice)}(
+            $maxPrice, inputAmountForTokens($bidAmount, $maxPrice), alice, tickNumberToPriceX96(1), bytes('')
         );
 
         // Try to claim tokens before the bid has been exited
@@ -1692,10 +1695,7 @@ contract AuctionTest is AuctionBaseTest {
         givenGraduatedAuction
         givenFullyFundedAccount
     {
-        MockToken failingToken = new MockToken();
-        Auction failingAuction = new Auction(address(failingToken), TOTAL_SUPPLY, params);
-        failingToken.mint(address(failingAuction), TOTAL_SUPPLY);
-        failingAuction.onTokensReceived();
+        Auction failingAuction = helper__deployAuctionWithFailingToken();
 
         uint256 bidId = failingAuction.submitBid{value: inputAmountForTokens($bidAmount, $maxPrice)}(
             $maxPrice, inputAmountForTokens($bidAmount, $maxPrice), alice, tickNumberToPriceX96(1), bytes('')
@@ -1708,6 +1708,195 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.expectRevert(CurrencyLibrary.ERC20TransferFailed.selector);
         failingAuction.claimTokens(bidId);
+    }
+
+    function helper__submitBid(Auction _auction, address _owner, uint128 _amount, uint256 _maxPrice)
+        internal
+        returns (uint256)
+    {
+        return _auction.submitBid{value: inputAmountForTokens(_amount, _maxPrice)}(
+            _maxPrice, inputAmountForTokens(_amount, _maxPrice), _owner, tickNumberToPriceX96(1), bytes('')
+        );
+    }
+
+    /// @notice Helper to submit N number of bids at the same amount and max price
+    function helper__submitNBids(
+        Auction _auction,
+        address _owner,
+        uint256 _amount,
+        uint128 _numberOfBids,
+        uint256 _maxPrice
+    ) internal returns (uint256[] memory) {
+        // Split the amount between the bids
+        uint256 amountPerBid = _amount / _numberOfBids;
+
+        uint256[] memory bids = new uint256[](_numberOfBids);
+        for (uint256 i = 0; i < _numberOfBids; i++) {
+            bids[i] = helper__submitBid(_auction, _owner, uint128(amountPerBid), _maxPrice);
+        }
+        return bids;
+    }
+
+    function test_claimTokensBatch_notGraduated_reverts(uint256 _bidAmount, uint128 _numberOfBids, uint256 _maxPrice)
+        public
+        givenValidMaxPrice(_maxPrice)
+        givenNotGraduatedAuction(_bidAmount)
+        givenFullyFundedAccount
+    {
+        // Dont do too many bids
+        _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
+        // Prevent round to zero
+        vm.assume($bidAmount > _numberOfBids);
+
+        uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids, $maxPrice);
+
+        // Exit the bid
+        vm.roll(auction.endBlock());
+        for (uint256 i = 0; i < _numberOfBids; i++) {
+            auction.exitBid(bids[i]);
+        }
+
+        // Go back to before the claim block
+        vm.roll(auction.claimBlock() - 1);
+
+        // Try to claim tokens before the claim block
+        vm.expectRevert(IAuction.NotClaimable.selector);
+        auction.claimTokensBatch(alice, bids);
+    }
+
+    function test_claimTokensBatch_notSameOwner_reverts(uint256 _bidAmount, uint256 _maxPrice)
+        public
+        givenValidMaxPrice(_maxPrice)
+        givenValidBidAmount(_bidAmount)
+        givenGraduatedAuction
+        givenFullyFundedAccount
+    {
+        uint256 bidId0 = helper__submitBid(auction, alice, uint128($bidAmount), $maxPrice);
+        uint256 bidId1 = helper__submitBid(auction, bob, uint128($bidAmount), $maxPrice);
+
+        vm.roll(auction.endBlock());
+        auction.exitPartiallyFilledBid(bidId0, 1, 0);
+        auction.exitPartiallyFilledBid(bidId1, 1, 0);
+
+        uint256[] memory bids = new uint256[](2);
+        bids[0] = bidId0;
+        bids[1] = bidId1;
+
+        vm.roll(auction.claimBlock());
+        vm.expectRevert(abi.encodeWithSelector(IAuction.BatchClaimDifferentOwner.selector, alice, bob));
+        auction.claimTokensBatch(alice, bids);
+    }
+
+    function test_claimTokensBatch_beforeBidExited_reverts(uint128 _bidAmount, uint128 _numberOfBids, uint256 _maxPrice)
+        public
+        givenValidMaxPrice(_maxPrice)
+        givenValidBidAmount(_bidAmount)
+        givenGraduatedAuction
+        givenFullyFundedAccount
+    {
+        _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
+
+        uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids, $maxPrice);
+
+        vm.roll(auction.claimBlock());
+        vm.expectRevert(IAuction.BidNotExited.selector);
+        auction.claimTokensBatch(alice, bids);
+    }
+
+    /// forge-config: default.fuzz.runs = 1000
+    /// forge-config: ci.fuzz.runs = 1000
+    function test_claimTokensBatch_beforeClaimBlock_reverts(
+        uint256 _bidAmount,
+        uint128 _numberOfBids,
+        uint256 _maxPrice
+    )
+        public
+        givenValidMaxPrice(_maxPrice)
+        givenValidBidAmount(_bidAmount)
+        givenGraduatedAuction
+        givenFullyFundedAccount
+    {
+        _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
+        // Because each bid will be a little less due to rounding
+        $bidAmount = _bound($bidAmount, TOTAL_SUPPLY + _numberOfBids, helper_getMaxBidAmountAtMaxPrice());
+
+        uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids, $maxPrice);
+        emit log_named_uint('block number', block.number);
+
+        vm.roll(auction.endBlock());
+        for (uint256 i = 0; i < _numberOfBids; i++) {
+            // All bids are at the same price
+            auction.exitPartiallyFilledBid(bids[i], 1, 0);
+        }
+
+        vm.roll(auction.claimBlock() - 1);
+        vm.expectRevert(IAuction.NotClaimable.selector);
+        auction.claimTokensBatch(alice, bids);
+    }
+
+    /// forge-config: default.fuzz.runs = 1000
+    /// forge-config: ci.fuzz.runs = 1000
+    function test_claimTokensBatch_tokenTransferFails_reverts(
+        uint256 _bidAmount,
+        uint128 _numberOfBids,
+        uint256 _maxPrice
+    )
+        public
+        givenValidMaxPrice(_maxPrice)
+        givenValidBidAmount(_bidAmount)
+        givenGraduatedAuction
+        givenFullyFundedAccount
+    {
+        _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
+        // Because each bid will be a little less due to rounding
+        $bidAmount = _bound($bidAmount, TOTAL_SUPPLY + _numberOfBids, helper_getMaxBidAmountAtMaxPrice());
+
+        Auction failingAuction = helper__deployAuctionWithFailingToken();
+
+        uint256[] memory bids = helper__submitNBids(failingAuction, alice, $bidAmount, _numberOfBids, $maxPrice);
+
+        vm.roll(failingAuction.endBlock() + 1);
+        for (uint256 i = 0; i < _numberOfBids; i++) {
+            failingAuction.exitPartiallyFilledBid(bids[i], 1, 0);
+        }
+
+        vm.roll(failingAuction.claimBlock());
+        vm.expectRevert(CurrencyLibrary.ERC20TransferFailed.selector);
+        failingAuction.claimTokensBatch(alice, bids);
+    }
+
+    /// forge-config: default.fuzz.runs = 1000
+    /// forge-config: ci.fuzz.runs = 1000
+    function test_claimTokensBatch_succeeds(uint256 _bidAmount, uint128 _numberOfBids, uint256 _maxPrice)
+        public
+        givenValidMaxPrice(_maxPrice)
+        givenValidBidAmount(_bidAmount)
+        givenGraduatedAuction
+        givenFullyFundedAccount
+    {
+        _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
+        // Because each bid will be a little less due to rounding
+        $bidAmount = _bound($bidAmount, TOTAL_SUPPLY + _numberOfBids, helper_getMaxBidAmountAtMaxPrice());
+
+        uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids, $maxPrice);
+
+        vm.roll(auction.endBlock());
+        for (uint256 i = 0; i < _numberOfBids; i++) {
+            auction.exitPartiallyFilledBid(bids[i], 1, 0);
+        }
+
+        // All bids should clear the same number of tokens
+        Bid memory bid = auction.bids(bids[0]);
+        uint256 amountClearedPerBid = bid.tokensFilled;
+
+        vm.roll(auction.claimBlock());
+        vm.expectEmit(true, true, true, true);
+        for (uint256 i = 0; i < _numberOfBids; i++) {
+            emit IAuction.TokensClaimed(bids[i], alice, amountClearedPerBid);
+        }
+        auction.claimTokensBatch(alice, bids);
+
+        assertEq(token.balanceOf(alice), amountClearedPerBid * _numberOfBids);
     }
 
     function test_sweepCurrency_beforeAuctionEnds_reverts() public {

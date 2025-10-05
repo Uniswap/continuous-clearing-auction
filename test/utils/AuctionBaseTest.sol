@@ -17,6 +17,8 @@ import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
 import {FuzzBid, FuzzDeploymentParams} from './FuzzStructs.sol';
 import {MockFundsRecipient} from './MockFundsRecipient.sol';
+
+import {MockToken} from './MockToken.sol';
 import {TickBitmap, TickBitmapLib} from './TickBitmap.sol';
 import {TokenHandler} from './TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
@@ -44,6 +46,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     uint256 public constant MAX_TOTAL_CLEARED_PRECISION_LOSS = 1;
 
     address public alice;
+    address public bob;
     address public tokensRecipient;
     address public fundsRecipient;
     MockFundsRecipient public mockFundsRecipient;
@@ -284,6 +287,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         setUpTokens();
 
         alice = makeAddr('alice');
+        bob = makeAddr('bob');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
         mockFundsRecipient = new MockFundsRecipient();
@@ -306,6 +310,28 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         auction.onTokensReceived();
     }
 
+    function helper__deployAuctionWithFailingToken() internal returns (Auction) {
+        MockToken failingToken = new MockToken();
+
+        bytes memory failingAuctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
+        AuctionParameters memory failingParams = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            FLOOR_PRICE
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION + 10).withAuctionStepsData(failingAuctionStepsData);
+
+        Auction failingAuction = new Auction(address(failingToken), TOTAL_SUPPLY, failingParams);
+        failingToken.mint(address(failingAuction), TOTAL_SUPPLY);
+        failingAuction.onTokensReceived();
+
+        return failingAuction;
+    }
+
+    function helper_getMaxBidAmountAtMaxPrice() internal view returns (uint256) {
+        require($maxPrice > 0, 'Max price is not set in test yet');
+        return BidLib.MAX_BID_AMOUNT / $maxPrice;
+    }
+
     modifier givenValidMaxPrice(uint256 _maxPrice) {
         _maxPrice = _bound(_maxPrice, FLOOR_PRICE, BidLib.MAX_BID_PRICE);
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, TICK_SPACING);
@@ -315,21 +341,21 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     }
 
     modifier givenValidBidAmount(uint256 _bidAmount) {
-        if (BidLib.MIN_BID_AMOUNT <= BidLib.MAX_BID_AMOUNT / $maxPrice) {
+        if (BidLib.MIN_BID_AMOUNT <= helper_getMaxBidAmountAtMaxPrice()) {
             $bidAmount = BidLib.MIN_BID_AMOUNT;
         } else {
-            vm.assume(BidLib.MIN_BID_AMOUNT < BidLib.MAX_BID_AMOUNT / $maxPrice);
-            $bidAmount = _bound(_bidAmount, BidLib.MIN_BID_AMOUNT, BidLib.MAX_BID_AMOUNT / $maxPrice);
+            vm.assume(BidLib.MIN_BID_AMOUNT < helper_getMaxBidAmountAtMaxPrice());
+            $bidAmount = _bound(_bidAmount, BidLib.MIN_BID_AMOUNT, helper_getMaxBidAmountAtMaxPrice());
         }
         _;
     }
 
     modifier givenGraduatedAuction() {
-        if (TOTAL_SUPPLY <= BidLib.MAX_BID_AMOUNT / $maxPrice) {
+        if (TOTAL_SUPPLY <= helper_getMaxBidAmountAtMaxPrice()) {
             $bidAmount = TOTAL_SUPPLY;
         } else {
-            vm.assume(TOTAL_SUPPLY < BidLib.MAX_BID_AMOUNT / $maxPrice);
-            $bidAmount = _bound($bidAmount, TOTAL_SUPPLY, BidLib.MAX_BID_AMOUNT / $maxPrice);
+            vm.assume(TOTAL_SUPPLY < helper_getMaxBidAmountAtMaxPrice());
+            $bidAmount = _bound($bidAmount, TOTAL_SUPPLY, helper_getMaxBidAmountAtMaxPrice());
         }
         _;
     }

@@ -33,7 +33,6 @@ graph TD;
         AuctionStepLib;
         BidLib;
         CheckpointLib;
-        DemandLib;
         CurrencyLibrary;
         FixedPoint96;
         SSTORE2[solady/utils/SSTORE2];
@@ -71,7 +70,6 @@ graph TD;
     Auction -- uses --> AuctionStepLib;
     Auction -- uses --> BidLib;
     Auction -- uses --> CheckpointLib;
-    Auction -- uses --> DemandLib;
     Auction -- uses --> CurrencyLibrary;
     Auction -- uses --> FixedPoint96;
     Auction -- uses --> FixedPointMathLib;
@@ -87,10 +85,8 @@ graph TD;
     AuctionStepStorage -- implements --> IAuctionStepStorage;
 
     CheckpointStorage -- uses --> CheckpointLib;
-    CheckpointStorage -- uses --> DemandLib;
     CheckpointStorage -- uses --> FixedPoint96;
     CheckpointStorage -- implements --> ICheckpointStorage;
-    TickStorage -- uses --> DemandLib;
     TickStorage -- uses --> FixedPoint96;
     TickStorage -- implements --> ITickStorage;
 
@@ -157,7 +153,7 @@ struct AuctionParameters {
 
 constructor(
     address _token,
-    uint256 _totalSupply,
+    uint128 _totalSupply,
     AuctionParameters memory _parameters
 ) {}
 ```
@@ -228,9 +224,9 @@ type ValueX7X7 is uint256;
 
 **Use Cases**:
 
-- Total cleared supply tracking (`totalClearedX7X7`)
-- Cumulative supply sold to clearing price (`cumulativeSupplySoldToClearingPriceX7X7`)
-- Finding the total tokens sold in the auction for graudation threshold comparison
+- Total currency raised tracking (`totalCurrencyRaisedX7X7`)
+- Cumulative currency raised at clearing price (`cumulativeCurrencyRaisedAtClearingPriceX7X7`)
+- Finding the total currency raised in the auction for graduation threshold comparison
 
 #### Core Mathematical Operations
 
@@ -239,69 +235,63 @@ The dual scaling system enables two critical mathematical operations that define
 <details>
 <summary><strong>1. Clearing Price Calculation</strong></summary>
 
-The clearing price calculation finds the ratio of currency demand to available token supply, following $\text{price} = \frac{\text{currency}}{\text{tokens}}$.
+The clearing price calculation now uses currency raised instead of tokens cleared, providing more direct and precise calculations.
 
-**Initial Formula:**
-$$\frac{\text{currencyDemandX7} \times \text{Q96} \times \text{mps}}{\text{MPS}} \div \frac{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{mps}}{\text{MPS} - \text{cumulativeMps}}$$
+**New Formula:**
+$$\text{clearingPrice} = \max\left(\text{tickLowerPrice}, \frac{\text{sumCurrencyDemandAboveClearing} \times \text{floorPrice} \times \text{cachedRemainingMps}}{\text{cachedRemainingCurrencyRaised}}\right)$$
 
-**Algebraic Simplification Steps:**
+**Derivation:**
 
-1. **Convert division to multiplication:**
-   $$\frac{\text{currencyDemandX7} \times \text{Q96} \times \text{mps}}{\text{MPS}} \times \frac{\text{MPS} - \text{cumulativeMps}}{(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{mps}}$$
+1. **Start with the currency required at tick lower:**
+   $$\text{requiredCurrency} = \frac{\text{cachedRemainingCurrencyRaised} \times \text{tickLowerPrice}}{\text{cachedRemainingMps} \times \text{floorPrice}}$$
 
-2. **Cancel common terms (mps and MPS):**
-   $$\text{currencyDemandX7} \times \text{Q96} \times \frac{\text{MPS} - \text{cumulativeMps}}{(\text{totalSupplyX7} - \text{totalClearedX7})}$$
+2. **Set up the equation for clearing price:**
+   $$\frac{\text{currencyDemandAboveTickLower} \times \text{tickLowerPrice}}{\text{requiredCurrency}}$$
 
-3. **Substitute X7X7 values:**
-   Since $(\text{totalSupplyX7} - \text{totalClearedX7}) \times \text{MPS} = \text{remainingSupplyX7X7}$:
+3. **Substitute and simplify:**
+   $$\frac{\text{currencyDemandAboveTickLower} \times \text{tickLowerPrice} \times \text{cachedRemainingMps} \times \text{floorPrice}}{\text{cachedRemainingCurrencyRaised} \times \text{tickLowerPrice}}$$
 
-$$\text{clearingPrice} = \text{currencyDemandX7} \times \frac{\text{Q96} \times \text{remainingMpsInAuction}}{\text{remainingSupplyX7X7}}$$
+4. **Cancel out tickLowerPrice:**
+   $$\text{clearingPrice} = \frac{\text{sumCurrencyDemandAboveClearing} \times \text{floorPrice} \times \text{cachedRemainingMps}}{\text{cachedRemainingCurrencyRaised}}$$
 
 **Implementation:**
 
 ```solidity
-clearingPrice = currencyDemandX7.fullMulDivUp(
-    Q96 * remainingMpsInAuction,
-    remainingSupplyX7X7
+clearingPrice = sumCurrencyDemandAboveClearingX7.fullMulDivUp(
+    cachedRemainingMps * FLOOR_PRICE,
+    cachedRemainingCurrencyRaisedX7X7
 );
+if (clearingPrice < tickLowerPrice) return tickLowerPrice;
 ```
 
 </details>
 
 <details>
-<summary><strong>2. Supply-Demand Comparison for Tick Walking</strong></summary>
+<summary><strong>2. Supply Rollover and Currency Raised Calculation</strong></summary>
 
-When determining which price ticks to clear, the system compares resolved demand against available supply while avoiding precision loss.
+The system now tracks currency raised with a scaling factor to handle supply rollover when auctions aren't fully subscribed from the start.
 
-**Original Comparison:**
+**Currency Raised Formula:**
+$$\text{currencyRaised} = \frac{\text{cachedRemainingCurrencyRaised} \times \text{clearingPrice} \times \text{deltaMps}}{\text{cachedRemainingPercentage} \times \text{floorPrice}}$$
 
-- $R = \frac{\text{resolvedDemand} \times \text{mps}}{\text{MPS}}$
-- $\text{supply} = \frac{(\text{totalSupply} - \text{totalCleared}) \times \text{step.mps}}{\text{MPS} - \text{cumulativeMps}}$
-- **Check:** $R \geq \text{supply}$
+**Why This Works:**
 
-**Algebraic Transformation to Avoid Division:**
+If the auction was fully subscribed in the first block, the total currency required at any given price would be `totalSupply × price`. However, when not fully subscribed from the start, excess supply rolls over into future blocks.
 
-1. **Multiply both sides by $(\text{MPS} - \text{cumulativeMps})$:**
-   $$R \times (\text{MPS} - \text{cumulativeMps}) \geq \text{supply} \times \text{mps}$$
+The key insight: we can use a linear transformation based on the ratio of actual vs expected currency raised:
 
-2. **Substitute R and expand:**
-   $$\frac{\text{resolvedDemand} \times \text{mps}}{\text{MPS}} \times (\text{MPS} - \text{cumulativeMps}) \geq \text{supply} \times \text{mps}$$
+- **Fully subscribed:** ratio = 1 (actual matches expected)
+- **Under-subscribed:** ratio < 1 (actual less than expected)
 
-3. **Cancel mps terms:**
-   $$\frac{\text{resolvedDemand} \times (\text{MPS} - \text{cumulativeMps})}{\text{MPS}} \geq \text{supply}$$
-
-4. **Eliminate division by multiplying both sides by MPS:**
-   $$\text{resolvedDemand} \times (\text{MPS} - \text{cumulativeMps}) \geq \text{supply} \times \text{MPS}$$
-
-5. **Substitute X7X7 supply tracking:**
-   Since supply is tracked as X7X7 (already scaled by MPS):
-   $$\text{resolvedDemand} \times \text{remainingMpsInAuction} \geq \text{TOTAL\_SUPPLY\_X7\_X7} - \text{totalClearedX7X7}$$
+Once fully subscribed, we freeze this ratio. Both numerator (actual currency) and denominator (expected percentage) then increase at the same rate, maintaining the ratio. This frozen ratio becomes our scaling factor to deterministically calculate currency required at any price.
 
 **Implementation:**
 
 ```solidity
-resolvedDemand.mulUint256(remainingMpsInAuction).upcast()
-    .gte(TOTAL_SUPPLY_X7_X7.sub(checkpoint.totalClearedX7X7))
+currencyRaisedX7X7 = cachedRemainingCurrencyRaisedX7X7.wrapAndFullMulDiv(
+    clearingPrice * deltaMps,
+    cachedRemainingPercentage * FLOOR_PRICE
+);
 ```
 
 </details>
@@ -408,7 +398,7 @@ interface IAuction {
     function checkpoint() external;
 }
 
-event CheckpointUpdated(uint256 indexed blockNumber, uint256 clearingPrice, uint256 totalCleared, uint24 cumulativeMps);
+event CheckpointUpdated(uint256 indexed blockNumber, uint256 clearingPrice, uint256 totalCurrencyRaised, uint24 cumulativeMps);
 ```
 
 ### Clearing price
@@ -447,10 +437,10 @@ event BidExited(uint256 indexed bidId, address indexed owner);
 - `lower`: Last checkpoint where clearing price is strictly < bid.maxPrice
 - `upper`: First checkpoint where clearing price is strictly > bid.maxPrice, or 0 for end-of-auction fills
 
-**Mathematical Optimization**: Uses cumulative supply tracking (`cumulativeSupplySoldToClearingPriceX7`) for direct partial fill calculation:
+**Mathematical Optimization**: Uses cumulative currency tracking (`cumulativeCurrencyRaisedAtClearingPriceX7X7`) for direct partial fill calculation:
 
 ```
-partialFillRate = cumulativeSupplySoldToClearingPriceX7 * mpsDenominator / (tickDemand * cumulativeMpsDelta)
+partialFillRate = cumulativeCurrencyRaisedAtClearingPriceX7X7 * mpsDenominator / (tickDemand * cumulativeMpsDelta)
 ```
 
 **Implementation**: Enhanced checkpoint architecture with linked-list structure (prev/next pointers) enables efficient traversal. Block numbers are stored as `uint64` for gas optimization while maintaining sufficient range (~584 billion years).
@@ -466,7 +456,7 @@ interface IAuction {
 }
 ```
 
-**Implementation**: The graduation threshold is specified as `graduationThresholdMps` in the auction parameters. An auction graduates if `totalCleared >= (totalSupply * graduationThresholdMps) / 1e7`. Non-graduated auctions refund all currency to bidders.
+**Implementation**: The graduation threshold is specified as `graduationThresholdMps` in the auction parameters. An auction graduates if the total tokens sold meets the threshold percentage. Non-graduated auctions refund all currency to bidders.
 
 ### Fund Management
 

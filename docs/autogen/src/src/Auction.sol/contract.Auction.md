@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/ae5ec627b376e2746e108bdb684105b8397d2234/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/d931c843926ebc52e13d37c6fa2fe343ee12c54f/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -32,8 +32,19 @@ IValidationHook internal immutable VALIDATION_HOOK;
 ```
 
 
+### TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7
+The total currency that will be raised selling total supply at the floor price
+
+
+```solidity
+ValueX7X7 internal immutable TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7;
+```
+
+
 ### $sumCurrencyDemandAboveClearingX7
-The sum of demand in ticks above the clearing price
+The sum of currency demand in ticks above the clearing price
+
+*This will increase every time a new bid is submitted, and decrease when bids are outbid.*
 
 
 ```solidity
@@ -57,15 +68,6 @@ immediately before the auction becomes fully subscribed. The ratio of these help
 
 ```solidity
 SupplyRolloverMultiplier internal $_supplyRolloverMultiplier;
-```
-
-
-### TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7
-The total currency that will be raised selling total supply at the floor price
-
-
-```solidity
-ValueX7X7 internal immutable TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7;
 ```
 
 

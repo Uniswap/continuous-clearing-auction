@@ -2,8 +2,6 @@
 pragma solidity ^0.8.0;
 
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
-
-import {Demand} from '../libraries/DemandLib.sol';
 import {ValueX7} from '../libraries/ValueX7Lib.sol';
 import {ValueX7X7} from '../libraries/ValueX7X7Lib.sol';
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
@@ -23,7 +21,6 @@ struct AuctionParameters {
     uint64 startBlock; // Block which the first step starts
     uint64 endBlock; // When the auction finishes
     uint64 claimBlock; // Block when the auction can claimed
-    uint24 graduationThresholdMps; // Minimum MPS (milli-bips) of tokens that must be sold to graduate the auction
     uint256 tickSpacing; // Fixed granularity for prices
     address validationHook; // Optional hook called before a bid
     uint256 floorPrice; // Starting floor price for the auction
@@ -74,6 +71,8 @@ interface IAuction is
     error AuctionIsNotOver();
     /// @notice Error thrown when a new bid is less than or equal to the clearing price
     error InvalidBidPrice();
+    /// @notice Error thrown when the bid is too large
+    error InvalidBidUnableToClear();
     /// @notice Error thrown when the auction has sold the entire total supply of tokens
     error AuctionSoldOut();
 
@@ -85,9 +84,8 @@ interface IAuction is
     /// @param id The id of the bid
     /// @param owner The owner of the bid
     /// @param price The price of the bid
-    /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
-    event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, bool exactIn, uint256 amount);
+    event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, uint256 amount);
 
     /// @notice Emitted when a new checkpoint is created
     /// @param blockNumber The block number of the checkpoint
@@ -97,6 +95,10 @@ interface IAuction is
     event CheckpointUpdated(
         uint256 indexed blockNumber, uint256 clearingPrice, ValueX7X7 totalClearedX7X7, uint24 cumulativeMps
     );
+
+    /// @notice Emitted when the clearing price is updated
+    /// @param clearingPrice The new clearing price
+    event ClearingPriceUpdated(uint256 indexed blockNumber, uint256 clearingPrice);
 
     /// @notice Emitted when a bid is exited
     /// @param bidId The id of the bid
@@ -113,31 +115,25 @@ interface IAuction is
 
     /// @notice Submit a new bid
     /// @param maxPrice The maximum price the bidder is willing to pay
-    /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
     /// @param owner The owner of the bid
     /// @param prevTickPrice The price of the previous tick
     /// @param hookData Additional data to pass to the hook required for validation
     /// @return bidId The id of the bid
-    function submitBid(
-        uint256 maxPrice,
-        bool exactIn,
-        uint256 amount,
-        address owner,
-        uint256 prevTickPrice,
-        bytes calldata hookData
-    ) external payable returns (uint256 bidId);
+    function submitBid(uint256 maxPrice, uint256 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
+        external
+        payable
+        returns (uint256 bidId);
 
     /// @notice Submit a new bid without specifying the previous tick price
     /// @dev It is NOT recommended to use this function unless you are sure that `maxPrice` is already initialized
     ///      as this function will iterate through every tick starting from the floor price if it is not.
     /// @param maxPrice The maximum price the bidder is willing to pay
-    /// @param exactIn Whether the bid is exact in
     /// @param amount The amount of the bid
     /// @param owner The owner of the bid
     /// @param hookData Additional data to pass to the hook required for validation
     /// @return bidId The id of the bid
-    function submitBid(uint256 maxPrice, bool exactIn, uint256 amount, address owner, bytes calldata hookData)
+    function submitBid(uint256 maxPrice, uint256 amount, address owner, bytes calldata hookData)
         external
         payable
         returns (uint256 bidId);
@@ -148,7 +144,9 @@ interface IAuction is
     /// @return _checkpoint The checkpoint at the current block
     function checkpoint() external returns (Checkpoint memory _checkpoint);
 
-    /// @notice Whether the auction has sold more tokens than specified in the graduation threshold as of the latest checkpoint
+    /// @notice Whether the auction has graduated as of the given checkpoint
+    /// @dev The auction is considered `graudated` if the clearing price is greater than the floor price
+    ///      since that means it has sold all of the total supply of tokens.
     /// @dev Be aware that the latest checkpoint may be out of date
     /// @return bool True if the auction has graduated, false otherwise
     function isGraduated() external view returns (bool);
@@ -193,5 +191,5 @@ interface IAuction is
     function sweepUnsoldTokens() external;
 
     /// @notice The sum of demand in ticks above the clearing price
-    function sumDemandAboveClearing() external view returns (Demand memory);
+    function sumCurrencyDemandAboveClearingX7() external view returns (ValueX7);
 }

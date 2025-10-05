@@ -6,6 +6,8 @@ import {Tick} from '../TickStorage.sol';
 /// @title ITickStorage
 /// @notice Interface for the TickStorage contract
 interface ITickStorage {
+    /// @notice Error thrown when the floor price is above the maximum bid price
+    error FloorPriceAboveMaxBidPrice();
     /// @notice Error thrown when the tick spacing is zero
     error TickSpacingIsZero();
     /// @notice Error thrown when the floor price is zero

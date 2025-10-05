@@ -1,5 +1,5 @@
 # ITickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4e79543472823ca4f19066f04f5392aba6563627/src/interfaces/ITickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/8c2930146e31b54e368caa772ec5bb20d1a47d12/src/interfaces/ITickStorage.sol)
 
 Interface for the TickStorage contract
 
@@ -91,6 +91,14 @@ event NextActiveTickUpdated(uint256 price);
 |`price`|`uint256`|The price of the tick|
 
 ## Errors
+### FloorPriceAboveMaxBidPrice
+Error thrown when the floor price is above the maximum bid price
+
+
+```solidity
+error FloorPriceAboveMaxBidPrice();
+```
+
 ### TickSpacingIsZero
 Error thrown when the tick spacing is zero
 

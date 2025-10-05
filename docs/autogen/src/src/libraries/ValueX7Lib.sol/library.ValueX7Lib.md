@@ -1,14 +1,14 @@
 # ValueX7Lib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/2ab6f1f651f977062136e0144a4f3e636a17d226/src/libraries/ValueX7Lib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/59b7d659b3235f2d439f7b56a32e81cd862bcc31/src/libraries/ValueX7Lib.sol)
 
 
 ## State Variables
 ### X7
-The scaling factor for ValueX7 values (MPSLib.MPS)
+The scaling factor for ValueX7 values (ConstantsLib.MPS)
 
 
 ```solidity
-uint256 public constant X7 = MPSLib.MPS;
+uint256 public constant X7 = ConstantsLib.MPS;
 ```
 
 

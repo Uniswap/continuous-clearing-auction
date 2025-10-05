@@ -1,5 +1,5 @@
 # TokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4e79543472823ca4f19066f04f5392aba6563627/src/TokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/8c2930146e31b54e368caa772ec5bb20d1a47d12/src/TokenCurrencyStorage.sol)
 
 **Inherits:**
 [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -60,24 +60,6 @@ address internal immutable FUNDS_RECIPIENT;
 ```
 
 
-### GRADUATION_THRESHOLD_MPS
-The minimum portion (in MPS) of the total supply that must be sold
-
-
-```solidity
-uint24 internal immutable GRADUATION_THRESHOLD_MPS;
-```
-
-
-### REQUIRED_SUPPLY_SOLD_FOR_GRADUATION_X7_X7
-The amount of supply that must be sold for the auction to graduate, saved for gas optimization
-
-
-```solidity
-ValueX7X7 internal immutable REQUIRED_SUPPLY_SOLD_FOR_GRADUATION_X7_X7;
-```
-
-
 ### sweepCurrencyBlock
 The block at which the currency was swept
 
@@ -101,14 +83,7 @@ uint256 public sweepUnsoldTokensBlock;
 
 
 ```solidity
-constructor(
-    address _token,
-    address _currency,
-    uint256 _totalSupply,
-    address _tokensRecipient,
-    address _fundsRecipient,
-    uint24 _graduationThresholdMps
-);
+constructor(address _token, address _currency, uint256 _totalSupply, address _tokensRecipient, address _fundsRecipient);
 ```
 
 ### _sweepCurrency
@@ -168,14 +143,5 @@ The recipient of the raised Currency from the auction
 
 ```solidity
 function fundsRecipient() external view override(ITokenCurrencyStorage) returns (address);
-```
-
-### graduationThresholdMps
-
-The minimum portion (in MPS) of the total supply that must be sold
-
-
-```solidity
-function graduationThresholdMps() external view override(ITokenCurrencyStorage) returns (uint24);
 ```
 

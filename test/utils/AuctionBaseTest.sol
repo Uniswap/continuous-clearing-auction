@@ -5,12 +5,11 @@ import {Auction} from '../../src/Auction.sol';
 import {Tick} from '../../src/TickStorage.sol';
 import {AuctionParameters, IAuction} from '../../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
-import {Demand} from '../../src/libraries/DemandLib.sol';
+import {BidLib} from '../../src/libraries/BidLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {Assertions} from './Assertions.sol';
 import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
-
 import {MockFundsRecipient} from './MockFundsRecipient.sol';
 import {MockToken} from './MockToken.sol';
 import {TokenHandler} from './TokenHandler.sol';
@@ -30,6 +29,9 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     uint256 public constant FLOOR_PRICE = 1000 << FixedPoint96.RESOLUTION;
     uint256 public constant TOTAL_SUPPLY = 1000e18;
 
+    // Max amount of wei that can be lost in totalClearedX7X7 calculations
+    uint256 public constant MAX_TOTAL_CLEARED_PRECISION_LOSS = 1;
+
     address public alice;
     address public bob;
     address public tokensRecipient;
@@ -38,6 +40,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     AuctionParameters public params;
     bytes public auctionStepsData;
+
+    uint256 public $bidAmount;
 
     function setUpAuction() public {
         setUpTokens();
@@ -83,9 +87,42 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return failingAuction;
     }
 
+    function helper__roundPriceDownToTickSpacing(uint256 _price, uint256 _tickSpacing)
+        internal
+        pure
+        returns (uint256)
+    {
+        return _price - (_price % _tickSpacing);
+    }
+
+    modifier givenGraduatedAuction(uint256 _bidAmount) {
+        $bidAmount = _bound(_bidAmount, TOTAL_SUPPLY, type(uint128).max);
+        _;
+    }
+
+    modifier givenNotGraduatedAuction(uint256 _bidAmount) {
+        // TODO(ez): some rounding in auction preventing this from being TOTAL_SUPPLY - 1
+        $bidAmount = _bound(_bidAmount, 1, TOTAL_SUPPLY / 2);
+        _;
+    }
+
+    modifier givenFullyFundedAccount() {
+        vm.deal(address(this), type(uint256).max);
+        _;
+    }
+
     /// @dev Helper function to convert a tick number to a priceX96
     function tickNumberToPriceX96(uint256 tickNumber) internal pure returns (uint256) {
         return FLOOR_PRICE + (tickNumber - 1) * TICK_SPACING;
+    }
+
+    /// @dev Helper function to get price of a tick above floor price
+    function tickNumberToPriceAboveFloorX96(uint256 tickNumber, uint256 floorPrice, uint256 tickSpacing)
+        internal
+        pure
+        returns (uint256)
+    {
+        return ((floorPrice + (tickNumber * tickSpacing)) / tickSpacing) * tickSpacing;
     }
 
     /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice

@@ -4,8 +4,7 @@ pragma solidity 0.8.26;
 import {Auction} from '../src/Auction.sol';
 import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
-import {MPSLib} from '../src/libraries/MPSLib.sol';
-
+import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {SupplyLib} from '../src/libraries/SupplyLib.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
@@ -37,9 +36,9 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         uint24 cumulativeMps = 0;
         uint40 cumulativeBlockDelta = 0;
         // Assumes block delta is 1 for simplicity
-        for (uint8 i = 0; i < steps && cumulativeMps < MPSLib.MPS; i++) {
+        for (uint8 i = 0; i < steps && cumulativeMps < ConstantsLib.MPS; i++) {
             uint24 fuzzMps;
-            uint24 remainingSupply = MPSLib.MPS - cumulativeMps;
+            uint24 remainingSupply = ConstantsLib.MPS - cumulativeMps;
             // Bias towards 0
             if (i % 2 == 0) {
                 fuzzMps = 0;
@@ -54,14 +53,14 @@ contract AuctionStepDiffTest is AuctionBaseTest {
             cumulativeBlockDelta++;
             data = data.addStep(fuzzMps, 1);
         }
-        if (cumulativeMps < MPSLib.MPS) {
-            uint24 remainingSupply = MPSLib.MPS - cumulativeMps;
+        if (cumulativeMps < ConstantsLib.MPS) {
+            uint24 remainingSupply = ConstantsLib.MPS - cumulativeMps;
 
             data = data.addStep(uint24(remainingSupply), 1);
             cumulativeMps += remainingSupply;
             cumulativeBlockDelta++;
         }
-        assertEq(cumulativeMps, MPSLib.MPS, 'fuzzed cumulative mps is not equal to the max mps');
+        assertEq(cumulativeMps, ConstantsLib.MPS, 'fuzzed cumulative mps is not equal to the max mps');
         return (data, cumulativeMps, cumulativeBlockDelta);
     }
 
@@ -87,10 +86,10 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         // Submit same bid to both auctions
         uint256 inputAmount = inputAmountForTokens(1000e18, tickNumberToPriceX96(2));
         firstAuction.submitBid{value: inputAmount}(
-            tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
+            tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
         secondAuction.submitBid{value: inputAmount}(
-            tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
+            tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
 
         vm.roll(firstAuction.endBlock());
@@ -122,7 +121,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         uint256 inputAmount = inputAmountForTokens(totalSupply, tickNumberToPriceX96(2));
         vm.deal(address(this), inputAmount);
         uint256 bidId = newAuction.submitBid{value: inputAmount}(
-            tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
+            tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
 
         // Show you can checkpoint when the step is zero mps
@@ -135,7 +134,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         vm.deal(address(this), inputAmount);
         vm.expectRevert(IAuction.AuctionSoldOut.selector);
         newAuction.submitBid{value: inputAmount}(
-            tickNumberToPriceX96(2), true, inputAmount, alice, tickNumberToPriceX96(1), bytes('')
+            tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
 
         vm.roll(endBlock);

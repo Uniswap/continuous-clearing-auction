@@ -1,5 +1,5 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4e79543472823ca4f19066f04f5392aba6563627/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/8c2930146e31b54e368caa772ec5bb20d1a47d12/src/TickStorage.sol)
 
 **Inherits:**
 [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
@@ -46,12 +46,12 @@ uint256 internal immutable TICK_SPACING;
 ```
 
 
-### MAX_TICK_PRICE
-Sentinel value for the next value of the highest tick in the book
+### MAX_TICK_PTR
+Sentinel value for the next pointer of the highest tick in the book
 
 
 ```solidity
-uint256 public constant MAX_TICK_PRICE = type(uint256).max;
+uint256 public constant MAX_TICK_PTR = type(uint256).max;
 ```
 
 
@@ -113,14 +113,14 @@ Internal function to add demand to a tick
 
 
 ```solidity
-function _updateTickDemand(uint256 price, Demand memory demand) internal;
+function _updateTickDemand(uint256 price, ValueX7 currencyDemandX7) internal;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`price`|`uint256`|The price of the tick|
-|`demand`|`Demand`|The demand to add|
+|`currencyDemandX7`|`ValueX7`|The demand to add|
 
 
 ### floorPrice

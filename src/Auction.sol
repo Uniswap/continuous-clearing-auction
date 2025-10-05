@@ -532,7 +532,7 @@ contract Auction is
             tokensFilled += partialTokensFilled;
             currencySpent += partialCurrencySpent;
         }
-        
+
         _processExit(bidId, bid, tokensFilled, bid.amount - currencySpent);
     }
 

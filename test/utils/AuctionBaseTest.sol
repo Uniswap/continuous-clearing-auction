@@ -89,7 +89,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     }
 
     modifier givenValidBidAmount(uint256 _bidAmount) {
-        if(BidLib.MIN_BID_AMOUNT <= BidLib.MAX_BID_AMOUNT / $maxPrice) {
+        if (BidLib.MIN_BID_AMOUNT <= BidLib.MAX_BID_AMOUNT / $maxPrice) {
             $bidAmount = BidLib.MIN_BID_AMOUNT;
         } else {
             vm.assume(BidLib.MIN_BID_AMOUNT < BidLib.MAX_BID_AMOUNT / $maxPrice);
@@ -99,7 +99,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     }
 
     modifier givenGraduatedAuction() {
-        if(TOTAL_SUPPLY <= BidLib.MAX_BID_AMOUNT / $maxPrice) {
+        if (TOTAL_SUPPLY <= BidLib.MAX_BID_AMOUNT / $maxPrice) {
             $bidAmount = TOTAL_SUPPLY;
         } else {
             vm.assume(TOTAL_SUPPLY < BidLib.MAX_BID_AMOUNT / $maxPrice);

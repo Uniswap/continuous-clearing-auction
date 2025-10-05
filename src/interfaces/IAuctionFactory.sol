@@ -7,7 +7,7 @@ import {IDistributionStrategy} from './external/IDistributionStrategy.sol';
 interface IAuctionFactory is IDistributionStrategy {
     /// @notice Error thrown when the amount is invalid
     error InvalidAmount(uint256 amount);
-    
+
     /// @notice Emitted when an auction is created
     /// @param auction The address of the auction contract
     /// @param token The address of the token

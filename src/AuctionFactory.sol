@@ -17,7 +17,7 @@ contract AuctionFactory is IAuctionFactory {
         external
         returns (IDistributionContract distributionContract)
     {
-        if(amount >= type(uint128).max) revert InvalidAmount(amount);
+        if (amount > type(uint128).max) revert InvalidAmount(amount);
 
         AuctionParameters memory parameters = abi.decode(configData, (AuctionParameters));
         // If the tokensRecipient is address(1), set it to the msg.sender
@@ -38,7 +38,7 @@ contract AuctionFactory is IAuctionFactory {
         view
         returns (address)
     {
-        if(amount >= type(uint128).max) revert InvalidAmount(amount);
+        if (amount > type(uint128).max) revert InvalidAmount(amount);
         AuctionParameters memory parameters = abi.decode(configData, (AuctionParameters));
         // If the tokensRecipient is address(1), set it to the msg.sender
         if (parameters.tokensRecipient == ActionConstants.MSG_SENDER) parameters.tokensRecipient = msg.sender;

@@ -21,7 +21,7 @@ contract SupplyLibTest is Test {
     /// @notice Test basic pack and unpack functionality with fuzzing
     function test_packUnpack_fuzz(bool set, uint24 remainingMps, uint256 remainingSupplyRaw) public view {
         // Bound the supply value to fit in 231 bits
-        vm.assume(remainingSupplyRaw <= SupplyLib.MAX_REMAINING_SUPPLY);
+        vm.assume(remainingSupplyRaw <= SupplyLib.MAX_REMAINING_CURRENCY_RAISED);
         ValueX7X7 remainingSupplyX7X7 = ValueX7X7.wrap(remainingSupplyRaw);
 
         // Pack the values
@@ -41,7 +41,7 @@ contract SupplyLibTest is Test {
         // Test with max values that fit in their respective bit ranges
         bool set = true;
         uint24 remainingMps = type(uint24).max;
-        ValueX7X7 remainingSupplyX7X7 = ValueX7X7.wrap(SupplyLib.MAX_REMAINING_SUPPLY);
+        ValueX7X7 remainingSupplyX7X7 = ValueX7X7.wrap(SupplyLib.MAX_REMAINING_CURRENCY_RAISED);
 
         SupplyRolloverMultiplier packed =
             mockSupplyLib.packSupplyRolloverMultiplier(set, remainingMps, remainingSupplyX7X7);
@@ -72,7 +72,7 @@ contract SupplyLibTest is Test {
 
     /// @notice Test edge case: supply value exactly at the 231-bit boundary
     function test_packUnpack_fuzz_remainingSupplyIsMax(bool set, uint24 remainingMps) public view {
-        ValueX7X7 remainingSupplyX7X7 = ValueX7X7.wrap(SupplyLib.MAX_REMAINING_SUPPLY);
+        ValueX7X7 remainingSupplyX7X7 = ValueX7X7.wrap(SupplyLib.MAX_REMAINING_CURRENCY_RAISED);
 
         SupplyRolloverMultiplier packed =
             mockSupplyLib.packSupplyRolloverMultiplier(set, remainingMps, remainingSupplyX7X7);
@@ -80,18 +80,19 @@ contract SupplyLibTest is Test {
 
         assertEq(unpackedSet, set);
         assertEq(unpackedMps, remainingMps);
-        assertEq(ValueX7X7.unwrap(unpackedSupply), SupplyLib.MAX_REMAINING_SUPPLY);
+        assertEq(ValueX7X7.unwrap(unpackedSupply), SupplyLib.MAX_REMAINING_CURRENCY_RAISED);
     }
 
     /// @notice Test that bit fields don't interfere with each other
     function test_bitFieldIsolation() public view {
         // Max supply, other fields zero
-        SupplyRolloverMultiplier packed1 =
-            mockSupplyLib.packSupplyRolloverMultiplier(false, 0, ValueX7X7.wrap(SupplyLib.MAX_REMAINING_SUPPLY));
+        SupplyRolloverMultiplier packed1 = mockSupplyLib.packSupplyRolloverMultiplier(
+            false, 0, ValueX7X7.wrap(SupplyLib.MAX_REMAINING_CURRENCY_RAISED)
+        );
         (bool set1, uint24 mps1, ValueX7X7 supply1) = mockSupplyLib.unpack(packed1);
         assertEq(set1, false);
         assertEq(mps1, 0);
-        assertEq(ValueX7X7.unwrap(supply1), SupplyLib.MAX_REMAINING_SUPPLY);
+        assertEq(ValueX7X7.unwrap(supply1), SupplyLib.MAX_REMAINING_CURRENCY_RAISED);
 
         // Max MPS, other fields zero
         SupplyRolloverMultiplier packed2 =
@@ -133,8 +134,8 @@ contract SupplyLibTest is Test {
     }
 
     function testFuzz_remainingSupplyDoesNotOverflow(uint24 mps, uint256 supply1, uint256 supply2) public view {
-        supply1 = _bound(supply1, 0, SupplyLib.MAX_REMAINING_SUPPLY);
-        supply2 = _bound(supply2, 0, SupplyLib.MAX_REMAINING_SUPPLY);
+        supply1 = _bound(supply1, 0, SupplyLib.MAX_REMAINING_CURRENCY_RAISED);
+        supply2 = _bound(supply2, 0, SupplyLib.MAX_REMAINING_CURRENCY_RAISED);
         vm.assume(supply1 < supply2);
 
         // Pack with same set flag and mps, different supplies

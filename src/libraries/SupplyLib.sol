@@ -7,11 +7,11 @@ import {ValueX7X7, ValueX7X7Lib} from './ValueX7X7Lib.sol';
 /// @dev Custom type layout (256 bits total):
 ///      - Bit 255 (MSB): Boolean 'set' flag
 ///      - Bits 254-231 (24 bits): 'remainingMps' value
-///      - Bits 230-0 (231 bits): 'remainingSupplyX7X7' value
+///      - Bits 230-0 (231 bits): 'remainingCurrencyRaisedX7X7' value
 type SupplyRolloverMultiplier is uint256;
 
 /// @title SupplyLib
-/// @notice Library for supply related functions
+/// @notice Library for supply related fsunctions
 library SupplyLib {
     using ValueX7Lib for *;
     using ValueX7X7Lib for *;
@@ -34,8 +34,8 @@ library SupplyLib {
     //                        [00...00][11111111111111111111111111111111111111111111111111...11111111]
     uint256 private constant REMAINING_SUPPLY_MASK = (1 << 231) - 1;
 
-    // Max value for remainingSupplyX7X7 (all lower 231 bits set)
-    uint256 public constant MAX_REMAINING_SUPPLY = REMAINING_SUPPLY_MASK;
+    // Max value for remainingCurrencyRaisedX7X7 (all lower 231 bits set)
+    uint256 public constant MAX_REMAINING_CURRENCY_RAISED = REMAINING_SUPPLY_MASK;
 
     /// @notice Convert the total supply to a ValueX7X7
     /// @dev This function must be checked for overflow before being called

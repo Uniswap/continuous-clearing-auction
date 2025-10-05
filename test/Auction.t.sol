@@ -1929,19 +1929,19 @@ contract AuctionTest is AuctionBaseTest {
         token.mint(address(mockAuction), totalSupply);
         mockAuction.onTokensReceived();
 
-        (bool isSet, uint24 cachedRemainingMps, ValueX7X7 cachedRemainingSupplyX7X7) =
+        (bool isSet, uint24 cachedRemainingPercentage, ValueX7X7 cachedRemainingSupplyX7X7) =
             mockAuction.unpackSupplyRolloverMultiplier();
         // Assert base case
         assertFalse(isSet);
-        assertEq(cachedRemainingMps, 0);
+        assertEq(cachedRemainingPercentage, 0);
         assertEq(ValueX7X7.unwrap(cachedRemainingSupplyX7X7), 0);
 
         // Set initial values
         mockAuction.setSupplyRolloverMultiplier(true, remainingMps, remainingSupplyX7X7);
-        (isSet, cachedRemainingMps, cachedRemainingSupplyX7X7) = mockAuction.unpackSupplyRolloverMultiplier();
+        (isSet, cachedRemainingPercentage, cachedRemainingSupplyX7X7) = mockAuction.unpackSupplyRolloverMultiplier();
         // Assert the getter fetches them correctly
         assertTrue(isSet);
-        assertEq(cachedRemainingMps, remainingMps);
+        assertEq(cachedRemainingPercentage, remainingMps);
         assertEq(cachedRemainingSupplyX7X7, remainingSupplyX7X7);
     }
 

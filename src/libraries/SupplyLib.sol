@@ -49,17 +49,17 @@ library SupplyLib {
     ///      TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7, which bounds the value of `remainingCurrencyRaisedX7X7`, must be validated.
     /// @param set Boolean flag indicating if the value is set which only happens after the auction becomes fully subscribed,
     ///         at which point the supply schedule becomes deterministic based on the future supply schedule
-    /// @param remainingMps The remaining MPS value
-    /// @param remainingCurrencyRaisedX7X7 The remaining currency raised until meeting
+    /// @param remainingPercentage The remaining percentage of the auction
+    /// @param remainingCurrencyRaisedX7X7 The remaining currency which will be raised
     /// @return The packed SupplyRolloverMultiplier
-    function packSupplyRolloverMultiplier(bool set, uint24 remainingMps, ValueX7X7 remainingCurrencyRaisedX7X7)
+    function packSupplyRolloverMultiplier(bool set, uint24 remainingPercentage, ValueX7X7 remainingCurrencyRaisedX7X7)
         internal
         pure
         returns (SupplyRolloverMultiplier)
     {
-        // bit OR the set flag, remainingMps, and remainingCurrencyRaisedX7X7 together and wrap in the custom type
+        // bit OR the set flag, remainingPercentage, and remainingCurrencyRaisedX7X7 together and wrap in the custom type
         return SupplyRolloverMultiplier.wrap(
-            (set ? SET_FLAG_MASK : 0) | (uint256(remainingMps) << REMAINING_MPS_BIT_POSITION)
+            (set ? SET_FLAG_MASK : 0) | (uint256(remainingPercentage) << REMAINING_MPS_BIT_POSITION)
                 | ValueX7X7.unwrap(remainingCurrencyRaisedX7X7)
         );
     }

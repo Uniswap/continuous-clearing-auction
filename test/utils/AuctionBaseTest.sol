@@ -5,7 +5,6 @@ import {Auction} from '../../src/Auction.sol';
 import {Tick} from '../../src/TickStorage.sol';
 import {AuctionParameters, IAuction} from '../../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
-
 import {BidLib} from '../../src/libraries/BidLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
@@ -13,6 +12,7 @@ import {Assertions} from './Assertions.sol';
 import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
 import {MockFundsRecipient} from './MockFundsRecipient.sol';
+import {MockToken} from './MockToken.sol';
 import {TokenHandler} from './TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
 
@@ -36,6 +36,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     uint256 public constant MAX_TOTAL_CLEARED_PRECISION_LOSS = 1;
 
     address public alice;
+    address public bob;
     address public tokensRecipient;
     address public fundsRecipient;
     MockFundsRecipient public mockFundsRecipient;
@@ -50,6 +51,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         setUpTokens();
 
         alice = makeAddr('alice');
+        bob = makeAddr('bob');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
         mockFundsRecipient = new MockFundsRecipient();
@@ -70,6 +72,23 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         token.mint(address(auction), TOTAL_SUPPLY);
         // Expect the tokens to be received
         auction.onTokensReceived();
+    }
+
+    function helper__deployAuctionWithFailingToken() internal returns (Auction) {
+        MockToken failingToken = new MockToken();
+
+        bytes memory failingAuctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
+        AuctionParameters memory failingParams = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
+            FLOOR_PRICE
+        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION + 10).withAuctionStepsData(failingAuctionStepsData);
+
+        Auction failingAuction = new Auction(address(failingToken), TOTAL_SUPPLY, failingParams);
+        failingToken.mint(address(failingAuction), TOTAL_SUPPLY);
+        failingAuction.onTokensReceived();
+
+        return failingAuction;
     }
 
     function helper__roundPriceDownToTickSpacing(uint256 _price, uint256 _tickSpacing)

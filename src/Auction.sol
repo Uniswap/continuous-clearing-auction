@@ -634,19 +634,52 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function claimTokens(uint256 bidId) external {
-        Bid memory bid = _getBid(bidId);
-        if (bid.exitedBlock == 0) revert BidNotExited();
+    function claimTokens(uint256 _bidId) external {
         if (block.number < CLAIM_BLOCK) revert NotClaimable();
         if (!_isGraduated(_getFinalCheckpoint())) revert NotGraduated();
 
-        uint256 tokensFilled = bid.tokensFilled;
+        (address owner, uint256 tokensFilled) = _internalClaimTokens(_bidId);
+        Currency.wrap(address(TOKEN)).transfer(owner, tokensFilled);
+
+        emit TokensClaimed(_bidId, owner, tokensFilled);
+    }
+
+    /// @inheritdoc IAuction
+    function claimTokensBatch(address _owner, uint256[] calldata _bidIds) external {
+        if (block.number < CLAIM_BLOCK) revert NotClaimable();
+        if (!_isGraduated(_getFinalCheckpoint())) revert NotGraduated();
+
+        uint256 tokensFilled = 0;
+        for (uint256 i = 0; i < _bidIds.length; i++) {
+            (address bidOwner, uint256 bidTokensFilled) = _internalClaimTokens(_bidIds[i]);
+
+            if (bidOwner != _owner) {
+                revert BatchClaimDifferentOwner(_owner, bidOwner);
+            }
+
+            tokensFilled += bidTokensFilled;
+
+            emit TokensClaimed(_bidIds[i], bidOwner, bidTokensFilled);
+        }
+
+        Currency.wrap(address(TOKEN)).transfer(_owner, tokensFilled);
+    }
+
+    /// @notice Internal function to claim tokens for a single bid
+    /// @param bidId The id of the bid
+    /// @return owner The owner of the bid
+    /// @return tokensFilled The amount of tokens filled
+    function _internalClaimTokens(uint256 bidId) internal returns (address owner, uint256 tokensFilled) {
+        Bid memory bid = _getBid(bidId);
+        if (bid.exitedBlock == 0) revert BidNotExited();
+
+        // Set return values
+        owner = bid.owner;
+        tokensFilled = bid.tokensFilled;
+
+        // Set the tokens filled to 0
         bid.tokensFilled = 0;
         _updateBid(bidId, bid);
-
-        Currency.wrap(address(TOKEN)).transfer(bid.owner, tokensFilled);
-
-        emit TokensClaimed(bidId, bid.owner, tokensFilled);
     }
 
     /// @inheritdoc IAuction

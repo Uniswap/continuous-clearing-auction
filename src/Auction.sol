@@ -128,6 +128,7 @@ contract Auction is
         returns (Checkpoint memory)
     {
         ValueX7X7 currencyRaisedX7X7;
+        ValueX7X7 tokensClearedRoundedUpX7X7;
         // If the clearing price is above the floor price, the auction is fully subscribed and the amount of
         // currency which will be raised is deterministic based on the initial supply schedule.
         if (_checkpoint.clearingPrice > FLOOR_PRICE) {
@@ -151,6 +152,9 @@ contract Auction is
             // and finally dividing by the floor price.
             currencyRaisedX7X7 = cachedRemainingCurrencyRaisedX7X7.wrapAndFullMulDiv(
                 _checkpoint.clearingPrice * uint256(deltaMps), uint256(cachedRemainingPercentage) * FLOOR_PRICE
+            );
+            tokensClearedRoundedUpX7X7 = cachedRemainingCurrencyRaisedX7X7.wrapAndFullMulDiv(
+                FixedPoint96.Q96 * uint256(deltaMps), uint256(cachedRemainingPercentage) * FLOOR_PRICE
             );
 
             // There is a special case where the clearing price is at a tick boundary with bids.
@@ -177,11 +181,10 @@ contract Auction is
             // This should be divided by 1e7, but we scale it up instead to avoid the division.
             // This is why we upcast() to show that it implicitly has been scaled up by 1e7.
             currencyRaisedX7X7 = $sumCurrencyDemandAboveClearingX7.mulUint256(deltaMps).upcast();
+            tokensClearedRoundedUpX7X7 = currencyRaisedX7X7.wrapAndFullMulDivUp(FixedPoint96.Q96, FLOOR_PRICE);
         }
-        $totalTokensClearedRoundedUpX7X7 = $totalTokensClearedRoundedUpX7X7.add(
-            currencyRaisedX7X7.wrapAndFullMulDivUp(FixedPoint96.Q96, _checkpoint.clearingPrice)
-        );
         _checkpoint.totalCurrencyRaisedX7X7 = _checkpoint.totalCurrencyRaisedX7X7.add(currencyRaisedX7X7);
+        $totalTokensClearedRoundedUpX7X7 = $totalTokensClearedRoundedUpX7X7.add(tokensClearedRoundedUpX7X7);
         _checkpoint.cumulativeMps += deltaMps;
         // Calculate the harmonic mean of the mps and price
         _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(deltaMps, _checkpoint.clearingPrice);

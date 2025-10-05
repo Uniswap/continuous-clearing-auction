@@ -57,17 +57,17 @@ contract Auction is
     uint64 internal immutable CLAIM_BLOCK;
     /// @notice An optional hook to be called before a bid is registered
     IValidationHook internal immutable VALIDATION_HOOK;
+    /// @notice The total currency that will be raised selling total supply at the floor price
+    ValueX7X7 internal immutable TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7;
 
-    /// @notice The sum of demand in ticks above the clearing price
+    /// @notice The sum of currency demand in ticks above the clearing price
+    /// @dev This will increase every time a new bid is submitted, and decrease when bids are outbid.
     ValueX7 internal $sumCurrencyDemandAboveClearingX7;
     /// @notice Whether the TOTAL_SUPPLY of tokens has been received
     bool private $_tokensReceived;
     /// @notice A packed uint256 containing `set`, `remainingSupplyX7X7`, and `remainingMps` values derived from the checkpoint
     ///         immediately before the auction becomes fully subscribed. The ratio of these helps account for rollover supply.
     SupplyRolloverMultiplier internal $_supplyRolloverMultiplier;
-
-    /// @notice The total currency that will be raised selling total supply at the floor price
-    ValueX7X7 internal immutable TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7;
 
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
@@ -105,6 +105,8 @@ contract Auction is
 
     /// @inheritdoc IDistributionContract
     function onTokensReceived() external {
+        // Don't check balance or emit the TokensReceived event if the tokens have already been received
+        if($_tokensReceived) return;
         // Use the normal totalSupply value instead of the scaled up X7 value
         if (TOKEN.balanceOf(address(this)) < TOTAL_SUPPLY) {
             revert InvalidTokenAmountReceived();
@@ -250,6 +252,8 @@ contract Auction is
         // and we can return the minimum clearing price above
         if (_REMAINING_MPS_IN_AUCTION == 0) return minimumClearingPrice;
 
+        // Place state variables on the stack to save gas
+        bool updateStateVariables;
         ValueX7 sumCurrencyDemandAboveClearingX7_ = $sumCurrencyDemandAboveClearingX7;
         uint256 nextActiveTickPrice_ = $nextActiveTickPrice;
 
@@ -332,9 +336,10 @@ contract Auction is
             // Advance to the next tick
             nextActiveTickPrice_ = nextActiveTick.next;
             nextActiveTick = _getTick(nextActiveTickPrice_);
+            updateStateVariables = true;
         }
         // Set the values into storage if we found a new next active tick price
-        if (nextActiveTickPrice_ != $nextActiveTickPrice) {
+        if (updateStateVariables) {
             $sumCurrencyDemandAboveClearingX7 = sumCurrencyDemandAboveClearingX7_;
             $nextActiveTickPrice = nextActiveTickPrice_;
         }
@@ -618,7 +623,7 @@ contract Auction is
         // Cannot sweep if already swept
         if (sweepCurrencyBlock != 0) revert CannotSweepCurrency();
         Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
-        // Cannot sweep currency if the auction has not graduated, as the Currency must be refunded
+        // Cannot sweep currency if the auction has not graduated, as all of the Currency must be refunded
         if (!_isGraduated(finalCheckpoint)) revert NotGraduated();
         _sweepCurrency(finalCheckpoint.getCurrencyRaised());
     }

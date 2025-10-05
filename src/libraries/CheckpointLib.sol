@@ -42,9 +42,9 @@ library CheckpointLib {
         return uint256(mps).fullMulDiv(FixedPoint96.Q96 ** 2, price);
     }
 
-    /// @notice Calculate the total currency raised
-    /// @param checkpoint The checkpoint to calculate the currency raised from
-    /// @return The total currency raised
+    /// @notice Return the total currency raised at the given checkpoint
+    /// @param checkpoint the checkpoint
+    /// @return The total currency raised in uint256 form
     function getCurrencyRaised(Checkpoint memory checkpoint) internal pure returns (uint256) {
         return checkpoint.totalCurrencyRaisedX7X7.scaleDownToValueX7().scaleDownToUint256();
     }

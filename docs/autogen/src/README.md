@@ -279,6 +279,7 @@ $$\text{currencyRaised} = \frac{\text{cachedRemainingCurrencyRaised} \times \tex
 If the auction was fully subscribed in the first block, the total currency required at any given price would be `totalSupply × price`. However, when not fully subscribed from the start, excess supply rolls over into future blocks.
 
 The key insight: we can use a linear transformation based on the ratio of actual vs expected currency raised:
+
 - **Fully subscribed:** ratio = 1 (actual matches expected)
 - **Under-subscribed:** ratio < 1 (actual less than expected)
 

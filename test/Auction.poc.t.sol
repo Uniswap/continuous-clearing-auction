@@ -23,7 +23,7 @@ contract Leftovers is AuctionBaseTest {
     using ValueX7Lib for *;
     using ValueX7X7Lib for *;
 
-    address private bob;
+    // bob is already set in AuctionBaseTest
     address private charlie;
 
     // Storage variables to avoid stack too deep

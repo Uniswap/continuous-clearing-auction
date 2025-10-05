@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c968c963f6b2d0d8603af50fad60d232a645daef/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/8c2930146e31b54e368caa772ec5bb20d1a47d12/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -72,8 +72,7 @@ constructor(address _token, uint256 _totalSupply, AuctionParameters memory _para
         _parameters.currency,
         _totalSupply,
         _parameters.tokensRecipient,
-        _parameters.fundsRecipient,
-        _parameters.graduationThresholdMps
+        _parameters.fundsRecipient
     )
     TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
     PermitSingleForwarder(IAllowanceTransfer(PERMIT2));
@@ -108,9 +107,10 @@ function onTokensReceived() external;
 
 ### isGraduated
 
-Whether the auction has sold more tokens than specified in the graduation threshold as of the latest checkpoint
+Whether the auction has graduated as of the given checkpoint
 
-*Be aware that the latest checkpoint may be out of date*
+*The auction is considered `graudated` if the clearing price is greater than the floor price
+since that means it has sold all of the total supply of tokens.*
 
 
 ```solidity
@@ -125,7 +125,10 @@ function isGraduated() external view returns (bool);
 
 ### _isGraduated
 
-Whether the auction has graduated as of the given checkpoint (sold more than the graduation threshold)
+Whether the auction has graduated as of the given checkpoint
+
+*The auction is considered `graudated` if the clearing price is greater than the floor price
+since that means it has sold all of the total supply of tokens.*
 
 
 ```solidity
@@ -189,14 +192,20 @@ function _calculateNewClearingPrice(
 |----|----|-----------|
 |`_sumCurrencyDemandAboveClearingX7`|`ValueX7`|The sum of demand above the clearing price|
 |`_remainingSupplyX7X7`|`ValueX7X7`|The result of TOTAL_SUPPLY_X7_X7 minus the total cleared supply so far|
-|`_remainingMpsInAuction`|`uint24`|The remaining mps in the auction which is MPSLib.MPS minus the cumulative mps so far|
+|`_remainingMpsInAuction`|`uint24`|The remaining mps in the auction which is ConstantsLib.MPS minus the cumulative mps so far|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The new clearing price|
 
 
 ### _iterateOverTicksAndFindClearingPrice
 
 Iterate to find the tick where the total demand at and above it is strictly less than the remaining supply in the auction
 
-*If the loop reaches the highest tick in the book, `nextActiveTickPrice` will be set to MAX_TICK_PRICE*
+*If the loop reaches the highest tick in the book, `nextActiveTickPrice` will be set to MAX_TICK_PTR*
 
 
 ```solidity

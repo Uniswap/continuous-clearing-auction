@@ -3,7 +3,6 @@ pragma solidity 0.8.26;
 
 import {ITickStorage} from './interfaces/ITickStorage.sol';
 import {BidLib} from './libraries/BidLib.sol';
-import {DemandLib} from './libraries/DemandLib.sol';
 import {ValueX7} from './libraries/ValueX7Lib.sol';
 
 struct Tick {
@@ -14,8 +13,6 @@ struct Tick {
 /// @title TickStorage
 /// @notice Abstract contract for handling tick storage
 abstract contract TickStorage is ITickStorage {
-    using DemandLib for ValueX7;
-
     /// @notice Mapping of price levels to tick data
     mapping(uint256 price => Tick) private $_ticks;
 

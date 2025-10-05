@@ -16,7 +16,6 @@ import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
-import {DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {SupplyLib, SupplyRolloverMultiplier} from './libraries/SupplyLib.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
@@ -48,7 +47,6 @@ contract Auction is
     using BidLib for *;
     using AuctionStepLib for *;
     using CheckpointLib for Checkpoint;
-    using DemandLib for ValueX7;
     using SafeCastLib for uint256;
     using ValidationHookLib for IValidationHook;
     using ValueX7Lib for *;
@@ -595,8 +593,8 @@ contract Auction is
         if (upperCheckpoint.clearingPrice == bidMaxPrice) {
             (uint256 partialTokensFilled, uint256 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
                 upperCheckpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7,
-                bid.toEffectiveAmount().resolveRoundingDown(bidMaxPrice),
-                _getTick(bidMaxPrice).currencyDemandX7.resolveRoundingUp(bidMaxPrice),
+                bid.toEffectiveAmount(),
+                _getTick(bidMaxPrice).currencyDemandX7,
                 bidMaxPrice
             );
             tokensFilled += partialTokensFilled;

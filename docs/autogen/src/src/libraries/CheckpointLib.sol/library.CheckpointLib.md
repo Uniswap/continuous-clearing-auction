@@ -1,5 +1,5 @@
 # CheckpointLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/35473874d97222cd9ba85c79c74cfb5935603cd9/src/libraries/CheckpointLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/9ec45dd9d93be9387fdda78ef70a3c88448781c8/src/libraries/CheckpointLib.sol)
 
 
 ## Functions

@@ -6,6 +6,7 @@ import {Tick, TickStorage} from '../src/TickStorage.sol';
 import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
+import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
@@ -20,6 +21,7 @@ import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {Test} from 'forge-std/Test.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {console} from 'forge-std/console.sol';
 
 contract AuctionInvariantHandler is Test, Assertions {
     using CurrencyLibrary for Currency;
@@ -87,14 +89,13 @@ contract AuctionInvariantHandler is Test, Assertions {
 
     /// @notice Generate random values for amount and max price given a desired resolved amount of tokens to purchase
     /// @dev Bounded by purchasing the total supply of tokens and some reasonable max price for bids to prevent overflow
-    function _useAmountMaxPrice(uint256 amount, uint256 tickNumber) internal view returns (uint256, uint256) {
-        tickNumber = _bound(tickNumber, 0, type(uint8).max);
+    function _useAmountMaxPrice(uint256 amount, uint8 tickNumber) internal view returns (uint256, uint256) {
         uint256 tickNumberPrice = auction.floorPrice() + tickNumber * auction.tickSpacing();
         uint256 maxPrice = _bound(tickNumberPrice, BID_MIN_PRICE, BID_MAX_PRICE);
         // Round down to the nearest tick boundary
         maxPrice -= (maxPrice % auction.tickSpacing());
 
-        uint256 inputAmount = amount;
+        uint256 inputAmount = amount.fullMulDivUp(maxPrice, FixedPoint96.Q96);
         return (inputAmount, maxPrice);
     }
 
@@ -130,14 +131,14 @@ contract AuctionInvariantHandler is Test, Assertions {
     }
 
     /// @notice Handle a bid submission, ensuring that the actor has enough funds and the bid parameters are valid
-    function handleSubmitBid(uint256 actorIndexSeed, uint256 tickNumber)
+    function handleSubmitBid(uint256 actorIndexSeed, uint256 bidAmount, uint8 tickNumber)
         public
         payable
         useActor(actorIndexSeed)
         validateCheckpoint
     {
         // Bid requests for anything between 1 and 2x the total supply of tokens
-        uint256 amount = _bound(tickNumber, BidLib.MIN_BID_AMOUNT, auction.totalSupply() * 2);
+        uint256 amount = _bound(bidAmount, BidLib.MIN_BID_AMOUNT, auction.totalSupply() * 2);
         (uint256 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(amount, tickNumber);
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
@@ -150,6 +151,7 @@ contract AuctionInvariantHandler is Test, Assertions {
 
         uint256 prevTickPrice = _getLowerTick(maxPrice);
         uint256 nextBidId = auction.nextBidId();
+        console.log('submitting bid with', inputAmount, maxPrice, prevTickPrice);
         try auction.submitBid{value: currency.isAddressZero() ? inputAmount : 0}(
             maxPrice, inputAmount, currentActor, prevTickPrice, bytes('')
         ) {
@@ -242,54 +244,80 @@ contract AuctionInvariantTest is AuctionBaseTest {
         uint256 clearingPrice = auction.clearingPrice();
 
         uint256 bidCount = handler.bidCount();
+        uint256 totalCurrencyRaised;
         for (uint256 i = 0; i < bidCount; i++) {
-            Bid memory bid = getBid(i);
-
-            // Invalid conditions
-            if (bid.exitedBlock != 0) continue;
-            if (bid.tokensFilled != 0) continue;
+            uint256 bidId = handler.bidIds(i);
+            Bid memory bid = getBid(bidId);
 
             uint256 ownerBalanceBefore = address(bid.owner).balance;
-            uint256 bidInputAmount = bid.amount;
 
-            uint256 currencyBalanceBefore = currency.balanceOf(bid.owner);
+            uint256 currencyBalanceBefore = bid.owner.balance;
             if (bid.maxPrice > clearingPrice) {
-                auction.exitBid(i);
-                // Must not have received refund for a fully filled bid
-                assertEq(currency.balanceOf(bid.owner), currencyBalanceBefore);
+                auction.exitBid(bidId);
             } else {
                 (uint64 lower, uint64 upper) = getLowerUpperCheckpointHints(bid.maxPrice);
-                auction.exitPartiallyFilledBid(i, lower, upper);
+                auction.exitPartiallyFilledBid(bidId, lower, upper);
             }
+            uint256 refundAmount = bid.owner.balance - currencyBalanceBefore;
+            console.log('refundAmount', refundAmount);
+            console.log('bid.amount', bid.amount);
+            totalCurrencyRaised += bid.amount - refundAmount;
 
             // can never gain more Currency than provided
             assertLe(
-                currency.balanceOf(bid.owner) - currencyBalanceBefore,
-                bidInputAmount,
+                refundAmount,
+                bid.amount,
                 'Bid owner can never be refunded more Currency than provided'
             );
 
             // Bid might be deleted if tokensFilled = 0
-            bid = getBid(i);
+            bid = getBid(bidId);
             if (bid.tokensFilled == 0) continue;
             assertEq(bid.exitedBlock, block.number);
         }
 
         vm.roll(auction.claimBlock());
         for (uint256 i = 0; i < bidCount; i++) {
-            Bid memory bid = getBid(i);
+            uint256 bidId = handler.bidIds(i);
+            Bid memory bid = getBid(bidId);
             if (bid.tokensFilled == 0) continue;
             assertNotEq(bid.exitedBlock, 0);
 
             uint256 ownerBalanceBefore = token.balanceOf(bid.owner);
             vm.expectEmit(true, true, false, false);
-            emit IAuction.TokensClaimed(i, bid.owner, bid.tokensFilled);
-            auction.claimTokens(i);
+            emit IAuction.TokensClaimed(bidId, bid.owner, bid.tokensFilled);
+            auction.claimTokens(bidId);
             // Assert that the owner received the tokens
             assertEq(token.balanceOf(bid.owner), ownerBalanceBefore + bid.tokensFilled);
 
-            bid = getBid(i);
+            bid = getBid(bidId);
             assertEq(bid.tokensFilled, 0);
+        }
+
+        uint256 expectedCurrencyRaised = auction.currencyRaised();
+
+        emit log_string('==================== AFTER EXIT AND CLAIM TOKENS ====================');
+        emit log_named_decimal_uint('auction balance', address(auction).balance, 18);
+        emit log_named_decimal_uint('totalCurrencyRaised', totalCurrencyRaised, 18);
+        emit log_named_decimal_uint('expectedCurrencyRaised', expectedCurrencyRaised, 18);
+
+        assertLe(expectedCurrencyRaised, address(auction).balance, 'Expected currency raised is greater than auction balance');
+
+        auction.sweepUnsoldTokens();
+        if (auction.isGraduated()) {
+            // Sweep the currency
+            vm.expectEmit(true, true, true, true);
+            emit ITokenCurrencyStorage.CurrencySwept(auction.fundsRecipient(), expectedCurrencyRaised);
+            auction.sweepCurrency();
+            // Assert that the currency was swept and matches total currency raised
+            assertEq(expectedCurrencyRaised, totalCurrencyRaised, 'Expected currency raised does not match total currency raised');
+            // Assert that the funds recipient received the currency
+            assertEq(auction.fundsRecipient().balance, expectedCurrencyRaised, 'Funds recipient balance does not match expected currency raised');
+        } else {
+            vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+            auction.sweepCurrency();
+            // At this point we know all bids have been exited so auction balance should be zero
+            assertEq(address(auction).balance, 0, 'Auction balance is not zero after sweeping currency');
         }
     }
 }

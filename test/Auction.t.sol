@@ -1444,16 +1444,16 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_submitBid_withERC20Currency_unpermittedPermit2Transfer_reverts() public {
         // Create auction parameters with ERC20 currency instead of ETH
-        params = params.withCurrency(address(currency));
+        params = params.withCurrency(address(erc20Currency));
         Auction erc20Auction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(erc20Auction), TOTAL_SUPPLY);
         erc20Auction.onTokensReceived();
         // Mint currency tokens to alice
-        currency.mint(alice, 1000e18);
+        erc20Currency.mint(alice, 1000e18);
 
         // For now, let's just verify that the currency is set correctly
         // and that we would reach line 252 if the Permit2 transfer worked
-        assertEq(Currency.unwrap(erc20Auction.currency()), address(currency));
+        assertEq(Currency.unwrap(erc20Auction.currency()), address(erc20Currency));
         assertFalse(erc20Auction.currency().isAddressZero());
 
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector); // Expect revert due to Permit2 transfer failure
@@ -1468,16 +1468,16 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_submitBid_withERC20Currency_nonZeroMsgValue_reverts() public {
         // Create auction parameters with ERC20 currency instead of ETH
-        params = params.withCurrency(address(currency));
+        params = params.withCurrency(address(erc20Currency));
         Auction erc20Auction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(erc20Auction), TOTAL_SUPPLY);
         erc20Auction.onTokensReceived();
 
         // Mint currency tokens to alice
-        currency.mint(alice, 1000e18);
+        erc20Currency.mint(alice, 1000e18);
 
         // For now, let's just verify that the currency is set correctly
-        assertEq(Currency.unwrap(erc20Auction.currency()), address(currency));
+        assertEq(Currency.unwrap(erc20Auction.currency()), address(erc20Currency));
         assertFalse(erc20Auction.currency().isAddressZero());
 
         vm.expectRevert(IAuction.CurrencyIsNotNative.selector);

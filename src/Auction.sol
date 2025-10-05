@@ -344,8 +344,6 @@ contract Auction is
             $nextActiveTickPrice = nextActiveTickPrice_;
         }
 
-        console.log('sumCurrencyDemandAboveClearingX7_', ValueX7.unwrap(sumCurrencyDemandAboveClearingX7_));
-
         // Calculate the new clearing price
         uint256 clearingPrice = _calculateNewClearingPrice(
             sumCurrencyDemandAboveClearingX7_, _REMAINING_CURRENCY_RAISED_AT_FLOOR_X7_X7, _REMAINING_MPS_IN_AUCTION

@@ -16,7 +16,6 @@ import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
-import {DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {SupplyLib, SupplyRolloverMultiplier} from './libraries/SupplyLib.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
@@ -46,7 +45,6 @@ contract Auction is
     using BidLib for *;
     using AuctionStepLib for *;
     using CheckpointLib for Checkpoint;
-    using DemandLib for ValueX7;
     using SafeCastLib for uint256;
     using ValidationHookLib for IValidationHook;
     using ValueX7Lib for *;
@@ -106,7 +104,7 @@ contract Auction is
     /// @inheritdoc IDistributionContract
     function onTokensReceived() external {
         // Don't check balance or emit the TokensReceived event if the tokens have already been received
-        if($_tokensReceived) return;
+        if ($_tokensReceived) return;
         // Use the normal totalSupply value instead of the scaled up X7 value
         if (TOKEN.balanceOf(address(this)) < TOTAL_SUPPLY) {
             revert InvalidTokenAmountReceived();
@@ -591,8 +589,8 @@ contract Auction is
         if (upperCheckpoint.clearingPrice == bidMaxPrice) {
             (uint256 partialTokensFilled, uint256 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
                 upperCheckpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7,
-                bid.toEffectiveAmount().resolveRoundingDown(bidMaxPrice),
-                _getTick(bidMaxPrice).currencyDemandX7.resolveRoundingUp(bidMaxPrice),
+                bid.toEffectiveAmount(),
+                _getTick(bidMaxPrice).currencyDemandX7,
                 bidMaxPrice
             );
             tokensFilled += partialTokensFilled;

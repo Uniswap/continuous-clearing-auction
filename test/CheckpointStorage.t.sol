@@ -6,9 +6,7 @@ import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {CheckpointLib} from '../src/libraries/CheckpointLib.sol';
-
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
-import {DemandLib} from '../src/libraries/DemandLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
@@ -21,7 +19,6 @@ contract CheckpointStorageTest is Assertions, Test {
     MockCheckpointStorage public mockCheckpointStorage;
 
     using BidLib for Bid;
-    using DemandLib for ValueX7;
     using FixedPointMathLib for uint256;
     using AuctionStepLib for uint256;
     using ConstantsLib for *;

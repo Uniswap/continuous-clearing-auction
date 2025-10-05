@@ -5,7 +5,6 @@ import {ICheckpointStorage} from './interfaces/ICheckpointStorage.sol';
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
-import {DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
@@ -17,7 +16,6 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     using FixedPointMathLib for *;
     using AuctionStepLib for *;
     using BidLib for *;
-    using DemandLib for ValueX7;
     using CheckpointLib for Checkpoint;
     using ValueX7Lib for *;
     using ValueX7X7Lib for *;

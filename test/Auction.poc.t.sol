@@ -184,7 +184,7 @@ contract Leftovers is AuctionBaseTest {
             emit log_named_decimal_uint('Total raised (reported)', raised, 18);
             int256 discrepancy = int256(raised) - int256(bid1Spent + bid2Spent);
             emit log_named_decimal_int('DISCREPANCY', discrepancy, 18);
-            if(discrepancy < 0) {
+            if (discrepancy < 0) {
                 emit log_string('!! RAISED LESS THAN TOTAL BIDS SPENT !!');
             } else {
                 emit log_string('!! RAISED MORE THAN TOTAL BIDS SPENT !!');

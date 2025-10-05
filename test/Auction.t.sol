@@ -1807,7 +1807,7 @@ contract AuctionTest is AuctionBaseTest {
     {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
         // Because each bid will be a little less due to rounding
-        $bidAmount = _bound($bidAmount, TOTAL_SUPPLY + _numberOfBids, BidLib.MAX_BID_AMOUNT / $maxPrice);
+        $bidAmount = _bound($bidAmount, TOTAL_SUPPLY + _numberOfBids, helper_getMaxBidAmountAtMaxPrice());
 
         uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids, $maxPrice);
         emit log_named_uint('block number', block.number);
@@ -1838,7 +1838,7 @@ contract AuctionTest is AuctionBaseTest {
     {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
         // Because each bid will be a little less due to rounding
-        $bidAmount = _bound($bidAmount, TOTAL_SUPPLY + _numberOfBids, BidLib.MAX_BID_AMOUNT / $maxPrice);
+        $bidAmount = _bound($bidAmount, TOTAL_SUPPLY + _numberOfBids, helper_getMaxBidAmountAtMaxPrice());
 
         Auction failingAuction = helper__deployAuctionWithFailingToken();
 
@@ -1863,7 +1863,7 @@ contract AuctionTest is AuctionBaseTest {
     {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
         // Because each bid will be a little less due to rounding
-        $bidAmount = _bound($bidAmount, TOTAL_SUPPLY + _numberOfBids, BidLib.MAX_BID_AMOUNT / $maxPrice);
+        $bidAmount = _bound($bidAmount, TOTAL_SUPPLY + _numberOfBids, helper_getMaxBidAmountAtMaxPrice());
 
         uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids, $maxPrice);
 

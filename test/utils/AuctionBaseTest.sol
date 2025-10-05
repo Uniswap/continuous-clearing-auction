@@ -99,6 +99,11 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return _price - (_price % _tickSpacing);
     }
 
+    function helper_getMaxBidAmountAtMaxPrice() internal view returns (uint256) {
+        require($maxPrice > 0, 'Max price is not set in test yet');
+        return BidLib.MAX_BID_AMOUNT / $maxPrice;
+    }
+
     modifier givenValidMaxPrice(uint256 _maxPrice) {
         _maxPrice = _bound(_maxPrice, FLOOR_PRICE, BidLib.MAX_BID_PRICE);
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, TICK_SPACING);
@@ -108,21 +113,21 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     }
 
     modifier givenValidBidAmount(uint256 _bidAmount) {
-        if (BidLib.MIN_BID_AMOUNT <= BidLib.MAX_BID_AMOUNT / $maxPrice) {
+        if (BidLib.MIN_BID_AMOUNT <= helper_getMaxBidAmountAtMaxPrice()) {
             $bidAmount = BidLib.MIN_BID_AMOUNT;
         } else {
-            vm.assume(BidLib.MIN_BID_AMOUNT < BidLib.MAX_BID_AMOUNT / $maxPrice);
-            $bidAmount = _bound(_bidAmount, BidLib.MIN_BID_AMOUNT, BidLib.MAX_BID_AMOUNT / $maxPrice);
+            vm.assume(BidLib.MIN_BID_AMOUNT < helper_getMaxBidAmountAtMaxPrice());
+            $bidAmount = _bound(_bidAmount, BidLib.MIN_BID_AMOUNT, helper_getMaxBidAmountAtMaxPrice());
         }
         _;
     }
 
     modifier givenGraduatedAuction() {
-        if (TOTAL_SUPPLY <= BidLib.MAX_BID_AMOUNT / $maxPrice) {
+        if (TOTAL_SUPPLY <= helper_getMaxBidAmountAtMaxPrice()) {
             $bidAmount = TOTAL_SUPPLY;
         } else {
-            vm.assume(TOTAL_SUPPLY < BidLib.MAX_BID_AMOUNT / $maxPrice);
-            $bidAmount = _bound($bidAmount, TOTAL_SUPPLY, BidLib.MAX_BID_AMOUNT / $maxPrice);
+            vm.assume(TOTAL_SUPPLY < helper_getMaxBidAmountAtMaxPrice());
+            $bidAmount = _bound($bidAmount, TOTAL_SUPPLY, helper_getMaxBidAmountAtMaxPrice());
         }
         _;
     }

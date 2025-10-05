@@ -217,18 +217,48 @@ contract Auction is
     }
 
     /// @notice Calculate the new clearing price, given the cumulative demand and the remaining supply in the auction
+    /// @param _tickLowerPrice The price of the tick which we know we have enough demand to clear
+    /// @param _sumCurrencyDemandAboveClearingX7 The cumulative demand above the clearing price
+    /// @param _cachedRemainingCurrencyRaisedX7X7 The cached remaining currency raised at the floor price
+    /// @param _cachedRemainingMps The cached remaining mps in the auction
+    /// @return The new clearing price
     function _calculateNewClearingPrice(
+        uint256 _tickLowerPrice,
         ValueX7 _sumCurrencyDemandAboveClearingX7,
         ValueX7X7 _cachedRemainingCurrencyRaisedX7X7,
-        uint24 _remainingMpsInAuction
+        uint24 _cachedRemainingMps
     ) internal view returns (uint256) {
+        /**
+         * We can calculate the new clearing price using the formula:
+         * currency demand above tick lower * tickLowerPrice
+         * -------------------------------------------------
+         * required currency at tick lower
+         *
+         * Remembering that we can find the required currency at tick lower by using the
+         * scaling factory of cachedRemainingCurrencyRaisedX7X7 and cachedRemainingMps,
+         * multiplying that by the tickLowerPrice and dividing by the floorPrice.
+         *
+         * Substituting that in, and multiplying by the reciprical we get:
+         *                                                                _cachedRemainingMps * floorPrice
+         * currency demand above tick lower * tickLowerPrice  * ---------------------------------------------------
+         *                                                      _cachedRemainingCurrencyRaisedX7X7 * tickLowerPrice
+         *
+         * Observe that we can cancel out the tickLowerPrice from the numerator and denominator,
+         * and we already have currency demand above tick lower from our iteration over ticks, leaving us with:
+         *
+         * sumCurrencyDemandAboveClearingX7 * floorPrice * _cachedRemainingMps
+         *    -------------------------------------------------
+         *              _cachedRemainingCurrencyRaisedX7X7
+         *
+         * The result of this may be lower than tickLowerPrice. That just means that we can't clear at any price above.
+         * And we should clear at tickLowerPrice instead.
+         */
         uint256 clearingPrice = ValueX7.unwrap(
             _sumCurrencyDemandAboveClearingX7.fullMulDivUp(
-                ValueX7.wrap(uint256(_remainingMpsInAuction) * FLOOR_PRICE),
-                _cachedRemainingCurrencyRaisedX7X7.downcast()
+                ValueX7.wrap(uint256(_cachedRemainingMps) * FLOOR_PRICE), _cachedRemainingCurrencyRaisedX7X7.downcast()
             )
         );
-
+        if (clearingPrice < _tickLowerPrice) return _tickLowerPrice;
         return clearingPrice;
     }
 
@@ -345,10 +375,11 @@ contract Auction is
 
         // Calculate the new clearing price
         uint256 clearingPrice = _calculateNewClearingPrice(
-            sumCurrencyDemandAboveClearingX7_, _REMAINING_CURRENCY_RAISED_AT_FLOOR_X7_X7, _REMAINING_MPS_IN_AUCTION
+            minimumClearingPrice,
+            sumCurrencyDemandAboveClearingX7_,
+            _REMAINING_CURRENCY_RAISED_AT_FLOOR_X7_X7,
+            _REMAINING_MPS_IN_AUCTION
         );
-        // If the new clearing price is below the minimum clearing price return the minimum clearing price
-        if (clearingPrice < minimumClearingPrice) return minimumClearingPrice;
         return clearingPrice;
     }
 

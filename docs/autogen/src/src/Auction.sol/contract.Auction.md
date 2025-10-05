@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/3c95f1e080149f3b4149fa29f3305216cb44fbf5/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/67a500fbee8e3721f833218831f48d0950fda921/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -192,11 +192,27 @@ Calculate the new clearing price, given the cumulative demand and the remaining 
 
 ```solidity
 function _calculateNewClearingPrice(
+    uint256 _tickLowerPrice,
     ValueX7 _sumCurrencyDemandAboveClearingX7,
     ValueX7X7 _cachedRemainingCurrencyRaisedX7X7,
-    uint24 _remainingMpsInAuction
+    uint24 _cachedRemainingMps
 ) internal view returns (uint256);
 ```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`_tickLowerPrice`|`uint256`|The price of the tick which we know we have enough demand to clear|
+|`_sumCurrencyDemandAboveClearingX7`|`ValueX7`|The cumulative demand above the clearing price|
+|`_cachedRemainingCurrencyRaisedX7X7`|`ValueX7X7`|The cached remaining currency raised at the floor price|
+|`_cachedRemainingMps`|`uint24`|The cached remaining mps in the auction|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The new clearing price|
+
 
 ### _iterateOverTicksAndFindClearingPrice
 

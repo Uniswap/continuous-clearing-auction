@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import {AuctionStepLib} from './AuctionStepLib.sol';
-
 import {ConstantsLib} from './ConstantsLib.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
@@ -34,7 +33,7 @@ library BidLib {
     /// @notice Calculate the number of mps remaining in the auction since the bid was submitted
     /// @param bid The bid to calculate the remaining mps for
     /// @return The number of mps remaining in the auction
-    function mpsRemainingInAuction(Bid memory bid) internal pure returns (uint24) {
+    function mpsRemainingInAuctionAfterSubmission(Bid memory bid) internal pure returns (uint24) {
         return ConstantsLib.MPS - bid.startCumulativeMps;
     }
 
@@ -44,6 +43,6 @@ library BidLib {
     /// @return bidAmountOverRemainingAuctionX7 The bid amount in ValueX7 scaled to the remaining percentage of the auction
     function toEffectiveAmount(Bid memory bid) internal pure returns (ValueX7 bidAmountOverRemainingAuctionX7) {
         bidAmountOverRemainingAuctionX7 =
-            bid.amount.scaleUpToX7().mulUint256(ConstantsLib.MPS).divUint256(bid.mpsRemainingInAuction());
+            bid.amount.scaleUpToX7().mulUint256(ConstantsLib.MPS).divUint256(bid.mpsRemainingInAuctionAfterSubmission());
     }
 }

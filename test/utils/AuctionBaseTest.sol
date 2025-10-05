@@ -39,6 +39,9 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     uint256 public constant FLOOR_PRICE = 1000 << FixedPoint96.RESOLUTION;
     uint256 public constant TOTAL_SUPPLY = 1000e18;
 
+    // Max amount of wei that can be lost in totalClearedX7X7 calculations
+    uint256 public constant MAX_TOTAL_CLEARED_PRECISION_LOSS = 1;
+
     address public alice;
     address public tokensRecipient;
     address public fundsRecipient;
@@ -46,6 +49,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     AuctionParameters public params;
     bytes public auctionStepsData;
+
+    uint256 $bidAmount;
 
     function helper__validFuzzDeploymentParams(FuzzDeploymentParams memory _deploymentParams)
         public
@@ -71,8 +76,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _deploymentParams.auctionParams.endBlock =
             _deploymentParams.auctionParams.startBlock + uint64(_deploymentParams.numberOfSteps);
         _deploymentParams.auctionParams.claimBlock = _deploymentParams.auctionParams.endBlock + 1;
-
-        vm.assume(_deploymentParams.auctionParams.graduationThresholdMps != 0);
 
         // Dont have tick spacing or floor price too large
         _deploymentParams.auctionParams.floorPrice =
@@ -101,11 +104,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
             _auctionStepsData = AuctionStepsBuilder.addStep(_auctionStepsData, uint24(_numberOfMps), uint40(1));
         }
         _deploymentParams.auctionParams.auctionStepsData = _auctionStepsData;
-
-        // Bound graduation threshold mps
-        _deploymentParams.auctionParams.graduationThresholdMps =
-            uint24(bound(_deploymentParams.auctionParams.graduationThresholdMps, 0, uint24(ConstantsLib.MPS)));
-
+        
         return _deploymentParams.auctionParams;
     }
 
@@ -303,6 +302,17 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         token.mint(address(auction), TOTAL_SUPPLY);
         // Expect the tokens to be received
         auction.onTokensReceived();
+    }
+
+    modifier givenGraduatedAuction(uint256 _bidAmount) {
+        $bidAmount = _bound(_bidAmount, TOTAL_SUPPLY, type(uint128).max);
+        _;
+    }
+
+    modifier givenNotGraduatedAuction(uint256 _bidAmount) {
+        // TODO(ez): some rounding in auction preventing this from being TOTAL_SUPPLY - 1
+        $bidAmount = _bound(_bidAmount, 1, TOTAL_SUPPLY / 2);
+        _;
     }
 
     /// @dev Helper function to convert a tick number to a priceX96

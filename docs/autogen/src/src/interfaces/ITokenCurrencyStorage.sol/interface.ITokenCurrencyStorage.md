@@ -1,5 +1,5 @@
 # ITokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/68d18000c60b2a641f136e527165de89b151504d/src/interfaces/ITokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/69de3ae4ba8e1e42b571cd7d7900cef9574ede92/src/interfaces/ITokenCurrencyStorage.sol)
 
 Interface for token and currency storage operations
 
@@ -48,15 +48,6 @@ The recipient of the raised Currency from the auction
 
 ```solidity
 function fundsRecipient() external view returns (address);
-```
-
-### graduationThresholdMps
-
-The minimum portion (in MPS) of the total supply that must be sold
-
-
-```solidity
-function graduationThresholdMps() external view returns (uint24);
 ```
 
 ## Events
@@ -153,14 +144,6 @@ Error thrown when the tokens cannot be swept
 
 ```solidity
 error CannotSweepTokens();
-```
-
-### InvalidGraduationThresholdMps
-Error thrown when the graduation threshold is invalid
-
-
-```solidity
-error InvalidGraduationThresholdMps();
 ```
 
 ### NotGraduated

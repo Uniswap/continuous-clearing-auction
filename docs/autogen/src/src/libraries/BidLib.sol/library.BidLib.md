@@ -1,5 +1,5 @@
 # BidLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/68d18000c60b2a641f136e527165de89b151504d/src/libraries/BidLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/69de3ae4ba8e1e42b571cd7d7900cef9574ede92/src/libraries/BidLib.sol)
 
 
 ## State Variables
@@ -14,13 +14,13 @@ uint256 public constant MAX_BID_PRICE =
 
 
 ## Functions
-### mpsRemainingInAuction
+### mpsRemainingInAuctionAfterSubmission
 
 Calculate the number of mps remaining in the auction since the bid was submitted
 
 
 ```solidity
-function mpsRemainingInAuction(Bid memory bid) internal pure returns (uint24);
+function mpsRemainingInAuctionAfterSubmission(Bid memory bid) internal pure returns (uint24);
 ```
 **Parameters**
 

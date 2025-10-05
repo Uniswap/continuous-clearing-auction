@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/8c2930146e31b54e368caa772ec5bb20d1a47d12/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0431e3687595718eb494f7f52a35a2eca979cbce/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
@@ -158,6 +158,26 @@ function claimTokens(uint256 bidId) external;
 |Name|Type|Description|
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
+
+
+### claimTokensBatch
+
+Claim tokens for multiple bids
+
+*Anyone can claim tokens for bids of the same owner, the tokens are transferred to the owner*
+
+*All tokens are transferred in a single transfer*
+
+
+```solidity
+function claimTokensBatch(address owner, uint256[] calldata bidIds) external;
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`owner`|`address`|The owner of the bids|
+|`bidIds`|`uint256[]`|The ids of the bids|
 
 
 ### sweepCurrency
@@ -403,6 +423,14 @@ Error thrown when the bid is not claimable
 
 ```solidity
 error NotClaimable();
+```
+
+### BatchClaimDifferentOwner
+Error thrown when the bids are not owned by the same owner
+
+
+```solidity
+error BatchClaimDifferentOwner(address expectedOwner, address receivedOwner);
 ```
 
 ### BidNotExited

@@ -170,7 +170,7 @@ interface IAuction is
     function claimTokens(uint256 bidId) external;
 
     /// @notice Claim tokens for multiple bids
-    /// @dev Anyone can claim tokens for any bid, the tokens are transferred to the bid owner
+    /// @dev Anyone can claim tokens for bids of the same owner, the tokens are transferred to the owner
     /// @dev All tokens are transferred in a single transfer
     /// @param owner The owner of the bids
     /// @param bidIds The ids of the bids

@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/8c2930146e31b54e368caa772ec5bb20d1a47d12/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0431e3687595718eb494f7f52a35a2eca979cbce/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -394,13 +394,53 @@ Claim tokens after the auction's claim block
 
 
 ```solidity
-function claimTokens(uint256 bidId) external;
+function claimTokens(uint256 _bidId) external;
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`_bidId`|`uint256`||
+
+
+### claimTokensBatch
+
+Claim tokens for multiple bids
+
+*Anyone can claim tokens for bids of the same owner, the tokens are transferred to the owner*
+
+
+```solidity
+function claimTokensBatch(address _owner, uint256[] calldata _bidIds) external;
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`_owner`|`address`||
+|`_bidIds`|`uint256[]`||
+
+
+### _internalClaimTokens
+
+Internal function to claim tokens for a single bid
+
+
+```solidity
+function _internalClaimTokens(uint256 bidId) internal returns (address owner, uint256 tokensFilled);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`owner`|`address`|The owner of the bid|
+|`tokensFilled`|`uint256`|The amount of tokens filled|
 
 
 ### sweepCurrency

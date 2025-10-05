@@ -209,12 +209,11 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
 
     function helper__assumeValidDeploymentParams(
         address _token,
-        uint256 _totalSupply,
+        uint128 _totalSupply,
         bytes32 _salt,
         AuctionParameters memory _params,
         uint8 _numberOfSteps
-    ) public pure returns (uint256 totalSupply) {
-        _totalSupply = bound(_totalSupply, 1, SupplyLib.MAX_TOTAL_SUPPLY);
+    ) public pure {
         vm.assume(_token != address(0));
         vm.assume(_params.currency != address(0));
         vm.assume(_token != _params.currency);
@@ -230,7 +229,11 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
 
         vm.assume(_params.validationHook != address(0));
         vm.assume(_params.tickSpacing != 0);
-        _params.floorPrice = _bound(_params.floorPrice, 1, BidLib.MAX_BID_PRICE - 1);
+        vm.assume(_totalSupply != 0);
+        uint256 maxFloorPrice = type(uint256).max / _totalSupply < BidLib.MAX_BID_PRICE
+            ? type(uint256).max / _totalSupply
+            : BidLib.MAX_BID_PRICE;
+        _params.floorPrice = _bound(_params.floorPrice, 1, maxFloorPrice - 1);
         // Round down to the tick spacing, easier way than vm.assume which doesn't reject too many values
         _params.floorPrice = _params.floorPrice - (_params.floorPrice % _params.tickSpacing);
         vm.assume(_params.floorPrice > 0);
@@ -248,18 +251,16 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         }
         _params.auctionStepsData = _auctionStepsData;
         vm.assume(_params.claimBlock > _params.endBlock);
-
-        return _totalSupply;
     }
 
     function testFuzz_getAuctionAddress(
         address _token,
-        uint256 _totalSupply,
+        uint128 _totalSupply,
         bytes32 _salt,
         uint8 _numberOfSteps,
         AuctionParameters memory _params
     ) public {
-        _totalSupply = helper__assumeValidDeploymentParams(_token, _totalSupply, _salt, _params, _numberOfSteps);
+        helper__assumeValidDeploymentParams(_token, _totalSupply, _salt, _params, _numberOfSteps);
 
         bytes memory configData = abi.encode(_params);
 

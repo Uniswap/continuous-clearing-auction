@@ -5,7 +5,7 @@ import {AuctionParameters} from '../../src/Auction.sol';
 
 /// @dev Parameters for fuzzing the auction
 struct FuzzDeploymentParams {
-    uint256 totalSupply;
+    uint128 totalSupply;
     AuctionParameters auctionParams;
     uint8 numberOfSteps;
 }

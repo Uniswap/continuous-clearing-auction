@@ -3,6 +3,8 @@ pragma solidity 0.8.26;
 
 import {Auction} from '../src/Auction.sol';
 import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
+
+import {BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {SupplyLib} from '../src/libraries/SupplyLib.sol';
@@ -99,12 +101,12 @@ contract AuctionStepDiffTest is AuctionBaseTest {
 
         // Both auctions should have sold the TOTAL_SUPPLY at the same clearing price, and the same cumulative mps
         assertEq(finalCheckpoint1.cumulativeMps, finalCheckpoint2.cumulativeMps);
-        assertEq(finalCheckpoint1.totalClearedX7X7, finalCheckpoint2.totalClearedX7X7);
+        assertEq(finalCheckpoint1.totalCurrencyRaisedX7X7, finalCheckpoint2.totalCurrencyRaisedX7X7);
         assertEq(finalCheckpoint1.clearingPrice, finalCheckpoint2.clearingPrice);
     }
 
-    function test_stepsDataEndingWithZeroMps_succeeds(uint256 totalSupply) public {
-        vm.assume(totalSupply > 0 && totalSupply <= SupplyLib.MAX_TOTAL_SUPPLY);
+    function test_stepsDataEndingWithZeroMps_succeeds(uint128 totalSupply) public {
+        vm.assume(totalSupply > BidLib.MIN_BID_AMOUNT);
         bytes memory data = AuctionStepsBuilder.init().addStep(1, 1e7).addStep(0, 1e7);
         uint256 startBlock = block.number;
         uint256 endBlock = startBlock + 2e7;
@@ -130,7 +132,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         assertEq(checkpoint.cumulativeMps, 1e7);
 
         // The auction has fully sold out 1e7 mps worth of tokens, so all future bids will revert
-        inputAmount = inputAmountForTokens(1, tickNumberToPriceX96(2));
+        inputAmount = inputAmountForTokens(BidLib.MIN_BID_AMOUNT, tickNumberToPriceX96(2));
         vm.deal(address(this), inputAmount);
         vm.expectRevert(IAuction.AuctionSoldOut.selector);
         newAuction.submitBid{value: inputAmount}(
@@ -142,9 +144,10 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         // Assert that values in the final checkpoint is the same as the checkpoint after selling 1e7 mps worth of tokens
         assertEq(finalCheckpoint.cumulativeMps, checkpoint.cumulativeMps);
         assertEq(finalCheckpoint.clearingPrice, checkpoint.clearingPrice);
-        assertEq(finalCheckpoint.totalClearedX7X7, checkpoint.totalClearedX7X7);
+        assertEq(finalCheckpoint.totalCurrencyRaisedX7X7, checkpoint.totalCurrencyRaisedX7X7);
         assertEq(
-            finalCheckpoint.cumulativeSupplySoldToClearingPriceX7X7, checkpoint.cumulativeSupplySoldToClearingPriceX7X7
+            finalCheckpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7,
+            checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7
         );
         assertEq(finalCheckpoint.cumulativeMpsPerPrice, checkpoint.cumulativeMpsPerPrice);
         // Don't check mps, prev, and next because they will be different

@@ -12,9 +12,13 @@ import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7} from '../../src/libraries/ValueX7X7Lib.sol';
 
 contract MockAuction is Auction {
-    constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
+    constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
         Auction(_token, _totalSupply, _parameters)
     {}
+
+    function getTotalCurrencyRaisedAtFloorX7X7() external view returns (ValueX7X7) {
+        return TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7;
+    }
 
     /// @notice Wrapper around internal function for testing
     function calculateNewClearingPrice(

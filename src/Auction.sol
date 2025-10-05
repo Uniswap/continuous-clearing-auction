@@ -59,8 +59,11 @@ contract Auction is
     uint64 internal immutable CLAIM_BLOCK;
     /// @notice An optional hook to be called before a bid is registered
     IValidationHook internal immutable VALIDATION_HOOK;
+    /// @notice The total currency that will be raised selling total supply at the floor price
+    ValueX7X7 internal immutable TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7;
 
-    /// @notice The sum of demand in ticks above the clearing price
+    /// @notice The sum of currency demand in ticks above the clearing price
+    /// @dev This will increase every time a new bid is submitted, and decrease when bids are outbid.
     ValueX7 internal $sumCurrencyDemandAboveClearingX7;
     /// @notice Whether the TOTAL_SUPPLY of tokens has been received
     bool private $_tokensReceived;
@@ -68,7 +71,7 @@ contract Auction is
     ///         immediately before the auction becomes fully subscribed. The ratio of these helps account for rollover supply.
     SupplyRolloverMultiplier internal $_supplyRolloverMultiplier;
 
-    constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
+    constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
         TokenCurrencyStorage(
             _token,
@@ -84,6 +87,9 @@ contract Auction is
         VALIDATION_HOOK = IValidationHook(_parameters.validationHook);
 
         if (CLAIM_BLOCK < END_BLOCK) revert ClaimBlockIsBeforeEndBlock();
+
+        // Calculate the total currency that will be raised from selling the total supply at the floor price
+        TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7 = TOTAL_SUPPLY_X7_X7.wrapAndFullMulDivUp(FLOOR_PRICE, FixedPoint96.Q96);
     }
 
     /// @notice Modifier for functions which can only be called after the auction is over
@@ -101,6 +107,8 @@ contract Auction is
 
     /// @inheritdoc IDistributionContract
     function onTokensReceived() external {
+        // Don't check balance or emit the TokensReceived event if the tokens have already been received
+        if ($_tokensReceived) return;
         // Use the normal totalSupply value instead of the scaled up X7 value
         if (TOKEN.balanceOf(address(this)) < TOTAL_SUPPLY) {
             revert InvalidTokenAmountReceived();
@@ -131,83 +139,60 @@ contract Auction is
         internal
         returns (Checkpoint memory)
     {
-        // This value should have been divided by MPS, we implicitly remove it to wrap it as a ValueX7X7
-        ValueX7X7 resolvedDemandAboveClearingPriceX7X7 =
-            $sumCurrencyDemandAboveClearingX7.resolveRoundingDown(_checkpoint.clearingPrice).upcast();
-        // Calculate the supply to be cleared based on demand above the clearing price
-        ValueX7X7 supplyClearedX7X7;
-        // If the clearing price is above the floor price the auction is fully subscribed and we can sell the available supply
+        ValueX7X7 currencyRaisedX7X7;
+        // If the clearing price is above the floor price, the auction is fully subscribed and the amount of
+        // currency which will be raised is deterministic based on the initial supply schedule.
         if (_checkpoint.clearingPrice > FLOOR_PRICE) {
-            // The supply sold over `deltaMps` is deterministic once the auction becomes fully subscribed
-            // We get the cached total cleared and remaining mps for use in the calculations below. These values
-            // make up the multiplier which helps account for rollover supply.
-            (bool isSet, uint24 cachedRemainingMps, ValueX7X7 cachedRemainingSupplyX7X7) =
+            // We get the cached remaining currencyRaisedX7X7 and remaining mps for use in the calculations below.
+            // These values are the numerator and denominator (respectively) of the factor which we use
+            // to ensure we are correctly rolling over unsold supply in the blocks before the auction became fully subscribed.
+            (bool isSet, uint24 cachedRemainingPercentage, ValueX7X7 cachedRemainingCurrencyRaisedX7X7) =
                 $_supplyRolloverMultiplier.unpack();
             if (!isSet) {
                 // Locally set the variables to save gas
-                cachedRemainingMps = ConstantsLib.MPS - _checkpoint.cumulativeMps;
-                cachedRemainingSupplyX7X7 = TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7);
+                cachedRemainingPercentage = ConstantsLib.MPS - _checkpoint.cumulativeMps;
+                cachedRemainingCurrencyRaisedX7X7 =
+                    TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7.sub(_checkpoint.totalCurrencyRaisedX7X7);
                 // Set the cache with the values in _checkpoint, which represents the state of the auction before it becomes fully subscribed
-                $_supplyRolloverMultiplier =
-                    SupplyLib.packSupplyRolloverMultiplier(true, cachedRemainingMps, cachedRemainingSupplyX7X7);
+                $_supplyRolloverMultiplier = SupplyLib.packSupplyRolloverMultiplier(
+                    true, cachedRemainingPercentage, cachedRemainingCurrencyRaisedX7X7
+                );
             }
-            // If the clearing price is at a tick boundary, we have to track the supply sold to that price
-            if (_checkpoint.clearingPrice % TICK_SPACING == 0) {
-                /**
-                 * The supply sold to the clearing price is the supply sold minus the tokens sold to bidders above the clearing price
-                 * Supply is calculated as:
-                 *       (totalSupply - totalCleared) * mps                            (TOTAL_SUPPLY_X7_X7 - totalClearedX7X7)
-                 *      ------------------------------------ , also can be written as  --------------------------------------- * deltaMps
-                 *              MPS - cumulativeMps                                                 MPS - cumulativeMps
-                 *
-                 * Substituting in the cached remaining supply and remaining mps:
-                 *       cachedRemainingSupplyX7X7
-                 *      ---------------------------- * deltaMps
-                 *            cachedRemainingMps
-                 *
-                 * Writing out the full equation:
-                 *       cachedRemainingSupplyX7X7                     resolvedDemandAboveClearingPriceX7 * deltaMps
-                 *      ------------------------------- * deltaMps -      -------------------------------------
-                 *            cachedRemainingMps                                        ConstantsLib.MPS
-                 *
-                 * !! We multiply the RHS (demand) by ConstantsLib.MPS to remove the division and turn the result into an X7X7 value !!
-                 *
-                 * Finding common denominator of cachedRemainingMps
-                 *       cachedRemainingSupplyX7X7 * deltaMps - resolvedDemandAboveClearingPriceX7 * deltaMps * cachedRemainingMps
-                 *      -----------------------------------------------------------------------------------------------------------------------
-                 *            cachedRemainingMps
-                 *
-                 * Moving out `deltaMps` and multiply by ConstantsLib.MPS to turn it into a ValueX7X7
-                 *       deltaMps * (cachedRemainingSupplyX7X7 - resolvedDemandAboveClearingPriceX7 * cachedRemainingMps)
-                 *      -----------------------------------------------------------------------------------------------------------------------
-                 *            cachedRemainingMps
-                 *
-                 * Arriving at the final fullMulDiv below.
-                 */
-                ValueX7X7 supplySoldToClearingPriceX7X7 = (
-                    cachedRemainingSupplyX7X7.sub(resolvedDemandAboveClearingPriceX7X7.mulUint256(cachedRemainingMps))
-                ).wrapAndFullMulDiv(deltaMps, cachedRemainingMps);
-                // After finding the supply sold to the clearing price, we add the demand above the clearing price to get the total supply sold
-                supplyClearedX7X7 =
-                    supplySoldToClearingPriceX7X7.add(resolvedDemandAboveClearingPriceX7X7.mulUint256(deltaMps));
-                // Finally, update the cumulative supply sold to the clearing price value
-                _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 =
-                    _checkpoint.cumulativeSupplySoldToClearingPriceX7X7.add(supplySoldToClearingPriceX7X7);
-            }
-            // Otherwise, it is not possible for there to be bids at `_checkpoint.clearingPrice`, so all bids must be above the clearing price.
-            // That means all bids are fully filled and we don't need to track the supply sold to the clearing price.
-            else {
-                supplyClearedX7X7 = cachedRemainingSupplyX7X7.mulUint256(deltaMps).divUint256(cachedRemainingMps);
+            // The currency raised is equal to multiplying the ratio between actualized currency raised and expected
+            // by the current clearing price, and the number of mps according to the original supply schedule
+            // and finally dividing by the floor price.
+            currencyRaisedX7X7 = cachedRemainingCurrencyRaisedX7X7.wrapAndFullMulDiv(
+                _checkpoint.clearingPrice * uint256(deltaMps), uint256(cachedRemainingPercentage) * FLOOR_PRICE
+            );
+
+            // There is a special case where the clearing price is at a tick boundary with bids.
+            // In this case, we have to explicitly track the supply sold to that price since they are "partially filled"
+            // and thus the amount of tokens sold to that price is <= to the collective demand at that price, since bidders at higher prices are prioritized.
+            if (
+                _checkpoint.clearingPrice % TICK_SPACING == 0
+                    && !_getTick(_checkpoint.clearingPrice).currencyDemandX7.eq(ValueX7.wrap(0))
+            ) {
+                // The currencyRaisedAtClearingPrice is simply the total currency raised from the supply schedule
+                // minus the currency raised from the demand above the clearing price.
+                // We should divide the sumDemandAboveClearing by 1e7 (100%) to get the actualized currency raised, but
+                // to avoid intermediate division, we upcast it into a X7X7 value to show that it has implicitly been scaled up by 1e7.
+                ValueX7X7 currencyRaisedAtClearingPriceX7X7 =
+                    currencyRaisedX7X7.sub($sumCurrencyDemandAboveClearingX7.mulUint256(deltaMps).upcast());
+                // Update the cumulative value in the checkpoint which will be reset if the clearing price changes
+                _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7 =
+                    _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7.add(currencyRaisedAtClearingPriceX7X7);
             }
         }
-        // Otherwise, we can only sell tokens equal to the current demand above the clearing price
+        // In the case where the auction is not fully subscribed yet, we can only sell tokens equal to the current demand above the clearing price
         else {
-            // Clear supply equal to the resolved demand above the clearing price over the given `deltaMps`
-            supplyClearedX7X7 = resolvedDemandAboveClearingPriceX7X7.mulUint256(deltaMps);
-            // supplySoldToClearing price is zero here because the auction is not fully subscribed yet
+            // Calculate the currency raised from the total demand above the clearing price
+            // This should be divided by 1e7, but we scale it up instead to avoid the division.
+            // This is why we upcast() to show that it implicitly has been scaled up by 1e7.
+            currencyRaisedX7X7 = $sumCurrencyDemandAboveClearingX7.mulUint256(deltaMps).upcast();
         }
-        _checkpoint.totalClearedX7X7 = _checkpoint.totalClearedX7X7.add(supplyClearedX7X7);
+        _checkpoint.totalCurrencyRaisedX7X7 = _checkpoint.totalCurrencyRaisedX7X7.add(currencyRaisedX7X7);
         _checkpoint.cumulativeMps += deltaMps;
+        // Calculate the harmonic mean of the mps and price
         _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(deltaMps, _checkpoint.clearingPrice);
         return _checkpoint;
     }
@@ -236,43 +221,15 @@ contract Auction is
     }
 
     /// @notice Calculate the new clearing price, given the cumulative demand and the remaining supply in the auction
-    /// @param _sumCurrencyDemandAboveClearingX7 The sum of demand above the clearing price
-    /// @param _remainingMpsInAuction The remaining mps in the auction which is ConstantsLib.MPS minus the cumulative mps so far
-    /// @param _remainingSupplyX7X7 The result of TOTAL_SUPPLY_X7_X7 minus the total cleared supply so far
-    /// @return The new clearing price
     function _calculateNewClearingPrice(
         ValueX7 _sumCurrencyDemandAboveClearingX7,
-        ValueX7X7 _remainingSupplyX7X7,
+        ValueX7X7 _cachedRemainingCurrencyRaisedX7X7,
         uint24 _remainingMpsInAuction
     ) internal view returns (uint256) {
-        /**
-         * Calculate the clearing price by dividing the currencyDemandX7 by the supply following `currency / tokens = price`
-         * We find the ratio of all demand to the amount of remaining supply in the auction
-         *
-         * At this point, we know that the new clearing price must be between `minimumClearingPrice` and `nextActiveTickPrice`, inclusive of both bounds.
-         * We can use the following equation to find the price:
-         *   currencyDemandX7 * Q96 * mps            (totalSupplyX7 - totalClearedX7) * mps
-         *   ---------------------------------  /    ---------------------------------
-         *             ConstantsLib.MPS                       ConstantsLib.MPS - cumulativeMps
-         *
-         * Rewriting as multiplication by reciprocal:
-         *   currencyDemandX7 * Q96 * mps            ConstantsLib.MPS - cumulativeMps
-         *   ---------------------------------  *    ---------------------------------
-         *             ConstantsLib.MPS                    (totalSupplyX7 - totalClearedX7) * mps
-         *
-         * Cancelling out the `mps` terms and lone `ConstantsLib.MPS` terms:
-         *                                           ConstantsLib.MPS - cumulativeMps
-         *   currencyDemandX7 * Q96             *    ---------------------------------
-         *                                           (totalSupplyX7 - totalClearedX7)
-         *
-         * Observe that (totalSupplyX7 - totalClearedX7) * ConstantsLib.MPS is equal to `remainingSupplyX7X7`, since it is scaled up by ConstantsLib.MPS a second time
-         * Now we can substitute in `remainingSupplyX7X7` and `remainingMpsInAuction` into the equation
-         * We use fullMulDivUp to allow for intermediate overflows and ensure that the final clearing price is rounded up because we bias towards
-         * higher prices which results in less tokens being sold (since price is currency / token).
-         */
         uint256 clearingPrice = ValueX7.unwrap(
             _sumCurrencyDemandAboveClearingX7.fullMulDivUp(
-                ValueX7.wrap(FixedPoint96.Q96 * uint256(_remainingMpsInAuction)), _remainingSupplyX7X7.downcast()
+                ValueX7.wrap(uint256(_remainingMpsInAuction) * FLOOR_PRICE),
+                _cachedRemainingCurrencyRaisedX7X7.downcast()
             )
         );
 
@@ -287,53 +244,92 @@ contract Auction is
         // The clearing price can never be lower than the last checkpoint.
         // If the clearingPrice is zero, this will set it to the floor price
         uint256 minimumClearingPrice = _checkpoint.clearingPrice.coalesce(FLOOR_PRICE);
-        uint24 _REMAINING_MPS_IN_AUCTION = _checkpoint.remainingMpsInAuction();
-        ValueX7X7 _REMAINING_SUPPLY_X7_X7 = TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7);
+        (bool isSet, uint24 cachedRemainingPercentage, ValueX7X7 cachedRemainingCurrencyRaisedX7X7) =
+            $_supplyRolloverMultiplier.unpack();
+        uint24 _REMAINING_MPS_IN_AUCTION = isSet ? cachedRemainingPercentage : _checkpoint.remainingMpsInAuction();
+        ValueX7X7 _REMAINING_CURRENCY_RAISED_AT_FLOOR_X7_X7 = isSet
+            ? cachedRemainingCurrencyRaisedX7X7
+            : TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7.sub(_checkpoint.totalCurrencyRaisedX7X7);
         // If there are no more remaining mps in the auction, we don't need to iterate over ticks
         // and we can return the minimum clearing price above
         if (_REMAINING_MPS_IN_AUCTION == 0) return minimumClearingPrice;
 
+        // Place state variables on the stack to save gas
+        bool updateStateVariables;
         ValueX7 sumCurrencyDemandAboveClearingX7_ = $sumCurrencyDemandAboveClearingX7;
         uint256 nextActiveTickPrice_ = $nextActiveTickPrice;
 
-        Tick memory nextActiveTick = getTick(nextActiveTickPrice_);
         /**
-         * Tick iteration loop inequality explained:
+         * Tick iteration loop explained:
          *
-         * To compare the resolved demand to the supply being sold, we have the orignal equation:
-         *   R = resolvedDemand * mps / ConstantsLib.MPS
-         *   supply = (totalSupply - _checkpoint.totalCleared) * step.mps / (ConstantsLib.MPS - _checkpoint.cumulativeMps)
-         * We are looking for R >= supply
+         * We have the current demand above the clearing price, and we want to see if it is enough to fully purchase
+         * all of the remaining supply being sold at the nextActiveTickPrice. We only need to check `nextActiveTickPrice`
+         * because we know that there are no bids in between the current clearing price and that price.
          *
-         * Observe that because of the inequality, we can multiply both sides by `(ConstantsLib.MPS - _checkpoint.cumulativeMps)` to get:
-         *   R * (ConstantsLib.MPS - _checkpoint.cumulativeMps) >= supply * mps
+         * Observe that we need a certain amount of collective demand to increase the auction from the floor price.
+         * - This is equal to `totalSupply * floorPrice`
          *
-         * Substituting R back into the equation to get:
-         *   (resolvedDemand * mps / ConstantsLib.MPS) * (ConstantsLib.MPS - _checkpoint.cumulativeMps) >= supply * mps
-         * Or,
-         *   (resolvedDemand * mps) * (ConstantsLib.MPS - _checkpoint.cumulativeMps)
-         *   ----------------------------------------------------------------- >= supply * mps
-         *                            ConstantsLib.MPS
-         * We can eliminate the `mps` term on both sides to get:
-         *   resolvedDemand * (ConstantsLib.MPS - _checkpoint.cumulativeMps)
-         *   ----------------------------------------------------------------- >= supply
-         *                            ConstantsLib.MPS
-         * And multiply both sides by `ConstantsLib.MPS` to remove the division entirely:
-         *   resolvedDemand * (ConstantsLib.MPS - _checkpoint.cumulativeMps) >= supply * ConstantsLib.MPS
+         * If the auction was fully subscribed in the first block which it was active, then the total CURRENCY REQUIRED
+         * at any given price is equal to totalSupply * p', where p' is that price.
          *
-         * Conveniently, we are already tracking supply in terms of X7X7, which is already scaled up by ConstantsLib.MPS,
-         * so we can substitute in TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7) for `supply`:
-         *   resolvedDemand * (ConstantsLib.MPS - _checkpoint.cumulativeMps) >= TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7)
+         * However, if the auction is not fully subscribed from the start, there will be excess supply which will be rolled
+         * over into future blocks. This means that the amount of currency required to change the clearing price no longer
+         * follows the formula above because we are no longer following the original supply schedule.
          *
-         * Expand out resolvedDemand to get: resolvedDemand = currencyDemandX7 * Q96 / price;
-         * Move the price to the RHS to remove the division:
-         *   currencyDemandX7 * Q96 * (ConstantsLib.MPS - _checkpoint.cumulativeMps) >= TOTAL_SUPPLY_X7_X7.sub(_checkpoint.totalClearedX7X7) * price
+         * Instead, we need to linearly transform the supply schedule to account for any rollover supply.
+         * Observe that we track the total currency raised in the auction, and the remaining percentage of the auction.
+         * The ratio of these two values represents how closely the auction is following the original supply schedule.
+         * Once the auction is fully subscribed, both the numerator and denominator will increase at the same rate.
+         * However, until then the actualized currency raised may increase slower than expected, causing the ratio to be less than 1.
+         *
+         * The moment when the auction becomes fully subscribed, we can freeze this ratio and apply it to the existing
+         * supply schedule to determinstically calculate the amount of currency required to move the auction to any given price.
+         *
+         * This scaling factor is defined as: (pseudocode)
+         *
+         *            totalSupply - cumulativeTokensSold
+         *   F = -------------------------------------------
+         *           percentageRemainingInAuction
+         *
+         * We don't track actual tokens sold because it requires division.
+         * Thus, we multiply this by `floorPrice` so it is in terms of currency.
+         *
+         *       floorPrice * (totalSupply - cumulativeTokensSold)
+         *   F = -------------------------------------------------
+         *                percentageRemainingInAuction
+         *
+         * And this is what we save in state:
+         *
+         *       TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7 - totalCurrencyRaisedX7X7
+         *   F = ---------------------------------------------------------------
+         *                  ConstantsLib.MPS - _checkpoint.cumulativeMps
+         *
+         * Notice that floorPrice * totalSupply == TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7
+         * and floorPrice * cumulativeTokensSold == totalCurrencyRaisedX7X7 (from selling tokens at floor price)
+         *
+         * This means that the currency required to move the auction to any given price p' is:
+         *
+         *                                            F * p'
+         *   currencyRequiredAtNextActiveTickPrice = ----------
+         *                                           floorPrice
+         *
+         * Because `F` includes a division by `(ConstantsLib.MPS - _checkpoint.cumulativeMps)`, we can multiply both sides
+         * by `(ConstantsLib.MPS - _checkpoint.cumulativeMps)` to get:
+         *
+         *   currencyRequiredAtNextActiveTickPrice * (ConstantsLib.MPS - _checkpoint.cumulativeMps)
+         * s
+         *        >= (TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7 - totalCurrencyRaisedX7X7) * nextActiveTickPrice_
+         *           --------------------------------------------------------------------------------------
+         *                                            floorPrice
          */
+        Tick memory nextActiveTick = _getTick(nextActiveTickPrice_);
         while (
-            nextActiveTickPrice_ != type(uint256).max
-                && sumCurrencyDemandAboveClearingX7_.resolveRoundingUp(nextActiveTickPrice_).mulUint256(
-                    _REMAINING_MPS_IN_AUCTION
-                ).upcast().gte(_REMAINING_SUPPLY_X7_X7)
+            nextActiveTickPrice_ != MAX_TICK_PTR
+            // Loop while the currency amount above `nextActiveTickPrice_` is greater than the required currency at nextActiveTickPrice_
+            && sumCurrencyDemandAboveClearingX7_.mulUint256(_REMAINING_MPS_IN_AUCTION).upcast().gte(
+                // Round down here to bias towards iterating over the next tick
+                _REMAINING_CURRENCY_RAISED_AT_FLOOR_X7_X7.wrapAndFullMulDiv(nextActiveTickPrice_, FLOOR_PRICE)
+            )
         ) {
             // Subtract the demand at the current nextActiveTick from the total demand
             sumCurrencyDemandAboveClearingX7_ = sumCurrencyDemandAboveClearingX7_.sub(nextActiveTick.currencyDemandX7);
@@ -341,17 +337,20 @@ contract Auction is
             minimumClearingPrice = nextActiveTickPrice_;
             // Advance to the next tick
             nextActiveTickPrice_ = nextActiveTick.next;
-            nextActiveTick = getTick(nextActiveTickPrice_);
+            nextActiveTick = _getTick(nextActiveTickPrice_);
+            updateStateVariables = true;
         }
         // Set the values into storage if we found a new next active tick price
-        if (nextActiveTickPrice_ != $nextActiveTickPrice) {
+        if (updateStateVariables) {
             $sumCurrencyDemandAboveClearingX7 = sumCurrencyDemandAboveClearingX7_;
             $nextActiveTickPrice = nextActiveTickPrice_;
         }
 
+        console.log('sumCurrencyDemandAboveClearingX7_', ValueX7.unwrap(sumCurrencyDemandAboveClearingX7_));
+
         // Calculate the new clearing price
         uint256 clearingPrice = _calculateNewClearingPrice(
-            sumCurrencyDemandAboveClearingX7_, _REMAINING_SUPPLY_X7_X7, _REMAINING_MPS_IN_AUCTION
+            sumCurrencyDemandAboveClearingX7_, _REMAINING_CURRENCY_RAISED_AT_FLOOR_X7_X7, _REMAINING_MPS_IN_AUCTION
         );
         // If the new clearing price is below the minimum clearing price return the minimum clearing price
         if (clearingPrice < minimumClearingPrice) return minimumClearingPrice;
@@ -372,7 +371,7 @@ contract Auction is
         if (clearingPrice != _checkpoint.clearingPrice) {
             // Set the new clearing price
             _checkpoint.clearingPrice = clearingPrice;
-            _checkpoint.cumulativeSupplySoldToClearingPriceX7X7 = ValueX7X7.wrap(0);
+            _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7 = ValueX7X7.wrap(0);
         }
 
         // Sine the clearing price is now up to date, we can advance the auction to the current step
@@ -390,7 +389,7 @@ contract Auction is
         _insertCheckpoint(_checkpoint, blockNumber);
 
         emit CheckpointUpdated(
-            blockNumber, _checkpoint.clearingPrice, _checkpoint.totalClearedX7X7, _checkpoint.cumulativeMps
+            blockNumber, _checkpoint.clearingPrice, _checkpoint.totalCurrencyRaisedX7X7, _checkpoint.cumulativeMps
         );
     }
 
@@ -425,11 +424,10 @@ contract Auction is
 
         $sumCurrencyDemandAboveClearingX7 = $sumCurrencyDemandAboveClearingX7.add(bidEffectiveAmount);
 
-        // If the sumDemandAboveClearing becomes large enough to overflow a multiplication by an X7X7 value, revert
-        if (
-            ValueX7.unwrap($sumCurrencyDemandAboveClearingX7.resolveRoundingUp($nextActiveTickPrice))
-                >= ConstantsLib.X7_UPPER_BOUND
-        ) revert InvalidBidUnableToClear();
+        // If the sumDemandAboveClearing becomes large enough to overflow a multiplication an X7 value, revert
+        if ($sumCurrencyDemandAboveClearingX7.gte(ValueX7.wrap(ConstantsLib.X7_UPPER_BOUND))) {
+            revert InvalidBidUnableToClear();
+        }
 
         emit BidSubmitted(bidId, owner, maxPrice, amount);
     }
@@ -471,7 +469,10 @@ contract Auction is
     {
         // Bids cannot be submitted at the endBlock or after
         if (block.number >= END_BLOCK) revert AuctionIsOver();
-        if (amount == 0) revert InvalidAmount();
+        // If the bid is too small such that it would be rounded down to zero, revert
+        if (amount < BidLib.MIN_BID_AMOUNT) revert BidAmountTooSmall();
+        // If the bid would overflow a ValueX7X7 value, revert
+        if (amount > BidLib.MAX_BID_AMOUNT) revert BidAmountTooLarge();
         if (CURRENCY.isAddressZero()) {
             if (msg.value != amount) revert InvalidAmount();
         } else {
@@ -593,9 +594,9 @@ contract Auction is
         uint256 bidMaxPrice = bid.maxPrice; // place on stack
         if (upperCheckpoint.clearingPrice == bidMaxPrice) {
             (uint256 partialTokensFilled, uint256 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
-                upperCheckpoint.cumulativeSupplySoldToClearingPriceX7X7,
+                upperCheckpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7,
                 bid.toEffectiveAmount().resolveRoundingDown(bidMaxPrice),
-                getTick(bidMaxPrice).currencyDemandX7.resolveRoundingUp(bidMaxPrice),
+                _getTick(bidMaxPrice).currencyDemandX7.resolveRoundingUp(bidMaxPrice),
                 bidMaxPrice
             );
             tokensFilled += partialTokensFilled;
@@ -626,7 +627,7 @@ contract Auction is
         // Cannot sweep if already swept
         if (sweepCurrencyBlock != 0) revert CannotSweepCurrency();
         Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
-        // Cannot sweep currency if the auction has not graduated, as the Currency must be refunded
+        // Cannot sweep currency if the auction has not graduated, as all of the Currency must be refunded
         if (!_isGraduated(finalCheckpoint)) revert NotGraduated();
         _sweepCurrency(finalCheckpoint.getCurrencyRaised());
     }

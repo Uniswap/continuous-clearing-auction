@@ -29,6 +29,12 @@ interface ITickStorage {
     /// @param price The price of the tick
     event NextActiveTickUpdated(uint256 price);
 
+    /// @notice Get a tick at a price
+    /// @dev The returned tick is not guaranteed to be initialized
+    /// @param price The price of the tick
+    /// @return The tick at the given price
+    function getTick(uint256 price) external view returns (Tick memory);
+
     /// @notice The price of the next initialized tick above the clearing price
     /// @dev This will be equal to the clearingPrice if no ticks have been initialized yet
     /// @return The price of the next active tick

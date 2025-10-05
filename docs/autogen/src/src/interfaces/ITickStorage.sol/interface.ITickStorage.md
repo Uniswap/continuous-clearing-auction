@@ -1,10 +1,33 @@
 # ITickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/69de3ae4ba8e1e42b571cd7d7900cef9574ede92/src/interfaces/ITickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/35473874d97222cd9ba85c79c74cfb5935603cd9/src/interfaces/ITickStorage.sol)
 
 Interface for the TickStorage contract
 
 
 ## Functions
+### getTick
+
+Get a tick at a price
+
+*The returned tick is not guaranteed to be initialized*
+
+
+```solidity
+function getTick(uint256 price) external view returns (Tick memory);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`price`|`uint256`|The price of the tick|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`Tick`|The tick at the given price|
+
+
 ### nextActiveTickPrice
 
 The price of the next initialized tick above the clearing price

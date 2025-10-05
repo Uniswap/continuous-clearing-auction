@@ -1,5 +1,5 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/69de3ae4ba8e1e42b571cd7d7900cef9574ede92/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/35473874d97222cd9ba85c79c74cfb5935603cd9/src/TickStorage.sol)
 
 **Inherits:**
 [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
@@ -85,6 +85,17 @@ function getTick(uint256 price) public view returns (Tick memory);
 |----|----|-----------|
 |`<none>`|`Tick`|The tick at the given price|
 
+
+### _getTick
+
+Internal function to get a tick at a price
+
+*The returned tick is not guaranteed to be initialized*
+
+
+```solidity
+function _getTick(uint256 price) internal view returns (Tick memory);
+```
 
 ### _initializeTickIfNeeded
 

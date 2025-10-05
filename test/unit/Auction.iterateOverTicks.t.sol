@@ -33,16 +33,12 @@ contract AuctionIterateOverTicksTest is AuctionUnitTest {
 
     modifier givenValidCheckpoint(Checkpoint memory _checkpoint) {
         vm.assume(_checkpoint.cumulativeMps > 0 && _checkpoint.cumulativeMps <= ConstantsLib.MPS);
-        _checkpoint.totalClearedX7X7 = ValueX7X7.wrap(
-            _bound(
-                ValueX7X7.unwrap(_checkpoint.totalClearedX7X7),
-                0,
-                ValueX7X7.unwrap(mockAuction.totalSupply().scaleUpToX7().scaleUpToX7X7())
-            )
-        );
         _;
     }
 
+    // Less fuzz runs because this is a pretty intensive test
+    /// forge-config: default.fuzz.runs = 1000
+    /// forge-config: ci.fuzz.runs = 1000
     function test_iterateOverTicks(
         FuzzDeploymentParams memory _deploymentParams,
         FuzzBid[] memory _bids,
@@ -50,9 +46,12 @@ contract AuctionIterateOverTicksTest is AuctionUnitTest {
     ) public setUpMockAuctionFuzz(_deploymentParams) setUpBidsFuzz(_bids) givenValidCheckpoint(_checkpoint) {
         // Assume there are still tokens to sell in the auction
         vm.assume(_checkpoint.remainingMpsInAuction() > 0);
-        vm.assume(
-            ValueX7X7.unwrap(mockAuction.totalSupply().scaleUpToX7().scaleUpToX7X7().sub(_checkpoint.totalClearedX7X7))
-                > 0
+        _checkpoint.totalCurrencyRaisedX7X7 = ValueX7X7.wrap(
+            _bound(
+                ValueX7X7.unwrap(_checkpoint.totalCurrencyRaisedX7X7),
+                0,
+                ValueX7X7.unwrap(mockAuction.getTotalCurrencyRaisedAtFloorX7X7()) - 1
+            )
         );
         // Insert the bids into the auction without creating checkpoints or going through the normal logic
         // This involves initializing ticks, updating tick demand, updating sum demand above clearing, and inserting the bids into storage
@@ -75,15 +74,30 @@ contract AuctionIterateOverTicksTest is AuctionUnitTest {
         _checkpoint.clearingPrice = mockAuction.floorPrice();
         // Set the next active tick price to the lowest tick price so we can iterate over them
         mockAuction.uncheckedSetNextActiveTickPrice(lowestTickPrice);
+        // Ensure fullMulDiv result doesn't overflow: (type(uint256).max * floorPrice) / lowestTickPrice <= type(uint256).max
+        vm.assume(mockAuction.floorPrice() <= lowestTickPrice);
+        vm.assume(
+            ValueX7X7.unwrap(mockAuction.getTotalCurrencyRaisedAtFloorX7X7().sub(_checkpoint.totalCurrencyRaisedX7X7))
+                < type(uint256).max.fullMulDiv(mockAuction.floorPrice(), lowestTickPrice)
+        );
 
         uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice(_checkpoint);
+        // Assert that the clearing price is greater than or equal to the floor price
+        assertGe(clearingPrice, mockAuction.floorPrice());
+        // Assert that the clearing price is less than or equal to the highest tick price
+        // This must be true because we can't find a price higher than the max price of all the bids
+        assertLe(clearingPrice, highestTickPrice);
 
-        // Assert that the sumDemandAboveClearing is less than or equal to the remaining supply in the auction
-        // If it was, that would mean that the price discovered by the iteration was too low, and we should have found a higher price
-        assertLe(
-            ValueX7X7.unwrap(mockAuction.sumCurrencyDemandAboveClearingX7().resolveRoundingUp(clearingPrice).upcast()),
-            ValueX7X7.unwrap(mockAuction.totalSupply().scaleUpToX7().scaleUpToX7X7().sub(_checkpoint.totalClearedX7X7)),
-            'sumCurrencyDemandAboveClearingX7 is greater than remaining supply'
-        );
+        // Assert that the sumDemandAboveClearing is less than the currency required to move to the next active tick
+        if (mockAuction.nextActiveTickPrice() != type(uint256).max) {
+            assertLt(
+                ValueX7X7.unwrap(mockAuction.sumCurrencyDemandAboveClearingX7().upcast()),
+                ValueX7X7.unwrap(
+                    mockAuction.getTotalCurrencyRaisedAtFloorX7X7().sub(_checkpoint.totalCurrencyRaisedX7X7)
+                        .wrapAndFullMulDivUp(mockAuction.nextActiveTickPrice(), mockAuction.floorPrice())
+                ),
+                'sumCurrencyDemandAboveClearingX7 is greater than or equal to currency required to move to the next active tick'
+            );
+        }
     }
 }

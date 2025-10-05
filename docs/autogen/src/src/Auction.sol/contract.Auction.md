@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/69de3ae4ba8e1e42b571cd7d7900cef9574ede92/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/35473874d97222cd9ba85c79c74cfb5935603cd9/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -32,8 +32,19 @@ IValidationHook internal immutable VALIDATION_HOOK;
 ```
 
 
+### TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7
+The total currency that will be raised selling total supply at the floor price
+
+
+```solidity
+ValueX7X7 internal immutable TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7;
+```
+
+
 ### $sumCurrencyDemandAboveClearingX7
-The sum of demand in ticks above the clearing price
+The sum of currency demand in ticks above the clearing price
+
+*This will increase every time a new bid is submitted, and decrease when bids are outbid.*
 
 
 ```solidity
@@ -65,7 +76,7 @@ SupplyRolloverMultiplier internal $_supplyRolloverMultiplier;
 
 
 ```solidity
-constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
+constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
     AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
     TokenCurrencyStorage(
         _token,
@@ -182,24 +193,10 @@ Calculate the new clearing price, given the cumulative demand and the remaining 
 ```solidity
 function _calculateNewClearingPrice(
     ValueX7 _sumCurrencyDemandAboveClearingX7,
-    ValueX7X7 _remainingSupplyX7X7,
+    ValueX7X7 _cachedRemainingCurrencyRaisedX7X7,
     uint24 _remainingMpsInAuction
 ) internal view returns (uint256);
 ```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`_sumCurrencyDemandAboveClearingX7`|`ValueX7`|The sum of demand above the clearing price|
-|`_remainingSupplyX7X7`|`ValueX7X7`|The result of TOTAL_SUPPLY_X7_X7 minus the total cleared supply so far|
-|`_remainingMpsInAuction`|`uint24`|The remaining mps in the auction which is ConstantsLib.MPS minus the cumulative mps so far|
-
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`uint256`|The new clearing price|
-
 
 ### _iterateOverTicksAndFindClearingPrice
 

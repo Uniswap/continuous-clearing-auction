@@ -20,11 +20,10 @@ import {MockFundsRecipient} from './MockFundsRecipient.sol';
 import {TickBitmap, TickBitmapLib} from './TickBitmap.sol';
 import {TokenHandler} from './TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
-
 import {console} from 'forge-std/console.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-
 /// @notice Handler contract for setting up an auction
+
 abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     using FixedPointMathLib for uint256;
     using AuctionParamsBuilder for AuctionParameters;
@@ -39,7 +38,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     uint256 public constant AUCTION_DURATION = 100;
     uint256 public constant TICK_SPACING = 100 << FixedPoint96.RESOLUTION;
     uint256 public constant FLOOR_PRICE = 1000 << FixedPoint96.RESOLUTION;
-    uint256 public constant TOTAL_SUPPLY = 1000e18;
+    uint128 public constant TOTAL_SUPPLY = 1000e18;
 
     // Max amount of wei that can be lost in totalClearedX7X7 calculations
     uint256 public constant MAX_TOTAL_CLEARED_PRECISION_LOSS = 1;
@@ -52,7 +51,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     AuctionParameters public params;
     bytes public auctionStepsData;
 
-    uint256 $bidAmount;
+    uint256 public $bidAmount;
+    uint256 public $maxPrice;
 
     function helper__validFuzzDeploymentParams(FuzzDeploymentParams memory _deploymentParams)
         public
@@ -64,8 +64,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _deploymentParams.auctionParams.tokensRecipient = tokensRecipient;
         _deploymentParams.auctionParams.fundsRecipient = fundsRecipient;
         _deploymentParams.auctionParams.validationHook = address(0);
-
-        _deploymentParams.totalSupply = _bound(_deploymentParams.totalSupply, 1, SupplyLib.MAX_TOTAL_SUPPLY);
+        vm.assume(_deploymentParams.totalSupply > 0);
 
         // -2 because we need to account for the endBlock and claimBlock
         _deploymentParams.auctionParams.startBlock = uint64(
@@ -166,9 +165,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         uint256 maxPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(_bid.tickNumber);
         // if the bid is above the max price, don't submit the bid
         if (maxPrice >= BidLib.MAX_BID_PRICE) return (false, 0);
-
         // if the bid if not above the clearing price, don't submit the bid
         if (maxPrice <= clearingPrice) return (false, 0);
+        // If the bid would overflow a ValueX7X7 value, don't submit the bid
+        if (_bid.bidAmount > BidLib.MAX_BID_AMOUNT / maxPrice) return (false, 0);
 
         uint256 ethInputAmount = inputAmountForTokens(_bid.bidAmount, maxPrice);
 
@@ -176,8 +176,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
         uint256 lastTickPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(lowerTickNumber);
 
-        // vm.expectEmit(true, true, true, true);
-        // emit IAuction.BidSubmitted(_i, _owner, maxPrice, ethInputAmount);
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.BidSubmitted(_i, _owner, maxPrice, ethInputAmount);
         try auction.submitBid{value: ethInputAmount}(maxPrice, ethInputAmount, _owner, lastTickPrice, bytes(''))
         returns (uint256 _bidId) {
             bidId = _bidId;
@@ -227,7 +227,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     modifier setUpBidsFuzz(FuzzBid[] memory _bids) {
         for (uint256 i = 0; i < _bids.length; i++) {
             // Note(md): errors when bumped to uint128
-            _bids[i].bidAmount = uint64(_bound(_bids[i].bidAmount, 1, type(uint64).max));
+            _bids[i].bidAmount = uint64(_bound(_bids[i].bidAmount, BidLib.MIN_BID_AMOUNT, type(uint64).max));
             _bids[i].tickNumber = uint8(_bound(_bids[i].tickNumber, 1, type(uint8).max));
         }
         _;
@@ -306,14 +306,37 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         auction.onTokensReceived();
     }
 
-    modifier givenGraduatedAuction(uint256 _bidAmount) {
-        $bidAmount = _bound(_bidAmount, TOTAL_SUPPLY, type(uint128).max);
+    modifier givenValidMaxPrice(uint256 _maxPrice) {
+        _maxPrice = _bound(_maxPrice, FLOOR_PRICE, BidLib.MAX_BID_PRICE);
+        _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, TICK_SPACING);
+        vm.assume(_maxPrice > FLOOR_PRICE);
+        $maxPrice = _maxPrice;
+        _;
+    }
+
+    modifier givenValidBidAmount(uint256 _bidAmount) {
+        if (BidLib.MIN_BID_AMOUNT <= BidLib.MAX_BID_AMOUNT / $maxPrice) {
+            $bidAmount = BidLib.MIN_BID_AMOUNT;
+        } else {
+            vm.assume(BidLib.MIN_BID_AMOUNT < BidLib.MAX_BID_AMOUNT / $maxPrice);
+            $bidAmount = _bound(_bidAmount, BidLib.MIN_BID_AMOUNT, BidLib.MAX_BID_AMOUNT / $maxPrice);
+        }
+        _;
+    }
+
+    modifier givenGraduatedAuction() {
+        if (TOTAL_SUPPLY <= BidLib.MAX_BID_AMOUNT / $maxPrice) {
+            $bidAmount = TOTAL_SUPPLY;
+        } else {
+            vm.assume(TOTAL_SUPPLY < BidLib.MAX_BID_AMOUNT / $maxPrice);
+            $bidAmount = _bound($bidAmount, TOTAL_SUPPLY, BidLib.MAX_BID_AMOUNT / $maxPrice);
+        }
         _;
     }
 
     modifier givenNotGraduatedAuction(uint256 _bidAmount) {
         // TODO(ez): some rounding in auction preventing this from being TOTAL_SUPPLY - 1
-        $bidAmount = _bound(_bidAmount, 1, TOTAL_SUPPLY / 2);
+        $bidAmount = _bound(_bidAmount, BidLib.MIN_BID_AMOUNT, TOTAL_SUPPLY / 2);
         _;
     }
 

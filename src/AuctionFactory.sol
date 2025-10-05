@@ -17,6 +17,8 @@ contract AuctionFactory is IAuctionFactory {
         external
         returns (IDistributionContract distributionContract)
     {
+        if (amount > type(uint128).max) revert InvalidAmount(amount);
+
         AuctionParameters memory parameters = abi.decode(configData, (AuctionParameters));
         // If the tokensRecipient is address(1), set it to the msg.sender
         if (parameters.tokensRecipient == ActionConstants.MSG_SENDER) parameters.tokensRecipient = msg.sender;
@@ -24,10 +26,10 @@ contract AuctionFactory is IAuctionFactory {
         if (parameters.fundsRecipient == ActionConstants.MSG_SENDER) parameters.fundsRecipient = msg.sender;
 
         distributionContract = IDistributionContract(
-            address(new Auction{salt: keccak256(abi.encode(msg.sender, salt))}(token, amount, parameters))
+            address(new Auction{salt: keccak256(abi.encode(msg.sender, salt))}(token, uint128(amount), parameters))
         );
 
-        emit AuctionCreated(address(distributionContract), token, amount, abi.encode(parameters));
+        emit AuctionCreated(address(distributionContract), token, uint128(amount), abi.encode(parameters));
     }
 
     /// @inheritdoc IAuctionFactory
@@ -36,6 +38,7 @@ contract AuctionFactory is IAuctionFactory {
         view
         returns (address)
     {
+        if (amount > type(uint128).max) revert InvalidAmount(amount);
         AuctionParameters memory parameters = abi.decode(configData, (AuctionParameters));
         // If the tokensRecipient is address(1), set it to the msg.sender
         if (parameters.tokensRecipient == ActionConstants.MSG_SENDER) parameters.tokensRecipient = msg.sender;
@@ -43,7 +46,7 @@ contract AuctionFactory is IAuctionFactory {
         if (parameters.fundsRecipient == ActionConstants.MSG_SENDER) parameters.fundsRecipient = msg.sender;
 
         bytes32 initCodeHash =
-            keccak256(abi.encodePacked(type(Auction).creationCode, abi.encode(token, amount, parameters)));
+            keccak256(abi.encodePacked(type(Auction).creationCode, abi.encode(token, uint128(amount), parameters)));
         salt = keccak256(abi.encode(msg.sender, salt));
         return Create2.computeAddress(salt, initCodeHash, address(this));
     }

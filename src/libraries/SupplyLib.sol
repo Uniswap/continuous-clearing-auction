@@ -7,11 +7,11 @@ import {ValueX7X7, ValueX7X7Lib} from './ValueX7X7Lib.sol';
 /// @dev Custom type layout (256 bits total):
 ///      - Bit 255 (MSB): Boolean 'set' flag
 ///      - Bits 254-231 (24 bits): 'remainingMps' value
-///      - Bits 230-0 (231 bits): 'remainingSupplyX7X7' value
+///      - Bits 230-0 (231 bits): 'remainingCurrencyRaisedX7X7' value
 type SupplyRolloverMultiplier is uint256;
 
 /// @title SupplyLib
-/// @notice Library for supply related functions
+/// @notice Library for supply related fsunctions
 library SupplyLib {
     using ValueX7Lib for *;
     using ValueX7X7Lib for *;
@@ -34,10 +34,8 @@ library SupplyLib {
     //                        [00...00][11111111111111111111111111111111111111111111111111...11111111]
     uint256 private constant REMAINING_SUPPLY_MASK = (1 << 231) - 1;
 
-    // Max value for remainingSupplyX7X7 (all lower 231 bits set)
-    uint256 public constant MAX_REMAINING_SUPPLY = REMAINING_SUPPLY_MASK;
-    /// @notice The maximum total supply of tokens than can be sold in the auction
-    uint256 public constant MAX_TOTAL_SUPPLY = MAX_REMAINING_SUPPLY / ValueX7Lib.X7 ** 2;
+    // Max value for remainingCurrencyRaisedX7X7 (all lower 231 bits set)
+    uint256 public constant MAX_REMAINING_CURRENCY_RAISED = REMAINING_SUPPLY_MASK;
 
     /// @notice Convert the total supply to a ValueX7X7
     /// @dev This function must be checked for overflow before being called
@@ -48,21 +46,21 @@ library SupplyLib {
 
     /// @notice Pack values into a SupplyRolloverMultiplier
     /// @dev This function does NOT check that `remainingSupplyX7X7` fits in 231 bits.
-    ///      TOTAL_SUPPLY_X7_X7, which bounds the value of `remainingSupplyX7X7`, must be validated.
+    ///      TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7, which bounds the value of `remainingCurrencyRaisedX7X7`, must be validated.
     /// @param set Boolean flag indicating if the value is set which only happens after the auction becomes fully subscribed,
     ///         at which point the supply schedule becomes deterministic based on the future supply schedule
-    /// @param remainingMps The remaining MPS value
-    /// @param remainingSupplyX7X7 The remaining supply value
+    /// @param remainingPercentage The remaining percentage of the auction
+    /// @param remainingCurrencyRaisedX7X7 The remaining currency which will be raised
     /// @return The packed SupplyRolloverMultiplier
-    function packSupplyRolloverMultiplier(bool set, uint24 remainingMps, ValueX7X7 remainingSupplyX7X7)
+    function packSupplyRolloverMultiplier(bool set, uint24 remainingPercentage, ValueX7X7 remainingCurrencyRaisedX7X7)
         internal
         pure
         returns (SupplyRolloverMultiplier)
     {
-        // bit OR the set flag, remainingMps, and remainingSupplyX7X7 together and wrap in the custom type
+        // bit OR the set flag, remainingPercentage, and remainingCurrencyRaisedX7X7 together and wrap in the custom type
         return SupplyRolloverMultiplier.wrap(
-            (set ? SET_FLAG_MASK : 0) | (uint256(remainingMps) << REMAINING_MPS_BIT_POSITION)
-                | ValueX7X7.unwrap(remainingSupplyX7X7)
+            (set ? SET_FLAG_MASK : 0) | (uint256(remainingPercentage) << REMAINING_MPS_BIT_POSITION)
+                | ValueX7X7.unwrap(remainingCurrencyRaisedX7X7)
         );
     }
 

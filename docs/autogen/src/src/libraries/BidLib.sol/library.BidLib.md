@@ -1,9 +1,11 @@
 # BidLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/f3ab13fd8b3f23ee457ee9a23975bf1ad27b5a5c/src/libraries/BidLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/6eac4e6725e28866f42feaf4f7ab8403b7094e33/src/libraries/BidLib.sol)
 
 
 ## State Variables
 ### MIN_BID_AMOUNT
+The minimum allowable amount for a bid such that is not rounded down to zero
+
 
 ```solidity
 uint256 public constant MIN_BID_AMOUNT = ValueX7Lib.X7;
@@ -11,6 +13,8 @@ uint256 public constant MIN_BID_AMOUNT = ValueX7Lib.X7;
 
 
 ### MAX_BID_AMOUNT
+The maximum allowable amount for a bid such that it will not overflow a ValueX7X7 value
+
 
 ```solidity
 uint256 public constant MAX_BID_AMOUNT = ConstantsLib.X7X7_UPPER_BOUND - 1;

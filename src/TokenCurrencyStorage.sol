@@ -47,7 +47,6 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         TOTAL_SUPPLY = _totalSupply;
         if (_totalSupply == 0) revert TotalSupplyIsZero();
         TOTAL_SUPPLY_X7_X7 = _totalSupply.toX7X7();
-        CURRENCY = Currency.wrap(_currency);
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;
 

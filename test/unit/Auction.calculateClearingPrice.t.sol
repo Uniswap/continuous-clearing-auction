@@ -60,20 +60,6 @@ contract AuctionCalculateClearingPriceTest is AuctionUnitTest {
         uint256 unroundedPrice =
             _calculateUnroundedPrice(sumCurrencyDemandAboveClearingX7, remainingSupplyX7X7, remainingMps);
 
-        // Clearing price must always be greater than or equal to unrounded price
-        assertGe(clearingPrice, unroundedPrice);
-
-        uint256 tickSpacing = mockAuction.tickSpacing();
-        if (unroundedPrice % tickSpacing != 0) {
-            // If the price is not aligned to a tick spacing, clearing price must be greater than unrounded price
-            assertGt(clearingPrice, unroundedPrice);
-            // Clearing price must be aligned to tick spacing
-            assertEq(clearingPrice % tickSpacing, 0);
-            // Clearing price must be rounded up to the next tick spacing
-            assertEq(clearingPrice, helper__roundPriceUpToTickSpacing(unroundedPrice, tickSpacing));
-        } else {
-            // Else, prices must be equal
-            assertEq(clearingPrice, unroundedPrice);
-        }
+        assertEq(clearingPrice, unroundedPrice);
     }
 }

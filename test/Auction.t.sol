@@ -1657,11 +1657,15 @@ contract AuctionTest is AuctionBaseTest {
         vm.stopPrank();
     }
 
-    function test_claimTokens_beforeBidExited_reverts() public {
+    function test_claimTokens_beforeBidExited_reverts(uint256 _bidAmount)
+        public
+        givenGraduatedAuction(_bidAmount)
+        givenFullyFundedAccount
+    {
         // Submit a bid but don't exit it
-        uint256 bidId = auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens($bidAmount, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
-            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            inputAmountForTokens($bidAmount, tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -1727,7 +1731,6 @@ contract AuctionTest is AuctionBaseTest {
     function helper__submitBid(Auction _auction, address _owner, uint128 _amount) internal returns (uint256) {
         return _auction.submitBid{value: inputAmountForTokens(_amount, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
-            true,
             inputAmountForTokens(_amount, tickNumberToPriceX96(2)),
             _owner,
             tickNumberToPriceX96(1),
@@ -1735,26 +1738,31 @@ contract AuctionTest is AuctionBaseTest {
         );
     }
 
-    function helper__submitNBids(Auction _auction, address _owner, uint128 _numberOfBids)
+    function helper__submitNBids(Auction _auction, address _owner, uint256 _amount, uint128 _numberOfBids)
         internal
         returns (uint256[] memory)
     {
         // Split the amount between the bids
-        uint128 totalAmount = 100e18;
-        uint128 amountPerBid = totalAmount / _numberOfBids;
+        uint256 amountPerBid = _amount / _numberOfBids;
 
         uint256[] memory bids = new uint256[](_numberOfBids);
         for (uint256 i = 0; i < _numberOfBids; i++) {
-            bids[i] = helper__submitBid(_auction, _owner, amountPerBid);
+            bids[i] = helper__submitBid(_auction, _owner, uint128(amountPerBid));
         }
         return bids;
     }
 
-    function test_claimTokensBatch_notGraduated_reverts(uint128 _numberOfBids) public {
+    function test_claimTokensBatch_notGraduated_reverts(uint256 _bidAmount, uint128 _numberOfBids)
+        public
+        givenNotGraduatedAuction(_bidAmount)
+        givenFullyFundedAccount
+    {
         // Dont do too many bids
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
+        // Prevent round to zero
+        vm.assume($bidAmount > _numberOfBids);
 
-        uint256[] memory bids = helper__submitNBids(auction, alice, _numberOfBids);
+        uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids);
 
         // Exit the bid
         vm.roll(auction.endBlock());
@@ -1770,13 +1778,17 @@ contract AuctionTest is AuctionBaseTest {
         auction.claimTokensBatch(alice, bids);
     }
 
-    function test_claimTokensBatch_notSameOwner_reverts() public {
-        uint256 bidId0 = helper__submitBid(auction, alice, 100e18);
-        uint256 bidId1 = helper__submitBid(auction, bob, 100e18);
+    function test_claimTokensBatch_notSameOwner_reverts(uint256 _bidAmount)
+        public
+        givenGraduatedAuction(_bidAmount)
+        givenFullyFundedAccount
+    {
+        uint256 bidId0 = helper__submitBid(auction, alice, uint128($bidAmount));
+        uint256 bidId1 = helper__submitBid(auction, bob, uint128($bidAmount));
 
         vm.roll(auction.endBlock());
-        auction.exitBid(bidId0);
-        auction.exitBid(bidId1);
+        auction.exitPartiallyFilledBid(bidId0, 1, 0);
+        auction.exitPartiallyFilledBid(bidId1, 1, 0);
 
         uint256[] memory bids = new uint256[](2);
         bids[0] = bidId0;
@@ -1787,24 +1799,36 @@ contract AuctionTest is AuctionBaseTest {
         auction.claimTokensBatch(alice, bids);
     }
 
-    function test_claimTokensBatch_beforeBidExited_reverts(uint128 _numberOfBids) public {
+    function test_claimTokensBatch_beforeBidExited_reverts(uint128 _bidAmount, uint128 _numberOfBids)
+        public
+        givenGraduatedAuction(_bidAmount)
+        givenFullyFundedAccount
+    {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
 
-        uint256[] memory bids = helper__submitNBids(auction, alice, _numberOfBids);
+        uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids);
 
         vm.roll(auction.claimBlock());
         vm.expectRevert(IAuction.BidNotExited.selector);
         auction.claimTokensBatch(alice, bids);
     }
 
-    function test_claimTokensBatch_beforeClaimBlock_reverts(uint128 _numberOfBids) public {
+    function test_claimTokensBatch_beforeClaimBlock_reverts(uint256 _bidAmount, uint128 _numberOfBids)
+        public
+        givenGraduatedAuction(_bidAmount)
+        givenFullyFundedAccount
+    {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
+        // Because each bid will be a little less due to rounding
+        vm.assume($bidAmount > TOTAL_SUPPLY + _numberOfBids);
 
-        uint256[] memory bids = helper__submitNBids(auction, alice, _numberOfBids);
+        uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids);
+        emit log_named_uint('block number', block.number);
 
         vm.roll(auction.endBlock());
         for (uint256 i = 0; i < _numberOfBids; i++) {
-            auction.exitBid(bids[i]);
+            // All bids are at the same price
+            auction.exitPartiallyFilledBid(bids[i], 1, 0);
         }
 
         vm.roll(auction.claimBlock() - 1);
@@ -1812,16 +1836,22 @@ contract AuctionTest is AuctionBaseTest {
         auction.claimTokensBatch(alice, bids);
     }
 
-    function test_claimTokensBatch_tokenTransferFails_reverts(uint128 _numberOfBids) public {
+    function test_claimTokensBatch_tokenTransferFails_reverts(uint256 _bidAmount, uint128 _numberOfBids)
+        public
+        givenGraduatedAuction(_bidAmount)
+        givenFullyFundedAccount
+    {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
+        // Because each bid will be a little less due to rounding
+        vm.assume($bidAmount > TOTAL_SUPPLY + _numberOfBids);
 
         Auction failingAuction = helper__deployAuctionWithFailingToken();
 
-        uint256[] memory bids = helper__submitNBids(failingAuction, alice, _numberOfBids);
+        uint256[] memory bids = helper__submitNBids(failingAuction, alice, $bidAmount, _numberOfBids);
 
         vm.roll(failingAuction.endBlock() + 1);
         for (uint256 i = 0; i < _numberOfBids; i++) {
-            failingAuction.exitBid(bids[i]);
+            failingAuction.exitPartiallyFilledBid(bids[i], 1, 0);
         }
 
         vm.roll(failingAuction.claimBlock());
@@ -1829,14 +1859,20 @@ contract AuctionTest is AuctionBaseTest {
         failingAuction.claimTokensBatch(alice, bids);
     }
 
-    function test_claimTokensBatch_succeeds(uint128 _numberOfBids) public {
+    function test_claimTokensBatch_succeeds(uint256 _bidAmount, uint128 _numberOfBids)
+        public
+        givenGraduatedAuction(_bidAmount)
+        givenFullyFundedAccount
+    {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
+        // Because each bid will be a little less due to rounding
+        vm.assume($bidAmount > TOTAL_SUPPLY + _numberOfBids);
 
-        uint256[] memory bids = helper__submitNBids(auction, alice, _numberOfBids);
+        uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids);
 
         vm.roll(auction.endBlock());
         for (uint256 i = 0; i < _numberOfBids; i++) {
-            auction.exitBid(bids[i]);
+            auction.exitPartiallyFilledBid(bids[i], 1, 0);
         }
 
         // The amount cleared will be the total cleared / the _numberOfBids

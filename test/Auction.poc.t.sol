@@ -106,18 +106,18 @@ contract Leftovers is AuctionBaseTest {
 
         emit log_named_uint('Final checkpoint block', block.number);
 
-        bool graduated = mockAuction.isGraduated();
         uint256 raised = ValueX7X7.unwrap(finalCheckpoint.totalCurrencyRaisedX7X7) / 1e14;
+        uint256 totalTokensCleared = ValueX7X7.unwrap(mockAuction.totalTokensClearedX7X7()) / 1e14;
 
         emit log('==================== FINAL CHECKPOINT ====================');
         emit log_named_decimal_uint('Raised', raised, 18);
+        emit log_named_decimal_uint('Total tokens cleared', totalTokensCleared, 18);
         emit log_named_decimal_uint('Balance of auction', address(mockAuction).balance, 18);
         emit log_named_decimal_uint('Price', finalCheckpoint.clearingPrice / 1e14, 18);
         emit log_named_decimal_uint('P-10 ', tick10 / 1e14, 18);
         emit log_named_decimal_uint('P-20 ', tick20 / 1e14, 18);
         emit log_named_decimal_uint('P-30 ', tick30 / 1e14, 18);
         emit log_named_decimal_uint('Cumulative MPS', finalCheckpoint.cumulativeMps, 5);
-        emit log_named_string('Graduated', graduated ? 'true' : 'false');
         emit log_named_decimal_uint('Currency raised', CheckpointLib.getCurrencyRaised(finalCheckpoint), 18);
 
         if (!_sweepEarly) {

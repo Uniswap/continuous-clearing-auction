@@ -148,13 +148,6 @@ interface IAuction is
     /// @return _checkpoint The checkpoint at the current block
     function checkpoint() external returns (Checkpoint memory _checkpoint);
 
-    /// @notice Whether the auction has graduated as of the given checkpoint
-    /// @dev The auction is considered `graudated` if the clearing price is greater than the floor price
-    ///      since that means it has sold all of the total supply of tokens.
-    /// @dev Be aware that the latest checkpoint may be out of date
-    /// @return bool True if the auction has graduated, false otherwise
-    function isGraduated() external view returns (bool);
-
     /// @notice Exit a bid
     /// @dev This function can only be used for bids where the max price is above the final clearing price after the auction has ended
     /// @param bidId The id of the bid
@@ -196,4 +189,7 @@ interface IAuction is
 
     /// @notice The sum of demand in ticks above the clearing price
     function sumCurrencyDemandAboveClearingX7() external view returns (ValueX7);
+
+    /// @notice The total tokens cleared in the auction
+    function totalTokensClearedX7X7() external view returns (ValueX7X7);
 }

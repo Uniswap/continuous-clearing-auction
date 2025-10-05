@@ -278,7 +278,6 @@ contract AuctionTest is AuctionBaseTest {
         public
         givenValidMaxPrice(_maxPrice)
         givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
         givenFullyFundedAccount
     {
         // 0 mps for first 50 blocks, then 200mps for the last 50 blocks
@@ -549,7 +548,6 @@ contract AuctionTest is AuctionBaseTest {
         public
         givenValidMaxPrice(_maxPrice)
         givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
         givenFullyFundedAccount
     {
         uint256 bidId = auction.submitBid{value: inputAmountForTokens($bidAmount, $maxPrice)}(
@@ -635,13 +633,7 @@ contract AuctionTest is AuctionBaseTest {
     function test_exitPartiallyFilledBid_alreadyExited_revertsWithBidAlreadyExited(
         uint128 _bidAmount,
         uint128 _maxPrice
-    )
-        public
-        givenValidMaxPrice(_maxPrice)
-        givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
-        givenFullyFundedAccount
-    {
+    ) public givenValidMaxPrice(_maxPrice) givenValidBidAmount(_bidAmount) givenFullyFundedAccount {
         uint256 bidId = auction.submitBid{value: inputAmountForTokens($bidAmount, $maxPrice)}(
             $maxPrice, inputAmountForTokens($bidAmount, $maxPrice), alice, tickNumberToPriceX96(1), bytes('')
         );
@@ -1640,7 +1632,6 @@ contract AuctionTest is AuctionBaseTest {
         public
         givenValidMaxPrice(_maxPrice)
         givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
         givenFullyFundedAccount
     {
         // Submit a bid but don't exit it
@@ -1660,7 +1651,6 @@ contract AuctionTest is AuctionBaseTest {
         public
         givenValidMaxPrice(_maxPrice)
         givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
         givenFullyFundedAccount
     {
         uint256 bidId = auction.submitBid{value: inputAmountForTokens($bidAmount, $maxPrice)}(
@@ -1683,7 +1673,6 @@ contract AuctionTest is AuctionBaseTest {
         public
         givenValidMaxPrice(_maxPrice)
         givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
         givenFullyFundedAccount
     {
         Auction failingAuction = helper__deployAuctionWithFailingToken();
@@ -1731,7 +1720,7 @@ contract AuctionTest is AuctionBaseTest {
     function test_claimTokensBatch_notGraduated_reverts(uint256 _bidAmount, uint128 _numberOfBids, uint256 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice)
-        givenNotGraduatedAuction(_bidAmount)
+        givenValidBidAmount(_bidAmount)
         givenFullyFundedAccount
     {
         // Dont do too many bids
@@ -1759,7 +1748,6 @@ contract AuctionTest is AuctionBaseTest {
         public
         givenValidMaxPrice(_maxPrice)
         givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
         givenFullyFundedAccount
     {
         uint256 bidId0 = helper__submitBid(auction, alice, uint128($bidAmount), $maxPrice);
@@ -1782,7 +1770,6 @@ contract AuctionTest is AuctionBaseTest {
         public
         givenValidMaxPrice(_maxPrice)
         givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
         givenFullyFundedAccount
     {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
@@ -1798,13 +1785,7 @@ contract AuctionTest is AuctionBaseTest {
         uint256 _bidAmount,
         uint128 _numberOfBids,
         uint256 _maxPrice
-    )
-        public
-        givenValidMaxPrice(_maxPrice)
-        givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
-        givenFullyFundedAccount
-    {
+    ) public givenValidMaxPrice(_maxPrice) givenValidBidAmount(_bidAmount) givenFullyFundedAccount {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
         // Because each bid will be a little less due to rounding
         $bidAmount = _bound($bidAmount, TOTAL_SUPPLY + _numberOfBids, helper_getMaxBidAmountAtMaxPrice());
@@ -1829,13 +1810,7 @@ contract AuctionTest is AuctionBaseTest {
         uint256 _bidAmount,
         uint128 _numberOfBids,
         uint256 _maxPrice
-    )
-        public
-        givenValidMaxPrice(_maxPrice)
-        givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
-        givenFullyFundedAccount
-    {
+    ) public givenValidMaxPrice(_maxPrice) givenValidBidAmount(_bidAmount) givenFullyFundedAccount {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
         // Because each bid will be a little less due to rounding
         $bidAmount = _bound($bidAmount, TOTAL_SUPPLY + _numberOfBids, helper_getMaxBidAmountAtMaxPrice());
@@ -1858,7 +1833,6 @@ contract AuctionTest is AuctionBaseTest {
         public
         givenValidMaxPrice(_maxPrice)
         givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
         givenFullyFundedAccount
     {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
@@ -1924,31 +1898,10 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepCurrency();
     }
 
-    function test_sweepCurrency_notGraduated_reverts(uint256 _bidAmount)
-        public
-        givenNotGraduatedAuction(_bidAmount)
-        givenFullyFundedAccount
-    {
-        auction.submitBid{value: inputAmountForTokens($bidAmount, tickNumberToPriceX96(2))}(
-            tickNumberToPriceX96(2),
-            inputAmountForTokens($bidAmount, tickNumberToPriceX96(2)),
-            alice,
-            tickNumberToPriceX96(1),
-            bytes('')
-        );
-
-        vm.roll(auction.endBlock());
-
-        vm.prank(fundsRecipient);
-        vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
-        auction.sweepCurrency();
-    }
-
-    function test_sweepCurrency_graduated_succeeds(uint128 _bidAmount, uint128 _maxPrice)
+    function test_sweepCurrency_succeeds(uint128 _bidAmount, uint128 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice)
         givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
         givenFullyFundedAccount
     {
         // Use uint128 max as a reasonable upper bound
@@ -1985,7 +1938,6 @@ contract AuctionTest is AuctionBaseTest {
         public
         givenValidMaxPrice(_maxPrice)
         givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
         givenFullyFundedAccount
     {
         // Send 1 wei additional token to the auction
@@ -2000,33 +1952,10 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepUnsoldTokens();
     }
 
-    function test_sweepUnsoldTokens_notGraduated_sweepsAll(uint256 _bidAmount)
-        public
-        givenNotGraduatedAuction(_bidAmount)
-    {
-        uint256 inputAmount = inputAmountForTokens($bidAmount, tickNumberToPriceX96(2));
-        auction.submitBid{value: inputAmount}(
-            tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
-        );
-
-        vm.roll(auction.endBlock());
-        // Update the lastCheckpoint
-        auction.checkpoint();
-
-        // Should sweep ALL tokens since auction didn't graduate
-        vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, TOTAL_SUPPLY);
-        auction.sweepUnsoldTokens();
-
-        // Verify all tokens were transferred
-        assertEq(token.balanceOf(tokensRecipient), TOTAL_SUPPLY);
-    }
-
     function test_sweepCurrency_thenSweepTokens_graduated_succeeds(uint128 bidAmount, uint128 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice)
         givenValidBidAmount(bidAmount)
-        givenGraduatedAuction
         givenFullyFundedAccount
     {
         deal(address(token), address(auction), 1);
@@ -2048,30 +1977,6 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, 0);
         auction.sweepUnsoldTokens();
-    }
-
-    function test_sweepTokens_notGraduated_cannotSweepCurrency(uint256 _bidAmount)
-        public
-        givenNotGraduatedAuction(_bidAmount)
-    {
-        uint256 inputAmount = inputAmountForTokens($bidAmount, tickNumberToPriceX96(2));
-        auction.submitBid{value: inputAmount}(
-            tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
-        );
-
-        vm.roll(auction.endBlock());
-        // Update the lastCheckpoint
-        auction.checkpoint();
-
-        // Can sweep tokens (returns all since not graduated)
-        vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, TOTAL_SUPPLY);
-        auction.sweepUnsoldTokens();
-
-        // Cannot sweep currency (not graduated)
-        vm.prank(fundsRecipient);
-        vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
-        auction.sweepCurrency();
     }
 
     // Test that all of the state getters for constants / immutable variables are correct

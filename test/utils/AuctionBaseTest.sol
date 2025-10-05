@@ -122,22 +122,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _;
     }
 
-    modifier givenGraduatedAuction() {
-        if (TOTAL_SUPPLY <= helper_getMaxBidAmountAtMaxPrice()) {
-            $bidAmount = TOTAL_SUPPLY;
-        } else {
-            vm.assume(TOTAL_SUPPLY < helper_getMaxBidAmountAtMaxPrice());
-            $bidAmount = _bound($bidAmount, TOTAL_SUPPLY, helper_getMaxBidAmountAtMaxPrice());
-        }
-        _;
-    }
-
-    modifier givenNotGraduatedAuction(uint256 _bidAmount) {
-        // TODO(ez): some rounding in auction preventing this from being TOTAL_SUPPLY - 1
-        $bidAmount = _bound(_bidAmount, BidLib.MIN_BID_AMOUNT, TOTAL_SUPPLY / 2);
-        _;
-    }
-
     modifier givenFullyFundedAccount() {
         vm.deal(address(this), type(uint256).max);
         _;

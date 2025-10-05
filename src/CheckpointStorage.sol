@@ -9,7 +9,6 @@ import {DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
-
 import {console} from 'forge-std/console.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 /// @title CheckpointStorage
@@ -98,13 +97,16 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
         if (tickDemandX7.eq(ValueX7.wrap(0))) return (0, 0);
 
-        currencySpent = (
-            bidDemandX7.upcast().fullMulDivUp(cumulativeCurrencyRaisedAtClearingPriceX7X7, tickDemandX7.scaleUpToX7X7())
-                .downcast()
-        )
-            // We need to scale the X7X7 value down, but to prevent intermediate division, scale up the denominator instead
-            .scaleDownToUint256();
-        tokensFilled = currencySpent.fullMulDiv(FixedPoint96.Q96, bidMaxPrice);
+        // We need to scale the X7X7 value down, but to prevent intermediate division, scale up the denominator instead
+        ValueX7 currencySpentX7 = bidDemandX7.upcast().fullMulDivUp(
+            cumulativeCurrencyRaisedAtClearingPriceX7X7, tickDemandX7.scaleUpToX7X7()
+        ).downcast();
+
+        console.log('currencySpentX7', ValueX7.unwrap(currencySpentX7));
+        currencySpent = currencySpentX7.scaleDownToUint256();
+        console.log('currencySpent', currencySpent);
+
+        tokensFilled = currencySpentX7.wrapAndFullMulDiv(FixedPoint96.Q96, bidMaxPrice).scaleDownToUint256();
     }
 
     /// @notice Calculate the tokens filled and currency spent for a bid

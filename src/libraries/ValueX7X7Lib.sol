@@ -9,20 +9,16 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 /// @dev X7X7 values are used for supply values to avoid intermediate division by MPS
 type ValueX7X7 is uint256;
 
-using {add, sub, mul, eq, mulUint256, divUint256, gte, fullMulDiv, fullMulDivUp} for ValueX7X7 global;
+using {add, sub, eq, mulUint256, divUint256, gte, fullMulDiv, fullMulDivUp} for ValueX7X7 global;
 
-/// @notice Add two ValueX7 values
+/// @notice Add two ValueX7X7 values
 function add(ValueX7X7 a, ValueX7X7 b) pure returns (ValueX7X7) {
     return ValueX7X7.wrap(ValueX7X7.unwrap(a) + ValueX7X7.unwrap(b));
 }
 
-/// @notice Subtract two ValueX7 values
+/// @notice Subtract two ValueX7X7 values
 function sub(ValueX7X7 a, ValueX7X7 b) pure returns (ValueX7X7) {
     return ValueX7X7.wrap(ValueX7X7.unwrap(a) - ValueX7X7.unwrap(b));
-}
-
-function mul(ValueX7X7 a, ValueX7X7 b) pure returns (ValueX7X7) {
-    return ValueX7X7.wrap(ValueX7X7.unwrap(a) * ValueX7X7.unwrap(b));
 }
 
 /// @notice Check if a ValueX7X7 value is equal to another ValueX7X7 value
@@ -30,27 +26,27 @@ function eq(ValueX7X7 a, ValueX7X7 b) pure returns (bool) {
     return ValueX7X7.unwrap(a) == ValueX7X7.unwrap(b);
 }
 
-/// @notice Check if a ValueX7 value is greater than or equal to another ValueX7X7 value
+/// @notice Check if a ValueX7X7 value is greater than or equal to another ValueX7X7 value
 function gte(ValueX7X7 a, ValueX7X7 b) pure returns (bool) {
     return ValueX7X7.unwrap(a) >= ValueX7X7.unwrap(b);
 }
 
-/// @notice Multiply a ValueX7 value by a uint256
+/// @notice Multiply a ValueX7X7 value by a uint256
 function mulUint256(ValueX7X7 a, uint256 b) pure returns (ValueX7X7) {
     return ValueX7X7.wrap(ValueX7X7.unwrap(a) * b);
 }
 
-/// @notice Divide a ValueX7 value by a uint256
+/// @notice Divide a ValueX7X7 value by a uint256
 function divUint256(ValueX7X7 a, uint256 b) pure returns (ValueX7X7) {
     return ValueX7X7.wrap(ValueX7X7.unwrap(a) / b);
 }
 
-/// @notice Wrapper around FixedPointMathLib.fullMulDiv to support ValueX7 values
+/// @notice Wrapper around FixedPointMathLib.fullMulDiv to support ValueX7X7 values
 function fullMulDiv(ValueX7X7 a, ValueX7X7 b, ValueX7X7 c) pure returns (ValueX7X7) {
     return ValueX7X7.wrap(FixedPointMathLib.fullMulDiv(ValueX7X7.unwrap(a), ValueX7X7.unwrap(b), ValueX7X7.unwrap(c)));
 }
 
-/// @notice Wrapper around FixedPointMathLib.fullMulDivUp to support ValueX7 values
+/// @notice Wrapper around FixedPointMathLib.fullMulDivUp to support ValueX7X7 values
 function fullMulDivUp(ValueX7X7 a, ValueX7X7 b, ValueX7X7 c) pure returns (ValueX7X7) {
     return ValueX7X7.wrap(FixedPointMathLib.fullMulDivUp(ValueX7X7.unwrap(a), ValueX7X7.unwrap(b), ValueX7X7.unwrap(c)));
 }

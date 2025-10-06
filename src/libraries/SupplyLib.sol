@@ -11,7 +11,7 @@ import {ValueX7X7, ValueX7X7Lib} from './ValueX7X7Lib.sol';
 type SupplyRolloverMultiplier is uint256;
 
 /// @title SupplyLib
-/// @notice Library for supply related fsunctions
+/// @notice Library for supply related functions
 library SupplyLib {
     using ValueX7Lib for *;
     using ValueX7X7Lib for *;

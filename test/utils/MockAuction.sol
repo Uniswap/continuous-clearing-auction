@@ -24,11 +24,11 @@ contract MockAuction is Auction {
     function calculateNewClearingPrice(
         uint256 tickLowerPrice,
         ValueX7 sumCurrencyDemandAboveClearingX7,
-        ValueX7X7 remainingSupplyX7X7,
+        ValueX7X7 remainingCurrencyRaisedX7X7,
         uint24 remainingMpsInAuction
     ) external view returns (uint256) {
         return _calculateNewClearingPrice(
-            tickLowerPrice, sumCurrencyDemandAboveClearingX7, remainingSupplyX7X7, remainingMpsInAuction
+            tickLowerPrice, sumCurrencyDemandAboveClearingX7, remainingCurrencyRaisedX7X7, remainingMpsInAuction
         );
     }
 
@@ -41,7 +41,7 @@ contract MockAuction is Auction {
     function unpackSupplyRolloverMultiplier()
         external
         view
-        returns (bool isSet, uint24 remainingMps, ValueX7X7 remainingSupplyX7X7)
+        returns (bool isSet, uint24 remainingMps, ValueX7X7 remainingCurrencyRaisedX7X7)
     {
         return SupplyLib.unpack($_supplyRolloverMultiplier);
     }

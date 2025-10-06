@@ -3,7 +3,6 @@ pragma solidity 0.8.26;
 
 import {Auction} from '../../src/Auction.sol';
 import {AuctionParameters} from '../../src/interfaces/IAuction.sol';
-
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
 import {Bid, BidLib} from '../../src/libraries/BidLib.sol';
 import {Checkpoint} from '../../src/libraries/CheckpointLib.sol';
@@ -12,8 +11,13 @@ import {ValueX7X7} from '../../src/libraries/ValueX7X7Lib.sol';
 import {AuctionBaseTest} from '../utils/AuctionBaseTest.sol';
 import {FuzzBid, FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
 import {MockAuction} from '../utils/MockAuction.sol';
+import {AuctionStepsBuilder} from '../utils/AuctionStepsBuilder.sol';
+import {AuctionParamsBuilder} from '../utils/AuctionParamsBuilder.sol';
 
 contract AuctionUnitTest is AuctionBaseTest {
+    using AuctionParamsBuilder for AuctionParameters;
+    using AuctionStepsBuilder for bytes;
+
     MockAuction public mockAuction;
 
     /// @dev Sets up the auction for fuzzing, ensuring valid parameters
@@ -38,4 +42,32 @@ contract AuctionUnitTest is AuctionBaseTest {
         token.mint(address(mockAuction), _deploymentParams.totalSupply);
         mockAuction.onTokensReceived();
     }
+
+    // Non fuzzing variant of setUpMockAuction
+    function setUpMockAuction() public requireAuctionNotSetup {
+        setUpTokens();
+
+        alice = makeAddr('alice');
+        bob = makeAddr('bob');
+        tokensRecipient = makeAddr('tokensRecipient');
+        fundsRecipient = makeAddr('fundsRecipient');
+
+        auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 50).addStep(100e3, 50);
+        params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE).withTickSpacing(
+            TICK_SPACING
+        ).withValidationHook(address(0)).withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient)
+            .withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION).withClaimBlock(
+            block.number + AUCTION_DURATION + 10
+        ).withAuctionStepsData(auctionStepsData);
+
+        // Expect the floor price tick to be initialized
+        vm.expectEmit(true, true, true, true);
+        emit ITickStorage.TickInitialized(tickNumberToPriceX96(1));
+        mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, params);
+
+        token.mint(address(mockAuction), TOTAL_SUPPLY);
+        // Expect the tokens to be received
+        mockAuction.onTokensReceived();
+    }
+
 }

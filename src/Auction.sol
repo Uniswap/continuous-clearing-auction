@@ -26,8 +26,6 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
-import {console} from 'forge-std/console.sol';
-
 /// @title Auction
 /// @custom:security-contact security@uniswap.org
 /// @notice Implements a time weighted uniform clearing price auction

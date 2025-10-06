@@ -7,8 +7,6 @@ import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './ValueX7X7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
-import {console} from 'forge-std/console.sol';
-
 struct Checkpoint {
     uint256 clearingPrice; // The X96 price which the auction is currently clearing at
     ValueX7X7 totalCurrencyRaisedX7X7; // The actual currency raised (sold for tokens) so far in the auction

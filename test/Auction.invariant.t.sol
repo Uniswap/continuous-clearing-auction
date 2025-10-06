@@ -139,7 +139,7 @@ contract AuctionInvariantHandler is Test, Assertions {
         if (seed % 3 == 0) vm.roll(block.number + 1);
     }
 
-    function handleCheckpoint() public {
+    function handleCheckpoint() public validateCheckpoint {
         if (block.number > mockAuction.endBlock()) vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
         mockAuction.checkpoint();
     }

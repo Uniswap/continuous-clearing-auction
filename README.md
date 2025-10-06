@@ -413,6 +413,17 @@ interface IAuction {
 
 **Implementation**: Returns the clearing price from the most recent checkpoint.
 
+#### Price Discovery Visualization
+
+![TWAP Auction Animation](visualizations/auction_simple.gif)
+
+The animation above demonstrates the TWAP auction mechanism:
+- **Fixed Supply**: 1,000 tokens available throughout the entire auction
+- **Currency Requirements**: Constant at each price level (e.g., $1,000,000 required at $1,000 price)
+- **Bid Restrictions**: New bids can only enter at or above the current clearing price
+- **Price Discovery**: Clearing price increases as cumulative demand exceeds requirements at higher levels
+- **Visual Indicators**: Green bars at clearing price, blue above, gray below (no demand allowed)
+
 ### Bid Exit
 
 Users can exit their bids in two scenarios:

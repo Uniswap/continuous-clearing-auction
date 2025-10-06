@@ -270,13 +270,13 @@ contract Auction is
         uint256 minimumClearingPrice = _checkpoint.clearingPrice.coalesce(FLOOR_PRICE);
         (bool isSet, uint24 cachedRemainingPercentage, ValueX7X7 cachedRemainingCurrencyRaisedX7X7) =
             $_supplyRolloverMultiplier.unpack();
-        uint24 _REMAINING_MPS_IN_AUCTION = isSet ? cachedRemainingPercentage : _checkpoint.remainingMpsInAuction();
-        ValueX7X7 _REMAINING_CURRENCY_RAISED_AT_FLOOR_X7_X7 = isSet
+        uint24 remainingMpsInAuction = isSet ? cachedRemainingPercentage : _checkpoint.remainingMpsInAuction();
+        ValueX7X7 remainingCurrencyRaisedAtFloorX7X7 = isSet
             ? cachedRemainingCurrencyRaisedX7X7
             : TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7.sub(_checkpoint.totalCurrencyRaisedX7X7);
         // If there are no more remaining mps in the auction, we don't need to iterate over ticks
         // and we can return the minimum clearing price above
-        if (_REMAINING_MPS_IN_AUCTION == 0) return minimumClearingPrice;
+        if (remainingMpsInAuction == 0) return minimumClearingPrice;
 
         // Place state variables on the stack to save gas
         bool updateStateVariables;
@@ -304,7 +304,7 @@ contract Auction is
          * Observe that we track the total currency raised in the auction, and the remaining percentage of the auction.
          * The ratio of these two values represents how closely the auction is following the original supply schedule.
          * Once the auction is fully subscribed, both the numerator and denominator will increase at the same rate.
-         * However, until then the actualized currency raised may increase slower than expected, causing the ratio to be less than 1.
+         * The numerator and denominator of this factor are stored within $_supplyRolloverMultiplier.
          *
          * The moment when the auction becomes fully subscribed, we can freeze this ratio and apply it to the existing
          * supply schedule to determinstically calculate the amount of currency required to move the auction to any given price.
@@ -350,9 +350,9 @@ contract Auction is
         while (
             nextActiveTickPrice_ != MAX_TICK_PTR
             // Loop while the currency amount above `nextActiveTickPrice_` is greater than the required currency at nextActiveTickPrice_
-            && sumCurrencyDemandAboveClearingX7_.mulUint256(_REMAINING_MPS_IN_AUCTION).upcast().gte(
+            && sumCurrencyDemandAboveClearingX7_.mulUint256(remainingMpsInAuction).upcast().gte(
                 // Round down here to bias towards iterating over the next tick
-                _REMAINING_CURRENCY_RAISED_AT_FLOOR_X7_X7.wrapAndFullMulDiv(nextActiveTickPrice_, FLOOR_PRICE)
+                remainingCurrencyRaisedAtFloorX7X7.wrapAndFullMulDiv(nextActiveTickPrice_, FLOOR_PRICE)
             )
         ) {
             // Subtract the demand at the current nextActiveTick from the total demand
@@ -375,8 +375,8 @@ contract Auction is
         uint256 clearingPrice = _calculateNewClearingPrice(
             minimumClearingPrice,
             sumCurrencyDemandAboveClearingX7_,
-            _REMAINING_CURRENCY_RAISED_AT_FLOOR_X7_X7,
-            _REMAINING_MPS_IN_AUCTION
+            remainingCurrencyRaisedAtFloorX7X7,
+            remainingMpsInAuction
         );
         return clearingPrice;
     }

@@ -33,6 +33,8 @@ library SupplyLib {
     //                        [255-231][230---------------------------------------------------------0]
     //                        [00...00][11111111111111111111111111111111111111111111111111...11111111]
     uint256 private constant REMAINING_CURRENCY_RAISED_MASK = (1 << 231) - 1;
+
+    /// @notice The maximum remaining currency raised as a ValueX7X7 which fits in 231 bits
     ValueX7X7 public constant MAX_REMAINING_CURRENCY_RAISED_X7_X7 = ValueX7X7.wrap(REMAINING_CURRENCY_RAISED_MASK);
 
     /// @notice Convert the total supply to a ValueX7X7

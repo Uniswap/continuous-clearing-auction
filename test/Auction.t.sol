@@ -1645,6 +1645,8 @@ contract AuctionTest is AuctionBaseTest {
         vm.stopPrank();
     }
 
+    /// forge-config: default.fuzz.runs = 1000
+    /// forge-config: ci.fuzz.runs = 1000
     function test_claimTokens_beforeBidExited_reverts(uint256 _bidAmount, uint256 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice)

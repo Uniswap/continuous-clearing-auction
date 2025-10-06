@@ -621,10 +621,7 @@ contract Auction is
         uint256 bidMaxPrice = bid.maxPrice; // place on stack
         if (upperCheckpoint.clearingPrice == bidMaxPrice) {
             (uint256 partialTokensFilled, uint256 partialCurrencySpent) = _accountPartiallyFilledCheckpoints(
-                upperCheckpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7,
-                bid.toEffectiveAmount(),
-                _getTick(bidMaxPrice).currencyDemandX7,
-                bidMaxPrice
+                bid, _getTick(bidMaxPrice).currencyDemandX7, upperCheckpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7
             );
             tokensFilled += partialTokensFilled;
             currencySpent += partialCurrencySpent;

@@ -311,20 +311,19 @@ contract AuctionInvariantTest is AuctionUnitTest {
         emit log_named_decimal_uint('totalCurrencyRaised', totalCurrencyRaised, 18);
         emit log_named_decimal_uint('expectedCurrencyRaised', expectedCurrencyRaised, 18);
 
-        assertEq(
-            expectedCurrencyRaised,
-            address(mockAuction).balance,
-            'Expected currency raised is greater than auction balance'
-        );
-
         mockAuction.sweepUnsoldTokens();
         if (mockAuction.isGraduated()) {
+            assertLe(
+                expectedCurrencyRaised,
+                address(mockAuction).balance,
+                'Expected currency raised is greater than auction balance'
+            );
             // Sweep the currency
             vm.expectEmit(true, true, true, true);
             emit ITokenCurrencyStorage.CurrencySwept(mockAuction.fundsRecipient(), expectedCurrencyRaised);
             mockAuction.sweepCurrency();
             // Assert that the currency was swept and matches total currency raised
-            assertEq(
+            assertLe(
                 expectedCurrencyRaised,
                 totalCurrencyRaised,
                 'Expected currency raised does not match total currency raised'

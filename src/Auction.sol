@@ -684,6 +684,9 @@ contract Auction is
     /// @inheritdoc IAuction
     function sweepUnsoldTokens() external onlyAfterAuctionIsOver {
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
+        // We don't need the final checkpoint data but we do need to make sure it was called
+        // Since the checkpoint updates the $totalTokensClearedRoundedUpX7X7 value
+        _getFinalCheckpoint();
         _sweepUnsoldTokens(
             TOTAL_SUPPLY_X7_X7.sub($totalTokensClearedRoundedUpX7X7).scaleDownToValueX7().scaleDownToUint256()
         );

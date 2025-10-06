@@ -137,11 +137,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     }
 
     /// @dev Given a tick number, return it as a multiple of the tick spacing above the floor price - as q96
-    function helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(uint256 _tickNumber)
-        internal
-        view
-        returns (uint256 maxPriceQ96)
-    {
+    function helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(uint256 _tickNumber) internal returns (uint256) {
         uint256 tickSpacing = params.tickSpacing;
         uint256 floorPrice = params.floorPrice;
 
@@ -152,8 +148,9 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Find the first value above floorPrice that is a multiple of tickSpacing
         uint256 tickAboveFloorPrice = ((floorPrice / tickSpacing) + 1) * tickSpacing;
 
-        maxPrice = _bound(maxPrice, tickAboveFloorPrice, uint256(type(uint256).max));
-        maxPriceQ96 = maxPrice << FixedPoint96.RESOLUTION;
+        return _bound(
+            maxPrice, tickAboveFloorPrice, helper__roundPriceDownToTickSpacing(BidLib.MAX_BID_PRICE, tickSpacing)
+        );
     }
 
     /// @dev Submit a bid for a given tick number, amount, and owner
@@ -327,21 +324,24 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return BidLib.MAX_BID_AMOUNT / $maxPrice;
     }
 
-    modifier givenValidMaxPrice(uint256 _maxPrice) {
-        _maxPrice = _bound(_maxPrice, FLOOR_PRICE, BidLib.MAX_BID_PRICE);
-        _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, TICK_SPACING);
-        vm.assume(_maxPrice > FLOOR_PRICE);
-        $maxPrice = _maxPrice;
+    modifier givenValidMaxPrice(uint64 _tickNumber) {
+        _tickNumber = uint64(_bound(_tickNumber, 1, type(uint64).max));
+        $maxPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(_tickNumber);
         _;
     }
 
     modifier givenValidBidAmount(uint256 _bidAmount) {
-        if (BidLib.MIN_BID_AMOUNT <= helper_getMaxBidAmountAtMaxPrice()) {
+        if (BidLib.MIN_BID_AMOUNT > helper_getMaxBidAmountAtMaxPrice()) {
             $bidAmount = BidLib.MIN_BID_AMOUNT;
         } else {
-            vm.assume(BidLib.MIN_BID_AMOUNT < helper_getMaxBidAmountAtMaxPrice());
             $bidAmount = _bound(_bidAmount, BidLib.MIN_BID_AMOUNT, helper_getMaxBidAmountAtMaxPrice());
         }
+        _;
+    }
+
+    modifier givenAuctionSoldOut() {
+        vm.assume(TOTAL_SUPPLY + 1 <= helper_getMaxBidAmountAtMaxPrice());
+        $bidAmount = _bound($bidAmount, TOTAL_SUPPLY + 1, helper_getMaxBidAmountAtMaxPrice());
         _;
     }
 

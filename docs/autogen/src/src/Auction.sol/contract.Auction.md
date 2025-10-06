@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c968c963f6b2d0d8603af50fad60d232a645daef/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/572329a7aabc6c93930b434d7bbc37f669a19160/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -32,8 +32,19 @@ IValidationHook internal immutable VALIDATION_HOOK;
 ```
 
 
+### TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7
+The total currency that will be raised selling total supply at the floor price
+
+
+```solidity
+ValueX7X7 internal immutable TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7;
+```
+
+
 ### $sumCurrencyDemandAboveClearingX7
-The sum of demand in ticks above the clearing price
+The sum of currency demand in ticks above the clearing price
+
+*This will increase every time a new bid is submitted, and decrease when bids are outbid.*
 
 
 ```solidity
@@ -65,15 +76,14 @@ SupplyRolloverMultiplier internal $_supplyRolloverMultiplier;
 
 
 ```solidity
-constructor(address _token, uint256 _totalSupply, AuctionParameters memory _parameters)
+constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
     AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
     TokenCurrencyStorage(
         _token,
         _parameters.currency,
         _totalSupply,
         _parameters.tokensRecipient,
-        _parameters.fundsRecipient,
-        _parameters.graduationThresholdMps
+        _parameters.fundsRecipient
     )
     TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
     PermitSingleForwarder(IAllowanceTransfer(PERMIT2));
@@ -108,9 +118,10 @@ function onTokensReceived() external;
 
 ### isGraduated
 
-Whether the auction has sold more tokens than specified in the graduation threshold as of the latest checkpoint
+Whether the auction has graduated as of the given checkpoint
 
-*Be aware that the latest checkpoint may be out of date*
+*The auction is considered `graudated` if the clearing price is greater than the floor price
+since that means it has sold all of the total supply of tokens.*
 
 
 ```solidity
@@ -125,7 +136,10 @@ function isGraduated() external view returns (bool);
 
 ### _isGraduated
 
-Whether the auction has graduated as of the given checkpoint (sold more than the graduation threshold)
+Whether the auction has graduated as of the given checkpoint
+
+*The auction is considered `graudated` if the clearing price is greater than the floor price
+since that means it has sold all of the total supply of tokens.*
 
 
 ```solidity
@@ -178,25 +192,33 @@ Calculate the new clearing price, given the cumulative demand and the remaining 
 
 ```solidity
 function _calculateNewClearingPrice(
+    uint256 _tickLowerPrice,
     ValueX7 _sumCurrencyDemandAboveClearingX7,
-    ValueX7X7 _remainingSupplyX7X7,
-    uint24 _remainingMpsInAuction
+    ValueX7X7 _cachedRemainingCurrencyRaisedX7X7,
+    uint24 _cachedRemainingMps
 ) internal view returns (uint256);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`_sumCurrencyDemandAboveClearingX7`|`ValueX7`|The sum of demand above the clearing price|
-|`_remainingSupplyX7X7`|`ValueX7X7`|The result of TOTAL_SUPPLY_X7_X7 minus the total cleared supply so far|
-|`_remainingMpsInAuction`|`uint24`|The remaining mps in the auction which is MPSLib.MPS minus the cumulative mps so far|
+|`_tickLowerPrice`|`uint256`|The price of the tick which we know we have enough demand to clear|
+|`_sumCurrencyDemandAboveClearingX7`|`ValueX7`|The cumulative demand above the clearing price|
+|`_cachedRemainingCurrencyRaisedX7X7`|`ValueX7X7`|The cached remaining currency raised at the floor price|
+|`_cachedRemainingMps`|`uint24`|The cached remaining mps in the auction|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The new clearing price|
 
 
 ### _iterateOverTicksAndFindClearingPrice
 
 Iterate to find the tick where the total demand at and above it is strictly less than the remaining supply in the auction
 
-*If the loop reaches the highest tick in the book, `nextActiveTickPrice` will be set to MAX_TICK_PRICE*
+*If the loop reaches the highest tick in the book, `nextActiveTickPrice` will be set to MAX_TICK_PTR*
 
 
 ```solidity
@@ -385,13 +407,53 @@ Claim tokens after the auction's claim block
 
 
 ```solidity
-function claimTokens(uint256 bidId) external;
+function claimTokens(uint256 _bidId) external;
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`_bidId`|`uint256`||
+
+
+### claimTokensBatch
+
+Claim tokens for multiple bids
+
+*Anyone can claim tokens for bids of the same owner, the tokens are transferred to the owner*
+
+
+```solidity
+function claimTokensBatch(address _owner, uint256[] calldata _bidIds) external;
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`_owner`|`address`||
+|`_bidIds`|`uint256[]`||
+
+
+### _internalClaimTokens
+
+Internal function to claim tokens for a single bid
+
+
+```solidity
+function _internalClaimTokens(uint256 bidId) internal returns (address owner, uint256 tokensFilled);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`owner`|`address`|The owner of the bid|
+|`tokensFilled`|`uint256`|The amount of tokens filled|
 
 
 ### sweepCurrency

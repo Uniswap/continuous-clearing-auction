@@ -21,7 +21,6 @@ struct AuctionParameters {
     uint64 startBlock; // Block which the first step starts
     uint64 endBlock; // When the auction finishes
     uint64 claimBlock; // Block when the auction can claimed
-    uint24 graduationThresholdMps; // Minimum MPS (milli-bips) of tokens that must be sold to graduate the auction
     uint256 tickSpacing; // Fixed granularity for prices
     address validationHook; // Optional hook called before a bid
     uint256 floorPrice; // Starting floor price for the auction
@@ -42,6 +41,10 @@ interface IAuction is
 
     /// @notice Error thrown when not enough amount is deposited
     error InvalidAmount();
+    /// @notice Error thrown when the bid amount is too small
+    error BidAmountTooSmall();
+    /// @notice Error thrown when the bid amount is over ConstantsLib.X7X7_UPPER_BOUND
+    error BidAmountTooLarge();
     /// @notice Error thrown when msg.value is non zero when currency is not ETH
     error CurrencyIsNotNative();
     /// @notice Error thrown when the auction is not started
@@ -62,6 +65,8 @@ interface IAuction is
     error InvalidOutbidBlockCheckpointHint();
     /// @notice Error thrown when the bid is not claimable
     error NotClaimable();
+    /// @notice Error thrown when the bids are not owned by the same owner
+    error BatchClaimDifferentOwner(address expectedOwner, address receivedOwner);
     /// @notice Error thrown when the bid has not been exited
     error BidNotExited();
     /// @notice Error thrown when the token transfer fails
@@ -89,11 +94,15 @@ interface IAuction is
     /// @notice Emitted when a new checkpoint is created
     /// @param blockNumber The block number of the checkpoint
     /// @param clearingPrice The clearing price of the checkpoint
-    /// @param totalClearedX7X7 The total amount of tokens cleared
+    /// @param totalCurrencyRaisedX7X7 The total currency raised
     /// @param cumulativeMps The cumulative percentage of total tokens allocated across all previous steps, represented in ten-millionths of the total supply (1e7 = 100%)
     event CheckpointUpdated(
-        uint256 indexed blockNumber, uint256 clearingPrice, ValueX7X7 totalClearedX7X7, uint24 cumulativeMps
+        uint256 indexed blockNumber, uint256 clearingPrice, ValueX7X7 totalCurrencyRaisedX7X7, uint24 cumulativeMps
     );
+
+    /// @notice Emitted when the clearing price is updated
+    /// @param clearingPrice The new clearing price
+    event ClearingPriceUpdated(uint256 indexed blockNumber, uint256 clearingPrice);
 
     /// @notice Emitted when a bid is exited
     /// @param bidId The id of the bid
@@ -139,7 +148,9 @@ interface IAuction is
     /// @return _checkpoint The checkpoint at the current block
     function checkpoint() external returns (Checkpoint memory _checkpoint);
 
-    /// @notice Whether the auction has sold more tokens than specified in the graduation threshold as of the latest checkpoint
+    /// @notice Whether the auction has graduated as of the given checkpoint
+    /// @dev The auction is considered `graudated` if the clearing price is greater than the floor price
+    ///      since that means it has sold all of the total supply of tokens.
     /// @dev Be aware that the latest checkpoint may be out of date
     /// @return bool True if the auction has graduated, false otherwise
     function isGraduated() external view returns (bool);
@@ -161,6 +172,13 @@ interface IAuction is
     /// @dev Anyone can claim tokens for any bid, the tokens are transferred to the bid owner
     /// @param bidId The id of the bid
     function claimTokens(uint256 bidId) external;
+
+    /// @notice Claim tokens for multiple bids
+    /// @dev Anyone can claim tokens for bids of the same owner, the tokens are transferred to the owner
+    /// @dev All tokens are transferred in a single transfer
+    /// @param owner The owner of the bids
+    /// @param bidIds The ids of the bids
+    function claimTokensBatch(address owner, uint256[] calldata bidIds) external;
 
     /// @notice Withdraw all of the currency raised
     /// @dev Can be called by anyone after the auction has ended

@@ -101,7 +101,7 @@ contract TickStorageTest is Test, Assertions {
             _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
             assertEq(_tickStorage.floorPrice(), floorPrice);
             assertEq(_tickStorage.tickSpacing(), tickSpacing);
-            assertEq(_tickStorage.nextActiveTickPrice(), floorPrice);
+            assertEq(_tickStorage.nextActiveTickPrice(), type(uint256).max);
             assertEq(_tickStorage.getTick(floorPrice).next, type(uint256).max);
         }
     }
@@ -122,7 +122,7 @@ contract TickStorageTest is Test, Assertions {
         // Assert there is no next tick (type(uint256).max)
         assertEq(tick.next, tickStorage.MAX_TICK_PTR());
         // Assert the nextActiveTick is unchanged
-        assertEq(tickStorage.nextActiveTickPrice(), $floorPrice_rounded);
+        assertEq(tickStorage.nextActiveTickPrice(), _price);
 
         tick = tickStorage.getTick($floorPrice_rounded);
         // Assert the next tick from the floor price is the new tick
@@ -144,7 +144,7 @@ contract TickStorageTest is Test, Assertions {
         tickStorage.initializeTickIfNeeded(_prevPrice, $floorPrice_rounded);
         Tick memory tick = tickStorage.getTick($floorPrice_rounded);
         assertEq(tick.next, type(uint256).max);
-        assertEq(tickStorage.nextActiveTickPrice(), $floorPrice_rounded);
+        assertEq(tickStorage.nextActiveTickPrice(), type(uint256).max);
     }
 
     function test_initializeTick_returnsTick(

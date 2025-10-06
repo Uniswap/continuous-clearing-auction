@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c968c963f6b2d0d8603af50fad60d232a645daef/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/572329a7aabc6c93930b434d7bbc37f669a19160/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
@@ -87,7 +87,10 @@ function checkpoint() external returns (Checkpoint memory _checkpoint);
 
 ### isGraduated
 
-Whether the auction has sold more tokens than specified in the graduation threshold as of the latest checkpoint
+Whether the auction has graduated as of the given checkpoint
+
+*The auction is considered `graudated` if the clearing price is greater than the floor price
+since that means it has sold all of the total supply of tokens.*
 
 *Be aware that the latest checkpoint may be out of date*
 
@@ -155,6 +158,26 @@ function claimTokens(uint256 bidId) external;
 |Name|Type|Description|
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
+
+
+### claimTokensBatch
+
+Claim tokens for multiple bids
+
+*Anyone can claim tokens for bids of the same owner, the tokens are transferred to the owner*
+
+*All tokens are transferred in a single transfer*
+
+
+```solidity
+function claimTokensBatch(address owner, uint256[] calldata bidIds) external;
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`owner`|`address`|The owner of the bids|
+|`bidIds`|`uint256[]`|The ids of the bids|
 
 
 ### sweepCurrency
@@ -244,7 +267,7 @@ Emitted when a new checkpoint is created
 
 ```solidity
 event CheckpointUpdated(
-    uint256 indexed blockNumber, uint256 clearingPrice, ValueX7X7 totalClearedX7X7, uint24 cumulativeMps
+    uint256 indexed blockNumber, uint256 clearingPrice, ValueX7X7 totalCurrencyRaisedX7X7, uint24 cumulativeMps
 );
 ```
 
@@ -254,8 +277,23 @@ event CheckpointUpdated(
 |----|----|-----------|
 |`blockNumber`|`uint256`|The block number of the checkpoint|
 |`clearingPrice`|`uint256`|The clearing price of the checkpoint|
-|`totalClearedX7X7`|`ValueX7X7`|The total amount of tokens cleared|
+|`totalCurrencyRaisedX7X7`|`ValueX7X7`|The total currency raised|
 |`cumulativeMps`|`uint24`|The cumulative percentage of total tokens allocated across all previous steps, represented in ten-millionths of the total supply (1e7 = 100%)|
+
+### ClearingPriceUpdated
+Emitted when the clearing price is updated
+
+
+```solidity
+event ClearingPriceUpdated(uint256 indexed blockNumber, uint256 clearingPrice);
+```
+
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`blockNumber`|`uint256`||
+|`clearingPrice`|`uint256`|The new clearing price|
 
 ### BidExited
 Emitted when a bid is exited
@@ -305,6 +343,22 @@ Error thrown when not enough amount is deposited
 
 ```solidity
 error InvalidAmount();
+```
+
+### BidAmountTooSmall
+Error thrown when the bid amount is too small
+
+
+```solidity
+error BidAmountTooSmall();
+```
+
+### BidAmountTooLarge
+Error thrown when the bid amount is over ConstantsLib.X7X7_UPPER_BOUND
+
+
+```solidity
+error BidAmountTooLarge();
 ```
 
 ### CurrencyIsNotNative
@@ -387,6 +441,14 @@ Error thrown when the bid is not claimable
 error NotClaimable();
 ```
 
+### BatchClaimDifferentOwner
+Error thrown when the bids are not owned by the same owner
+
+
+```solidity
+error BatchClaimDifferentOwner(address expectedOwner, address receivedOwner);
+```
+
 ### BidNotExited
 Error thrown when the bid has not been exited
 
@@ -417,6 +479,14 @@ Error thrown when a new bid is less than or equal to the clearing price
 
 ```solidity
 error InvalidBidPrice();
+```
+
+### InvalidBidUnableToClear
+Error thrown when the bid is too large
+
+
+```solidity
+error InvalidBidUnableToClear();
 ```
 
 ### AuctionSoldOut

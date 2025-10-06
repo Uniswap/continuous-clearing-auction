@@ -5,19 +5,17 @@ import {ICheckpointStorage} from './interfaces/ICheckpointStorage.sol';
 import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
-import {DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-
 /// @title CheckpointStorage
 /// @notice Abstract contract for managing auction checkpoints and bid fill calculations
+
 abstract contract CheckpointStorage is ICheckpointStorage {
     using FixedPointMathLib for *;
     using AuctionStepLib for *;
     using BidLib for *;
-    using DemandLib for ValueX7;
     using CheckpointLib for Checkpoint;
     using ValueX7Lib for *;
     using ValueX7X7Lib for *;
@@ -82,27 +80,29 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     }
 
     /// @notice Calculate the tokens sold and currency spent for a partially filled bid
-    /// @param cumulativeSupplySoldToClearingPriceX7X7 The cumulative supply sold to the clearing price
-    /// @param bidDemandX7 The demand of the bid
+    /// @param bid The bid
     /// @param tickDemandX7 The total demand at the tick
-    /// @param bidMaxPrice The max price of the bid
+    /// @param cumulativeCurrencyRaisedAtClearingPriceX7X7 The cumulative supply sold to the clearing price
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent
     function _accountPartiallyFilledCheckpoints(
-        ValueX7X7 cumulativeSupplySoldToClearingPriceX7X7,
-        ValueX7 bidDemandX7,
+        Bid memory bid,
         ValueX7 tickDemandX7,
-        uint256 bidMaxPrice
+        ValueX7X7 cumulativeCurrencyRaisedAtClearingPriceX7X7
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
         if (tickDemandX7.eq(ValueX7.wrap(0))) return (0, 0);
-        // BidDemand and tickDemand are both ValueX7 values, so the X7 cancels out.
-        // However, we need to scale down the result due to cumulativeSupplySoldToClearingPriceX7X7 being a ValueX7X7 value
-        // To prevent intermediate division, scale up the denominator instead by multiplying tickDemandX7 by 1e7 to be a ValueX7X7 value
-        tokensFilled = (
-            bidDemandX7.upcast().fullMulDiv(cumulativeSupplySoldToClearingPriceX7X7, tickDemandX7.scaleUpToX7X7())
-                .downcast()
-        ).scaleDownToUint256();
-        currencySpent = tokensFilled.fullMulDivUp(bidMaxPrice, FixedPoint96.Q96);
+
+        // Scale bid.amount to X7, then pro-rate by cumulativeCurrencyRaisedAtClearingPriceX7X7,
+        // dividing by total tick demand adjusted for the bid's remaining auction share.
+        // This avoids extra 1e7 scaling and matches BidLib.toEffectiveAmount logic.
+        ValueX7 currencySpentX7 = bid.amount.scaleUpToX7().fullMulDivUp(
+            cumulativeCurrencyRaisedAtClearingPriceX7X7.downcast(),
+            tickDemandX7.mulUint256(bid.mpsRemainingInAuctionAfterSubmission())
+        );
+        // Scale down the calculated currency spent to a uint256 which will be used for refunds
+        currencySpent = currencySpentX7.scaleDownToUint256();
+        // Use the X7 version of currency spent to calculate the tokens filled to avoid intermediate division
+        tokensFilled = currencySpentX7.wrapAndFullMulDiv(FixedPoint96.Q96, bid.maxPrice).scaleDownToUint256();
     }
 
     /// @notice Calculate the tokens filled and currency spent for a bid

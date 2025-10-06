@@ -3,7 +3,6 @@ pragma solidity 0.8.26;
 
 import {ITickStorage} from './interfaces/ITickStorage.sol';
 import {BidLib} from './libraries/BidLib.sol';
-import {DemandLib} from './libraries/DemandLib.sol';
 import {ValueX7} from './libraries/ValueX7Lib.sol';
 
 struct Tick {
@@ -14,8 +13,6 @@ struct Tick {
 /// @title TickStorage
 /// @notice Abstract contract for handling tick storage
 abstract contract TickStorage is ITickStorage {
-    using DemandLib for ValueX7;
-
     /// @notice Mapping of price levels to tick data
     mapping(uint256 price => Tick) private $_ticks;
 
@@ -40,16 +37,19 @@ abstract contract TickStorage is ITickStorage {
         FLOOR_PRICE = _floorPrice;
         // Initialize the floor price as the first tick
         $_ticks[FLOOR_PRICE].next = MAX_TICK_PTR;
-        $nextActiveTickPrice = FLOOR_PRICE;
-        emit NextActiveTickUpdated(FLOOR_PRICE);
+        $nextActiveTickPrice = MAX_TICK_PTR;
+        emit NextActiveTickUpdated(MAX_TICK_PTR);
         emit TickInitialized(FLOOR_PRICE);
     }
 
-    /// @notice Get a tick at a price
-    /// @dev The returned tick is not guaranteed to be initialized
-    /// @param price The price of the tick
-    /// @return The tick at the given price
+    /// @inheritdoc ITickStorage
     function getTick(uint256 price) public view returns (Tick memory) {
+        return _getTick(price);
+    }
+
+    /// @notice Internal function to get a tick at a price
+    /// @dev The returned tick is not guaranteed to be initialized
+    function _getTick(uint256 price) internal view returns (Tick memory) {
         return $_ticks[price];
     }
 

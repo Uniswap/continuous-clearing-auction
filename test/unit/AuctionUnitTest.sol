@@ -9,10 +9,11 @@ import {Checkpoint} from '../../src/libraries/CheckpointLib.sol';
 import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7} from '../../src/libraries/ValueX7X7Lib.sol';
 import {AuctionBaseTest} from '../utils/AuctionBaseTest.sol';
+
+import {AuctionParamsBuilder} from '../utils/AuctionParamsBuilder.sol';
+import {AuctionStepsBuilder} from '../utils/AuctionStepsBuilder.sol';
 import {FuzzBid, FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
 import {MockAuction} from '../utils/MockAuction.sol';
-import {AuctionStepsBuilder} from '../utils/AuctionStepsBuilder.sol';
-import {AuctionParamsBuilder} from '../utils/AuctionParamsBuilder.sol';
 
 contract AuctionUnitTest is AuctionBaseTest {
     using AuctionParamsBuilder for AuctionParameters;
@@ -69,5 +70,4 @@ contract AuctionUnitTest is AuctionBaseTest {
         // Expect the tokens to be received
         mockAuction.onTokensReceived();
     }
-
 }

@@ -16,8 +16,9 @@ import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
-import {Assertions} from './utils/Assertions.sol';
+
 import {AuctionUnitTest} from './unit/AuctionUnitTest.sol';
+import {Assertions} from './utils/Assertions.sol';
 import {MockAuction} from './utils/MockAuction.sol';
 import {Test} from 'forge-std/Test.sol';
 import {console} from 'forge-std/console.sol';
@@ -73,10 +74,16 @@ contract AuctionInvariantHandler is Test, Assertions {
         // Check that the clearing price is always increasing
         assertGe(checkpoint.clearingPrice, _checkpoint.clearingPrice, 'Checkpoint clearing price is not increasing');
         // If the clearing price is higher than the floor price, ensure that the supplyMultiplier is set
-        if(checkpoint.clearingPrice > mockAuction.floorPrice()) {
-            (bool isSet,,) =
+        if (checkpoint.clearingPrice > mockAuction.floorPrice()) {
+            (bool isSet, uint24 remainingMps, ValueX7X7 remainingCurrencyRaisedX7X7) =
                 mockAuction.unpackSupplyRolloverMultiplier();
-            assertEq(isSet, true);
+            assertEq(isSet, true, 'Supply rollover multiplier is not set when clearing price is above floor price');
+            assertLe(remainingMps, ConstantsLib.MPS, 'Remaining mps is greater than ConstantsLib.MPS');
+            assertLe(
+                remainingCurrencyRaisedX7X7,
+                mockAuction.getTotalCurrencyRaisedAtFloorX7X7(),
+                'Remaining currency raised is greater than total currency raised at floor'
+            );
         }
         // Check that the cumulative variables are always increasing
         assertGe(
@@ -304,8 +311,10 @@ contract AuctionInvariantTest is AuctionUnitTest {
         emit log_named_decimal_uint('totalCurrencyRaised', totalCurrencyRaised, 18);
         emit log_named_decimal_uint('expectedCurrencyRaised', expectedCurrencyRaised, 18);
 
-        assertLe(
-            expectedCurrencyRaised, address(mockAuction).balance, 'Expected currency raised is greater than auction balance'
+        assertEq(
+            expectedCurrencyRaised,
+            address(mockAuction).balance,
+            'Expected currency raised is greater than auction balance'
         );
 
         mockAuction.sweepUnsoldTokens();

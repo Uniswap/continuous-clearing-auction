@@ -214,24 +214,36 @@ contract CheckpointStorageTest is Assertions, Test {
         assertEq(currencySpent, _inputAmount.fullMulDivUp(_cumulativeMpsDelta, ConstantsLib.MPS));
     }
 
-    function test_accountPartiallyFilledCheckpoints_zeroCumulativeSupplySoldToClearingPrice_returnsZero() public view {
+    function test_accountPartiallyFilledCheckpoints_zeroCumulativeSupplySoldToClearingPrice_returnsZero(Bid memory bid)
+        public
+        view
+    {
+        vm.assume(bid.startCumulativeMps < ConstantsLib.MPS);
+        vm.assume(bid.mpsRemainingInAuctionAfterSubmission() > 0);
+        vm.assume(bid.amount < type(uint128).max);
+        vm.assume(bid.maxPrice > 0);
+
         Checkpoint memory _checkpoint = mockCheckpointStorage.latestCheckpoint();
         (uint256 tokensFilled, uint256 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
-            _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7, ValueX7.wrap(1e18), ValueX7.wrap(1e18), 1e6
+            bid, ValueX7.wrap(1e18), _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7
         );
         assertEq(tokensFilled, 0);
         assertEq(currencySpent, 0);
     }
 
-    function test_accountPartiallyFilledCheckpoints_zeroTickDemand_returnsZero() public view {
+    function test_accountPartiallyFilledCheckpoints_zeroTickDemand_returnsZero(Bid memory bid) public view {
+        vm.assume(bid.startCumulativeMps < ConstantsLib.MPS);
+        vm.assume(bid.mpsRemainingInAuctionAfterSubmission() > 0);
+        vm.assume(bid.amount < type(uint128).max);
+        vm.assume(bid.maxPrice > 0);
+
         Checkpoint memory _checkpoint = mockCheckpointStorage.latestCheckpoint();
         _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7 = ValueX7X7.wrap(1e18);
 
         (uint256 tokensFilled, uint256 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
-            _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7,
-            ValueX7.wrap(0), // bid demand
+            bid,
             ValueX7.wrap(0), // tick demand
-            1e6
+            _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7
         );
         assertEq(tokensFilled, 0);
         assertEq(currencySpent, 0);

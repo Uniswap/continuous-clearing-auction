@@ -25,6 +25,7 @@ function eq(ValueX7 a, ValueX7 b) pure returns (bool) {
     return ValueX7.unwrap(a) == ValueX7.unwrap(b);
 }
 
+/// @notice Check if a ValueX7 value is greater than or equal to another ValueX7 value
 function gte(ValueX7 a, ValueX7 b) pure returns (bool) {
     return ValueX7.unwrap(a) >= ValueX7.unwrap(b);
 }

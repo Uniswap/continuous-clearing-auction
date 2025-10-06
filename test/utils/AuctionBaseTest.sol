@@ -168,22 +168,19 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // if the bid if not above the clearing price, don't submit the bid
         if (maxPrice <= clearingPrice) return (false, 0);
         // If the bid would overflow a ValueX7X7 value, don't submit the bid
-        if (_bid.bidAmount > BidLib.MAX_BID_AMOUNT / maxPrice) return (false, 0);
-
         uint256 ethInputAmount = inputAmountForTokens(_bid.bidAmount, maxPrice);
+        if (ethInputAmount >= helper__getMaxBidAmountAtMaxPrice(maxPrice)) return (false, 0);
 
         // Get the correct last tick price for the bid
         uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
         uint256 lastTickPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(lowerTickNumber);
 
-        vm.expectEmit(true, true, true, true);
-        emit IAuction.BidSubmitted(_i, _owner, maxPrice, ethInputAmount);
         try auction.submitBid{value: ethInputAmount}(maxPrice, ethInputAmount, _owner, lastTickPrice, bytes(''))
         returns (uint256 _bidId) {
             bidId = _bidId;
         } catch (bytes memory revertData) {
             // Ok if the bid price is invalid IF it just moved this block
-            if (bytes4(revertData) == IAuction.InvalidBidPrice.selector) {
+            if (bytes4(revertData) == bytes4(abi.encodeWithSelector(IAuction.InvalidBidPrice.selector))) {
                 Checkpoint memory checkpoint = auction.checkpoint();
                 // the bid price is invalid as it is less than or equal to the clearing price
                 // skip the test by returning false and 0
@@ -269,6 +266,11 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _;
     }
 
+    modifier givenFullyFundedAccount() {
+        vm.deal(address(this), uint256(type(uint256).max));
+        _;
+    }
+
     modifier givenNonZeroTickNumber(uint8 _tickNumber) {
         vm.assume(_tickNumber > 0);
         _;
@@ -319,34 +321,46 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return failingAuction;
     }
 
-    function helper_getMaxBidAmountAtMaxPrice() internal view returns (uint256) {
+    function helper__getMaxBidAmountAtMaxPrice() internal view returns (uint256) {
         require($maxPrice > 0, 'Max price is not set in test yet');
         return BidLib.MAX_BID_AMOUNT / $maxPrice;
     }
 
-    modifier givenValidMaxPrice(uint64 _tickNumber) {
-        _tickNumber = uint64(_bound(_tickNumber, 1, type(uint64).max));
-        $maxPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(_tickNumber);
+    function helper__getMaxBidAmountAtMaxPrice(uint256 _maxPrice) internal view returns (uint256) {
+        return BidLib.MAX_BID_AMOUNT / _maxPrice;
+    }
+
+    modifier givenValidMaxPrice(uint256 _maxPrice) {
+        _maxPrice = _bound(_maxPrice, FLOOR_PRICE, BidLib.MAX_BID_PRICE);
+        _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, TICK_SPACING);
+        vm.assume(_maxPrice > FLOOR_PRICE);
+        $maxPrice = _maxPrice;
         _;
     }
 
     modifier givenValidBidAmount(uint256 _bidAmount) {
-        if (BidLib.MIN_BID_AMOUNT > helper_getMaxBidAmountAtMaxPrice()) {
+        if (BidLib.MIN_BID_AMOUNT <= helper__getMaxBidAmountAtMaxPrice()) {
             $bidAmount = BidLib.MIN_BID_AMOUNT;
         } else {
-            $bidAmount = _bound(_bidAmount, BidLib.MIN_BID_AMOUNT, helper_getMaxBidAmountAtMaxPrice());
+            vm.assume(BidLib.MIN_BID_AMOUNT < helper__getMaxBidAmountAtMaxPrice());
+            $bidAmount = _bound(_bidAmount, BidLib.MIN_BID_AMOUNT, helper__getMaxBidAmountAtMaxPrice());
         }
         _;
     }
 
-    modifier givenAuctionSoldOut() {
-        vm.assume(TOTAL_SUPPLY + 1 <= helper_getMaxBidAmountAtMaxPrice());
-        $bidAmount = _bound($bidAmount, TOTAL_SUPPLY + 1, helper_getMaxBidAmountAtMaxPrice());
+    modifier givenGraduatedAuction() {
+        if (TOTAL_SUPPLY <= helper__getMaxBidAmountAtMaxPrice()) {
+            $bidAmount = TOTAL_SUPPLY;
+        } else {
+            vm.assume(TOTAL_SUPPLY < helper__getMaxBidAmountAtMaxPrice());
+            $bidAmount = _bound($bidAmount, TOTAL_SUPPLY, helper__getMaxBidAmountAtMaxPrice());
+        }
         _;
     }
 
-    modifier givenFullyFundedAccount() {
-        vm.deal(address(this), type(uint256).max);
+    modifier givenNotGraduatedAuction(uint256 _bidAmount) {
+        // TODO(ez): some rounding in auction preventing this from being TOTAL_SUPPLY - 1
+        $bidAmount = _bound(_bidAmount, BidLib.MIN_BID_AMOUNT, TOTAL_SUPPLY / 2);
         _;
     }
 

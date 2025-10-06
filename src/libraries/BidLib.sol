@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {AuctionStepLib} from './AuctionStepLib.sol';
 import {ConstantsLib} from './ConstantsLib.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
@@ -20,7 +19,6 @@ struct Bid {
 
 /// @title BidLib
 library BidLib {
-    using AuctionStepLib for uint256;
     using ValueX7Lib for *;
     using ValueX7X7Lib for *;
     using BidLib for *;
@@ -43,6 +41,8 @@ library BidLib {
 
     /// @notice Scale a bid amount to its effective amount over the remaining percentage of the auction
     /// @dev The amount is scaled based on the remaining mps such that it is fully allocated over the remaining parts of the auction
+    ///      It is not possible to avoid the division here because we must include the scaled up demand
+    ///      into tick demand and `sumCurrencyDemandAboveClearingX7` where we have no way to preserve the bid-level information.
     /// @param bid The bid to convert
     /// @return bidAmountOverRemainingAuctionX7 The bid amount in ValueX7 scaled to the remaining percentage of the auction
     function toEffectiveAmount(Bid memory bid) internal pure returns (ValueX7 bidAmountOverRemainingAuctionX7) {

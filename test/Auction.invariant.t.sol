@@ -165,7 +165,6 @@ contract AuctionInvariantHandler is Test, Assertions {
 
         uint256 prevTickPrice = _getLowerTick(maxPrice);
         uint256 nextBidId = mockAuction.nextBidId();
-        console.log('submitting bid with', inputAmount, maxPrice, prevTickPrice);
         try mockAuction.submitBid{value: currency.isAddressZero() ? inputAmount : 0}(
             maxPrice, inputAmount, currentActor, prevTickPrice, bytes('')
         ) {
@@ -197,6 +196,9 @@ contract AuctionInvariantHandler is Test, Assertions {
 }
 
 contract AuctionInvariantTest is AuctionUnitTest {
+    using ValueX7Lib for *;
+    using ValueX7X7Lib for *;
+
     AuctionInvariantHandler public handler;
 
     function setUp() public {
@@ -245,6 +247,14 @@ contract AuctionInvariantTest is AuctionUnitTest {
         if (block.number >= mockAuction.startBlock() && block.number < mockAuction.endBlock()) {
             mockAuction.checkpoint();
         }
+    }
+
+    function invariant_totalTokensClearedX7X7_lessThanOrEqualToTotalSupplyX7X7() public {
+        assertLe(
+            mockAuction.totalTokensClearedX7X7(),
+            mockAuction.totalSupply().scaleUpToX7().scaleUpToX7X7(),
+            'Total tokens cleared is greater than total supply'
+        );
     }
 
     function invariant_canExitAndClaimAllBids() public {
@@ -305,11 +315,18 @@ contract AuctionInvariantTest is AuctionUnitTest {
         }
 
         uint256 expectedCurrencyRaised = mockAuction.currencyRaised();
+        uint256 totalTokensCleared = mockAuction.totalTokensClearedX7X7().scaleDownToValueX7().scaleDownToUint256();
 
         emit log_string('==================== AFTER EXIT AND CLAIM TOKENS ====================');
         emit log_named_decimal_uint('auction balance', address(mockAuction).balance, 18);
         emit log_named_decimal_uint('totalCurrencyRaised', totalCurrencyRaised, 18);
         emit log_named_decimal_uint('expectedCurrencyRaised', expectedCurrencyRaised, 18);
+        emit log_named_decimal_uint('totalTokensCleared', mockAuction.totalTokensClearedX7X7().scaleDownToValueX7().scaleDownToUint256(), 18);
+        emit log_named_decimal_uint('totalTokensClearedX7X7', ValueX7X7.unwrap(mockAuction.totalTokensClearedX7X7()), 18);
+        emit log_named_decimal_uint('totalSupply', mockAuction.totalSupply(), 18);
+        emit log_named_decimal_uint('totalSupplyX7X7', ValueX7X7.unwrap(mockAuction.totalSupply().scaleUpToX7().scaleUpToX7X7()), 18);
+
+        assertLe(totalTokensCleared, mockAuction.totalSupply(), 'Total tokens cleared is greater than total supply');
 
         assertEq(
             expectedCurrencyRaised,

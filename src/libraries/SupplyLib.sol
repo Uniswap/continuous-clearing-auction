@@ -34,9 +34,6 @@ library SupplyLib {
     //                        [00...00][11111111111111111111111111111111111111111111111111...11111111]
     uint256 private constant REMAINING_SUPPLY_MASK = (1 << 231) - 1;
 
-    // Max value for remainingCurrencyRaisedX7X7 (all lower 231 bits set)
-    uint256 public constant MAX_REMAINING_CURRENCY_RAISED = REMAINING_SUPPLY_MASK;
-
     /// @notice Convert the total supply to a ValueX7X7
     /// @dev This function must be checked for overflow before being called
     /// @return The total supply as a ValueX7X7
@@ -45,8 +42,9 @@ library SupplyLib {
     }
 
     /// @notice Pack values into a SupplyRolloverMultiplier
-    /// @dev This function does NOT check that `remainingSupplyX7X7` fits in 231 bits.
-    ///      TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7, which bounds the value of `remainingCurrencyRaisedX7X7`, must be validated.
+    /// @dev This function does NOT check that `remainingCurrencyRaisedX7X7` fits in 231 bits.
+    ///      Given the total supply is capped at type(uint128).max, the largest `remainingCurrencyRaisedX7X7` value is
+    ///      REMAINING_CURRENCY_RAISED_AT_FLOOR_X7_X7, which is 175 bits (type(uint128).max * 1e14)
     /// @param set Boolean flag indicating if the value is set which only happens after the auction becomes fully subscribed,
     ///         at which point the supply schedule becomes deterministic based on the future supply schedule
     /// @param remainingPercentage The remaining percentage of the auction

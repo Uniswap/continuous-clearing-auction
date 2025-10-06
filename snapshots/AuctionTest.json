@@ -11,6 +11,6 @@
   "submitBidWithoutPrevTickPrice_initializeTick_updateCheckpoint": "324478",
   "submitBid_recordStep_updateCheckpoint": "324400",
   "submitBid_recordStep_updateCheckpoint_initializeTick": "324400",
-  "submitBid_updateCheckpoint": "263499",
+  "submitBid_updateCheckpoint": "302172",
   "submitBid_withValidationHook": "328548"
 }

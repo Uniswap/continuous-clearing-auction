@@ -1,5 +1,5 @@
 # ICheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/4e79543472823ca4f19066f04f5392aba6563627/src/interfaces/ICheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/69de3ae4ba8e1e42b571cd7d7900cef9574ede92/src/interfaces/ICheckpointStorage.sol)
 
 Interface for checkpoint storage operations
 

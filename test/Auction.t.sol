@@ -22,11 +22,16 @@ import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
+
+import {FuzzBid, FuzzDeploymentParams} from './utils/FuzzStructs.sol';
 import {MockAuction} from './utils/MockAuction.sol';
 import {MockFundsRecipient} from './utils/MockFundsRecipient.sol';
 import {MockValidationHook} from './utils/MockValidationHook.sol';
+import {TickBitmap, TickBitmapLib} from './utils/TickBitmap.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
+
+import {console} from 'forge-std/console.sol';
 import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
@@ -141,6 +146,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
+        vm.snapshotGasLastCall('submitBid_updateCheckpoint');
 
         vm.roll(block.number + 1);
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
@@ -927,10 +933,13 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepUnsoldTokens();
     }
 
-    function test_onTokensReceived_withCorrectTokenAndAmount_succeeds() public {
-        // Should not revert since tokens are already minted in setUp()
-        vm.expectEmit(true, true, true, true);
-        emit IAuction.TokensReceived(TOTAL_SUPPLY);
+    function test_onTokensReceived_repeatedCall_succeeds() public {
+        address bob = makeAddr('bob');
+        uint256 balance = token.balanceOf(address(auction));
+        vm.prank(address(auction));
+        // Unset the balance of the auction
+        token.transfer(bob, balance);
+        // No revert happens, no event is emitted
         auction.onTokensReceived();
     }
 
@@ -1168,7 +1177,7 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(1);
         // Create a bid which was entered with a max price of tickNumberToPriceX96(2) at checkpoint 1
-        (Bid memory bid, uint256 bidId) = mockAuction.createBid(100e18, alice, tickNumberToPriceX96(2), 0);
+        (Bid memory bid, uint256 bidId) = mockAuction.uncheckedCreateBid(100e18, alice, tickNumberToPriceX96(2), 0);
         assertEq(bid.startBlock, 1);
         mockAuction.insertCheckpoint(_checkpointOne, 1);
         vm.roll(2);
@@ -1436,16 +1445,16 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_submitBid_withERC20Currency_unpermittedPermit2Transfer_reverts() public {
         // Create auction parameters with ERC20 currency instead of ETH
-        params = params.withCurrency(address(currency));
+        params = params.withCurrency(address(erc20Currency));
         Auction erc20Auction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(erc20Auction), TOTAL_SUPPLY);
         erc20Auction.onTokensReceived();
         // Mint currency tokens to alice
-        currency.mint(alice, 1000e18);
+        erc20Currency.mint(alice, 1000e18);
 
         // For now, let's just verify that the currency is set correctly
         // and that we would reach line 252 if the Permit2 transfer worked
-        assertEq(Currency.unwrap(erc20Auction.currency()), address(currency));
+        assertEq(Currency.unwrap(erc20Auction.currency()), address(erc20Currency));
         assertFalse(erc20Auction.currency().isAddressZero());
 
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector); // Expect revert due to Permit2 transfer failure
@@ -1460,16 +1469,16 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_submitBid_withERC20Currency_nonZeroMsgValue_reverts() public {
         // Create auction parameters with ERC20 currency instead of ETH
-        params = params.withCurrency(address(currency));
+        params = params.withCurrency(address(erc20Currency));
         Auction erc20Auction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(erc20Auction), TOTAL_SUPPLY);
         erc20Auction.onTokensReceived();
 
         // Mint currency tokens to alice
-        currency.mint(alice, 1000e18);
+        erc20Currency.mint(alice, 1000e18);
 
         // For now, let's just verify that the currency is set correctly
-        assertEq(Currency.unwrap(erc20Auction.currency()), address(currency));
+        assertEq(Currency.unwrap(erc20Auction.currency()), address(erc20Currency));
         assertFalse(erc20Auction.currency().isAddressZero());
 
         vm.expectRevert(IAuction.CurrencyIsNotNative.selector);
@@ -1794,6 +1803,8 @@ contract AuctionTest is AuctionBaseTest {
         auction.claimTokensBatch(alice, bids);
     }
 
+    /// forge-config: default.fuzz.runs = 1000
+    /// forge-config: ci.fuzz.runs = 1000
     function test_claimTokensBatch_beforeClaimBlock_reverts(
         uint256 _bidAmount,
         uint128 _numberOfBids,
@@ -1854,6 +1865,8 @@ contract AuctionTest is AuctionBaseTest {
         failingAuction.claimTokensBatch(alice, bids);
     }
 
+    /// forge-config: default.fuzz.runs = 1000
+    /// forge-config: ci.fuzz.runs = 1000
     function test_claimTokensBatch_succeeds(uint256 _bidAmount, uint128 _numberOfBids, uint256 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice)

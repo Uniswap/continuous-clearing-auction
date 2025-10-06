@@ -29,10 +29,11 @@ library SupplyLib {
     //                       [ 0 ][1111111111111111111111111][00000.....................00]
     uint256 private constant REMAINING_MPS_MASK = ((1 << REMAINING_MPS_SIZE) - 1) << REMAINING_MPS_BIT_POSITION;
 
-    // REMAINING_SUPPLY_MASK:
+    // REMAINING_CURRENCY_RAISED_MASK:
     //                        [255-231][230---------------------------------------------------------0]
     //                        [00...00][11111111111111111111111111111111111111111111111111...11111111]
-    uint256 private constant REMAINING_SUPPLY_MASK = (1 << 231) - 1;
+    uint256 private constant REMAINING_CURRENCY_RAISED_MASK = (1 << 231) - 1;
+    ValueX7X7 public constant MAX_REMAINING_CURRENCY_RAISED_X7_X7 = ValueX7X7.wrap(REMAINING_CURRENCY_RAISED_MASK);
 
     /// @notice Convert the total supply to a ValueX7X7
     /// @dev This function must be checked for overflow before being called
@@ -70,7 +71,7 @@ library SupplyLib {
         return (
             (packed & SET_FLAG_MASK) != 0,
             uint24((packed & REMAINING_MPS_MASK) >> REMAINING_MPS_BIT_POSITION),
-            ValueX7X7.wrap(packed & REMAINING_SUPPLY_MASK)
+            ValueX7X7.wrap(packed & REMAINING_CURRENCY_RAISED_MASK)
         );
     }
 }

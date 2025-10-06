@@ -321,10 +321,16 @@ contract AuctionInvariantTest is AuctionUnitTest {
         emit log_named_decimal_uint('auction balance', address(mockAuction).balance, 18);
         emit log_named_decimal_uint('totalCurrencyRaised', totalCurrencyRaised, 18);
         emit log_named_decimal_uint('expectedCurrencyRaised', expectedCurrencyRaised, 18);
-        emit log_named_decimal_uint('totalTokensCleared', mockAuction.totalTokensClearedX7X7().scaleDownToValueX7().scaleDownToUint256(), 18);
-        emit log_named_decimal_uint('totalTokensClearedX7X7', ValueX7X7.unwrap(mockAuction.totalTokensClearedX7X7()), 18);
+        emit log_named_decimal_uint(
+            'totalTokensCleared', mockAuction.totalTokensClearedX7X7().scaleDownToValueX7().scaleDownToUint256(), 18
+        );
+        emit log_named_decimal_uint(
+            'totalTokensClearedX7X7', ValueX7X7.unwrap(mockAuction.totalTokensClearedX7X7()), 18
+        );
         emit log_named_decimal_uint('totalSupply', mockAuction.totalSupply(), 18);
-        emit log_named_decimal_uint('totalSupplyX7X7', ValueX7X7.unwrap(mockAuction.totalSupply().scaleUpToX7().scaleUpToX7X7()), 18);
+        emit log_named_decimal_uint(
+            'totalSupplyX7X7', ValueX7X7.unwrap(mockAuction.totalSupply().scaleUpToX7().scaleUpToX7X7()), 18
+        );
 
         assertLe(totalTokensCleared, mockAuction.totalSupply(), 'Total tokens cleared is greater than total supply');
 

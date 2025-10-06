@@ -62,9 +62,8 @@ contract Auction is
     /// @dev This will increase every time a new bid is submitted, and decrease when bids are outbid.
     ValueX7 internal $sumCurrencyDemandAboveClearingX7;
     /// @notice The approximate total tokens cleared in the auction
-    /// @dev This value accumulates rounding errors from each block and should be considered an upper bound on the actual tokens cleared
-    ///      it is rounded up so the calculated amount of sweepable unsold tokens is smaller than actual.
-    ValueX7X7 internal $totalTokensClearedRoundedUpX7X7;
+    /// @dev This value accumulates rounding errors from each block and should not be considered exact
+    ValueX7X7 internal $totalTokensClearedX7X7;
     /// @notice Whether the TOTAL_SUPPLY of tokens has been received
     bool private $_tokensReceived;
     /// @notice A packed uint256 containing `set`, `remainingSupplyX7X7`, and `remainingMps` values derived from the checkpoint
@@ -128,7 +127,7 @@ contract Auction is
         returns (Checkpoint memory)
     {
         ValueX7X7 currencyRaisedX7X7;
-        ValueX7X7 tokensClearedRoundedUpX7X7;
+        ValueX7X7 tokensClearedX7X7;
         // If the clearing price is above the floor price, the auction is fully subscribed and the amount of
         // currency which will be raised is deterministic based on the initial supply schedule.
         if (_checkpoint.clearingPrice > FLOOR_PRICE) {
@@ -153,7 +152,8 @@ contract Auction is
             currencyRaisedX7X7 = cachedRemainingCurrencyRaisedX7X7.wrapAndFullMulDiv(
                 _checkpoint.clearingPrice * uint256(deltaMps), uint256(cachedRemainingPercentage) * FLOOR_PRICE
             );
-            tokensClearedRoundedUpX7X7 = cachedRemainingCurrencyRaisedX7X7.wrapAndFullMulDiv(
+
+            tokensClearedX7X7 = cachedRemainingCurrencyRaisedX7X7.wrapAndFullMulDiv(
                 FixedPoint96.Q96 * uint256(deltaMps), uint256(cachedRemainingPercentage) * FLOOR_PRICE
             );
 
@@ -181,10 +181,10 @@ contract Auction is
             // This should be divided by 1e7, but we scale it up instead to avoid the division.
             // This is why we upcast() to show that it implicitly has been scaled up by 1e7.
             currencyRaisedX7X7 = $sumCurrencyDemandAboveClearingX7.mulUint256(deltaMps).upcast();
-            tokensClearedRoundedUpX7X7 = currencyRaisedX7X7.wrapAndFullMulDivUp(FixedPoint96.Q96, FLOOR_PRICE);
+            tokensClearedX7X7 = currencyRaisedX7X7.wrapAndFullMulDiv(FixedPoint96.Q96, FLOOR_PRICE);
         }
         _checkpoint.totalCurrencyRaisedX7X7 = _checkpoint.totalCurrencyRaisedX7X7.add(currencyRaisedX7X7);
-        $totalTokensClearedRoundedUpX7X7 = $totalTokensClearedRoundedUpX7X7.add(tokensClearedRoundedUpX7X7);
+        $totalTokensClearedX7X7 = $totalTokensClearedX7X7.add(tokensClearedX7X7);
         _checkpoint.cumulativeMps += deltaMps;
         // Calculate the harmonic mean of the mps and price
         _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(deltaMps, _checkpoint.clearingPrice);
@@ -682,11 +682,9 @@ contract Auction is
     function sweepUnsoldTokens() external onlyAfterAuctionIsOver {
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
         // We don't need the final checkpoint data but we do need to make sure it was called
-        // Since the checkpoint updates the $totalTokensClearedRoundedUpX7X7 value
+        // Since the checkpoint updates the $totalTokensClearedX7X7 value
         _getFinalCheckpoint();
-        _sweepUnsoldTokens(
-            TOTAL_SUPPLY_X7_X7.sub($totalTokensClearedRoundedUpX7X7).scaleDownToValueX7().scaleDownToUint256()
-        );
+        _sweepUnsoldTokens(TOTAL_SUPPLY_X7_X7.sub($totalTokensClearedX7X7).scaleDownToValueX7().scaleDownToUint256());
     }
 
     // Getters
@@ -707,6 +705,6 @@ contract Auction is
 
     /// @inheritdoc IAuction
     function totalTokensClearedX7X7() external view override(IAuction) returns (ValueX7X7) {
-        return $totalTokensClearedRoundedUpX7X7;
+        return $totalTokensClearedX7X7;
     }
 }

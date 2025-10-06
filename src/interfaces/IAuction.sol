@@ -188,8 +188,10 @@ interface IAuction is
     function sweepUnsoldTokens() external;
 
     /// @notice The sum of demand in ticks above the clearing price
+    /// @dev This value updates every time a new bid is submitted, and decreases when bids are outbid
     function sumCurrencyDemandAboveClearingX7() external view returns (ValueX7);
 
     /// @notice The total tokens cleared in the auction
+    /// @dev This value accumulates rounding errors from each block and should not be considered exact
     function totalTokensClearedX7X7() external view returns (ValueX7X7);
 }

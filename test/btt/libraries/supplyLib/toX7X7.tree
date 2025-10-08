@@ -1,0 +1,5 @@
+ToX7X7Test
+├── when totalSupply GT uint256 max div 1e14
+│   └── it reverts with {MathOverflow}
+└── when totalSupply LE uint256 max div 1e14
+    └── it returns totalSupply * 1e7 * 1e7

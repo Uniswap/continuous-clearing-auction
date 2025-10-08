@@ -1,0 +1,17 @@
+ConstructorTest
+├── when start block GE end block
+│   └── it reverts with {InvalidEndBlock}
+└── when start block LE end block
+    ├── when deployment fails
+    │   └── it reverts with {DeploymentFailed}
+    └── when deployment succeeds
+        ├── when auction data is invalid
+        │   └── it reverts
+        └── when auction data is valid
+            ├── when advance step fails
+            │   └── it reverts, but should never happen
+            └── when advance step succeeds
+                ├── it writes $_pointer
+                ├── it writes $_offset
+                ├── it writes $step
+                └── it emits {AuctionStepRecorded}

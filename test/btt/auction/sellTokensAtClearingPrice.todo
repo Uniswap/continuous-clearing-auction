@@ -1,0 +1,17 @@
+SellTokensAtClearingPriceTest
+# when price LE FLOOR_PRICE
+## it increases checkpoint totalCurrencyRaisedX7X7 by demand above clearing times deltaMps
+## it increases checkpoint cumulativeMps by deltaMps
+## it increases checkpoint cumulativeMpsPerPrice by getMpsPerPrice(deltaMps, price)
+## it returns checkpoint
+# when price GT FLOOR_PRICE
+## given fully filled
+### 
+## given partially filled
+
+## given under subscribed
+### it is no longer under subscribed
+### it writes $_supplyRolloverMultiplier (remainingMps, remainingCurrencyRaisedX7X7, true)
+### it 
+## given fully subscribed
+### 

@@ -1,0 +1,6 @@
+AccountPartiallyFilledCheckpointsTest
+├── when demand EQ 0
+│   └── it returns (0, 0)
+└── when demand GT 0
+    ├── it returns the currency spent (bid * raised at price / (demand * remaining mps))
+    └── it returns the tokens filled (currency spent / max price)

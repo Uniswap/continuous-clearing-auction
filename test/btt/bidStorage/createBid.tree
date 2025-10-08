@@ -1,0 +1,14 @@
+CreateBidTest
+└── when called with params
+    ├── it creates a new bid with the given parameters
+    ├── it has bid.startBlock = current block number
+    ├── it has bid.startCumulativeMps = startCumulativeMps
+    ├── it has bid.exitedBlock = 0
+    ├── it has bid.maxPrice = maxPrice
+    ├── it has bid.owner = owner
+    ├── it has bid.amount = amount
+    ├── it has bid.tokensFilled = 0
+    ├── it caches bidId = $_nextBidId
+    ├── it writes the bid to storage at bidId
+    ├── it increments $_nextBidId
+    └── it returns the bid and the bid id

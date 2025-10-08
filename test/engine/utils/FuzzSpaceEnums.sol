@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+enum AuctionParametersSpace {
+    TotalSupplySpace,
+    FloorPriceSpace,
+    TickSpacingSpace,
+    ValidationHookSpace,
+    TokensRecipientSpace,
+    FundsRecipientSpace
+}
+
 enum AuctionPhaseSpace {
     NotYetStarted,
     FirstBlock,
@@ -135,6 +144,22 @@ enum SenderSpace {
     RepeatBidder
 }
 
-enum EnvironmentSpace {
-    Default
+enum ValidationHookSpace {
+    None,
+    Reverting,
+    RevertingWithCustomError,
+    OutOfGas,
+    Passing
+}
+
+enum TokensRecipientSpace {
+    None,
+    EOA,
+    Contract
+}
+
+enum FundsRecipientSpace {
+    None,
+    EOA,
+    Contract
 }

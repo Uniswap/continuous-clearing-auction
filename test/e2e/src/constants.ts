@@ -95,7 +95,7 @@ export const LOG_PREFIXES = {
   WARNING: "   ⚠️",
   INFO: "   🔍",
   DEBUG: "   🐛",
-  BID: "   🔸",
+  TRANSACTION: "   🔸",
   ASSERTION: "   💰",
   CONFIG: "   📊",
   AUCTION: "   🏛️",

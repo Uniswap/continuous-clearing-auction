@@ -207,13 +207,13 @@ export class BidSimulator {
     let tx: ContractTransaction; // Transaction response type varies
     let msg: string;
     if (this.currency) {
-      msg = `   🔍 Bidding with ERC20 currency: ${await this.currency.getAddress()}`;
+      msg = `   Bidding with ERC20 currency: ${await this.currency.getAddress()}`;
       tx = await this.auction
         .getFunction("submitBid(uint256,uint256,address,uint256,bytes)")
         .populateTransaction(price, amount, bidder, previousTickPrice, bidData.hookData || "0x");
     } else {
       // For native currency, send the required amount as msg.value
-      msg = `   🔍 Bidding with Native currency`;
+      msg = `   Bidding with Native currency`;
       tx = await this.auction
         .getFunction("submitBid(uint256,uint256,address,uint256,bytes)")
         .populateTransaction(price, amount, bidder, previousTickPrice, bidData.hookData || "0x", { value: amount });
@@ -341,7 +341,7 @@ export class BidSimulator {
       to,
       value: amount,
     };
-    let msg = `   ✅ Native transfer: ${(parseFloat(amount.toString()) / 10 ** 18).toString()} ETH`;
+    let msg = `   Native transfer: ${(parseFloat(amount.toString()) / 10 ** 18).toString()} ETH`;
     transactionInfos.push({ tx, from, msg, expectRevert });
   }
 
@@ -368,7 +368,7 @@ export class BidSimulator {
     let symbol = await token.symbol();
     // Execute the transfer
     const tx = await token.getFunction("transfer").populateTransaction(to, amount);
-    let msg = `   ✅ Token transfer: ${(parseFloat(amount.toString()) / 10 ** Number(decimals)).toString()} ${symbol}`;
+    let msg = `   Token transfer: ${(parseFloat(amount.toString()) / 10 ** Number(decimals)).toString()} ${symbol}`;
     transactionInfos.push({ tx, from, msg, expectRevert });
   }
 
@@ -382,11 +382,11 @@ export class BidSimulator {
     for (const interaction of adminInteractions) {
       if (interaction.method === AdminActionMethod.SWEEP_CURRENCY) {
         let tx = await this.auction.getFunction("sweepCurrency").populateTransaction();
-        let msg = `   ✅ Sweeping currency`;
+        let msg = `   Sweeping currency`;
         transactionInfos.push({ tx, from: null, msg });
       } else if (interaction.method === AdminActionMethod.SWEEP_UNSOLD_TOKENS) {
         let tx = await this.auction.getFunction("sweepUnsoldTokens").populateTransaction();
-        let msg = `   ✅ Sweeping unsold tokens`;
+        let msg = `   Sweeping unsold tokens`;
         transactionInfos.push({ tx, from: null, msg });
       }
     }
@@ -401,7 +401,7 @@ export class BidSimulator {
   async grantPermit2Allowances(currency: Contract, bidder: string, transactionInfos: TransactionInfo[]): Promise<void> {
     // First, approve Permit2 to spend the tokens
     const approveTx = await currency.getFunction("approve").populateTransaction(PERMIT2_ADDRESS, MAX_UINT256);
-    let approveMsg = `   ✅ Approving Permit2 to spend tokens`;
+    let approveMsg = `   Approving Permit2 to spend tokens`;
     transactionInfos.push({ tx: approveTx, from: bidder, msg: approveMsg });
 
     // Then, call Permit2's approve function to grant allowance to the auction contract
@@ -418,7 +418,7 @@ export class BidSimulator {
       maxAmount, // amount (max uint160)
       maxExpiration, // expiration (max uint48)
     );
-    let msg = `   ✅ Granting Permit2 allowance to the auction contract`;
+    let msg = `   Granting Permit2 allowance to the auction contract`;
     transactionInfos.push({ tx, from: bidder, msg });
   }
 }

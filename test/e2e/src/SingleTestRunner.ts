@@ -406,7 +406,7 @@ export class SingleTestRunner {
       }
 
       if (from) await provider.send(METHODS.HARDHAT.STOP_IMPERSONATING_ACCOUNT, [from]);
-      if (txInfo.msg) console.log(txInfo.msg);
+      if (txInfo.msg) console.log(LOG_PREFIXES.TRANSACTION, txInfo.msg);
     }
   }
 

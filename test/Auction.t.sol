@@ -1289,7 +1289,7 @@ contract AuctionTest is AuctionBaseTest {
         );
         ValueX7 demand = mockAuction.sumCurrencyDemandAboveClearingX7();
         // Demand should be the same as the bid demand
-        assertEq(demand, mockAuction.getBid(bidId).toEffectiveAmount());
+        assertEq(demand, mockAuction.getBid(bidId).amount.scaleUpToX7());
         /**
          * Roll one more block and checkpoint
          * blockNumber:     1                11   12                              111
@@ -1379,7 +1379,7 @@ contract AuctionTest is AuctionBaseTest {
         );
         ValueX7 demand = mockAuction.sumCurrencyDemandAboveClearingX7();
         // Demand should be the same as the bid demand
-        assertEq(demand, mockAuction.getBid(bidId).toEffectiveAmount());
+        assertEq(demand, mockAuction.getBid(bidId).amount.scaleUpToX7());
         /**
          * Roll one more block and checkpoint
          * blockNumber:     1                11   12                              111

@@ -445,11 +445,11 @@ contract Auction is
         // This is only used in demand related internal calculations
         Bid memory bid;
         (bid, bidId) = _createBid(amount, owner, maxPrice, _checkpoint.cumulativeMps);
-        ValueX7 bidEffectiveAmount = bid.toEffectiveAmount();
+        ValueX7 bidScaledX7 = bid.amount.scaleUpToX7();
 
-        _updateTickDemand(maxPrice, bidEffectiveAmount);
+        _updateTickDemand(maxPrice, bidScaledX7);
 
-        $sumCurrencyDemandAboveClearingX7 = $sumCurrencyDemandAboveClearingX7.add(bidEffectiveAmount);
+        $sumCurrencyDemandAboveClearingX7 = $sumCurrencyDemandAboveClearingX7.add(bidScaledX7);
 
         // If the sumDemandAboveClearing becomes large enough to overflow a multiplication an X7 value, revert
         if ($sumCurrencyDemandAboveClearingX7.gte(ValueX7.wrap(ConstantsLib.X7_UPPER_BOUND))) {

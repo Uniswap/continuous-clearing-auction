@@ -1,0 +1,9 @@
+AdvanceStepTest
+├── given offset GT _LENGTH
+│   └── it reverts with {AuctionIsOver}
+└── given offset LE _LENGTH
+    ├── it reads from _pointer
+    ├── it writes $step
+    ├── it writes $_offset
+    ├── it emits {AuctionStepRecorded}
+    └── it returns $step

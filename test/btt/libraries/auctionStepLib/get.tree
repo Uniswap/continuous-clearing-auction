@@ -1,0 +1,5 @@
+GetTest
+├── when reading beyond the data length
+│   └── it reverts with {InvalidOffset}
+└── when reading within the data length
+    └── it returns mps and block delta

@@ -1,0 +1,3 @@
+UpdateTickDemandTest
+└── when called with price and demand
+    └── it writes the demand increase at the price

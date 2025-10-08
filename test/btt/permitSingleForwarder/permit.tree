@@ -1,0 +1,8 @@
+PermitTest
+├── when value GT 0
+│   └── it reverts
+└── when value EQ 0
+    ├── when permit2 reverts
+    │   └── it returns the error
+    └── when permit2 does not reverts
+        └── it returns empty bytes

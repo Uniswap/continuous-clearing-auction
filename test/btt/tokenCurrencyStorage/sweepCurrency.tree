@@ -1,0 +1,9 @@
+SweepCurrencyTest
+├── when amount EQ 0
+│   ├── it writes sweepCurrencyBlock
+│   ├── it transfers 0 currency to funds recipient
+│   └── it emits {CurrencySwept}
+└── when amount GT 0
+    ├── it writes sweepCurrencyBlock
+    ├── it transfers amount currency to funds recipient
+    └── it emits {CurrencySwept}

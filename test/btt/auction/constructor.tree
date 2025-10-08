@@ -1,0 +1,7 @@
+ConstructorTest
+├── when claimBlock LT endBlock
+│   └── it reverts with {ClaimBlockIsBeforeEndBlock}
+└── when claimBlock GE endBlock
+    ├── it writes CLAIM_BLOCK
+    ├── it writes VALIDATION_HOOK
+    └── it writes TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7

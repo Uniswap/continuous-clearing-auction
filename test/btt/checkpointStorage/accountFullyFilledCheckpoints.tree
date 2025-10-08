@@ -1,0 +1,6 @@
+AccountFullyFilledCheckpointsTest
+└── when called with params
+    ├── it will compute deltas
+    ├── it will call calculateFill with those deltas
+    ├── it will return the tokens filled
+    └── it will return the currency spent

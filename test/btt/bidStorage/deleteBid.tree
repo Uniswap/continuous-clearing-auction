@@ -1,0 +1,10 @@
+DeleteBidTest
+└── when called with bidId
+    ├── it deletes the bid from storage
+    ├── it overwrites bid[bidId].startBlock = 0
+    ├── it overwrites bid[bidId].startCumulativeMps = 0
+    ├── it overwrites bid[bidId].exitedBlock = 0
+    ├── it overwrites bid[bidId].maxPrice = 0
+    ├── it overwrites bid[bidId].owner = address(0)
+    ├── it overwrites bid[bidId].amount = 0
+    └── it overwrites bid[bidId].tokensFilled = 0

@@ -1,0 +1,3 @@
+ToEffectiveAmountTest
+└── when called with bid
+    └── it returns bid.amount * mps / (mps - bid.startCumulativeMps)

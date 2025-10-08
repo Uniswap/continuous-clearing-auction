@@ -10,11 +10,9 @@ import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol
 import {IDistributionContract} from '../src/interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
-
 import {BidLib} from '../src/libraries/BidLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {SupplyLib} from '../src/libraries/SupplyLib.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
 import {Assertions} from './utils/Assertions.sol';

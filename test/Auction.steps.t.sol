@@ -7,7 +7,6 @@ import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
-import {SupplyLib} from '../src/libraries/SupplyLib.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';

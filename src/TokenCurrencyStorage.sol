@@ -4,7 +4,6 @@ pragma solidity 0.8.26;
 import {ITokenCurrencyStorage} from './interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
-import {SupplyLib} from './libraries/SupplyLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -15,7 +14,6 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     using CurrencyLibrary for Currency;
     using ValueX7Lib for *;
     using ValueX7X7Lib for *;
-    using SupplyLib for *;
 
     /// @notice The currency being raised in the auction
     Currency internal immutable CURRENCY;
@@ -46,7 +44,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         CURRENCY = Currency.wrap(_currency);
         TOTAL_SUPPLY = _totalSupply;
         if (_totalSupply == 0) revert TotalSupplyIsZero();
-        TOTAL_SUPPLY_X7_X7 = _totalSupply.toX7X7();
+        TOTAL_SUPPLY_X7_X7 = _totalSupply.scaleUpToX7().scaleUpToX7X7();
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;
 

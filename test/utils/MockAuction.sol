@@ -5,7 +5,6 @@ import {Auction} from '../../src/Auction.sol';
 import {AuctionParameters} from '../../src/Auction.sol';
 import {Bid} from '../../src/BidStorage.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
-import {SupplyLib, SupplyRolloverMultiplier} from '../../src/libraries/SupplyLib.sol';
 import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 
 import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
@@ -21,34 +20,17 @@ contract MockAuction is Auction {
     }
 
     /// @notice Wrapper around internal function for testing
-    function calculateNewClearingPrice(
-        uint256 tickLowerPrice,
-        ValueX7 sumCurrencyDemandAboveClearingX7,
-        ValueX7X7 remainingCurrencyRaisedX7X7,
-        uint24 remainingMpsInAuction
-    ) external view returns (uint256) {
-        return _calculateNewClearingPrice(
-            tickLowerPrice, sumCurrencyDemandAboveClearingX7, remainingCurrencyRaisedX7X7, remainingMpsInAuction
-        );
+    function calculateNewClearingPrice(uint256 tickLowerPrice, ValueX7 sumCurrencyDemandAboveClearingX7)
+        external
+        view
+        returns (uint256)
+    {
+        return _calculateNewClearingPrice(tickLowerPrice, sumCurrencyDemandAboveClearingX7);
     }
 
     /// @notice Wrapper around internal function for testing
     function iterateOverTicksAndFindClearingPrice(Checkpoint memory checkpoint) external returns (uint256) {
         return _iterateOverTicksAndFindClearingPrice(checkpoint);
-    }
-
-    /// @notice Wrapper around internal function for testing
-    function unpackSupplyRolloverMultiplier()
-        external
-        view
-        returns (bool isSet, uint24 remainingMps, ValueX7X7 remainingCurrencyRaisedX7X7)
-    {
-        return SupplyLib.unpack($_supplyRolloverMultiplier);
-    }
-
-    /// @notice Wrapper around internal function for testing
-    function setSupplyRolloverMultiplier(bool set, uint24 remainingMps, ValueX7X7 remainingSupplyX7X7) external {
-        $_supplyRolloverMultiplier = SupplyLib.packSupplyRolloverMultiplier(set, remainingMps, remainingSupplyX7X7);
     }
 
     /// @notice Helper function to insert a checkpoint

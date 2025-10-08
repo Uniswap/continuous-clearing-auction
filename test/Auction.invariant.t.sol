@@ -73,18 +73,6 @@ contract AuctionInvariantHandler is Test, Assertions {
         }
         // Check that the clearing price is always increasing
         assertGe(checkpoint.clearingPrice, _checkpoint.clearingPrice, 'Checkpoint clearing price is not increasing');
-        // If the clearing price is higher than the floor price, ensure that the supplyMultiplier is set
-        if (checkpoint.clearingPrice > mockAuction.floorPrice()) {
-            (bool isSet, uint24 remainingMps, ValueX7X7 remainingCurrencyRaisedX7X7) =
-                mockAuction.unpackSupplyRolloverMultiplier();
-            assertEq(isSet, true, 'Supply rollover multiplier is not set when clearing price is above floor price');
-            assertLe(remainingMps, ConstantsLib.MPS, 'Remaining mps is greater than ConstantsLib.MPS');
-            assertLe(
-                remainingCurrencyRaisedX7X7,
-                mockAuction.getTotalCurrencyRaisedAtFloorX7X7(),
-                'Remaining currency raised is greater than total currency raised at floor'
-            );
-        }
         // Check that the cumulative variables are always increasing
         assertGe(
             checkpoint.totalCurrencyRaisedX7X7,

@@ -10,14 +10,12 @@ import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
 import {BidLib} from '../../src/libraries/BidLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
-import {SupplyLib} from '../../src/libraries/SupplyLib.sol';
 import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 import {Assertions} from './Assertions.sol';
 import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
 import {FuzzBid, FuzzDeploymentParams} from './FuzzStructs.sol';
 import {MockFundsRecipient} from './MockFundsRecipient.sol';
-
 import {MockToken} from './MockToken.sol';
 import {TickBitmap, TickBitmapLib} from './TickBitmap.sol';
 import {TokenHandler} from './TokenHandler.sol';

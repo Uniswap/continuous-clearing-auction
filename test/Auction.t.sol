@@ -16,13 +16,11 @@ import {CheckpointLib} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {SupplyLib} from '../src/libraries/SupplyLib.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
-
 import {FuzzBid, FuzzDeploymentParams} from './utils/FuzzStructs.sol';
 import {MockAuction} from './utils/MockAuction.sol';
 import {MockFundsRecipient} from './utils/MockFundsRecipient.sol';
@@ -30,7 +28,6 @@ import {MockValidationHook} from './utils/MockValidationHook.sol';
 import {TickBitmap, TickBitmapLib} from './utils/TickBitmap.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
-
 import {console} from 'forge-std/console.sol';
 import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -1289,7 +1286,7 @@ contract AuctionTest is AuctionBaseTest {
         );
         ValueX7 demand = mockAuction.sumCurrencyDemandAboveClearingX7();
         // Demand should be the same as the bid demand
-        assertEq(demand, mockAuction.getBid(bidId).toEffectiveAmount());
+        assertEq(demand, mockAuction.getBid(bidId).amount.scaleUpToX7());
         /**
          * Roll one more block and checkpoint
          * blockNumber:     1                11   12                              111
@@ -1379,7 +1376,7 @@ contract AuctionTest is AuctionBaseTest {
         );
         ValueX7 demand = mockAuction.sumCurrencyDemandAboveClearingX7();
         // Demand should be the same as the bid demand
-        assertEq(demand, mockAuction.getBid(bidId).toEffectiveAmount());
+        assertEq(demand, mockAuction.getBid(bidId).amount.scaleUpToX7());
         /**
          * Roll one more block and checkpoint
          * blockNumber:     1                11   12                              111
@@ -2099,38 +2096,6 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(auction.tickSpacing(), TICK_SPACING);
         assertEq(address(auction.validationHook()), address(0));
         assertEq(auction.floorPrice(), FLOOR_PRICE);
-    }
-
-    function test_unpackSupplyRolloverMultiplier_fuzz(
-        uint128 totalSupply,
-        uint256 remainingSupplyX7X7Raw,
-        uint24 remainingMps
-    ) public {
-        vm.assume(totalSupply > 0);
-
-        // Ensure remainingSupplyX7X7 fits within 231 bits
-        vm.assume(remainingSupplyX7X7Raw < (1 << 231));
-        ValueX7X7 remainingSupplyX7X7 = ValueX7X7.wrap(remainingSupplyX7X7Raw);
-        vm.assume(ValueX7X7.unwrap(remainingSupplyX7X7) <= ValueX7X7.unwrap(totalSupply.scaleUpToX7().scaleUpToX7X7()));
-
-        MockAuction mockAuction = new MockAuction(address(token), totalSupply, params);
-        token.mint(address(mockAuction), totalSupply);
-        mockAuction.onTokensReceived();
-
-        (bool isSet, uint24 cachedRemainingPercentage, ValueX7X7 cachedRemainingSupplyX7X7) =
-            mockAuction.unpackSupplyRolloverMultiplier();
-        // Assert base case
-        assertFalse(isSet);
-        assertEq(cachedRemainingPercentage, 0);
-        assertEq(ValueX7X7.unwrap(cachedRemainingSupplyX7X7), 0);
-
-        // Set initial values
-        mockAuction.setSupplyRolloverMultiplier(true, remainingMps, remainingSupplyX7X7);
-        (isSet, cachedRemainingPercentage, cachedRemainingSupplyX7X7) = mockAuction.unpackSupplyRolloverMultiplier();
-        // Assert the getter fetches them correctly
-        assertTrue(isSet);
-        assertEq(cachedRemainingPercentage, remainingMps);
-        assertEq(cachedRemainingSupplyX7X7, remainingSupplyX7X7);
     }
 
     /// @dev Reproduces rounding issue caused by 1 tick spacing

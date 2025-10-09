@@ -217,8 +217,8 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         vm.assume(_token != address(0));
         vm.assume(_params.currency != address(0));
         vm.assume(_token != _params.currency);
-        vm.assume(_params.tokensRecipient != address(0));
-        vm.assume(_params.fundsRecipient != address(0));
+        vm.assume(_params.tokensRecipient > address(1));
+        vm.assume(_params.fundsRecipient > address(1));
         vm.assume(_params.startBlock != 0);
         vm.assume(_params.claimBlock != 0);
 
@@ -258,16 +258,19 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         uint128 _totalSupply,
         bytes32 _salt,
         uint8 _numberOfSteps,
+        address _sender,
         AuctionParameters memory _params
     ) public {
         helper__assumeValidDeploymentParams(_token, _totalSupply, _salt, _params, _numberOfSteps);
+        vm.assume(_sender > address(1)); 
 
         bytes memory configData = abi.encode(_params);
 
         // Predict the auction address
-        address auctionAddress = factory.getAuctionAddress(_token, _totalSupply, configData, _salt);
+        address auctionAddress = factory.getAuctionAddress(_token, _totalSupply, configData, _salt, _sender);
 
         // Create the actual auction
+        vm.prank(_sender);
         IDistributionContract distributionContract =
             factory.initializeDistribution(_token, _totalSupply, configData, _salt);
 

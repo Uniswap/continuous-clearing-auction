@@ -2,4 +2,7 @@ GetTest
 ├── when reading beyond the data length
 │   └── it reverts with {InvalidOffset}
 └── when reading within the data length
-    └── it returns mps and block delta
+    ├── when not reading a multiple of 8 bytes
+    │   └── it reverts with {InvalidOffset}
+    └── when reading a multiple of 8 bytes
+        └── it returns mps and block delta

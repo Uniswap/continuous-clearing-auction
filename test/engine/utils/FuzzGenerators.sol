@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 import {FuzzGeneratorContext, FuzzGeneratorContextLib} from './FuzzGeneratorContextLib.sol';
 import {
     ActionSpace,
+    AuctionParametersSpace,
     AuctionPhaseSpace,
     BidPriceSpace,
     BidSizeSpace,
@@ -24,12 +25,12 @@ import {
     TokenDecimalsSpace,
     TotalSupplySpace
 } from './FuzzSpaceEnums.sol';
-import {LibPRNG} from 'solady/src/utils/LibPRNG.sol';
+import {LibPRNG} from 'solady/utils/LibPRNG.sol';
 
 library TestStateGenerator {
-    // TODO(ez):
-    // - Generator needs to generate setup the accounts in the test, balances, approvals, etc.
-    // - It needs to generate valid auction parameters
+// TODO(ez):
+// - Generator needs to generate setup the accounts in the test, balances, approvals, etc.
+// - It needs to generate valid auction parameters
 }
 
 library AuctionParametersGenerator {

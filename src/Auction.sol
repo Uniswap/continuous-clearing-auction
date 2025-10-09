@@ -132,7 +132,6 @@ contract Auction is
         // currency which will be raised is deterministic based on the initial supply schedule.
         if (_checkpoint.clearingPrice > FLOOR_PRICE) {
             // TODO(ez): add comments here
-            console.log('> in fully subscribed case');
             // currencyRaised is a ValueX7 because we DO NOT divide by MPS here
             currencyRaisedX7 =
                 ValueX7.wrap(TOTAL_SUPPLY * deltaMps).wrapAndFullMulDiv(_checkpoint.clearingPrice, FixedPoint96.Q96);
@@ -146,17 +145,11 @@ contract Auction is
                 // The currencyRaisedAtClearingPrice is simply the demand at the clearing price multiplied by the price and the supply schedule
                 // We should divide this by 1e7 (100%) to get the actualized currency raised, but to avoid intermediate division,
                 // we upcast it into a X7X7 value to show that it has implicitly been scaled up by 1e7.
-                console.log('before sub check');
                 // currencyRaisedAboveClearingPriceX128_X7 is a ValueX7 because we DO NOT divide by MPS here
                 ValueX7 currencyRaisedAboveClearingPriceX128_X7 =
                     ValueX7.wrap($sumCurrencyDemandAboveClearingX128.fullMulDiv(deltaMps, FixedPoint128.Q128));
-                console.log('currencyRaisedX7', ValueX7.unwrap(currencyRaisedX7));
-                console.log('currencyRaisedAboveClearingPriceX128_X7', ValueX7.unwrap(currencyRaisedAboveClearingPriceX128_X7));
                 ValueX7 currencyRaisedAtClearingPriceX128_X7 =
                     currencyRaisedX7.sub(currencyRaisedAboveClearingPriceX128_X7);
-                console.log(
-                    'currencyRaisedAtClearingPriceX128_X7', ValueX7.unwrap(currencyRaisedAtClearingPriceX128_X7)
-                );
                 // Update the cumulative value in the checkpoint which will be reset if the clearing price changes
                 _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7 =
                     _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7.add(currencyRaisedAtClearingPriceX128_X7);
@@ -164,13 +157,11 @@ contract Auction is
         }
         // In the case where the auction is not fully subscribed yet, we can only sell tokens equal to the current demand above the clearing price
         else {
-            console.log('<= in not fully subscribed case');
             // We are behind schedule as the clearing price is still at the floor price
             // So we can only sell tokens to the current demand above the clearing price
             currencyRaisedX7 =
                 ValueX7.wrap($sumCurrencyDemandAboveClearingX128.fullMulDiv(deltaMps, FixedPoint128.Q128));
         }
-        console.log('currencyRaisedX7', ValueX7.unwrap(currencyRaisedX7));
         _checkpoint.currencyRaisedX7 = _checkpoint.currencyRaisedX7.add(currencyRaisedX7);
         _checkpoint.cumulativeMps += deltaMps;
         // Calculate the harmonic mean of the mps and price
@@ -217,7 +208,8 @@ contract Auction is
          * The result of this may be lower than tickLowerPrice. That just means that we can't clear at any price above.
          * And we should clear at tickLowerPrice instead.
          */
-        uint256 clearingPrice = _sumCurrencyDemandAboveClearingX128 / (TOTAL_SUPPLY * FixedPoint128.Q128);
+        uint256 clearingPrice =
+            _sumCurrencyDemandAboveClearingX128.fullMulDivUp(FixedPoint96.Q96, TOTAL_SUPPLY.toX128());
         if (clearingPrice < _tickLowerPrice) return _tickLowerPrice;
         return clearingPrice;
     }
@@ -333,24 +325,18 @@ contract Auction is
         Checkpoint memory _checkpoint = checkpoint();
         // Revert if there are no more tokens to be sold
         if (_checkpoint.remainingMpsInAuction() == 0) revert AuctionSoldOut();
+        BidLib.validate(maxPrice, _checkpoint.clearingPrice, TOTAL_SUPPLY);
 
         _initializeTickIfNeeded(prevTickPrice, maxPrice);
 
         VALIDATION_HOOK.handleValidate(maxPrice, amount, owner, msg.sender, hookData);
         // ClearingPrice will be set to floor price in checkpoint() if not set already
-        if (maxPrice <= _checkpoint.clearingPrice || maxPrice >= BidLib.MAX_BID_PRICE) revert InvalidBidPrice();
-        // The main operation in the code which can overflow a uint256 is the TOTAL_SUPPLY_X7 * maxPrice / Q96.
-        // If maxPrice is less than Q96, then we don't have this issue (as the result will be smaller) after 512 bit math.
-        // Otherwise, we need to ensure that the price is not so high that it would brick the auction.
-        if (
-            maxPrice > FixedPoint96.Q96
-                && ValueX7.unwrap(TOTAL_SUPPLY_X7) > type(uint256).max.fullMulDivUp(FixedPoint96.Q96, maxPrice)
-        ) revert InvalidBidPriceTooHigh();
         // Scale the amount according to the rest of the supply schedule, accounting for past blocks
         // This is only used in demand related internal calculations
         Bid memory bid;
-        uint256 amountX128 = amount * FixedPoint128.Q128;
+        uint256 amountX128 = BidLib.toX128(amount);
         (bid, bidId) = _createBid(amountX128, owner, maxPrice, _checkpoint.cumulativeMps);
+
         uint256 bidEffectiveAmountX128 = bid.toEffectiveAmount();
 
         _updateTickDemand(maxPrice, bidEffectiveAmountX128);
@@ -377,7 +363,7 @@ contract Auction is
             _updateBid(bidId, bid);
         }
 
-        uint128 refund = uint128(refundX128 / FixedPoint128.Q128);
+        uint128 refund = refundX128.fromX128();
 
         if (refund > 0) {
             CURRENCY.transfer(_owner, refund);

@@ -172,6 +172,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // If the bid would overflow a ValueX7 value, don't submit the bid
         uint128 ethInputAmount = inputAmountForTokens(_bid.bidAmount, maxPrice);
         if (ethInputAmount >= type(uint128).max) return (false, 0);
+        if (
+            auction.sumCurrencyDemandAboveClearingX128() + ethInputAmount * FixedPoint128.Q128
+                >= ConstantsLib.X7_UPPER_BOUND
+        ) return (false, 0);
 
         // Get the correct last tick price for the bid
         uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
@@ -182,12 +186,12 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
             bidId = _bidId;
         } catch (bytes memory revertData) {
             // Ok if the bid price is invalid IF it just moved this block
-            if (bytes4(revertData) == bytes4(abi.encodeWithSelector(IAuction.InvalidBidPrice.selector))) {
+            if (bytes4(revertData) == bytes4(abi.encodeWithSelector(BidLib.BidMustBeAboveClearingPrice.selector))) {
                 Checkpoint memory checkpoint = auction.checkpoint();
                 // the bid price is invalid as it is less than or equal to the clearing price
                 // skip the test by returning false and 0
                 if (maxPrice <= checkpoint.clearingPrice) return (false, 0);
-                revert('Uncaught InvalidBidPrice');
+                revert('Uncaught BidMustBeAboveClearingPrice');
             }
             // Otherwise, treat as uncaught error
             assembly {
@@ -346,11 +350,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         vm.assume(TOTAL_SUPPLY <= maxBidAmount);
         vm.assume(maxBidAmount <= type(uint128).max);
         $bidAmount = SafeCastLib.toUint128(_bound($bidAmount, TOTAL_SUPPLY, maxBidAmount));
-        _;
-    }
-
-    modifier givenNotGraduatedAuction(uint128 _bidAmount) {
-        $bidAmount = SafeCastLib.toUint128(_bound(_bidAmount, BidLib.MIN_BID_AMOUNT, TOTAL_SUPPLY - 1));
         _;
     }
 

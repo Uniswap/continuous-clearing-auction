@@ -60,7 +60,9 @@ contract AuctionIterateOverTicksTest is AuctionUnitTest {
             uint256 maxPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(_bids[i].tickNumber);
             // Bound max price to avoid overflow when multiplying by Q128
             if (maxPrice > (type(uint256).max - 1) / FixedPoint128.Q128) {
-                maxPrice = helper__roundPriceDownToTickSpacing((type(uint256).max - 1) / FixedPoint128.Q128, params.tickSpacing);
+                maxPrice = helper__roundPriceDownToTickSpacing(
+                    (type(uint256).max - 1) / FixedPoint128.Q128, params.tickSpacing
+                );
             }
             vm.assume(mockAuction.totalSupply() * 1e31 <= type(uint256).max / maxPrice);
             // Update the lowest and highest tick prices as we iterate

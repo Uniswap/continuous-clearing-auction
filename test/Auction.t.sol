@@ -419,7 +419,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_submitBid_exactIn_atFloorPrice_reverts() public {
-        vm.expectRevert(IAuction.InvalidBidPrice.selector);
+        vm.expectRevert(BidLib.BidMustBeAboveClearingPrice.selector);
         auction.submitBid{value: inputAmountForTokens(10e18, tickNumberToPriceX96(1))}(
             tickNumberToPriceX96(1),
             inputAmountForTokens(10e18, tickNumberToPriceX96(1)),
@@ -428,7 +428,7 @@ contract AuctionTest is AuctionBaseTest {
             bytes('')
         );
 
-        vm.expectRevert(IAuction.InvalidBidPrice.selector);
+        vm.expectRevert(BidLib.BidMustBeAboveClearingPrice.selector);
         auction.submitBid{value: inputAmountForTokens(10e18, tickNumberToPriceX96(1))}(
             tickNumberToPriceX96(1), inputAmountForTokens(10e18, tickNumberToPriceX96(1)), alice, bytes('')
         );
@@ -1918,14 +1918,11 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepCurrency();
     }
 
-    function test_sweepCurrency_notGraduated_reverts(uint128 _bidAmount)
-        public
-        givenNotGraduatedAuction(_bidAmount)
-        givenFullyFundedAccount
-    {
-        auction.submitBid{value: inputAmountForTokens($bidAmount, tickNumberToPriceX96(2))}(
+    function test_sweepCurrency_notGraduated_reverts(uint128 _bidAmount) public givenFullyFundedAccount {
+        _bidAmount = uint128(_bound(_bidAmount, BidLib.MIN_BID_AMOUNT, TOTAL_SUPPLY / 2));
+        auction.submitBid{value: inputAmountForTokens(_bidAmount, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
-            inputAmountForTokens($bidAmount, tickNumberToPriceX96(2)),
+            inputAmountForTokens(_bidAmount, tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -1994,11 +1991,9 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepUnsoldTokens();
     }
 
-    function test_sweepUnsoldTokens_notGraduated_sweepsAll(uint128 _bidAmount)
-        public
-        givenNotGraduatedAuction(_bidAmount)
-    {
-        uint128 inputAmount = inputAmountForTokens($bidAmount, tickNumberToPriceX96(2));
+    function test_sweepUnsoldTokens_notGraduated_sweepsAll(uint128 _bidAmount) public givenFullyFundedAccount {
+        _bidAmount = uint128(_bound(_bidAmount, BidLib.MIN_BID_AMOUNT, TOTAL_SUPPLY / 2));
+        uint128 inputAmount = inputAmountForTokens(_bidAmount, tickNumberToPriceX96(2));
         auction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
@@ -2044,11 +2039,9 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepUnsoldTokens();
     }
 
-    function test_sweepTokens_notGraduated_cannotSweepCurrency(uint128 _bidAmount)
-        public
-        givenNotGraduatedAuction(_bidAmount)
-    {
-        uint128 inputAmount = inputAmountForTokens($bidAmount, tickNumberToPriceX96(2));
+    function test_sweepTokens_notGraduated_cannotSweepCurrency(uint128 _bidAmount) public {
+        _bidAmount = uint128(_bound(_bidAmount, BidLib.MIN_BID_AMOUNT, TOTAL_SUPPLY / 2));
+        uint128 inputAmount = inputAmountForTokens(_bidAmount, tickNumberToPriceX96(2));
         auction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );

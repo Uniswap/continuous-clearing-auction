@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {ConstantsLib} from './ConstantsLib.sol';
+import {FixedPoint128} from './FixedPoint128.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -22,6 +23,9 @@ library BidLib {
     using BidLib for *;
     using FixedPointMathLib for *;
 
+    error BidMustBeAboveClearingPrice();
+    error InvalidBidPriceTooHigh();
+
     /// @notice The minimum allowable amount for a bid such that is not rounded down to zero
     uint128 public constant MIN_BID_AMOUNT = 1e7;
     /// @notice The maximum allowable amount for a bid such that it will not
@@ -30,6 +34,33 @@ library BidLib {
     /// @notice The maximum allowable price for a bid, defined as the square of MAX_SQRT_PRICE from Uniswap v4's TickMath library.
     uint256 public constant MAX_BID_PRICE =
         26_957_920_004_054_754_506_022_898_809_067_591_261_277_585_227_686_421_694_841_721_768_917;
+
+    function validate(uint256 _maxPrice, uint256 _clearingPrice, uint256 _totalSupply) internal pure {
+        if (_maxPrice <= _clearingPrice) revert BidMustBeAboveClearingPrice();
+        // An operation in the code which can overflow a uint256 is TOTAL_SUPPLY * (maxPrice / Q96) * Q128.
+        // This is only possible if bid.maxPrice is greater than Q96 since then the division is > 1
+        // and when multiplied by the total supply can exceed type(uint128).max, which would overflow when multiplied by Q128.
+        if (
+            (
+                _maxPrice > FixedPoint96.Q96
+                    && _totalSupply.fullMulDiv(_maxPrice, FixedPoint96.Q96) > type(uint256).max.fromX128()
+            ) || _maxPrice >= MAX_BID_PRICE
+        ) revert InvalidBidPriceTooHigh();
+    }
+
+    function toX128(uint128 _amount) internal pure returns (uint256) {
+        // Guaranteed to not overflow a uint256
+        unchecked {
+            return _amount * FixedPoint128.Q128;
+        }
+    }
+
+    function fromX128(uint256 _amount) internal pure returns (uint128) {
+        // This will truncate all lower 128 bits
+        unchecked {
+            return uint128(_amount / FixedPoint128.Q128);
+        }
+    }
 
     /// @notice Calculate the number of mps remaining in the auction since the bid was submitted
     /// @param bid The bid to calculate the remaining mps for

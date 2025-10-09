@@ -331,8 +331,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return BidLib.MAX_BID_AMOUNT / _maxPrice;
     }
 
-    modifier givenValidMaxPrice(uint256 _maxPrice) {
+    modifier givenValidMaxPrice(uint256 _maxPrice, uint256 _totalSupply) {
         _maxPrice = _bound(_maxPrice, FLOOR_PRICE, BidLib.MAX_BID_PRICE);
+        uint256 ratioOfMaxPriceToQ96 = _maxPrice / FixedPoint96.Q96;
+        vm.assume(_totalSupply <= type(uint256).max / ratioOfMaxPriceToQ96);
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, TICK_SPACING);
         vm.assume(_maxPrice > FLOOR_PRICE);
         $maxPrice = _maxPrice;

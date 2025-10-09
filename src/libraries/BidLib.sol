@@ -38,4 +38,8 @@ library BidLib {
     function mpsRemainingInAuctionAfterSubmission(Bid memory bid) internal pure returns (uint24) {
         return ConstantsLib.MPS - bid.startCumulativeMps;
     }
+
+    function toEffectiveAmount(Bid memory bid) internal pure returns (ValueX7) {
+        return bid.amount.scaleUpToX7().mulUint256(ConstantsLib.MPS).divUint256(bid.mpsRemainingInAuctionAfterSubmission());
+    }
 }

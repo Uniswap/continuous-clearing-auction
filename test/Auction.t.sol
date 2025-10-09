@@ -279,7 +279,7 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_submitBid_zeroSupply_exitBid_succeeds(uint128 _bidAmount, uint128 _maxPrice)
         public
-        givenValidMaxPrice(_maxPrice)
+        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
         givenValidBidAmount(_bidAmount)
         givenGraduatedAuction
         givenFullyFundedAccount
@@ -550,7 +550,7 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_exitBid_afterEndBlock_succeeds(uint128 _bidAmount, uint128 _maxPrice)
         public
-        givenValidMaxPrice(_maxPrice)
+        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
         givenValidBidAmount(_bidAmount)
         givenGraduatedAuction
         givenFullyFundedAccount
@@ -585,7 +585,7 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_exitBid_joinedLate_succeeds(uint128 _bidAmount1, uint256 _maxPrice)
         public
-        givenValidMaxPrice(_maxPrice)
+        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
         givenFullyFundedAccount
     {
         // Neither bid can fully fill the auction, but both together will
@@ -640,7 +640,7 @@ contract AuctionTest is AuctionBaseTest {
         uint128 _maxPrice
     )
         public
-        givenValidMaxPrice(_maxPrice)
+        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
         givenValidBidAmount(_bidAmount)
         givenGraduatedAuction
         givenFullyFundedAccount
@@ -1286,7 +1286,7 @@ contract AuctionTest is AuctionBaseTest {
         );
         ValueX7 demand = mockAuction.sumCurrencyDemandAboveClearingX7();
         // Demand should be the same as the bid demand
-        assertEq(demand, mockAuction.getBid(bidId).amount.scaleUpToX7());
+        assertEq(demand, mockAuction.getBid(bidId).toEffectiveAmount());
         /**
          * Roll one more block and checkpoint
          * blockNumber:     1                11   12                              111
@@ -1376,7 +1376,7 @@ contract AuctionTest is AuctionBaseTest {
         );
         ValueX7 demand = mockAuction.sumCurrencyDemandAboveClearingX7();
         // Demand should be the same as the bid demand
-        assertEq(demand, mockAuction.getBid(bidId).amount.scaleUpToX7());
+        assertEq(demand, mockAuction.getBid(bidId).toEffectiveAmount());
         /**
          * Roll one more block and checkpoint
          * blockNumber:     1                11   12                              111
@@ -1646,7 +1646,7 @@ contract AuctionTest is AuctionBaseTest {
     /// forge-config: ci.fuzz.runs = 1000
     function test_claimTokens_beforeBidExited_reverts(uint256 _bidAmount, uint256 _maxPrice)
         public
-        givenValidMaxPrice(_maxPrice)
+        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
         givenValidBidAmount(_bidAmount)
         givenGraduatedAuction
         givenFullyFundedAccount
@@ -1666,7 +1666,7 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_claimTokens_beforeClaimBlock_reverts(uint128 _bidAmount, uint128 _maxPrice)
         public
-        givenValidMaxPrice(_maxPrice)
+        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
         givenValidBidAmount(_bidAmount)
         givenGraduatedAuction
         givenFullyFundedAccount
@@ -1689,7 +1689,7 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_claimTokens_tokenTransferFails_reverts(uint128 _bidAmount, uint128 _maxPrice)
         public
-        givenValidMaxPrice(_maxPrice)
+        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
         givenValidBidAmount(_bidAmount)
         givenGraduatedAuction
         givenFullyFundedAccount
@@ -1738,7 +1738,7 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_claimTokensBatch_notGraduated_reverts(uint256 _bidAmount, uint128 _numberOfBids, uint256 _maxPrice)
         public
-        givenValidMaxPrice(_maxPrice)
+        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
         givenNotGraduatedAuction(_bidAmount)
         givenFullyFundedAccount
     {
@@ -1765,7 +1765,7 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_claimTokensBatch_notSameOwner_reverts(uint256 _bidAmount, uint256 _maxPrice)
         public
-        givenValidMaxPrice(_maxPrice)
+        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
         givenValidBidAmount(_bidAmount)
         givenGraduatedAuction
         givenFullyFundedAccount
@@ -1788,7 +1788,7 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_claimTokensBatch_beforeBidExited_reverts(uint128 _bidAmount, uint128 _numberOfBids, uint256 _maxPrice)
         public
-        givenValidMaxPrice(_maxPrice)
+        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
         givenValidBidAmount(_bidAmount)
         givenGraduatedAuction
         givenFullyFundedAccount
@@ -1810,7 +1810,7 @@ contract AuctionTest is AuctionBaseTest {
         uint256 _maxPrice
     )
         public
-        givenValidMaxPrice(_maxPrice)
+        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
         givenValidBidAmount(_bidAmount)
         givenGraduatedAuction
         givenFullyFundedAccount
@@ -1841,7 +1841,7 @@ contract AuctionTest is AuctionBaseTest {
         uint256 _maxPrice
     )
         public
-        givenValidMaxPrice(_maxPrice)
+        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
         givenValidBidAmount(_bidAmount)
         givenGraduatedAuction
         givenFullyFundedAccount
@@ -1868,7 +1868,7 @@ contract AuctionTest is AuctionBaseTest {
     /// forge-config: ci.fuzz.runs = 1000
     function test_claimTokensBatch_succeeds(uint256 _bidAmount, uint128 _numberOfBids, uint256 _maxPrice)
         public
-        givenValidMaxPrice(_maxPrice)
+        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
         givenValidBidAmount(_bidAmount)
         givenGraduatedAuction
         givenFullyFundedAccount
@@ -1958,7 +1958,7 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_sweepCurrency_graduated_succeeds(uint128 _bidAmount, uint128 _maxPrice)
         public
-        givenValidMaxPrice(_maxPrice)
+        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
         givenValidBidAmount(_bidAmount)
         givenGraduatedAuction
         givenFullyFundedAccount
@@ -1995,7 +1995,7 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_sweepUnsoldTokens_graduated(uint128 _bidAmount, uint128 _maxPrice)
         public
-        givenValidMaxPrice(_maxPrice)
+        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
         givenValidBidAmount(_bidAmount)
         givenGraduatedAuction
         givenFullyFundedAccount
@@ -2036,7 +2036,7 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_sweepCurrency_thenSweepTokens_graduated_succeeds(uint128 bidAmount, uint128 _maxPrice)
         public
-        givenValidMaxPrice(_maxPrice)
+        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
         givenValidBidAmount(bidAmount)
         givenGraduatedAuction
         givenFullyFundedAccount

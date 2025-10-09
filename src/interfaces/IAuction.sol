@@ -75,6 +75,8 @@ interface IAuction is
     error AuctionIsNotOver();
     /// @notice Error thrown when a new bid is less than or equal to the clearing price
     error InvalidBidPrice();
+    /// @notice Error thrown when the bid price is too high
+    error InvalidBidPriceTooHigh();
     /// @notice Error thrown when the bid is too large
     error InvalidBidUnableToClear();
     /// @notice Error thrown when the auction has sold the entire total supply of tokens

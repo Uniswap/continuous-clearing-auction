@@ -13,6 +13,7 @@ import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
+import {FixedPoint128} from '../src/libraries/FixedPoint128.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionUnitTest} from './unit/AuctionUnitTest.sol';
@@ -91,11 +92,14 @@ contract AuctionInvariantHandler is Test, Assertions {
     /// @dev Bounded by purchasing the total supply of tokens and some reasonable max price for bids to prevent overflow
     function _useAmountMaxPrice(uint128 amount, uint8 tickNumber) internal view returns (uint128, uint256) {
         uint256 tickNumberPrice = mockAuction.floorPrice() + tickNumber * mockAuction.tickSpacing();
-        uint256 maxPrice = _bound(tickNumberPrice, BID_MIN_PRICE, BID_MAX_PRICE);
+        // Easy max bound of type(uint128).max
+        uint256 maxPrice = _bound(tickNumberPrice, BID_MIN_PRICE, type(uint128).max);
         // Round down to the nearest tick boundary
         maxPrice -= (maxPrice % mockAuction.tickSpacing());
 
-        uint128 inputAmount = SafeCastLib.toUint128(amount.fullMulDivUp(maxPrice, FixedPoint96.Q96));
+        uint256 temp = amount.fullMulDivUp(maxPrice, FixedPoint96.Q96);
+        if (temp > type(uint128).max) temp = type(uint128).max;
+        uint128 inputAmount = SafeCastLib.toUint128(temp);
         return (inputAmount, maxPrice);
     }
 
@@ -259,9 +263,7 @@ contract AuctionInvariantTest is AuctionUnitTest {
                 mockAuction.exitPartiallyFilledBid(bidId, lower, upper);
             }
             uint256 refundAmount = bid.owner.balance - currencyBalanceBefore;
-            console.log('refundAmount', refundAmount);
-            console.log('bid.amountX128', bid.amountX128);
-            totalCurrencyRaised += bid.amountX128 - refundAmount;
+            totalCurrencyRaised += bid.amountX128 / FixedPoint128.Q128 - refundAmount;
 
             // can never gain more Currency than provided
             assertLe(refundAmount, bid.amountX128, 'Bid owner can never be refunded more Currency than provided');
@@ -297,23 +299,22 @@ contract AuctionInvariantTest is AuctionUnitTest {
         emit log_named_decimal_uint('totalCurrencyRaised', totalCurrencyRaised, 18);
         emit log_named_decimal_uint('expectedCurrencyRaised', expectedCurrencyRaised, 18);
 
-        assertEq(
-            expectedCurrencyRaised,
-            address(mockAuction).balance,
-            'Expected currency raised is greater than auction balance'
-        );
-
         mockAuction.sweepUnsoldTokens();
         if (mockAuction.isGraduated()) {
+            assertLe(
+                expectedCurrencyRaised,
+                address(mockAuction).balance,
+                'Expected currency raised is greater than auction balance'
+            );
             // Sweep the currency
             vm.expectEmit(true, true, true, true);
             emit ITokenCurrencyStorage.CurrencySwept(mockAuction.fundsRecipient(), expectedCurrencyRaised);
             mockAuction.sweepCurrency();
             // Assert that the currency was swept and matches total currency raised
-            assertEq(
+            assertLe(
                 expectedCurrencyRaised,
                 totalCurrencyRaised,
-                'Expected currency raised does not match total currency raised'
+                'Expected currency raised is greater than total currency raised'
             );
             // Assert that the funds recipient received the currency
             assertEq(

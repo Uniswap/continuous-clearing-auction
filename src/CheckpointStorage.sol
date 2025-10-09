@@ -99,8 +99,8 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         );
         currencySpentX128 = currencySpentX128_X7.scaleDownToUint256();
         tokensFilled = ValueX7.unwrap(
-            currencySpentX128_X7.wrapAndFullMulDiv(FixedPoint96.Q96, bid.maxPrice * ValueX7Lib.X7).divUint256(
-                FixedPoint128.Q128
+            currencySpentX128_X7.wrapAndFullMulDiv(FixedPoint96.Q96, bid.maxPrice).divUint256(
+                FixedPoint128.Q128 * ValueX7Lib.X7
             )
         );
     }

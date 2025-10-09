@@ -332,7 +332,8 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_submitBid_noRolloverSupply(uint256 _seed) public {
         // Advance by one such that the auction is already started
-        uint256 targetBlock = _bound(_seed % (auction.endBlock() - auction.startBlock()), block.number + 1, auction.endBlock());
+        uint256 targetBlock =
+            _bound(_seed % (auction.endBlock() - auction.startBlock()), block.number + 1, auction.endBlock());
 
         vm.roll(targetBlock);
         uint128 inputAmount = inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2));
@@ -342,7 +343,7 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(auction.endBlock());
         auction.exitPartiallyFilledBid(bidId, uint64(targetBlock), 0);
-        
+
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
         uint256 expectedCumulativeMps = (auction.endBlock() - targetBlock) * 100e3;
         uint256 expectedTokensFilled = (TOTAL_SUPPLY * expectedCumulativeMps) / ConstantsLib.MPS;
@@ -1729,14 +1730,12 @@ contract AuctionTest is AuctionBaseTest {
         return bids;
     }
 
-    function test_claimTokensBatch_notGraduated_reverts(uint128 _numberOfBids)
-        public
-        givenFullyFundedAccount
-    {
+    function test_claimTokensBatch_notGraduated_reverts(uint128 _numberOfBids) public givenFullyFundedAccount {
         // Dont do too many bids
         _numberOfBids = SafeCastLib.toUint128(_bound(_numberOfBids, 1, 10));
 
-        uint256[] memory bids = helper__submitNBids(auction, alice, TOTAL_SUPPLY - 1, _numberOfBids, tickNumberToPriceX96(2));
+        uint256[] memory bids =
+            helper__submitNBids(auction, alice, TOTAL_SUPPLY - 1, _numberOfBids, tickNumberToPriceX96(2));
 
         // Exit the bid
         vm.roll(auction.endBlock());
@@ -1752,10 +1751,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.claimTokensBatch(alice, bids);
     }
 
-    function test_claimTokensBatch_notSameOwner_reverts()
-        public
-        givenFullyFundedAccount
-    {
+    function test_claimTokensBatch_notSameOwner_reverts() public givenFullyFundedAccount {
         uint256 bidId0 = helper__submitBid(auction, alice, TOTAL_SUPPLY - 1, tickNumberToPriceX96(2));
         uint256 bidId1 = helper__submitBid(auction, bob, TOTAL_SUPPLY - 1, tickNumberToPriceX96(2));
 

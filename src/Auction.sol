@@ -54,8 +54,6 @@ contract Auction is
     uint64 internal immutable CLAIM_BLOCK;
     /// @notice An optional hook to be called before a bid is registered
     IValidationHook internal immutable VALIDATION_HOOK;
-    /// @notice The total currency that will be raised selling total supply at the floor price
-    ValueX7 internal immutable TOTAL_CURRENCY_RAISED_AT_FLOOR_X7;
 
     /// @notice The sum of currency demand in ticks above the clearing price
     /// @dev This will increase every time a new bid is submitted, and decrease when bids are outbid.
@@ -79,9 +77,6 @@ contract Auction is
         VALIDATION_HOOK = IValidationHook(_parameters.validationHook);
 
         if (CLAIM_BLOCK < END_BLOCK) revert ClaimBlockIsBeforeEndBlock();
-
-        // Calculate the total currency that will be raised from selling the total supply at the floor price
-        TOTAL_CURRENCY_RAISED_AT_FLOOR_X7 = TOTAL_SUPPLY_X7.wrapAndFullMulDivUp(FLOOR_PRICE, FixedPoint96.Q96);
     }
 
     /// @notice Modifier for functions which can only be called after the auction is over
@@ -138,9 +133,9 @@ contract Auction is
         if (_checkpoint.clearingPrice > FLOOR_PRICE) {
             // TODO(ez): add comments here
             console.log('> in fully subscribed case');
+            // currencyRaised is a ValueX7 because we DO NOT divide by MPS here
             currencyRaisedX7 =
                 ValueX7.wrap(TOTAL_SUPPLY * deltaMps).wrapAndFullMulDiv(_checkpoint.clearingPrice, FixedPoint96.Q96);
-            console.log('currencyRaisedX7', ValueX7.unwrap(currencyRaisedX7));
             // There is a special case where the clearing price is at a tick boundary with bids.
             // In this case, we have to explicitly track the supply sold to that price since they are "partially filled"
             // and thus the amount of tokens sold to that price is <= to the collective demand at that price, since bidders at higher prices are prioritized.
@@ -152,10 +147,16 @@ contract Auction is
                 // We should divide this by 1e7 (100%) to get the actualized currency raised, but to avoid intermediate division,
                 // we upcast it into a X7X7 value to show that it has implicitly been scaled up by 1e7.
                 console.log('before sub check');
-                ValueX7 currencyRaisedAtClearingPriceX128_X7 = currencyRaisedX7.sub(
-                    ValueX7.wrap($sumCurrencyDemandAboveClearingX128.fullMulDiv(deltaMps, FixedPoint128.Q128))
+                // currencyRaisedAboveClearingPriceX128_X7 is a ValueX7 because we DO NOT divide by MPS here
+                ValueX7 currencyRaisedAboveClearingPriceX128_X7 =
+                    ValueX7.wrap($sumCurrencyDemandAboveClearingX128.fullMulDiv(deltaMps, FixedPoint128.Q128));
+                console.log('currencyRaisedX7', ValueX7.unwrap(currencyRaisedX7));
+                console.log('currencyRaisedAboveClearingPriceX128_X7', ValueX7.unwrap(currencyRaisedAboveClearingPriceX128_X7));
+                ValueX7 currencyRaisedAtClearingPriceX128_X7 =
+                    currencyRaisedX7.sub(currencyRaisedAboveClearingPriceX128_X7);
+                console.log(
+                    'currencyRaisedAtClearingPriceX128_X7', ValueX7.unwrap(currencyRaisedAtClearingPriceX128_X7)
                 );
-                console.log('currencyRaisedAtClearingPriceX128_X7', ValueX7.unwrap(currencyRaisedAtClearingPriceX128_X7));
                 // Update the cumulative value in the checkpoint which will be reset if the clearing price changes
                 _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7 =
                     _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7.add(currencyRaisedAtClearingPriceX128_X7);
@@ -253,18 +254,12 @@ contract Auction is
          * at any given price is equal to totalSupply * p', where p' is that price.
          */
         Tick memory nextActiveTick = _getTick(nextActiveTickPrice_);
-        console.log('before loop');
-        console.log('sumCurrencyDemandAboveClearingX128_.scaleUpToX7()', ValueX7.unwrap(sumCurrencyDemandAboveClearingX128_.scaleUpToX7()));
-        if(nextActiveTickPrice_ != MAX_TICK_PTR) {
-            console.log('TOTAL_SUPPLY_X7.wrapAndFullMulDiv(nextActiveTickPrice_ * FixedPoint128.Q128, FixedPoint96.Q96)', ValueX7.unwrap(TOTAL_SUPPLY_X7.wrapAndFullMulDiv(nextActiveTickPrice_ * FixedPoint128.Q128, FixedPoint96.Q96)));
-        }
         while (
             nextActiveTickPrice_ != MAX_TICK_PTR
             // Loop while the currency amount above `nextActiveTickPrice_` is greater than the required currency at nextActiveTickPrice_
-            && sumCurrencyDemandAboveClearingX128_.scaleUpToX7().gte(
-                // Round down here to bias towards iterating over the next tick
-                TOTAL_SUPPLY_X7.wrapAndFullMulDiv(nextActiveTickPrice_ * FixedPoint128.Q128, FixedPoint96.Q96)
-            )
+            && sumCurrencyDemandAboveClearingX128_
+            // Round down here to bias towards iterating over the next tick
+            >= TOTAL_SUPPLY.fullMulDiv(nextActiveTickPrice_, FixedPoint96.Q96) * FixedPoint128.Q128
         ) {
             // Subtract the demand at the current nextActiveTick from the total demand
             sumCurrencyDemandAboveClearingX128_ -= nextActiveTick.currencyDemandX128;
@@ -354,14 +349,11 @@ contract Auction is
         // Scale the amount according to the rest of the supply schedule, accounting for past blocks
         // This is only used in demand related internal calculations
         Bid memory bid;
-        console.log("amount", amount);
         uint256 amountX128 = amount * FixedPoint128.Q128;
-        console.log("amountX128", amountX128);
         (bid, bidId) = _createBid(amountX128, owner, maxPrice, _checkpoint.cumulativeMps);
         uint256 bidEffectiveAmountX128 = bid.toEffectiveAmount();
 
         _updateTickDemand(maxPrice, bidEffectiveAmountX128);
-        console.log("bidEffectiveAmountX128", bidEffectiveAmountX128);
 
         $sumCurrencyDemandAboveClearingX128 += bidEffectiveAmountX128;
 

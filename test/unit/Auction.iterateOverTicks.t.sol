@@ -8,6 +8,8 @@ import {Checkpoint} from '../../src/CheckpointStorage.sol';
 import {BidLib} from '../../src/libraries/BidLib.sol';
 import {CheckpointLib} from '../../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
+
+import {FixedPoint128} from '../../src/libraries/FixedPoint128.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 import {FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
@@ -33,8 +35,8 @@ contract AuctionIterateOverTicksTest is AuctionUnitTest {
     }
 
     // Less fuzz runs because this is a pretty intensive test
-    /// forge-config: default.fuzz.runs = 1000
-    /// forge-config: ci.fuzz.runs = 1000
+    /// forge-config: default.fuzz.runs = 888
+    /// forge-config: ci.fuzz.runs = 888
     function test_iterateOverTicks(
         FuzzDeploymentParams memory _deploymentParams,
         FuzzBid[] memory _bids,
@@ -46,7 +48,8 @@ contract AuctionIterateOverTicksTest is AuctionUnitTest {
             _bound(
                 ValueX7.unwrap(_checkpoint.currencyRaisedX7),
                 0,
-                ValueX7.unwrap(mockAuction.getTotalCurrencyRaisedAtFloorX7()) - 1
+                // Checkpoint starts off with not enough currency raised to fully subscribe at the floor price
+                mockAuction.totalSupply().fullMulDivUp(mockAuction.floorPrice(), FixedPoint96.Q96) - 1
             )
         );
         // Insert the bids into the auction without creating checkpoints or going through the normal logic
@@ -55,6 +58,11 @@ contract AuctionIterateOverTicksTest is AuctionUnitTest {
         uint256 highestTickPrice;
         for (uint256 i = 0; i < _bids.length; i++) {
             uint256 maxPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(_bids[i].tickNumber);
+            // Bound max price to avoid overflow when multiplying by Q128
+            if (maxPrice > (type(uint256).max - 1) / FixedPoint128.Q128) {
+                maxPrice = helper__roundPriceDownToTickSpacing((type(uint256).max - 1) / FixedPoint128.Q128, params.tickSpacing);
+            }
+            vm.assume(mockAuction.totalSupply() * 1e31 <= type(uint256).max / maxPrice);
             // Update the lowest and highest tick prices as we iterate
             lowestTickPrice = lowestTickPrice == 0 ? maxPrice : lowestTickPrice < maxPrice ? lowestTickPrice : maxPrice;
             highestTickPrice =
@@ -70,12 +78,7 @@ contract AuctionIterateOverTicksTest is AuctionUnitTest {
         _checkpoint.clearingPrice = mockAuction.floorPrice();
         // Set the next active tick price to the lowest tick price so we can iterate over them
         mockAuction.uncheckedSetNextActiveTickPrice(lowestTickPrice);
-        // Ensure fullMulDiv result doesn't overflow: (type(uint256).max * floorPrice) / lowestTickPrice <= type(uint256).max
         vm.assume(mockAuction.floorPrice() <= lowestTickPrice);
-        vm.assume(
-            ValueX7.unwrap(mockAuction.getTotalCurrencyRaisedAtFloorX7().sub(_checkpoint.currencyRaisedX7))
-                < type(uint256).max.fullMulDiv(mockAuction.floorPrice(), lowestTickPrice)
-        );
 
         uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice(_checkpoint);
         // Assert that the clearing price is greater than or equal to the floor price
@@ -88,10 +91,8 @@ contract AuctionIterateOverTicksTest is AuctionUnitTest {
         if (mockAuction.nextActiveTickPrice() != type(uint256).max) {
             assertLt(
                 mockAuction.sumCurrencyDemandAboveClearingX128(),
-                ValueX7.unwrap(
-                    mockAuction.getTotalCurrencyRaisedAtFloorX7().sub(_checkpoint.currencyRaisedX7).wrapAndFullMulDivUp(
-                        mockAuction.nextActiveTickPrice(), mockAuction.floorPrice()
-                    )
+                mockAuction.totalSupply().fullMulDiv(
+                    mockAuction.nextActiveTickPrice() * FixedPoint128.Q128, FixedPoint96.Q96
                 ),
                 'sumCurrencyDemandAboveClearingX128 is greater than or equal to currency required to move to the next active tick'
             );

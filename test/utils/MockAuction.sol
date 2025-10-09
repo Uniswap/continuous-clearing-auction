@@ -12,10 +12,6 @@ contract MockAuction is Auction {
         Auction(_token, _totalSupply, _parameters)
     {}
 
-    function getTotalCurrencyRaisedAtFloorX7() external view returns (ValueX7) {
-        return TOTAL_CURRENCY_RAISED_AT_FLOOR_X7;
-    }
-
     /// @notice Wrapper around internal function for testing
     function calculateNewClearingPrice(uint256 tickLowerPrice, uint256 sumCurrencyDemandAboveClearingX128)
         external

@@ -338,7 +338,10 @@ contract Auction is
         // The main operation in the code which can overflow a uint256 is the TOTAL_SUPPLY_X7_X7 * maxPrice / Q96.
         // If maxPrice is less than Q96, then we don't have this issue (as the result will be smaller) after 512 bit math.
         // Otherwise, we need to ensure that the price is not so high that it would brick the auction.
-        if (maxPrice > FixedPoint96.Q96 && ValueX7X7.unwrap(TOTAL_SUPPLY_X7_X7) > type(uint256).max.fullMulDivUp(FixedPoint96.Q96, maxPrice)) revert InvalidBidPriceTooHigh();
+        if (
+            maxPrice > FixedPoint96.Q96
+                && ValueX7X7.unwrap(TOTAL_SUPPLY_X7_X7) > type(uint256).max.fullMulDivUp(FixedPoint96.Q96, maxPrice)
+        ) revert InvalidBidPriceTooHigh();
         // Scale the amount according to the rest of the supply schedule, accounting for past blocks
         // This is only used in demand related internal calculations
         Bid memory bid;

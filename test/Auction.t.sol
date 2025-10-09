@@ -926,7 +926,6 @@ contract AuctionTest is AuctionBaseTest {
         vm.startPrank(auction.fundsRecipient());
         auction.sweepCurrency();
         vm.stopPrank();
-
     }
 
     function test_onTokensReceived_repeatedCall_succeeds() public {

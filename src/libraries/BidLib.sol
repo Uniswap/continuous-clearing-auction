@@ -40,6 +40,7 @@ library BidLib {
     }
 
     function toEffectiveAmount(Bid memory bid) internal pure returns (ValueX7) {
-        return bid.amount.scaleUpToX7().mulUint256(ConstantsLib.MPS).divUint256(bid.mpsRemainingInAuctionAfterSubmission());
+        return
+            bid.amount.scaleUpToX7().mulUint256(ConstantsLib.MPS).divUint256(bid.mpsRemainingInAuctionAfterSubmission());
     }
 }

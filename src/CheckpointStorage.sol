@@ -95,9 +95,10 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         // Scale bid.amount to X7, then pro-rate by cumulativeCurrencyRaisedAtClearingPriceX7X7,
         // dividing by total tick demand adjusted for the bid's remaining auction share.
         // This avoids extra 1e7 scaling and matches BidLib.toEffectiveAmount logic.
-        ValueX7 currencySpentX7 = bid.amount.scaleUpToX7().upcast().fullMulDivUp(
-            cumulativeCurrencyRaisedAtClearingPriceX7X7, tickDemandX7.scaleUpToX7X7()
-        ).downcast();
+        ValueX7 currencySpentX7 = bid.amount.scaleUpToX7().fullMulDivUp(
+            cumulativeCurrencyRaisedAtClearingPriceX7X7.downcast(),
+            tickDemandX7.mulUint256(bid.mpsRemainingInAuctionAfterSubmission())
+        );
         // Scale down the calculated currency spent to a uint256 which will be used for refunds
         currencySpent = currencySpentX7.scaleDownToUint256();
         // Use the X7 version of currency spent to calculate the tokens filled to avoid intermediate division

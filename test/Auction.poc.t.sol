@@ -55,7 +55,7 @@ contract Leftovers is AuctionBaseTest {
 
         emit log_named_uint('Bid1 block', block.number);
 
-        uint256 currency1 = inputAmountForTokens(TOTAL_SUPPLY, tick20);
+        uint128 currency1 = inputAmountForTokens(TOTAL_SUPPLY, tick20);
         emit log_named_decimal_uint('Currency1 calculated', currency1, 18);
         bidId1 = mockAuction.submitBid{value: currency1}(tick20, currency1, bob, tick10, bytes(''));
         {
@@ -73,7 +73,7 @@ contract Leftovers is AuctionBaseTest {
         if (_withSecondBid) {
             vm.roll(block.number + 1);
             emit log_named_uint('Bid2 block', block.number);
-            uint256 currency2 = inputAmountForTokens(710e18, tick30);
+            uint128 currency2 = inputAmountForTokens(710e18, tick30);
             emit log_named_decimal_uint('Currency2 calculated', currency2, 18);
             bidId2 = mockAuction.submitBid{value: currency2}(tick30, currency2, alice, tick20, bytes(''));
             {

@@ -53,7 +53,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     AuctionParameters public params;
     bytes public auctionStepsData;
 
-    uint256 public $bidAmount;
+    uint128 public $bidAmount;
     uint256 public $maxPrice;
 
     function helper__validFuzzDeploymentParams(FuzzDeploymentParams memory _deploymentParams)
@@ -171,14 +171,15 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         if (maxPrice <= clearingPrice) return (false, 0);
         // If the bid would overflow a ValueX7 value, don't submit the bid
         uint256 ethInputAmount = inputAmountForTokens(_bid.bidAmount, maxPrice);
-        if (ethInputAmount >= helper__getMaxBidAmountAtMaxPrice(maxPrice)) return (false, 0);
+        if (ethInputAmount >= type(uint128).max) return (false, 0);
 
         // Get the correct last tick price for the bid
         uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
         uint256 lastTickPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(lowerTickNumber);
 
-        try auction.submitBid{value: ethInputAmount}(maxPrice, ethInputAmount, _owner, lastTickPrice, bytes(''))
-        returns (uint256 _bidId) {
+        try auction.submitBid{value: ethInputAmount}(
+            maxPrice, uint128(ethInputAmount), _owner, lastTickPrice, bytes('')
+        ) returns (uint256 _bidId) {
             bidId = _bidId;
         } catch (bytes memory revertData) {
             // Ok if the bid price is invalid IF it just moved this block
@@ -323,15 +324,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return failingAuction;
     }
 
-    function helper__getMaxBidAmountAtMaxPrice() internal view returns (uint256) {
-        require($maxPrice > 0, 'Max price is not set in test yet');
-        return BidLib.MAX_BID_AMOUNT / $maxPrice;
-    }
-
-    function helper__getMaxBidAmountAtMaxPrice(uint256 _maxPrice) internal view returns (uint256) {
-        return BidLib.MAX_BID_AMOUNT / _maxPrice;
-    }
-
     modifier givenValidMaxPrice(uint256 _maxPrice, uint256 _totalSupply) {
         _maxPrice = _bound(_maxPrice, FLOOR_PRICE, BidLib.MAX_BID_PRICE);
         uint256 ratioOfMaxPriceToQ96 = _maxPrice / FixedPoint96.Q96;
@@ -342,29 +334,19 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _;
     }
 
-    modifier givenValidBidAmount(uint256 _bidAmount) {
-        if (BidLib.MIN_BID_AMOUNT <= helper__getMaxBidAmountAtMaxPrice()) {
-            $bidAmount = BidLib.MIN_BID_AMOUNT;
-        } else {
-            vm.assume(BidLib.MIN_BID_AMOUNT < helper__getMaxBidAmountAtMaxPrice());
-            $bidAmount = _bound(_bidAmount, BidLib.MIN_BID_AMOUNT, helper__getMaxBidAmountAtMaxPrice());
-        }
+    modifier givenValidBidAmount(uint128 _bidAmount) {
+        $bidAmount = uint128(_bound(_bidAmount, BidLib.MIN_BID_AMOUNT, type(uint128).max));
         _;
     }
 
     modifier givenGraduatedAuction() {
-        if (TOTAL_SUPPLY <= helper__getMaxBidAmountAtMaxPrice()) {
-            $bidAmount = TOTAL_SUPPLY;
-        } else {
-            vm.assume(TOTAL_SUPPLY < helper__getMaxBidAmountAtMaxPrice());
-            $bidAmount = _bound($bidAmount, TOTAL_SUPPLY, helper__getMaxBidAmountAtMaxPrice());
-        }
+        $bidAmount = uint128(_bound($bidAmount, TOTAL_SUPPLY, type(uint128).max));
         _;
     }
 
-    modifier givenNotGraduatedAuction(uint256 _bidAmount) {
+    modifier givenNotGraduatedAuction(uint128 _bidAmount) {
         // TODO(ez): some rounding in auction preventing this from being TOTAL_SUPPLY - 1
-        $bidAmount = _bound(_bidAmount, BidLib.MIN_BID_AMOUNT, TOTAL_SUPPLY / 2);
+        $bidAmount = uint128(_bound(_bidAmount, BidLib.MIN_BID_AMOUNT, TOTAL_SUPPLY / 2));
         _;
     }
 
@@ -383,8 +365,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     }
 
     /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice
-    function inputAmountForTokens(uint256 tokens, uint256 maxPrice) internal pure returns (uint256) {
-        return tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96);
+    function inputAmountForTokens(uint128 tokens, uint256 maxPrice) internal pure returns (uint128) {
+        return uint128(tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96));
     }
 
     /// @notice Helper function to return the tick at the given price

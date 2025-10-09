@@ -85,7 +85,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
 
         vm.roll(firstAuction.startBlock());
         // Submit same bid to both auctions
-        uint256 inputAmount = inputAmountForTokens(1000e18, tickNumberToPriceX96(2));
+        uint128 inputAmount = inputAmountForTokens(1000e18, tickNumberToPriceX96(2));
         firstAuction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
@@ -119,7 +119,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         newAuction.onTokensReceived();
 
         vm.roll(startBlock);
-        uint256 inputAmount = inputAmountForTokens(totalSupply, tickNumberToPriceX96(2));
+        uint128 inputAmount = inputAmountForTokens(totalSupply, tickNumberToPriceX96(2));
         vm.deal(address(this), inputAmount);
         uint256 bidId = newAuction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')

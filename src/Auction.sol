@@ -399,8 +399,6 @@ contract Auction is
         if (block.number >= END_BLOCK) revert AuctionIsOver();
         // If the bid is too small such that it would be rounded down to zero, revert
         if (amount < BidLib.MIN_BID_AMOUNT) revert BidAmountTooSmall();
-        // If the bid would overflow a ValueX7 value, revert
-        if (amount > BidLib.MAX_BID_AMOUNT) revert BidAmountTooLarge();
         if (CURRENCY.isAddressZero()) {
             if (msg.value != amount) revert InvalidAmount();
         } else {

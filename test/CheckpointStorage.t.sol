@@ -88,7 +88,7 @@ contract CheckpointStorageTest is Assertions, Test {
     }
 
     function test_calculateFill_exactIn_fuzz_succeeds(
-        uint256 inputAmount,
+        uint128 inputAmount,
         uint256 cumulativeMpsPerPriceDelta,
         uint24 cumulativeMpsDelta
     ) public view {
@@ -224,7 +224,7 @@ contract CheckpointStorageTest is Assertions, Test {
 
         Checkpoint memory _checkpoint = mockCheckpointStorage.latestCheckpoint();
         (uint256 tokensFilled, uint256 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
-            bid, ValueX7.wrap(1e18), _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX128_X7
+            bid, 1e18, _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX128_X7
         );
         assertEq(tokensFilled, 0);
         assertEq(currencySpent, 0);
@@ -241,7 +241,7 @@ contract CheckpointStorageTest is Assertions, Test {
 
         (uint256 tokensFilled, uint256 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
             bid,
-            ValueX7.wrap(0), // tick demand
+            0, // tick demand
             _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX128_X7
         );
         assertEq(tokensFilled, 0);

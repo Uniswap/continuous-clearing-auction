@@ -88,13 +88,13 @@ contract AuctionInvariantHandler is Test, Assertions {
 
     /// @notice Generate random values for amount and max price given a desired resolved amount of tokens to purchase
     /// @dev Bounded by purchasing the total supply of tokens and some reasonable max price for bids to prevent overflow
-    function _useAmountMaxPrice(uint256 amount, uint8 tickNumber) internal view returns (uint256, uint256) {
+    function _useAmountMaxPrice(uint128 amount, uint8 tickNumber) internal view returns (uint128, uint256) {
         uint256 tickNumberPrice = mockAuction.floorPrice() + tickNumber * mockAuction.tickSpacing();
         uint256 maxPrice = _bound(tickNumberPrice, BID_MIN_PRICE, BID_MAX_PRICE);
         // Round down to the nearest tick boundary
         maxPrice -= (maxPrice % mockAuction.tickSpacing());
 
-        uint256 inputAmount = amount.fullMulDivUp(maxPrice, FixedPoint96.Q96);
+        uint128 inputAmount = uint128(amount.fullMulDivUp(maxPrice, FixedPoint96.Q96));
         return (inputAmount, maxPrice);
     }
 
@@ -130,15 +130,15 @@ contract AuctionInvariantHandler is Test, Assertions {
     }
 
     /// @notice Handle a bid submission, ensuring that the actor has enough funds and the bid parameters are valid
-    function handleSubmitBid(uint256 actorIndexSeed, uint256 bidAmount, uint8 tickNumber)
+    function handleSubmitBid(uint256 actorIndexSeed, uint128 bidAmount, uint8 tickNumber)
         public
         payable
         useActor(actorIndexSeed)
         validateCheckpoint
     {
         // Bid requests for anything between 1 and 2x the total supply of tokens
-        uint256 amount = _bound(bidAmount, BidLib.MIN_BID_AMOUNT, mockAuction.totalSupply() * 2);
-        (uint256 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(amount, tickNumber);
+        uint128 amount = uint128(_bound(bidAmount, BidLib.MIN_BID_AMOUNT, mockAuction.totalSupply() * 2));
+        (uint128 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(amount, tickNumber);
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
         } else {

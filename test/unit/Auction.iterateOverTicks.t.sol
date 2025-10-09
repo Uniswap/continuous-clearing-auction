@@ -87,7 +87,7 @@ contract AuctionIterateOverTicksTest is AuctionUnitTest {
         // Assert that the sumDemandAboveClearing is less than the currency required to move to the next active tick
         if (mockAuction.nextActiveTickPrice() != type(uint256).max) {
             assertLt(
-                ValueX7.unwrap(mockAuction.sumCurrencyDemandAboveClearingX128().upcast()),
+                mockAuction.sumCurrencyDemandAboveClearingX128(),
                 ValueX7.unwrap(
                     mockAuction.getTotalCurrencyRaisedAtFloorX7().sub(_checkpoint.currencyRaisedX128_X7)
                         .wrapAndFullMulDivUp(mockAuction.nextActiveTickPrice(), mockAuction.floorPrice())

@@ -23,9 +23,7 @@ library BidLib {
     using FixedPointMathLib for *;
 
     /// @notice The minimum allowable amount for a bid such that is not rounded down to zero
-    uint256 public constant MIN_BID_AMOUNT = ValueX7Lib.X7;
-    /// @notice The maximum allowable amount for a bid such that it will not overflow a ValueX7 value
-    uint256 public constant MAX_BID_AMOUNT = ConstantsLib.X7_UPPER_BOUND - 1;
+    uint128 public constant MIN_BID_AMOUNT = 1e7;
     /// @notice The maximum allowable price for a bid, defined as the square of MAX_SQRT_PRICE from Uniswap v4's TickMath library.
     uint256 public constant MAX_BID_PRICE =
         26_957_920_004_054_754_506_022_898_809_067_591_261_277_585_227_686_421_694_841_721_768_917;

@@ -14,7 +14,7 @@ library ValidationHookLib {
     function handleValidate(
         IValidationHook hook,
         uint256 maxPrice,
-        uint256 amount,
+        uint128 amount,
         address owner,
         address sender,
         bytes calldata hookData

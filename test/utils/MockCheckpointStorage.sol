@@ -5,7 +5,6 @@ import {CheckpointStorage} from '../../src/CheckpointStorage.sol';
 import {Bid} from '../../src/libraries/BidLib.sol';
 import {Checkpoint} from '../../src/libraries/CheckpointLib.sol';
 import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
-import {ValueX7X7} from '../../src/libraries/ValueX7X7Lib.sol';
 
 contract MockCheckpointStorage is CheckpointStorage {
     function getCheckpoint(uint64 blockNumber) external view returns (Checkpoint memory) {
@@ -27,9 +26,9 @@ contract MockCheckpointStorage is CheckpointStorage {
     function accountPartiallyFilledCheckpoints(
         Bid memory bid,
         ValueX7 tickDemand,
-        ValueX7X7 cumulativeCurrencyRaisedAtClearingPriceX7X7
+        ValueX7 cumulativeCurrencyRaisedAtClearingPriceX128_X7
     ) public pure returns (uint256 tokensFilled, uint256 currencySpent) {
-        return _accountPartiallyFilledCheckpoints(bid, tickDemand, cumulativeCurrencyRaisedAtClearingPriceX7X7);
+        return _accountPartiallyFilledCheckpoints(bid, tickDemand, cumulativeCurrencyRaisedAtClearingPriceX128_X7);
     }
 
     function calculateFill(Bid memory bid, uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)

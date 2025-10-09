@@ -15,8 +15,6 @@ import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
-import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
-
 import {AuctionUnitTest} from './unit/AuctionUnitTest.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {MockAuction} from './utils/MockAuction.sol';
@@ -27,9 +25,8 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract AuctionInvariantHandler is Test, Assertions {
     using CurrencyLibrary for Currency;
-    using FixedPointMathLib for uint256;
+    using FixedPointMathLib for *;
     using ValueX7Lib for *;
-    using ValueX7X7Lib for *;
 
     MockAuction public mockAuction;
     IPermit2 public permit2;
@@ -75,8 +72,8 @@ contract AuctionInvariantHandler is Test, Assertions {
         assertGe(checkpoint.clearingPrice, _checkpoint.clearingPrice, 'Checkpoint clearing price is not increasing');
         // Check that the cumulative variables are always increasing
         assertGe(
-            checkpoint.totalCurrencyRaisedX7X7,
-            _checkpoint.totalCurrencyRaisedX7X7,
+            checkpoint.currencyRaisedX128_X7,
+            _checkpoint.currencyRaisedX128_X7,
             'Checkpoint total currency raised is not increasing'
         );
         assertGe(checkpoint.cumulativeMps, _checkpoint.cumulativeMps, 'Checkpoint cumulative mps is not increasing');

@@ -7,9 +7,7 @@ import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
 import {Bid, BidLib} from '../../src/libraries/BidLib.sol';
 import {Checkpoint} from '../../src/libraries/CheckpointLib.sol';
 import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
-import {ValueX7X7} from '../../src/libraries/ValueX7X7Lib.sol';
 import {AuctionBaseTest} from '../utils/AuctionBaseTest.sol';
-
 import {AuctionParamsBuilder} from '../utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from '../utils/AuctionStepsBuilder.sol';
 import {FuzzBid, FuzzDeploymentParams} from '../utils/FuzzStructs.sol';

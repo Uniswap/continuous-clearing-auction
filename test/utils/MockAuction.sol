@@ -7,25 +7,22 @@ import {Bid} from '../../src/BidStorage.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
 import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 
-import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
-import {ValueX7X7} from '../../src/libraries/ValueX7X7Lib.sol';
-
 contract MockAuction is Auction {
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
         Auction(_token, _totalSupply, _parameters)
     {}
 
-    function getTotalCurrencyRaisedAtFloorX7X7() external view returns (ValueX7X7) {
-        return TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7;
+    function getTotalCurrencyRaisedAtFloorX7() external view returns (ValueX7) {
+        return TOTAL_CURRENCY_RAISED_AT_FLOOR_X7;
     }
 
     /// @notice Wrapper around internal function for testing
-    function calculateNewClearingPrice(uint256 tickLowerPrice, ValueX7 sumCurrencyDemandAboveClearingX7)
+    function calculateNewClearingPrice(uint256 tickLowerPrice, ValueX7 sumCurrencyDemandAboveClearingX128)
         external
         view
         returns (uint256)
     {
-        return _calculateNewClearingPrice(tickLowerPrice, sumCurrencyDemandAboveClearingX7);
+        return _calculateNewClearingPrice(tickLowerPrice, sumCurrencyDemandAboveClearingX128);
     }
 
     /// @notice Wrapper around internal function for testing
@@ -59,16 +56,16 @@ contract MockAuction is Auction {
     }
 
     /// @notice Update the tick demand
-    function uncheckedUpdateTickDemand(uint256 price, ValueX7 currencyDemandX7) external {
-        _updateTickDemand(price, currencyDemandX7);
+    function uncheckedUpdateTickDemand(uint256 price, ValueX7 currencyDemandX128) external {
+        _updateTickDemand(price, currencyDemandX128);
     }
 
     /// @notice Set the $sumDemandAboveClearing
-    function uncheckedSetSumDemandAboveClearing(ValueX7 currencyDemandX7) external {
-        $sumCurrencyDemandAboveClearingX7 = currencyDemandX7;
+    function uncheckedSetSumDemandAboveClearing(ValueX7 currencyDemandX128) external {
+        $sumCurrencyDemandAboveClearingX128 = currencyDemandX128;
     }
 
-    function uncheckedAddToSumDemandAboveClearing(ValueX7 currencyDemandX7) external {
-        $sumCurrencyDemandAboveClearingX7 = $sumCurrencyDemandAboveClearingX7.add(currencyDemandX7);
+    function uncheckedAddToSumDemandAboveClearing(ValueX7 currencyDemandX128) external {
+        $sumCurrencyDemandAboveClearingX128 = $sumCurrencyDemandAboveClearingX128.add(currencyDemandX128);
     }
 }

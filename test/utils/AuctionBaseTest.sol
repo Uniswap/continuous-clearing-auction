@@ -2,13 +2,14 @@
 pragma solidity ^0.8.0;
 
 import {Auction} from '../../src/Auction.sol';
-
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
 import {Tick} from '../../src/TickStorage.sol';
 import {AuctionParameters, IAuction} from '../../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
 import {BidLib} from '../../src/libraries/BidLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
+
+import {FixedPoint128} from '../../src/libraries/FixedPoint128.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 import {Assertions} from './Assertions.sol';
@@ -22,10 +23,10 @@ import {TokenHandler} from './TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
 import {console} from 'forge-std/console.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-/// @notice Handler contract for setting up an auction
 
+/// @notice Handler contract for setting up an auction
 abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
-    using FixedPointMathLib for uint256;
+    using FixedPointMathLib for *;
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
     using TickBitmapLib for TickBitmap;
@@ -168,7 +169,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         if (maxPrice >= BidLib.MAX_BID_PRICE) return (false, 0);
         // if the bid if not above the clearing price, don't submit the bid
         if (maxPrice <= clearingPrice) return (false, 0);
-        // If the bid would overflow a ValueX7X7 value, don't submit the bid
+        // If the bid would overflow a ValueX7 value, don't submit the bid
         uint256 ethInputAmount = inputAmountForTokens(_bid.bidAmount, maxPrice);
         if (ethInputAmount >= helper__getMaxBidAmountAtMaxPrice(maxPrice)) return (false, 0);
 
@@ -215,10 +216,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     function helper__toDemand(FuzzBid memory _bid, uint24 _startCumulativeMps)
         internal
         pure
-        returns (ValueX7 currencyDemandX7)
+        returns (uint256 currencyDemandX128)
     {
-        currencyDemandX7 =
-            _bid.bidAmount.scaleUpToX7().mulUint256(ConstantsLib.MPS).divUint256(ConstantsLib.MPS - _startCumulativeMps);
+        currencyDemandX128 =
+            _bid.bidAmount.fullMulDiv(FixedPoint128.Q128 * ConstantsLib.MPS, ConstantsLib.MPS - _startCumulativeMps);
     }
 
     /// @dev All bids provided to bid fuzz must have some value and a positive tick number

@@ -9,7 +9,6 @@ import {CheckpointLib} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
-import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {MockCheckpointStorage} from './utils/MockCheckpointStorage.sol';
 import {Test} from 'forge-std/Test.sol';
@@ -19,7 +18,7 @@ contract CheckpointStorageTest is Assertions, Test {
     MockCheckpointStorage public mockCheckpointStorage;
 
     using BidLib for Bid;
-    using FixedPointMathLib for uint256;
+    using FixedPointMathLib for *;
     using AuctionStepLib for uint256;
     using ConstantsLib for *;
 
@@ -78,7 +77,7 @@ contract CheckpointStorageTest is Assertions, Test {
 
         // The checkpoint should be empty (all fields default to 0)
         assertEq(checkpoint.clearingPrice, 0);
-        assertEq(checkpoint.totalCurrencyRaisedX7X7, ValueX7X7.wrap(0));
+        assertEq(checkpoint.currencyRaisedX128_X7, ValueX7.wrap(0));
         assertEq(checkpoint.cumulativeMps, 0);
 
         checkpoint.clearingPrice = 1;
@@ -225,7 +224,7 @@ contract CheckpointStorageTest is Assertions, Test {
 
         Checkpoint memory _checkpoint = mockCheckpointStorage.latestCheckpoint();
         (uint256 tokensFilled, uint256 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
-            bid, ValueX7.wrap(1e18), _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7
+            bid, ValueX7.wrap(1e18), _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX128_X7
         );
         assertEq(tokensFilled, 0);
         assertEq(currencySpent, 0);
@@ -238,12 +237,12 @@ contract CheckpointStorageTest is Assertions, Test {
         vm.assume(bid.maxPrice > 0);
 
         Checkpoint memory _checkpoint = mockCheckpointStorage.latestCheckpoint();
-        _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7 = ValueX7X7.wrap(1e18);
+        _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX128_X7 = ValueX7.wrap(1e18);
 
         (uint256 tokensFilled, uint256 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
             bid,
             ValueX7.wrap(0), // tick demand
-            _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7
+            _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX128_X7
         );
         assertEq(tokensFilled, 0);
         assertEq(currencySpent, 0);

@@ -5,15 +5,13 @@ import {ITokenCurrencyStorage} from './interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
-import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @title TokenCurrencyStorage
 abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
-    using FixedPointMathLib for uint256;
+    using FixedPointMathLib for *;
     using CurrencyLibrary for Currency;
     using ValueX7Lib for *;
-    using ValueX7X7Lib for *;
 
     /// @notice The currency being raised in the auction
     Currency internal immutable CURRENCY;
@@ -21,8 +19,8 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     IERC20Minimal internal immutable TOKEN;
     /// @notice The total supply of tokens to sell
     uint128 internal immutable TOTAL_SUPPLY;
-    /// @notice The total supply of tokens to sell, scaled up to a ValueX7X7
-    ValueX7X7 internal immutable TOTAL_SUPPLY_X7_X7;
+    /// @notice The total supply of tokens to sell, scaled up to a ValueX7
+    ValueX7 internal immutable TOTAL_SUPPLY_X7;
     /// @notice The recipient of any unsold tokens at the end of the auction
     address internal immutable TOKENS_RECIPIENT;
     /// @notice The recipient of the raised Currency from the auction
@@ -44,7 +42,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         CURRENCY = Currency.wrap(_currency);
         TOTAL_SUPPLY = _totalSupply;
         if (_totalSupply == 0) revert TotalSupplyIsZero();
-        TOTAL_SUPPLY_X7_X7 = _totalSupply.scaleUpToX7().scaleUpToX7X7();
+        TOTAL_SUPPLY_X7 = _totalSupply.scaleUpToX7();
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;
 

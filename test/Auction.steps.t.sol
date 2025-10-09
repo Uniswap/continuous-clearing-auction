@@ -100,7 +100,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
 
         // Both auctions should have sold the TOTAL_SUPPLY at the same clearing price, and the same cumulative mps
         assertEq(finalCheckpoint1.cumulativeMps, finalCheckpoint2.cumulativeMps);
-        assertEq(finalCheckpoint1.totalCurrencyRaisedX7X7, finalCheckpoint2.totalCurrencyRaisedX7X7);
+        assertEq(finalCheckpoint1.currencyRaisedX128_X7, finalCheckpoint2.currencyRaisedX128_X7);
         assertEq(finalCheckpoint1.clearingPrice, finalCheckpoint2.clearingPrice);
     }
 
@@ -143,10 +143,10 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         // Assert that values in the final checkpoint is the same as the checkpoint after selling 1e7 mps worth of tokens
         assertEq(finalCheckpoint.cumulativeMps, checkpoint.cumulativeMps);
         assertEq(finalCheckpoint.clearingPrice, checkpoint.clearingPrice);
-        assertEq(finalCheckpoint.totalCurrencyRaisedX7X7, checkpoint.totalCurrencyRaisedX7X7);
+        assertEq(finalCheckpoint.currencyRaisedX128_X7, checkpoint.currencyRaisedX128_X7);
         assertEq(
-            finalCheckpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7,
-            checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7
+            finalCheckpoint.cumulativeCurrencyRaisedAtClearingPriceX128_X7,
+            checkpoint.cumulativeCurrencyRaisedAtClearingPriceX128_X7
         );
         assertEq(finalCheckpoint.cumulativeMpsPerPrice, checkpoint.cumulativeMpsPerPrice);
         // Don't check mps, prev, and next because they will be different

@@ -7,7 +7,6 @@ import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
-import {ValueX7X7, ValueX7X7Lib} from './libraries/ValueX7X7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 /// @title CheckpointStorage
 /// @notice Abstract contract for managing auction checkpoints and bid fill calculations
@@ -18,7 +17,6 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     using BidLib for *;
     using CheckpointLib for Checkpoint;
     using ValueX7Lib for *;
-    using ValueX7X7Lib for *;
 
     /// @notice Maximum block number value used as sentinel for last checkpoint
     uint64 public constant MAX_BLOCK_NUMBER = type(uint64).max;
@@ -81,23 +79,23 @@ abstract contract CheckpointStorage is ICheckpointStorage {
 
     /// @notice Calculate the tokens sold and currency spent for a partially filled bid
     /// @param bid The bid
-    /// @param tickDemandX7 The total demand at the tick
-    /// @param cumulativeCurrencyRaisedAtClearingPriceX7X7 The cumulative supply sold to the clearing price
+    /// @param tickDemandX128 The total demand at the tick
+    /// @param cumulativeCurrencyRaisedAtClearingPriceX128_X7 The cumulative supply sold to the clearing price
     /// @return tokensFilled The tokens sold
     /// @return currencySpent The amount of currency spent
     function _accountPartiallyFilledCheckpoints(
         Bid memory bid,
-        ValueX7 tickDemandX7,
-        ValueX7X7 cumulativeCurrencyRaisedAtClearingPriceX7X7
+        uint256 tickDemandX128,
+        ValueX7 cumulativeCurrencyRaisedAtClearingPriceX128_X7
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpent) {
-        if (tickDemandX7.eq(ValueX7.wrap(0))) return (0, 0);
+        if (tickDemandX128 == 0) return (0, 0);
 
-        // Scale bid.amount to X7, then pro-rate by cumulativeCurrencyRaisedAtClearingPriceX7X7,
+        // Scale bid.amount to X7, then pro-rate by cumulativeCurrencyRaisedAtClearingPriceX128_X7,
         // dividing by total tick demand adjusted for the bid's remaining auction share.
         // This avoids extra 1e7 scaling and matches BidLib.toEffectiveAmount logic.
         ValueX7 currencySpentX7 = bid.amount.scaleUpToX7().fullMulDivUp(
-            cumulativeCurrencyRaisedAtClearingPriceX7X7.downcast(),
-            tickDemandX7.mulUint256(bid.mpsRemainingInAuctionAfterSubmission())
+            cumulativeCurrencyRaisedAtClearingPriceX128_X7,
+            ValueX7.wrap(tickDemandX128 * bid.mpsRemainingInAuctionAfterSubmission())
         );
         // Scale down the calculated currency spent to a uint256 which will be used for refunds
         currencySpent = currencySpentX7.scaleDownToUint256();

@@ -12,7 +12,7 @@ struct Bid {
     uint64 exitedBlock; // Block number when the bid was exited
     uint256 maxPrice; // The max price of the bid
     address owner; // Who is allowed to exit the bid
-    uint256 amount; // User's demand
+    uint256 amountX128; // User's demand
     uint256 tokensFilled; // Amount of tokens filled
 }
 
@@ -24,6 +24,9 @@ library BidLib {
 
     /// @notice The minimum allowable amount for a bid such that is not rounded down to zero
     uint128 public constant MIN_BID_AMOUNT = 1e7;
+    /// @notice The maximum allowable amount for a bid such that it will not
+    ///         overflow a ValueX7 value after shifting into 128.128 representation.
+    uint128 public constant MAX_BID_AMOUNT = type(uint128).max / 1e7;
     /// @notice The maximum allowable price for a bid, defined as the square of MAX_SQRT_PRICE from Uniswap v4's TickMath library.
     uint256 public constant MAX_BID_PRICE =
         26_957_920_004_054_754_506_022_898_809_067_591_261_277_585_227_686_421_694_841_721_768_917;
@@ -38,6 +41,6 @@ library BidLib {
     /// @notice Convert a bid amount to its effective amount over the remaining percentage of the auction
     /// TODO(ez): fix natspec
     function toEffectiveAmount(Bid memory bid) internal pure returns (uint256) {
-        return bid.amount.fullMulDiv(ConstantsLib.MPS, bid.mpsRemainingInAuctionAfterSubmission());
+        return bid.amountX128.fullMulDiv(ConstantsLib.MPS, bid.mpsRemainingInAuctionAfterSubmission());
     }
 }

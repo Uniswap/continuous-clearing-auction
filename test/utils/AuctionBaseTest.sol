@@ -8,7 +8,6 @@ import {AuctionParameters, IAuction} from '../../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
 import {BidLib} from '../../src/libraries/BidLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
-
 import {FixedPoint128} from '../../src/libraries/FixedPoint128.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
@@ -23,6 +22,7 @@ import {TokenHandler} from './TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
 import {console} from 'forge-std/console.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
 /// @notice Handler contract for setting up an auction
 abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
@@ -170,16 +170,15 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // if the bid if not above the clearing price, don't submit the bid
         if (maxPrice <= clearingPrice) return (false, 0);
         // If the bid would overflow a ValueX7 value, don't submit the bid
-        uint256 ethInputAmount = inputAmountForTokens(_bid.bidAmount, maxPrice);
+        uint128 ethInputAmount = inputAmountForTokens(_bid.bidAmount, maxPrice);
         if (ethInputAmount >= type(uint128).max) return (false, 0);
 
         // Get the correct last tick price for the bid
         uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
         uint256 lastTickPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(lowerTickNumber);
 
-        try auction.submitBid{value: ethInputAmount}(
-            maxPrice, uint128(ethInputAmount), _owner, lastTickPrice, bytes('')
-        ) returns (uint256 _bidId) {
+        try auction.submitBid{value: ethInputAmount}(maxPrice, ethInputAmount, _owner, lastTickPrice, bytes(''))
+        returns (uint256 _bidId) {
             bidId = _bidId;
         } catch (bytes memory revertData) {
             // Ok if the bid price is invalid IF it just moved this block
@@ -327,7 +326,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     modifier givenValidMaxPrice(uint256 _maxPrice, uint256 _totalSupply) {
         _maxPrice = _bound(_maxPrice, FLOOR_PRICE, BidLib.MAX_BID_PRICE);
         uint256 ratioOfMaxPriceToQ96 = _maxPrice / FixedPoint96.Q96;
-        vm.assume(_totalSupply < type(uint256).max / ratioOfMaxPriceToQ96);
+        vm.assume(_totalSupply < type(uint256).max / ratioOfMaxPriceToQ96 / ConstantsLib.MPS);
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, TICK_SPACING);
         vm.assume(_maxPrice > FLOOR_PRICE);
         $maxPrice = _maxPrice;
@@ -335,18 +334,23 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     }
 
     modifier givenValidBidAmount(uint128 _bidAmount) {
-        $bidAmount = uint128(_bound(_bidAmount, BidLib.MIN_BID_AMOUNT, type(uint128).max));
+        uint256 maxBidAmount = BidLib.MAX_BID_AMOUNT.fullMulDiv(FixedPoint96.Q96, $maxPrice);
+        vm.assume(BidLib.MIN_BID_AMOUNT <= maxBidAmount);
+        vm.assume(maxBidAmount <= type(uint128).max);
+        $bidAmount = SafeCastLib.toUint128(_bound(_bidAmount, BidLib.MIN_BID_AMOUNT, maxBidAmount));
         _;
     }
 
     modifier givenGraduatedAuction() {
-        $bidAmount = uint128(_bound($bidAmount, TOTAL_SUPPLY, type(uint128).max));
+        uint256 maxBidAmount = BidLib.MAX_BID_AMOUNT.fullMulDiv(FixedPoint96.Q96, $maxPrice);
+        vm.assume(TOTAL_SUPPLY <= maxBidAmount);
+        vm.assume(maxBidAmount <= type(uint128).max);
+        $bidAmount = SafeCastLib.toUint128(_bound($bidAmount, TOTAL_SUPPLY, maxBidAmount));
         _;
     }
 
     modifier givenNotGraduatedAuction(uint128 _bidAmount) {
-        // TODO(ez): some rounding in auction preventing this from being TOTAL_SUPPLY - 1
-        $bidAmount = uint128(_bound(_bidAmount, BidLib.MIN_BID_AMOUNT, TOTAL_SUPPLY / 2));
+        $bidAmount = SafeCastLib.toUint128(_bound(_bidAmount, BidLib.MIN_BID_AMOUNT, TOTAL_SUPPLY - 1));
         _;
     }
 
@@ -366,7 +370,9 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice
     function inputAmountForTokens(uint128 tokens, uint256 maxPrice) internal pure returns (uint128) {
-        return uint128(tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96));
+        uint256 temp = tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96);
+        vm.assume(temp <= type(uint128).max);
+        return SafeCastLib.toUint128(temp);
     }
 
     /// @notice Helper function to return the tick at the given price

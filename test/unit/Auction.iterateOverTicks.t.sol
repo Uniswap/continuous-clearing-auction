@@ -42,9 +42,9 @@ contract AuctionIterateOverTicksTest is AuctionUnitTest {
     ) public setUpMockAuctionFuzz(_deploymentParams) setUpBidsFuzz(_bids) givenValidCheckpoint(_checkpoint) {
         // Assume there are still tokens to sell in the auction
         vm.assume(_checkpoint.remainingMpsInAuction() > 0);
-        _checkpoint.currencyRaisedX128_X7 = ValueX7.wrap(
+        _checkpoint.currencyRaisedX7 = ValueX7.wrap(
             _bound(
-                ValueX7.unwrap(_checkpoint.currencyRaisedX128_X7),
+                ValueX7.unwrap(_checkpoint.currencyRaisedX7),
                 0,
                 ValueX7.unwrap(mockAuction.getTotalCurrencyRaisedAtFloorX7()) - 1
             )
@@ -73,7 +73,7 @@ contract AuctionIterateOverTicksTest is AuctionUnitTest {
         // Ensure fullMulDiv result doesn't overflow: (type(uint256).max * floorPrice) / lowestTickPrice <= type(uint256).max
         vm.assume(mockAuction.floorPrice() <= lowestTickPrice);
         vm.assume(
-            ValueX7.unwrap(mockAuction.getTotalCurrencyRaisedAtFloorX7().sub(_checkpoint.currencyRaisedX128_X7))
+            ValueX7.unwrap(mockAuction.getTotalCurrencyRaisedAtFloorX7().sub(_checkpoint.currencyRaisedX7))
                 < type(uint256).max.fullMulDiv(mockAuction.floorPrice(), lowestTickPrice)
         );
 
@@ -89,8 +89,9 @@ contract AuctionIterateOverTicksTest is AuctionUnitTest {
             assertLt(
                 mockAuction.sumCurrencyDemandAboveClearingX128(),
                 ValueX7.unwrap(
-                    mockAuction.getTotalCurrencyRaisedAtFloorX7().sub(_checkpoint.currencyRaisedX128_X7)
-                        .wrapAndFullMulDivUp(mockAuction.nextActiveTickPrice(), mockAuction.floorPrice())
+                    mockAuction.getTotalCurrencyRaisedAtFloorX7().sub(_checkpoint.currencyRaisedX7).wrapAndFullMulDivUp(
+                        mockAuction.nextActiveTickPrice(), mockAuction.floorPrice()
+                    )
                 ),
                 'sumCurrencyDemandAboveClearingX128 is greater than or equal to currency required to move to the next active tick'
             );

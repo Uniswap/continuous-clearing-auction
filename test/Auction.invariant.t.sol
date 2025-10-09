@@ -22,6 +22,7 @@ import {Test} from 'forge-std/Test.sol';
 import {console} from 'forge-std/console.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
 contract AuctionInvariantHandler is Test, Assertions {
     using CurrencyLibrary for Currency;
@@ -72,8 +73,8 @@ contract AuctionInvariantHandler is Test, Assertions {
         assertGe(checkpoint.clearingPrice, _checkpoint.clearingPrice, 'Checkpoint clearing price is not increasing');
         // Check that the cumulative variables are always increasing
         assertGe(
-            checkpoint.currencyRaisedX128_X7,
-            _checkpoint.currencyRaisedX128_X7,
+            checkpoint.currencyRaisedX7,
+            _checkpoint.currencyRaisedX7,
             'Checkpoint total currency raised is not increasing'
         );
         assertGe(checkpoint.cumulativeMps, _checkpoint.cumulativeMps, 'Checkpoint cumulative mps is not increasing');
@@ -94,7 +95,7 @@ contract AuctionInvariantHandler is Test, Assertions {
         // Round down to the nearest tick boundary
         maxPrice -= (maxPrice % mockAuction.tickSpacing());
 
-        uint128 inputAmount = uint128(amount.fullMulDivUp(maxPrice, FixedPoint96.Q96));
+        uint128 inputAmount = SafeCastLib.toUint128(amount.fullMulDivUp(maxPrice, FixedPoint96.Q96));
         return (inputAmount, maxPrice);
     }
 
@@ -137,7 +138,7 @@ contract AuctionInvariantHandler is Test, Assertions {
         validateCheckpoint
     {
         // Bid requests for anything between 1 and 2x the total supply of tokens
-        uint128 amount = uint128(_bound(bidAmount, BidLib.MIN_BID_AMOUNT, mockAuction.totalSupply() * 2));
+        uint128 amount = SafeCastLib.toUint128(_bound(bidAmount, BidLib.MIN_BID_AMOUNT, mockAuction.totalSupply() * 2));
         (uint128 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(amount, tickNumber);
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
@@ -259,11 +260,11 @@ contract AuctionInvariantTest is AuctionUnitTest {
             }
             uint256 refundAmount = bid.owner.balance - currencyBalanceBefore;
             console.log('refundAmount', refundAmount);
-            console.log('bid.amount', bid.amount);
-            totalCurrencyRaised += bid.amount - refundAmount;
+            console.log('bid.amountX128', bid.amountX128);
+            totalCurrencyRaised += bid.amountX128 - refundAmount;
 
             // can never gain more Currency than provided
-            assertLe(refundAmount, bid.amount, 'Bid owner can never be refunded more Currency than provided');
+            assertLe(refundAmount, bid.amountX128, 'Bid owner can never be refunded more Currency than provided');
 
             // Bid might be deleted if tokensFilled = 0
             bid = getBid(bidId);

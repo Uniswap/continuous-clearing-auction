@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.26;
+pragma solidity ^0.8.26;
 
 import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
 import {ValueX7X7, ValueX7X7Lib} from './ValueX7X7Lib.sol';

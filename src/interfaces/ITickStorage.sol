@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Tick} from '../TickStorage.sol';
+import {ValueX7} from '../libraries/ValueX7Lib.sol';
+
+struct Tick {
+    uint256 next;
+    ValueX7 currencyDemandX7;
+}
 
 /// @title ITickStorage
 /// @notice Interface for the TickStorage contract

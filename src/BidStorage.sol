@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.26;
+pragma solidity ^0.8.26;
 
 import {IBidStorage} from './interfaces/IBidStorage.sol';
 import {Bid} from './libraries/BidLib.sol';

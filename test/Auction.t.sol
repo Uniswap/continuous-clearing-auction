@@ -899,12 +899,6 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(auction.clearingPrice(), tickNumberToPriceX96(5));
 
         // Roll to end of auction
-        vm.roll(auction.endBlock());
-
-        vm.startPrank(auction.fundsRecipient());
-        auction.sweepCurrency();
-        vm.stopPrank();
-
         vm.roll(auction.claimBlock());
 
         vm.startPrank(charlie);
@@ -928,6 +922,11 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(auction.tokensRecipient(), 0);
         auction.sweepUnsoldTokens();
+
+        vm.startPrank(auction.fundsRecipient());
+        auction.sweepCurrency();
+        vm.stopPrank();
+
     }
 
     function test_onTokensReceived_repeatedCall_succeeds() public {

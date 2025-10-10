@@ -339,16 +339,14 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     modifier givenValidBidAmount(uint128 _bidAmount) {
         uint256 maxBidAmount = BidLib.MAX_BID_AMOUNT.fullMulDiv(FixedPoint96.Q96, $maxPrice);
-        vm.assume(BidLib.MIN_BID_AMOUNT <= maxBidAmount);
-        vm.assume(maxBidAmount <= type(uint128).max);
+        maxBidAmount = _bound(maxBidAmount, BidLib.MIN_BID_AMOUNT, type(uint128).max);
         $bidAmount = SafeCastLib.toUint128(_bound(_bidAmount, BidLib.MIN_BID_AMOUNT, maxBidAmount));
         _;
     }
 
     modifier givenGraduatedAuction() {
         uint256 maxBidAmount = BidLib.MAX_BID_AMOUNT.fullMulDiv(FixedPoint96.Q96, $maxPrice);
-        vm.assume(TOTAL_SUPPLY <= maxBidAmount);
-        vm.assume(maxBidAmount <= type(uint128).max);
+        maxBidAmount = _bound(maxBidAmount, TOTAL_SUPPLY, type(uint128).max);
         $bidAmount = SafeCastLib.toUint128(_bound($bidAmount, TOTAL_SUPPLY, maxBidAmount));
         _;
     }

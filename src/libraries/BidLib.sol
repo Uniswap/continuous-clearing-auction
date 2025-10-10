@@ -51,7 +51,7 @@ library BidLib {
     function toX128(uint128 _amount) internal pure returns (uint256) {
         // Guaranteed to not overflow a uint256
         unchecked {
-            return _amount * FixedPoint128.Q128;
+            return uint256(_amount) * FixedPoint128.Q128;
         }
     }
 

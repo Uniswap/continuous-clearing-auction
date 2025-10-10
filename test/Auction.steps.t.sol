@@ -7,6 +7,7 @@ import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
+import {FixedPoint128} from '../src/libraries/FixedPoint128.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
@@ -105,7 +106,6 @@ contract AuctionStepDiffTest is AuctionBaseTest {
     }
 
     function test_stepsDataEndingWithZeroMps_succeeds(uint128 totalSupply) public {
-        totalSupply = uint128(_bound(totalSupply, 1, type(uint128).max / 2));
         vm.assume(totalSupply > BidLib.MIN_BID_AMOUNT);
         bytes memory data = AuctionStepsBuilder.init().addStep(1, 1e7).addStep(0, 1e7);
         uint256 startBlock = block.number;
@@ -121,6 +121,8 @@ contract AuctionStepDiffTest is AuctionBaseTest {
 
         vm.roll(startBlock);
         uint128 inputAmount = inputAmountForTokens(totalSupply, tickNumberToPriceX96(2));
+        // Prevent bid from causing sumCurrencyDemandAboveClearingX128 to overflow
+        vm.assume(inputAmount * FixedPoint128.Q128 < (type(uint256).max / 1e7));
         vm.deal(address(this), inputAmount);
         uint256 bidId = newAuction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')

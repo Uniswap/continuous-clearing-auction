@@ -70,8 +70,6 @@ interface IAuction is
     error TokenTransferFailed();
     /// @notice Error thrown when the auction is not over
     error AuctionIsNotOver();
-    /// @notice Error thrown when the bid price is too high
-    error InvalidBidPriceTooHigh();
     /// @notice Error thrown when the bid is too large
     error InvalidBidUnableToClear();
     /// @notice Error thrown when the auction has sold the entire total supply of tokens

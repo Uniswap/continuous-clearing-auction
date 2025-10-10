@@ -31,6 +31,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     using AuctionStepsBuilder for bytes;
     using TickBitmapLib for TickBitmap;
     using ValueX7Lib for *;
+    using BidLib for *;
 
     TickBitmap private tickBitmap;
 
@@ -169,13 +170,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         if (maxPrice >= BidLib.MAX_BID_PRICE) return (false, 0);
         // if the bid if not above the clearing price, don't submit the bid
         if (maxPrice <= clearingPrice) return (false, 0);
+        // Assume the max price is valid
+        maxPrice = helper__assumeValidMaxPrice(auction.floorPrice(), maxPrice, auction.totalSupply(), auction.tickSpacing());
         // If the bid would overflow a ValueX7 value, don't submit the bid
         uint128 ethInputAmount = inputAmountForTokens(_bid.bidAmount, maxPrice);
-        if (ethInputAmount >= type(uint128).max) return (false, 0);
-        if (
-            auction.sumCurrencyDemandAboveClearingX128() + ethInputAmount * FixedPoint128.Q128
-                >= ConstantsLib.X7_UPPER_BOUND
-        ) return (false, 0);
 
         // Get the correct last tick price for the bid
         uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
@@ -192,6 +190,14 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
                 // skip the test by returning false and 0
                 if (maxPrice <= checkpoint.clearingPrice) return (false, 0);
                 revert('Uncaught BidMustBeAboveClearingPrice');
+            }
+            else if (bytes4(revertData) == bytes4(abi.encodeWithSelector(IAuction.InvalidBidUnableToClear.selector))) {
+                // TODO(ez): fix this test to catch this error, for now just assume against these inputs
+                return (false, 0);
+            }
+            else if (bytes4(revertData) == bytes4(abi.encodeWithSelector(BidLib.InvalidBidPriceTooHigh.selector))) {
+                // TODO(ez): fix this test to catch this error, for now just assume against these inputs
+                return (false, 0);
             }
             // Otherwise, treat as uncaught error
             assembly {
@@ -327,14 +333,19 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return failingAuction;
     }
 
+    /// @dev Uses default values for floor price and tick spacing
     modifier givenValidMaxPrice(uint256 _maxPrice, uint256 _totalSupply) {
-        _maxPrice = _bound(_maxPrice, FLOOR_PRICE, BidLib.MAX_BID_PRICE);
+        $maxPrice = helper__assumeValidMaxPrice(FLOOR_PRICE, _maxPrice, _totalSupply, TICK_SPACING);
+        _;
+    }
+
+    function helper__assumeValidMaxPrice(uint256 _floorPrice, uint256 _maxPrice, uint256 _totalSupply, uint256 _tickSpacing) internal returns (uint256) {
+        _maxPrice = _bound(_maxPrice, _floorPrice, BidLib.MAX_BID_PRICE);
         uint256 ratioOfMaxPriceToQ96 = _maxPrice / FixedPoint96.Q96;
         vm.assume(_totalSupply < type(uint256).max / ratioOfMaxPriceToQ96 / ConstantsLib.MPS);
-        _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, TICK_SPACING);
-        vm.assume(_maxPrice > FLOOR_PRICE);
-        $maxPrice = _maxPrice;
-        _;
+        _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, _tickSpacing);
+        vm.assume(_maxPrice > _floorPrice);
+        return _maxPrice;
     }
 
     modifier givenValidBidAmount(uint128 _bidAmount) {

@@ -10,4 +10,8 @@ contract MockTickStorage is TickStorage {
     function updateTickDemand(uint256 price, ValueX7 demand) external {
         super._updateTickDemand(price, demand);
     }
+
+    function initializeTickIfNeeded(uint256 prevPrice, uint256 price) external {
+        super._initializeTickIfNeeded(prevPrice, price);
+    }
 }

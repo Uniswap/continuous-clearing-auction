@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity 0.8.26;
+
+import {BttBase} from 'btt/BttBase.sol';
+import {MockCheckpointStorage} from 'btt/mocks/MockCheckpointStorage.sol';
+
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {Bid} from 'twap-auction/libraries/BidLib.sol';
+import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
+import {FixedPoint96} from 'twap-auction/libraries/FixedPoint96.sol';
+
+contract CalculateFillTest is BttBase {
+    MockCheckpointStorage public mockCheckpointStorage;
+
+    function setUp() external {
+        mockCheckpointStorage = new MockCheckpointStorage();
+    }
+
+    function test_WhenCalledWithParams(Bid memory _bid, uint256 _cumulativeMpsPerPriceDelta, uint24 _cumulativeMpsDelta)
+        external
+    {
+        // it returns the tokens filled
+        // it returns the currency spent
+
+        // Must ensure that `startCumulativeMps != MPS` as it would div with 0.
+
+        _bid.startCumulativeMps = uint24(bound(_bid.startCumulativeMps, 0, ConstantsLib.MPS - 1));
+        _bid.amount = bound(_bid.amount, 1, type(uint128).max);
+
+        uint256 left = ConstantsLib.MPS - _bid.startCumulativeMps;
+
+        _cumulativeMpsPerPriceDelta = bound(_cumulativeMpsPerPriceDelta, 1, type(uint128).max);
+
+        (uint256 tokensFilled, uint256 currencySpent) =
+            mockCheckpointStorage.calculateFill(_bid, _cumulativeMpsPerPriceDelta, _cumulativeMpsDelta);
+
+        // Simple maths in uint256. Allow 1 wei diff
+        assertApproxEqAbs(
+            tokensFilled, _bid.amount * _cumulativeMpsPerPriceDelta / (FixedPoint96.Q96 * left), 1, 'tokens filled'
+        );
+        assertApproxEqAbs(currencySpent, _bid.amount * _cumulativeMpsDelta / left, 1, 'currency spent');
+
+        // Intermediate 512 bits.
+        assertEq(
+            tokensFilled,
+            FixedPointMathLib.fullMulDiv(_bid.amount, _cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * left),
+            'tokens filled'
+        );
+        assertEq(
+            currencySpent, FixedPointMathLib.fullMulDivUp(_bid.amount, _cumulativeMpsDelta, left), 'currency spent'
+        );
+    }
+}

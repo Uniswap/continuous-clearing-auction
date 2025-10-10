@@ -7,6 +7,7 @@ import {ITickStorage} from 'twap-auction/TickStorage.sol';
 import {MockTickStorage} from 'btt/mocks/MockTickStorage.sol';
 
 import {BidLib} from 'twap-auction/libraries/BidLib.sol';
+import {ValueX7} from 'twap-auction/libraries/ValueX7Lib.sol';
 
 contract ConstructorTest is BttBase {
     uint256 tickSpacing;
@@ -93,5 +94,6 @@ contract ConstructorTest is BttBase {
         assertEq(tickStorage.tickSpacing(), tickSpacing);
         assertEq(tickStorage.nextActiveTickPrice(), type(uint256).max);
         assertEq(tickStorage.getTick(floorPrice).next, type(uint256).max);
+        assertEq(tickStorage.getTick(floorPrice).currencyDemandX7, ValueX7.wrap(0));
     }
 }

@@ -28,5 +28,6 @@ contract UpdateTickDemandTest is BttBase {
             expectedDemand += _demand[i];
         }
         assertEq(tickStorage.getTick(_price).currencyDemandX7, ValueX7.wrap(expectedDemand));
+        assertEq(tickStorage.ticks(_price).currencyDemandX7, ValueX7.wrap(expectedDemand));
     }
 }

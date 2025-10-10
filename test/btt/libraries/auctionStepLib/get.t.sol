@@ -31,7 +31,7 @@ library CompactStepLib {
 contract GetTest is BttBase {
     function test_WhenReadingBeyondTheDataLength() external {
         // it reverts with {InvalidOffset}
-        assertEq(isCoverage(), true, 'To be implemented');
+        assertTrue(isCoverage(), 'To be implemented');
     }
 
     modifier whenReadingWithinTheDataLength() {
@@ -40,7 +40,7 @@ contract GetTest is BttBase {
 
     function test_WhenNotReadingAMultipleOf8Bytes() external whenReadingWithinTheDataLength {
         // it reverts with {InvalidOffset}
-        assertEq(isCoverage(), true, 'To be implemented');
+        assertTrue(isCoverage(), 'To be implemented');
     }
 
     function test_WhenReadingAMultipleOf8Bytes(Step[16] memory _steps, uint256 _offset)

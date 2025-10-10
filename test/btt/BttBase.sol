@@ -5,6 +5,7 @@ import {Test} from 'forge-std/Test.sol';
 import {VmSafe} from 'forge-std/Vm.sol';
 
 import {Bid} from 'twap-auction/BidStorage.sol';
+import {Checkpoint} from 'twap-auction/libraries/CheckpointLib.sol';
 
 import {ValueX7} from 'twap-auction/libraries/ValueX7Lib.sol';
 import {ValueX7X7} from 'twap-auction/libraries/ValueX7X7Lib.sol';
@@ -38,5 +39,19 @@ contract BttBase is Test {
 
     function assertEq(ValueX7X7 _valueX7X7, ValueX7X7 _valueX7X72, string memory _err) internal pure {
         assertEq(ValueX7X7.unwrap(_valueX7X7), ValueX7X7.unwrap(_valueX7X72), _err);
+    }
+
+    function assertEq(Checkpoint memory _checkpoint, Checkpoint memory _checkpoint2) internal pure {
+        assertEq(_checkpoint.clearingPrice, _checkpoint2.clearingPrice, 'clearingPrice');
+        assertEq(_checkpoint.totalCurrencyRaisedX7X7, _checkpoint2.totalCurrencyRaisedX7X7, 'totalCurrencyRaisedX7X7');
+        assertEq(
+            _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7,
+            _checkpoint2.cumulativeCurrencyRaisedAtClearingPriceX7X7,
+            'cumulativeCurrencyRaisedAtClearingPriceX7X7'
+        );
+        assertEq(_checkpoint.cumulativeMpsPerPrice, _checkpoint2.cumulativeMpsPerPrice, 'cumulativeMpsPerPrice');
+        assertEq(_checkpoint.cumulativeMps, _checkpoint2.cumulativeMps, 'cumulativeMps');
+        assertEq(_checkpoint.prev, _checkpoint2.prev, 'prev');
+        assertEq(_checkpoint.next, _checkpoint2.next, 'next');
     }
 }

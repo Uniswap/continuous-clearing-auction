@@ -6,7 +6,7 @@ InitializeTickIfNeededTest
     │   └── it reverts with {InvalidTickPrice}
     └── when price LT MAX_TICK_PTR
         ├── given tick is already initialized
-        │   └── it returns
+        │   └── it returns early
         └── given tick is not initialized
             ├── when price LE prevPrice
             │   └── it reverts with {TickPreviousPriceInvalid}

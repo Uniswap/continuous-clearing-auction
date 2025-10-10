@@ -20,11 +20,13 @@ contract PackSupplyRolloverMultiplierTest is BttBase {
         uint24 _remainingMps,
         ValueX7X7 _remainingCurrencyRaisedX7X7
     ) external {
+        // it will revert
+
+        assertTrue(isCoverage(), 'to be implemented');
+
         if (isCoverage()) {
             return;
         }
-
-        // it will revert
 
         ValueX7X7 remainingCurrencyRaisedX7X7 =
             ValueX7X7.wrap(bound(ValueX7X7.unwrap(_remainingCurrencyRaisedX7X7), (1 << 231), type(uint256).max));

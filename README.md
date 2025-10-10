@@ -231,7 +231,7 @@ type ValueX7X7 is uint256;
 
 **Use Cases**:
 
-- Total currency raised tracking (`totalCurrencyRaisedX7X7`)
+- Total currency raised tracking (`currencyRaisedX7`)
 - Supply rollover calculations when auctions become fully subscribed
 - Complex time-weighted average price calculations
 
@@ -264,7 +264,7 @@ $$\text{clearingPrice} = \max\left(\text{tickLowerPrice}, \frac{\text{sumCurrenc
 **Implementation:**
 
 ```solidity
-clearingPrice = sumCurrencyDemandAboveClearingX7.fullMulDivUp(
+clearingPrice = sumCurrencyDemandAboveClearingX128.fullMulDivUp(
     cachedRemainingMps * FLOOR_PRICE,
     cachedRemainingCurrencyRaisedX7X7
 );
@@ -465,10 +465,10 @@ event BidExited(uint256 indexed bidId, address indexed owner, uint256 tokensFill
 - `lower`: Last checkpoint where clearing price is strictly < bid.maxPrice
 - `upper`: First checkpoint where clearing price is strictly > bid.maxPrice, or 0 for end-of-auction fills
 
-**Mathematical Optimization**: Uses cumulative currency tracking (`cumulativeCurrencyRaisedAtClearingPriceX7X7`) for direct partial fill calculation:
+**Mathematical Optimization**: Uses cumulative currency tracking (`cumulativeCurrencyRaisedAtClearingPriceX7`) for direct partial fill calculation:
 
 ```
-partialFillRate = cumulativeCurrencyRaisedAtClearingPriceX7X7 * mpsDenominator / (tickDemand * cumulativeMpsDelta)
+partialFillRate = cumulativeCurrencyRaisedAtClearingPriceX7 * mpsDenominator / (tickDemand * cumulativeMpsDelta)
 ```
 
 **Implementation**: Enhanced checkpoint architecture with linked-list structure (prev/next pointers) enables efficient traversal. Block numbers are stored as `uint64` for gas optimization while maintaining sufficient range (~584 billion years).
@@ -538,7 +538,7 @@ interface IAuctionStepStorage {
 interface IAuction {
     function totalSupply() external view returns (uint256);
     function isGraduated() external view returns (bool);
-    function sumCurrencyDemandAboveClearingX7() external view returns (ValueX7);
+    function sumCurrencyDemandAboveClearingX128() external view returns (ValueX7);
 }
 
 interface ITokenCurrencyStorage {
@@ -597,7 +597,7 @@ sequenceDiagram
     end
     Auction->>TickStorage: _updateTickDemand(...)
     Auction->>BidStorage: _createBid(...)
-    Auction->>Auction: update sumCurrencyDemandAboveClearingX7
+    Auction->>Auction: update sumCurrencyDemandAboveClearingX128
     Auction-->>User: bidId
 ```
 

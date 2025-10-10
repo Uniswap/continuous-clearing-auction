@@ -7,6 +7,7 @@ import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
+import {FixedPoint128} from '../src/libraries/FixedPoint128.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
@@ -85,7 +86,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
 
         vm.roll(firstAuction.startBlock());
         // Submit same bid to both auctions
-        uint256 inputAmount = inputAmountForTokens(1000e18, tickNumberToPriceX96(2));
+        uint128 inputAmount = inputAmountForTokens(1000e18, tickNumberToPriceX96(2));
         firstAuction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
@@ -100,7 +101,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
 
         // Both auctions should have sold the TOTAL_SUPPLY at the same clearing price, and the same cumulative mps
         assertEq(finalCheckpoint1.cumulativeMps, finalCheckpoint2.cumulativeMps);
-        assertEq(finalCheckpoint1.totalCurrencyRaisedX7X7, finalCheckpoint2.totalCurrencyRaisedX7X7);
+        assertEq(finalCheckpoint1.currencyRaisedX7, finalCheckpoint2.currencyRaisedX7);
         assertEq(finalCheckpoint1.clearingPrice, finalCheckpoint2.clearingPrice);
     }
 
@@ -119,7 +120,9 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         newAuction.onTokensReceived();
 
         vm.roll(startBlock);
-        uint256 inputAmount = inputAmountForTokens(totalSupply, tickNumberToPriceX96(2));
+        uint128 inputAmount = inputAmountForTokens(totalSupply, tickNumberToPriceX96(2));
+        // Prevent bid from causing sumCurrencyDemandAboveClearingX128 to overflow
+        vm.assume(inputAmount * FixedPoint128.Q128 < (type(uint256).max / 1e7));
         vm.deal(address(this), inputAmount);
         uint256 bidId = newAuction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
@@ -143,10 +146,10 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         // Assert that values in the final checkpoint is the same as the checkpoint after selling 1e7 mps worth of tokens
         assertEq(finalCheckpoint.cumulativeMps, checkpoint.cumulativeMps);
         assertEq(finalCheckpoint.clearingPrice, checkpoint.clearingPrice);
-        assertEq(finalCheckpoint.totalCurrencyRaisedX7X7, checkpoint.totalCurrencyRaisedX7X7);
+        assertEq(finalCheckpoint.currencyRaisedX7, checkpoint.currencyRaisedX7);
         assertEq(
-            finalCheckpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7,
-            checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7
+            finalCheckpoint.cumulativeCurrencyRaisedAtClearingPriceX7,
+            checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7
         );
         assertEq(finalCheckpoint.cumulativeMpsPerPrice, checkpoint.cumulativeMpsPerPrice);
         // Don't check mps, prev, and next because they will be different

@@ -4,9 +4,7 @@ pragma solidity 0.8.26;
 import {Tick, TickStorage} from '../src/TickStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
-
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
-import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {Test} from 'forge-std/Test.sol';
 
@@ -22,8 +20,8 @@ contract MockTickStorage is TickStorage {
         super._initializeTickIfNeeded(prevPrice, price);
     }
 
-    function updateTick(uint256 price, ValueX7 demand) external {
-        super._updateTickDemand(price, demand);
+    function updateTick(uint256 price, uint256 demandX128) external {
+        super._updateTickDemand(price, demandX128);
     }
 }
 
@@ -118,7 +116,7 @@ contract TickStorageTest is Test, Assertions {
         // $floorPrice_rounded is guaranteed to be initialized already
         tickStorage.initializeTickIfNeeded($floorPrice_rounded, _price);
         Tick memory tick = tickStorage.getTick(_price);
-        assertEq(tick.currencyDemandX7, ValueX7.wrap(0));
+        assertEq(tick.currencyDemandX128, 0);
         // Assert there is no next tick (type(uint256).max)
         assertEq(tick.next, tickStorage.MAX_TICK_PTR());
         // Assert the nextActiveTick is unchanged

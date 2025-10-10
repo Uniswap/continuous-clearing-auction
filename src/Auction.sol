@@ -131,8 +131,10 @@ contract Auction is
         // If the clearing price is above the floor price, the auction is fully subscribed and the amount of
         // currency which will be raised is deterministic based on the initial supply schedule.
         if (_checkpoint.clearingPrice > FLOOR_PRICE) {
-            // TODO(ez): add comments here
-            // currencyRaised is a ValueX7 because we DO NOT divide by MPS here
+            // The currency raised over `deltaMps` percentage of the auction is simply the total supply
+            // over than percentage multiplied by the current clearing price
+            // note that currencyRaised is a ValueX7 because we DO NOT divide by MPS here, 
+            // and thus the value is 1e7 larger than the actual currency raised
             currencyRaisedX7 =
                 ValueX7.wrap(TOTAL_SUPPLY * deltaMps).wrapAndFullMulDiv(_checkpoint.clearingPrice, FixedPoint96.Q96);
             // There is a special case where the clearing price is at a tick boundary with bids.
@@ -202,11 +204,11 @@ contract Auction is
         returns (uint256)
     {
         /**
-         * We can calculate the new clearing price using the formula:
-         * TODO(ez)
+         * The new clearing price is simply the ratio of the cumulative currency demand above the clearing price
+         * to the total supply of the auction. It is multiplied by Q96 to return a value in terms of X96 form. 
          *
-         * The result of this may be lower than tickLowerPrice. That just means that we can't clear at any price above.
-         * And we should clear at tickLowerPrice instead.
+         * The result of this may be lower than tickLowerPrice. 
+         * That just means that we can't sell at any price above and should sell at tickLowerPrice instead.
          */
         uint256 clearingPrice =
             _sumCurrencyDemandAboveClearingX128.fullMulDivUp(FixedPoint96.Q96, TOTAL_SUPPLY.toX128());
@@ -232,9 +234,6 @@ contract Auction is
         uint256 nextActiveTickPrice_ = $nextActiveTickPrice;
 
         /**
-         * Tick iteration loop explained:
-         * TODO(ez)
-         *
          * We have the current demand above the clearing price, and we want to see if it is enough to fully purchase
          * all of the remaining supply being sold at the nextActiveTickPrice. We only need to check `nextActiveTickPrice`
          * because we know that there are no bids in between the current clearing price and that price.

@@ -52,6 +52,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     MockFundsRecipient public mockFundsRecipient;
 
     AuctionParameters public params;
+    FuzzDeploymentParams public $deploymentParams;
     bytes public auctionStepsData;
 
     uint128 public $bidAmount;
@@ -97,6 +98,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
         vm.assume(_deploymentParams.numberOfSteps > 0);
         vm.assume(ConstantsLib.MPS % _deploymentParams.numberOfSteps == 0); // such that it is divisible
+
+        vm.assume(_deploymentParams.auctionParams.requiredCurrencyRaised <= ConstantsLib.X7_UPPER_BOUND);
 
         // TODO(md): fix and have variation in the step sizes
 
@@ -171,7 +174,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // if the bid if not above the clearing price, don't submit the bid
         if (maxPrice <= clearingPrice) return (false, 0);
         // Assume the max price is valid
-        maxPrice = helper__assumeValidMaxPrice(auction.floorPrice(), maxPrice, auction.totalSupply(), auction.tickSpacing());
+        maxPrice =
+            helper__assumeValidMaxPrice(auction.floorPrice(), maxPrice, auction.totalSupply(), auction.tickSpacing());
         // If the bid would overflow a ValueX7 value, don't submit the bid
         uint128 ethInputAmount = inputAmountForTokens(_bid.bidAmount, maxPrice);
 
@@ -190,12 +194,11 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
                 // skip the test by returning false and 0
                 if (maxPrice <= checkpoint.clearingPrice) return (false, 0);
                 revert('Uncaught BidMustBeAboveClearingPrice');
-            }
-            else if (bytes4(revertData) == bytes4(abi.encodeWithSelector(IAuction.InvalidBidUnableToClear.selector))) {
+            } else if (bytes4(revertData) == bytes4(abi.encodeWithSelector(IAuction.InvalidBidUnableToClear.selector)))
+            {
                 // TODO(ez): fix this test to catch this error, for now just assume against these inputs
                 return (false, 0);
-            }
-            else if (bytes4(revertData) == bytes4(abi.encodeWithSelector(BidLib.InvalidBidPriceTooHigh.selector))) {
+            } else if (bytes4(revertData) == bytes4(abi.encodeWithSelector(BidLib.InvalidBidPriceTooHigh.selector))) {
                 // TODO(ez): fix this test to catch this error, for now just assume against these inputs
                 return (false, 0);
             }
@@ -257,6 +260,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         mockFundsRecipient = new MockFundsRecipient();
 
         params = helper__validFuzzDeploymentParams(_deploymentParams);
+        $deploymentParams = _deploymentParams;
 
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
@@ -339,27 +343,70 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _;
     }
 
-    function helper__assumeValidMaxPrice(uint256 _floorPrice, uint256 _maxPrice, uint256 _totalSupply, uint256 _tickSpacing) internal returns (uint256) {
+    modifier givenValidMaxPriceWithParams(
+        uint256 _maxPrice,
+        uint256 _totalSupply,
+        uint256 _floorPrice,
+        uint256 _tickSpacing
+    ) {
+        $maxPrice = helper__assumeValidMaxPrice(_floorPrice, _maxPrice, _totalSupply, _tickSpacing);
+        _;
+    }
+
+    function helper__assumeValidMaxPrice(
+        uint256 _floorPrice,
+        uint256 _maxPrice,
+        uint256 _totalSupply,
+        uint256 _tickSpacing
+    ) internal returns (uint256) {
         _maxPrice = _bound(_maxPrice, _floorPrice, BidLib.MAX_BID_PRICE);
-        uint256 ratioOfMaxPriceToQ96 = _maxPrice / FixedPoint96.Q96;
-        vm.assume(_totalSupply < type(uint256).max / ratioOfMaxPriceToQ96 / ConstantsLib.MPS);
+        // Prevent InvalidBidPriceTooHigh
+        vm.assume(uint256(_totalSupply).fullMulDiv(_maxPrice, FixedPoint96.Q96) <= type(uint256).max.fromX128());
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, _tickSpacing);
         vm.assume(_maxPrice > _floorPrice);
         return _maxPrice;
     }
 
     modifier givenValidBidAmount(uint128 _bidAmount) {
-        uint256 maxBidAmount = BidLib.MAX_BID_AMOUNT.fullMulDiv(FixedPoint96.Q96, $maxPrice);
-        maxBidAmount = _bound(maxBidAmount, BidLib.MIN_BID_AMOUNT, type(uint128).max);
-        $bidAmount = SafeCastLib.toUint128(_bound(_bidAmount, BidLib.MIN_BID_AMOUNT, maxBidAmount));
+        require($maxPrice > 0, '$maxPrice is not set yet');
+        uint128 inputAmount = inputAmountForTokens(_bidAmount, $maxPrice);
+        $bidAmount = SafeCastLib.toUint128(_bound(inputAmount, BidLib.MIN_BID_AMOUNT, type(uint128).max / 1e7));
         _;
     }
 
     modifier givenGraduatedAuction() {
-        uint256 maxBidAmount = BidLib.MAX_BID_AMOUNT.fullMulDiv(FixedPoint96.Q96, $maxPrice);
-        maxBidAmount = _bound(maxBidAmount, TOTAL_SUPPLY, type(uint128).max);
-        $bidAmount = SafeCastLib.toUint128(_bound($bidAmount, TOTAL_SUPPLY, maxBidAmount));
+        vm.assume($bidAmount >= params.requiredCurrencyRaised);
         _;
+    }
+
+    modifier givenNotGraduatedAuction() {
+        vm.assume($bidAmount < params.requiredCurrencyRaised);
+        _;
+    }
+
+    function helper__submitBid(Auction _auction, address _owner, uint128 _amount, uint256 _maxPrice)
+        internal
+        returns (uint256)
+    {
+        return _auction.submitBid{value: _amount}(_maxPrice, _amount, _owner, tickNumberToPriceX96(1), bytes(''));
+    }
+
+    /// @notice Helper to submit N number of bids at the same amount and max price
+    function helper__submitNBids(
+        Auction _auction,
+        address _owner,
+        uint128 _amount,
+        uint128 _numberOfBids,
+        uint256 _maxPrice
+    ) internal returns (uint256[] memory) {
+        // Split the amount between the bids
+        uint128 amountPerBid = _amount / _numberOfBids;
+
+        uint256[] memory bids = new uint256[](_numberOfBids);
+        for (uint256 i = 0; i < _numberOfBids; i++) {
+            bids[i] = helper__submitBid(_auction, _owner, amountPerBid, _maxPrice);
+        }
+        return bids;
     }
 
     /// @dev Helper function to convert a tick number to a priceX96

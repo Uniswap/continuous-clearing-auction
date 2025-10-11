@@ -3,6 +3,8 @@ pragma solidity 0.8.26;
 
 import {ITokenCurrencyStorage} from './interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
+
+import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -25,6 +27,8 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     address internal immutable TOKENS_RECIPIENT;
     /// @notice The recipient of the raised Currency from the auction
     address internal immutable FUNDS_RECIPIENT;
+    /// @notice The amount of currency required to be raised for the auction to graduate, scaled up to a ValueX7
+    ValueX7 internal immutable REQUIRED_CURRENCY_RAISED_X7;
 
     /// @notice The block at which the currency was swept
     uint256 public sweepCurrencyBlock;
@@ -36,7 +40,8 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         address _currency,
         uint128 _totalSupply,
         address _tokensRecipient,
-        address _fundsRecipient
+        address _fundsRecipient,
+        uint256 _requiredCurrencyRaised
     ) {
         TOKEN = IERC20Minimal(_token);
         CURRENCY = Currency.wrap(_currency);
@@ -45,6 +50,8 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         TOTAL_SUPPLY_X7 = _totalSupply.scaleUpToX7();
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;
+        if (_requiredCurrencyRaised > ConstantsLib.X7_UPPER_BOUND) revert RequiredCurrencyRaisedIsTooLarge();
+        REQUIRED_CURRENCY_RAISED_X7 = _requiredCurrencyRaised.scaleUpToX7();
 
         if (_token == address(0)) revert TokenIsAddressZero();
         if (_token == address(_currency)) revert TokenAndCurrencyCannotBeTheSame();

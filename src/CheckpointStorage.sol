@@ -40,7 +40,11 @@ abstract contract CheckpointStorage is ICheckpointStorage {
 
     /// @inheritdoc ICheckpointStorage
     function currencyRaised() public view returns (uint256) {
-        return _getCheckpoint($lastCheckpointedBlock).getCurrencyRaised();
+        return _getCheckpoint($lastCheckpointedBlock).currencyRaisedX128_X7.scaleDownToUint256().fromX128();
+    }
+
+    function currencyRaisedX128() public view returns (uint256) {
+        return _getCheckpoint($lastCheckpointedBlock).currencyRaisedX128_X7.scaleDownToUint256();
     }
 
     /// @notice Get a checkpoint from storage
@@ -82,19 +86,19 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     /// @notice Calculate the tokens sold and currency spent for a partially filled bid
     /// @param bid The bid
     /// @param tickDemandX128 The total demand at the tick
-    /// @param cumulativeCurrencyRaisedAtClearingPriceX7 The cumulative supply sold to the clearing price
+    /// @param currencyRaisedAtClearingPriceX128_X7 The cumulative supply sold to the clearing price
     /// @return tokensFilled The tokens sold
     /// @return currencySpentX128 The amount of currency spent in X128.128 form
     function _accountPartiallyFilledCheckpoints(
         Bid memory bid,
         uint256 tickDemandX128,
-        ValueX7 cumulativeCurrencyRaisedAtClearingPriceX7
+        ValueX7 currencyRaisedAtClearingPriceX128_X7
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpentX128) {
         if (tickDemandX128 == 0) return (0, 0);
 
         // TODO(ez): fix comments
         ValueX7 currencySpentX128_X7 = bid.amountX128.scaleUpToX7().fullMulDiv(
-            cumulativeCurrencyRaisedAtClearingPriceX7.mulUint256(FixedPoint128.Q128),
+            currencyRaisedAtClearingPriceX128_X7,
             ValueX7.wrap(tickDemandX128 * bid.mpsRemainingInAuctionAfterSubmission())
         );
         currencySpentX128 = currencySpentX128_X7.scaleDownToUint256();

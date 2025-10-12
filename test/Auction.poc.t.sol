@@ -67,7 +67,7 @@ contract Leftovers is AuctionBaseTest {
         Checkpoint memory cp1 = mockAuction.checkpoint();
         emit log_named_uint('Cp1, block', block.number);
         emit log_named_decimal_uint('Cp1, Price after bid1', cp1.clearingPrice / 1e14, 18);
-        emit log_named_decimal_uint('Cp1, raised', ValueX7.unwrap(cp1.currencyRaisedX7) / 1e14, 18);
+        emit log_named_decimal_uint('Cp1, raised', ValueX7.unwrap(cp1.currencyRaisedX128_X7) / 1e14, 18);
 
         // PERIOD 2: Add second bid at tick30
         if (_withSecondBid) {
@@ -84,7 +84,7 @@ contract Leftovers is AuctionBaseTest {
             vm.roll(block.number + 1);
             emit log_named_uint('Cp2, block', block.number);
             Checkpoint memory cp2 = mockAuction.checkpoint();
-            emit log_named_decimal_uint('Cp2, raised', ValueX7.unwrap(cp2.currencyRaisedX7) / 1e7, 18);
+            emit log_named_decimal_uint('Cp2, raised', ValueX7.unwrap(cp2.currencyRaisedX128_X7) / 1e7, 18);
             emit log_named_decimal_uint('Cp2, Price after second bid', cp2.clearingPrice / 1e14, 18);
             emit log_named_decimal_uint('Cp2, Cumulative MPS', cp2.cumulativeMps, 5);
         }
@@ -92,7 +92,7 @@ contract Leftovers is AuctionBaseTest {
         {
             vm.roll(block.number + 1);
             Checkpoint memory cp3 = mockAuction.checkpoint();
-            emit log_named_decimal_uint('Cp3, raised', ValueX7.unwrap(cp3.currencyRaisedX7) / 1e7, 18);
+            emit log_named_decimal_uint('Cp3, raised', ValueX7.unwrap(cp3.currencyRaisedX128_X7) / 1e7, 18);
             emit log_named_decimal_uint('Cp3, Price after second bid', cp3.clearingPrice / 1e14, 18);
             emit log_named_decimal_uint('Cp3, Cumulative MPS', cp3.cumulativeMps, 5);
         }
@@ -104,7 +104,7 @@ contract Leftovers is AuctionBaseTest {
         emit log_named_uint('Final checkpoint block', block.number);
 
         bool graduated = mockAuction.isGraduated();
-        uint256 raised = ValueX7.unwrap(finalCheckpoint.currencyRaisedX7) / 1e7;
+        uint256 raised = ValueX7.unwrap(finalCheckpoint.currencyRaisedX128_X7) / 1e7;
 
         emit log('==================== FINAL CHECKPOINT ====================');
         emit log_named_decimal_uint('Raised', raised, 18);
@@ -115,7 +115,7 @@ contract Leftovers is AuctionBaseTest {
         emit log_named_decimal_uint('P-30 ', tick30 / 1e14, 18);
         emit log_named_decimal_uint('Cumulative MPS', finalCheckpoint.cumulativeMps, 5);
         emit log_named_string('Graduated', graduated ? 'true' : 'false');
-        emit log_named_decimal_uint('Currency raised', CheckpointLib.getCurrencyRaised(finalCheckpoint), 18);
+        emit log_named_decimal_uint('Currency raised', mockAuction.currencyRaised(), 18);
 
         if (!_sweepEarly) {
             exitAndClaim(_sweepEarly);
@@ -132,7 +132,7 @@ contract Leftovers is AuctionBaseTest {
 
     function exitAndClaim(bool _sweepEarly) public {
         Checkpoint memory finalCheckpoint = mockAuction.checkpoint();
-        uint256 raised = ValueX7.unwrap(finalCheckpoint.currencyRaisedX7) / 1e7;
+        uint256 raised = ValueX7.unwrap(finalCheckpoint.currencyRaisedX128_X7) / 1e7;
 
         {
             emit log('==================== EXITING BIDS ====================');

@@ -90,7 +90,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
 
         vm.roll(auction.endBlock());
         Checkpoint memory checkpoint = auction.checkpoint();
-        uint256 expectedCurrencyRaised = checkpoint.currencyRaisedX7.scaleDownToUint256();
+        uint256 expectedCurrencyRaised = checkpoint.currencyRaisedX128_X7.scaleDownToUint256().fromX128();
 
         vm.prank(fundsRecipient);
         vm.expectEmit(true, true, true, true);

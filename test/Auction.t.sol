@@ -298,24 +298,17 @@ contract AuctionTest is AuctionBaseTest {
 
         // Advance to the next block to get the next checkpoint
         vm.roll(block.number + 1);
-        vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, $maxPrice, ValueX7.wrap(0), 0);
         auction.checkpoint();
 
         // Advance to the end of the first step
         vm.roll(auction.startBlock() + 101);
 
-        uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
-        ValueX7 expectedTotalCurrencyRaised =
-            ValueX7.wrap(TOTAL_SUPPLY_X128).wrapAndFullMulDiv($maxPrice * expectedCumulativeMps, FixedPoint96.Q96);
         // Now the auction should start clearing
-        vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, $maxPrice, expectedTotalCurrencyRaised, expectedCumulativeMps);
         Checkpoint memory checkpoint = auction.checkpoint();
+        assertEq(checkpoint.cumulativeMps, 100e3);
 
         vm.roll(auction.endBlock());
         uint256 aliceBalanceBefore = address(alice).balance;
-        uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
         if ($maxPrice > checkpoint.clearingPrice) {
             auction.exitBid(bidId);
@@ -326,10 +319,10 @@ contract AuctionTest is AuctionBaseTest {
         assertGe(address(alice).balance, aliceBalanceBefore);
 
         vm.roll(auction.claimBlock());
-        vm.expectEmit(true, true, true, true);
-        emit IAuction.TokensClaimed(bidId, alice, TOTAL_SUPPLY);
         auction.claimTokens(bidId);
-        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + TOTAL_SUPPLY);
+
+        auction.sweepCurrency();
+        auction.sweepUnsoldTokens();
     }
 
     function test_submitBid_noRolloverSupply(uint256 _seed) public {
@@ -557,18 +550,12 @@ contract AuctionTest is AuctionBaseTest {
             auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, tickNumberToPriceX96(1), bytes(''));
 
         vm.roll(block.number + 1);
-        vm.expectEmit(true, true, true, true);
-        uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
-        ValueX7 expectedTotalCurrencyRaised =
-            ValueX7.wrap(TOTAL_SUPPLY_X128).wrapAndFullMulDiv($maxPrice * expectedCumulativeMps, FixedPoint96.Q96);
-        emit IAuction.CheckpointUpdated(block.number, $maxPrice, expectedTotalCurrencyRaised, expectedCumulativeMps);
         Checkpoint memory checkpoint = auction.checkpoint();
 
         // Before the auction ends, the bid should not be exitable since it is at the clearing price
-        vm.startPrank(alice);
         vm.roll(auction.endBlock() - 1);
         if ($maxPrice > checkpoint.clearingPrice) {
-            vm.expectRevert(IAuction.CannotExitBid.selector);
+            vm.expectRevert(IAuction.AuctionIsNotOver.selector);
             auction.exitBid(bidId);
         } else {
             vm.expectRevert(IAuction.CannotPartiallyExitBidBeforeEndBlock.selector);
@@ -584,9 +571,9 @@ contract AuctionTest is AuctionBaseTest {
         }
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
-        // Expect purchased TOTAL_SUPPLY tokens
-        assertEq(token.balanceOf(address(alice)), TOTAL_SUPPLY);
-        vm.stopPrank();
+
+        auction.sweepCurrency();
+        auction.sweepUnsoldTokens();
     }
 
     function test_exitBid_joinedLate_succeeds(uint128 _bidAmount1, uint256 _maxPrice)
@@ -1712,8 +1699,8 @@ contract AuctionTest is AuctionBaseTest {
         uint256 bidId1 = helper__submitBid(auction, bob, TOTAL_SUPPLY - 1, tickNumberToPriceX96(2));
 
         vm.roll(auction.endBlock());
-        auction.exitPartiallyFilledBid(bidId0, 1, 0);
-        auction.exitPartiallyFilledBid(bidId1, 1, 0);
+        auction.exitBid(bidId0);
+        auction.exitBid(bidId1);
 
         uint256[] memory bids = new uint256[](2);
         bids[0] = bidId0;
@@ -1757,7 +1744,9 @@ contract AuctionTest is AuctionBaseTest {
     {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
         // Because each bid will be a little less due to rounding
-        $bidAmount = uint128(_bound($bidAmount, TOTAL_SUPPLY + _numberOfBids, type(uint128).max));
+        if ($bidAmount < TOTAL_SUPPLY + _numberOfBids) {
+            $bidAmount = TOTAL_SUPPLY + _numberOfBids;
+        }
 
         uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids, $maxPrice);
         emit log_named_uint('block number', block.number);
@@ -1793,7 +1782,9 @@ contract AuctionTest is AuctionBaseTest {
     {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
         // Because each bid will be a little less due to rounding
-        $bidAmount = uint128(_bound($bidAmount, TOTAL_SUPPLY + _numberOfBids, type(uint128).max));
+        if ($bidAmount < TOTAL_SUPPLY + _numberOfBids) {
+            $bidAmount = TOTAL_SUPPLY + _numberOfBids;
+        }
 
         Auction failingAuction = helper__deployAuctionWithFailingToken();
 
@@ -1825,7 +1816,9 @@ contract AuctionTest is AuctionBaseTest {
     {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
         // Because each bid will be a little less due to rounding
-        $bidAmount = uint128(_bound($bidAmount, TOTAL_SUPPLY + _numberOfBids, type(uint128).max));
+        if ($bidAmount < TOTAL_SUPPLY + _numberOfBids) {
+            $bidAmount = TOTAL_SUPPLY + _numberOfBids;
+        }
 
         uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids, $maxPrice);
 

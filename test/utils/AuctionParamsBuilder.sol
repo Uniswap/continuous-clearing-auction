@@ -134,7 +134,7 @@ library AuctionParamsBuilder {
         return params;
     }
 
-    function withRequiredCurrencyRaised(AuctionParameters memory params, uint256 requiredCurrencyRaised)
+    function withRequiredCurrencyRaised(AuctionParameters memory params, uint128 requiredCurrencyRaised)
         internal
         pure
         returns (AuctionParameters memory)

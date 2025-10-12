@@ -24,6 +24,7 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
     using ValueX7Lib for *;
+    using BidLib for *;
 
     AuctionFactory factory;
     Auction auction;
@@ -236,6 +237,7 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         vm.assume(_salt != bytes32(0));
         vm.assume(_numberOfSteps > 0);
         vm.assume(ConstantsLib.MPS % _numberOfSteps == 0); // such that it is divisible
+        vm.assume(_params.requiredCurrencyRaised.toX128() <= ConstantsLib.X7_UPPER_BOUND);
 
         // Replace auction steps data with a valid one
         // Divide steps by number of bips

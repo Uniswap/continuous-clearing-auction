@@ -112,7 +112,7 @@ contract Auction is
     /// @notice Whether the auction has graduated as of the given checkpoint
     /// @dev The auction is considered `graudated` if the currency raised is greater than or equal to the required currency raised
     function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool) {
-        return _checkpoint.currencyRaisedX7.gte(REQUIRED_CURRENCY_RAISED_X7);
+        return _checkpoint.currencyRaisedX128_X7.gte(REQUIRED_CURRENCY_RAISED_X128.scaleUpToX7());
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
@@ -137,6 +137,7 @@ contract Auction is
             currencyRaisedX128_X7 = ValueX7.wrap(TOTAL_SUPPLY_X128 * deltaMps).wrapAndFullMulDiv(
                 _checkpoint.clearingPrice, FixedPoint96.Q96
             );
+            console.log('currencyRaisedX128_X7', ValueX7.unwrap(currencyRaisedX128_X7));
             // There is a special case where the clearing price is at a tick boundary with bids.
             // In this case, we have to explicitly track the supply sold to that price since they are "partially filled"
             // and thus the amount of tokens sold to that price is <= to the collective demand at that price, since bidders at higher prices are prioritized.
@@ -150,6 +151,8 @@ contract Auction is
                 // currencyRaisedAboveClearingPriceX128_X7 is a ValueX7 because we DO NOT divide by MPS here
                 ValueX7 currencyRaisedAboveClearingPriceX128_X7 =
                     ValueX7.wrap($sumCurrencyDemandAboveClearingX128 * deltaMps);
+                console.log('currencyRaisedX128_X7', ValueX7.unwrap(currencyRaisedX128_X7));
+                console.log('currencyRaisedAboveClearingPriceX128_X7', ValueX7.unwrap(currencyRaisedAboveClearingPriceX128_X7));
                 ValueX7 currencyRaisedAtClearingPriceX128_X7 =
                     currencyRaisedX128_X7.sub(currencyRaisedAboveClearingPriceX128_X7);
                 // Update the cumulative value in the checkpoint which will be reset if the clearing price changes
@@ -296,6 +299,7 @@ contract Auction is
         // Now account for any time in between this checkpoint and the greater of the start of the step or the last checkpointed block
         uint64 blockDelta =
             blockNumber - ($step.startBlock > $lastCheckpointedBlock ? $step.startBlock : $lastCheckpointedBlock);
+        console.log('blockDelta', blockDelta);
         uint24 mpsSinceLastCheckpoint = uint256($step.mps * blockDelta).toUint24();
 
         // Sell the percentage of outstanding tokens since the last checkpoint to the current clearing price

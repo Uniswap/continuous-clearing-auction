@@ -69,7 +69,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _deploymentParams.auctionParams.tokensRecipient = tokensRecipient;
         _deploymentParams.auctionParams.fundsRecipient = fundsRecipient;
         _deploymentParams.auctionParams.validationHook = address(0);
-        vm.assume(_deploymentParams.totalSupply > 0);
+        _deploymentParams.totalSupply = uint128(_bound(_deploymentParams.totalSupply, 1, type(uint128).max / 1e7));
 
         // -2 because we need to account for the endBlock and claimBlock
         _deploymentParams.auctionParams.startBlock = uint64(
@@ -99,8 +99,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
         vm.assume(_deploymentParams.numberOfSteps > 0);
         vm.assume(ConstantsLib.MPS % _deploymentParams.numberOfSteps == 0); // such that it is divisible
-
-        vm.assume(_deploymentParams.auctionParams.requiredCurrencyRaised <= ConstantsLib.X7_UPPER_BOUND);
+        vm.assume(_deploymentParams.auctionParams.requiredCurrencyRaised <= type(uint128).max / 1e7);
 
         // TODO(md): fix and have variation in the step sizes
 
@@ -346,7 +345,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     modifier givenValidMaxPriceWithParams(
         uint256 _maxPrice,
-        uint256 _totalSupply,
+        uint128 _totalSupply,
         uint256 _floorPrice,
         uint256 _tickSpacing
     ) {
@@ -362,7 +361,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     ) internal returns (uint256) {
         _maxPrice = _bound(_maxPrice, _floorPrice, BidLib.MAX_BID_PRICE);
         // Prevent InvalidBidPriceTooHigh
-        vm.assume(uint256(_totalSupply).fullMulDiv(_maxPrice, FixedPoint96.Q96) <= type(uint256).max.fromX128());
+        vm.assume(uint256(_totalSupply).fullMulDiv(_maxPrice, FixedPoint96.Q96) <= type(uint128).max);
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, _tickSpacing);
         vm.assume(_maxPrice > _floorPrice);
         return _maxPrice;
@@ -376,6 +375,11 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     }
 
     modifier givenGraduatedAuction() {
+        // The max currency that can be raised from this bid is totalSupply * maxPrice
+        uint256 maxCurrencyRaised = uint256($deploymentParams.totalSupply).fullMulDiv($maxPrice, FixedPoint96.Q96);
+        // Require the graduation threshold to be less than the max currency that can be raised
+        vm.assume(params.requiredCurrencyRaised <= maxCurrencyRaised);
+        // Assume that the bid surpasses the graduation threshold
         vm.assume($bidAmount >= params.requiredCurrencyRaised);
         _;
     }
@@ -389,7 +393,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         internal
         returns (uint256)
     {
-        return _auction.submitBid{value: _amount}(_maxPrice, _amount, _owner, tickNumberToPriceX96(1), bytes(''));
+        return _auction.submitBid{value: _amount}(_maxPrice, _amount, _owner, params.floorPrice, bytes(''));
     }
 
     /// @notice Helper to submit N number of bids at the same amount and max price

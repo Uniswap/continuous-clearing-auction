@@ -39,7 +39,6 @@ contract AuctionInvariantHandler is Test, Assertions {
     Currency public currency;
     IERC20Minimal public token;
 
-    uint256 public constant BID_MAX_PRICE = BidLib.MAX_BID_PRICE;
     uint256 public BID_MIN_PRICE;
 
     // Ghost variables
@@ -142,7 +141,7 @@ contract AuctionInvariantHandler is Test, Assertions {
         validateCheckpoint
     {
         // Bid requests for anything between 1 and 2x the total supply of tokens
-        uint128 amount = SafeCastLib.toUint128(_bound(bidAmount, BidLib.MIN_BID_AMOUNT, mockAuction.totalSupply() * 2));
+        uint128 amount = SafeCastLib.toUint128(_bound(bidAmount, 1, mockAuction.totalSupply() * 2));
         (uint128 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(amount, tickNumber);
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);

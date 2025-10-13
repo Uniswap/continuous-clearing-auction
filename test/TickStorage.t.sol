@@ -37,11 +37,11 @@ contract TickStorageTest is Test, Assertions {
 
     modifier givenValidDeploymentParams(uint256 _tickSpacing, uint256 _floorPrice) {
         $tickSpacing = _tickSpacing;
-        vm.assume(_tickSpacing > 0 && _tickSpacing < BidLib.MAX_BID_PRICE);
+        vm.assume(_tickSpacing > 0);
         $floorPrice_rounded = helper__roundPriceDownToTickSpacing(_floorPrice, $tickSpacing);
         vm.assume($floorPrice_rounded > 0);
         // Assume that floor price is at least one tick away from max price
-        vm.assume($floorPrice_rounded < BidLib.MAX_BID_PRICE - $tickSpacing);
+        vm.assume($floorPrice_rounded < $tickSpacing);
         _;
     }
 
@@ -61,12 +61,11 @@ contract TickStorageTest is Test, Assertions {
         _price = _bound(
             _price,
             helper__roundPriceUpToTickSpacing($floorPrice_rounded, $tickSpacing),
-            helper__roundPriceDownToTickSpacing(BidLib.MAX_BID_PRICE, $tickSpacing)
+            helper__roundPriceDownToTickSpacing(type(uint256).max, $tickSpacing)
         );
         _price = helper__roundPriceDownToTickSpacing(_price, $tickSpacing);
         vm.assume(_price % $tickSpacing == 0);
         vm.assume(_price > $floorPrice_rounded);
-        vm.assume(_price < BidLib.MAX_BID_PRICE);
         return _price;
     }
 
@@ -88,9 +87,6 @@ contract TickStorageTest is Test, Assertions {
             _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
         } else if (floorPrice == 0) {
             vm.expectRevert(ITickStorage.FloorPriceIsZero.selector);
-            _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
-        } else if (floorPrice >= BidLib.MAX_BID_PRICE) {
-            vm.expectRevert(ITickStorage.FloorPriceAboveMaxBidPrice.selector);
             _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
         } else if (floorPrice % tickSpacing != 0) {
             vm.expectRevert(ITickStorage.TickPriceNotAtBoundary.selector);

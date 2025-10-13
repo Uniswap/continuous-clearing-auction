@@ -586,8 +586,7 @@ contract AuctionTest is AuctionBaseTest {
         givenFullyFundedAccount
     {
         // Neither bid can fully fill the auction, but both together will
-        _bidAmount1 =
-            SafeCastLib.toUint128(_bound(_bidAmount1, BidLib.MIN_BID_AMOUNT, TOTAL_SUPPLY - BidLib.MIN_BID_AMOUNT - 1));
+        _bidAmount1 = SafeCastLib.toUint128(_bound(_bidAmount1, 1, TOTAL_SUPPLY - 1));
 
         uint128 bid1InputAmount = inputAmountForTokens(_bidAmount1, $maxPrice);
         vm.roll(auction.endBlock() - 1);
@@ -884,9 +883,9 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(block.number + 1);
-        uint256 bidId4 = auction.submitBid{value: inputAmountForTokens(BidLib.MIN_BID_AMOUNT, tickNumberToPriceX96(6))}(
+        uint256 bidId4 = auction.submitBid{value: inputAmountForTokens(1, tickNumberToPriceX96(6))}(
             tickNumberToPriceX96(6),
-            inputAmountForTokens(BidLib.MIN_BID_AMOUNT, tickNumberToPriceX96(6)),
+            inputAmountForTokens(1, tickNumberToPriceX96(6)),
             charlie,
             tickNumberToPriceX96(5),
             bytes('')
@@ -1013,9 +1012,9 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_exitPartiallyfilledBid_outbid_succeeds() public {
-        uint256 bidId = auction.submitBid{value: inputAmountForTokens(BidLib.MIN_BID_AMOUNT, tickNumberToPriceX96(2))}(
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(1, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
-            inputAmountForTokens(BidLib.MIN_BID_AMOUNT, tickNumberToPriceX96(2)),
+            inputAmountForTokens(1, tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -1038,9 +1037,9 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_exitPartiallyfilledBid_outbidBlockIsCurrentBlock_succeeds() public {
-        uint256 bidId = auction.submitBid{value: inputAmountForTokens(BidLib.MIN_BID_AMOUNT, tickNumberToPriceX96(2))}(
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(1, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
-            inputAmountForTokens(BidLib.MIN_BID_AMOUNT, tickNumberToPriceX96(2)),
+            inputAmountForTokens(1, tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -1062,9 +1061,9 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_exitPartiallyfilledBid_withHigherOutbidBlockHint_reverts() public {
-        uint256 bidId = auction.submitBid{value: inputAmountForTokens(BidLib.MIN_BID_AMOUNT, tickNumberToPriceX96(2))}(
+        uint256 bidId = auction.submitBid{value: inputAmountForTokens(1, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
-            inputAmountForTokens(BidLib.MIN_BID_AMOUNT, tickNumberToPriceX96(2)),
+            inputAmountForTokens(1, tickNumberToPriceX96(2)),
             alice,
             tickNumberToPriceX96(1),
             bytes('')
@@ -1515,13 +1514,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectRevert(ITickStorage.FloorPriceIsZero.selector);
         new Auction(address(token), TOTAL_SUPPLY, paramsZeroFloorPrice);
     }
-
-    function test_auctionConstruction_revertsWithFloorPriceAboveMaxBidPrice() public {
-        AuctionParameters memory paramsMaxFloorPrice = params.withFloorPrice(BidLib.MAX_BID_PRICE);
-        vm.expectRevert(ITickStorage.FloorPriceAboveMaxBidPrice.selector);
-        new Auction(address(token), TOTAL_SUPPLY, paramsMaxFloorPrice);
-    }
-
+    
     function test_auctionConstruction_revertsWithClaimBlockBeforeEndBlock() public {
         AuctionParameters memory paramsClaimBlockBeforeEndBlock =
             params.withClaimBlock(block.number + AUCTION_DURATION - 1).withEndBlock(block.number + AUCTION_DURATION);
@@ -1921,7 +1914,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_sweepCurrency_notGraduated_reverts(uint128 _bidAmount) public givenFullyFundedAccount {
-        _bidAmount = uint128(_bound(_bidAmount, BidLib.MIN_BID_AMOUNT, TOTAL_SUPPLY / 2));
+        _bidAmount = uint128(_bound(_bidAmount, 1, TOTAL_SUPPLY / 2));
         auction.submitBid{value: inputAmountForTokens(_bidAmount, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
             inputAmountForTokens(_bidAmount, tickNumberToPriceX96(2)),
@@ -1994,7 +1987,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_sweepUnsoldTokens_notGraduated_sweepsAll(uint128 _bidAmount) public givenFullyFundedAccount {
-        _bidAmount = uint128(_bound(_bidAmount, BidLib.MIN_BID_AMOUNT, TOTAL_SUPPLY / 2));
+        _bidAmount = uint128(_bound(_bidAmount, 1, TOTAL_SUPPLY / 2));
         uint128 inputAmount = inputAmountForTokens(_bidAmount, tickNumberToPriceX96(2));
         auction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
@@ -2042,7 +2035,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_sweepTokens_notGraduated_cannotSweepCurrency(uint128 _bidAmount) public {
-        _bidAmount = uint128(_bound(_bidAmount, BidLib.MIN_BID_AMOUNT, TOTAL_SUPPLY / 2));
+        _bidAmount = uint128(_bound(_bidAmount, 1, TOTAL_SUPPLY / 2));
         uint128 inputAmount = inputAmountForTokens(_bidAmount, tickNumberToPriceX96(2));
         auction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')

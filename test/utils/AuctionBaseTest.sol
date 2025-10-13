@@ -166,12 +166,11 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
         // Get the correct bid prices for the bid
         uint256 maxPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(_bid.tickNumber);
-        // if the bid is above the max price, don't submit the bid
-        if (maxPrice >= BidLib.MAX_BID_PRICE) return (false, 0);
         // if the bid if not above the clearing price, don't submit the bid
         if (maxPrice <= clearingPrice) return (false, 0);
         // Assume the max price is valid
-        maxPrice = helper__assumeValidMaxPrice(auction.floorPrice(), maxPrice, auction.totalSupply(), auction.tickSpacing());
+        maxPrice =
+            helper__assumeValidMaxPrice(auction.floorPrice(), maxPrice, auction.totalSupply(), auction.tickSpacing());
         // If the bid would overflow a ValueX7 value, don't submit the bid
         uint128 ethInputAmount = inputAmountForTokens(_bid.bidAmount, maxPrice);
 
@@ -190,12 +189,11 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
                 // skip the test by returning false and 0
                 if (maxPrice <= checkpoint.clearingPrice) return (false, 0);
                 revert('Uncaught BidMustBeAboveClearingPrice');
-            }
-            else if (bytes4(revertData) == bytes4(abi.encodeWithSelector(IAuction.InvalidBidUnableToClear.selector))) {
+            } else if (bytes4(revertData) == bytes4(abi.encodeWithSelector(IAuction.InvalidBidUnableToClear.selector)))
+            {
                 // TODO(ez): fix this test to catch this error, for now just assume against these inputs
                 return (false, 0);
-            }
-            else if (bytes4(revertData) == bytes4(abi.encodeWithSelector(BidLib.InvalidBidPriceTooHigh.selector))) {
+            } else if (bytes4(revertData) == bytes4(abi.encodeWithSelector(BidLib.InvalidBidPriceTooHigh.selector))) {
                 // TODO(ez): fix this test to catch this error, for now just assume against these inputs
                 return (false, 0);
             }
@@ -236,7 +234,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     modifier setUpBidsFuzz(FuzzBid[] memory _bids) {
         for (uint256 i = 0; i < _bids.length; i++) {
             // Note(md): errors when bumped to uint128
-            _bids[i].bidAmount = uint64(_bound(_bids[i].bidAmount, BidLib.MIN_BID_AMOUNT, type(uint64).max));
+            _bids[i].bidAmount = uint64(_bound(_bids[i].bidAmount, 1, type(uint64).max));
             _bids[i].tickNumber = uint8(_bound(_bids[i].tickNumber, 1, type(uint8).max));
         }
         _;
@@ -339,8 +337,13 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _;
     }
 
-    function helper__assumeValidMaxPrice(uint256 _floorPrice, uint256 _maxPrice, uint256 _totalSupply, uint256 _tickSpacing) internal returns (uint256) {
-        _maxPrice = _bound(_maxPrice, _floorPrice, BidLib.MAX_BID_PRICE);
+    function helper__assumeValidMaxPrice(
+        uint256 _floorPrice,
+        uint256 _maxPrice,
+        uint256 _totalSupply,
+        uint256 _tickSpacing
+    ) internal returns (uint256) {
+        _maxPrice = _bound(_maxPrice, _floorPrice, type(uint256).max);
         uint256 ratioOfMaxPriceToQ96 = _maxPrice / FixedPoint96.Q96;
         vm.assume(_totalSupply < type(uint256).max / ratioOfMaxPriceToQ96 / ConstantsLib.MPS);
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, _tickSpacing);
@@ -350,8 +353,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     modifier givenValidBidAmount(uint128 _bidAmount) {
         uint256 maxBidAmount = BidLib.MAX_BID_AMOUNT.fullMulDiv(FixedPoint96.Q96, $maxPrice);
-        maxBidAmount = _bound(maxBidAmount, BidLib.MIN_BID_AMOUNT, type(uint128).max);
-        $bidAmount = SafeCastLib.toUint128(_bound(_bidAmount, BidLib.MIN_BID_AMOUNT, maxBidAmount));
+        maxBidAmount = _bound(maxBidAmount, 1, type(uint128).max);
+        $bidAmount = SafeCastLib.toUint128(_bound(_bidAmount, 1, maxBidAmount));
         _;
     }
 

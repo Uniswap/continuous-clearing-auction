@@ -133,7 +133,7 @@ contract Auction is
         if (_checkpoint.clearingPrice > FLOOR_PRICE) {
             // The currency raised over `deltaMps` percentage of the auction is simply the total supply
             // over than percentage multiplied by the current clearing price
-            // note that currencyRaised is a ValueX7 because we DO NOT divide by MPS here, 
+            // note that currencyRaised is a ValueX7 because we DO NOT divide by MPS here,
             // and thus the value is 1e7 larger than the actual currency raised
             currencyRaisedX7 =
                 ValueX7.wrap(TOTAL_SUPPLY * deltaMps).wrapAndFullMulDiv(_checkpoint.clearingPrice, FixedPoint96.Q96);
@@ -205,9 +205,9 @@ contract Auction is
     {
         /**
          * The new clearing price is simply the ratio of the cumulative currency demand above the clearing price
-         * to the total supply of the auction. It is multiplied by Q96 to return a value in terms of X96 form. 
+         * to the total supply of the auction. It is multiplied by Q96 to return a value in terms of X96 form.
          *
-         * The result of this may be lower than tickLowerPrice. 
+         * The result of this may be lower than tickLowerPrice.
          * That just means that we can't sell at any price above and should sell at tickLowerPrice instead.
          */
         uint256 clearingPrice =
@@ -389,8 +389,6 @@ contract Auction is
     {
         // Bids cannot be submitted at the endBlock or after
         if (block.number >= END_BLOCK) revert AuctionIsOver();
-        // If the bid is too small such that it would be rounded down to zero, revert
-        if (amount < BidLib.MIN_BID_AMOUNT) revert BidAmountTooSmall();
         if (CURRENCY.isAddressZero()) {
             if (msg.value != amount) revert InvalidAmount();
         } else {

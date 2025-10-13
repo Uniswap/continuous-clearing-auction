@@ -31,7 +31,6 @@ abstract contract TickStorage is ITickStorage {
         if (_tickSpacing == 0) revert TickSpacingIsZero();
         TICK_SPACING = _tickSpacing;
         if (_floorPrice == 0) revert FloorPriceIsZero();
-        if (_floorPrice >= BidLib.MAX_BID_PRICE) revert FloorPriceAboveMaxBidPrice();
         // Ensure the floor price is at a tick boundary
         if (_floorPrice % TICK_SPACING != 0) revert TickPriceNotAtBoundary();
         FLOOR_PRICE = _floorPrice;

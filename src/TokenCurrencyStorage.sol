@@ -44,7 +44,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         TOKEN = IERC20Minimal(_token);
         CURRENCY = Currency.wrap(_currency);
         if (_totalSupply == 0) revert TotalSupplyIsZero();
-        if (_totalSupply > ConstantsLib.X7_UPPER_BOUND) revert TotalSupplyIsTooLarge();
+        if (_totalSupply > ConstantsLib.MAX_AMOUNT) revert TotalSupplyIsTooLarge();
         TOTAL_SUPPLY = _totalSupply;
         TOTAL_SUPPLY_X128 = _totalSupply.toX128();
         TOKENS_RECIPIENT = _tokensRecipient;

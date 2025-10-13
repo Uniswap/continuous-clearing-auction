@@ -106,7 +106,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
     }
 
     function test_stepsDataEndingWithZeroMps_succeeds(uint128 totalSupply) public {
-        vm.assume(totalSupply > BidLib.MIN_BID_AMOUNT);
+        vm.assume(totalSupply > 0 && totalSupply <= ConstantsLib.MAX_AMOUNT);
         bytes memory data = AuctionStepsBuilder.init().addStep(1, 1e7).addStep(0, 1e7);
         uint256 startBlock = block.number;
         uint256 endBlock = startBlock + 2e7;
@@ -134,7 +134,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         assertEq(checkpoint.cumulativeMps, 1e7);
 
         // The auction has fully sold out 1e7 mps worth of tokens, so all future bids will revert
-        inputAmount = inputAmountForTokens(BidLib.MIN_BID_AMOUNT, tickNumberToPriceX96(2));
+        inputAmount = inputAmountForTokens(1, tickNumberToPriceX96(2));
         vm.deal(address(this), inputAmount);
         vm.expectRevert(IAuction.AuctionSoldOut.selector);
         newAuction.submitBid{value: inputAmount}(

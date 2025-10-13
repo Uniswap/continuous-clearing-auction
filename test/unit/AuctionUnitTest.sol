@@ -47,11 +47,11 @@ contract AuctionUnitTest is AuctionBaseTest {
         setUpTokens();
 
         alice = makeAddr('alice');
-        bob = makeAddr('bob');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 
-        auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 50).addStep(100e3, 50);
+        auctionStepsData =
+            AuctionStepsBuilder.init().addStep(STANDARD_MPS_1_PERCENT, 50).addStep(STANDARD_MPS_1_PERCENT, 50);
         params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE).withTickSpacing(
             TICK_SPACING
         ).withValidationHook(address(0)).withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient)

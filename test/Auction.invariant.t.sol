@@ -39,7 +39,6 @@ contract AuctionInvariantHandler is Test, Assertions {
     Currency public currency;
     IERC20Minimal public token;
 
-    uint256 public constant BID_MAX_PRICE = BidLib.MAX_BID_PRICE;
     uint256 public BID_MIN_PRICE;
 
     // Ghost variables
@@ -142,7 +141,7 @@ contract AuctionInvariantHandler is Test, Assertions {
         validateCheckpoint
     {
         // Bid requests for anything between 1 and 2x the total supply of tokens
-        uint128 amount = SafeCastLib.toUint128(_bound(bidAmount, BidLib.MIN_BID_AMOUNT, mockAuction.totalSupply() * 2));
+        uint128 amount = SafeCastLib.toUint128(_bound(bidAmount, 1, mockAuction.totalSupply() * 2));
         (uint128 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(amount, tickNumber);
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
@@ -169,7 +168,7 @@ contract AuctionInvariantHandler is Test, Assertions {
                 assertEq(revertData, abi.encodeWithSelector(ITickStorage.TickPriceNotIncreasing.selector));
             } else if (
                 mockAuction.sumCurrencyDemandAboveClearingX128()
-                    >= ConstantsLib.X7_UPPER_BOUND - inputAmount * FixedPoint128.Q128
+                    > ConstantsLib.X7_UPPER_BOUND - inputAmount * FixedPoint128.Q128
             ) {
                 assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidBidUnableToClear.selector));
             } else {
@@ -181,6 +180,7 @@ contract AuctionInvariantHandler is Test, Assertions {
                     assertLe(maxPrice, mockAuction.clearingPrice());
                 } else {
                     // Uncaught error so we bubble up the revert reason
+                    emit log_string("Invariant::handleSubmitBid: Uncaught error");
                     assembly {
                         revert(add(revertData, 0x20), mload(revertData))
                     }

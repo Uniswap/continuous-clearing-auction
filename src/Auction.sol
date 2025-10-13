@@ -323,7 +323,7 @@ contract Auction is
         Checkpoint memory _checkpoint = checkpoint();
         // Revert if there are no more tokens to be sold
         if (_checkpoint.remainingMpsInAuction() == 0) revert AuctionSoldOut();
-        BidLib.validate(maxPrice, _checkpoint.clearingPrice, TOTAL_SUPPLY);
+        BidLib.validate(maxPrice, amount, _checkpoint.clearingPrice, TOTAL_SUPPLY);
 
         _initializeTickIfNeeded(prevTickPrice, maxPrice);
 
@@ -388,8 +388,6 @@ contract Auction is
     {
         // Bids cannot be submitted at the endBlock or after
         if (block.number >= END_BLOCK) revert AuctionIsOver();
-        // If the bid is too small such that it would be rounded down to zero, revert
-        if (amount < BidLib.MIN_BID_AMOUNT) revert BidAmountTooSmall();
         if (CURRENCY.isAddressZero()) {
             if (msg.value != amount) revert InvalidAmount();
         } else {

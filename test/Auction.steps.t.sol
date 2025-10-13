@@ -106,7 +106,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
     }
 
     function test_stepsDataEndingWithZeroMps_succeeds(uint128 totalSupply) public {
-        vm.assume(totalSupply > 0 && totalSupply <= ConstantsLib.MAX_AMOUNT);
+        vm.assume(totalSupply > 0);
         bytes memory data = AuctionStepsBuilder.init().addStep(1, 1e7).addStep(0, 1e7);
         uint256 startBlock = block.number;
         uint256 endBlock = startBlock + 2e7;

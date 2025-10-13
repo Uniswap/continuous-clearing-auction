@@ -69,7 +69,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         returns (AuctionParameters memory)
     {
         _setHardcodedParams(_deploymentParams);
-        vm.assume(_deploymentParams.totalSupply > 0 && _deploymentParams.totalSupply <= ConstantsLib.MAX_AMOUNT);
+        vm.assume(_deploymentParams.totalSupply > 0);
 
         _boundBlockNumbers(_deploymentParams);
         _boundPriceParams(_deploymentParams);
@@ -202,9 +202,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         uint256 _totalSupply,
         uint256 _tickSpacing
     ) internal returns (uint256) {
+        vm.assume(_totalSupply <= type(uint128).max);
         _maxPrice = _bound(_maxPrice, _floorPrice, type(uint256).max);
         uint256 ratioOfMaxPriceToQ96 = _maxPrice / FixedPoint96.Q96;
-        vm.assume(_totalSupply < type(uint128).max / (ratioOfMaxPriceToQ96 * ConstantsLib.MPS));
+        vm.assume(_totalSupply < type(uint160).max / ratioOfMaxPriceToQ96);
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, _tickSpacing);
         vm.assume(_maxPrice > _floorPrice);
         return _maxPrice;
@@ -229,9 +230,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Assume the max price is valid
         maxPrice =
             helper__assumeValidMaxPrice(auction.floorPrice(), maxPrice, auction.totalSupply(), auction.tickSpacing());
-        // If the bid would overflow a ValueX7 value, don't submit the bid
         uint128 ethInputAmount = inputAmountForTokens(_bid.bidAmount, maxPrice);
-        vm.assume(ethInputAmount <= ConstantsLib.MAX_AMOUNT);
 
         // Get the correct last tick price for the bid
         uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
@@ -394,16 +393,12 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     }
 
     modifier givenValidBidAmount(uint128 _bidAmount) {
-        uint256 maxBidAmount = ConstantsLib.MAX_AMOUNT.fullMulDiv(FixedPoint96.Q96, $maxPrice);
-        maxBidAmount = _bound(maxBidAmount, 1, type(uint128).max);
-        $bidAmount = SafeCastLib.toUint128(_bound(_bidAmount, 1, maxBidAmount));
+        $bidAmount = SafeCastLib.toUint128(_bound(_bidAmount, 1, type(uint128).max));
         _;
     }
 
     modifier givenGraduatedAuction() {
-        uint256 maxBidAmount = ConstantsLib.MAX_AMOUNT.fullMulDiv(FixedPoint96.Q96, $maxPrice);
-        maxBidAmount = _bound(maxBidAmount, TOTAL_SUPPLY, type(uint128).max);
-        $bidAmount = SafeCastLib.toUint128(_bound($bidAmount, TOTAL_SUPPLY, maxBidAmount));
+        $bidAmount = SafeCastLib.toUint128(_bound($bidAmount, TOTAL_SUPPLY, type(uint128).max));
         _;
     }
 

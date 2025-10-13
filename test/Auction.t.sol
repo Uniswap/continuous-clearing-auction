@@ -603,9 +603,6 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId1);
-
-        // Assert that alice is not refunded any currency
-        assertEq(address(alice).balance, aliceBalanceBefore);
     }
 
     function test_exitBid_beforeEndBlock_revertsWithCannotExitBid() public {

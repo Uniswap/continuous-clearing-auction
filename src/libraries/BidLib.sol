@@ -27,11 +27,10 @@ library BidLib {
     error InvalidBidPriceTooHigh();
 
     function validate(uint256 _maxPrice, uint128 _amount, uint256 _clearingPrice, uint256 _totalSupply) internal pure {
-        if (_amount > ConstantsLib.MAX_AMOUNT) revert InvalidBidAmountTooLarge();
         if (_maxPrice <= _clearingPrice) revert BidMustBeAboveClearingPrice();
         // An operation in the code which can overflow a uint256 is TOTAL_SUPPLY * (maxPrice / Q96) * Q96.
         // This is only possible if bid.maxPrice is greater than Q96 since then the division is > 1
-        // and when multiplied by the total supply can exceed type(uint128).max, which would overflow when multiplied by Q96.
+        // and when multiplied by the total supply can exceed type(uint160).max, which would overflow when multiplied by Q96.
         if (
             _maxPrice > FixedPoint96.Q96
                 && _totalSupply.fullMulDiv(_maxPrice, FixedPoint96.Q96) > type(uint256).max / FixedPoint96.Q96

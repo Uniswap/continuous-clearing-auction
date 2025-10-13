@@ -2,16 +2,14 @@
 pragma solidity ^0.8.0;
 
 import {ConstantsLib} from './ConstantsLib.sol';
-
-import {FixedPoint128} from './FixedPoint128.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 struct Checkpoint {
     uint256 clearingPrice; // The X96 price which the auction is currently clearing at
-    ValueX7 currencyRaisedX128_X7; // The actual currency raised (sold for tokens) so far in the auction
-    ValueX7 currencyRaisedAtClearingPriceX128_X7; // The tokens sold so far to this clearing price
+    ValueX7 currencyRaisedQ96_X7; // The actual currency raised (sold for tokens) so far in the auction
+    ValueX7 currencyRaisedAtClearingPriceQ96_X7; // The tokens sold so far to this clearing price
     uint256 cumulativeMpsPerPrice; // A running sum of the ratio between mps and price
     uint24 cumulativeMps; // The number of mps sold in the auction so far (via the original supply schedule)
     uint64 prev; // Block number of the previous checkpoint

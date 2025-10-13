@@ -13,7 +13,6 @@ import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
-import {FixedPoint128} from '../src/libraries/FixedPoint128.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionUnitTest} from './unit/AuctionUnitTest.sol';
@@ -73,8 +72,8 @@ contract AuctionInvariantHandler is Test, Assertions {
         assertGe(checkpoint.clearingPrice, _checkpoint.clearingPrice, 'Checkpoint clearing price is not increasing');
         // Check that the cumulative variables are always increasing
         assertGe(
-            checkpoint.currencyRaisedX128_X7,
-            _checkpoint.currencyRaisedX128_X7,
+            checkpoint.currencyRaisedQ96_X7,
+            _checkpoint.currencyRaisedQ96_X7,
             'Checkpoint total currency raised is not increasing'
         );
         assertGe(checkpoint.cumulativeMps, _checkpoint.cumulativeMps, 'Checkpoint cumulative mps is not increasing');
@@ -167,8 +166,8 @@ contract AuctionInvariantHandler is Test, Assertions {
             } else if (prevTickPrice == 0) {
                 assertEq(revertData, abi.encodeWithSelector(ITickStorage.TickPriceNotIncreasing.selector));
             } else if (
-                mockAuction.sumCurrencyDemandAboveClearingX128()
-                    > ConstantsLib.X7_UPPER_BOUND - inputAmount * FixedPoint128.Q128
+                mockAuction.sumCurrencyDemandAboveClearingQ96()
+                    >= ConstantsLib.X7_UPPER_BOUND - inputAmount * FixedPoint96.Q96
             ) {
                 assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidBidUnableToClear.selector));
             } else {
@@ -267,10 +266,10 @@ contract AuctionInvariantTest is AuctionUnitTest {
                 mockAuction.exitPartiallyFilledBid(bidId, lower, upper);
             }
             uint256 refundAmount = bid.owner.balance - currencyBalanceBefore;
-            totalCurrencyRaised += bid.amountX128 / FixedPoint128.Q128 - refundAmount;
+            totalCurrencyRaised += bid.amountQ96 / FixedPoint96.Q96 - refundAmount;
 
             // can never gain more Currency than provided
-            assertLe(refundAmount, bid.amountX128, 'Bid owner can never be refunded more Currency than provided');
+            assertLe(refundAmount, bid.amountQ96, 'Bid owner can never be refunded more Currency than provided');
 
             // Bid might be deleted if tokensFilled = 0
             bid = getBid(bidId);

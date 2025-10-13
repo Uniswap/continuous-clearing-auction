@@ -20,8 +20,8 @@ contract MockTickStorage is TickStorage {
         super._initializeTickIfNeeded(prevPrice, price);
     }
 
-    function updateTick(uint256 price, uint256 demandX128) external {
-        super._updateTickDemand(price, demandX128);
+    function updateTick(uint256 price, uint256 demandQ96) external {
+        super._updateTickDemand(price, demandQ96);
     }
 }
 
@@ -108,7 +108,7 @@ contract TickStorageTest is Test, Assertions {
         // $floorPrice_rounded is guaranteed to be initialized already
         tickStorage.initializeTickIfNeeded($floorPrice_rounded, _price);
         Tick memory tick = tickStorage.getTick(_price);
-        assertEq(tick.currencyDemandX128, 0);
+        assertEq(tick.currencyDemandQ96, 0);
         // Assert there is no next tick (type(uint256).max)
         assertEq(tick.next, tickStorage.MAX_TICK_PTR());
         // Assert the nextActiveTick is unchanged

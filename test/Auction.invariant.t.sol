@@ -336,6 +336,7 @@ contract AuctionInvariantTest is AuctionUnitTest {
                 expectedCurrencyRaised,
                 'Funds recipient balance does not match expected currency raised'
             );
+            assertApproxEqAbs(address(mockAuction).balance, 0, 1e6, 'Auction balance is not within 1e6 wei of zero');
         } else {
             vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
             mockAuction.sweepCurrency();

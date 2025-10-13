@@ -133,9 +133,8 @@ contract Auction is
             // over than percentage multiplied by the current clearing price
             // note that currencyRaised is a ValueX7 because we DO NOT divide by MPS here,
             // and thus the value is 1e7 larger than the actual currency raised
-            currencyRaisedQ96_X7 = ValueX7.wrap(TOTAL_SUPPLY_Q96 * deltaMps).wrapAndFullMulDiv(
-                _checkpoint.clearingPrice, FixedPoint96.Q96
-            );
+            currencyRaisedQ96_X7 =
+                ValueX7.wrap(TOTAL_SUPPLY_Q96 * deltaMps).wrapAndFullMulDiv(_checkpoint.clearingPrice, FixedPoint96.Q96);
             // There is a special case where the clearing price is at a tick boundary with bids.
             // In this case, we have to explicitly track the supply sold to that price since they are "partially filled"
             // and thus the amount of tokens sold to that price is <= to the collective demand at that price, since bidders at higher prices are prioritized.

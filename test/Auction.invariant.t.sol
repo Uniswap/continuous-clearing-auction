@@ -179,7 +179,7 @@ contract AuctionInvariantHandler is Test, Assertions {
                     assertLe(maxPrice, mockAuction.clearingPrice());
                 } else {
                     // Uncaught error so we bubble up the revert reason
-                    emit log_string("Invariant::handleSubmitBid: Uncaught error");
+                    emit log_string('Invariant::handleSubmitBid: Uncaught error');
                     assembly {
                         revert(add(revertData, 0x20), mload(revertData))
                     }

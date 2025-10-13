@@ -4,9 +4,10 @@ pragma solidity 0.8.26;
 import {ITokenCurrencyStorage} from './interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {BidLib} from './libraries/BidLib.sol';
-import {FixedPoint96} from './libraries/FixedPoint96.sol';
+
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
+import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 

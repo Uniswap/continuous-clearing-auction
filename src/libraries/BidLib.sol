@@ -33,8 +33,8 @@ library BidLib {
         // This is only possible if bid.maxPrice is greater than Q96 since then the division is > 1
         // and when multiplied by the total supply can exceed type(uint128).max, which would overflow when multiplied by Q96.
         if (
-                _maxPrice > FixedPoint96.Q96
-                    && _totalSupply.fullMulDiv(_maxPrice, FixedPoint96.Q96) > type(uint256).max / FixedPoint96.Q96
+            _maxPrice > FixedPoint96.Q96
+                && _totalSupply.fullMulDiv(_maxPrice, FixedPoint96.Q96) > type(uint256).max / FixedPoint96.Q96
         ) revert InvalidBidPriceTooHigh();
     }
 

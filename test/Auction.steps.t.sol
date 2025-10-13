@@ -3,10 +3,11 @@ pragma solidity 0.8.26;
 
 import {Auction} from '../src/Auction.sol';
 import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
-import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
+
 import {BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
+import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';

@@ -43,6 +43,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     uint256 public constant TICK_SPACING = 100 << FixedPoint96.RESOLUTION;
     uint256 public constant FLOOR_PRICE = 1000 << FixedPoint96.RESOLUTION;
     uint128 public constant TOTAL_SUPPLY = 1000e18;
+    uint256 public constant TOTAL_SUPPLY_X128 = TOTAL_SUPPLY * FixedPoint128.Q128;
 
     // Common test values
     uint24 public constant STANDARD_MPS_1_PERCENT = 100_000; // 100e3 - represents 1% of MPS

@@ -53,9 +53,9 @@ contract AuctionIterateOverTicksTest is AuctionUnitTest {
     ) public setUpMockAuctionFuzz(_deploymentParams) setUpBidsFuzz(_bids) givenValidCheckpoint(_checkpoint) {
         // Assume there are still tokens to sell in the auction
         vm.assume(_checkpoint.remainingMpsInAuction() > 0);
-        _checkpoint.currencyRaisedX7 = ValueX7.wrap(
+        _checkpoint.currencyRaisedX128_X7 = ValueX7.wrap(
             _bound(
-                ValueX7.unwrap(_checkpoint.currencyRaisedX7),
+                ValueX7.unwrap(_checkpoint.currencyRaisedX128_X7),
                 0,
                 // Checkpoint starts off with not enough currency raised to fully subscribe at the floor price
                 mockAuction.totalSupply().fullMulDivUp(mockAuction.floorPrice(), FixedPoint96.Q96) - 1

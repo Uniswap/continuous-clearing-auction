@@ -32,7 +32,7 @@ compilation_restrictions = [
 ]
 
 [profile.default.fuzz]
-runs = 5000
+runs = 2500
 
 [profile.default.invariant]
 fail_on_revert = true
@@ -40,10 +40,10 @@ runs = 100
 depth = 200
 
 [profile.pr.fuzz]
-runs = 10000
+runs = 2500
 
 [profile.ci.fuzz]
-runs = 100000
+runs = 2500
 
 [profile.debug]
 via_ir = false

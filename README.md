@@ -231,7 +231,7 @@ type ValueX7X7 is uint256;
 
 **Use Cases**:
 
-- Total currency raised tracking (`currencyRaisedX128_X7`)
+- Total currency raised tracking (`currencyRaisedQ96_X7`)
 - Supply rollover calculations when auctions become fully subscribed
 - Complex time-weighted average price calculations
 
@@ -264,7 +264,7 @@ $$\text{clearingPrice} = \max\left(\text{tickLowerPrice}, \frac{\text{sumCurrenc
 **Implementation:**
 
 ```solidity
-clearingPrice = sumCurrencyDemandAboveClearingX128.fullMulDivUp(
+clearingPrice = sumCurrencyDemandAboveClearingQ96.fullMulDivUp(
     cachedRemainingMps * FLOOR_PRICE,
     cachedRemainingCurrencyRaisedX7X7
 );
@@ -295,7 +295,7 @@ Once fully subscribed, we freeze this ratio. Both numerator (actual currency) an
 **Implementation:**
 
 ```solidity
-currencyRaisedX128_X7X7 = cachedRemainingCurrencyRaisedX7X7.wrapAndFullMulDiv(
+currencyRaisedQ96_X7X7 = cachedRemainingCurrencyRaisedX7X7.wrapAndFullMulDiv(
     clearingPrice * deltaMps,
     cachedRemainingPercentage * FLOOR_PRICE
 );
@@ -465,10 +465,10 @@ event BidExited(uint256 indexed bidId, address indexed owner, uint256 tokensFill
 - `lower`: Last checkpoint where clearing price is strictly < bid.maxPrice
 - `upper`: First checkpoint where clearing price is strictly > bid.maxPrice, or 0 for end-of-auction fills
 
-**Mathematical Optimization**: Uses cumulative currency tracking (`currencyRaisedAtClearingPriceX128_X7`) for direct partial fill calculation:
+**Mathematical Optimization**: Uses cumulative currency tracking (`currencyRaisedAtClearingPriceQ96_X7`) for direct partial fill calculation:
 
 ```
-partialFillRate = currencyRaisedAtClearingPriceX128_X7 * mpsDenominator / (tickDemand * cumulativeMpsDelta)
+partialFillRate = currencyRaisedAtClearingPriceQ96_X7 * mpsDenominator / (tickDemand * cumulativeMpsDelta)
 ```
 
 **Implementation**: Enhanced checkpoint architecture with linked-list structure (prev/next pointers) enables efficient traversal. Block numbers are stored as `uint64` for gas optimization while maintaining sufficient range (~584 billion years).
@@ -538,7 +538,7 @@ interface IAuctionStepStorage {
 interface IAuction {
     function totalSupply() external view returns (uint256);
     function isGraduated() external view returns (bool);
-    function sumCurrencyDemandAboveClearingX128() external view returns (ValueX7);
+    function sumCurrencyDemandAboveClearingQ96() external view returns (ValueX7);
 }
 
 interface ITokenCurrencyStorage {
@@ -597,7 +597,7 @@ sequenceDiagram
     end
     Auction->>TickStorage: _updateTickDemand(...)
     Auction->>BidStorage: _createBid(...)
-    Auction->>Auction: update sumCurrencyDemandAboveClearingX128
+    Auction->>Auction: update sumCurrencyDemandAboveClearingQ96
     Auction-->>User: bidId
 ```
 

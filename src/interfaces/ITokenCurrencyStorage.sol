@@ -45,7 +45,7 @@ interface ITokenCurrencyStorage {
     function token() external view returns (IERC20Minimal);
 
     /// @notice The total supply of tokens to sell
-    function totalSupply() external view returns (uint256);
+    function totalSupply() external view returns (uint128);
 
     /// @notice The recipient of any unsold tokens at the end of the auction
     function tokensRecipient() external view returns (address);

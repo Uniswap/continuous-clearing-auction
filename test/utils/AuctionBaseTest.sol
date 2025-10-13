@@ -8,7 +8,6 @@ import {AuctionParameters, IAuction} from '../../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
 import {BidLib} from '../../src/libraries/BidLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
-import {FixedPoint128} from '../../src/libraries/FixedPoint128.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 import {Assertions} from './Assertions.sol';
@@ -37,20 +36,22 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     Auction public auction;
 
+    // Auction configuration constants
     uint256 public constant AUCTION_DURATION = 100;
+    uint256 public constant CLAIM_BLOCK_OFFSET = 10; // 10 blocks after the auction ends
     uint256 public constant TICK_SPACING = 100 << FixedPoint96.RESOLUTION;
     uint256 public constant FLOOR_PRICE = 1000 << FixedPoint96.RESOLUTION;
     uint128 public constant TOTAL_SUPPLY = 1000e18;
-    uint256 public constant TOTAL_SUPPLY_X128 = TOTAL_SUPPLY * FixedPoint128.Q128;
+    uint256 public constant TOTAL_SUPPLY_Q96 = TOTAL_SUPPLY * FixedPoint96.Q96;
 
-    // Max amount of wei that can be lost in totalClearedX7X7 calculations
-    uint256 public constant MAX_TOTAL_CLEARED_PRECISION_LOSS = 1;
+    // Common test values
+    uint24 public constant STANDARD_MPS_1_PERCENT = 100_000; // 100e3 - represents 1% of MPS
 
+    // Test accounts
     address public alice;
     address public bob;
     address public tokensRecipient;
     address public fundsRecipient;
-    MockFundsRecipient public mockFundsRecipient;
 
     AuctionParameters public params;
     FuzzDeploymentParams public $deploymentParams;
@@ -59,18 +60,38 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     uint128 public $bidAmount;
     uint256 public $maxPrice;
 
+    // ============================================
+    // Fuzz Parameter Validation Helpers
+    // ============================================
+
     function helper__validFuzzDeploymentParams(FuzzDeploymentParams memory _deploymentParams)
         public
-        view
         returns (AuctionParameters memory)
     {
-        // Hard coded for tests
+        _setHardcodedParams(_deploymentParams);
+        vm.assume(_deploymentParams.totalSupply > 0);
+
+        _boundBlockNumbers(_deploymentParams);
+        _boundPriceParams(_deploymentParams);
+
+        vm.assume(_deploymentParams.numberOfSteps > 0);
+        vm.assume(ConstantsLib.MPS % _deploymentParams.numberOfSteps == 0); // such that it is divisible
+
+        // TODO(md): fix and have variation in the step sizes
+        _deploymentParams.auctionParams.auctionStepsData = _generateAuctionSteps(_deploymentParams.numberOfSteps);
+
+        $deploymentParams = _deploymentParams;
+        return _deploymentParams.auctionParams;
+    }
+
+    function _setHardcodedParams(FuzzDeploymentParams memory _deploymentParams) private view {
         _deploymentParams.auctionParams.currency = ETH_SENTINEL;
         _deploymentParams.auctionParams.tokensRecipient = tokensRecipient;
         _deploymentParams.auctionParams.fundsRecipient = fundsRecipient;
         _deploymentParams.auctionParams.validationHook = address(0);
-        _deploymentParams.totalSupply = uint128(_bound(_deploymentParams.totalSupply, 1, type(uint128).max / 1e7));
+    }
 
+    function _boundBlockNumbers(FuzzDeploymentParams memory _deploymentParams) private {
         // -2 because we need to account for the endBlock and claimBlock
         _deploymentParams.auctionParams.startBlock = uint64(
             _bound(
@@ -82,45 +103,55 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _deploymentParams.auctionParams.endBlock =
             _deploymentParams.auctionParams.startBlock + uint64(_deploymentParams.numberOfSteps);
         _deploymentParams.auctionParams.claimBlock = _deploymentParams.auctionParams.endBlock + 1;
+    }
 
-        // Dont have tick spacing or floor price too large
+    function _boundPriceParams(FuzzDeploymentParams memory _deploymentParams) private {
+        // Bound tick spacing and floor price to reasonable values
         _deploymentParams.auctionParams.floorPrice =
             _bound(_deploymentParams.auctionParams.floorPrice, 1, type(uint128).max);
-        _deploymentParams.auctionParams.floorPrice = helper__assumeValidPrice(
-            _deploymentParams.auctionParams.floorPrice,
-            _deploymentParams.totalSupply
-        );
-        // Require tick spacing to be less than or equal to floor price
+        // Bound tick spacing to be less than or equal to floor price
         _deploymentParams.auctionParams.tickSpacing =
             _bound(_deploymentParams.auctionParams.tickSpacing, 1, _deploymentParams.auctionParams.floorPrice);
-        // round down to the closest floor price to the tick spacing
+        // Round down floor price to the closest multiple of tick spacing
         _deploymentParams.auctionParams.floorPrice = helper__roundPriceDownToTickSpacing(
             _deploymentParams.auctionParams.floorPrice, _deploymentParams.auctionParams.tickSpacing
         );
-        // then assume that floor price is non zero
+        // Ensure floor price is non-zero
         vm.assume(_deploymentParams.auctionParams.floorPrice != 0);
-
-        vm.assume(_deploymentParams.numberOfSteps > 0);
-        vm.assume(ConstantsLib.MPS % _deploymentParams.numberOfSteps == 0); // such that it is divisible
-        vm.assume(_deploymentParams.auctionParams.requiredCurrencyRaised <= type(uint128).max / 1e7);
-
-        // TODO(md): fix and have variation in the step sizes
-
-        // Replace auction steps data with a valid one
-        // Divide steps by number of bips
-        uint256 _numberOfMps = ConstantsLib.MPS / _deploymentParams.numberOfSteps;
-        bytes memory _auctionStepsData = new bytes(0);
-        for (uint8 i = 0; i < _deploymentParams.numberOfSteps; i++) {
-            _auctionStepsData = AuctionStepsBuilder.addStep(_auctionStepsData, uint24(_numberOfMps), uint40(1));
-        }
-        _deploymentParams.auctionParams.auctionStepsData = _auctionStepsData;
-
-        return _deploymentParams.auctionParams;
     }
+
+    function _generateAuctionSteps(uint256 numberOfSteps) private pure returns (bytes memory) {
+        uint256 mpsPerStep = ConstantsLib.MPS / numberOfSteps;
+        bytes memory stepsData = new bytes(0);
+        for (uint8 i = 0; i < numberOfSteps; i++) {
+            stepsData = AuctionStepsBuilder.addStep(stepsData, uint24(mpsPerStep), uint40(1));
+        }
+        return stepsData;
+    }
+
+    // ============================================
+    // Block Management Helpers
+    // ============================================
 
     function helper__goToAuctionStartBlock() public {
         vm.roll(auction.startBlock());
     }
+
+    /// @dev if iteration block has bottom two bits set, roll to the next block - 25% chance
+    function helper__maybeRollToNextBlock(uint256 _iteration) internal {
+        uint256 endBlock = auction.endBlock();
+
+        uint256 rand = uint256(keccak256(abi.encode(block.prevrandao, _iteration)));
+        bool rollToNextBlock = rand & 0x3 == 0;
+        // Randomly roll to the next block
+        if (rollToNextBlock && block.number < endBlock - 1) {
+            vm.roll(block.number + 1);
+        }
+    }
+
+    // ============================================
+    // Price Calculation Helpers
+    // ============================================
 
     function helper__roundPriceDownToTickSpacing(uint256 _price, uint256 _tickSpacing)
         internal
@@ -162,9 +193,26 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         maxPriceQ96 = maxPrice << FixedPoint96.RESOLUTION;
     }
 
+    function helper__assumeValidMaxPrice(
+        uint256 _floorPrice,
+        uint256 _maxPrice,
+        uint128 _totalSupply,
+        uint256 _tickSpacing
+    ) internal returns (uint256) {
+        _maxPrice = _bound(_maxPrice, _floorPrice + _tickSpacing, type(uint256).max);
+        vm.assume(_maxPrice <= type(uint256).max / _totalSupply);
+        _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, _tickSpacing);
+        vm.assume(_maxPrice > _floorPrice);
+        return _maxPrice;
+    }
+
+    // ============================================
+    // Bid Submission Helpers
+    // ============================================
+
     /// @dev Submit a bid for a given tick number, amount, and owner
     /// @dev if the bid was not successfully placed - i.e. it would not have succeeded at clearing - bidPlaced is false and bidId is 0
-    function helper__trySubmitBid(uint256 _i, FuzzBid memory _bid, address _owner)
+    function helper__trySubmitBid(uint256, /* _i */ FuzzBid memory _bid, address _owner)
         internal
         returns (bool bidPlaced, uint256 bidId)
     {
@@ -172,14 +220,11 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
         // Get the correct bid prices for the bid
         uint256 maxPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(_bid.tickNumber);
-        // if the bid is above the max price, don't submit the bid
-        if (maxPrice >= BidLib.MAX_BID_PRICE) return (false, 0);
         // if the bid if not above the clearing price, don't submit the bid
         if (maxPrice <= clearingPrice) return (false, 0);
         // Assume the max price is valid
         maxPrice =
             helper__assumeValidMaxPrice(auction.floorPrice(), maxPrice, auction.totalSupply(), auction.tickSpacing());
-        // If the bid would overflow a ValueX7 value, don't submit the bid
         uint128 ethInputAmount = inputAmountForTokens(_bid.bidAmount, maxPrice);
         // Prevent InvalidBidAmountTooHigh
         vm.assume(ethInputAmount.toX128() <= ConstantsLib.X7_UPPER_BOUND);
@@ -192,19 +237,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         returns (uint256 _bidId) {
             bidId = _bidId;
         } catch (bytes memory revertData) {
-            // Ok if the bid price is invalid IF it just moved this block
-            if (bytes4(revertData) == bytes4(abi.encodeWithSelector(BidLib.BidMustBeAboveClearingPrice.selector))) {
-                Checkpoint memory checkpoint = auction.checkpoint();
-                // the bid price is invalid as it is less than or equal to the clearing price
-                // skip the test by returning false and 0
-                if (maxPrice <= checkpoint.clearingPrice) return (false, 0);
-                revert('Uncaught BidMustBeAboveClearingPrice');
-            } else if (bytes4(revertData) == bytes4(abi.encodeWithSelector(IAuction.InvalidBidUnableToClear.selector)))
-            {
-                // TODO(ez): fix this test to catch this error, for now just assume against these inputs
-                return (false, 0);
-            } else if (bytes4(revertData) == bytes4(abi.encodeWithSelector(BidLib.InvalidBidPriceTooHigh.selector))) {
-                // TODO(ez): fix this test to catch this error, for now just assume against these inputs
+            if (_shouldSkipBidError(revertData, maxPrice)) {
                 return (false, 0);
             }
             // Otherwise, treat as uncaught error
@@ -219,32 +252,31 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return (true, bidId);
     }
 
-    /// @dev if iteration block has bottom two bits set, roll to the next block - 25% chance
-    function helper__maybeRollToNextBlock(uint256 _iteration) internal {
-        uint256 endBlock = auction.endBlock();
+    /// @dev Check if a bid error should be skipped in fuzz testing
+    function _shouldSkipBidError(bytes memory revertData, uint256 maxPrice) private returns (bool) {
+        bytes4 errorSelector = bytes4(revertData);
 
-        uint256 rand = uint256(keccak256(abi.encode(block.prevrandao, _iteration)));
-        bool rollToNextBlock = rand & 0x3 == 0;
-        // Randomly roll to the next block
-        if (rollToNextBlock && block.number < endBlock - 1) {
-            vm.roll(block.number + 1);
+        // Ok if the bid price is invalid IF it just moved this block
+        if (errorSelector == bytes4(abi.encodeWithSelector(IAuction.BidMustBeAboveClearingPrice.selector))) {
+            Checkpoint memory checkpoint = auction.checkpoint();
+            // the bid price is invalid as it is less than or equal to the clearing price
+            // skip the test by returning false and 0
+            if (maxPrice <= checkpoint.clearingPrice) return true;
+            revert('Uncaught BidMustBeAboveClearingPrice');
         }
+
+        return false;
     }
 
-    function helper__toDemand(FuzzBid memory _bid, uint24 _startCumulativeMps)
-        internal
-        pure
-        returns (uint256 currencyDemandX128)
-    {
-        currencyDemandX128 =
-            _bid.bidAmount.fullMulDiv(FixedPoint128.Q128 * ConstantsLib.MPS, ConstantsLib.MPS - _startCumulativeMps);
-    }
+    // ============================================
+    // Test Setup Functions & Modifiers
+    // ============================================
 
     /// @dev All bids provided to bid fuzz must have some value and a positive tick number
     modifier setUpBidsFuzz(FuzzBid[] memory _bids) {
         for (uint256 i = 0; i < _bids.length; i++) {
             // Note(md): errors when bumped to uint128
-            _bids[i].bidAmount = uint64(_bound(_bids[i].bidAmount, BidLib.MIN_BID_AMOUNT, type(uint64).max));
+            _bids[i].bidAmount = uint64(_bound(_bids[i].bidAmount, 1, type(uint64).max));
             _bids[i].tickNumber = uint8(_bound(_bids[i].tickNumber, 1, type(uint8).max));
         }
         _;
@@ -252,33 +284,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     modifier requireAuctionNotSetup() {
         require(address(auction) == address(0), 'Auction already setup');
-        _;
-    }
-
-    // Fuzzing variant of setUpAuction
-    function setUpAuction(FuzzDeploymentParams memory _deploymentParams) public requireAuctionNotSetup {
-        setUpTokens();
-
-        alice = makeAddr('alice');
-        tokensRecipient = makeAddr('tokensRecipient');
-        fundsRecipient = makeAddr('fundsRecipient');
-        mockFundsRecipient = new MockFundsRecipient();
-
-        params = helper__validFuzzDeploymentParams(_deploymentParams);
-        $deploymentParams = _deploymentParams;
-
-        // Expect the floor price tick to be initialized
-        vm.expectEmit(true, true, true, true);
-        emit ITickStorage.TickInitialized(_deploymentParams.auctionParams.floorPrice);
-        auction = new Auction(address(token), _deploymentParams.totalSupply, params);
-
-        token.mint(address(auction), _deploymentParams.totalSupply);
-        auction.onTokensReceived();
-    }
-
-    /// @dev Sets up the auction for fuzzing, ensuring valid parameters
-    modifier setUpAuctionFuzz(FuzzDeploymentParams memory _deploymentParams) {
-        setUpAuction(_deploymentParams);
         _;
     }
 
@@ -292,27 +297,45 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _;
     }
 
-    modifier givenNonZeroTickNumber(uint8 _tickNumber) {
-        vm.assume(_tickNumber > 0);
+    modifier setUpAuctionFuzz(FuzzDeploymentParams memory _deploymentParams) {
+        setUpAuction(_deploymentParams);
         _;
     }
 
-    // Non fuzzing variant of setUpAuction
+    // Fuzzing variant of setUpAuction
+    function setUpAuction(FuzzDeploymentParams memory _deploymentParams) public requireAuctionNotSetup {
+        setUpTokens();
+
+        alice = makeAddr('alice');
+        tokensRecipient = makeAddr('tokensRecipient');
+        fundsRecipient = makeAddr('fundsRecipient');
+
+        params = helper__validFuzzDeploymentParams(_deploymentParams);
+
+        // Expect the floor price tick to be initialized
+        vm.expectEmit(true, true, true, true);
+        emit ITickStorage.TickInitialized(_deploymentParams.auctionParams.floorPrice);
+        auction = new Auction(address(token), _deploymentParams.totalSupply, params);
+
+        token.mint(address(auction), _deploymentParams.totalSupply);
+        auction.onTokensReceived();
+    }
+
+    // Non-fuzzing variant of setUpAuction
     function setUpAuction() public requireAuctionNotSetup {
         setUpTokens();
 
         alice = makeAddr('alice');
-        bob = makeAddr('bob');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
-        mockFundsRecipient = new MockFundsRecipient();
 
-        auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 50).addStep(100e3, 50);
+        auctionStepsData =
+            AuctionStepsBuilder.init().addStep(STANDARD_MPS_1_PERCENT, 50).addStep(STANDARD_MPS_1_PERCENT, 50);
         params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE).withTickSpacing(
             TICK_SPACING
         ).withValidationHook(address(0)).withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient)
             .withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION).withClaimBlock(
-            block.number + AUCTION_DURATION + 10
+            block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET
         ).withAuctionStepsData(auctionStepsData);
 
         // Expect the floor price tick to be initialized
@@ -325,15 +348,21 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         auction.onTokensReceived();
     }
 
+    // ============================================
+    // Special Auction Configurations
+    // ============================================
+
     function helper__deployAuctionWithFailingToken() internal returns (Auction) {
         MockToken failingToken = new MockToken();
 
-        bytes memory failingAuctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
+        bytes memory failingAuctionStepsData = AuctionStepsBuilder.init().addStep(STANDARD_MPS_1_PERCENT, 100);
         AuctionParameters memory failingParams = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
             FLOOR_PRICE
         ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
             .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION + 10).withAuctionStepsData(failingAuctionStepsData);
+            .withClaimBlock(block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET).withAuctionStepsData(
+            failingAuctionStepsData
+        );
 
         Auction failingAuction = new Auction(address(failingToken), TOTAL_SUPPLY, failingParams);
         failingToken.mint(address(failingAuction), TOTAL_SUPPLY);
@@ -342,69 +371,18 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return failingAuction;
     }
 
+    // ============================================
+    // Bid & Price Validation Modifiers
+    // ============================================
+
     /// @dev Uses default values for floor price and tick spacing
-    modifier givenValidMaxPrice(uint256 _maxPrice, uint256 _totalSupply) {
+    modifier givenValidMaxPrice(uint256 _maxPrice, uint128 _totalSupply) {
         $maxPrice = helper__assumeValidMaxPrice(FLOOR_PRICE, _maxPrice, _totalSupply, TICK_SPACING);
         _;
     }
 
-    modifier givenValidMaxPriceWithParams(
-        uint256 _maxPrice,
-        uint128 _totalSupply,
-        uint256 _floorPrice,
-        uint256 _tickSpacing
-    ) {
-        $maxPrice = helper__assumeValidMaxPrice(_floorPrice, _maxPrice, _totalSupply, _tickSpacing);
-        _;
-    }
-
-    /// @notice For assuming a valid price (does not cause InvalidBidPriceTooHigh error)
-    function helper__assumeValidPrice(uint256 _price, uint256 _totalSupply)
-        internal
-        view
-        returns (uint256)
-    {
-        uint256 maxPriceGivenTotalSupply = (type(uint128).max * FixedPoint96.Q96) / _totalSupply;
-        if(maxPriceGivenTotalSupply > 0) {
-            _price = bound(_price, 1, maxPriceGivenTotalSupply);
-        }
-        return _price;
-    }
-
-    function helper__assumeValidMaxPrice(
-        uint256 _floorPrice,
-        uint256 _maxPrice,
-        uint256 _totalSupply,
-        uint256 _tickSpacing
-    ) internal returns (uint256) {
-        _maxPrice = helper__assumeValidPrice(_maxPrice, _totalSupply);
-        _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, _tickSpacing);
-        vm.assume(_maxPrice > _floorPrice);
-        return _maxPrice;
-    }
-
-    /// @notice Perfectly constraining the fuzz runs is very difficult. So we assume against any failing calls
-    /// with the assumption that we have already tried to bound the inputs as much as possible.
-    function assumeSubmitBid(uint256 _maxPrice, uint128 _bidAmount, address _owner, uint256 _prevTickPrice, bytes memory _hookData) internal returns (uint256) {
-        try auction.submitBid{value: _bidAmount}(_maxPrice, _bidAmount, _owner, _prevTickPrice, _hookData) returns (uint256 _bidId) {
-            return _bidId;
-        } catch (bytes memory revertData) {
-            // throw out the fuzz run
-            emit log_string("-----Assume Submit Bid Failed-----");
-            emit log_named_uint("maxPrice", _maxPrice);
-            emit log_named_uint("bidAmount", _bidAmount);
-            emit log_named_string("revertData", string(revertData));
-            emit log_named_uint("floor price", params.floorPrice);
-            emit log_named_uint("tick spacing", params.tickSpacing);
-            emit log_named_uint("total supply", $deploymentParams.totalSupply);
-            revert("submitBid fuzz failure");
-        }
-    }
-
     modifier givenValidBidAmount(uint128 _bidAmount) {
-        require($maxPrice > 0, '$maxPrice is not set yet');
-        uint128 inputAmount = inputAmountForTokens(_bidAmount, $maxPrice);
-        $bidAmount = SafeCastLib.toUint128(_bound(inputAmount, BidLib.MIN_BID_AMOUNT, type(uint128).max / 1e7));
+        $bidAmount = SafeCastLib.toUint128(_bound(_bidAmount, 1, type(uint128).max));
         _;
     }
 
@@ -481,21 +459,16 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return FLOOR_PRICE + (tickNumber - 1) * TICK_SPACING;
     }
 
-    /// @dev Helper function to get price of a tick above floor price
-    function tickNumberToPriceAboveFloorX96(uint256 tickNumber, uint256 floorPrice, uint256 tickSpacing)
-        internal
-        pure
-        returns (uint256)
-    {
-        return ((floorPrice + (tickNumber * tickSpacing)) / tickSpacing) * tickSpacing;
-    }
-
     /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice
     function inputAmountForTokens(uint128 tokens, uint256 maxPrice) internal pure returns (uint128) {
         uint256 temp = tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96);
         temp = _bound(temp, 1, type(uint128).max);
         return SafeCastLib.toUint128(temp);
     }
+
+    // ============================================
+    // Auction State Query Helpers
+    // ============================================
 
     /// @notice Helper function to return the tick at the given price
     function getTick(uint256 price) public view returns (Tick memory) {

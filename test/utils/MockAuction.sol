@@ -13,12 +13,12 @@ contract MockAuction is Auction {
     {}
 
     /// @notice Wrapper around internal function for testing
-    function calculateNewClearingPrice(uint256 tickLowerPrice, uint256 sumCurrencyDemandAboveClearingX128)
+    function calculateNewClearingPrice(uint256 tickLowerPrice, uint256 sumCurrencyDemandAboveClearingQ96)
         external
         view
         returns (uint256)
     {
-        return _calculateNewClearingPrice(tickLowerPrice, sumCurrencyDemandAboveClearingX128);
+        return _calculateNewClearingPrice(tickLowerPrice, sumCurrencyDemandAboveClearingQ96);
     }
 
     /// @notice Wrapper around internal function for testing
@@ -52,16 +52,16 @@ contract MockAuction is Auction {
     }
 
     /// @notice Update the tick demand
-    function uncheckedUpdateTickDemand(uint256 price, uint256 currencyDemandX128) external {
-        _updateTickDemand(price, currencyDemandX128);
+    function uncheckedUpdateTickDemand(uint256 price, uint256 currencyDemandQ96) external {
+        _updateTickDemand(price, currencyDemandQ96);
     }
 
     /// @notice Set the $sumDemandAboveClearing
-    function uncheckedSetSumDemandAboveClearing(uint256 currencyDemandX128) external {
-        $sumCurrencyDemandAboveClearingX128 = currencyDemandX128;
+    function uncheckedSetSumDemandAboveClearing(uint256 currencyDemandQ96) external {
+        $sumCurrencyDemandAboveClearingQ96 = currencyDemandQ96;
     }
 
-    function uncheckedAddToSumDemandAboveClearing(uint256 currencyDemandX128) external {
-        $sumCurrencyDemandAboveClearingX128 += currencyDemandX128;
+    function uncheckedAddToSumDemandAboveClearing(uint256 currencyDemandQ96) external {
+        $sumCurrencyDemandAboveClearingQ96 += currencyDemandQ96;
     }
 }

@@ -29,8 +29,11 @@ library BidLib {
         return ConstantsLib.MPS - bid.startCumulativeMps;
     }
 
-    /// @notice Convert a bid amount to its effective amount over the remaining percentage of the auction
-    /// TODO(ez): fix natspec
+    /// @notice Scale a bid amount to its effective amount over the remaining percentage of the auction
+    ///         This is an important normalization step to ensure that we can calculate the currencyRaised
+    ///         when cumulative demand is less than supply using the original supply schedule.
+    /// @param bid The bid to scale
+    /// @return The scaled amount
     function toEffectiveAmount(Bid memory bid) internal pure returns (uint256) {
         return bid.amountQ96.fullMulDiv(ConstantsLib.MPS, bid.mpsRemainingInAuctionAfterSubmission());
     }

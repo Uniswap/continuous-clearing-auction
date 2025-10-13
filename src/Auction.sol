@@ -214,6 +214,11 @@ contract Auction is
          * The result of this may be lower than tickLowerPrice.
          * That just means that we can't sell at any price above and should sell at tickLowerPrice instead.
          */
+         // note TODO(ez): rounding up here can cause expected currency raised to be greater than actual,
+         //  and for the auction to be insolvent at the end when sweeping currency
+         //  however, rounding down may mean that the price is too low for the demand, and bidders will be insolvent.
+         //  one option is to caculate the reaminder and track it as "carry" for the protocol, and account for it
+         //  in the sweeping of currency. Or, allow for sweep to be called with a parameter.
         uint256 clearingPrice = _sumCurrencyDemandAboveClearingX128.fullMulDivUp(FixedPoint96.Q96, TOTAL_SUPPLY_X128);
         if (clearingPrice < _tickLowerPrice) return _tickLowerPrice;
         return clearingPrice;
@@ -301,7 +306,6 @@ contract Auction is
         // Now account for any time in between this checkpoint and the greater of the start of the step or the last checkpointed block
         uint64 blockDelta =
             blockNumber - ($step.startBlock > $lastCheckpointedBlock ? $step.startBlock : $lastCheckpointedBlock);
-        console.log('blockDelta', blockDelta);
         uint24 mpsSinceLastCheckpoint = uint256($step.mps * blockDelta).toUint24();
 
         // Sell the percentage of outstanding tokens since the last checkpoint to the current clearing price
@@ -340,6 +344,7 @@ contract Auction is
 
         // Scale the amount according to the rest of the supply schedule, accounting for past blocks
         uint256 bidEffectiveAmountX128 = bid.toEffectiveAmount();
+        console.log('bidEffectiveAmountX128', bidEffectiveAmountX128);
 
         _updateTickDemand(maxPrice, bidEffectiveAmountX128);
 

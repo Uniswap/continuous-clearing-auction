@@ -206,6 +206,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _maxPrice = _bound(_maxPrice, _floorPrice, type(uint256).max);
         uint256 ratioOfMaxPriceToQ96 = _maxPrice / FixedPoint96.Q96;
         vm.assume(_totalSupply < type(uint160).max / ratioOfMaxPriceToQ96);
+        // TODO(ez): bound max price here
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, _tickSpacing);
         vm.assume(_maxPrice > _floorPrice);
         return _maxPrice;

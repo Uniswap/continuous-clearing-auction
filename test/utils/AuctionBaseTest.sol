@@ -200,7 +200,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         uint256 _tickSpacing
     ) internal returns (uint256) {
         _maxPrice = _bound(_maxPrice, _floorPrice + _tickSpacing, type(uint256).max);
-        vm.assume(_maxPrice <= (type(uint160).max * FixedPoint96.Q96) / _totalSupply);
+        vm.assume(_maxPrice <= type(uint256).max / _totalSupply);
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, _tickSpacing);
         vm.assume(_maxPrice > _floorPrice);
         return _maxPrice;
@@ -255,20 +255,12 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         bytes4 errorSelector = bytes4(revertData);
 
         // Ok if the bid price is invalid IF it just moved this block
-        if (errorSelector == bytes4(abi.encodeWithSelector(BidLib.BidMustBeAboveClearingPrice.selector))) {
+        if (errorSelector == bytes4(abi.encodeWithSelector(IAuction.BidMustBeAboveClearingPrice.selector))) {
             Checkpoint memory checkpoint = auction.checkpoint();
             // the bid price is invalid as it is less than or equal to the clearing price
             // skip the test by returning false and 0
             if (maxPrice <= checkpoint.clearingPrice) return true;
             revert('Uncaught BidMustBeAboveClearingPrice');
-        }
-
-        // TODO(ez): fix this test to catch these errors, for now just assume against these inputs
-        if (errorSelector == bytes4(abi.encodeWithSelector(IAuction.InvalidBidUnableToClear.selector))) {
-            return true;
-        }
-        if (errorSelector == bytes4(abi.encodeWithSelector(BidLib.InvalidBidPriceTooHigh.selector))) {
-            return true;
         }
 
         return false;

@@ -417,7 +417,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_submitBid_exactIn_atFloorPrice_reverts() public {
-        vm.expectRevert(BidLib.BidMustBeAboveClearingPrice.selector);
+        vm.expectRevert(IAuction.BidMustBeAboveClearingPrice.selector);
         auction.submitBid{value: inputAmountForTokens(10e18, tickNumberToPriceX96(1))}(
             tickNumberToPriceX96(1),
             inputAmountForTokens(10e18, tickNumberToPriceX96(1)),
@@ -426,7 +426,7 @@ contract AuctionTest is AuctionBaseTest {
             bytes('')
         );
 
-        vm.expectRevert(BidLib.BidMustBeAboveClearingPrice.selector);
+        vm.expectRevert(IAuction.BidMustBeAboveClearingPrice.selector);
         auction.submitBid{value: inputAmountForTokens(10e18, tickNumberToPriceX96(1))}(
             tickNumberToPriceX96(1), inputAmountForTokens(10e18, tickNumberToPriceX96(1)), alice, bytes('')
         );

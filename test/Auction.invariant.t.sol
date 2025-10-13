@@ -172,7 +172,8 @@ contract AuctionInvariantHandler is Test, Assertions {
                 assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidBidUnableToClear.selector));
             } else {
                 // For race conditions or any errors that require additional calls to be made
-                if (bytes4(revertData) == bytes4(abi.encodeWithSelector(BidLib.BidMustBeAboveClearingPrice.selector))) {
+                if (bytes4(revertData) == bytes4(abi.encodeWithSelector(IAuction.BidMustBeAboveClearingPrice.selector)))
+                {
                     // See if we checkpoint, that the bid maxPrice would be at an invalid price
                     mockAuction.checkpoint();
                     // Because it reverted from BidMustBeAboveClearingPrice, we must assert that it should have

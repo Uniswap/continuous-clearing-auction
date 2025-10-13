@@ -40,6 +40,10 @@ interface IAuction is
 
     /// @notice Error thrown when not enough amount is deposited
     error InvalidAmount();
+    /// @notice Error thrown when the bid price is below the clearing price
+    error BidMustBeAboveClearingPrice();
+    /// @notice Error thrown when the bid price is too high given the auction's total supply
+    error InvalidBidPriceTooHigh();
     /// @notice Error thrown when the bid amount is too small
     error BidAmountTooSmall();
     /// @notice Error thrown when msg.value is non zero when currency is not ETH

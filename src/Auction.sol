@@ -48,6 +48,7 @@ contract Auction is
     using ValidationHookLib for IValidationHook;
     using ValueX7Lib for *;
 
+    uint256 public immutable MAX_BID_PRICE;
     /// @notice The block at which purchased tokens can be claimed
     uint64 internal immutable CLAIM_BLOCK;
     /// @notice An optional hook to be called before a bid is registered
@@ -75,6 +76,8 @@ contract Auction is
         VALIDATION_HOOK = IValidationHook(_parameters.validationHook);
 
         if (CLAIM_BLOCK < END_BLOCK) revert ClaimBlockIsBeforeEndBlock();
+        // We cannot support bids at prices which cause TOTAL_SUPPLY * maxPrice to overflow a uint256
+        MAX_BID_PRICE = type(uint256).max / TOTAL_SUPPLY;
     }
 
     /// @notice Modifier for functions which can only be called after the auction is over
@@ -243,10 +246,8 @@ contract Auction is
         Tick memory nextActiveTick = _getTick(nextActiveTickPrice_);
         while (
             nextActiveTickPrice_ != MAX_TICK_PTR
-            // Loop while the currency amount above `nextActiveTickPrice_` is greater than the required currency at nextActiveTickPrice_
-            && sumCurrencyDemandAboveClearingQ96_
-            // Round down here to bias towards iterating over the next tick
-            >= TOTAL_SUPPLY.fullMulDiv(nextActiveTickPrice_, FixedPoint96.Q96) * FixedPoint96.Q96
+            // Loop while the currency amount above the clearing price is greater than the required currency at `nextActiveTickPrice_`
+            && sumCurrencyDemandAboveClearingQ96_ >= TOTAL_SUPPLY * nextActiveTickPrice_
         ) {
             // Subtract the demand at the current nextActiveTick from the total demand
             sumCurrencyDemandAboveClearingQ96_ -= nextActiveTick.currencyDemandQ96;
@@ -320,7 +321,10 @@ contract Auction is
         Checkpoint memory _checkpoint = checkpoint();
         // Revert if there are no more tokens to be sold
         if (_checkpoint.remainingMpsInAuction() == 0) revert AuctionSoldOut();
-        BidLib.validate(maxPrice, amount, _checkpoint.clearingPrice, TOTAL_SUPPLY);
+        // We don't allow bids to be submitted at or below the clearing price
+        if (maxPrice <= _checkpoint.clearingPrice) revert BidMustBeAboveClearingPrice();
+        // Reject bids which would cause TOTAL_SUPPLY * maxPrice to overflow a uint256
+        if (maxPrice > MAX_BID_PRICE) revert InvalidBidPriceTooHigh();
 
         _initializeTickIfNeeded(prevTickPrice, maxPrice);
 

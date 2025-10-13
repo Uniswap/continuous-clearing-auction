@@ -88,36 +88,40 @@ contract CheckpointStorageTest is Assertions, Test {
     }
 
     function test_calculateFill_exactIn_fuzz_succeeds(
-        uint128 inputAmount,
-        uint256 cumulativeMpsPerPriceDelta,
-        uint24 cumulativeMpsDelta
+        uint128 _inputAmount,
+        uint24 _startCumulativeMps,
+        uint256 _cumulativeMpsPerPriceDelta,
+        uint24 _cumulativeMpsDelta
     ) public view {
-        vm.assume(cumulativeMpsDelta <= ConstantsLib.MPS);
+        vm.assume(_cumulativeMpsDelta <= ConstantsLib.MPS);
+        vm.assume(_startCumulativeMps < ConstantsLib.MPS);
         // Add a reasonable bound for cumulativeMpsPerPriceDelta to avoid overflow
-        cumulativeMpsPerPriceDelta = _bound(cumulativeMpsPerPriceDelta, 1, type(uint128).max);
+        _cumulativeMpsPerPriceDelta = _bound(_cumulativeMpsPerPriceDelta, 1, type(uint128).max);
 
-        uint256 inputAmountQ96 = inputAmount * FixedPoint96.Q96;
+        uint256 inputAmountQ96 = _inputAmount * FixedPoint96.Q96;
         // Assume that full mulDiv will not overflow
-        vm.assume(inputAmountQ96 <= type(uint256).max / cumulativeMpsPerPriceDelta);
+        vm.assume(inputAmountQ96 <= type(uint256).max / _cumulativeMpsPerPriceDelta);
         Bid memory bid = Bid({
             owner: address(this),
             amountQ96: inputAmountQ96,
             tokensFilled: 0,
             startBlock: 100,
-            startCumulativeMps: 0,
+            startCumulativeMps: _startCumulativeMps,
             exitedBlock: 0,
             maxPrice: MAX_PRICE // doesn't matter for this test
         });
 
+        uint24 mpsRemainingInAuctionAfterSubmission = bid.mpsRemainingInAuctionAfterSubmission();
+
         (uint256 tokensFilled, uint256 currencySpentQ96) =
-            mockCheckpointStorage.calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
+            mockCheckpointStorage.calculateFill(bid, _cumulativeMpsPerPriceDelta, _cumulativeMpsDelta);
 
         assertEq(
             tokensFilled,
-            inputAmountQ96.fullMulDiv(cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * ConstantsLib.MPS)
+            inputAmountQ96.fullMulDiv(_cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsRemainingInAuctionAfterSubmission)
                 / FixedPoint96.Q96
         );
-        assertEq(currencySpentQ96, inputAmountQ96.fullMulDivUp(cumulativeMpsDelta, ConstantsLib.MPS));
+        assertEq(currencySpentQ96, inputAmountQ96.fullMulDivUp(_cumulativeMpsDelta, mpsRemainingInAuctionAfterSubmission));
     }
 
     function test_calculateFill_exactIn_iterative() public view {
@@ -200,10 +204,12 @@ contract CheckpointStorageTest is Assertions, Test {
 
     function test_calculateFill_roundsSmallValuesToZero(
         uint256 _inputAmount,
+        uint24 _startCumulativeMps,
         uint256 _cumulativeMpsPerPriceDelta,
         uint24 _cumulativeMpsDelta
     ) public view {
         vm.assume(_inputAmount > 0);
+        vm.assume(_startCumulativeMps < ConstantsLib.MPS);
         _cumulativeMpsDelta = uint24(_bound(_cumulativeMpsDelta, 1, ConstantsLib.MPS));
         // prevent overflow
         _cumulativeMpsPerPriceDelta = _bound(_cumulativeMpsPerPriceDelta, 1, type(uint256).max / _inputAmount);
@@ -212,13 +218,14 @@ contract CheckpointStorageTest is Assertions, Test {
 
         Bid memory bid;
         bid.amountQ96 = _inputAmount;
+        bid.startCumulativeMps = _startCumulativeMps;
 
         (uint256 tokensFilled, uint256 currencySpent) =
             mockCheckpointStorage.calculateFill(bid, _cumulativeMpsPerPriceDelta, _cumulativeMpsDelta);
 
         assertEq(tokensFilled, 0);
         // Currency spent is independent of the tokensFilled
-        assertEq(currencySpent, _inputAmount.fullMulDivUp(_cumulativeMpsDelta, ConstantsLib.MPS));
+        assertEq(currencySpent, _inputAmount.fullMulDivUp(_cumulativeMpsDelta, bid.mpsRemainingInAuctionAfterSubmission()));
     }
 
     function test_accountPartiallyFilledCheckpoints_zeroCumulativeSupplySoldToClearingPrice_returnsZero(Bid memory bid)

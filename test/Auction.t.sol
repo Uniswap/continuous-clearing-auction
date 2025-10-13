@@ -1390,13 +1390,12 @@ contract AuctionTest is AuctionBaseTest {
         // Roll to end of the auction
         vm.roll(endBlock);
         vm.expectEmit(true, true, true, true);
-        // Expect that we sold the total supply at price of 2
-        uint24 expectedCumulativeMps = ConstantsLib.MPS;
+        // Expect that we sold the remaining supply at price of 2
         ValueX7 expectedTotalCurrencyRaised = ValueX7.wrap(TOTAL_SUPPLY).wrapAndFullMulDivUp(
-            tickNumberToPriceX96(2) * expectedCumulativeMps, FixedPoint96.Q96
+            tickNumberToPriceX96(2) * (ConstantsLib.MPS - 100e3 * 10), FixedPoint96.Q96
         );
         emit IAuction.CheckpointUpdated(
-            startBlock + 40, tickNumberToPriceX96(2), expectedTotalCurrencyRaised, expectedCumulativeMps
+            startBlock + 40, tickNumberToPriceX96(2), expectedTotalCurrencyRaised, ConstantsLib.MPS
         );
         mockAuction.checkpoint();
     }

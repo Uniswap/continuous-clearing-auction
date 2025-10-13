@@ -3,6 +3,8 @@ pragma solidity 0.8.26;
 
 import {ITokenCurrencyStorage} from './interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
+
+import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -42,6 +44,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         CURRENCY = Currency.wrap(_currency);
         TOTAL_SUPPLY = _totalSupply;
         if (_totalSupply == 0) revert TotalSupplyIsZero();
+        if (_totalSupply > ConstantsLib.MAX_AMOUNT) revert TotalSupplyIsTooLarge();
         TOTAL_SUPPLY_X7 = _totalSupply.scaleUpToX7();
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;

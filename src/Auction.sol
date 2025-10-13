@@ -324,7 +324,7 @@ contract Auction is
         Checkpoint memory _checkpoint = checkpoint();
         // Revert if there are no more tokens to be sold
         if (_checkpoint.remainingMpsInAuction() == 0) revert AuctionSoldOut();
-        BidLib.validate(maxPrice, _checkpoint.clearingPrice, TOTAL_SUPPLY);
+        BidLib.validate(maxPrice, amount, _checkpoint.clearingPrice, TOTAL_SUPPLY);
 
         _initializeTickIfNeeded(prevTickPrice, maxPrice);
 

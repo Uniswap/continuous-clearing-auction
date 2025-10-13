@@ -23,23 +23,19 @@ library BidLib {
     using BidLib for *;
     using FixedPointMathLib for *;
 
+    error InvalidBidAmountTooLarge();
     error BidMustBeAboveClearingPrice();
     error InvalidBidPriceTooHigh();
 
-    /// @notice The maximum allowable amount for a bid such that it will not
-    ///         overflow a ValueX7 value after shifting into 128.128 representation.
-    uint128 public constant MAX_BID_AMOUNT = type(uint128).max / 1e7;
-
-    function validate(uint256 _maxPrice, uint256 _clearingPrice, uint256 _totalSupply) internal pure {
+    function validate(uint256 _maxPrice, uint128 _amount, uint256 _clearingPrice, uint256 _totalSupply) internal pure {
+        if (_amount > ConstantsLib.MAX_AMOUNT) revert InvalidBidAmountTooLarge();
         if (_maxPrice <= _clearingPrice) revert BidMustBeAboveClearingPrice();
         // An operation in the code which can overflow a uint256 is TOTAL_SUPPLY * (maxPrice / Q96) * Q128.
         // This is only possible if bid.maxPrice is greater than Q96 since then the division is > 1
         // and when multiplied by the total supply can exceed type(uint128).max, which would overflow when multiplied by Q128.
         if (
-            
-                _maxPrice > FixedPoint96.Q96
-                    && _totalSupply.fullMulDiv(_maxPrice, FixedPoint96.Q96) > type(uint256).max.fromX128()
-            
+            _maxPrice > FixedPoint96.Q96
+                && _totalSupply.fullMulDiv(_maxPrice, FixedPoint96.Q96) > type(uint256).max.fromX128()
         ) revert InvalidBidPriceTooHigh();
     }
 

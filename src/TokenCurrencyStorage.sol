@@ -3,6 +3,8 @@ pragma solidity 0.8.26;
 
 import {ITokenCurrencyStorage} from './interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
+import {BidLib} from './libraries/BidLib.sol';
+import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -12,6 +14,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     using FixedPointMathLib for *;
     using CurrencyLibrary for Currency;
     using ValueX7Lib for *;
+    using BidLib for *;
 
     /// @notice The currency being raised in the auction
     Currency internal immutable CURRENCY;
@@ -19,8 +22,8 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     IERC20Minimal internal immutable TOKEN;
     /// @notice The total supply of tokens to sell
     uint128 internal immutable TOTAL_SUPPLY;
-    /// @notice The total supply of tokens to sell, scaled up to a ValueX7
-    ValueX7 internal immutable TOTAL_SUPPLY_X7;
+    /// @notice The total supply of tokens to sell in 128.128 form
+    uint256 internal immutable TOTAL_SUPPLY_X128;
     /// @notice The recipient of any unsold tokens at the end of the auction
     address internal immutable TOKENS_RECIPIENT;
     /// @notice The recipient of the raised Currency from the auction
@@ -40,9 +43,10 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     ) {
         TOKEN = IERC20Minimal(_token);
         CURRENCY = Currency.wrap(_currency);
-        TOTAL_SUPPLY = _totalSupply;
         if (_totalSupply == 0) revert TotalSupplyIsZero();
-        TOTAL_SUPPLY_X7 = _totalSupply.scaleUpToX7();
+        if (_totalSupply > ConstantsLib.X7_UPPER_BOUND) revert TotalSupplyIsTooLarge();
+        TOTAL_SUPPLY = _totalSupply;
+        TOTAL_SUPPLY_X128 = _totalSupply.toX128();
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;
 

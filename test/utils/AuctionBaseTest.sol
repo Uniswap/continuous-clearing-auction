@@ -41,6 +41,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     uint256 public constant TICK_SPACING = 100 << FixedPoint96.RESOLUTION;
     uint256 public constant FLOOR_PRICE = 1000 << FixedPoint96.RESOLUTION;
     uint128 public constant TOTAL_SUPPLY = 1000e18;
+    uint256 public constant TOTAL_SUPPLY_X128 = TOTAL_SUPPLY * FixedPoint128.Q128;
 
     // Max amount of wei that can be lost in totalClearedX7X7 calculations
     uint256 public constant MAX_TOTAL_CLEARED_PRECISION_LOSS = 1;
@@ -171,7 +172,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // if the bid if not above the clearing price, don't submit the bid
         if (maxPrice <= clearingPrice) return (false, 0);
         // Assume the max price is valid
-        maxPrice = helper__assumeValidMaxPrice(auction.floorPrice(), maxPrice, auction.totalSupply(), auction.tickSpacing());
+        maxPrice =
+            helper__assumeValidMaxPrice(auction.floorPrice(), maxPrice, auction.totalSupply(), auction.tickSpacing());
         // If the bid would overflow a ValueX7 value, don't submit the bid
         uint128 ethInputAmount = inputAmountForTokens(_bid.bidAmount, maxPrice);
 
@@ -190,12 +192,11 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
                 // skip the test by returning false and 0
                 if (maxPrice <= checkpoint.clearingPrice) return (false, 0);
                 revert('Uncaught BidMustBeAboveClearingPrice');
-            }
-            else if (bytes4(revertData) == bytes4(abi.encodeWithSelector(IAuction.InvalidBidUnableToClear.selector))) {
+            } else if (bytes4(revertData) == bytes4(abi.encodeWithSelector(IAuction.InvalidBidUnableToClear.selector)))
+            {
                 // TODO(ez): fix this test to catch this error, for now just assume against these inputs
                 return (false, 0);
-            }
-            else if (bytes4(revertData) == bytes4(abi.encodeWithSelector(BidLib.InvalidBidPriceTooHigh.selector))) {
+            } else if (bytes4(revertData) == bytes4(abi.encodeWithSelector(BidLib.InvalidBidPriceTooHigh.selector))) {
                 // TODO(ez): fix this test to catch this error, for now just assume against these inputs
                 return (false, 0);
             }
@@ -339,7 +340,12 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _;
     }
 
-    function helper__assumeValidMaxPrice(uint256 _floorPrice, uint256 _maxPrice, uint256 _totalSupply, uint256 _tickSpacing) internal returns (uint256) {
+    function helper__assumeValidMaxPrice(
+        uint256 _floorPrice,
+        uint256 _maxPrice,
+        uint256 _totalSupply,
+        uint256 _tickSpacing
+    ) internal returns (uint256) {
         _maxPrice = _bound(_maxPrice, _floorPrice, BidLib.MAX_BID_PRICE);
         uint256 ratioOfMaxPriceToQ96 = _maxPrice / FixedPoint96.Q96;
         vm.assume(_totalSupply < type(uint256).max / ratioOfMaxPriceToQ96 / ConstantsLib.MPS);

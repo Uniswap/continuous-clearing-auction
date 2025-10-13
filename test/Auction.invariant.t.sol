@@ -74,8 +74,8 @@ contract AuctionInvariantHandler is Test, Assertions {
         assertGe(checkpoint.clearingPrice, _checkpoint.clearingPrice, 'Checkpoint clearing price is not increasing');
         // Check that the cumulative variables are always increasing
         assertGe(
-            checkpoint.currencyRaisedX7,
-            _checkpoint.currencyRaisedX7,
+            checkpoint.currencyRaisedX128_X7,
+            _checkpoint.currencyRaisedX128_X7,
             'Checkpoint total currency raised is not increasing'
         );
         assertGe(checkpoint.cumulativeMps, _checkpoint.cumulativeMps, 'Checkpoint cumulative mps is not increasing');
@@ -155,7 +155,6 @@ contract AuctionInvariantHandler is Test, Assertions {
 
         uint256 prevTickPrice = _getLowerTick(maxPrice);
         uint256 nextBidId = mockAuction.nextBidId();
-        console.log('submitting bid with', inputAmount, maxPrice, prevTickPrice);
         try mockAuction.submitBid{value: currency.isAddressZero() ? inputAmount : 0}(
             maxPrice, inputAmount, currentActor, prevTickPrice, bytes('')
         ) {
@@ -168,6 +167,11 @@ contract AuctionInvariantHandler is Test, Assertions {
                 assertEq(revertData, abi.encodeWithSelector(IAuction.BidAmountTooSmall.selector));
             } else if (prevTickPrice == 0) {
                 assertEq(revertData, abi.encodeWithSelector(ITickStorage.TickPriceNotIncreasing.selector));
+            } else if (
+                mockAuction.sumCurrencyDemandAboveClearingX128()
+                    >= ConstantsLib.X7_UPPER_BOUND - inputAmount * FixedPoint128.Q128
+            ) {
+                assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidBidUnableToClear.selector));
             } else {
                 // For race conditions or any errors that require additional calls to be made
                 if (bytes4(revertData) == bytes4(abi.encodeWithSelector(BidLib.BidMustBeAboveClearingPrice.selector))) {

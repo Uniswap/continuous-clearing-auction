@@ -118,10 +118,13 @@ contract CheckpointStorageTest is Assertions, Test {
 
         assertEq(
             tokensFilled,
-            inputAmountQ96.fullMulDiv(_cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsRemainingInAuctionAfterSubmission)
-                / FixedPoint96.Q96
+            inputAmountQ96.fullMulDiv(
+                _cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsRemainingInAuctionAfterSubmission
+            ) / FixedPoint96.Q96
         );
-        assertEq(currencySpentQ96, inputAmountQ96.fullMulDivUp(_cumulativeMpsDelta, mpsRemainingInAuctionAfterSubmission));
+        assertEq(
+            currencySpentQ96, inputAmountQ96.fullMulDivUp(_cumulativeMpsDelta, mpsRemainingInAuctionAfterSubmission)
+        );
     }
 
     function test_calculateFill_exactIn_iterative() public view {
@@ -225,7 +228,9 @@ contract CheckpointStorageTest is Assertions, Test {
 
         assertEq(tokensFilled, 0);
         // Currency spent is independent of the tokensFilled
-        assertEq(currencySpent, _inputAmount.fullMulDivUp(_cumulativeMpsDelta, bid.mpsRemainingInAuctionAfterSubmission()));
+        assertEq(
+            currencySpent, _inputAmount.fullMulDivUp(_cumulativeMpsDelta, bid.mpsRemainingInAuctionAfterSubmission())
+        );
     }
 
     function test_accountPartiallyFilledCheckpoints_zeroCumulativeSupplySoldToClearingPrice_returnsZero(Bid memory bid)

@@ -24,6 +24,15 @@ contract AuctionIterateOverTicksTest is AuctionUnitTest {
     using FixedPointMathLib for *;
     using CheckpointLib for Checkpoint;
 
+    function helper__toDemand(FuzzBid memory _bid, uint24 _startCumulativeMps)
+        internal
+        pure
+        returns (uint256 currencyDemandX128)
+    {
+        currencyDemandX128 =
+            _bid.bidAmount.fullMulDiv(FixedPoint128.Q128 * ConstantsLib.MPS, ConstantsLib.MPS - _startCumulativeMps);
+    }
+
     modifier givenValidMps(uint24 remainingMps) {
         vm.assume(remainingMps > 0 && remainingMps <= ConstantsLib.MPS);
         _;

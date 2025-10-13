@@ -38,34 +38,30 @@ contract TickStorageTest is Test, Assertions {
     modifier givenValidDeploymentParams(uint256 _tickSpacing, uint256 _floorPrice) {
         $tickSpacing = _tickSpacing;
         vm.assume(_tickSpacing > 0);
-        $floorPrice_rounded = helper__roundPriceDownToTickSpacing(_floorPrice, $tickSpacing);
+        $floorPrice_rounded = _roundPriceDownToTickSpacing(_floorPrice, $tickSpacing);
         vm.assume($floorPrice_rounded > 0);
         // Assume that floor price is at least one tick away from max price
-        vm.assume($floorPrice_rounded < $tickSpacing);
+        vm.assume($floorPrice_rounded < type(uint256).max - $tickSpacing);
         _;
     }
 
-    function helper__roundPriceDownToTickSpacing(uint256 _price, uint256 _tickSpacing)
-        internal
-        pure
-        returns (uint256)
-    {
+    function _roundPriceDownToTickSpacing(uint256 _price, uint256 _tickSpacing) private pure returns (uint256) {
         return _price - (_price % _tickSpacing);
     }
 
-    function helper__roundPriceUpToTickSpacing(uint256 _price, uint256 _tickSpacing) internal pure returns (uint256) {
-        return _price + (_tickSpacing - (_price % _tickSpacing));
+    function _roundPriceUpToTickSpacing(uint256 _price, uint256 _tickSpacing) private pure returns (uint256) {
+        uint256 remainder = _price % _tickSpacing;
+        if (remainder == 0) return _price;
+        return _price + (_tickSpacing - remainder);
     }
 
     function helper__assumeValidPrice(uint256 _price) internal returns (uint256) {
-        _price = _bound(
-            _price,
-            helper__roundPriceUpToTickSpacing($floorPrice_rounded, $tickSpacing),
-            helper__roundPriceDownToTickSpacing(type(uint256).max, $tickSpacing)
-        );
-        _price = helper__roundPriceDownToTickSpacing(_price, $tickSpacing);
+        uint256 minPrice = _roundPriceUpToTickSpacing($floorPrice_rounded, $tickSpacing);
+        uint256 maxPrice = _roundPriceDownToTickSpacing(type(uint256).max, $tickSpacing);
+        _price = _bound(_price, minPrice, maxPrice);
+        _price = _roundPriceDownToTickSpacing(_price, $tickSpacing);
         vm.assume(_price % $tickSpacing == 0);
-        vm.assume(_price > $floorPrice_rounded);
+        vm.assume(_price > $floorPrice_rounded && _price < type(uint256).max);
         return _price;
     }
 

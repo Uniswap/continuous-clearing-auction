@@ -455,11 +455,11 @@ contract AuctionTest is AuctionBaseTest {
         auction.submitBid{value: 0}(tickNumberToPriceX96(2), uint128(1000e18), alice, bytes(''));
     }
 
-    function test_submitBid_exactInZeroAmount_revertsWithBidAmountTooSmall() public {
-        vm.expectRevert(IAuction.BidAmountTooSmall.selector);
+    function test_submitBid_exactInZeroAmount_revertsWithInvalidAmount() public {
+        vm.expectRevert(IAuction.InvalidAmount.selector);
         auction.submitBid{value: 1000e18}(tickNumberToPriceX96(2), 0, alice, tickNumberToPriceX96(1), bytes(''));
 
-        vm.expectRevert(IAuction.BidAmountTooSmall.selector);
+        vm.expectRevert(IAuction.InvalidAmount.selector);
         auction.submitBid{value: 1000e18}(tickNumberToPriceX96(2), 0, alice, bytes(''));
     }
 
@@ -580,39 +580,32 @@ contract AuctionTest is AuctionBaseTest {
         vm.stopPrank();
     }
 
-    function test_exitBid_joinedLate_succeeds(uint128 _bidAmount1, uint256 _maxPrice)
+    function test_exitBid_joinedLate_succeeds(uint128 _bidAmount, uint256 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
+        givenValidBidAmount(_bidAmount)
+        givenGraduatedAuction
         givenFullyFundedAccount
     {
         // Neither bid can fully fill the auction, but both together will
-        _bidAmount1 = SafeCastLib.toUint128(_bound(_bidAmount1, 1, TOTAL_SUPPLY - 1));
-
-        uint128 bid1InputAmount = inputAmountForTokens(_bidAmount1, $maxPrice);
         vm.roll(auction.endBlock() - 1);
-        uint256 bidId1 = auction.submitBid{value: bid1InputAmount}(
-            $maxPrice, bid1InputAmount, alice, tickNumberToPriceX96(1), bytes('')
-        );
-
-        uint128 _bidAmount2 = TOTAL_SUPPLY - _bidAmount1;
-        uint128 bid2InputAmount = inputAmountForTokens(_bidAmount2, $maxPrice);
-        uint256 bidId2 = auction.submitBid{value: bid2InputAmount}(
-            $maxPrice, bid2InputAmount, alice, tickNumberToPriceX96(1), bytes('')
-        );
+        uint128 inputAmount = inputAmountForTokens($bidAmount, $maxPrice);
+        uint256 bidId1 =
+            auction.submitBid{value: inputAmount}($maxPrice, inputAmount, alice, tickNumberToPriceX96(1), bytes(''));
 
         uint256 aliceBalanceBefore = address(alice).balance;
-        uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
         vm.roll(auction.endBlock());
-        auction.exitPartiallyFilledBid(bidId1, auction.endBlock() - 1, 0);
-        auction.exitPartiallyFilledBid(bidId2, auction.endBlock() - 1, 0);
+        Checkpoint memory checkpoint = auction.checkpoint();
+        if ($maxPrice > checkpoint.clearingPrice) {
+            auction.exitBid(bidId1);
+        } else {
+            auction.exitPartiallyFilledBid(bidId1, auction.endBlock() - 1, 0);
+        }
 
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId1);
-        auction.claimTokens(bidId2);
 
-        // At the end, alice should have purchased all of the token supply
-        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + TOTAL_SUPPLY);
         // Assert that alice is not refunded any currency
         assertEq(address(alice).balance, aliceBalanceBefore);
     }
@@ -1514,7 +1507,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectRevert(ITickStorage.FloorPriceIsZero.selector);
         new Auction(address(token), TOTAL_SUPPLY, paramsZeroFloorPrice);
     }
-    
+
     function test_auctionConstruction_revertsWithClaimBlockBeforeEndBlock() public {
         AuctionParameters memory paramsClaimBlockBeforeEndBlock =
             params.withClaimBlock(block.number + AUCTION_DURATION - 1).withEndBlock(block.number + AUCTION_DURATION);

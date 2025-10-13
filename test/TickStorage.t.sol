@@ -57,7 +57,7 @@ contract TickStorageTest is Test, Assertions {
         return _price + (_tickSpacing - (_price % _tickSpacing));
     }
 
-    function helper__assumeValidPrice(uint256 _price) internal returns (uint256) {
+    function helper__assumeValidTickPrice(uint256 _price) internal returns (uint256) {
         _price = _bound(
             _price,
             helper__roundPriceUpToTickSpacing($floorPrice_rounded, $tickSpacing),
@@ -109,7 +109,7 @@ contract TickStorageTest is Test, Assertions {
         givenValidDeploymentParams(_tickSpacing, _floorPrice)
     {
         tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
-        _price = helper__assumeValidPrice(_price);
+        _price = helper__assumeValidTickPrice(_price);
 
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(_price);
@@ -135,8 +135,8 @@ contract TickStorageTest is Test, Assertions {
         uint256 _price
     ) public givenValidDeploymentParams(_tickSpacing, _floorPrice) {
         tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
-        _prevPrice = helper__assumeValidPrice(_prevPrice);
-        _price = helper__assumeValidPrice(_price);
+        _prevPrice = helper__assumeValidTickPrice(_prevPrice);
+        _price = helper__assumeValidTickPrice(_price);
 
         // Intialze the floor price since it is guaranteed to be initialized already
         tickStorage.initializeTickIfNeeded(_prevPrice, $floorPrice_rounded);
@@ -154,8 +154,8 @@ contract TickStorageTest is Test, Assertions {
         uint256 _price
     ) public givenValidDeploymentParams(_tickSpacing, _floorPrice) {
         tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
-        _prevPrice = helper__assumeValidPrice(_prevPrice);
-        _price = helper__assumeValidPrice(_price);
+        _prevPrice = helper__assumeValidTickPrice(_prevPrice);
+        _price = helper__assumeValidTickPrice(_price);
         // Assume that `price` is not initialized yet
         helper__assumeUninitializedTick(_price);
 
@@ -176,7 +176,7 @@ contract TickStorageTest is Test, Assertions {
         uint256 _price
     ) public givenValidDeploymentParams(_tickSpacing, _floorPrice) {
         tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
-        _price = helper__assumeValidPrice(_price);
+        _price = helper__assumeValidTickPrice(_price);
         // Assume that `price` is not initialized yet
         helper__assumeUninitializedTick(_price);
         // Set nextActiveTickPrice to MAX_TICK_PRICE
@@ -198,8 +198,8 @@ contract TickStorageTest is Test, Assertions {
     ) public givenValidDeploymentParams(_tickSpacing, _floorPrice) {
         tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
         // Assume all valid prices
-        _price = helper__assumeValidPrice(_price);
-        _nextPrice = helper__assumeValidPrice(_nextPrice);
+        _price = helper__assumeValidTickPrice(_price);
+        _nextPrice = helper__assumeValidTickPrice(_nextPrice);
         vm.assume(_price != _nextPrice);
         // Assume both are not initialized
         helper__assumeUninitializedTick(_price);
@@ -223,7 +223,7 @@ contract TickStorageTest is Test, Assertions {
         givenValidDeploymentParams(1, _floorPrice)
     {
         tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
-        _prevPrice = helper__assumeValidPrice(_prevPrice);
+        _prevPrice = helper__assumeValidTickPrice(_prevPrice);
         vm.expectRevert(ITickStorage.InvalidTickPrice.selector);
         tickStorage.initializeTickIfNeeded(_prevPrice, type(uint256).max);
     }
@@ -233,7 +233,7 @@ contract TickStorageTest is Test, Assertions {
         givenValidDeploymentParams(_tickSpacing, _floorPrice)
     {
         tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
-        _prevPrice = helper__assumeValidPrice(_prevPrice);
+        _prevPrice = helper__assumeValidTickPrice(_prevPrice);
         vm.expectRevert(ITickStorage.TickPreviousPriceInvalid.selector);
         tickStorage.initializeTickIfNeeded(_prevPrice, 0);
     }
@@ -244,7 +244,7 @@ contract TickStorageTest is Test, Assertions {
         givenValidDeploymentParams(_tickSpacing, _floorPrice)
     {
         tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
-        _price = helper__assumeValidPrice(_price);
+        _price = helper__assumeValidTickPrice(_price);
         helper__assumeUninitializedTick(_price);
         vm.expectRevert(ITickStorage.TickPreviousPriceInvalid.selector);
         tickStorage.initializeTickIfNeeded(0, _price);
@@ -257,8 +257,8 @@ contract TickStorageTest is Test, Assertions {
         uint256 _price
     ) public givenValidDeploymentParams(_tickSpacing, _floorPrice) {
         tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
-        _prevPrice = helper__assumeValidPrice(_prevPrice);
-        _price = helper__assumeValidPrice(_price);
+        _prevPrice = helper__assumeValidTickPrice(_prevPrice);
+        _price = helper__assumeValidTickPrice(_price);
         helper__assumeUninitializedTick(_prevPrice);
         helper__assumeUninitializedTick(_price);
         // Assume correct ordering of hints
@@ -275,8 +275,8 @@ contract TickStorageTest is Test, Assertions {
         uint256 _price
     ) public givenValidDeploymentParams(_tickSpacing, _floorPrice) {
         tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
-        _prevPrice = helper__assumeValidPrice(_prevPrice);
-        _price = helper__assumeValidPrice(_price);
+        _prevPrice = helper__assumeValidTickPrice(_prevPrice);
+        _price = helper__assumeValidTickPrice(_price);
         // Assume incorrect ordering of hints
         vm.assume(_prevPrice >= _price);
 

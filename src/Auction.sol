@@ -152,7 +152,9 @@ contract Auction is
                 ValueX7 currencyRaisedAboveClearingPriceX128_X7 =
                     ValueX7.wrap($sumCurrencyDemandAboveClearingX128 * deltaMps);
                 console.log('currencyRaisedX128_X7', ValueX7.unwrap(currencyRaisedX128_X7));
-                console.log('currencyRaisedAboveClearingPriceX128_X7', ValueX7.unwrap(currencyRaisedAboveClearingPriceX128_X7));
+                console.log(
+                    'currencyRaisedAboveClearingPriceX128_X7', ValueX7.unwrap(currencyRaisedAboveClearingPriceX128_X7)
+                );
                 ValueX7 currencyRaisedAtClearingPriceX128_X7 =
                     currencyRaisedX128_X7.sub(currencyRaisedAboveClearingPriceX128_X7);
                 // Update the cumulative value in the checkpoint which will be reset if the clearing price changes

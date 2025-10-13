@@ -13,6 +13,10 @@ import {FuzzBid, FuzzDeploymentParams} from './utils/FuzzStructs.sol';
 import {console2} from 'forge-std/console2.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
+/// @dev These tests fuzz over the full range of inputs for both the auction parameters and the bids submitted
+///      so we limit the number of fuzz runs.
+/// forge-config: default.fuzz.runs = 500
+/// forge-config: ci.fuzz.runs = 500
 contract AuctionGraduationTest is AuctionBaseTest {
     using ValueX7Lib for *;
     using BidLib for *;
@@ -30,6 +34,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenNotGraduatedAuction
         givenAuctionHasStarted
         givenFullyFundedAccount
+        checkAuctionIsNotGraduated
     {
         // Dont do too many bids
         _numberOfBids = SafeCastLib.toUint128(_bound(_numberOfBids, 1, 10));
@@ -62,8 +67,9 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenNotGraduatedAuction
         givenAuctionHasStarted
         givenFullyFundedAccount
+        checkAuctionIsNotGraduated
     {
-        auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
+        assumeSubmitBid($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
         vm.roll(auction.endBlock());
 
@@ -85,12 +91,11 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenAuctionHasStarted
         givenFullyFundedAccount
     {
-        // Use uint128 max as a reasonable upper bound
-        auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
+        assumeSubmitBid($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
         vm.roll(auction.endBlock());
-        Checkpoint memory checkpoint = auction.checkpoint();
-        uint256 expectedCurrencyRaised = checkpoint.currencyRaisedX128_X7.scaleDownToUint256().fromX128();
+        auction.checkpoint();
+        uint256 expectedCurrencyRaised = auction.currencyRaised();
 
         vm.prank(fundsRecipient);
         vm.expectEmit(true, true, true, true);
@@ -113,11 +118,12 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenGraduatedAuction
         givenAuctionHasStarted
         givenFullyFundedAccount
+        checkAuctionIsGraduated
     {
-        auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
+        assumeSubmitBid($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
         vm.roll(auction.endBlock());
-        // Should sweep all tokens except for total supply
+        // Should sweep no tokens since graduated
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, 0);
         auction.sweepUnsoldTokens();
@@ -135,8 +141,9 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenNotGraduatedAuction
         givenAuctionHasStarted
         givenFullyFundedAccount
+        checkAuctionIsNotGraduated
     {
-        auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
+        assumeSubmitBid($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
         vm.roll(auction.endBlock());
         // Update the lastCheckpoint

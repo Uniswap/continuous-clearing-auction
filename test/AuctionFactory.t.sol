@@ -217,6 +217,7 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         vm.assume(_params.fundsRecipient != address(0));
         vm.assume(_params.startBlock != 0);
         vm.assume(_params.claimBlock != 0);
+        vm.assume(_totalSupply.toX128() <= ConstantsLib.X7_UPPER_BOUND);
 
         // -2 because we need to account for the endBlock and claimBlock
         vm.assume(_params.startBlock <= type(uint64).max - _numberOfSteps - 2);

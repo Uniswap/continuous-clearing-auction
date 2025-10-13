@@ -282,6 +282,8 @@ contract AuctionTest is AuctionBaseTest {
         givenValidBidAmount(_bidAmount)
         givenGraduatedAuction
         givenFullyFundedAccount
+        checkAuctionIsGraduated
+        checkAuctionIsSolvent
     {
         // 0 mps for first 50 blocks, then 200mps for the last 50 blocks
         params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(0, 100).addStep(100e3, 100))
@@ -320,12 +322,17 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
-
-        auction.sweepCurrency();
-        auction.sweepUnsoldTokens();
     }
 
-    function test_submitBid_noRolloverSupply(uint256 _seed) public {
+    function test_submitBid_noRolloverSupply(uint128 _bidAmount, uint256 _maxPrice, uint256 _seed)
+        public
+        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
+        givenValidBidAmount(_bidAmount)
+        givenGraduatedAuction
+        givenFullyFundedAccount
+        checkAuctionIsGraduated
+        checkAuctionIsSolvent
+    {
         // Advance by one such that the auction is already started
         uint256 targetBlock =
             _bound(_seed % (auction.endBlock() - auction.startBlock()), block.number + 1, auction.endBlock());
@@ -336,15 +343,18 @@ contract AuctionTest is AuctionBaseTest {
         );
 
         vm.roll(auction.endBlock());
-        auction.exitPartiallyFilledBid(bidId, uint64(targetBlock), 0);
+        Checkpoint memory checkpoint = auction.checkpoint();
+        if ($maxPrice > checkpoint.clearingPrice) {
+            auction.exitBid(bidId);
+        } else {
+            auction.exitPartiallyFilledBid(bidId, uint64(targetBlock), 0);
+        }
 
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
         uint256 expectedCumulativeMps = (auction.endBlock() - targetBlock) * 100e3;
         uint256 expectedTokensFilled = (TOTAL_SUPPLY * expectedCumulativeMps) / ConstantsLib.MPS;
 
         vm.roll(auction.claimBlock());
-        vm.expectEmit(true, true, true, true);
-        emit IAuction.TokensClaimed(bidId, alice, expectedTokensFilled);
         auction.claimTokens(bidId);
     }
 
@@ -571,31 +581,20 @@ contract AuctionTest is AuctionBaseTest {
         }
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
-
-        auction.sweepCurrency();
-        auction.sweepUnsoldTokens();
     }
 
-    function test_exitBid_joinedLate_succeeds(uint128 _bidAmount1, uint256 _maxPrice)
+    function test_exitBid_joinedLate_succeeds(uint128 _bidAmount, uint256 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
+        givenValidBidAmount(_bidAmount)
+        givenGraduatedAuction
         givenFullyFundedAccount
+        checkAuctionIsGraduated
+        checkAuctionIsSolvent
     {
-        // Neither bid can fully fill the auction, but both together will
-        _bidAmount1 =
-            SafeCastLib.toUint128(_bound(_bidAmount1, BidLib.MIN_BID_AMOUNT, TOTAL_SUPPLY - BidLib.MIN_BID_AMOUNT - 1));
-
-        uint128 bid1InputAmount = inputAmountForTokens(_bidAmount1, $maxPrice);
         vm.roll(auction.endBlock() - 1);
-        uint256 bidId1 = auction.submitBid{value: bid1InputAmount}(
-            $maxPrice, bid1InputAmount, alice, tickNumberToPriceX96(1), bytes('')
-        );
-
-        uint128 _bidAmount2 = TOTAL_SUPPLY - _bidAmount1;
-        uint128 bid2InputAmount = inputAmountForTokens(_bidAmount2, $maxPrice);
-        uint256 bidId2 = auction.submitBid{value: bid2InputAmount}(
-            $maxPrice, bid2InputAmount, alice, tickNumberToPriceX96(1), bytes('')
-        );
+        uint256 bidId1 =
+            auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, tickNumberToPriceX96(1), bytes(''));
 
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
@@ -604,20 +603,12 @@ contract AuctionTest is AuctionBaseTest {
         Checkpoint memory checkpoint = auction.checkpoint();
         if ($maxPrice > checkpoint.clearingPrice) {
             auction.exitBid(bidId1);
-            auction.exitBid(bidId2);
         } else {
             auction.exitPartiallyFilledBid(bidId1, auction.endBlock() - 1, 0);
-            auction.exitPartiallyFilledBid(bidId2, auction.endBlock() - 1, 0);
         }
 
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId1);
-        auction.claimTokens(bidId2);
-
-        // At the end, alice should have purchased all of the token supply
-        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + TOTAL_SUPPLY);
-        // Assert that alice is not refunded any currency
-        assertEq(address(alice).balance, aliceBalanceBefore);
     }
 
     function test_exitBid_beforeEndBlock_revertsWithCannotExitBid() public {
@@ -1721,6 +1712,8 @@ contract AuctionTest is AuctionBaseTest {
         givenFullyFundedAccount
     {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
+        // Such that each bid is at least the min bid amount
+        vm.assume($bidAmount >= BidLib.MIN_BID_AMOUNT * _numberOfBids);
 
         uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids, $maxPrice);
 

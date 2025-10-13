@@ -85,15 +85,18 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
         // Dont have tick spacing or floor price too large
         _deploymentParams.auctionParams.floorPrice =
-            _bound(_deploymentParams.auctionParams.floorPrice, 0, type(uint128).max);
+            _bound(_deploymentParams.auctionParams.floorPrice, 1, type(uint128).max);
+        _deploymentParams.auctionParams.floorPrice = helper__assumeValidPrice(
+            _deploymentParams.auctionParams.floorPrice,
+            _deploymentParams.totalSupply
+        );
+        // Require tick spacing to be less than or equal to floor price
         _deploymentParams.auctionParams.tickSpacing =
-            _bound(_deploymentParams.auctionParams.tickSpacing, 0, type(uint128).max);
-
-        // first assume that tick spacing is not zero to avoid division by zero
-        vm.assume(_deploymentParams.auctionParams.tickSpacing != 0);
+            _bound(_deploymentParams.auctionParams.tickSpacing, 1, _deploymentParams.auctionParams.floorPrice);
         // round down to the closest floor price to the tick spacing
-        _deploymentParams.auctionParams.floorPrice = _deploymentParams.auctionParams.floorPrice
-            / _deploymentParams.auctionParams.tickSpacing * _deploymentParams.auctionParams.tickSpacing;
+        _deploymentParams.auctionParams.floorPrice = helper__roundPriceDownToTickSpacing(
+            _deploymentParams.auctionParams.floorPrice, _deploymentParams.auctionParams.tickSpacing
+        );
         // then assume that floor price is non zero
         vm.assume(_deploymentParams.auctionParams.floorPrice != 0);
 
@@ -178,6 +181,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
             helper__assumeValidMaxPrice(auction.floorPrice(), maxPrice, auction.totalSupply(), auction.tickSpacing());
         // If the bid would overflow a ValueX7 value, don't submit the bid
         uint128 ethInputAmount = inputAmountForTokens(_bid.bidAmount, maxPrice);
+        // Prevent InvalidBidAmountTooHigh
+        vm.assume(ethInputAmount.toX128() <= ConstantsLib.X7_UPPER_BOUND);
 
         // Get the correct last tick price for the bid
         uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
@@ -353,18 +358,47 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _;
     }
 
+    /// @notice For assuming a valid price (does not cause InvalidBidPriceTooHigh error)
+    function helper__assumeValidPrice(uint256 _price, uint256 _totalSupply)
+        internal
+        view
+        returns (uint256)
+    {
+        uint256 maxPriceGivenTotalSupply = (type(uint128).max * FixedPoint96.Q96) / _totalSupply;
+        if(maxPriceGivenTotalSupply > 0) {
+            _price = bound(_price, 1, maxPriceGivenTotalSupply);
+        }
+        return _price;
+    }
+
     function helper__assumeValidMaxPrice(
         uint256 _floorPrice,
         uint256 _maxPrice,
         uint256 _totalSupply,
         uint256 _tickSpacing
     ) internal returns (uint256) {
-        _maxPrice = _bound(_maxPrice, _floorPrice, BidLib.MAX_BID_PRICE);
-        // Prevent InvalidBidPriceTooHigh
-        vm.assume(uint256(_totalSupply).fullMulDiv(_maxPrice, FixedPoint96.Q96) <= type(uint128).max);
+        _maxPrice = helper__assumeValidPrice(_maxPrice, _totalSupply);
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, _tickSpacing);
         vm.assume(_maxPrice > _floorPrice);
         return _maxPrice;
+    }
+
+    /// @notice Perfectly constraining the fuzz runs is very difficult. So we assume against any failing calls
+    /// with the assumption that we have already tried to bound the inputs as much as possible.
+    function assumeSubmitBid(uint256 _maxPrice, uint128 _bidAmount, address _owner, uint256 _prevTickPrice, bytes memory _hookData) internal returns (uint256) {
+        try auction.submitBid{value: _bidAmount}(_maxPrice, _bidAmount, _owner, _prevTickPrice, _hookData) returns (uint256 _bidId) {
+            return _bidId;
+        } catch (bytes memory revertData) {
+            // throw out the fuzz run
+            emit log_string("-----Assume Submit Bid Failed-----");
+            emit log_named_uint("maxPrice", _maxPrice);
+            emit log_named_uint("bidAmount", _bidAmount);
+            emit log_named_string("revertData", string(revertData));
+            emit log_named_uint("floor price", params.floorPrice);
+            emit log_named_uint("tick spacing", params.tickSpacing);
+            emit log_named_uint("total supply", $deploymentParams.totalSupply);
+            revert("submitBid fuzz failure");
+        }
     }
 
     modifier givenValidBidAmount(uint128 _bidAmount) {
@@ -387,6 +421,34 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     modifier givenNotGraduatedAuction() {
         vm.assume($bidAmount < params.requiredCurrencyRaised);
         _;
+    }
+
+    modifier checkAuctionIsSolvent() {
+        _;
+        require(block.number >= auction.endBlock(), 'checkAuctionIsSolvent: Auction is not over');
+        auction.checkpoint();
+        if (auction.isGraduated()) {
+            auction.sweepCurrency();
+            auction.sweepUnsoldTokens();
+        } else {
+            auction.sweepUnsoldTokens();
+        }
+        auction.sweepCurrency();
+        auction.sweepUnsoldTokens();
+    }
+
+    modifier checkAuctionIsGraduated() {
+        _;
+        require(block.number >= auction.endBlock(), 'checkAuctionIsGraduated: Auction is not over');
+        auction.checkpoint();
+        assertTrue(auction.isGraduated());
+    }
+
+    modifier checkAuctionIsNotGraduated() {
+        _;
+        require(block.number >= auction.endBlock(), 'checkAuctionIsNotGraduated: Auction is not over');
+        auction.checkpoint();
+        assertFalse(auction.isGraduated());
     }
 
     function helper__submitBid(Auction _auction, address _owner, uint128 _amount, uint256 _maxPrice)
@@ -431,7 +493,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice
     function inputAmountForTokens(uint128 tokens, uint256 maxPrice) internal pure returns (uint128) {
         uint256 temp = tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96);
-        vm.assume(temp <= type(uint128).max);
+        temp = _bound(temp, 1, type(uint128).max);
         return SafeCastLib.toUint128(temp);
     }
 

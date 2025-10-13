@@ -41,7 +41,7 @@ library BidLib {
         if (
             (
                 bid.maxPrice > FixedPoint96.Q96
-                    && _totalSupply.fullMulDiv(bid.maxPrice, FixedPoint96.Q96) > type(uint256).max.fromX128()
+                    && _totalSupply.fullMulDiv(bid.maxPrice, FixedPoint96.Q96) > type(uint128).max
             ) || bid.maxPrice >= MAX_BID_PRICE
         ) revert InvalidBidPriceTooHigh();
         // If the bid amount after scaling to 128.128 exceeds ConstantsLib.X7_UPPER_BOUND, revert

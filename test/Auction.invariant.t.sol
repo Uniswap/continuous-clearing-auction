@@ -17,6 +17,8 @@ import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionUnitTest} from './unit/AuctionUnitTest.sol';
 import {Assertions} from './utils/Assertions.sol';
+
+import {FuzzDeploymentParams} from './utils/FuzzStructs.sol';
 import {MockAuction} from './utils/MockAuction.sol';
 import {Test} from 'forge-std/Test.sol';
 import {console} from 'forge-std/console.sol';
@@ -124,7 +126,7 @@ contract AuctionInvariantHandler is Test, Assertions {
 
     /// @notice Roll the block number
     function handleRoll(uint256 seed) public {
-        if (seed % 3 == 0) vm.roll(block.number + 1);
+        if (seed % 13 == 0) vm.roll(block.number + 1);
     }
 
     function handleCheckpoint() public validateCheckpoint {
@@ -299,9 +301,17 @@ contract AuctionInvariantTest is AuctionUnitTest {
         uint256 expectedCurrencyRaised = mockAuction.currencyRaised();
 
         emit log_string('==================== AFTER EXIT AND CLAIM TOKENS ====================');
-        emit log_named_decimal_uint('auction balance', address(mockAuction).balance, 18);
-        emit log_named_decimal_uint('totalCurrencyRaised', totalCurrencyRaised, 18);
-        emit log_named_decimal_uint('expectedCurrencyRaised', expectedCurrencyRaised, 18);
+        emit log_named_uint('bidCount', bidCount);
+        emit log_named_uint('auction duration (blocks)', mockAuction.endBlock() - mockAuction.startBlock());
+        emit log_named_decimal_uint('auction currency balance', address(mockAuction).balance, 18);
+        emit log_named_decimal_uint('actualCurrencyRaised (from all bids after refunds)', totalCurrencyRaised, 18);
+        emit log_named_decimal_uint('expectedCurrencyRaised (for sweepCurrency())', expectedCurrencyRaised, 18);
+
+        assertEq(
+            address(mockAuction).balance,
+            totalCurrencyRaised,
+            'Auction currency balance does not match total currency raised'
+        );
 
         mockAuction.sweepUnsoldTokens();
         if (mockAuction.isGraduated()) {

@@ -68,8 +68,8 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenAuctionHasStarted
         givenFullyFundedAccount
         checkAuctionIsNotGraduated
-    {
-        assumeSubmitBid($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
+    {   
+        auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
         vm.roll(auction.endBlock());
 
@@ -91,7 +91,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenAuctionHasStarted
         givenFullyFundedAccount
     {
-        assumeSubmitBid($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
+        auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
         vm.roll(auction.endBlock());
         auction.checkpoint();
@@ -120,7 +120,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenFullyFundedAccount
         checkAuctionIsGraduated
     {
-        assumeSubmitBid($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
+        auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
         vm.roll(auction.endBlock());
         // Should sweep no tokens since graduated
@@ -143,7 +143,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenFullyFundedAccount
         checkAuctionIsNotGraduated
     {
-        assumeSubmitBid($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
+        auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
         vm.roll(auction.endBlock());
         // Update the lastCheckpoint

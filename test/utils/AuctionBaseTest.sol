@@ -226,8 +226,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         maxPrice =
             helper__assumeValidMaxPrice(auction.floorPrice(), maxPrice, auction.totalSupply(), auction.tickSpacing());
         uint128 ethInputAmount = inputAmountForTokens(_bid.bidAmount, maxPrice);
-        // Prevent InvalidBidAmountTooHigh
-        vm.assume(ethInputAmount.toX128() <= ConstantsLib.X7_UPPER_BOUND);
 
         // Get the correct last tick price for the bid
         uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
@@ -378,6 +376,11 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     /// @dev Uses default values for floor price and tick spacing
     modifier givenValidMaxPrice(uint256 _maxPrice, uint128 _totalSupply) {
         $maxPrice = helper__assumeValidMaxPrice(FLOOR_PRICE, _maxPrice, _totalSupply, TICK_SPACING);
+        _;
+    }
+
+    modifier givenValidMaxPriceWithParams(uint256 _maxPrice, uint128 _totalSupply, uint256 _floorPrice, uint256 _tickSpacing) {
+        $maxPrice = helper__assumeValidMaxPrice(_floorPrice, _maxPrice, _totalSupply, _tickSpacing);
         _;
     }
 

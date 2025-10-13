@@ -1706,9 +1706,6 @@ contract AuctionTest is AuctionBaseTest {
         givenFullyFundedAccount
     {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
-        // Such that each bid is at least the min bid amount
-        vm.assume($bidAmount >= BidLib.MIN_BID_AMOUNT * _numberOfBids);
-
         uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids, $maxPrice);
 
         vm.roll(auction.claimBlock());

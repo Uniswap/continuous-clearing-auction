@@ -20,7 +20,6 @@ contract AuctionFactoryTest is AuctionBaseTest {
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
     using ValueX7Lib for *;
-    using BidLib for *;
 
     AuctionFactory factory;
 

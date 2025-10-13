@@ -83,7 +83,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     }
 
     /// @inheritdoc ITokenCurrencyStorage
-    function totalSupply() external view override(ITokenCurrencyStorage) returns (uint256) {
+    function totalSupply() external view override(ITokenCurrencyStorage) returns (uint128) {
         return TOTAL_SUPPLY;
     }
 

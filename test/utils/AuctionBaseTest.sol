@@ -108,17 +108,14 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     function _boundPriceParams(FuzzDeploymentParams memory _deploymentParams) private {
         // Bound tick spacing and floor price to reasonable values
         _deploymentParams.auctionParams.floorPrice =
-            _bound(_deploymentParams.auctionParams.floorPrice, 0, type(uint128).max);
+            _bound(_deploymentParams.auctionParams.floorPrice, 1, type(uint128).max);
+        // Bound tick spacing to be less than or equal to floor price
         _deploymentParams.auctionParams.tickSpacing =
-            _bound(_deploymentParams.auctionParams.tickSpacing, 0, type(uint128).max);
-
-        // Ensure tick spacing is not zero to avoid division by zero
-        vm.assume(_deploymentParams.auctionParams.tickSpacing != 0);
-
+            _bound(_deploymentParams.auctionParams.tickSpacing, 1, _deploymentParams.auctionParams.floorPrice);
         // Round down floor price to the closest multiple of tick spacing
-        _deploymentParams.auctionParams.floorPrice = _deploymentParams.auctionParams.floorPrice
-            / _deploymentParams.auctionParams.tickSpacing * _deploymentParams.auctionParams.tickSpacing;
-
+        _deploymentParams.auctionParams.floorPrice = helper__roundPriceDownToTickSpacing(
+            _deploymentParams.auctionParams.floorPrice, _deploymentParams.auctionParams.tickSpacing
+        );
         // Ensure floor price is non-zero
         vm.assume(_deploymentParams.auctionParams.floorPrice != 0);
     }
@@ -199,14 +196,11 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     function helper__assumeValidMaxPrice(
         uint256 _floorPrice,
         uint256 _maxPrice,
-        uint256 _totalSupply,
+        uint128 _totalSupply,
         uint256 _tickSpacing
     ) internal returns (uint256) {
-        vm.assume(_totalSupply <= type(uint128).max);
-        _maxPrice = _bound(_maxPrice, _floorPrice, type(uint256).max);
-        uint256 ratioOfMaxPriceToQ96 = _maxPrice / FixedPoint96.Q96;
-        vm.assume(_totalSupply < type(uint160).max / ratioOfMaxPriceToQ96);
-        // TODO(ez): bound max price here
+        _maxPrice = _bound(_maxPrice, _floorPrice + _tickSpacing, type(uint256).max);
+        vm.assume(_maxPrice <= (type(uint160).max * FixedPoint96.Q96) / _totalSupply);
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, _tickSpacing);
         vm.assume(_maxPrice > _floorPrice);
         return _maxPrice;
@@ -388,7 +382,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     // ============================================
 
     /// @dev Uses default values for floor price and tick spacing
-    modifier givenValidMaxPrice(uint256 _maxPrice, uint256 _totalSupply) {
+    modifier givenValidMaxPrice(uint256 _maxPrice, uint128 _totalSupply) {
         $maxPrice = helper__assumeValidMaxPrice(FLOOR_PRICE, _maxPrice, _totalSupply, TICK_SPACING);
         _;
     }

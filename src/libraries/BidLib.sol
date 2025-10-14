@@ -23,8 +23,11 @@ library BidLib {
     using BidLib for *;
     using FixedPointMathLib for *;
 
+    /// @notice Thrown when the bid amount is too large
     error InvalidBidAmountTooLarge();
+    /// @notice Thrown when the bid's max price is not strictly greater than the clearing price
     error BidMustBeAboveClearingPrice();
+    /// @notice Thrown when the bid's max price is so high such that total supply cannot be sold at that price
     error InvalidBidPriceTooHigh();
 
     function validate(uint256 _maxPrice, uint128 _amount, uint256 _clearingPrice, uint256 _totalSupply) internal pure {

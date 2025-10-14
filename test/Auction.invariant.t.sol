@@ -144,7 +144,8 @@ contract AuctionInvariantHandler is Test, Assertions {
 
     /// @notice Roll the block number
     function handleRoll(uint256 seed) public {
-        if (seed % 13 == 0) vm.roll(block.number + 1);
+        // TODO(ez): Remove this once we have a better way to fuzz auction duration
+        if (seed % 88 == 0) vm.roll(block.number + 1);
     }
 
     function handleCheckpoint() public validateCheckpoint {
@@ -190,7 +191,8 @@ contract AuctionInvariantHandler is Test, Assertions {
                 metrics.cnt_TickPriceNotIncreasingError++;
             } else if (
                 mockAuction.sumCurrencyDemandAboveClearingQ96()
-                    >= ConstantsLib.X7_UPPER_BOUND - inputAmount * FixedPoint96.Q96
+                    >= ConstantsLib.X7_UPPER_BOUND
+                        - (inputAmount * FixedPoint96.Q96 * ConstantsLib.MPS) / (ConstantsLib.MPS - _checkpoint.cumulativeMps)
             ) {
                 assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidBidUnableToClear.selector));
                 metrics.cnt_InvalidBidUnableToClearError++;

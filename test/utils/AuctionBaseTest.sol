@@ -199,6 +199,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         uint128 _totalSupply,
         uint256 _tickSpacing
     ) internal returns (uint256) {
+        vm.assume(_totalSupply != 0 && _tickSpacing != 0 && _floorPrice != 0 && _maxPrice != 0);
         _maxPrice = _bound(_maxPrice, _floorPrice + _tickSpacing, type(uint256).max);
         vm.assume(_maxPrice <= type(uint256).max / _totalSupply);
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, _tickSpacing);
@@ -216,7 +217,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         internal
         returns (bool bidPlaced, uint256 bidId)
     {
-        uint256 clearingPrice = auction.clearingPrice();
+        Checkpoint memory latestCheckpoint = auction.checkpoint();
+        uint256 clearingPrice = latestCheckpoint.clearingPrice;
 
         // Get the correct bid prices for the bid
         uint256 maxPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(_bid.tickNumber);
@@ -226,6 +228,13 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         maxPrice =
             helper__assumeValidMaxPrice(auction.floorPrice(), maxPrice, auction.totalSupply(), auction.tickSpacing());
         uint128 ethInputAmount = inputAmountForTokens(_bid.bidAmount, maxPrice);
+
+        vm.assume(
+            auction.sumCurrencyDemandAboveClearingQ96()
+                < ConstantsLib.X7_UPPER_BOUND
+                    - (ethInputAmount * FixedPoint96.Q96 * ConstantsLib.MPS)
+                        / (ConstantsLib.MPS - latestCheckpoint.cumulativeMps)
+        );
 
         // Get the correct last tick price for the bid
         uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
@@ -385,7 +394,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     }
 
     modifier givenGraduatedAuction() {
-        $bidAmount = SafeCastLib.toUint128(_bound($bidAmount, TOTAL_SUPPLY, type(uint128).max));
+        vm.assume($maxPrice < (uint256(type(uint128).max) * FixedPoint96.Q96) / TOTAL_SUPPLY);
+        $bidAmount = SafeCastLib.toUint128(
+            _bound($bidAmount, TOTAL_SUPPLY.fullMulDivUp($maxPrice, FixedPoint96.Q96), type(uint128).max)
+        );
         _;
     }
 
@@ -401,7 +413,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     /// Return the inputAmount required to purchase at least the given number of tokens at the given maxPrice
     function inputAmountForTokens(uint128 tokens, uint256 maxPrice) internal pure returns (uint128) {
         uint256 temp = tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96);
-        vm.assume(temp <= type(uint128).max);
+        temp = _bound(temp, 1, type(uint128).max);
         return SafeCastLib.toUint128(temp);
     }
 

@@ -7,7 +7,6 @@ import {Bid, BidLib} from './libraries/BidLib.sol';
 import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
-import {console} from 'forge-std/console.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 /// @title CheckpointStorage
 /// @notice Abstract contract for managing auction checkpoints and bid fill calculations

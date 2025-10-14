@@ -142,7 +142,6 @@ contract AuctionTest is AuctionBaseTest {
         auction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
-        vm.snapshotGasLastCall('submitBid_updateCheckpoint');
 
         vm.roll(block.number + 1);
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block

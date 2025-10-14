@@ -150,7 +150,7 @@ contract AuctionInvariantHandler is Test, Assertions {
     }
 
     function handleCheckpoint() public validateCheckpoint {
-        if (block.number > mockAuction.endBlock()) vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
+        if (block.number < mockAuction.startBlock()) vm.expectRevert(IAuction.AuctionNotStarted.selector);
         mockAuction.checkpoint();
     }
 
@@ -161,6 +161,11 @@ contract AuctionInvariantHandler is Test, Assertions {
         useActor(actorIndexSeed)
         validateCheckpoint
     {
+        // If we are not at the start of the auction - lets roll forward to it
+        if (block.number < mockAuction.startBlock()) {
+            vm.roll(mockAuction.startBlock());
+        }
+
         // Bid requests for anything between 1 and 2x the total supply of tokens
         uint128 amount = SafeCastLib.toUint128(_bound(bidAmount, 1, mockAuction.totalSupply() * 2));
         (uint128 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(amount, _checkpoint.clearingPrice, tickNumber);
@@ -284,7 +289,10 @@ contract AuctionInvariantTest is AuctionUnitTest {
     }
 
     function invariant_canAlwaysCheckpointDuringAuction() public printMetrics {
-        if (block.number >= mockAuction.startBlock() && block.number < mockAuction.endBlock()) {
+        console.log('block.number', block.number);
+        console.log('mockAuction.startBlock()', mockAuction.startBlock());
+        console.log('mockAuction.claimBlock()', mockAuction.claimBlock());
+        if (block.number >= mockAuction.startBlock() && block.number < mockAuction.claimBlock()) {
             mockAuction.checkpoint();
         }
     }

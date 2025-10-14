@@ -5,12 +5,12 @@
   "claimTokens": "80818",
   "exitBid": "85466",
   "exitPartiallyFilledBid": "255022",
-  "submitBid": "152106",
-  "submitBidWithoutPrevTickPrice": "152161",
-  "submitBidWithoutPrevTickPrice_initializeTick_search": "199863",
-  "submitBidWithoutPrevTickPrice_initializeTick_updateCheckpoint": "320924",
-  "submitBid_recordStep_updateCheckpoint": "320869",
-  "submitBid_recordStep_updateCheckpoint_initializeTick": "320869",
-  "submitBid_updateCheckpoint": "298641",
-  "submitBid_withValidationHook": "325035"
+  "submitBid": "152131",
+  "submitBidWithoutPrevTickPrice": "152186",
+  "submitBidWithoutPrevTickPrice_initializeTick_search": "199888",
+  "submitBidWithoutPrevTickPrice_initializeTick_updateCheckpoint": "320949",
+  "submitBid_recordStep_updateCheckpoint": "320894",
+  "submitBid_recordStep_updateCheckpoint_initializeTick": "320894",
+  "submitBid_updateCheckpoint": "260074",
+  "submitBid_withValidationHook": "325060"
 }

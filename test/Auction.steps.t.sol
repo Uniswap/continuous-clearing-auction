@@ -127,7 +127,6 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         newAuction.onTokensReceived();
 
         vm.roll(startBlock);
-        // Prevent bid from causing sumCurrencyDemandAboveClearingQ96 to overflow
         uint256 bidId =
             newAuction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, tickNumberToPriceX96(1), bytes(''));
 
@@ -137,7 +136,6 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         assertEq(checkpoint.cumulativeMps, 1e7);
 
         // The auction has fully sold out 1e7 mps worth of tokens, so all future bids will revert
-
         vm.expectRevert(IAuction.AuctionSoldOut.selector);
         newAuction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, tickNumberToPriceX96(1), bytes(''));
 

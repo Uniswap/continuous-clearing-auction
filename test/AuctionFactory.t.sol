@@ -172,7 +172,9 @@ contract AuctionFactoryTest is AuctionBaseTest {
         assertEq(token.balanceOf(address(_auction)), TOTAL_SUPPLY);
     }
 
-    function testFuzz_getAuctionAddress(FuzzDeploymentParams memory _deploymentParams, bytes32 _salt, address _sender) public {
+    function testFuzz_getAuctionAddress(FuzzDeploymentParams memory _deploymentParams, bytes32 _salt, address _sender)
+        public
+    {
         AuctionParameters memory _params = helper__validFuzzDeploymentParams(_deploymentParams);
         bytes memory configData = abi.encode(_params);
 

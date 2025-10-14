@@ -119,8 +119,9 @@ contract CheckpointStorageTest is Assertions, Test {
         assertEq(
             tokensFilled,
             inputAmountQ96.fullMulDiv(
-                _cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * mpsRemainingInAuctionAfterSubmission
-            ) / FixedPoint96.Q96
+                _cumulativeMpsPerPriceDelta,
+                (FixedPoint96.Q96 << FixedPoint96.RESOLUTION) * mpsRemainingInAuctionAfterSubmission
+            )
         );
         assertEq(
             currencySpentQ96, inputAmountQ96.fullMulDivUp(_cumulativeMpsDelta, mpsRemainingInAuctionAfterSubmission)

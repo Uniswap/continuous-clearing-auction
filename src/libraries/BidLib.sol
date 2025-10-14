@@ -35,6 +35,6 @@ library BidLib {
     /// @param bid The bid to scale
     /// @return The scaled amount
     function toEffectiveAmount(Bid memory bid) internal pure returns (uint256) {
-        return bid.amountQ96.fullMulDiv(ConstantsLib.MPS, bid.mpsRemainingInAuctionAfterSubmission());
+        return (bid.amountQ96 * ConstantsLib.MPS) / bid.mpsRemainingInAuctionAfterSubmission();
     }
 }

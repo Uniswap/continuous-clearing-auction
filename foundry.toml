@@ -36,8 +36,8 @@ runs = 2500
 
 [profile.default.invariant]
 fail_on_revert = true
-runs = 100
-depth = 200
+runs = 50
+depth = 500
 
 [profile.pr.fuzz]
 runs = 2500

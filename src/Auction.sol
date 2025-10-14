@@ -16,7 +16,7 @@ import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
-
+import {console} from 'forge-std/console.sol';
 import {FixedPoint128} from './libraries/FixedPoint128.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
@@ -131,40 +131,21 @@ contract Auction is
         view
         returns (Checkpoint memory)
     {
-        ValueX7 currencyRaisedQ96_X7;
-        // If the clearing price is above the floor price, the auction is fully subscribed and the amount of
-        // currency which will be raised is deterministic based on the initial supply schedule.
-        if (_checkpoint.clearingPrice > FLOOR_PRICE) {
-            // The currency raised over `deltaMps` percentage of the auction is simply the total supply
-            // over than percentage multiplied by the current clearing price
-            // note that currencyRaised is a ValueX7 because we DO NOT divide by MPS here,
-            // and thus the value is 1e7 larger than the actual currency raised
+        // Default assume that all demand is strictly above the clearing price
+        ValueX7 currencyRaisedQ96_X7 = ValueX7.wrap($sumCurrencyDemandAboveClearingQ96 * deltaMps);
+
+        // There is a special case where the clearing price is at a tick boundary with bids.
+        // In this case, we have to explicitly track the supply sold to that price since they are "partially filled"
+        // and thus the amount of tokens sold to that price is <= to the collective demand at that price, since bidders at higher prices are prioritized.
+        if (_checkpoint.clearingPrice % TICK_SPACING == 0 && _getTick(_checkpoint.clearingPrice).currencyDemandQ96 > 0)
+        {
+            // In this case the currency raised is greater than $sumCurrencyDemandAboveClearingQ96 * deltaMps
+            // So we use the total supply and the clearing price to calculate the total currency raised
             currencyRaisedQ96_X7 = ValueX7.wrap(TOTAL_SUPPLY).mulUint256(_checkpoint.clearingPrice * deltaMps);
-            // There is a special case where the clearing price is at a tick boundary with bids.
-            // In this case, we have to explicitly track the supply sold to that price since they are "partially filled"
-            // and thus the amount of tokens sold to that price is <= to the collective demand at that price, since bidders at higher prices are prioritized.
-            if (
-                _checkpoint.clearingPrice % TICK_SPACING == 0
-                    && _getTick(_checkpoint.clearingPrice).currencyDemandQ96 > 0
-            ) {
-                // The currencyRaisedAtClearingPrice is simply the demand at the clearing price multiplied by the price and the supply schedule
-                // We should divide this by 1e7 (100%) to get the actualized currency raised, but to avoid intermediate division,
-                // we upcast it into a X7X7 value to show that it has implicitly been scaled up by 1e7.
-                // currencyRaisedAboveClearingPriceQ96_X7 is a ValueX7 because we DO NOT divide by MPS here
-                ValueX7 currencyRaisedAboveClearingPriceQ96_X7 =
-                    ValueX7.wrap($sumCurrencyDemandAboveClearingQ96 * deltaMps);
-                ValueX7 currencyRaisedAtClearingPriceQ96_X7 =
-                    currencyRaisedQ96_X7.sub(currencyRaisedAboveClearingPriceQ96_X7);
-                // Update the cumulative value in the checkpoint which will be reset if the clearing price changes
-                _checkpoint.currencyRaisedAtClearingPriceQ96_X7 =
-                    _checkpoint.currencyRaisedAtClearingPriceQ96_X7.add(currencyRaisedAtClearingPriceQ96_X7);
-            }
-        }
-        // In the case where the auction is not fully subscribed yet, we can only sell tokens equal to the current demand above the clearing price
-        else {
-            // We are behind schedule as the clearing price is still at the floor price
-            // So we can only sell tokens to the current demand above the clearing price
-            currencyRaisedQ96_X7 = ValueX7.wrap($sumCurrencyDemandAboveClearingQ96 * deltaMps);
+            // Update the cumulative value in the checkpoint which will be reset if the clearing price changes
+            _checkpoint.currencyRaisedAtClearingPriceQ96_X7 = _checkpoint.currencyRaisedAtClearingPriceQ96_X7.add(
+                currencyRaisedQ96_X7.sub(ValueX7.wrap($sumCurrencyDemandAboveClearingQ96 * deltaMps))
+            );
         }
         _checkpoint.currencyRaisedQ96_X7 = _checkpoint.currencyRaisedQ96_X7.add(currencyRaisedQ96_X7);
         _checkpoint.cumulativeMps += deltaMps;

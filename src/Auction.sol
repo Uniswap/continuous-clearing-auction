@@ -49,6 +49,8 @@ contract Auction is
     using ValidationHookLib for IValidationHook;
     using ValueX7Lib for *;
 
+    /// @notice The maximum price which a bid can be submitted at
+    /// @dev Set during construction to type(uint256).max / TOTAL_SUPPLY
     uint256 public immutable MAX_BID_PRICE;
     /// @notice The block at which purchased tokens can be claimed
     uint64 internal immutable CLAIM_BLOCK;

@@ -127,7 +127,6 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         newAuction.onTokensReceived();
 
         vm.roll(startBlock);
-        // Prevent bid from causing sumCurrencyDemandAboveClearingQ96 to overflow
         uint256 bidId =
             newAuction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, tickNumberToPriceX96(1), bytes(''));
 

@@ -172,15 +172,16 @@ contract AuctionFactoryTest is AuctionBaseTest {
         assertEq(token.balanceOf(address(_auction)), TOTAL_SUPPLY);
     }
 
-    function testFuzz_getAuctionAddress(FuzzDeploymentParams memory _deploymentParams, bytes32 _salt) public {
+    function testFuzz_getAuctionAddress(FuzzDeploymentParams memory _deploymentParams, address _sender, bytes32 _salt) public {
         AuctionParameters memory _params = helper__validFuzzDeploymentParams(_deploymentParams);
         bytes memory configData = abi.encode(_params);
 
         // Predict the auction address
         address auctionAddress =
-            factory.getAuctionAddress(address(token), $deploymentParams.totalSupply, configData, _salt);
+            factory.getAuctionAddress(address(token), $deploymentParams.totalSupply, configData, _salt, _sender);
 
         // Create the actual auction
+        vm.prank(_sender);
         IDistributionContract distributionContract =
             factory.initializeDistribution(address(token), $deploymentParams.totalSupply, configData, _salt);
 

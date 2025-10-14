@@ -33,7 +33,7 @@ contract AuctionFactory is IAuctionFactory {
     }
 
     /// @inheritdoc IAuctionFactory
-    function getAuctionAddress(address token, uint256 amount, bytes calldata configData, bytes32 salt)
+    function getAuctionAddress(address token, uint256 amount, bytes calldata configData, bytes32 salt, address sender)
         public
         view
         returns (address)
@@ -47,7 +47,7 @@ contract AuctionFactory is IAuctionFactory {
 
         bytes32 initCodeHash =
             keccak256(abi.encodePacked(type(Auction).creationCode, abi.encode(token, uint128(amount), parameters)));
-        salt = keccak256(abi.encode(msg.sender, salt));
+        salt = keccak256(abi.encode(sender, salt));
         return Create2.computeAddress(salt, initCodeHash, address(this));
     }
 }

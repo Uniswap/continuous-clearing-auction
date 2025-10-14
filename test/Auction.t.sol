@@ -320,7 +320,13 @@ contract AuctionTest is AuctionBaseTest {
         assertGe(address(alice).balance, aliceBalanceBefore);
 
         vm.roll(auction.claimBlock());
+        uint256 expectedTokensFilled = auction.bids(bidId).tokensFilled;
+        vm.assume(expectedTokensFilled > 0);
+
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.TokensClaimed(bidId, alice, expectedTokensFilled);
         auction.claimTokens(bidId);
+        assertEq(token.balanceOf(address(alice)), expectedTokensFilled);
     }
 
     function test_submitBid_noRolloverSupply(uint128 _bidAmount, uint256 _maxPrice, uint256 _seed)
@@ -337,9 +343,8 @@ contract AuctionTest is AuctionBaseTest {
             _bound(_seed % (auction.endBlock() - auction.startBlock()), block.number + 1, auction.endBlock());
 
         vm.roll(targetBlock);
-        uint256 bidId = auction.submitBid{value: $bidAmount}(
-            tickNumberToPriceX96(2), $bidAmount, alice, tickNumberToPriceX96(1), bytes('')
-        );
+        uint256 bidId =
+            auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, tickNumberToPriceX96(1), bytes(''));
 
         vm.roll(auction.endBlock());
         Checkpoint memory checkpoint = auction.checkpoint();
@@ -349,12 +354,14 @@ contract AuctionTest is AuctionBaseTest {
             auction.exitPartiallyFilledBid(bidId, uint64(targetBlock), 0);
         }
 
-        uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
-        uint256 expectedCumulativeMps = (auction.endBlock() - targetBlock) * 100e3;
-        uint256 expectedTokensFilled = (TOTAL_SUPPLY * expectedCumulativeMps) / ConstantsLib.MPS;
+        uint256 expectedTokensFilled = auction.bids(bidId).tokensFilled;
+        vm.assume(expectedTokensFilled > 0);
 
         vm.roll(auction.claimBlock());
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.TokensClaimed(bidId, alice, expectedTokensFilled);
         auction.claimTokens(bidId);
+        assertEq(token.balanceOf(address(alice)), expectedTokensFilled);
     }
 
     /// forge-config: default.isolate = true
@@ -580,8 +587,15 @@ contract AuctionTest is AuctionBaseTest {
         } else {
             auction.exitPartiallyFilledBid(bidId, 1, 0);
         }
+
         vm.roll(auction.claimBlock());
+        uint256 expectedTokensFilled = auction.bids(bidId).tokensFilled;
+        vm.assume(expectedTokensFilled > 0);
+
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.TokensClaimed(bidId, alice, expectedTokensFilled);
         auction.claimTokens(bidId);
+        assertEq(token.balanceOf(address(alice)), expectedTokensFilled);
     }
 
     function test_exitBid_joinedLate_succeeds(uint128 _bidAmount, uint256 _maxPrice)
@@ -608,7 +622,13 @@ contract AuctionTest is AuctionBaseTest {
         }
 
         vm.roll(auction.claimBlock());
+        uint256 expectedTokensFilled = auction.bids(bidId1).tokensFilled;
+        vm.assume(expectedTokensFilled > 0);
+
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.TokensClaimed(bidId1, alice, expectedTokensFilled);
         auction.claimTokens(bidId1);
+        assertEq(token.balanceOf(address(alice)), expectedTokensFilled);
     }
 
     function test_exitBid_beforeEndBlock_revertsWithCannotExitBid() public {
@@ -1672,6 +1692,9 @@ contract AuctionTest is AuctionBaseTest {
         } else {
             failingAuction.exitPartiallyFilledBid(bidId, 1, 0);
         }
+
+        uint256 expectedTokensFilled = failingAuction.bids(bidId).tokensFilled;
+        vm.assume(expectedTokensFilled > 0);
 
         vm.roll(failingAuction.claimBlock());
 

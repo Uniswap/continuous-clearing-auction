@@ -388,7 +388,12 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _;
     }
 
-    modifier givenValidMaxPriceWithParams(uint256 _maxPrice, uint128 _totalSupply, uint256 _floorPrice, uint256 _tickSpacing) {
+    modifier givenValidMaxPriceWithParams(
+        uint256 _maxPrice,
+        uint128 _totalSupply,
+        uint256 _floorPrice,
+        uint256 _tickSpacing
+    ) {
         $maxPrice = helper__assumeValidMaxPrice(_floorPrice, _maxPrice, _totalSupply, _tickSpacing);
         _;
     }
@@ -423,8 +428,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         } else {
             auction.sweepUnsoldTokens();
         }
-        auction.sweepCurrency();
-        auction.sweepUnsoldTokens();
     }
 
     modifier checkAuctionIsGraduated() {

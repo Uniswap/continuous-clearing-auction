@@ -68,7 +68,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenAuctionHasStarted
         givenFullyFundedAccount
         checkAuctionIsNotGraduated
-    {   
+    {
         auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
         vm.roll(auction.endBlock());
@@ -91,11 +91,23 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenAuctionHasStarted
         givenFullyFundedAccount
     {
-        auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
+        uint256 bidId = auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
         vm.roll(auction.endBlock());
-        auction.checkpoint();
+        Checkpoint memory finalCheckpoint = auction.checkpoint();
         uint256 expectedCurrencyRaised = auction.currencyRaised();
+
+        uint256 aliceBalanceBefore = address(alice).balance;
+        auction.exitBid(bidId);
+        // Assert that no currency was refunded
+        assertEq(address(alice).balance, aliceBalanceBefore);
+
+        emit log_string('==================== SWEEP CURRENCY ====================');
+        emit log_named_uint('auction balance', address(auction).balance);
+        emit log_named_uint('bid amount', $bidAmount);
+        emit log_named_uint('max price', $maxPrice);
+        emit log_named_uint('final clearing price', finalCheckpoint.clearingPrice);
+        emit log_named_uint('expectedCurrencyRaised', expectedCurrencyRaised);
 
         vm.prank(fundsRecipient);
         vm.expectEmit(true, true, true, true);

@@ -50,7 +50,8 @@ contract AuctionUnitTest is AuctionBaseTest {
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(fuzzDeploymentParams.auctionParams.floorPrice);
-        mockAuction = new MockAuction(address(token), fuzzDeploymentParams.totalSupply, fuzzDeploymentParams.auctionParams);
+        mockAuction =
+            new MockAuction(address(token), fuzzDeploymentParams.totalSupply, fuzzDeploymentParams.auctionParams);
 
         token.mint(address(mockAuction), fuzzDeploymentParams.totalSupply);
         mockAuction.onTokensReceived();

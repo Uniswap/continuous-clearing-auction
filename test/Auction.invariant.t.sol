@@ -193,11 +193,11 @@ contract AuctionInvariantHandler is Test, Assertions {
                 assertEq(revertData, abi.encodeWithSelector(IAuction.BidAmountTooSmall.selector));
                 metrics.cnt_BidAmountTooSmallError++;
             } else if (
-                prevTickPrice == 0 
                 // If the prevTickPrice is 0, it could maybe be a race that the clearing price has increased since the bid was placed
                 // This is handled in the else condition - so we exclude it here
-                && bytes4(revertData) != bytes4(abi.encodeWithSelector(IAuction.BidMustBeAboveClearingPrice.selector
-            ))) {
+                prevTickPrice == 0
+                    && bytes4(revertData) != bytes4(abi.encodeWithSelector(IAuction.BidMustBeAboveClearingPrice.selector))
+            ) {
                 assertEq(revertData, abi.encodeWithSelector(ITickStorage.TickPriceNotIncreasing.selector));
                 metrics.cnt_TickPriceNotIncreasingError++;
             } else if (

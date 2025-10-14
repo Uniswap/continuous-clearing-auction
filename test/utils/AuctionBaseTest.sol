@@ -92,23 +92,20 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         validDivisors[18] = 200;
         validDivisors[19] = 250;
         validDivisors[20] = 255;
-        
+
         // Randomly select one of the valid divisors
         uint256 randomIndex = _bound(uint256(vm.randomUint()), 0, validDivisors.length - 1);
         return validDivisors[randomIndex];
     }
 
-    function helper__validInvariantDeploymentParams()
-        public
-        returns (FuzzDeploymentParams memory)
-    {
+    function helper__validInvariantDeploymentParams() public returns (FuzzDeploymentParams memory) {
         FuzzDeploymentParams memory deploymentParams;
 
         _setHardcodedParams(deploymentParams);
 
         // Generate the random parameteres here
         deploymentParams.totalSupply = uint128(_bound(uint256(vm.randomUint()), 1, type(uint128).max));
-        
+
         // Calculate the number of steps - ensure it's a divisor of ConstantsLib.MPS
         deploymentParams.numberOfSteps = _getRandomDivisorOfMPS();
 
@@ -499,7 +496,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         console.log('numberOfSteps', _deploymentParams.numberOfSteps);
         logAuctionParams(_deploymentParams.auctionParams);
     }
-    
+
     function logAuctionParams(AuctionParameters memory _params) public pure {
         console.log('---------AuctionParams--------');
         console.log('currency', _params.currency);
@@ -511,7 +508,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         console.log('tickSpacing', _params.tickSpacing);
         console.log('validationHook', _params.validationHook);
         console.log('floorPrice', _params.floorPrice);
-        console.log("auctionStepsData");
+        console.log('auctionStepsData');
         console.logBytes(_params.auctionStepsData);
     }
 }

@@ -6,8 +6,6 @@ import {AuctionParameters} from '../src/interfaces/IAuction.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ValueX7} from '../src/libraries/ValueX7Lib.sol';
-import {ValueX7X7} from '../src/libraries/ValueX7X7Lib.sol';
-
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {FuzzBid, FuzzDeploymentParams} from './utils/FuzzStructs.sol';
 import {console2} from 'forge-std/console2.sol';
@@ -15,6 +13,8 @@ import {console2} from 'forge-std/console2.sol';
 contract AuctionSubmitBidTest is AuctionBaseTest {
     using BidLib for *;
 
+    /// forge-config: default.fuzz.runs = 1000
+    /// forge-config: ci.fuzz.runs = 1000
     function test_submitBid_exactIn_succeeds(FuzzDeploymentParams memory _deploymentParams, FuzzBid[] memory _bids)
         public
         setUpAuctionFuzz(_deploymentParams)

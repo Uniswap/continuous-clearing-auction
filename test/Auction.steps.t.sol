@@ -7,7 +7,7 @@ import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
-import {SupplyLib} from '../src/libraries/SupplyLib.sol';
+import {FixedPoint128} from '../src/libraries/FixedPoint128.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
@@ -86,7 +86,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
 
         vm.roll(firstAuction.startBlock());
         // Submit same bid to both auctions
-        uint256 inputAmount = inputAmountForTokens(1000e18, tickNumberToPriceX96(2));
+        uint128 inputAmount = inputAmountForTokens(1000e18, tickNumberToPriceX96(2));
         firstAuction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
@@ -101,12 +101,12 @@ contract AuctionStepDiffTest is AuctionBaseTest {
 
         // Both auctions should have sold the TOTAL_SUPPLY at the same clearing price, and the same cumulative mps
         assertEq(finalCheckpoint1.cumulativeMps, finalCheckpoint2.cumulativeMps);
-        assertEq(finalCheckpoint1.totalCurrencyRaisedX7X7, finalCheckpoint2.totalCurrencyRaisedX7X7);
+        assertEq(finalCheckpoint1.currencyRaisedX128_X7, finalCheckpoint2.currencyRaisedX128_X7);
         assertEq(finalCheckpoint1.clearingPrice, finalCheckpoint2.clearingPrice);
     }
 
     function test_stepsDataEndingWithZeroMps_succeeds(uint128 totalSupply) public {
-        vm.assume(totalSupply > BidLib.MIN_BID_AMOUNT);
+        vm.assume(totalSupply > 0 && totalSupply <= ConstantsLib.MAX_AMOUNT);
         bytes memory data = AuctionStepsBuilder.init().addStep(1, 1e7).addStep(0, 1e7);
         uint256 startBlock = block.number;
         uint256 endBlock = startBlock + 2e7;
@@ -120,7 +120,9 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         newAuction.onTokensReceived();
 
         vm.roll(startBlock);
-        uint256 inputAmount = inputAmountForTokens(totalSupply, tickNumberToPriceX96(2));
+        uint128 inputAmount = inputAmountForTokens(totalSupply, tickNumberToPriceX96(2));
+        // Prevent bid from causing sumCurrencyDemandAboveClearingX128 to overflow
+        vm.assume(inputAmount * FixedPoint128.Q128 < (type(uint256).max / 1e7));
         vm.deal(address(this), inputAmount);
         uint256 bidId = newAuction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
@@ -132,7 +134,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         assertEq(checkpoint.cumulativeMps, 1e7);
 
         // The auction has fully sold out 1e7 mps worth of tokens, so all future bids will revert
-        inputAmount = inputAmountForTokens(BidLib.MIN_BID_AMOUNT, tickNumberToPriceX96(2));
+        inputAmount = inputAmountForTokens(1, tickNumberToPriceX96(2));
         vm.deal(address(this), inputAmount);
         vm.expectRevert(IAuction.AuctionSoldOut.selector);
         newAuction.submitBid{value: inputAmount}(
@@ -144,11 +146,8 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         // Assert that values in the final checkpoint is the same as the checkpoint after selling 1e7 mps worth of tokens
         assertEq(finalCheckpoint.cumulativeMps, checkpoint.cumulativeMps);
         assertEq(finalCheckpoint.clearingPrice, checkpoint.clearingPrice);
-        assertEq(finalCheckpoint.totalCurrencyRaisedX7X7, checkpoint.totalCurrencyRaisedX7X7);
-        assertEq(
-            finalCheckpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7,
-            checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7
-        );
+        assertEq(finalCheckpoint.currencyRaisedX128_X7, checkpoint.currencyRaisedX128_X7);
+        assertEq(finalCheckpoint.currencyRaisedAtClearingPriceX128_X7, checkpoint.currencyRaisedAtClearingPriceX128_X7);
         assertEq(finalCheckpoint.cumulativeMpsPerPrice, checkpoint.cumulativeMpsPerPrice);
         // Don't check mps, prev, and next because they will be different
 

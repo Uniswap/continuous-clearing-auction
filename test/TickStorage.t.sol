@@ -4,9 +4,7 @@ pragma solidity 0.8.26;
 import {Tick, TickStorage} from '../src/TickStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
-
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
-import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {Test} from 'forge-std/Test.sol';
 
@@ -22,8 +20,8 @@ contract MockTickStorage is TickStorage {
         super._initializeTickIfNeeded(prevPrice, price);
     }
 
-    function updateTick(uint256 price, ValueX7 demand) external {
-        super._updateTickDemand(price, demand);
+    function updateTick(uint256 price, uint256 demandX128) external {
+        super._updateTickDemand(price, demandX128);
     }
 }
 
@@ -39,36 +37,31 @@ contract TickStorageTest is Test, Assertions {
 
     modifier givenValidDeploymentParams(uint256 _tickSpacing, uint256 _floorPrice) {
         $tickSpacing = _tickSpacing;
-        vm.assume(_tickSpacing > 0 && _tickSpacing < BidLib.MAX_BID_PRICE);
-        $floorPrice_rounded = helper__roundPriceDownToTickSpacing(_floorPrice, $tickSpacing);
+        vm.assume(_tickSpacing > 0);
+        $floorPrice_rounded = _roundPriceDownToTickSpacing(_floorPrice, $tickSpacing);
         vm.assume($floorPrice_rounded > 0);
         // Assume that floor price is at least one tick away from max price
-        vm.assume($floorPrice_rounded < BidLib.MAX_BID_PRICE - $tickSpacing);
+        vm.assume($floorPrice_rounded < type(uint256).max - $tickSpacing);
         _;
     }
 
-    function helper__roundPriceDownToTickSpacing(uint256 _price, uint256 _tickSpacing)
-        internal
-        pure
-        returns (uint256)
-    {
+    function _roundPriceDownToTickSpacing(uint256 _price, uint256 _tickSpacing) private pure returns (uint256) {
         return _price - (_price % _tickSpacing);
     }
 
-    function helper__roundPriceUpToTickSpacing(uint256 _price, uint256 _tickSpacing) internal pure returns (uint256) {
-        return _price + (_tickSpacing - (_price % _tickSpacing));
+    function _roundPriceUpToTickSpacing(uint256 _price, uint256 _tickSpacing) private pure returns (uint256) {
+        uint256 remainder = _price % _tickSpacing;
+        if (remainder == 0) return _price;
+        return _price + (_tickSpacing - remainder);
     }
 
     function helper__assumeValidPrice(uint256 _price) internal returns (uint256) {
-        _price = _bound(
-            _price,
-            helper__roundPriceUpToTickSpacing($floorPrice_rounded, $tickSpacing),
-            helper__roundPriceDownToTickSpacing(BidLib.MAX_BID_PRICE, $tickSpacing)
-        );
-        _price = helper__roundPriceDownToTickSpacing(_price, $tickSpacing);
+        uint256 minPrice = _roundPriceUpToTickSpacing($floorPrice_rounded, $tickSpacing);
+        uint256 maxPrice = _roundPriceDownToTickSpacing(type(uint256).max, $tickSpacing);
+        _price = _bound(_price, minPrice, maxPrice);
+        _price = _roundPriceDownToTickSpacing(_price, $tickSpacing);
         vm.assume(_price % $tickSpacing == 0);
-        vm.assume(_price > $floorPrice_rounded);
-        vm.assume(_price < BidLib.MAX_BID_PRICE);
+        vm.assume(_price > $floorPrice_rounded && _price < type(uint256).max);
         return _price;
     }
 
@@ -90,9 +83,6 @@ contract TickStorageTest is Test, Assertions {
             _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
         } else if (floorPrice == 0) {
             vm.expectRevert(ITickStorage.FloorPriceIsZero.selector);
-            _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
-        } else if (floorPrice >= BidLib.MAX_BID_PRICE) {
-            vm.expectRevert(ITickStorage.FloorPriceAboveMaxBidPrice.selector);
             _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
         } else if (floorPrice % tickSpacing != 0) {
             vm.expectRevert(ITickStorage.TickPriceNotAtBoundary.selector);
@@ -118,7 +108,7 @@ contract TickStorageTest is Test, Assertions {
         // $floorPrice_rounded is guaranteed to be initialized already
         tickStorage.initializeTickIfNeeded($floorPrice_rounded, _price);
         Tick memory tick = tickStorage.getTick(_price);
-        assertEq(tick.currencyDemandX7, ValueX7.wrap(0));
+        assertEq(tick.currencyDemandX128, 0);
         // Assert there is no next tick (type(uint256).max)
         assertEq(tick.next, tickStorage.MAX_TICK_PTR());
         // Assert the nextActiveTick is unchanged

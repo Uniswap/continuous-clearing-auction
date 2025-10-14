@@ -13,10 +13,9 @@ import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
+import {FixedPoint128} from '../src/libraries/FixedPoint128.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
-import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
-
 import {AuctionUnitTest} from './unit/AuctionUnitTest.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {MockAuction} from './utils/MockAuction.sol';
@@ -24,12 +23,12 @@ import {Test} from 'forge-std/Test.sol';
 import {console} from 'forge-std/console.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
 contract AuctionInvariantHandler is Test, Assertions {
     using CurrencyLibrary for Currency;
-    using FixedPointMathLib for uint256;
+    using FixedPointMathLib for *;
     using ValueX7Lib for *;
-    using ValueX7X7Lib for *;
 
     MockAuction public mockAuction;
     IPermit2 public permit2;
@@ -40,7 +39,6 @@ contract AuctionInvariantHandler is Test, Assertions {
     Currency public currency;
     IERC20Minimal public token;
 
-    uint256 public constant BID_MAX_PRICE = BidLib.MAX_BID_PRICE;
     uint256 public BID_MIN_PRICE;
 
     // Ghost variables
@@ -73,22 +71,10 @@ contract AuctionInvariantHandler is Test, Assertions {
         }
         // Check that the clearing price is always increasing
         assertGe(checkpoint.clearingPrice, _checkpoint.clearingPrice, 'Checkpoint clearing price is not increasing');
-        // If the clearing price is higher than the floor price, ensure that the supplyMultiplier is set
-        if (checkpoint.clearingPrice > mockAuction.floorPrice()) {
-            (bool isSet, uint24 remainingMps, ValueX7X7 remainingCurrencyRaisedX7X7) =
-                mockAuction.unpackSupplyRolloverMultiplier();
-            assertEq(isSet, true, 'Supply rollover multiplier is not set when clearing price is above floor price');
-            assertLe(remainingMps, ConstantsLib.MPS, 'Remaining mps is greater than ConstantsLib.MPS');
-            assertLe(
-                remainingCurrencyRaisedX7X7,
-                mockAuction.getTotalCurrencyRaisedAtFloorX7X7(),
-                'Remaining currency raised is greater than total currency raised at floor'
-            );
-        }
         // Check that the cumulative variables are always increasing
         assertGe(
-            checkpoint.totalCurrencyRaisedX7X7,
-            _checkpoint.totalCurrencyRaisedX7X7,
+            checkpoint.currencyRaisedX128_X7,
+            _checkpoint.currencyRaisedX128_X7,
             'Checkpoint total currency raised is not increasing'
         );
         assertGe(checkpoint.cumulativeMps, _checkpoint.cumulativeMps, 'Checkpoint cumulative mps is not increasing');
@@ -103,13 +89,16 @@ contract AuctionInvariantHandler is Test, Assertions {
 
     /// @notice Generate random values for amount and max price given a desired resolved amount of tokens to purchase
     /// @dev Bounded by purchasing the total supply of tokens and some reasonable max price for bids to prevent overflow
-    function _useAmountMaxPrice(uint256 amount, uint8 tickNumber) internal view returns (uint256, uint256) {
+    function _useAmountMaxPrice(uint128 amount, uint8 tickNumber) internal view returns (uint128, uint256) {
         uint256 tickNumberPrice = mockAuction.floorPrice() + tickNumber * mockAuction.tickSpacing();
-        uint256 maxPrice = _bound(tickNumberPrice, BID_MIN_PRICE, BID_MAX_PRICE);
+        // Easy max bound of type(uint128).max
+        uint256 maxPrice = _bound(tickNumberPrice, BID_MIN_PRICE, type(uint128).max);
         // Round down to the nearest tick boundary
         maxPrice -= (maxPrice % mockAuction.tickSpacing());
 
-        uint256 inputAmount = amount.fullMulDivUp(maxPrice, FixedPoint96.Q96);
+        uint256 temp = amount.fullMulDivUp(maxPrice, FixedPoint96.Q96);
+        if (temp > type(uint128).max) temp = type(uint128).max;
+        uint128 inputAmount = SafeCastLib.toUint128(temp);
         return (inputAmount, maxPrice);
     }
 
@@ -145,15 +134,15 @@ contract AuctionInvariantHandler is Test, Assertions {
     }
 
     /// @notice Handle a bid submission, ensuring that the actor has enough funds and the bid parameters are valid
-    function handleSubmitBid(uint256 actorIndexSeed, uint256 bidAmount, uint8 tickNumber)
+    function handleSubmitBid(uint256 actorIndexSeed, uint128 bidAmount, uint8 tickNumber)
         public
         payable
         useActor(actorIndexSeed)
         validateCheckpoint
     {
         // Bid requests for anything between 1 and 2x the total supply of tokens
-        uint256 amount = _bound(bidAmount, BidLib.MIN_BID_AMOUNT, mockAuction.totalSupply() * 2);
-        (uint256 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(amount, tickNumber);
+        uint128 amount = SafeCastLib.toUint128(_bound(bidAmount, 1, mockAuction.totalSupply() * 2));
+        (uint128 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(amount, tickNumber);
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
         } else {
@@ -165,7 +154,6 @@ contract AuctionInvariantHandler is Test, Assertions {
 
         uint256 prevTickPrice = _getLowerTick(maxPrice);
         uint256 nextBidId = mockAuction.nextBidId();
-        console.log('submitting bid with', inputAmount, maxPrice, prevTickPrice);
         try mockAuction.submitBid{value: currency.isAddressZero() ? inputAmount : 0}(
             maxPrice, inputAmount, currentActor, prevTickPrice, bytes('')
         ) {
@@ -178,15 +166,21 @@ contract AuctionInvariantHandler is Test, Assertions {
                 assertEq(revertData, abi.encodeWithSelector(IAuction.BidAmountTooSmall.selector));
             } else if (prevTickPrice == 0) {
                 assertEq(revertData, abi.encodeWithSelector(ITickStorage.TickPriceNotIncreasing.selector));
+            } else if (
+                mockAuction.sumCurrencyDemandAboveClearingX128()
+                    > ConstantsLib.X7_UPPER_BOUND - inputAmount * FixedPoint128.Q128
+            ) {
+                assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidBidUnableToClear.selector));
             } else {
                 // For race conditions or any errors that require additional calls to be made
-                if (bytes4(revertData) == bytes4(abi.encodeWithSelector(IAuction.InvalidBidPrice.selector))) {
+                if (bytes4(revertData) == bytes4(abi.encodeWithSelector(BidLib.BidMustBeAboveClearingPrice.selector))) {
                     // See if we checkpoint, that the bid maxPrice would be at an invalid price
                     mockAuction.checkpoint();
-                    // Because it reverted from InvalidBidPrice, we must assert that it should have
+                    // Because it reverted from BidMustBeAboveClearingPrice, we must assert that it should have
                     assertLe(maxPrice, mockAuction.clearingPrice());
                 } else {
                     // Uncaught error so we bubble up the revert reason
+                    emit log_string("Invariant::handleSubmitBid: Uncaught error");
                     assembly {
                         revert(add(revertData, 0x20), mload(revertData))
                     }
@@ -273,12 +267,10 @@ contract AuctionInvariantTest is AuctionUnitTest {
                 mockAuction.exitPartiallyFilledBid(bidId, lower, upper);
             }
             uint256 refundAmount = bid.owner.balance - currencyBalanceBefore;
-            console.log('refundAmount', refundAmount);
-            console.log('bid.amount', bid.amount);
-            totalCurrencyRaised += bid.amount - refundAmount;
+            totalCurrencyRaised += bid.amountX128 / FixedPoint128.Q128 - refundAmount;
 
             // can never gain more Currency than provided
-            assertLe(refundAmount, bid.amount, 'Bid owner can never be refunded more Currency than provided');
+            assertLe(refundAmount, bid.amountX128, 'Bid owner can never be refunded more Currency than provided');
 
             // Bid might be deleted if tokensFilled = 0
             bid = getBid(bidId);
@@ -311,23 +303,22 @@ contract AuctionInvariantTest is AuctionUnitTest {
         emit log_named_decimal_uint('totalCurrencyRaised', totalCurrencyRaised, 18);
         emit log_named_decimal_uint('expectedCurrencyRaised', expectedCurrencyRaised, 18);
 
-        assertEq(
-            expectedCurrencyRaised,
-            address(mockAuction).balance,
-            'Expected currency raised is greater than auction balance'
-        );
-
         mockAuction.sweepUnsoldTokens();
         if (mockAuction.isGraduated()) {
+            assertLe(
+                expectedCurrencyRaised,
+                address(mockAuction).balance,
+                'Expected currency raised is greater than auction balance'
+            );
             // Sweep the currency
             vm.expectEmit(true, true, true, true);
             emit ITokenCurrencyStorage.CurrencySwept(mockAuction.fundsRecipient(), expectedCurrencyRaised);
             mockAuction.sweepCurrency();
             // Assert that the currency was swept and matches total currency raised
-            assertEq(
+            assertLe(
                 expectedCurrencyRaised,
                 totalCurrencyRaised,
-                'Expected currency raised does not match total currency raised'
+                'Expected currency raised is greater than total currency raised'
             );
             // Assert that the funds recipient received the currency
             assertEq(

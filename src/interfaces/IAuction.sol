@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
 import {ValueX7} from '../libraries/ValueX7Lib.sol';
-import {ValueX7X7} from '../libraries/ValueX7X7Lib.sol';
 import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
 import {IBidStorage} from './IBidStorage.sol';
 import {ICheckpointStorage} from './ICheckpointStorage.sol';
@@ -43,8 +42,6 @@ interface IAuction is
     error InvalidAmount();
     /// @notice Error thrown when the bid amount is too small
     error BidAmountTooSmall();
-    /// @notice Error thrown when the bid amount is over ConstantsLib.X7X7_UPPER_BOUND
-    error BidAmountTooLarge();
     /// @notice Error thrown when msg.value is non zero when currency is not ETH
     error CurrencyIsNotNative();
     /// @notice Error thrown when the auction is not started
@@ -73,8 +70,6 @@ interface IAuction is
     error TokenTransferFailed();
     /// @notice Error thrown when the auction is not over
     error AuctionIsNotOver();
-    /// @notice Error thrown when a new bid is less than or equal to the clearing price
-    error InvalidBidPrice();
     /// @notice Error thrown when the bid is too large
     error InvalidBidUnableToClear();
     /// @notice Error thrown when the auction has sold the entire total supply of tokens
@@ -94,10 +89,10 @@ interface IAuction is
     /// @notice Emitted when a new checkpoint is created
     /// @param blockNumber The block number of the checkpoint
     /// @param clearingPrice The clearing price of the checkpoint
-    /// @param totalCurrencyRaisedX7X7 The total currency raised
+    /// @param currencyRaisedX128_X7 The total currency raised
     /// @param cumulativeMps The cumulative percentage of total tokens allocated across all previous steps, represented in ten-millionths of the total supply (1e7 = 100%)
     event CheckpointUpdated(
-        uint256 indexed blockNumber, uint256 clearingPrice, ValueX7X7 totalCurrencyRaisedX7X7, uint24 cumulativeMps
+        uint256 indexed blockNumber, uint256 clearingPrice, ValueX7 currencyRaisedX128_X7, uint24 cumulativeMps
     );
 
     /// @notice Emitted when the clearing price is updated
@@ -124,7 +119,7 @@ interface IAuction is
     /// @param prevTickPrice The price of the previous tick
     /// @param hookData Additional data to pass to the hook required for validation
     /// @return bidId The id of the bid
-    function submitBid(uint256 maxPrice, uint256 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
+    function submitBid(uint256 maxPrice, uint128 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
         external
         payable
         returns (uint256 bidId);
@@ -137,7 +132,7 @@ interface IAuction is
     /// @param owner The owner of the bid
     /// @param hookData Additional data to pass to the hook required for validation
     /// @return bidId The id of the bid
-    function submitBid(uint256 maxPrice, uint256 amount, address owner, bytes calldata hookData)
+    function submitBid(uint256 maxPrice, uint128 amount, address owner, bytes calldata hookData)
         external
         payable
         returns (uint256 bidId);
@@ -195,5 +190,5 @@ interface IAuction is
     function sweepUnsoldTokens() external;
 
     /// @notice The sum of demand in ticks above the clearing price
-    function sumCurrencyDemandAboveClearingX7() external view returns (ValueX7);
+    function sumCurrencyDemandAboveClearingX128() external view returns (uint256);
 }

@@ -34,7 +34,7 @@ abstract contract BidStorage is IBidStorage {
             startCumulativeMps: startCumulativeMps,
             exitedBlock: 0,
             maxPrice: maxPrice,
-            amount: amount,
+            amountX128: amount,
             owner: owner,
             tokensFilled: 0
         });

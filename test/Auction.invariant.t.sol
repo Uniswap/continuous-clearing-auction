@@ -232,7 +232,9 @@ contract AuctionInvariantTest is AuctionUnitTest {
     AuctionInvariantHandler public handler;
 
     function setUp() public {
-        setUpMockAuction();
+        setUpMockAuctionInvariant();
+
+        logFuzzDeploymentParams($deploymentParams);
 
         address[] memory actors = new address[](1);
         actors[0] = alice;

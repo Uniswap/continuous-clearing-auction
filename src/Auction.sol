@@ -16,11 +16,12 @@ import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
-import {console} from 'forge-std/console.sol';
+
 import {FixedPoint128} from './libraries/FixedPoint128.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
+import {console} from 'forge-std/console.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
@@ -187,13 +188,13 @@ contract Auction is
         returns (uint256)
     {
         /**
-         * The new clearing price is simply the ratio of the cumulative currency demand above the clearing price
-         * to the total supply of the auction. It is multiplied by Q96 to return a value in terms of X96 form.
+         * The new clearing price is simply the ratio of the sum demand above the clearing price
+         * divided by the total supply of the auction. We round up to bias towards higher prices.
          *
-         * The result of this may be lower than tickLowerPrice.
-         * That just means that we can't sell at any price above and should sell at tickLowerPrice instead.
+         * The result of this operation may be lower than tickLowerPrice, in which case
+         * the auction cannot sell at any price above and must use tickLowerPrice instead.
          */
-        uint256 clearingPrice = _sumCurrencyDemandAboveClearingQ96.fullMulDivUp(FixedPoint96.Q96, TOTAL_SUPPLY_Q96);
+        uint256 clearingPrice = _sumCurrencyDemandAboveClearingQ96.fullMulDivUp(1, TOTAL_SUPPLY);
         if (clearingPrice < _tickLowerPrice) return _tickLowerPrice;
         return clearingPrice;
     }
@@ -303,7 +304,7 @@ contract Auction is
     {
         // Reject bids which would cause TOTAL_SUPPLY * maxPrice to overflow a uint256
         if (maxPrice > MAX_BID_PRICE) revert InvalidBidPriceTooHigh();
-        
+
         Checkpoint memory _checkpoint = checkpoint();
         // Revert if there are no more tokens to be sold
         if (_checkpoint.remainingMpsInAuction() == 0) revert AuctionSoldOut();

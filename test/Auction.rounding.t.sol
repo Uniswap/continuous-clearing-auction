@@ -71,9 +71,7 @@ contract Temp is AuctionBaseTest {
         emit log_named_decimal_uint('Cp1, Price after bid1', cp1.clearingPrice, 18);
         // Fine to do mockAuction.currencyRaised since it uses the latest checkpoint
         emit log_named_decimal_uint('Cp1, raised', mockAuction.currencyRaised(), 18);
-        emit log_named_decimal_uint(
-            'Demand above clearing', mockAuction.sumCurrencyDemandAboveClearingQ96(), 18
-        );
+        emit log_named_decimal_uint('Demand above clearing', mockAuction.sumCurrencyDemandAboveClearingQ96(), 18);
         emit log('');
 
         // PERIOD 2: Add second bid at tick30
@@ -95,9 +93,7 @@ contract Temp is AuctionBaseTest {
         emit log_named_decimal_uint('Cp2, raised', mockAuction.currencyRaised(), 18);
         emit log_named_decimal_uint('Cp2, Price after second bid', cp2.clearingPrice, 18);
         emit log_named_decimal_uint('Cp2, Cumulative MPS', cp2.cumulativeMps, 5);
-        emit log_named_decimal_uint(
-            'Demand above clearing', mockAuction.sumCurrencyDemandAboveClearingQ96(), 18
-        );
+        emit log_named_decimal_uint('Demand above clearing', mockAuction.sumCurrencyDemandAboveClearingQ96(), 18);
         emit log('');
 
         emit log_named_decimal_uint('total_currency', currency1 + currency2, 18);
@@ -197,7 +193,9 @@ contract Temp is AuctionBaseTest {
             emit log_named_decimal_uint('Total refunded', totalRefunded, 18);
             emit log_named_decimal_uint('Actual raised (calculated)', sumOfIndividualAmounts - totalRefunded, 18);
             emit log_named_decimal_uint('Total raised (reported)', raised, 18);
-            emit log_named_decimal_int('Discrepancy', int256(sumOfIndividualAmounts - totalRefunded) - int256(raised), 18);
+            emit log_named_decimal_int(
+                'Discrepancy', int256(sumOfIndividualAmounts - totalRefunded) - int256(raised), 18
+            );
 
             emit log_string('=== END ===');
         }

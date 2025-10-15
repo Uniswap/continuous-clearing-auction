@@ -1,4 +1,11 @@
-import { TestInteractionData, Address, AssertionInterfaceType, PriceType, ActionType, AdminActionMethod } from '../../schemas/TestInteractionSchema';
+import {
+  TestInteractionData,
+  Address,
+  AssertionInterfaceType,
+  PriceType,
+  ActionType,
+  AdminActionMethod,
+} from "../../schemas/TestInteractionSchema";
 
 export const advancedInteraction: TestInteractionData = {
   name: "AdvancedInteraction",
@@ -10,17 +17,17 @@ export const advancedInteraction: TestInteractionData = {
       bids: [
         {
           atBlock: 20,
-          amount: {  value: "1000000000000000000" }, // 1 ETH
+          amount: { value: "1000000000000000000" }, // 1 ETH
           price: { type: PriceType.RAW, value: "87150978765690771352898345369600" },
-          previousTick: 1
+          previousTick: 1,
         },
         {
           atBlock: 50,
-          amount: {  value: "500000000000000000" }, // 0.5 ETH
+          amount: { value: "500000000000000000" }, // 0.5 ETH
           price: { type: PriceType.RAW, value: "90000000000000000000000000000000" },
-          previousTick: 2
-        }
-      ]
+          previousTick: 2,
+        },
+      ],
     },
     {
       address: "0x3333333333333333333333333333333333333333" as Address,
@@ -30,34 +37,34 @@ export const advancedInteraction: TestInteractionData = {
           startBlock: 55,
           intervalBlocks: 10,
           occurrences: 5,
-          amount: {  value: "200000000000000000" }, // 0.2 ETH
+          amount: { value: "200000000000000000" }, // 0.2 ETH
           price: { type: PriceType.RAW, value: "88150978765690771352898345369600" },
           previousTick: 1,
           previousTickIncrement: 1,
           amountFactor: 1.0, // 0% increase each time
-          priceFactor: 1.0,  // 0% increase each time
-          hookData: "0x"
-        }
+          priceFactor: 1.0, // 0% increase each time
+          hookData: "0x",
+        },
       ],
-      bids: []
-    }
+      bids: [],
+    },
   ],
   actions: [
     {
       type: ActionType.TRANSFER_ACTION,
       interactions: [
         [
-            {
-              atBlock: 80,
-              value: {
-                from: "0x1111111111111111111111111111111111111111" as Address,
-                to: "0x2222222222222222222222222222222222222222" as Address,
-                token: "0x0000000000000000000000000000000000000000" as Address, // Native ETH
-                amount: "1000000000000000000" // 1 ETH
-              }
-            }
-        ]
-      ]
+          {
+            atBlock: 80,
+            value: {
+              from: "0x1111111111111111111111111111111111111111" as Address,
+              to: "0x2222222222222222222222222222222222222222" as Address,
+              token: "0x0000000000000000000000000000000000000000" as Address, // Native ETH
+              amount: "1000000000000000000", // 1 ETH
+            },
+          },
+        ],
+      ],
     },
     {
       type: ActionType.ADMIN_ACTION,
@@ -65,28 +72,28 @@ export const advancedInteraction: TestInteractionData = {
         [
           {
             atBlock: 172,
-            method: AdminActionMethod.SWEEP_CURRENCY
-          }
-        ]
-      ]
+            method: AdminActionMethod.SWEEP_CURRENCY,
+          },
+        ],
+      ],
     },
     {
       type: ActionType.TRANSFER_ACTION,
       interactions: [
         [
-            {
-              atBlock: 200,
-              value: {
-                from: "0x4444444444444444444444444444444444444444" as Address,
-                to: "0x2222222222222222222222222222222222222222" as Address,
-                token: "USDC",
-                amount: "1000000", // 1 USDC
-                expectRevert: "ERC20InsufficientBalance"
-              }
-            }
-        ]
-      ]
-    }
+          {
+            atBlock: 200,
+            value: {
+              from: "0x4444444444444444444444444444444444444444" as Address,
+              to: "0x2222222222222222222222222222222222222222" as Address,
+              token: "USDC",
+              amount: "1000000", // 1 USDC
+              expectRevert: "ERC20InsufficientBalance",
+            },
+          },
+        ],
+      ],
+    },
   ],
   assertions: [
     {
@@ -97,9 +104,9 @@ export const advancedInteraction: TestInteractionData = {
         eventName: "BidSubmitted",
         expectedArgs: {
           bidder: "0x1111111111111111111111111111111111111111",
-          amount: "90000000000000000000000000000000"
-        }
-      }
+          amount: "90000000000000000000000000000000",
+        },
+      },
     },
     {
       atBlock: 60,
@@ -109,8 +116,8 @@ export const advancedInteraction: TestInteractionData = {
         address: "0x3333333333333333333333333333333333333333" as Address,
         token: "0x0000000000000000000000000000000000000000" as Address,
         expected: "9800000000000000000", // 10 - 0.2 ETH
-        variance: "0.1%" // Allow some variance for gas fees
-      }
+        variance: "0.1%", // Allow some variance for gas fees
+      },
     },
     {
       atBlock: 70,
@@ -120,8 +127,8 @@ export const advancedInteraction: TestInteractionData = {
         address: "0x3333333333333333333333333333333333333333" as Address,
         token: "0x0000000000000000000000000000000000000000" as Address,
         expected: "9600000000000000000", // 10 - 0.2 ETH - 0.2 ETH
-        variance: "0.5%" // Allow more variance due to multiple transactions
-      }
+        variance: "0.5%", // Allow more variance due to multiple transactions
+      },
     },
     {
       atBlock: 100,
@@ -131,8 +138,8 @@ export const advancedInteraction: TestInteractionData = {
         address: "0x1111111111111111111111111111111111111111" as Address,
         token: "0x0000000000000000000000000000000000000000" as Address,
         expected: "7500000000000000000", // Expected ETH balance after bids and transfer (10 - 1.5 - 1 ETH transfer)
-        variance: "0.1%" // Allow 0.01% variance due to gas fee fluctuations
-      }
+        variance: "0.1%", // Allow 0.01% variance due to gas fee fluctuations
+      },
     },
     {
       atBlock: 120,
@@ -140,8 +147,8 @@ export const advancedInteraction: TestInteractionData = {
       assert: {
         type: AssertionInterfaceType.TOTAL_SUPPLY,
         token: "AdvancedToken",
-        expected: "1000000000000000000000" // 1000 tokens total supply
-      }
+        expected: "1000000000000000000000", // 1000 tokens total supply
+      },
     },
     {
       atBlock: 160,
@@ -153,14 +160,14 @@ export const advancedInteraction: TestInteractionData = {
         currencyRaised: "1681406926406926406",
         latestCheckpoint: {
           clearingPrice: "79228162514264337593543950336000",
-          totalClearedX7X7: "168140692640692640692638000000",
-          cumulativeSupplySoldToClearingPriceX7X7: "0",
+          currencyRaisedQ96_X7: "1332147812179776625238980001309700432900432900427000000",
+          currencyRaisedAtClearingPriceQ96_X7: "0",
           cumulativeMpsPerPrice: "673439381371246869545123577856000",
           cumulativeMps: "8500000",
           prev: "85",
           next: "18446744073709551615",
-        }
-      }
-    }
-  ]
+        },
+      },
+    },
+  ],
 };

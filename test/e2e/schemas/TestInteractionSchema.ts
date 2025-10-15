@@ -2,26 +2,26 @@
 export type Address = `0x${string}` & { readonly length: 42 };
 
 export enum AssertionInterfaceType {
-  BALANCE = 'balance',
-  TOTAL_SUPPLY = 'totalSupply',
-  EVENT = 'event',
-  AUCTION = 'auction',
-  REVERT = 'revert',
+  BALANCE = "balance",
+  TOTAL_SUPPLY = "totalSupply",
+  EVENT = "event",
+  AUCTION = "auction",
+  REVERT = "revert",
 }
 
 export enum ActionType {
-  ADMIN_ACTION = 'AdminAction',
-  TRANSFER_ACTION = 'TransferAction',
+  ADMIN_ACTION = "AdminAction",
+  TRANSFER_ACTION = "TransferAction",
 }
 
 export enum PriceType {
-  RAW = 'raw',
-  TICK = 'tick',
+  RAW = "raw",
+  TICK = "tick",
 }
 
 export enum AdminActionMethod {
-  SWEEP_CURRENCY = 'sweepCurrency',
-  SWEEP_UNSOLD_TOKENS = 'sweepUnsoldTokens',
+  SWEEP_CURRENCY = "sweepCurrency",
+  SWEEP_UNSOLD_TOKENS = "sweepUnsoldTokens",
 }
 
 export interface AmountConfig {
@@ -129,8 +129,8 @@ export interface AuctionAssertion {
 
 export interface InternalCheckpointStruct {
   clearingPrice: string | VariableAmount;
-  totalClearedX7X7: string | VariableAmount;
-  cumulativeSupplySoldToClearingPriceX7X7: string | VariableAmount;
+  currencyRaisedQ96_X7: string | VariableAmount;
+  currencyRaisedAtClearingPriceQ96_X7: string | VariableAmount;
   cumulativeMpsPerPrice: string | VariableAmount;
   cumulativeMps: string | VariableAmount;
   prev: string | VariableAmount;
@@ -163,10 +163,10 @@ export interface TestInteractionData {
 
 // Type guards for runtime validation
 
-export function isValidPriceType(type: string): type is PriceConfig['type'] {
+export function isValidPriceType(type: string): type is PriceConfig["type"] {
   return Object.values(PriceType).includes(type as PriceType);
 }
 
-export function isValidAdminActionKind(kind: string): kind is AdminAction['method'] {
+export function isValidAdminActionKind(kind: string): kind is AdminAction["method"] {
   return Object.values(AdminActionMethod).includes(kind as AdminActionMethod);
 }

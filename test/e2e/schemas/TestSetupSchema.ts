@@ -1,5 +1,5 @@
 // TypeScript interfaces for test setup schema
-import { ChainId } from '@uniswap/sdk-core';
+import { ChainId } from "@uniswap/sdk-core";
 
 export type Address = `0x${string}` & { readonly length: 42 };
 
@@ -33,7 +33,6 @@ export interface AuctionParameters {
   fundsRecipient: Address;
   auctionDurationBlocks: number;
   claimDelayBlocks: number;
-  graduationThresholdMps: string;
   tickSpacing: number;
   validationHook: Address;
   floorPrice: string;
@@ -64,10 +63,10 @@ export function isValidAddress(address: string): boolean {
 
 export function isValidUint64(value: string): boolean {
   const num = BigInt(value);
-  return num >= 0n && num <= 0xFFFFFFFFFFFFFFFFn;
+  return num >= 0n && num <= 0xffffffffffffffffn;
 }
 
 export function isValidUint256(value: string): boolean {
   const num = BigInt(value);
-  return num >= 0n && num <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFn;
+  return num >= 0n && num <= 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffn;
 }

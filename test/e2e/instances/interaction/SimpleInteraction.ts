@@ -1,4 +1,4 @@
-import { TestInteractionData, Address, AssertionInterfaceType, PriceType } from '../../schemas/TestInteractionSchema';
+import { TestInteractionData, Address, AssertionInterfaceType, PriceType } from "../../schemas/TestInteractionSchema";
 
 export const simpleInteraction: TestInteractionData = {
   name: "SimpleInteraction",
@@ -11,11 +11,11 @@ export const simpleInteraction: TestInteractionData = {
           atBlock: 20,
           amount: { value: "1000000000000000000" },
           price: { type: PriceType.RAW, value: "87150978765690771352898345369600" },
-          previousTick: 1
-        }
+          previousTick: 1,
+        },
       ],
-      recurringBids: []
-    }
+      recurringBids: [],
+    },
   ],
   groups: [],
   actions: [],
@@ -28,8 +28,8 @@ export const simpleInteraction: TestInteractionData = {
         address: "0x1111111111111111111111111111111111111111" as Address,
         token: "0x0000000000000000000000000000000000000000" as Address,
         expected: "999622633006543701",
-        variance: "0.01%"
-      }
-    }
-  ]
+        variance: "0.01%",
+      },
+    },
+  ],
 };

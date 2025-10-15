@@ -93,7 +93,6 @@ export interface AuctionConfig {
   startBlock: number;
   endBlock: number;
   claimBlock: number;
-  graduationThresholdMps: number;
   tickSpacing: number;
   validationHook: Address;
   floorPrice: string;

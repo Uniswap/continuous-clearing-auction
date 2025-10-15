@@ -254,7 +254,6 @@ export const simpleSetup: TestSetupData = {
     fundsRecipient: "0x3333333333333333333333333333333333333333" as Address,
     auctionDurationBlocks: 50,
     claimDelayBlocks: 10,
-    graduationThresholdMps: "1000",
     tickSpacing: 100,
     validationHook: "0x0000000000000000000000000000000000000000" as Address,
     floorPrice: "79228162514264337593543950336000"

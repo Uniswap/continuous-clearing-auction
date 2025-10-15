@@ -1,4 +1,4 @@
-import { TestInteractionData, Address, AssertionInterfaceType, PriceType } from '../../schemas/TestInteractionSchema';
+import { TestInteractionData, Address, AssertionInterfaceType, PriceType } from "../../schemas/TestInteractionSchema";
 
 export const erc20Interaction: TestInteractionData = {
   name: "ERC20Interaction",
@@ -11,11 +11,11 @@ export const erc20Interaction: TestInteractionData = {
           atBlock: 20,
           amount: { value: "1000000000" }, // 1000 USDC (6 decimals)
           price: { type: PriceType.RAW, value: "87150978765690771352898345369600" },
-          previousTick: 1
-        }
+          previousTick: 1,
+        },
       ],
-      recurringBids: []
-    }
+      recurringBids: [],
+    },
   ],
   assertions: [
     {
@@ -25,8 +25,8 @@ export const erc20Interaction: TestInteractionData = {
         type: AssertionInterfaceType.BALANCE,
         address: "0x1111111111111111111111111111111111111111" as Address,
         token: "USDC",
-        expected: "999000000000" // Expected USDC balance after bid (1M - 1K = 999K USDC)
-      }
-    }
-  ]
+        expected: "999000000000", // Expected USDC balance after bid (1M - 1K = 999K USDC)
+      },
+    },
+  ],
 };

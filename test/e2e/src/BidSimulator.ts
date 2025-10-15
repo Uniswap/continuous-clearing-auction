@@ -209,13 +209,13 @@ export class BidSimulator {
     if (this.currency) {
       msg = `   Bidding with ERC20 currency: ${await this.currency.getAddress()}`;
       tx = await this.auction
-        .getFunction("submitBid(uint256,uint256,address,uint256,bytes)")
+        .getFunction("submitBid(uint256,uint128,address,uint256,bytes)")
         .populateTransaction(price, amount, bidder, previousTickPrice, bidData.hookData || "0x");
     } else {
       // For native currency, send the required amount as msg.value
       msg = `   Bidding with Native currency`;
       tx = await this.auction
-        .getFunction("submitBid(uint256,uint256,address,uint256,bytes)")
+        .getFunction("submitBid(uint256,uint128,address,uint256,bytes)")
         .populateTransaction(price, amount, bidder, previousTickPrice, bidData.hookData || "0x", { value: amount });
     }
     transactionInfos.push({ tx, from: bidder, msg, expectRevert: bidData.expectRevert });

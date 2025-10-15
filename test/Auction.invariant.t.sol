@@ -166,10 +166,7 @@ contract AuctionInvariantHandler is Test, Assertions {
             vm.roll(mockAuction.startBlock());
         }
 
-        // Bid requests for anything between 1 and 2x the total supply of tokens
-        // Note - if this * 2 is changed - update helper__validInvariantDeploymentParams
-        uint128 amount = SafeCastLib.toUint128(_bound(bidAmount, 1, mockAuction.totalSupply() * 2));
-        (uint128 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(amount, _checkpoint.clearingPrice, tickNumber);
+        (uint128 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(bidAmount, _checkpoint.clearingPrice, tickNumber);
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
         } else {

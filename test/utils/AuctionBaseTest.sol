@@ -70,7 +70,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     function _getRandomDivisorOfMPS() private returns (uint8) {
         // TODO(md): improve
         // All divisors of 10,000,000 that fit in uint8 (1-255)
-        uint8[] memory validDivisors = new uint8[](21);
+        uint8[] memory validDivisors = new uint8[](20);
         validDivisors[0] = 1;
         validDivisors[1] = 2;
         validDivisors[2] = 4;
@@ -91,7 +91,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         validDivisors[17] = 160;
         validDivisors[18] = 200;
         validDivisors[19] = 250;
-        validDivisors[20] = 255;
 
         // Randomly select one of the valid divisors
         uint256 randomIndex = _bound(uint256(vm.randomUint()), 0, validDivisors.length - 1);
@@ -104,8 +103,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _setHardcodedParams(deploymentParams);
 
         // Generate the random parameteres here
-        // /2 as invariant tests multiply by 2
-        deploymentParams.totalSupply = uint128(_bound(uint256(vm.randomUint()), 1, type(uint128).max / 2));
+        deploymentParams.totalSupply = uint128(_bound(uint256(vm.randomUint()), 1, type(uint128).max));
 
         // Calculate the number of steps - ensure it's a divisor of ConstantsLib.MPS
         deploymentParams.numberOfSteps = _getRandomDivisorOfMPS();

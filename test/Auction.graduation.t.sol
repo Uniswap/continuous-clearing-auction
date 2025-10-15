@@ -146,6 +146,8 @@ contract AuctionGraduationTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, 0);
         auction.sweepUnsoldTokens();
+
+        assertEq(token.balanceOf(tokensRecipient), 0);
     }
 
     function test_sweepUnsoldTokens_notGraduated(

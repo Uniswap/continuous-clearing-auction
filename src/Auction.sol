@@ -14,9 +14,9 @@ import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
+import {ClearingPriceRoundedDownLib} from './libraries/ClearingPriceRoundedDownLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
-
 import {FixedPoint128} from './libraries/FixedPoint128.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
@@ -64,7 +64,6 @@ contract Auction is
     /// @notice Whether the TOTAL_SUPPLY of tokens has been received
     bool private $_tokensReceived;
 
-    uint256 internal $lastClearingPriceRoundedDown;
     ValueX7 internal $sumExtraCurrencyRaisedQ96_X7;
 
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
@@ -141,7 +140,7 @@ contract Auction is
             'extra currency raised from rounding up',
             $sumExtraCurrencyRaisedQ96_X7.scaleDownToUint256() >> FixedPoint96.RESOLUTION
         );
-        if(_checkpoint.currencyRaisedQ96_X7.scaleDownToUint256() > 0) {
+        if (_checkpoint.currencyRaisedQ96_X7.scaleDownToUint256() > 0) {
             console.log(
                 'bps drift',
                 $sumExtraCurrencyRaisedQ96_X7.scaleDownToUint256().fullMulDiv(
@@ -178,22 +177,16 @@ contract Auction is
             _checkpoint.currencyRaisedAtClearingPriceQ96_X7 = _checkpoint.currencyRaisedAtClearingPriceQ96_X7.add(
                 currencyRaisedQ96_X7.sub(ValueX7.wrap($sumCurrencyDemandAboveClearingQ96 * deltaMps))
             );
-            if ($lastClearingPriceRoundedDown < _checkpoint.clearingPrice) {
-                console.log('----- ROUNDING UP TO INITIALIZED TICK DETECTED ------');
-                console.log('currencyRaisedQ96_X7', ValueX7.unwrap(currencyRaisedQ96_X7));
-                console.log(
-                    'currencyRaisedAtClearingPriceQ96_X7',
-                    ValueX7.unwrap(_checkpoint.currencyRaisedAtClearingPriceQ96_X7)
-                );
-                console.log('lastClearingPriceRoundedDown', $lastClearingPriceRoundedDown);
-                console.log('clearingPrice', _checkpoint.clearingPrice);
-                console.log('diff in clearing prices', _checkpoint.clearingPrice - $lastClearingPriceRoundedDown);
+            // Get the transiently stored last clearing price rounded down
+            uint256 lastClearingPriceRoundedDown = ClearingPriceRoundedDownLib.get();
+            // If it is less than the current clearing price, the checkpoint's currencyRaised will be inflated due to the rounding of clearingPrice
+            // Thus we track the "carry" from this rounding in the $sumExtraCurrencyRaisedQ96_X7 state variable.
+            if (lastClearingPriceRoundedDown < _checkpoint.clearingPrice) {
                 $sumExtraCurrencyRaisedQ96_X7 = $sumExtraCurrencyRaisedQ96_X7.add(
-                    ValueX7.wrap(TOTAL_SUPPLY).mulUint256(
-                        (_checkpoint.clearingPrice - $lastClearingPriceRoundedDown) * deltaMps
+                    currencyRaisedQ96_X7.sub(
+                        ValueX7.wrap(TOTAL_SUPPLY).mulUint256(lastClearingPriceRoundedDown * deltaMps)
                     )
                 );
-                console.log('sumExtraCurrencyRaisedQ96_X7', ValueX7.unwrap($sumExtraCurrencyRaisedQ96_X7));
             }
         }
         _checkpoint.currencyRaisedQ96_X7 = _checkpoint.currencyRaisedQ96_X7.add(currencyRaisedQ96_X7);
@@ -290,11 +283,11 @@ contract Auction is
         // If the clearing price is at a tick boundary with bids we must track the remainder of the price which was rounded up.
         if (clearingPrice % TICK_SPACING == 0 && _getTick(clearingPrice).currencyDemandQ96 > 0) {
             // If the priceRoundedUp is already the min clearing price, the rounded down price will be the same.
-            if (clearingPrice == minimumClearingPrice) {
-                $lastClearingPriceRoundedDown = minimumClearingPrice;
-            } else {
-                $lastClearingPriceRoundedDown = sumCurrencyDemandAboveClearingQ96_ / TOTAL_SUPPLY;
-            }
+            ClearingPriceRoundedDownLib.set(
+                clearingPrice == minimumClearingPrice
+                    ? minimumClearingPrice
+                    : sumCurrencyDemandAboveClearingQ96_ / TOTAL_SUPPLY
+            );
         }
         return clearingPrice;
     }

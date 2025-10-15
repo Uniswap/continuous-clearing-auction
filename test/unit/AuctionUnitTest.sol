@@ -42,6 +42,21 @@ contract AuctionUnitTest is AuctionBaseTest {
         mockAuction.onTokensReceived();
     }
 
+    function setUpMockAuctionInvariant() public {
+        setUpMockAuction();
+
+        FuzzDeploymentParams memory fuzzDeploymentParams = helper__validInvariantDeploymentParams();
+
+        // Expect the floor price tick to be initialized
+        vm.expectEmit(true, true, true, true);
+        emit ITickStorage.TickInitialized(fuzzDeploymentParams.auctionParams.floorPrice);
+        mockAuction =
+            new MockAuction(address(token), fuzzDeploymentParams.totalSupply, fuzzDeploymentParams.auctionParams);
+
+        token.mint(address(mockAuction), fuzzDeploymentParams.totalSupply);
+        mockAuction.onTokensReceived();
+    }
+
     // Non fuzzing variant of setUpMockAuction
     function setUpMockAuction() public requireAuctionNotSetup {
         setUpTokens();

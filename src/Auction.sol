@@ -212,11 +212,6 @@ contract Auction is
          * The result of this may be lower than tickLowerPrice.
          * That just means that we can't sell at any price above and should sell at tickLowerPrice instead.
          */
-        // note TODO(ez): rounding up here can cause expected currency raised to be greater than actual,
-        //  and for the auction to be insolvent at the end when sweeping currency
-        //  however, rounding down may mean that the price is too low for the demand, and bidders will be insolvent.
-        //  one option is to caculate the reaminder and track it as "carry" for the protocol, and account for it
-        //  in the sweeping of currency. Or, allow for sweep to be called with a parameter.
         uint256 clearingPrice = _sumCurrencyDemandAboveClearingQ96.fullMulDivUp(FixedPoint96.Q96, TOTAL_SUPPLY_Q96);
         if (clearingPrice < _tickLowerPrice) return _tickLowerPrice;
         return clearingPrice;

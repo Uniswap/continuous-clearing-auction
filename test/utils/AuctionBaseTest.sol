@@ -448,22 +448,86 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _;
     }
 
+    modifier givenValidMaxPriceWithParams(
+        uint256 _maxPrice,
+        uint128 _totalSupply,
+        uint256 _floorPrice,
+        uint256 _tickSpacing
+    ) {
+        $maxPrice = helper__assumeValidMaxPrice(_floorPrice, _maxPrice, _totalSupply, _tickSpacing);
+        _;
+    }
+
     modifier givenValidBidAmount(uint128 _bidAmount) {
         $bidAmount = SafeCastLib.toUint128(_bound(_bidAmount, 1, type(uint128).max));
         _;
     }
 
     modifier givenGraduatedAuction() {
-        vm.assume($maxPrice < (uint256(type(uint128).max) * FixedPoint96.Q96) / TOTAL_SUPPLY);
-        $bidAmount = SafeCastLib.toUint128(
-            _bound($bidAmount, TOTAL_SUPPLY.fullMulDivUp($maxPrice, FixedPoint96.Q96), type(uint128).max)
-        );
+        // The max currency that can be raised from this bid is totalSupply * maxPrice
+        uint256 maxCurrencyRaised = uint256($deploymentParams.totalSupply).fullMulDiv($maxPrice, FixedPoint96.Q96);
+        // Require the graduation threshold to be less than the max currency that can be raised
+        vm.assume(params.requiredCurrencyRaised <= maxCurrencyRaised);
+        // Assume that the bid surpasses the graduation threshold
+        vm.assume($bidAmount >= params.requiredCurrencyRaised);
         _;
     }
 
-    // ============================================
-    // Conversion & Calculation Helpers
-    // ============================================
+    modifier givenNotGraduatedAuction() {
+        vm.assume($bidAmount < params.requiredCurrencyRaised);
+        _;
+    }
+
+    modifier checkAuctionIsSolvent() {
+        _;
+        require(block.number >= auction.endBlock(), 'checkAuctionIsSolvent: Auction is not over');
+        auction.checkpoint();
+        if (auction.isGraduated()) {
+            auction.sweepCurrency();
+            auction.sweepUnsoldTokens();
+        } else {
+            auction.sweepUnsoldTokens();
+        }
+    }
+
+    modifier checkAuctionIsGraduated() {
+        _;
+        require(block.number >= auction.endBlock(), 'checkAuctionIsGraduated: Auction is not over');
+        auction.checkpoint();
+        assertTrue(auction.isGraduated());
+    }
+
+    modifier checkAuctionIsNotGraduated() {
+        _;
+        require(block.number >= auction.endBlock(), 'checkAuctionIsNotGraduated: Auction is not over');
+        auction.checkpoint();
+        assertFalse(auction.isGraduated());
+    }
+
+    function helper__submitBid(Auction _auction, address _owner, uint128 _amount, uint256 _maxPrice)
+        internal
+        returns (uint256)
+    {
+        return _auction.submitBid{value: _amount}(_maxPrice, _amount, _owner, params.floorPrice, bytes(''));
+    }
+
+    /// @notice Helper to submit N number of bids at the same amount and max price
+    function helper__submitNBids(
+        Auction _auction,
+        address _owner,
+        uint128 _amount,
+        uint128 _numberOfBids,
+        uint256 _maxPrice
+    ) internal returns (uint256[] memory) {
+        // Split the amount between the bids
+        uint128 amountPerBid = _amount / _numberOfBids;
+
+        uint256[] memory bids = new uint256[](_numberOfBids);
+        for (uint256 i = 0; i < _numberOfBids; i++) {
+            bids[i] = helper__submitBid(_auction, _owner, amountPerBid, _maxPrice);
+        }
+        return bids;
+    }
 
     /// @dev Helper function to convert a tick number to a priceX96
     function tickNumberToPriceX96(uint256 tickNumber) internal pure returns (uint256) {

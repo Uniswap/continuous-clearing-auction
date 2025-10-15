@@ -353,18 +353,18 @@ contract Auction is
     }
 
     /// @notice Given a bid, tokens filled and refund, process the transfers and refund
-    function _processExit(uint256 bidId, Bid memory bid, uint256 tokensFilled, uint256 refundQ96) internal {
-        address _owner = bid.owner;
+    function _processExit(uint256 bidId, uint256 tokensFilled, uint256 currencySpentQ96) internal {
+        Bid storage $bid = _getBid(bidId);
+        address _owner = $bid.owner;
+
+        uint256 refund = ($bid.amountQ96 - currencySpentQ96) >> FixedPoint96.RESOLUTION;
 
         if (tokensFilled == 0) {
             _deleteBid(bidId);
         } else {
-            bid.tokensFilled = tokensFilled;
-            bid.exitedBlock = uint64(block.number);
-            _updateBid(bidId, bid);
+            $bid.tokensFilled = tokensFilled;
+            $bid.exitedBlock = uint64(block.number);
         }
-
-        uint256 refund = refundQ96 >> FixedPoint96.RESOLUTION;
 
         if (refund > 0) {
             CURRENCY.transfer(_owner, refund);
@@ -417,7 +417,7 @@ contract Auction is
         Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
         if (!_isGraduated(finalCheckpoint)) {
             // In the case that the auction did not graduate, fully refund the bid
-            return _processExit(bidId, bid, 0, bid.amountQ96);
+            return _processExit(bidId, 0, 0);
         }
 
         if (bid.maxPrice <= finalCheckpoint.clearingPrice) revert CannotExitBid();
@@ -425,7 +425,7 @@ contract Auction is
         (uint256 tokensFilled, uint256 currencySpentQ96) =
             _accountFullyFilledCheckpoints(finalCheckpoint, _getCheckpoint(bid.startBlock), bid);
 
-        _processExit(bidId, bid, tokensFilled, bid.amountQ96 - currencySpentQ96);
+        _processExit(bidId, tokensFilled, currencySpentQ96);
     }
 
     /// @inheritdoc IAuction
@@ -437,6 +437,8 @@ contract Auction is
         Checkpoint memory currentBlockCheckpoint = checkpoint();
 
         Bid memory bid = _getBid(bidId);
+        uint256 bidMaxPrice = bid.maxPrice;
+        uint64 bidStartBlock = bid.startBlock;
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
 
         // If the provided hint is the current block, use the checkpoint returned by `checkpoint()` instead of getting it from storage
@@ -444,15 +446,15 @@ contract Auction is
             ? currentBlockCheckpoint
             : _getCheckpoint(lastFullyFilledCheckpointBlock);
         // There is guaranteed to be a checkpoint at the bid's startBlock because we always checkpoint before bid submission
-        Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
+        Checkpoint memory startCheckpoint = _getCheckpoint(bidStartBlock);
 
         // Since `lower` points to the last fully filled Checkpoint, it must be < bid.maxPrice
         // The next Checkpoint after `lower` must be partially or fully filled (clearingPrice >= bid.maxPrice)
         // `lower` also cannot be before the bid's startCheckpoint
         if (
-            lastFullyFilledCheckpoint.clearingPrice >= bid.maxPrice
-                || _getCheckpoint(lastFullyFilledCheckpoint.next).clearingPrice < bid.maxPrice
-                || lastFullyFilledCheckpointBlock < bid.startBlock
+            lastFullyFilledCheckpoint.clearingPrice >= bidMaxPrice
+                || _getCheckpoint(lastFullyFilledCheckpoint.next).clearingPrice < bidMaxPrice
+                || lastFullyFilledCheckpointBlock < bidStartBlock
         ) {
             revert InvalidLastFullyFilledCheckpointHint();
         }
@@ -476,7 +478,7 @@ contract Auction is
 
             upperCheckpoint = _getCheckpoint(outbidCheckpoint.prev);
             // We require that the outbid checkpoint is > bid max price AND the checkpoint before it is <= bid max price, revert if either of these conditions are not met
-            if (outbidCheckpoint.clearingPrice <= bid.maxPrice || upperCheckpoint.clearingPrice > bid.maxPrice) {
+            if (outbidCheckpoint.clearingPrice <= bidMaxPrice || upperCheckpoint.clearingPrice > bidMaxPrice) {
                 revert InvalidOutbidBlockCheckpointHint();
             }
         } else {
@@ -487,7 +489,7 @@ contract Auction is
             // This must be the final checkpoint because `checkpoint()` will return the final checkpoint after the auction is over
             upperCheckpoint = currentBlockCheckpoint;
             // Revert if the final checkpoint's clearing price is not equal to the bid's max price
-            if (upperCheckpoint.clearingPrice != bid.maxPrice) {
+            if (upperCheckpoint.clearingPrice != bidMaxPrice) {
                 revert CannotExitBid();
             }
         }
@@ -509,7 +511,6 @@ contract Auction is
          *           lastFullyFilled
          *
          */
-        uint256 bidMaxPrice = bid.maxPrice; // place on stack
         if (upperCheckpoint.clearingPrice == bidMaxPrice) {
             (uint256 partialTokensFilled, uint256 partialCurrencySpentQ96) = _accountPartiallyFilledCheckpoints(
                 bid, _getTick(bidMaxPrice).currencyDemandQ96, upperCheckpoint.currencyRaisedAtClearingPriceQ96_X7
@@ -518,7 +519,7 @@ contract Auction is
             currencySpentQ96 += partialCurrencySpentQ96;
         }
 
-        _processExit(bidId, bid, tokensFilled, bid.amountQ96 - currencySpentQ96);
+        _processExit(bidId, tokensFilled, currencySpentQ96);
     }
 
     /// @inheritdoc IAuction
@@ -558,16 +559,15 @@ contract Auction is
     /// @return owner The owner of the bid
     /// @return tokensFilled The amount of tokens filled
     function _internalClaimTokens(uint256 bidId) internal returns (address owner, uint256 tokensFilled) {
-        Bid memory bid = _getBid(bidId);
-        if (bid.exitedBlock == 0) revert BidNotExited();
+        Bid storage $bid = _getBid(bidId);
+        if ($bid.exitedBlock == 0) revert BidNotExited();
 
         // Set return values
-        owner = bid.owner;
-        tokensFilled = bid.tokensFilled;
+        owner = $bid.owner;
+        tokensFilled = $bid.tokensFilled;
 
         // Set the tokens filled to 0
-        bid.tokensFilled = 0;
-        _updateBid(bidId, bid);
+        $bid.tokensFilled = 0;
     }
 
     /// @inheritdoc IAuction

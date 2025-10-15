@@ -1,3 +1,0 @@
-GetCurrencyRaisedTest
-└── when called with checkpoint
-    └── it returns raised in currency precision

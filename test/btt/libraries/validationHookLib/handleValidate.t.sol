@@ -8,7 +8,7 @@ contract ValidationHookWrapper {
     function validate(
         IValidationHook hook,
         uint256 maxPrice,
-        uint256 amount,
+        uint128 amount,
         address owner,
         address sender,
         bytes calldata hookData
@@ -44,7 +44,7 @@ contract HandleValidateTest is BttBase {
 
     function test_WhenHookIsAddressZero(
         uint256 _maxPrice,
-        uint256 _amount,
+        uint128 _amount,
         address _owner,
         address _sender,
         bytes calldata _hookData
@@ -63,7 +63,7 @@ contract HandleValidateTest is BttBase {
 
     function test_WhenTheHookCallFails(
         uint256 _maxPrice,
-        uint256 _amount,
+        uint128 _amount,
         address _owner,
         address _sender,
         bytes calldata _hookData
@@ -83,7 +83,7 @@ contract HandleValidateTest is BttBase {
 
     function test_WhenTheHookCallSucceeds(
         uint256 _maxPrice,
-        uint256 _amount,
+        uint128 _amount,
         address _owner,
         address _sender,
         bytes calldata _hookData

@@ -6,7 +6,6 @@ import {CheckpointStorage} from 'twap-auction/CheckpointStorage.sol';
 import {Bid} from 'twap-auction/libraries/BidLib.sol';
 import {Checkpoint} from 'twap-auction/libraries/CheckpointLib.sol';
 import {ValueX7} from 'twap-auction/libraries/ValueX7Lib.sol';
-import {ValueX7X7} from 'twap-auction/libraries/ValueX7X7Lib.sol';
 
 contract MockCheckpointStorage is CheckpointStorage {
     function insertCheckpoint(Checkpoint memory checkpoint, uint64 blockNumber) external {
@@ -35,9 +34,9 @@ contract MockCheckpointStorage is CheckpointStorage {
 
     function accountPartiallyFilledCheckpoints(
         Bid memory bid,
-        ValueX7 tickDemandX7,
-        ValueX7X7 cumulativeCurrencyRaisedAtClearingPriceX7X7
+        uint256 tickDemandQ96,
+        ValueX7 currencyRaisedAtClearingPriceQ96_X7
     ) external returns (uint256 tokensFilled, uint256 currencySpent) {
-        return super._accountPartiallyFilledCheckpoints(bid, tickDemandX7, cumulativeCurrencyRaisedAtClearingPriceX7X7);
+        return super._accountPartiallyFilledCheckpoints(bid, tickDemandQ96, currencyRaisedAtClearingPriceQ96_X7);
     }
 }

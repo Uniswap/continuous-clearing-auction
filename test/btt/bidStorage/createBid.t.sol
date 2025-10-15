@@ -52,7 +52,7 @@ contract CreateBidTest is BttBase {
         assertEq(bidFromStorage.exitedBlock, 0);
         assertEq(bidFromStorage.maxPrice, _maxPrice);
         assertEq(bidFromStorage.owner, _owner);
-        assertEq(bidFromStorage.amount, _amount);
+        assertEq(bidFromStorage.amountQ96, _amount);
         assertEq(bidFromStorage.tokensFilled, 0);
 
         assertEq(bid, bidFromStorage);

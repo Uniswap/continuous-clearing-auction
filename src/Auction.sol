@@ -191,7 +191,8 @@ contract Auction is
         }
         _checkpoint.currencyRaisedQ96_X7 = _checkpoint.currencyRaisedQ96_X7.add(currencyRaisedQ96_X7);
         _checkpoint.cumulativeMps += deltaMps;
-        // Calculate the harmonic mean of the mps and price
+        // Calculate the harmonic mean of the mps and price (the sum of mps/price)
+        // This uses the rounded up clearing price so bids purchase less tokens for higher prices
         _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(deltaMps, _checkpoint.clearingPrice);
         return _checkpoint;
     }

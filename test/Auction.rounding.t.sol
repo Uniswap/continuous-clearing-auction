@@ -32,7 +32,6 @@ contract Temp is AuctionBaseTest {
     uint256 private tick3000;
     MockAuction private mockAuction;
 
-    uint256 private bidId1;
     uint256 private bidId2;
 
     bool internal expectReverts = false;
@@ -48,39 +47,30 @@ contract Temp is AuctionBaseTest {
     }
 
     function test_largeTickSpacing_causesBurnAuction_lateSweep() public {
-        _test_largeTickSpacing_causesBurnAuction(false);
+        _test_largeTickSpacing_causesBurnAuction(false, TOTAL_SUPPLY_POC * 999 / 1000 - 1009e18 - 1);
     }
 
-    function _test_largeTickSpacing_causesBurnAuction(bool _sweepEarly) public {
+    function test_showcaseIssue() public {
+        _test_largeTickSpacing_causesBurnAuction(false, 485_132_254_581_071_629_498_241_743_687);
+    }
+
+    function test_atClearingPrice() public {
+        _test_largeTickSpacing_causesBurnAuction(false, TOTAL_SUPPLY_POC);
+    }
+
+    function test_search(uint128 amount) public {
+        _test_largeTickSpacing_causesBurnAuction(false, amount);
+    }
+
+    function _test_largeTickSpacing_causesBurnAuction(bool _sweepEarly, uint128 amount) public {
         AuctionStep memory step = mockAuction.step();
 
-        emit log_named_uint('Bid1 block', block.number);
-
-        uint128 currency1 = inputAmountForTokens(10e18, tick30);
-        emit log_named_decimal_uint('Currency1 calculated', currency1, 18);
-        vm.deal(address(this), currency1);
-        bidId1 = mockAuction.submitBid{value: currency1}(tick30, currency1, bob, tick10, bytes(''));
-        {
-            Bid memory bid1 = mockAuction.getBid(bidId1);
-            emit log_named_decimal_uint('B1, maxPrice', bid1.maxPrice, 18);
-        }
-
-        vm.roll(block.number + 1);
-        Checkpoint memory cp1 = mockAuction.checkpoint();
-        emit log_named_uint('Cp1, block', block.number);
-        emit log_named_decimal_uint('Cp1, Price after bid1', cp1.clearingPrice, 18);
-        // Fine to do mockAuction.currencyRaised since it uses the latest checkpoint
-        emit log_named_decimal_uint('Cp1, raised', mockAuction.currencyRaised(), 18);
-        emit log_named_decimal_uint('Demand above clearing', mockAuction.sumCurrencyDemandAboveClearingQ96(), 18);
-        emit log('');
-
         // PERIOD 2: Add second bid at tick30
-        vm.roll(step.endBlock - 1);
         emit log_named_uint('Bid2 block', block.number);
-        uint128 currency2 = inputAmountForTokens((TOTAL_SUPPLY_POC - 1000e18), tick40);
+        uint128 currency2 = inputAmountForTokens(amount, tick40);
         emit log_named_decimal_uint('Currency2 calculated', currency2, 18);
         vm.deal(address(this), currency2);
-        bidId2 = mockAuction.submitBid{value: currency2}(tick40, currency2, alice, tick30, bytes(''));
+        bidId2 = mockAuction.submitBid{value: currency2}(tick40, currency2, alice, tick10, bytes(''));
         {
             Bid memory bid2 = mockAuction.getBid(bidId2);
             emit log_named_decimal_uint('B2, maxPrice', bid2.maxPrice, 18);
@@ -96,7 +86,7 @@ contract Temp is AuctionBaseTest {
         emit log_named_decimal_uint('Demand above clearing', mockAuction.sumCurrencyDemandAboveClearingQ96(), 18);
         emit log('');
 
-        emit log_named_decimal_uint('total_currency', currency1 + currency2, 18);
+        emit log_named_decimal_uint('total_currency', currency2, 18);
 
         {
             vm.roll(block.number + 1);
@@ -117,8 +107,15 @@ contract Temp is AuctionBaseTest {
         uint256 raised = ValueX7.unwrap(finalCheckpoint.currencyRaisedQ96_X7);
 
         emit log('==================== FINAL CHECKPOINT ====================');
-        emit log_named_decimal_uint('Raised', raised, 18);
+        emit log_named_decimal_uint(
+            'r                 ',
+            31_659_573_708_723_542_911_623_075_901_480_000_000_000_000_000_000_000_000_000_000_000_000,
+            18
+        );
+        emit log_named_decimal_uint('Raised            ', raised / 1e7 / FixedPoint96.Q96, 18);
         emit log_named_decimal_uint('Balance of auction', address(mockAuction).balance, 18);
+        assertGe(address(mockAuction).balance, raised / 1e7 / FixedPoint96.Q96);
+
         emit log_named_decimal_uint('Cumulative MPS          ', finalCheckpoint.cumulativeMps, 5);
         emit log_named_decimal_uint('Cumulative MPS per price', finalCheckpoint.cumulativeMpsPerPrice, 32);
         emit log_named_decimal_uint('Price', finalCheckpoint.clearingPrice, 18);
@@ -150,18 +147,6 @@ contract Temp is AuctionBaseTest {
         {
             uint256 totalRefunded;
             emit log('==================== EXITING BIDS ====================');
-            Bid memory bid1Check = mockAuction.getBid(bidId1);
-            {
-                uint256 ownerBalance = bid1Check.owner.balance;
-
-                if (_sweepEarly && expectReverts) {
-                    vm.expectRevert();
-                }
-                // mockAuction.exitBid(bidId1);
-                mockAuction.exitPartiallyFilledBid(bidId1, 1000, 1001);
-                emit log_named_decimal_uint('Bid1 refund', bid1Check.owner.balance - ownerBalance, 18);
-                totalRefunded += bid1Check.owner.balance - ownerBalance;
-            }
 
             // Exit bid2: at clearing price (not outbid), so outbidBlock = 0
             Bid memory bid2Check = mockAuction.getBid(bidId2);
@@ -170,24 +155,21 @@ contract Temp is AuctionBaseTest {
                 if (_sweepEarly && expectReverts) {
                     vm.expectRevert();
                 }
-                // mockAuction.exitBid(bidId2);
-                mockAuction.exitPartiallyFilledBid(bidId2, bid2Check.startBlock, 0);
+                mockAuction.exitBid(bidId2);
+                // mockAuction.exitPartiallyFilledBid(bidId2, bid2Check.startBlock, 0);
                 emit log_named_decimal_uint('Bid2 refund', bid2Check.owner.balance - ownerBalance, 18);
                 totalRefunded += bid2Check.owner.balance - ownerBalance;
             }
 
             // Check filled amounts after exit
-            Bid memory bid1 = mockAuction.getBid(bidId1);
             Bid memory bid2 = mockAuction.getBid(bidId2);
 
             emit log_string('');
             emit log_string('=== ACCOUNTING BUG DEMONSTRATION ===');
-            emit log_named_decimal_uint('B1 filled (FINAL)', bid1.tokensFilled, 18);
-            emit log_named_decimal_uint('B1 amount (FINAL)', bid1.amountQ96, 18);
             emit log_named_decimal_uint('B2 filled (FINAL)', bid2.tokensFilled, 18);
             emit log_named_decimal_uint('B2 amount (FINAL)', bid2.amountQ96, 18);
-            uint256 sumOfIndividualFills = bid1.tokensFilled + bid2.tokensFilled;
-            uint256 sumOfIndividualAmounts = (bid1.amountQ96 + bid2.amountQ96) >> FixedPoint96.RESOLUTION;
+            uint256 sumOfIndividualFills = bid2.tokensFilled;
+            uint256 sumOfIndividualAmounts = (bid2.amountQ96) >> FixedPoint96.RESOLUTION;
             emit log_named_decimal_uint('Sum of individual fills', sumOfIndividualFills, 18);
             emit log_named_decimal_uint('Sum of individual amounts', sumOfIndividualAmounts, 18);
             emit log_named_decimal_uint('Total refunded', totalRefunded, 18);
@@ -203,23 +185,15 @@ contract Temp is AuctionBaseTest {
         {
             vm.roll(mockAuction.claimBlock());
             emit log('==================== CLAIM TOKENS ====================');
-            Bid memory bid1 = mockAuction.getBid(bidId1);
             Bid memory bid2 = mockAuction.getBid(bidId2);
 
-            assertEq(token.balanceOf(address(bid1.owner)), 0);
             assertEq(token.balanceOf(address(bid2.owner)), 0);
-
-            if (_sweepEarly && expectReverts) {
-                vm.expectRevert();
-            }
-            mockAuction.claimTokens(bidId1);
 
             if (_sweepEarly && expectReverts) {
                 vm.expectRevert();
             }
             mockAuction.claimTokens(bidId2);
 
-            emit log_named_decimal_uint('B1 owner token balance', token.balanceOf(address(bid1.owner)), 18);
             emit log_named_decimal_uint('B2 owner token balance', token.balanceOf(address(bid2.owner)), 18);
         }
     }
@@ -262,11 +236,6 @@ contract Temp is AuctionBaseTest {
         emit log_named_decimal_uint('Token Balance of alice               ', token.balanceOf(address(alice)), 18);
         emit log_named_decimal_uint('Currency Balance of alice            ', address(alice).balance, 18);
         emit log_named_decimal_uint('Alice paid                           ', alicePaid, 18);
-
-        uint256 bobPaid = mockAuction.getBid(bidId1).amountQ96 - address(bob).balance;
-        emit log_named_decimal_uint('Token Balance of bob                 ', token.balanceOf(address(bob)), 18);
-        emit log_named_decimal_uint('Currency Balance of bob              ', address(bob).balance, 18);
-        emit log_named_decimal_uint('Bob paid                             ', bobPaid, 18);
         emit log(_message);
     }
 

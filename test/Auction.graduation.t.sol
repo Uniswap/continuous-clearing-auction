@@ -91,6 +91,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenAuctionHasStarted
         givenFullyFundedAccount
     {
+        uint64 bidIdBlock = uint64(block.number);
         uint256 bidId = auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
         vm.roll(auction.endBlock());
@@ -98,9 +99,13 @@ contract AuctionGraduationTest is AuctionBaseTest {
         uint256 expectedCurrencyRaised = auction.currencyRaised();
 
         uint256 aliceBalanceBefore = address(alice).balance;
-        auction.exitBid(bidId);
-        // Assert that no currency was refunded
-        assertEq(address(alice).balance, aliceBalanceBefore);
+        if($maxPrice > finalCheckpoint.clearingPrice) {
+            auction.exitBid(bidId);
+            // Assert that no currency was refunded
+            assertEq(address(alice).balance, aliceBalanceBefore);
+        } else {
+            auction.exitPartiallyFilledBid(bidId, bidIdBlock, 0);
+        }
 
         emit log_string('==================== SWEEP CURRENCY ====================');
         emit log_named_uint('auction balance', address(auction).balance);

@@ -7,7 +7,7 @@ import {ValueX7} from './libraries/ValueX7Lib.sol';
 
 struct Tick {
     uint256 next;
-    ValueX7 currencyDemandX7;
+    uint256 currencyDemandQ96;
 }
 
 /// @title TickStorage
@@ -31,7 +31,6 @@ abstract contract TickStorage is ITickStorage {
         if (_tickSpacing == 0) revert TickSpacingIsZero();
         TICK_SPACING = _tickSpacing;
         if (_floorPrice == 0) revert FloorPriceIsZero();
-        if (_floorPrice >= BidLib.MAX_BID_PRICE) revert FloorPriceAboveMaxBidPrice();
         // Ensure the floor price is at a tick boundary
         if (_floorPrice % TICK_SPACING != 0) revert TickPriceNotAtBoundary();
         FLOOR_PRICE = _floorPrice;
@@ -96,10 +95,10 @@ abstract contract TickStorage is ITickStorage {
 
     /// @notice Internal function to add demand to a tick
     /// @param price The price of the tick
-    /// @param currencyDemandX7 The demand to add
-    function _updateTickDemand(uint256 price, ValueX7 currencyDemandX7) internal {
+    /// @param currencyDemandQ96 The demand to add
+    function _updateTickDemand(uint256 price, uint256 currencyDemandQ96) internal {
         Tick storage tick = $_ticks[price];
-        tick.currencyDemandX7 = tick.currencyDemandX7.add(currencyDemandX7);
+        tick.currencyDemandQ96 += currencyDemandQ96;
     }
 
     // Getters

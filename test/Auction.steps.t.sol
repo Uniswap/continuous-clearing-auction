@@ -3,20 +3,21 @@ pragma solidity 0.8.26;
 
 import {Auction} from '../src/Auction.sol';
 import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
-
 import {BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
-import {SupplyLib} from '../src/libraries/SupplyLib.sol';
+import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {Test} from 'forge-std/Test.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @title AuctionStepDiffTest
 /// @notice Tests for different auction steps data combinations
 contract AuctionStepDiffTest is AuctionBaseTest {
+    using FixedPointMathLib for *;
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
 
@@ -86,7 +87,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
 
         vm.roll(firstAuction.startBlock());
         // Submit same bid to both auctions
-        uint256 inputAmount = inputAmountForTokens(1000e18, tickNumberToPriceX96(2));
+        uint128 inputAmount = inputAmountForTokens(1000e18, tickNumberToPriceX96(2));
         firstAuction.submitBid{value: inputAmount}(
             tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
         );
@@ -101,12 +102,18 @@ contract AuctionStepDiffTest is AuctionBaseTest {
 
         // Both auctions should have sold the TOTAL_SUPPLY at the same clearing price, and the same cumulative mps
         assertEq(finalCheckpoint1.cumulativeMps, finalCheckpoint2.cumulativeMps);
-        assertEq(finalCheckpoint1.totalCurrencyRaisedX7X7, finalCheckpoint2.totalCurrencyRaisedX7X7);
+        assertEq(finalCheckpoint1.currencyRaisedQ96_X7, finalCheckpoint2.currencyRaisedQ96_X7);
         assertEq(finalCheckpoint1.clearingPrice, finalCheckpoint2.clearingPrice);
     }
 
-    function test_stepsDataEndingWithZeroMps_succeeds(uint128 totalSupply) public {
-        vm.assume(totalSupply > BidLib.MIN_BID_AMOUNT);
+    function test_stepsDataEndingWithZeroMps_succeeds(uint128 _totalSupply, uint128 _bidAmount, uint256 _maxPrice)
+        public
+        givenValidMaxPrice(_maxPrice, _totalSupply)
+        givenValidBidAmount(_bidAmount)
+        givenFullyFundedAccount
+    {
+        vm.assume(_totalSupply > 0);
+        vm.assume($bidAmount >= uint256(_totalSupply).fullMulDivUp($maxPrice, FixedPoint96.Q96));
         bytes memory data = AuctionStepsBuilder.init().addStep(1, 1e7).addStep(0, 1e7);
         uint256 startBlock = block.number;
         uint256 endBlock = startBlock + 2e7;
@@ -115,16 +122,13 @@ contract AuctionStepDiffTest is AuctionBaseTest {
             endBlock
         ).withClaimBlock(claimBlock);
 
-        Auction newAuction = new Auction(address(token), totalSupply, params);
-        token.mint(address(newAuction), totalSupply);
+        Auction newAuction = new Auction(address(token), _totalSupply, params);
+        token.mint(address(newAuction), _totalSupply);
         newAuction.onTokensReceived();
 
         vm.roll(startBlock);
-        uint256 inputAmount = inputAmountForTokens(totalSupply, tickNumberToPriceX96(2));
-        vm.deal(address(this), inputAmount);
-        uint256 bidId = newAuction.submitBid{value: inputAmount}(
-            tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
-        );
+        uint256 bidId =
+            newAuction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, tickNumberToPriceX96(1), bytes(''));
 
         // Show you can checkpoint when the step is zero mps
         vm.roll(startBlock + 1e7 + 1);
@@ -132,29 +136,35 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         assertEq(checkpoint.cumulativeMps, 1e7);
 
         // The auction has fully sold out 1e7 mps worth of tokens, so all future bids will revert
-        inputAmount = inputAmountForTokens(BidLib.MIN_BID_AMOUNT, tickNumberToPriceX96(2));
-        vm.deal(address(this), inputAmount);
         vm.expectRevert(IAuction.AuctionSoldOut.selector);
-        newAuction.submitBid{value: inputAmount}(
-            tickNumberToPriceX96(2), inputAmount, alice, tickNumberToPriceX96(1), bytes('')
-        );
+        newAuction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, tickNumberToPriceX96(1), bytes(''));
 
         vm.roll(endBlock);
-        Checkpoint memory finalCheckpoint = newAuction.checkpoint();
-        // Assert that values in the final checkpoint is the same as the checkpoint after selling 1e7 mps worth of tokens
-        assertEq(finalCheckpoint.cumulativeMps, checkpoint.cumulativeMps);
-        assertEq(finalCheckpoint.clearingPrice, checkpoint.clearingPrice);
-        assertEq(finalCheckpoint.totalCurrencyRaisedX7X7, checkpoint.totalCurrencyRaisedX7X7);
-        assertEq(
-            finalCheckpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7,
-            checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7
-        );
-        assertEq(finalCheckpoint.cumulativeMpsPerPrice, checkpoint.cumulativeMpsPerPrice);
-        // Don't check mps, prev, and next because they will be different
+        {
+            Checkpoint memory finalCheckpoint = newAuction.checkpoint();
+            // Assert that values in the final checkpoint is the same as the checkpoint after selling 1e7 mps worth of tokens
+            assertEq(finalCheckpoint.cumulativeMps, checkpoint.cumulativeMps);
+            assertEq(finalCheckpoint.clearingPrice, checkpoint.clearingPrice);
+            assertEq(finalCheckpoint.currencyRaisedQ96_X7, checkpoint.currencyRaisedQ96_X7);
+            assertEq(
+                finalCheckpoint.currencyRaisedAtClearingPriceQ96_X7, checkpoint.currencyRaisedAtClearingPriceQ96_X7
+            );
+            assertEq(finalCheckpoint.cumulativeMpsPerPrice, checkpoint.cumulativeMpsPerPrice);
 
-        newAuction.exitPartiallyFilledBid(bidId, 1, 0);
+            // Don't check mps, prev, and next because they will be different
+
+            if ($maxPrice > finalCheckpoint.clearingPrice) {
+                newAuction.exitBid(bidId);
+            } else {
+                newAuction.exitPartiallyFilledBid(bidId, 1, 0);
+            }
+        }
+
         vm.roll(claimBlock);
         newAuction.claimTokens(bidId);
-        assertEq(token.balanceOf(address(alice)), totalSupply);
+        assertEq(token.balanceOf(address(alice)), _totalSupply);
+
+        newAuction.sweepCurrency();
+        newAuction.sweepUnsoldTokens();
     }
 }

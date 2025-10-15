@@ -1,7 +1,7 @@
 # SupplyLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/1a7f98b9e1cb9ed630b15a7f62d113994de8c338/src/libraries/SupplyLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/63f4bfef19ba51e32937745adfe3603976e5bb51/src/libraries/SupplyLib.sol)
 
-Library for supply related fsunctions
+Library for supply related functions
 
 
 ## State Variables
@@ -33,17 +33,19 @@ uint256 private constant REMAINING_MPS_MASK = ((1 << REMAINING_MPS_SIZE) - 1) <<
 ```
 
 
-### REMAINING_SUPPLY_MASK
+### REMAINING_CURRENCY_RAISED_MASK
 
 ```solidity
-uint256 private constant REMAINING_SUPPLY_MASK = (1 << 231) - 1;
+uint256 private constant REMAINING_CURRENCY_RAISED_MASK = (1 << 231) - 1;
 ```
 
 
-### MAX_REMAINING_CURRENCY_RAISED
+### MAX_REMAINING_CURRENCY_RAISED_X7_X7
+The maximum remaining currency raised as a ValueX7X7 which fits in 231 bits
+
 
 ```solidity
-uint256 public constant MAX_REMAINING_CURRENCY_RAISED = REMAINING_SUPPLY_MASK;
+ValueX7X7 public constant MAX_REMAINING_CURRENCY_RAISED_X7_X7 = ValueX7X7.wrap(REMAINING_CURRENCY_RAISED_MASK);
 ```
 
 
@@ -69,8 +71,9 @@ function toX7X7(uint256 totalSupply) internal pure returns (ValueX7X7);
 
 Pack values into a SupplyRolloverMultiplier
 
-*This function does NOT check that `remainingSupplyX7X7` fits in 231 bits.
-TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7, which bounds the value of `remainingCurrencyRaisedX7X7`, must be validated.*
+*This function does NOT check that `remainingCurrencyRaisedX7X7` fits in 231 bits.
+Given the total supply is capped at type(uint128).max, the largest `remainingCurrencyRaisedX7X7` value is
+REMAINING_CURRENCY_RAISED_AT_FLOOR_X7_X7, which is 175 bits (type(uint128).max * 1e14)*
 
 
 ```solidity

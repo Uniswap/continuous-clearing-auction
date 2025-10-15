@@ -11,3 +11,4 @@ lcov.info
 
 broadcast/*/31337
 deployments/**/31337.*
+visualizations/auction_simple.py

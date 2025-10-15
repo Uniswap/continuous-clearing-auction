@@ -20,8 +20,9 @@ interface IAuctionFactory is IDistributionStrategy {
     /// @param amount The amount of tokens to sell
     /// @param configData The configuration data for the auction
     /// @param salt The salt to use for the deterministic deployment
+    /// @param sender The sender of the initializeDistribution transaction
     /// @return The address of the auction contract
-    function getAuctionAddress(address token, uint256 amount, bytes calldata configData, bytes32 salt)
+    function getAuctionAddress(address token, uint256 amount, bytes calldata configData, bytes32 salt, address sender)
         external
         view
         returns (address);

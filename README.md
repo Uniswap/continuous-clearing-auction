@@ -34,6 +34,9 @@ graph TD;
         BidLib;
         CheckpointLib;
         CurrencyLibrary;
+        ValueX7Lib;
+        SupplyLib;
+        ValidationHookLib;
         FixedPoint96;
         SSTORE2[solady/utils/SSTORE2];
         FixedPointMathLib[solady/utils/FixedPointMathLib];
@@ -74,6 +77,9 @@ graph TD;
     Auction -- uses --> FixedPoint96;
     Auction -- uses --> FixedPointMathLib;
     Auction -- uses --> SafeTransferLib;
+    Auction -- uses --> ValueX7Lib;
+    Auction -- uses --> SupplyLib;
+    Auction -- uses --> ValidationHookLib;
 
     Auction -- interacts with --> IValidationHook;
     Auction -- interacts with --> IDistributionContract;
@@ -144,10 +150,9 @@ struct AuctionParameters {
     uint64 startBlock; // Block which the first step starts
     uint64 endBlock; // When the auction finishes
     uint64 claimBlock; // Block when the auction can claimed
-    uint24 graduationThresholdMps; // Minimum percentage of tokens that must be sold to graduate the auction
-    uint256 tickSpacing; // Fixed granularity for prices (in Q96 format)
+    uint256 tickSpacing; // Fixed granularity for prices
     address validationHook; // Optional hook called before a bid
-    uint256 floorPrice; // Starting floor price for the auction (in Q96 format)
+    uint256 floorPrice; // Starting floor price for the auction
     bytes auctionStepsData; // Packed bytes describing token issuance schedule
 }
 
@@ -158,11 +163,11 @@ constructor(
 ) {}
 ```
 
-**Implementation**: The factory decodes `configData` into `AuctionParameters` containing the step function data (MPS schedule), price parameters, and timing configuration. The step function defines how many tokens are released per block over time.
+**Implementation**: The factory decodes `configData` into `AuctionParameters` containing the step function data (MPS schedule), price parameters, and timing configuration.
 
-### Q96 Fixed-Point Pricing
+### Q96 Fixed-Point Arithmetic
 
-The auction uses Q96 fixed-point arithmetic for precise price representation without rounding errors:
+The auction uses Q96 fixed-point arithmetic for price and demand representation:
 
 ```solidity
 library FixedPoint96 {
@@ -171,20 +176,24 @@ library FixedPoint96 {
 }
 ```
 
-**Price Encoding**: All prices are stored as `price * 2^96` to represent exact decimal values. For example:
+**Dual Purpose Encoding**: 
+- **Prices**: Stored as `price * 2^96` to represent exact decimal values
+- **Demand**: Currency amounts scaled by Q96 for precision in cumulative calculations (e.g., `sumCurrencyDemandAboveClearingQ96`)
 
+For example:
 - A price of 1.5 tokens per currency unit = `1.5 * 2^96`
-- This allows precise arithmetic without floating-point precision loss
+- A demand of 100 currency units = `100 * 2^96`
+- Bid amounts are converted: `amountQ96 = amount * FixedPoint96.Q96`
 
-**Implementation**: The Q96 system enables exact price calculations during clearing price discovery and bid fill accounting, ensuring no rounding errors in critical financial operations.
+**Implementation**: Q96 is used for both price calculations and demand aggregation. This replaces the previous Q128 system.
 
-### X7 and X7X7 Precision Mathematics
+### X7 Scaling
 
-The auction employs a sophisticated dual-scaling system to maintain mathematical precision throughout complex time-weighted calculations, avoiding intermediate rounding errors that could compound over the auction lifecycle.
+The auction uses X7 scaling to avoid precision loss in calculations.
 
 #### MPS (Milli-Basis Points)
 
-The foundation of the scaling system is **MPS = 1e7** (10 million), representing one thousandth of a basis point:
+**MPS = 1e7** (10 million), representing one thousandth of a basis point:
 
 ```solidity
 library ConstantsLib {
@@ -192,131 +201,102 @@ library ConstantsLib {
 }
 ```
 
-#### ValueX7: Demand-Side Precision
+#### ValueX7: Supply-Side Precision
 
-**ValueX7** represents values scaled up by MPS to preserve precision in demand calculations:
+**ValueX7** represents values scaled up by MPS to preserve precision in supply calculations:
 
 ```solidity
 /// @notice A ValueX7 is a uint256 value that has been multiplied by MPS
-/// @dev X7 values are used for demand values to avoid intermediate division by MPS
+/// @dev X7 values are used for supply values to avoid intermediate division by MPS
 type ValueX7 is uint256;
 ```
 
-**Purpose**: Demand calculations involve fractional distributions over time and price levels. By pre-scaling demand values by MPS, the system avoids precision loss from repeated division operations.
+**Purpose**: Pre-scaling by MPS avoids precision loss from repeated division operations.
 
 **Use Cases**:
 
-- Bid demand aggregation across price ticks
-- Currency demand tracking
+- Currency raised tracking (when combined with Q96)
+- Supply rollover calculations
 - Partial fill ratio calculations
 
-#### ValueX7X7: Supply-Side Double Precision
+**Note**: Demand values use Q96 fixed-point arithmetic.
 
-**ValueX7X7** represents values scaled up by MPS twice (total scaling of 1e14) for supply-related calculations:
-
-```solidity
-/// @notice A ValueX7X7 is a ValueX7 value that has been multiplied by MPS
-/// @dev X7X7 values are used for supply values to avoid intermediate division by MPS
-type ValueX7X7 is uint256;
-```
-
-**Purpose**: Supply calculations are more complex, involving time-weighted distributions, cumulative tracking, and clearing price interactions. The double scaling ensures precision is maintained through multiple mathematical operations.
-
-**Use Cases**:
-
-- Total currency raised tracking (`totalCurrencyRaisedX7X7`)
-- Cumulative currency raised at clearing price (`cumulativeCurrencyRaisedAtClearingPriceX7X7`)
-- Finding the total currency raised in the auction for graduation threshold comparison
-
-#### Core Mathematical Operations
-
-The dual scaling system enables two critical mathematical operations that define the auction mechanism:
+#### Core Operations
 
 <details>
 <summary><strong>1. Clearing Price Calculation</strong></summary>
 
-The clearing price calculation now uses currency raised instead of tokens cleared, providing more direct and precise calculations.
+The clearing price calculation uses currency raised instead of tokens cleared.
 
-**New Formula:**
-$$\text{clearingPrice} = \max\left(\text{tickLowerPrice}, \frac{\text{sumCurrencyDemandAboveClearing} \times \text{floorPrice} \times \text{cachedRemainingMps}}{\text{cachedRemainingCurrencyRaised}}\right)$$
+**Clearing Price Formula:**
 
-**Derivation:**
+The clearing price is determined by the ratio of demand to supply at each price level:
 
-1. **Start with the currency required at tick lower:**
-   $$\text{requiredCurrency} = \frac{\text{cachedRemainingCurrencyRaised} \times \text{tickLowerPrice}}{\text{cachedRemainingMps} \times \text{floorPrice}}$$
-
-2. **Set up the equation for clearing price:**
-   $$\frac{\text{currencyDemandAboveTickLower} \times \text{tickLowerPrice}}{\text{requiredCurrency}}$$
-
-3. **Substitute and simplify:**
-   $$\frac{\text{currencyDemandAboveTickLower} \times \text{tickLowerPrice} \times \text{cachedRemainingMps} \times \text{floorPrice}}{\text{cachedRemainingCurrencyRaised} \times \text{tickLowerPrice}}$$
-
-4. **Cancel out tickLowerPrice:**
-   $$\text{clearingPrice} = \frac{\text{sumCurrencyDemandAboveClearing} \times \text{floorPrice} \times \text{cachedRemainingMps}}{\text{cachedRemainingCurrencyRaised}}$$
+$$\text{clearingPrice} = \frac{\text{sumCurrencyDemandAboveClearingQ96}}{\text{TOTAL\_SUPPLY\_Q96}}$$
 
 **Implementation:**
 
 ```solidity
-clearingPrice = sumCurrencyDemandAboveClearingX7.fullMulDivUp(
-    cachedRemainingMps * FLOOR_PRICE,
-    cachedRemainingCurrencyRaisedX7X7
+// When auction is fully subscribed
+clearingPrice = sumCurrencyDemandAboveClearingQ96.fullMulDivUp(
+    FixedPoint96.Q96,
+    TOTAL_SUPPLY_Q96
 );
-if (clearingPrice < tickLowerPrice) return tickLowerPrice;
+
+// When auction is not fully subscribed (at floor price)
+clearingPrice = FLOOR_PRICE;
 ```
 
 </details>
 
 <details>
-<summary><strong>2. Supply Rollover and Currency Raised Calculation</strong></summary>
+<summary><strong>2. Currency Raised Tracking</strong></summary>
 
-The system now tracks currency raised with a scaling factor to handle supply rollover when auctions aren't fully subscribed from the start.
+Currency raised is tracked using ValueX7 scaling.
 
 **Currency Raised Formula:**
-$$\text{currencyRaised} = \frac{\text{cachedRemainingCurrencyRaised} \times \text{clearingPrice} \times \text{deltaMps}}{\text{cachedRemainingPercentage} \times \text{floorPrice}}$$
 
-**Why This Works:**
+When fully subscribed (clearing price > floor price):
+$$\text{currencyRaised} = \text{totalSupply} \times \text{clearingPrice} \times \text{deltaMps} / \text{MPS}$$
 
-If the auction was fully subscribed in the first block, the total currency required at any given price would be `totalSupply × price`. However, when not fully subscribed from the start, excess supply rolls over into future blocks.
-
-The key insight: we can use a linear transformation based on the ratio of actual vs expected currency raised:
-
-- **Fully subscribed:** ratio = 1 (actual matches expected)
-- **Under-subscribed:** ratio < 1 (actual less than expected)
-
-Once fully subscribed, we freeze this ratio. Both numerator (actual currency) and denominator (expected percentage) then increase at the same rate, maintaining the ratio. This frozen ratio becomes our scaling factor to deterministically calculate currency required at any price.
+When not fully subscribed (at floor price):
+$$\text{currencyRaised} = \text{sumCurrencyDemandAboveClearingQ96} \times \text{deltaMps} / \text{MPS}$$
 
 **Implementation:**
 
 ```solidity
-currencyRaisedX7X7 = cachedRemainingCurrencyRaisedX7X7.wrapAndFullMulDiv(
-    clearingPrice * deltaMps,
-    cachedRemainingPercentage * FLOOR_PRICE
-);
+// Fully subscribed case
+currencyRaisedQ96_X7 = ValueX7.wrap(TOTAL_SUPPLY_Q96 * deltaMps)
+    .wrapAndFullMulDiv(_checkpoint.clearingPrice, FixedPoint96.Q96);
+
+// Not fully subscribed case  
+currencyRaisedQ96_X7 = ValueX7.wrap($sumCurrencyDemandAboveClearingQ96 * deltaMps);
 ```
+
+ValueX7 scaling avoids intermediate division by MPS.
 
 </details>
 
 #### Type Safety and Conversions
 
-The system provides safe conversion utilities between scaling levels:
+ValueX7 conversion utilities:
 
 ```solidity
-// X7 operations
-function scaleUpToX7(uint256 value) -> ValueX7
-function scaleDownToUint256(ValueX7 value) -> uint256
-
-// X7X7 operations
-function upcast(ValueX7 value) -> ValueX7X7
-function downcast(ValueX7X7 value) -> ValueX7
-function scaleDownToValueX7(ValueX7X7 value) -> ValueX7
+// ValueX7 operations
+library ValueX7Lib {
+    function scaleUpToX7(uint256 value) -> ValueX7
+    function scaleDownToUint256(ValueX7 value) -> uint256
+    function wrapAndFullMulDiv(ValueX7 a, uint256 b, uint256 c) -> ValueX7
+    function wrapAndFullMulDivUp(ValueX7 a, uint256 b, uint256 c) -> ValueX7
+}
 ```
 
-**Implementation Benefits**:
+**Benefits**:
 
-- **Precision**: Eliminates rounding errors in critical financial calculations
-- **Type Safety**: Prevents mixing scaled and unscaled values
-- **Gas Efficiency**: Avoids expensive division operations in loops
-- **Mathematical Correctness**: Ensures auction clearing prices and allocations are calculated exactly
+- Eliminates rounding errors
+- Type safety for scaled values
+- Avoids division operations in loops
+- Exact price and allocation calculations
 
 ### Auction steps (supply issuance schedule)
 
@@ -355,12 +335,11 @@ Optional validation hooks allow custom logic to be executed before bids are acce
 interface IValidationHook {
     function validate(
         uint256 maxPrice,
-        bool exactIn,
         uint256 amount,
         address owner,
         address sender,
         bytes calldata hookData
-    ) external view;
+    ) external;
 }
 ```
 
@@ -368,34 +347,44 @@ interface IValidationHook {
 
 ### Bid Submission
 
-Users can submit bids specifying either exact currency input or exact token output desired. The bid id is returned to the user and can be used to claim tokens or exit the bid. The `prevTickPrice` parameter is used to determine the location of the tick to insert the bid into. The `maxPrice` is the maximum price the user is willing to pay (in Q96 fixed-point format). The `exactIn` parameter indicates whether the user is bidding in the currency or the token. The `amount` is the amount of currency or token the user is bidding. The `owner` is the address of the user who can claim tokens or exit the bid.
+Users can submit bids specifying the currency amount they want to spend. The bid id is returned to the user and can be used to claim tokens or exit the bid. The `prevTickPrice` parameter is used to determine the location of the tick to insert the bid into. The `maxPrice` is the maximum price the user is willing to pay. The `amount` is the amount of currency the user is bidding. The `owner` is the address of the user who can claim tokens or exit the bid.
+
+**Bid Price Validation**: 
+- Bids must be above the current clearing price
+- Maximum bid price is capped at `type(uint256).max / TOTAL_SUPPLY` to prevent overflow in calculations
 
 ```solidity
 interface IAuction {
     function submitBid(
         uint256 maxPrice,
-        bool exactIn,
         uint256 amount,
         address owner,
         uint256 prevTickPrice,
         bytes calldata hookData
     ) external payable returns (uint256 bidId);
+
+    function submitBid(
+        uint256 maxPrice,
+        uint256 amount,
+        address owner,
+        bytes calldata hookData
+    ) external payable returns (uint256 bidId);
 }
 
-event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, bool exactIn, uint256 amount);
+event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, uint256 amount);
 
 event TickInitialized(uint256 price);
 ```
 
-**Implementation**: Bids are validated, funds transferred via Permit2 (or ETH), ticks initialized if needed, and demand aggregated.
+**Implementation**: Bids are validated, funds transferred via Permit2 (or ETH), ticks initialized if needed, and demand aggregated in Q96 format.
 
 ### Checkpointing
 
-The auction is checkpointed once every block with a new bid. The checkpoint is a snapshot of the auction state up to (NOT including) that block. Checkpoints are used to determine the token allocation for each bid. Checkpoints are created automatically when a new bid is submitted, but they can be manually created by calling the `checkpoint` function.
+The auction is checkpointed once every block with a new bid. The checkpoint is a snapshot of the auction state up to (NOT including) that block. Checkpoints determine token allocation for each bid.
 
 ```solidity
 interface IAuction {
-    function checkpoint() external;
+    function checkpoint() external returns (Checkpoint memory _checkpoint);
 }
 
 event CheckpointUpdated(uint256 indexed blockNumber, uint256 clearingPrice, uint256 totalCurrencyRaised, uint24 cumulativeMps);
@@ -403,7 +392,7 @@ event CheckpointUpdated(uint256 indexed blockNumber, uint256 clearingPrice, uint
 
 ### Clearing price
 
-The clearing price represents the current marginal price at which tokens are being sold. The clearing price is updated when a new bid is submitted that would change the price. An event is emitted when the clearing price is updated. The clearing price never decreases.
+The clearing price is the current marginal price at which tokens are sold. It is updated when a new bid changes the price. The clearing price never decreases.
 
 ```solidity
 interface IAuction {
@@ -412,6 +401,16 @@ interface IAuction {
 ```
 
 **Implementation**: Returns the clearing price from the most recent checkpoint.
+
+#### Price Discovery Visualization
+
+![TWAP Auction Animation](visualizations/auction_simple.gif)
+
+- **Fixed Supply**: 1,000 tokens
+- **Currency Requirements**: Constant at each price level
+- **Bid Restrictions**: New bids must be at or above clearing price
+- **Price Discovery**: Clearing price increases as demand exceeds supply
+- **Visual Indicators**: Green at clearing price, blue above, gray below
 
 ### Bid Exit
 
@@ -429,38 +428,38 @@ interface IAuction {
     function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 upper) external;
 }
 
-event BidExited(uint256 indexed bidId, address indexed owner);
+event BidExited(uint256 indexed bidId, address indexed owner, uint256 tokensFilled, uint256 currencyRefunded);
 ```
 
-**Optimized Partial Fill Algorithm**: The `exitPartiallyFilledBid` function uses dual checkpoint hints (`lower`, `upper`) to eliminate expensive checkpoint iteration:
+**Partial Fill Algorithm**: The `exitPartiallyFilledBid` function uses checkpoint hints (`lower`, `upper`) to avoid iteration:
 
 - `lower`: Last checkpoint where clearing price is strictly < bid.maxPrice
 - `upper`: First checkpoint where clearing price is strictly > bid.maxPrice, or 0 for end-of-auction fills
 
-**Mathematical Optimization**: Uses cumulative currency tracking (`cumulativeCurrencyRaisedAtClearingPriceX7X7`) for direct partial fill calculation:
+Uses cumulative currency tracking (`currencyRaisedAtClearingPriceQ96_X7`) for partial fill calculation:
 
 ```
-partialFillRate = cumulativeCurrencyRaisedAtClearingPriceX7X7 * mpsDenominator / (tickDemand * cumulativeMpsDelta)
+partialFillRate = currencyRaisedAtClearingPriceQ96_X7 * mpsDenominator / (tickDemand * cumulativeMpsDelta)
 ```
 
-**Implementation**: Enhanced checkpoint architecture with linked-list structure (prev/next pointers) enables efficient traversal. Block numbers are stored as `uint64` for gas optimization while maintaining sufficient range (~584 billion years).
+**Implementation**: Checkpoint linked-list structure (prev/next pointers) for traversal. Block numbers stored as `uint64`.
 
 ### Auction Graduation
 
-Auctions have a configurable graduation threshold that determines whether enough tokens were sold for the auction to be considered successful. This enables refund mechanisms for failed auctions.
+Auctions are "graduated" if clearing price is above floor price.
 
 ```solidity
 interface IAuction {
-    /// @notice Whether the auction has graduated (sold more than the graduation threshold)
+    /// @notice Whether the auction has graduated (clearing price > floor price)
     function isGraduated() external view returns (bool);
 }
 ```
 
-**Implementation**: The graduation threshold is specified as `graduationThresholdMps` in the auction parameters. An auction graduates if the total tokens sold meets the threshold percentage. Non-graduated auctions refund all currency to bidders.
+**Implementation**: Graduated auctions have clearing price > floor price. Non-graduated auctions refund currency to bidders.
 
 ### Fund Management
 
-After an auction ends, the raised currency and any unsold tokens can be withdrawn by the designated recipients. This includes support for callback functionality.
+After an auction ends, raised currency and unsold tokens can be withdrawn by designated recipients.
 
 ```solidity
 interface IAuction {
@@ -477,12 +476,12 @@ event TokensSwept(address indexed tokensRecipient, uint256 tokensAmount);
 
 **Sweeping Rules:**
 
-- `sweepCurrency()`: Only callable by funds recipient, only for graduated auctions, must be before claim block
+- `sweepCurrency()`: Only callable after auction ends, only for graduated auctions
 - `sweepUnsoldTokens()`: Callable by anyone after auction ends
-- For graduated auctions: sweeps `totalSupply - totalCleared` tokens
+- For graduated auctions: sweeps no tokens (all were sold)
 - For non-graduated auctions: sweeps all `totalSupply` tokens
 
-**Implementation**: The sweeping functions use the `TokenCurrencyStorage` abstraction to handle fund transfers and emit appropriate events. Safety mechanisms prevent double-sweeping and ensure proper timing constraints.
+**Implementation**: Sweeping functions use `TokenCurrencyStorage` for transfers. Prevents double-sweeping.
 
 ### Claiming tokens
 
@@ -493,10 +492,10 @@ interface IAuction {
     function claimTokens(uint256 bidId) external;
 }
 
-event TokensClaimed(address indexed owner, uint256 tokensFilled);
+event TokensClaimed(uint256 indexed bidId, address indexed owner, uint256 tokensFilled);
 ```
 
-**Implementation**: Transfers the calculated token allocation to the bid owner. Anyone can call this function, but tokens are always sent to the bid owner. If the auction did not graduate, tokens cannot be claimed as all currency is refunded to bidders.
+**Implementation**: Transfers tokens to bid owner. Anyone can call this function. Requires bid to be exited and auction graduated.
 
 ### Auction information
 
@@ -510,16 +509,16 @@ interface IAuctionStepStorage {
 interface IAuction {
     function totalSupply() external view returns (uint256);
     function isGraduated() external view returns (bool);
+    function sumCurrencyDemandAboveClearingQ96() external view returns (uint256);
 }
 
 interface ITokenCurrencyStorage {
-    function graduationThresholdMps() external view returns (uint24);
     function sweepCurrencyBlock() external view returns (uint256);
     function sweepUnsoldTokensBlock() external view returns (uint256);
 }
 ```
 
-**Implementation**: Current step contains MPS (tokens per block), start/end blocks. Total supply and graduation threshold are immutable. Sweep block numbers track when fund management operations occurred.
+**Implementation**: Current step contains MPS, start/end blocks. Total supply is immutable.
 
 ## Flow Diagrams
 
@@ -554,7 +553,7 @@ sequenceDiagram
     participant BidStorage
     participant IValidationHook
 
-    User->>Auction: submitBid(maxPrice, exactIn, amount, owner, prevHintId, hookData)
+    User->>Auction: submitBid(maxPrice, amount, owner, prevHintId, hookData)
     alt ERC20 Token
         Auction->>IAllowanceTransfer: permit2TransferFrom(...)
     else ETH
@@ -565,11 +564,11 @@ sequenceDiagram
     CheckpointStorage->>CheckpointStorage: _advanceToCurrentStep()
     Auction->>TickStorage: _initializeTickIfNeeded(...)
     alt Validation Hook Configured
-        Auction->>IValidationHook: validate(maxPrice, exactIn, amount, owner, sender, hookData)
+        Auction->>IValidationHook: validate(maxPrice, amount, owner, sender, hookData)
     end
     Auction->>TickStorage: _updateTickDemand(...)
     Auction->>BidStorage: _createBid(...)
-    Auction->>Auction: update sumCurrencyDemandAboveClearingX7
+    Auction->>Auction: update sumCurrencyDemandAboveClearingQ96
     Auction-->>User: bidId
 ```
 

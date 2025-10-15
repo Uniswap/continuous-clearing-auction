@@ -6,8 +6,8 @@ pragma solidity ^0.8.0;
 library ConstantsLib {
     /// @notice we use milli-bips, or one thousandth of a basis point
     uint24 constant MPS = 1e7;
-    /// @notice The upper bound of a ValueX7X7 value
-    uint256 constant X7X7_UPPER_BOUND = (type(uint256).max) / 1e14;
     /// @notice The upper bound of a ValueX7 value
     uint256 constant X7_UPPER_BOUND = (type(uint256).max) / 1e7;
+    /// @notice The maximum allowable amount for currency or token related values
+    uint128 constant MAX_AMOUNT = type(uint128).max / 1e7;
 }

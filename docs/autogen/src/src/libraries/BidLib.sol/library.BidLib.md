@@ -1,5 +1,5 @@
 # BidLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/572329a7aabc6c93930b434d7bbc37f669a19160/src/libraries/BidLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/63f4bfef19ba51e32937745adfe3603976e5bb51/src/libraries/BidLib.sol)
 
 
 ## State Variables
@@ -57,7 +57,9 @@ function mpsRemainingInAuctionAfterSubmission(Bid memory bid) internal pure retu
 
 Scale a bid amount to its effective amount over the remaining percentage of the auction
 
-*The amount is scaled based on the remaining mps such that it is fully allocated over the remaining parts of the auction*
+*The amount is scaled based on the remaining mps such that it is fully allocated over the remaining parts of the auction
+It is not possible to avoid the division here because we must include the scaled up demand
+into tick demand and `sumCurrencyDemandAboveClearingX7` where we have no way to preserve the bid-level information.*
 
 
 ```solidity

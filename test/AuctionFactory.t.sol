@@ -9,58 +9,23 @@ import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {IDistributionContract} from '../src/interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
-import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
-
-import {BidLib} from '../src/libraries/BidLib.sol';
-import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {SupplyLib} from '../src/libraries/SupplyLib.sol';
-import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
-import {ValueX7X7, ValueX7X7Lib} from '../src/libraries/ValueX7X7Lib.sol';
-import {Assertions} from './utils/Assertions.sol';
+import {ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
+import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
-import {TokenHandler} from './utils/TokenHandler.sol';
+import {FuzzDeploymentParams} from './utils/FuzzStructs.sol';
 
-import {Test} from 'forge-std/Test.sol';
-
-contract AuctionFactoryTest is TokenHandler, Test, Assertions {
+contract AuctionFactoryTest is AuctionBaseTest {
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
     using ValueX7Lib for *;
-    using ValueX7X7Lib for *;
 
     AuctionFactory factory;
-    Auction auction;
-
-    uint256 public constant AUCTION_DURATION = 100;
-    uint256 public constant TICK_SPACING = 1e6;
-    uint256 public constant FLOOR_PRICE = 1e6 << FixedPoint96.RESOLUTION;
-    uint128 public constant TOTAL_SUPPLY = 1000e18;
-
-    address public alice;
-    address public tokensRecipient;
-    address public fundsRecipient;
-
-    AuctionParameters public params;
-    bytes public auctionStepsData;
 
     function setUp() public {
-        setUpTokens();
-
-        alice = makeAddr('alice');
-        tokensRecipient = makeAddr('tokensRecipient');
-        fundsRecipient = makeAddr('fundsRecipient');
-
-        // Setup base params
-        auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100);
-        params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE).withTickSpacing(
-            TICK_SPACING
-        ).withValidationHook(address(0)).withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient)
-            .withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION).withClaimBlock(
-            block.number + AUCTION_DURATION
-        ).withAuctionStepsData(auctionStepsData);
-
+        // Setup non fuzz auction
+        setUpAuction();
         factory = new AuctionFactory();
     }
 
@@ -75,16 +40,16 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
             factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
 
         // Verify the auction was created correctly
-        auction = Auction(payable(address(distributionContract)));
-        assertEq(address(auction.token()), address(token));
-        assertEq(auction.totalSupply(), TOTAL_SUPPLY);
-        assertEq(auction.floorPrice(), FLOOR_PRICE);
-        assertEq(auction.tickSpacing(), TICK_SPACING);
-        assertEq(auction.tokensRecipient(), tokensRecipient);
-        assertEq(auction.fundsRecipient(), fundsRecipient);
-        assertEq(auction.startBlock(), block.number);
-        assertEq(auction.endBlock(), block.number + AUCTION_DURATION);
-        assertEq(auction.claimBlock(), block.number + AUCTION_DURATION);
+        Auction _auction = Auction(payable(address(distributionContract)));
+        assertEq(address(_auction.token()), address(token));
+        assertEq(_auction.totalSupply(), TOTAL_SUPPLY);
+        assertEq(_auction.floorPrice(), FLOOR_PRICE);
+        assertEq(_auction.tickSpacing(), TICK_SPACING);
+        assertEq(_auction.tokensRecipient(), tokensRecipient);
+        assertEq(_auction.fundsRecipient(), fundsRecipient);
+        assertEq(_auction.startBlock(), block.number);
+        assertEq(_auction.endBlock(), block.number + AUCTION_DURATION);
+        assertEq(_auction.claimBlock(), block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET);
     }
 
     function test_initializeDistribution_revertsWithInvalidClaimBlock() public {
@@ -110,8 +75,8 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
             factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
 
         // Verify the auction was created correctly
-        auction = Auction(payable(address(distributionContract)));
-        assertEq(auction.fundsRecipient(), address(sender));
+        Auction _auction = Auction(payable(address(distributionContract)));
+        assertEq(_auction.fundsRecipient(), address(sender));
     }
 
     function test_initializeDistribution_createsUniqueAddresses() public {
@@ -197,79 +162,30 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         IDistributionContract distributionContract =
             factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
 
-        auction = Auction(payable(address(distributionContract)));
+        Auction _auction = Auction(payable(address(distributionContract)));
 
         // Test that the auction can receive tokens (implements IDistributionContract)
-        token.mint(address(auction), TOTAL_SUPPLY);
-        auction.onTokensReceived();
+        token.mint(address(_auction), TOTAL_SUPPLY);
+        _auction.onTokensReceived();
 
         // Verify the auction has the correct token balance
-        assertEq(token.balanceOf(address(auction)), TOTAL_SUPPLY);
+        assertEq(token.balanceOf(address(_auction)), TOTAL_SUPPLY);
     }
 
-    function helper__assumeValidDeploymentParams(
-        address _token,
-        uint128 _totalSupply,
-        bytes32 _salt,
-        AuctionParameters memory _params,
-        uint8 _numberOfSteps
-    ) public pure {
-        vm.assume(_token != address(0));
-        vm.assume(_params.currency != address(0));
-        vm.assume(_token != _params.currency);
-        vm.assume(_params.tokensRecipient != address(0));
-        vm.assume(_params.fundsRecipient != address(0));
-        vm.assume(_params.startBlock != 0);
-        vm.assume(_params.claimBlock != 0);
-
-        // -2 because we need to account for the endBlock and claimBlock
-        vm.assume(_params.startBlock <= type(uint64).max - _numberOfSteps - 2);
-        _params.endBlock = _params.startBlock + uint64(_numberOfSteps);
-        _params.claimBlock = _params.endBlock + 1;
-
-        vm.assume(_params.validationHook != address(0));
-        vm.assume(_params.tickSpacing != 0);
-        vm.assume(_totalSupply != 0);
-        uint256 maxFloorPrice = type(uint256).max / _totalSupply < BidLib.MAX_BID_PRICE
-            ? type(uint256).max / _totalSupply
-            : BidLib.MAX_BID_PRICE;
-        _params.floorPrice = _bound(_params.floorPrice, 1, maxFloorPrice - 1);
-        // Round down to the tick spacing, easier way than vm.assume which doesn't reject too many values
-        _params.floorPrice = _params.floorPrice - (_params.floorPrice % _params.tickSpacing);
-        vm.assume(_params.floorPrice > 0);
-
-        vm.assume(_salt != bytes32(0));
-        vm.assume(_numberOfSteps > 0);
-        vm.assume(ConstantsLib.MPS % _numberOfSteps == 0); // such that it is divisible
-
-        // Replace auction steps data with a valid one
-        // Divide steps by number of bips
-        uint256 _numberOfMps = ConstantsLib.MPS / _numberOfSteps;
-        bytes memory _auctionStepsData = new bytes(0);
-        for (uint8 i = 0; i < _numberOfSteps; i++) {
-            _auctionStepsData = AuctionStepsBuilder.addStep(_auctionStepsData, uint24(_numberOfMps), uint40(1));
-        }
-        _params.auctionStepsData = _auctionStepsData;
-        vm.assume(_params.claimBlock > _params.endBlock);
-    }
-
-    function testFuzz_getAuctionAddress(
-        address _token,
-        uint128 _totalSupply,
-        bytes32 _salt,
-        uint8 _numberOfSteps,
-        AuctionParameters memory _params
-    ) public {
-        helper__assumeValidDeploymentParams(_token, _totalSupply, _salt, _params, _numberOfSteps);
-
+    function testFuzz_getAuctionAddress(FuzzDeploymentParams memory _deploymentParams, bytes32 _salt, address _sender)
+        public
+    {
+        AuctionParameters memory _params = helper__validFuzzDeploymentParams(_deploymentParams);
         bytes memory configData = abi.encode(_params);
 
         // Predict the auction address
-        address auctionAddress = factory.getAuctionAddress(_token, _totalSupply, configData, _salt);
+        address auctionAddress =
+            factory.getAuctionAddress(address(token), $deploymentParams.totalSupply, configData, _salt, _sender);
 
         // Create the actual auction
+        vm.prank(_sender);
         IDistributionContract distributionContract =
-            factory.initializeDistribution(_token, _totalSupply, configData, _salt);
+            factory.initializeDistribution(address(token), $deploymentParams.totalSupply, configData, _salt);
 
         assertEq(auctionAddress, address(distributionContract));
     }

@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import {Currency} from '../libraries/CurrencyLibrary.sol';
 import {ValueX7} from '../libraries/ValueX7Lib.sol';
-import {ValueX7X7} from '../libraries/ValueX7X7Lib.sol';
 import {IERC20Minimal} from './external/IERC20Minimal.sol';
 
 /// @notice Interface for token and currency storage operations
@@ -48,7 +47,7 @@ interface ITokenCurrencyStorage {
     function token() external view returns (IERC20Minimal);
 
     /// @notice The total supply of tokens to sell
-    function totalSupply() external view returns (uint256);
+    function totalSupply() external view returns (uint128);
 
     /// @notice The recipient of any unsold tokens at the end of the auction
     function tokensRecipient() external view returns (address);

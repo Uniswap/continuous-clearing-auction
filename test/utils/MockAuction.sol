@@ -5,50 +5,25 @@ import {Auction} from '../../src/Auction.sol';
 import {AuctionParameters} from '../../src/Auction.sol';
 import {Bid} from '../../src/BidStorage.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
-import {SupplyLib, SupplyRolloverMultiplier} from '../../src/libraries/SupplyLib.sol';
 import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
-
-import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
-import {ValueX7X7} from '../../src/libraries/ValueX7X7Lib.sol';
 
 contract MockAuction is Auction {
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
         Auction(_token, _totalSupply, _parameters)
     {}
 
-    function getTotalCurrencyRaisedAtFloorX7X7() external view returns (ValueX7X7) {
-        return TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7;
-    }
-
     /// @notice Wrapper around internal function for testing
-    function calculateNewClearingPrice(
-        uint256 tickLowerPrice,
-        ValueX7 sumCurrencyDemandAboveClearingX7,
-        ValueX7X7 remainingCurrencyRaisedX7X7,
-        uint24 remainingMpsInAuction
-    ) external view returns (uint256) {
-        return _calculateNewClearingPrice(
-            tickLowerPrice, sumCurrencyDemandAboveClearingX7, remainingCurrencyRaisedX7X7, remainingMpsInAuction
-        );
+    function calculateNewClearingPrice(uint256 tickLowerPrice, uint256 sumCurrencyDemandAboveClearingQ96)
+        external
+        view
+        returns (uint256)
+    {
+        return _calculateNewClearingPrice(tickLowerPrice, sumCurrencyDemandAboveClearingQ96);
     }
 
     /// @notice Wrapper around internal function for testing
     function iterateOverTicksAndFindClearingPrice(Checkpoint memory checkpoint) external returns (uint256) {
         return _iterateOverTicksAndFindClearingPrice(checkpoint);
-    }
-
-    /// @notice Wrapper around internal function for testing
-    function unpackSupplyRolloverMultiplier()
-        external
-        view
-        returns (bool isSet, uint24 remainingMps, ValueX7X7 remainingCurrencyRaisedX7X7)
-    {
-        return SupplyLib.unpack($_supplyRolloverMultiplier);
-    }
-
-    /// @notice Wrapper around internal function for testing
-    function setSupplyRolloverMultiplier(bool set, uint24 remainingMps, ValueX7X7 remainingSupplyX7X7) external {
-        $_supplyRolloverMultiplier = SupplyLib.packSupplyRolloverMultiplier(set, remainingMps, remainingSupplyX7X7);
     }
 
     /// @notice Helper function to insert a checkpoint
@@ -77,16 +52,16 @@ contract MockAuction is Auction {
     }
 
     /// @notice Update the tick demand
-    function uncheckedUpdateTickDemand(uint256 price, ValueX7 currencyDemandX7) external {
-        _updateTickDemand(price, currencyDemandX7);
+    function uncheckedUpdateTickDemand(uint256 price, uint256 currencyDemandQ96) external {
+        _updateTickDemand(price, currencyDemandQ96);
     }
 
     /// @notice Set the $sumDemandAboveClearing
-    function uncheckedSetSumDemandAboveClearing(ValueX7 currencyDemandX7) external {
-        $sumCurrencyDemandAboveClearingX7 = currencyDemandX7;
+    function uncheckedSetSumDemandAboveClearing(uint256 currencyDemandQ96) external {
+        $sumCurrencyDemandAboveClearingQ96 = currencyDemandQ96;
     }
 
-    function uncheckedAddToSumDemandAboveClearing(ValueX7 currencyDemandX7) external {
-        $sumCurrencyDemandAboveClearingX7 = $sumCurrencyDemandAboveClearingX7.add(currencyDemandX7);
+    function uncheckedAddToSumDemandAboveClearing(uint256 currencyDemandQ96) external {
+        $sumCurrencyDemandAboveClearingQ96 += currencyDemandQ96;
     }
 }

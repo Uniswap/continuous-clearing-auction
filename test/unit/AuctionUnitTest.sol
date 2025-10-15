@@ -7,9 +7,7 @@ import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
 import {Bid, BidLib} from '../../src/libraries/BidLib.sol';
 import {Checkpoint} from '../../src/libraries/CheckpointLib.sol';
 import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
-import {ValueX7X7} from '../../src/libraries/ValueX7X7Lib.sol';
 import {AuctionBaseTest} from '../utils/AuctionBaseTest.sol';
-
 import {AuctionParamsBuilder} from '../utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from '../utils/AuctionStepsBuilder.sol';
 import {FuzzBid, FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
@@ -49,11 +47,11 @@ contract AuctionUnitTest is AuctionBaseTest {
         setUpTokens();
 
         alice = makeAddr('alice');
-        bob = makeAddr('bob');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 
-        auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 50).addStep(100e3, 50);
+        auctionStepsData =
+            AuctionStepsBuilder.init().addStep(STANDARD_MPS_1_PERCENT, 50).addStep(STANDARD_MPS_1_PERCENT, 50);
         params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE).withTickSpacing(
             TICK_SPACING
         ).withValidationHook(address(0)).withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient)

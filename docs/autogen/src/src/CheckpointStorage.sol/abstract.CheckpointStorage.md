@@ -1,5 +1,5 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/1a7f98b9e1cb9ed630b15a7f62d113994de8c338/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/63f4bfef19ba51e32937745adfe3603976e5bb51/src/CheckpointStorage.sol)
 
 **Inherits:**
 [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
@@ -134,20 +134,18 @@ Calculate the tokens sold and currency spent for a partially filled bid
 
 ```solidity
 function _accountPartiallyFilledCheckpoints(
-    ValueX7X7 cumulativeCurrencyRaisedAtClearingPriceX7X7,
-    ValueX7 bidDemandX7,
+    Bid memory bid,
     ValueX7 tickDemandX7,
-    uint256 bidMaxPrice
+    ValueX7X7 cumulativeCurrencyRaisedAtClearingPriceX7X7
 ) internal pure returns (uint256 tokensFilled, uint256 currencySpent);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`cumulativeCurrencyRaisedAtClearingPriceX7X7`|`ValueX7X7`|The cumulative supply sold to the clearing price|
-|`bidDemandX7`|`ValueX7`|The demand of the bid|
+|`bid`|`Bid`|The bid|
 |`tickDemandX7`|`ValueX7`|The total demand at the tick|
-|`bidMaxPrice`|`uint256`|The max price of the bid|
+|`cumulativeCurrencyRaisedAtClearingPriceX7X7`|`ValueX7X7`|The cumulative supply sold to the clearing price|
 
 **Returns**
 

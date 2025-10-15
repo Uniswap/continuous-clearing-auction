@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-/// @title ProtocolCarryLib
+/// @title ClearingPriceRoundedDownLib
+/// @notice Library for storing the rounded down clearing price transiently
+/// @dev The only reason to transient storage over memory is because this is not called frequently
 /// TODO: this library can be removed once the transient keyword is supported in solidity
 library ClearingPriceRoundedDownLib {
     /// @notice The slot holding the protocol carry: bytes32(uint256(keccak256("ClearingPriceRoundedDownLib")) - 1)

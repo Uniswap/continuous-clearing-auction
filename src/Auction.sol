@@ -322,7 +322,7 @@ contract Auction is
     {
         // Reject bids which would cause TOTAL_SUPPLY * maxPrice to overflow a uint256
         if (maxPrice > MAX_BID_PRICE) revert InvalidBidPriceTooHigh();
-        
+
         Checkpoint memory _checkpoint = checkpoint();
         // Revert if there are no more tokens to be sold
         if (_checkpoint.remainingMpsInAuction() == 0) revert AuctionSoldOut();

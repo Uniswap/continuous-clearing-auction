@@ -15,7 +15,10 @@ contract BidLibTest is Test {
             vm.expectRevert(BidLib.MpsRemainingIsZero.selector);
             _bid.toEffectiveAmount();
         } else {
-            assertEq(_bid.toEffectiveAmount(), (_bid.amountQ96 * ConstantsLib.MPS) / _bid.mpsRemainingInAuctionAfterSubmission());
+            assertEq(
+                _bid.toEffectiveAmount(),
+                (_bid.amountQ96 * ConstantsLib.MPS) / _bid.mpsRemainingInAuctionAfterSubmission()
+            );
         }
     }
 }

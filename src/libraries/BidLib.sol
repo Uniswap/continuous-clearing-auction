@@ -22,9 +22,9 @@ library BidLib {
     using ValueX7Lib for *;
     using BidLib for *;
     using FixedPointMathLib for *;
-    
+
     /// @dev Error thrown when a bid is submitted with no remaining percentage of the auction
-    ///      This is prevented by the auction contract as bids cannot be submitted when the auction is sold out, 
+    ///      This is prevented by the auction contract as bids cannot be submitted when the auction is sold out,
     ///      but we catch it instead of reverting with division by zero.
     error MpsRemainingIsZero();
 

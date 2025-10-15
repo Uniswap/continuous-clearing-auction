@@ -155,6 +155,12 @@ interface IAuction is
     /// @return bool True if the auction has graduated, false otherwise
     function isGraduated() external view returns (bool);
 
+    /// @notice Get the currency raised at the last checkpointed block
+    /// @dev This may be less than the balance of this contract if there are outstanding refunds for bidders
+    /// @dev Be aware that the latest checkpoint may be out of date
+    /// @return The currency raised
+    function currencyRaised() external view returns (uint256);
+
     /// @notice Exit a bid
     /// @dev This function can only be used for bids where the max price is above the final clearing price after the auction has ended
     /// @param bidId The id of the bid

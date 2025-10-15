@@ -959,7 +959,7 @@ contract AuctionTest is AuctionBaseTest {
 
     /// forge-config: default.isolate = true
     /// forge-config: ci.isolate = true
-    function test_calculateNewClearingPrice_withNoDemand() public {
+    function test_checkpoint_withNoDemand() public {
         // Don't submit any bids
         vm.roll(block.number + 1);
         auction.checkpoint();

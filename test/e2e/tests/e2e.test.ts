@@ -5,6 +5,8 @@ import { erc20Setup } from "../instances/setup/ERC20Setup";
 import { erc20Interaction } from "../instances/interaction/ERC20Interaction";
 import { advancedSetup } from "../instances/setup/AdvancedSetup";
 import { advancedInteraction } from "../instances/interaction/AdvancedInteraction";
+import { variationSetup } from "../instances/setup/VariationSetup";
+import { variationInteraction } from "../instances/interaction/VariationInteraction";
 import { TestSetupData } from "../schemas/TestSetupSchema";
 import { TestInteractionData } from "../schemas/TestInteractionSchema";
 import { CombinationResult } from "../src/MultiTestRunner";
@@ -33,6 +35,12 @@ describe("E2E Tests", function () {
 
   it("should run advanced setup and interaction", async function () {
     const combinations = [{ setup: advancedSetup, interaction: advancedInteraction }];
+
+    await runTest(combinations);
+  });
+
+  it("should run variation setup and interaction (with random amounts and variance assertions)", async function () {
+    const combinations = [{ setup: variationSetup, interaction: variationInteraction }];
 
     await runTest(combinations);
   });

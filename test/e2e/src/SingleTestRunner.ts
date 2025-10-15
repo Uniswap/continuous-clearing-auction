@@ -279,19 +279,14 @@ export class SingleTestRunner {
       const blockNum = parseInt(blockNumber);
       console.log(LOG_PREFIXES.INFO, "Block", blockNumber + ":", blockEvents.length, "event(s)");
 
-      // Execute all events in this block
-      for (const event of blockEvents) {
-        // Mine to the target block (only once per block)
+      // Separate transaction events from assertion events
+      const transactionEvents = blockEvents.filter((e) => e.type === EventType.BID || e.type === EventType.ACTION);
+      const assertionEvents = blockEvents.filter((e) => e.type === EventType.ASSERTION);
+
+      // Mine to target block ONCE if there are transaction events
+      if (transactionEvents.length > 0) {
         const currentBlock = await hre.ethers.provider.getBlockNumber();
-        console.log(LOG_PREFIXES.INFO, "      -", event.type);
-        let blocksToMine = blockNum - currentBlock;
-        // For transactions, mine to targetBlock - 1, then execute
-        if (event.type === EventType.BID || event.type === EventType.ACTION) {
-          blocksToMine--;
-        } else {
-          await this.handleTransactions(accumulatedTransactions);
-          blocksToMine = blockNum - (await hre.ethers.provider.getBlockNumber());
-        }
+        const blocksToMine = blockNum - currentBlock - 1; // Mine to targetBlock - 1
 
         if (blocksToMine > 0) {
           await this.network.provider.send(METHODS.HARDHAT.MINE, [`0x${blocksToMine.toString(16)}`]);
@@ -300,28 +295,51 @@ export class SingleTestRunner {
           throw new Error(ERROR_MESSAGES.BLOCK_ALREADY_MINED(blockNum));
         }
 
-        // Execute the event
-        switch (event.type) {
-          case EventType.BID:
-            await bidSimulator.executeBid(event.data as InternalBidData, accumulatedTransactions);
-            break;
-          case EventType.ACTION:
-            const actionData = event.data as ActionData;
-            if (actionData.actionType === ActionType.TRANSFER_ACTION) {
-              await bidSimulator.executeTransfers([actionData as TransferAction], accumulatedTransactions);
-            } else if (actionData.actionType === ActionType.ADMIN_ACTION) {
-              await bidSimulator.executeAdminActions([actionData as AdminAction], accumulatedTransactions);
-            }
-            break;
-          case EventType.ASSERTION:
-            const assertionData = event.data as AssertionInfo;
-            console.log(LOG_PREFIXES.INFO, "Validating assertion:", assertionData.reason);
-            await assertionEngine.validateAssertion(assertionData.assert);
-            console.log(LOG_PREFIXES.SUCCESS, "Assertion validated");
-            break;
+        // Execute all transaction events in this block
+        for (const event of transactionEvents) {
+          console.log(LOG_PREFIXES.INFO, "      -", event.type);
+          switch (event.type) {
+            case EventType.BID:
+              await bidSimulator.executeBid(event.data as InternalBidData, accumulatedTransactions);
+              break;
+            case EventType.ACTION:
+              const actionData = event.data as ActionData;
+              if (actionData.actionType === ActionType.TRANSFER_ACTION) {
+                await bidSimulator.executeTransfers([actionData as TransferAction], accumulatedTransactions);
+              } else if (actionData.actionType === ActionType.ADMIN_ACTION) {
+                await bidSimulator.executeAdminActions([actionData as AdminAction], accumulatedTransactions);
+              }
+              break;
+          }
+        }
+        // Mine the block with all transactions
+        await this.handleTransactions(accumulatedTransactions);
+      }
+
+      // Handle assertion events (after transactions are mined)
+      if (assertionEvents.length > 0) {
+        // Mine to target block if we haven't already (no transactions case)
+        if (transactionEvents.length === 0) {
+          const currentBlock = await hre.ethers.provider.getBlockNumber();
+          const blocksToMine = blockNum - currentBlock;
+
+          if (blocksToMine > 0) {
+            await this.network.provider.send(METHODS.HARDHAT.MINE, [`0x${blocksToMine.toString(16)}`]);
+          } else if (blocksToMine < 0) {
+            console.log(LOG_PREFIXES.WARNING, "Block", blockNum, "is already mined. Current block:", currentBlock);
+            throw new Error(ERROR_MESSAGES.BLOCK_ALREADY_MINED(blockNum));
+          }
+        }
+
+        // Execute all assertion events in this block
+        for (const event of assertionEvents) {
+          console.log(LOG_PREFIXES.INFO, "      -", event.type);
+          const assertionData = event.data as AssertionInfo;
+          console.log(LOG_PREFIXES.INFO, "Validating assertion:", assertionData.reason);
+          await assertionEngine.validateAssertion(assertionData.assert);
+          console.log(LOG_PREFIXES.SUCCESS, "Assertion validated");
         }
       }
-      await this.handleTransactions(accumulatedTransactions);
     }
   }
 

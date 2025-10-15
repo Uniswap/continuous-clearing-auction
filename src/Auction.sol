@@ -136,6 +136,19 @@ contract Auction is
     ///      because the sumExtraCurrencyRaisedQ96_X7 is the accumulation of rounding errors from rounding up clearing prices
     /// @return The currency raised
     function _currencyRaised(Checkpoint memory _checkpoint) internal view returns (uint256) {
+        console.log('----- currencyRaised -----');
+        console.log(
+            'extra currency raised from rounding up',
+            $sumExtraCurrencyRaisedQ96_X7.scaleDownToUint256() >> FixedPoint96.RESOLUTION
+        );
+        if(_checkpoint.currencyRaisedQ96_X7.scaleDownToUint256() > 0) {
+            console.log(
+                'bps drift',
+                $sumExtraCurrencyRaisedQ96_X7.scaleDownToUint256().fullMulDiv(
+                    10_000, _checkpoint.currencyRaisedQ96_X7.scaleDownToUint256()
+                )
+            );
+        }
         return _checkpoint.currencyRaisedQ96_X7.sub($sumExtraCurrencyRaisedQ96_X7).scaleDownToUint256()
             >> FixedPoint96.RESOLUTION;
     }
@@ -618,5 +631,10 @@ contract Auction is
     /// @inheritdoc IAuction
     function sumCurrencyDemandAboveClearingQ96() external view override(IAuction) returns (uint256) {
         return $sumCurrencyDemandAboveClearingQ96;
+    }
+
+    /// @inheritdoc IAuction
+    function sumExtraCurrencyRaisedQ96_X7() external view override(IAuction) returns (ValueX7) {
+        return $sumExtraCurrencyRaisedQ96_X7;
     }
 }

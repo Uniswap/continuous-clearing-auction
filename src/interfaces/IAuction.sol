@@ -202,4 +202,7 @@ interface IAuction is
 
     /// @notice The sum of demand in ticks above the clearing price
     function sumCurrencyDemandAboveClearingQ96() external view returns (uint256);
+
+    /// @notice The sum of extra currency raised due to rounding errors
+    function sumExtraCurrencyRaisedQ96_X7() external view returns (ValueX7);
 }

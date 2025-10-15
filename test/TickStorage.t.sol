@@ -20,7 +20,7 @@ contract MockTickStorage is TickStorage {
         super._initializeTickIfNeeded(prevPrice, price);
     }
 
-    function updateTick(uint256 price, uint256 demandQ96) external {
+    function updateTickDemand(uint256 price, uint256 demandQ96) external {
         super._updateTickDemand(price, demandQ96);
     }
 }
@@ -274,5 +274,63 @@ contract TickStorageTest is Test, Assertions {
 
         vm.expectRevert(ITickStorage.TickPreviousPriceInvalid.selector);
         tickStorage.initializeTickIfNeeded(_prevPrice, _price);
+    }
+
+    function test_ticks_revertsWhenPriceIsNotAtBoundary(uint256 _floorPrice, uint256 _tickSpacing, uint256 _price)
+        public
+        givenValidDeploymentParams(_tickSpacing, _floorPrice)
+    {
+        tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
+        // Assume that the price is not at a boundary
+        vm.assume(_price % $tickSpacing != 0);
+        // Expect getTick to revert
+        vm.expectRevert(ITickStorage.TickPriceNotAtBoundary.selector);
+        tickStorage.getTick(_price);
+        // And expect ticks to revert
+        vm.expectRevert(ITickStorage.TickPriceNotAtBoundary.selector);
+        tickStorage.ticks(_price);
+    }
+
+    function test_updateTickDemand_revertsWhenTickIsUninitialized(
+        uint256 _floorPrice,
+        uint256 _tickSpacing,
+        uint256 _price,
+        uint256 _demandQ96
+    ) public givenValidDeploymentParams(_tickSpacing, _floorPrice) {
+        tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
+        _price = helper__assumeValidPrice(_price);
+        helper__assumeUninitializedTick(_price);
+
+        vm.expectRevert(ITickStorage.CannotUpdateUninitializedTick.selector);
+        tickStorage.updateTickDemand(_price, _demandQ96);
+    }
+
+    function test_updateTickDemand_updatesDemandWhenTickIsInitialized(
+        uint256 _floorPrice,
+        uint256 _tickSpacing,
+        uint256 _price,
+        uint256 _demandQ96
+    ) public givenValidDeploymentParams(_tickSpacing, _floorPrice) {
+        tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
+        _price = helper__assumeValidPrice(_price);
+        helper__assumeUninitializedTick(_price);
+        tickStorage.initializeTickIfNeeded($floorPrice_rounded, _price);
+
+        tickStorage.updateTickDemand(_price, _demandQ96);
+        assertEq(tickStorage.getTick(_price).currencyDemandQ96, _demandQ96);
+    }
+
+    function test_updateTickDemand_revertsWhenPriceIsNotAtBoundary(
+        uint256 _floorPrice,
+        uint256 _tickSpacing,
+        uint256 _price,
+        uint256 _demandQ96
+    ) public givenValidDeploymentParams(_tickSpacing, _floorPrice) {
+        tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
+        vm.assume(_price % $tickSpacing != 0);
+
+        // Tick cannot be initialized because it is not at a boundary but the tick spacing check should be first
+        vm.expectRevert(ITickStorage.TickPriceNotAtBoundary.selector);
+        tickStorage.updateTickDemand(_price, _demandQ96);
     }
 }

@@ -32,11 +32,10 @@ abstract contract TickStorage is ITickStorage {
         if (_tickSpacing == 0) revert TickSpacingIsZero();
         TICK_SPACING = _tickSpacing;
         if (_floorPrice == 0) revert FloorPriceIsZero();
-        // Ensure the floor price is at a tick boundary
-        if (_floorPrice % TICK_SPACING != 0) revert TickPriceNotAtBoundary();
         FLOOR_PRICE = _floorPrice;
         // Initialize the floor price as the first tick
-        $_ticks[FLOOR_PRICE].next = MAX_TICK_PTR;
+        // _getTick will validate that it is also at a tick boundary
+        _getTick(FLOOR_PRICE).next = MAX_TICK_PTR;
         $nextActiveTickPrice = MAX_TICK_PTR;
         emit NextActiveTickUpdated(MAX_TICK_PTR);
         emit TickInitialized(FLOOR_PRICE);
@@ -65,9 +64,9 @@ abstract contract TickStorage is ITickStorage {
     function _initializeTickIfNeeded(uint256 prevPrice, uint256 price) internal {
         if (price == MAX_TICK_PTR) revert InvalidTickPrice();
         // _getTick will validate that `price` is at a boundary designated by the tick spacing
-        Tick storage newTick = _getTick(price);
+        Tick storage $newTick = _getTick(price);
         // Early return if the tick is already initialized
-        if (newTick.next != 0) return;
+        if ($newTick.next != 0) return;
         // Otherwise, we need to iterate through the linked list to find the correct position for the new tick
         // Require that `prevPrice` is less than `price` since we can only iterate forward
         if (prevPrice >= price) revert TickPreviousPriceInvalid();
@@ -83,7 +82,7 @@ abstract contract TickStorage is ITickStorage {
             nextPrice = _getTick(nextPrice).next;
         }
         // Update linked list pointers
-        newTick.next = nextPrice;
+        $newTick.next = nextPrice;
         _getTick(prevPrice).next = price;
         // If the next tick is the nextActiveTick, update nextActiveTick to the new tick
         // In the base case, where next == 0 and nextActiveTickPrice == 0, this will set nextActiveTickPrice to price
@@ -122,6 +121,6 @@ abstract contract TickStorage is ITickStorage {
 
     /// @inheritdoc ITickStorage
     function ticks(uint256 price) external view override(ITickStorage) returns (Tick memory) {
-        return $_ticks[price];
+        return _getTick(price);
     }
 }

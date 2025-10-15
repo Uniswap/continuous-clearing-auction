@@ -8,7 +8,6 @@ import {Bid} from 'twap-auction/BidStorage.sol';
 import {Checkpoint} from 'twap-auction/libraries/CheckpointLib.sol';
 
 import {ValueX7} from 'twap-auction/libraries/ValueX7Lib.sol';
-import {ValueX7X7} from 'twap-auction/libraries/ValueX7X7Lib.sol';
 
 contract BttBase is Test {
     function isCoverage() internal view returns (bool) {
@@ -21,7 +20,7 @@ contract BttBase is Test {
         assertEq(_bid.exitedBlock, _bid2.exitedBlock, 'exitedBlock');
         assertEq(_bid.maxPrice, _bid2.maxPrice, 'maxPrice');
         assertEq(_bid.owner, _bid2.owner, 'owner');
-        assertEq(_bid.amount, _bid2.amount, 'amount');
+        assertEq(_bid.amountQ96, _bid2.amountQ96, 'amountQ96');
         assertEq(_bid.tokensFilled, _bid2.tokensFilled, 'tokensFilled');
     }
 
@@ -33,21 +32,13 @@ contract BttBase is Test {
         assertEq(ValueX7.unwrap(_valueX7), ValueX7.unwrap(_valueX72), _err);
     }
 
-    function assertEq(ValueX7X7 _valueX7X7, ValueX7X7 _valueX7X72) internal pure {
-        assertEq(ValueX7X7.unwrap(_valueX7X7), ValueX7X7.unwrap(_valueX7X72));
-    }
-
-    function assertEq(ValueX7X7 _valueX7X7, ValueX7X7 _valueX7X72, string memory _err) internal pure {
-        assertEq(ValueX7X7.unwrap(_valueX7X7), ValueX7X7.unwrap(_valueX7X72), _err);
-    }
-
     function assertEq(Checkpoint memory _checkpoint, Checkpoint memory _checkpoint2) internal pure {
         assertEq(_checkpoint.clearingPrice, _checkpoint2.clearingPrice, 'clearingPrice');
-        assertEq(_checkpoint.totalCurrencyRaisedX7X7, _checkpoint2.totalCurrencyRaisedX7X7, 'totalCurrencyRaisedX7X7');
+        assertEq(_checkpoint.currencyRaisedQ96_X7, _checkpoint2.currencyRaisedQ96_X7, 'currencyRaisedQ96_X7');
         assertEq(
-            _checkpoint.cumulativeCurrencyRaisedAtClearingPriceX7X7,
-            _checkpoint2.cumulativeCurrencyRaisedAtClearingPriceX7X7,
-            'cumulativeCurrencyRaisedAtClearingPriceX7X7'
+            _checkpoint.currencyRaisedAtClearingPriceQ96_X7,
+            _checkpoint2.currencyRaisedAtClearingPriceQ96_X7,
+            'currencyRaisedAtClearingPriceQ96_X7'
         );
         assertEq(_checkpoint.cumulativeMpsPerPrice, _checkpoint2.cumulativeMpsPerPrice, 'cumulativeMpsPerPrice');
         assertEq(_checkpoint.cumulativeMps, _checkpoint2.cumulativeMps, 'cumulativeMps');

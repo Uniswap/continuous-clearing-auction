@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
 import {ITickStorage} from 'twap-auction/TickStorage.sol';
-
+import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
 import {MockTickStorage} from 'btt/mocks/MockTickStorage.sol';
 
 import {BidLib} from 'twap-auction/libraries/BidLib.sol';
@@ -48,8 +48,8 @@ contract ConstructorTest is BttBase {
     {
         // it reverts with {FloorPriceAboveMaxBidPrice}
 
-        floorPrice = bound(_floorPrice, BidLib.MAX_BID_PRICE, type(uint256).max);
-        vm.expectRevert(ITickStorage.FloorPriceAboveMaxBidPrice.selector);
+        floorPrice = bound(_floorPrice, ConstantsLib.MAX_BID_PRICE, type(uint256).max);
+        vm.expectRevert(ITickStorage. FloorPriceAboveMaxBidPrice.selector);
         new MockTickStorage(tickSpacing, floorPrice);
     }
 
@@ -60,7 +60,7 @@ contract ConstructorTest is BttBase {
     {
         // it reverts with {TickPriceNotAtBoundary}
 
-        vm.assume(_floorPrice < BidLib.MAX_BID_PRICE && _floorPrice % tickSpacing != 0);
+        vm.assume(_floorPrice < ConstantsLib.MAX_BID_PRICE && _floorPrice % tickSpacing != 0);
         floorPrice = _floorPrice;
 
         vm.expectRevert(ITickStorage.TickPriceNotAtBoundary.selector);
@@ -78,9 +78,9 @@ contract ConstructorTest is BttBase {
         // it emits {TickInitialized}
         // it emits {NextActiveTickUpdated}
 
-        tickSpacing = bound(_tickSpacing, 1, BidLib.MAX_BID_PRICE - 1);
+        tickSpacing = bound(_tickSpacing, 1, ConstantsLib.MAX_BID_PRICE - 1);
 
-        uint256 tickIndex = bound(_floorPrice, 1, (BidLib.MAX_BID_PRICE - 1) / tickSpacing);
+        uint256 tickIndex = bound(_floorPrice, 1, (ConstantsLib.MAX_BID_PRICE - 1) / tickSpacing);
         floorPrice = tickIndex * tickSpacing;
 
         vm.expectEmit(true, true, true, true);
@@ -94,6 +94,6 @@ contract ConstructorTest is BttBase {
         assertEq(tickStorage.tickSpacing(), tickSpacing);
         assertEq(tickStorage.nextActiveTickPrice(), type(uint256).max);
         assertEq(tickStorage.getTick(floorPrice).next, type(uint256).max);
-        assertEq(tickStorage.getTick(floorPrice).currencyDemandX7, ValueX7.wrap(0));
+        assertEq(tickStorage.getTick(floorPrice).currencyDemandQ96, 0);
     }
 }

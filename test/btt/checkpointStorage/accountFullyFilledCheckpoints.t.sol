@@ -26,7 +26,7 @@ contract AccountFullyFilledCheckpointsTest is BttBase {
         // it will return the currency spent
 
         _bid.startCumulativeMps = uint24(bound(_bid.startCumulativeMps, 0, ConstantsLib.MPS - 1));
-        _bid.amount = bound(_bid.amount, 1, type(uint128).max);
+        _bid.amountQ96 = bound(_bid.amountQ96, 1, type(uint128).max);
 
         _startCheckpoint.cumulativeMpsPerPrice = bound(_startCheckpoint.cumulativeMpsPerPrice, 0, type(uint128).max - 1);
         _startCheckpoint.cumulativeMps = uint24(bound(_startCheckpoint.cumulativeMps, 0, ConstantsLib.MPS - 2));
@@ -45,16 +45,16 @@ contract AccountFullyFilledCheckpointsTest is BttBase {
 
         // Simple maths in uint256. Allow 1 wei diff
         assertApproxEqAbs(
-            tokensFilled, _bid.amount * cumulativeMpsPerPriceDelta / (FixedPoint96.Q96 * left), 1, 'tokens filled'
+            tokensFilled, _bid.amountQ96 * cumulativeMpsPerPriceDelta / (FixedPoint96.Q96 * left), 1, 'tokens filled'
         );
-        assertApproxEqAbs(currencySpent, _bid.amount * cumulativeMpsDelta / left, 1, 'currency spent');
+        assertApproxEqAbs(currencySpent, _bid.amountQ96 * cumulativeMpsDelta / left, 1, 'currency spent');
 
         // Intermediate 512 bits.
         assertEq(
             tokensFilled,
-            FixedPointMathLib.fullMulDiv(_bid.amount, cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * left),
+            FixedPointMathLib.fullMulDiv(_bid.amountQ96, cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * left),
             'tokens filled'
         );
-        assertEq(currencySpent, FixedPointMathLib.fullMulDivUp(_bid.amount, cumulativeMpsDelta, left), 'currency spent');
+        assertEq(currencySpent, FixedPointMathLib.fullMulDivUp(_bid.amountQ96, cumulativeMpsDelta, left), 'currency spent');
     }
 }

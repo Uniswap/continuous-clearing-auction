@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {BttBase} from 'btt/BttBase.sol';
 import {MockCheckpointStorage} from 'btt/mocks/MockCheckpointStorage.sol';
 import {Checkpoint} from 'twap-auction/libraries/CheckpointLib.sol';
-import {ValueX7X7} from 'twap-auction/libraries/ValueX7X7Lib.sol';
+import {ValueX7} from 'twap-auction/libraries/ValueX7Lib.sol';
 
 contract InsertCheckpointTest is BttBase {
     MockCheckpointStorage public mockCheckpointStorage;
@@ -41,7 +41,7 @@ contract InsertCheckpointTest is BttBase {
 
         assertEq(mockCheckpointStorage.lastCheckpointedBlock(), _blockNumber);
         assertEq(mockCheckpointStorage.clearingPrice(), _checkpoint.clearingPrice);
-        assertEq(mockCheckpointStorage.currencyRaised(), ValueX7X7.unwrap(_checkpoint.totalCurrencyRaisedX7X7) / 1e14);
+        assertEq(mockCheckpointStorage.currencyRaised(), ValueX7.unwrap(_checkpoint.currencyRaisedQ96_X7) / 1e14);
 
         // On purpose the first link in the list does not update next (unclear why)
         // assertEq(mockCheckpointStorage.getCheckpoint(0).next, _blockNumber);

@@ -1,5 +1,0 @@
-PackSupplyRolloverMultiplierTest
-├── when remainingCurrencyRaisedX7X7 GT 231 bits
-│   └── it will revert
-└── when remainingCurrencyRaisedX7X7 LE 231 bits
-    └── it will unpack to the same values

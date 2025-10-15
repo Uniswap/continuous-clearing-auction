@@ -45,7 +45,7 @@ contract DeleteBidTest is BttBase {
         assertEq(bidFromStorage.exitedBlock, 0);
         assertEq(bidFromStorage.maxPrice, 0);
         assertEq(bidFromStorage.owner, address(0));
-        assertEq(bidFromStorage.amount, 0);
+        assertEq(bidFromStorage.amountQ96, 0);
         assertEq(bidFromStorage.tokensFilled, 0);
     }
 }

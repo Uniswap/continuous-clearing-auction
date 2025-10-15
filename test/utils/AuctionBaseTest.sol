@@ -65,6 +65,65 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     // Fuzz Parameter Validation Helpers
     // ============================================
 
+    /// @notice Get a random divisor of ConstantsLib.MPS (10,000,000) that fits in uint8
+    /// @return A random valid divisor for numberOfSteps
+    function _getRandomDivisorOfMPS() private returns (uint8) {
+        // TODO(md): improve
+        // All divisors of 10,000,000 that fit in uint8 (1-255)
+        uint8[] memory validDivisors = new uint8[](20);
+        validDivisors[0] = 1;
+        validDivisors[1] = 2;
+        validDivisors[2] = 4;
+        validDivisors[3] = 5;
+        validDivisors[4] = 8;
+        validDivisors[5] = 10;
+        validDivisors[6] = 16;
+        validDivisors[7] = 20;
+        validDivisors[8] = 25;
+        validDivisors[9] = 32;
+        validDivisors[10] = 40;
+        validDivisors[11] = 50;
+        validDivisors[12] = 64;
+        validDivisors[13] = 80;
+        validDivisors[14] = 100;
+        validDivisors[15] = 125;
+        validDivisors[16] = 128;
+        validDivisors[17] = 160;
+        validDivisors[18] = 200;
+        validDivisors[19] = 250;
+
+        // Randomly select one of the valid divisors
+        uint256 randomIndex = _bound(uint256(vm.randomUint()), 0, validDivisors.length - 1);
+        return validDivisors[randomIndex];
+    }
+
+    function helper__validInvariantDeploymentParams() public returns (FuzzDeploymentParams memory) {
+        FuzzDeploymentParams memory deploymentParams;
+
+        _setHardcodedParams(deploymentParams);
+
+        // Generate the random parameteres here
+        deploymentParams.totalSupply = uint128(_bound(uint256(vm.randomUint()), 1, type(uint128).max));
+
+        // Calculate the number of steps - ensure it's a divisor of ConstantsLib.MPS
+        deploymentParams.numberOfSteps = _getRandomDivisorOfMPS();
+
+        // TODO: these values are wrong - tick spacing too large
+        deploymentParams.auctionParams.floorPrice = uint128(_bound(uint256(vm.randomUint()), 1, type(uint128).max));
+        deploymentParams.auctionParams.tickSpacing = uint256(_bound(uint256(vm.randomUint()), 1, type(uint256).max));
+        _boundPriceParams(deploymentParams);
+
+        // Set up the block numbers
+        deploymentParams.auctionParams.startBlock = uint64(_bound(uint256(vm.randomUint()), 1, type(uint64).max));
+        _boundBlockNumbers(deploymentParams);
+
+        // TODO(md): fix and have variation in the step sizes
+        deploymentParams.auctionParams.auctionStepsData = _generateAuctionSteps(deploymentParams.numberOfSteps);
+
+        $deploymentParams = deploymentParams;
+        return deploymentParams;
+    }
+
     function helper__validFuzzDeploymentParams(FuzzDeploymentParams memory _deploymentParams)
         public
         returns (AuctionParameters memory)
@@ -92,7 +151,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _deploymentParams.auctionParams.validationHook = address(0);
     }
 
-    function _boundBlockNumbers(FuzzDeploymentParams memory _deploymentParams) private {
+    function _boundBlockNumbers(FuzzDeploymentParams memory _deploymentParams) private view {
         // -2 because we need to account for the endBlock and claimBlock
         _deploymentParams.auctionParams.startBlock = uint64(
             _bound(
@@ -106,7 +165,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _deploymentParams.auctionParams.claimBlock = _deploymentParams.auctionParams.endBlock + 1;
     }
 
-    function _boundPriceParams(FuzzDeploymentParams memory _deploymentParams) private {
+    function _boundPriceParams(FuzzDeploymentParams memory _deploymentParams) private pure {
         // Bound tick spacing and floor price to reasonable values
         _deploymentParams.auctionParams.floorPrice =
             _bound(_deploymentParams.auctionParams.floorPrice, 1, type(uint128).max);
@@ -199,7 +258,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         uint256 _maxPrice,
         uint128 _totalSupply,
         uint256 _tickSpacing
-    ) internal returns (uint256) {
+    ) internal pure returns (uint256) {
         vm.assume(_totalSupply != 0 && _tickSpacing != 0 && _floorPrice != 0 && _maxPrice != 0);
         _maxPrice = _bound(_maxPrice, _floorPrice + _tickSpacing, type(uint256).max);
         vm.assume(_maxPrice <= type(uint256).max / _totalSupply);
@@ -425,5 +484,30 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     /// @notice Helper function to return the tick at the given price
     function getTick(uint256 price) public view returns (Tick memory) {
         return auction.ticks(price);
+    }
+
+    // ============================================
+    // Logging utilities
+    // ============================================
+    function logFuzzDeploymentParams(FuzzDeploymentParams memory _deploymentParams) public pure {
+        console.log('---------FuzzDeploymentParams--------');
+        console.log('totalSupply', _deploymentParams.totalSupply);
+        console.log('numberOfSteps', _deploymentParams.numberOfSteps);
+        logAuctionParams(_deploymentParams.auctionParams);
+    }
+
+    function logAuctionParams(AuctionParameters memory _params) public pure {
+        console.log('---------AuctionParams--------');
+        console.log('currency', _params.currency);
+        console.log('tokensRecipient', _params.tokensRecipient);
+        console.log('fundsRecipient', _params.fundsRecipient);
+        console.log('startBlock', _params.startBlock);
+        console.log('endBlock', _params.endBlock);
+        console.log('claimBlock', _params.claimBlock);
+        console.log('tickSpacing', _params.tickSpacing);
+        console.log('validationHook', _params.validationHook);
+        console.log('floorPrice', _params.floorPrice);
+        console.log('auctionStepsData');
+        console.logBytes(_params.auctionStepsData);
     }
 }

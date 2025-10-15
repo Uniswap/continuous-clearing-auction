@@ -20,6 +20,8 @@ interface ITickStorage {
     error TickPriceNotAtBoundary();
     /// @notice Error thrown when the tick price is invalid
     error InvalidTickPrice();
+    /// @notice Error thrown when trying to update the demand of an uninitialized tick
+    error CannotUpdateUninitializedTick();
 
     /// @notice Emitted when a tick is initialized
     /// @param price The price of the tick

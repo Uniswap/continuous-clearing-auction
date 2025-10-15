@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 import {ITickStorage} from './interfaces/ITickStorage.sol';
 import {BidLib} from './libraries/BidLib.sol';
 import {ValueX7} from './libraries/ValueX7Lib.sol';
+import {console} from 'forge-std/console.sol';
 
 struct Tick {
     uint256 next;
@@ -48,7 +49,9 @@ abstract contract TickStorage is ITickStorage {
 
     /// @notice Internal function to get a tick at a price
     /// @dev The returned tick is not guaranteed to be initialized
-    function _getTick(uint256 price) internal view returns (Tick memory) {
+    function _getTick(uint256 price) internal view returns (Tick storage) {
+        // Validate `price` is at a boundary designated by the tick spacing
+        if (price % TICK_SPACING != 0) revert TickPriceNotAtBoundary();
         return $_ticks[price];
     }
 
@@ -60,16 +63,15 @@ abstract contract TickStorage is ITickStorage {
     /// @param prevPrice The price of the previous tick
     /// @param price The price of the tick
     function _initializeTickIfNeeded(uint256 prevPrice, uint256 price) internal {
-        // Validate `price` is at a boundary designated by the tick spacing
-        if (price % TICK_SPACING != 0) revert TickPriceNotAtBoundary();
         if (price == MAX_TICK_PTR) revert InvalidTickPrice();
-        Tick storage $newTick = $_ticks[price];
+        // _getTick will validate that `price` is at a boundary designated by the tick spacing
+        Tick storage newTick = _getTick(price);
         // Early return if the tick is already initialized
-        if ($newTick.next != 0) return;
+        if (newTick.next != 0) return;
         // Otherwise, we need to iterate through the linked list to find the correct position for the new tick
         // Require that `prevPrice` is less than `price` since we can only iterate forward
         if (prevPrice >= price) revert TickPreviousPriceInvalid();
-        uint256 nextPrice = $_ticks[prevPrice].next;
+        uint256 nextPrice = _getTick(prevPrice).next;
         // Revert if the next price is 0 as that means the `prevPrice` hint was not an initialized tick
         if (nextPrice == 0) revert TickPreviousPriceInvalid();
         // Move the `prevPrice` pointer up until its next pointer is a tick greater than or equal to `price`
@@ -78,11 +80,11 @@ abstract contract TickStorage is ITickStorage {
         // Iterating to find the tick right before `price` ensures that it is correctly positioned in the linked list.
         while (nextPrice < price) {
             prevPrice = nextPrice;
-            nextPrice = $_ticks[nextPrice].next;
+            nextPrice = _getTick(nextPrice).next;
         }
         // Update linked list pointers
-        $newTick.next = nextPrice;
-        $_ticks[prevPrice].next = price;
+        newTick.next = nextPrice;
+        _getTick(prevPrice).next = price;
         // If the next tick is the nextActiveTick, update nextActiveTick to the new tick
         // In the base case, where next == 0 and nextActiveTickPrice == 0, this will set nextActiveTickPrice to price
         if (nextPrice == $nextActiveTickPrice) {
@@ -98,6 +100,7 @@ abstract contract TickStorage is ITickStorage {
     /// @param currencyDemandQ96 The demand to add
     function _updateTickDemand(uint256 price, uint256 currencyDemandQ96) internal {
         Tick storage tick = $_ticks[price];
+        if (tick.next == 0) revert CannotUpdateUninitializedTick();
         tick.currencyDemandQ96 += currencyDemandQ96;
     }
 

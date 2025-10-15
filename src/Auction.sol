@@ -245,19 +245,18 @@ contract Auction is
          * If the auction was fully subscribed in the first block which it was active, then the total CURRENCY REQUIRED
          * at any given price is equal to totalSupply * p', where p' is that price.
          */
-        Tick memory nextActiveTick = _getTick(nextActiveTickPrice_);
         while (
             nextActiveTickPrice_ != MAX_TICK_PTR
             // Loop while the currency amount above the clearing price is greater than the required currency at `nextActiveTickPrice_`
             && sumCurrencyDemandAboveClearingQ96_ >= TOTAL_SUPPLY * nextActiveTickPrice_
         ) {
+            Tick memory nextActiveTick = _getTick(nextActiveTickPrice_);
             // Subtract the demand at the current nextActiveTick from the total demand
             sumCurrencyDemandAboveClearingQ96_ -= nextActiveTick.currencyDemandQ96;
             // Save the previous next active tick price
             minimumClearingPrice = nextActiveTickPrice_;
             // Advance to the next tick
             nextActiveTickPrice_ = nextActiveTick.next;
-            nextActiveTick = _getTick(nextActiveTickPrice_);
             updateStateVariables = true;
         }
         // Set the values into storage if we found a new next active tick price
@@ -322,7 +321,7 @@ contract Auction is
     {
         // Reject bids which would cause TOTAL_SUPPLY * maxPrice to overflow a uint256
         if (maxPrice > MAX_BID_PRICE) revert InvalidBidPriceTooHigh();
-        
+
         Checkpoint memory _checkpoint = checkpoint();
         // Revert if there are no more tokens to be sold
         if (_checkpoint.remainingMpsInAuction() == 0) revert AuctionSoldOut();

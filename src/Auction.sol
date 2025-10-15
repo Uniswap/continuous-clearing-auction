@@ -250,13 +250,13 @@ contract Auction is
             // Loop while the currency amount above the clearing price is greater than the required currency at `nextActiveTickPrice_`
             && sumCurrencyDemandAboveClearingQ96_ >= TOTAL_SUPPLY * nextActiveTickPrice_
         ) {
-            Tick memory nextActiveTick = _getTick(nextActiveTickPrice_);
+            Tick storage $nextActiveTick = _getTick(nextActiveTickPrice_);
             // Subtract the demand at the current nextActiveTick from the total demand
-            sumCurrencyDemandAboveClearingQ96_ -= nextActiveTick.currencyDemandQ96;
+            sumCurrencyDemandAboveClearingQ96_ -= $nextActiveTick.currencyDemandQ96;
             // Save the previous next active tick price
             minimumClearingPrice = nextActiveTickPrice_;
             // Advance to the next tick
-            nextActiveTickPrice_ = nextActiveTick.next;
+            nextActiveTickPrice_ = $nextActiveTick.next;
             updateStateVariables = true;
         }
         // Set the values into storage if we found a new next active tick price

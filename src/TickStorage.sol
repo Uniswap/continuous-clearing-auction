@@ -99,9 +99,9 @@ abstract contract TickStorage is ITickStorage {
     /// @param price The price of the tick
     /// @param currencyDemandQ96 The demand to add
     function _updateTickDemand(uint256 price, uint256 currencyDemandQ96) internal {
-        Tick storage tick = $_ticks[price];
-        if (tick.next == 0) revert CannotUpdateUninitializedTick();
-        tick.currencyDemandQ96 += currencyDemandQ96;
+        Tick storage $tick = _getTick(price);
+        if ($tick.next == 0) revert CannotUpdateUninitializedTick();
+        $tick.currencyDemandQ96 += currencyDemandQ96;
     }
 
     // Getters

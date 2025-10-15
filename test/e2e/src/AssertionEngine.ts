@@ -66,41 +66,43 @@ export class AssertionEngine {
   }
 
   /**
-   * Parse variance string into a ratio number.
-   * Supports both percentage format (e.g., "5%") and decimal format (e.g., "0.05").
-   * @param variance - Variance string in percentage or decimal format
-   * @returns Ratio as a number (e.g., "5%" -> 0.05, "0.05" -> 0.05)
-   */
-  private parseVariance(variance: string): number {
-    if (variance.endsWith("%")) {
-      // Percentage: convert to ratio (e.g., "5%" -> 0.05)
-      const percentage = parseFloat(variance.slice(0, -1));
-      return percentage / 100;
-    } else {
-      // Ratio: parse as decimal (e.g., "0.05" -> 0.05)
-      return parseFloat(variance);
-    }
-  }
-
-  /**
-   * Check if the actual balance is within the specified variance of the expected balance.
-   * @param actual - The actual balance
-   * @param expected - The expected balance
-   * @param variance - The variance ratio (e.g., 0.05 for 5% variance)
+   * Check if the actual value is within the specified variance of the expected value.
+   * Supports three formats:
+   * - Percentage: "5%" -> 5% tolerance
+   * - Ratio: "0.05" -> 5% tolerance (decimal < 1)
+   * - Raw amount: "100000000000000000" -> +/- exact amount tolerance
+   * @param actual - The actual value
+   * @param expected - The expected value
+   * @param varianceStr - The variance string (percentage, ratio, or raw amount)
    * @returns True if actual is within variance bounds, false otherwise
    */
-  private isWithinVariance(actual: bigint, expected: bigint, variance: number): boolean {
-    if (variance === 0) {
+  private isWithinVariance(actual: bigint, expected: bigint, varianceStr: string): boolean {
+    if (!varianceStr) {
       return actual === expected;
     }
 
-    const expectedNum = Number(expected);
-    const actualNum = Number(actual);
-    const varianceAmount = expectedNum * variance;
-    const lowerBound = expectedNum - varianceAmount;
-    const upperBound = expectedNum + varianceAmount;
+    let varianceAmount: bigint;
 
-    return actualNum >= lowerBound && actualNum <= upperBound;
+    if (varianceStr.endsWith("%")) {
+      // Percentage: convert to ratio and apply to expected (e.g., "5%" -> 5% of expected)
+      const percentage = parseFloat(varianceStr.slice(0, -1));
+      const ratio = percentage / 100;
+      varianceAmount = (expected * BigInt(Math.floor(ratio * 1000000))) / 1000000n;
+    } else {
+      if (varianceStr.includes(".")) {
+        const numericValue = parseFloat(varianceStr);
+        // Ratio: treat as percentage in decimal form (e.g., "0.05" -> 5% of expected)
+        varianceAmount = (expected * BigInt(Math.floor(numericValue * 1000000))) / 1000000n;
+      } else {
+        // Raw amount: use as absolute tolerance (e.g., "100000000000000000")
+        varianceAmount = BigInt(varianceStr);
+      }
+    }
+
+    const lowerBound = expected - varianceAmount;
+    const upperBound = expected + varianceAmount;
+
+    return actual >= lowerBound && actual <= upperBound;
   }
 
   /**
@@ -117,7 +119,7 @@ export class AssertionEngine {
         throw new Error(ERROR_MESSAGES.CANNOT_VALIDATE_EQUALITY);
       }
       let expectedStruct = expected as VariableAmount;
-      if (!this.isWithinVariance(actual, BigInt(expectedStruct.amount), Number(expectedStruct.variation))) {
+      if (!this.isWithinVariance(actual, BigInt(expectedStruct.amount), expectedStruct.variation)) {
         return false;
       } else {
         return true;
@@ -148,8 +150,7 @@ export class AssertionEngine {
       const tokenContract = await hre.ethers.getContractAt("IERC20Minimal", resolvedTokenAddress);
       actualBalance = await tokenContract.balanceOf(address);
     }
-    let expectedVariance = variance ? this.parseVariance(variance) : 0;
-    if (!this.isWithinVariance(actualBalance, expectedBalance, expectedVariance)) {
+    if (!this.isWithinVariance(actualBalance, expectedBalance, variance || "0")) {
       throw new Error(
         ERROR_MESSAGES.BALANCE_ASSERTION_FAILED(
           address,

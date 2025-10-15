@@ -263,6 +263,26 @@ export class BidSimulator {
   }
 
   /**
+   * Parse variation string into an absolute amount.
+   * Supports both percentage format (e.g., "10%") and raw amount format.
+   * @param variation - Variation string in percentage or raw amount format
+   * @param baseValue - The base value to apply percentage to
+   * @returns Variation amount as a bigint
+   */
+  private parseVariation(variation: string, baseValue: bigint): bigint {
+    if (variation.endsWith("%")) {
+      // Percentage: convert to ratio and apply to base value (e.g., "10%" of 1 ETH -> 0.1 ETH)
+      const percentage = parseFloat(variation.slice(0, -1));
+      const ratio = percentage / 100;
+      const variationAmount = (baseValue * BigInt(Math.floor(ratio * 1000000))) / 1000000n;
+      return variationAmount;
+    } else {
+      // Raw amount: use as-is
+      return BigInt(variation.toString());
+    }
+  }
+
+  /**
    * Calculates the actual bid amount based on the amount configuration.
    * @param amountConfig - Amount configuration specifying type, side, value, and optional variance
    * @returns The calculated amount as a bigint
@@ -273,7 +293,7 @@ export class BidSimulator {
     let value: bigint = BigInt(amountConfig.value.toString());
 
     if (amountConfig.variation) {
-      const variation = BigInt(amountConfig.variation.toString());
+      const variation = this.parseVariation(amountConfig.variation.toString(), value);
       const randomVariation = Math.floor(Math.random() * (2 * Number(variation) + 1)) - Number(variation);
       value = value + BigInt(randomVariation);
       if (value < 0n) value = 0n;

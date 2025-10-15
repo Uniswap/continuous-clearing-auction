@@ -1,4 +1,4 @@
-import { TestSetupData, Address, AdditionalToken } from "../schemas/TestSetupSchema";
+import { TestSetupData, Address, AdditionalToken, StepData } from "../schemas/TestSetupSchema";
 import mockTokenArtifact from "../../../out/WorkingCustomMockToken.sol/WorkingCustomMockToken.json";
 import auctionArtifact from "../../../out/Auction.sol/Auction.json";
 import auctionFactoryArtifact from "../../../out/AuctionFactory.sol/AuctionFactory.json";
@@ -281,6 +281,28 @@ export class AuctionDeployer {
     const endBlock = startBlock + BigInt(auctionParameters.auctionDurationBlocks);
     const claimBlock = endBlock + BigInt(auctionParameters.claimDelayBlocks);
 
+    // Handle auctionStepsData: use provided value or generate simple schedule
+    let auctionStepsData: string;
+    if (auctionParameters.auctionStepsData) {
+      if (typeof auctionParameters.auctionStepsData === "string") {
+        // Raw hex string provided
+        auctionStepsData = auctionParameters.auctionStepsData;
+      } else {
+        // Array of StepData provided
+        auctionStepsData = this.createAuctionStepsDataFromArray(auctionParameters.auctionStepsData);
+      }
+    } else {
+      // No steps data provided, use simple linear schedule
+      const blockDelta = parseInt(auctionParameters.auctionDurationBlocks.toString());
+      const stepData: StepData[] = [
+        {
+          mpsPerBlock: Math.floor(MPS / blockDelta),
+          blockDelta: blockDelta,
+        },
+      ];
+      auctionStepsData = this.createAuctionStepsDataFromArray(stepData);
+    }
+
     return {
       currency: currencyAddress,
       tokensRecipient: auctionParameters.tokensRecipient,
@@ -291,7 +313,7 @@ export class AuctionDeployer {
       tickSpacing: Number(auctionParameters.tickSpacing),
       validationHook: auctionParameters.validationHook,
       floorPrice: auctionParameters.floorPrice,
-      auctionStepsData: this.createSimpleAuctionStepsData(auctionParameters.auctionDurationBlocks),
+      auctionStepsData: auctionStepsData,
     };
   }
 
@@ -443,6 +465,47 @@ export class AuctionDeployer {
     return (totalSupply * BigInt(Math.floor(percentAuctioned * 100))) / BigInt(10000);
   }
 
+  /**
+   * Creates auction steps data from an array of StepData objects.
+   * @param steps - Array of step configurations with mpsPerBlock and blockDelta
+   * @returns Hex string of concatenated packed step data
+   * @throws Error if steps don't sum to correct totals
+   */
+  createAuctionStepsDataFromArray(steps: StepData[]): string {
+    console.log(LOG_PREFIXES.INFO, "Creating auction steps data from array of", steps.length, "steps");
+
+    let hexParts: string[] = [];
+    let totalMps = 0;
+    let totalBlocks = 0;
+
+    for (const step of steps) {
+      const mps = step.mpsPerBlock;
+      const blockDelta = step.blockDelta;
+
+      // Pack mps (24 bits) and blockDelta (40 bits) into 8 bytes
+      const packed = (BigInt(mps) << 40n) | BigInt(blockDelta);
+      const hex = packed.toString(16).padStart(HEX_PADDING_LENGTH, "0");
+      hexParts.push(hex);
+
+      totalMps += mps * blockDelta;
+      totalBlocks += blockDelta;
+
+      console.log(LOG_PREFIXES.INFO, `  Step: mps=${mps}, blockDelta=${blockDelta}, hex=0x${hex}`);
+    }
+
+    console.log(LOG_PREFIXES.INFO, "Total MPS:", totalMps, "(should be", MPS + ")");
+    console.log(LOG_PREFIXES.INFO, "Total blocks:", totalBlocks);
+
+    // Validation: total mps should equal MPS constant
+    if (totalMps !== MPS) {
+      console.warn(
+        LOG_PREFIXES.WARNING,
+        `Warning: Total MPS (${totalMps}) doesn't equal required MPS (${MPS}). Auction may fail to deploy.`,
+      );
+    }
+
+    return "0x" + hexParts.join("");
+  }
   /**
    * Creates simple auction steps data for a given duration.
    * @param auctionDurationBlocks - The duration of the auction in blocks

@@ -14,6 +14,11 @@ export interface BalanceItem {
   amount: string;
 }
 
+export interface StepData {
+  mpsPerBlock: number; // Milli-per-second (actually per-block) rate for this step
+  blockDelta: number; // Number of blocks this step lasts
+}
+
 export interface Environment {
   chainId?: ChainId | 31337; // 31337 is local Hardhat network
   startBlock: string;
@@ -36,6 +41,7 @@ export interface AuctionParameters {
   tickSpacing: number;
   validationHook: Address;
   floorPrice: string;
+  auctionStepsData?: string | StepData[]; // Optional: raw hex string or array of steps
 }
 
 export interface AdditionalToken {

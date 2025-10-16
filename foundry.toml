@@ -41,6 +41,9 @@ fail_on_revert = true
 runs = 10
 depth = 1000
 
+[profile.quick.fuzz]
+runs = 500
+
 [profile.pr.fuzz]
 runs = 2500
 

@@ -8,8 +8,8 @@ import {Tick} from '../TickStorage.sol';
 interface ITickStorage {
     /// @notice Error thrown when the floor price is above the maximum bid price
     error FloorPriceAboveMaxBidPrice();
-    /// @notice Error thrown when the tick spacing is zero
-    error TickSpacingIsZero();
+    /// @notice Error thrown when the tick spacing is too small
+    error TickSpacingTooSmall();
     /// @notice Error thrown when the floor price is zero
     error FloorPriceIsZero();
     /// @notice Error thrown when the previous price hint is invalid (higher than the new price)

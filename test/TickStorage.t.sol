@@ -37,7 +37,7 @@ contract TickStorageTest is Test, Assertions {
 
     modifier givenValidDeploymentParams(uint256 _tickSpacing, uint256 _floorPrice) {
         $tickSpacing = _tickSpacing;
-        vm.assume(_tickSpacing > 0);
+        vm.assume(_tickSpacing > 1);
         $floorPrice_rounded = _roundPriceDownToTickSpacing(_floorPrice, $tickSpacing);
         vm.assume($floorPrice_rounded > 0);
         // Assume that floor price is at least one tick away from max price
@@ -78,8 +78,8 @@ contract TickStorageTest is Test, Assertions {
 
     function test_tickStorage_canBeConstructed_fuzz(uint256 tickSpacing, uint256 floorPrice) public {
         MockTickStorage _tickStorage;
-        if (tickSpacing == 0) {
-            vm.expectRevert(ITickStorage.TickSpacingIsZero.selector);
+        if (tickSpacing <= 1) {
+            vm.expectRevert(ITickStorage.TickSpacingTooSmall.selector);
             _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
         } else if (floorPrice == 0) {
             vm.expectRevert(ITickStorage.FloorPriceIsZero.selector);
@@ -209,13 +209,13 @@ contract TickStorageTest is Test, Assertions {
         tickStorage.initializeTickIfNeeded($floorPrice_rounded, _nextPrice);
     }
 
-    function test_initializeTickAtMaxTickPrice_reverts(uint256 _floorPrice, uint256 _prevPrice)
-        // Hardcode the tick spacing to 1 for the test to support MAX_PRICE being a valid tick
+    function test_initializeTickAtMaxTickPrice_reverts(uint256 _tickSpacing, uint256 _floorPrice, uint256 _prevPrice)
         public
-        givenValidDeploymentParams(1, _floorPrice)
+        givenValidDeploymentParams(_tickSpacing, _floorPrice)
     {
         tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
         _prevPrice = helper__assumeValidPrice(_prevPrice);
+
         vm.expectRevert(ITickStorage.InvalidTickPrice.selector);
         tickStorage.initializeTickIfNeeded(_prevPrice, type(uint256).max);
     }

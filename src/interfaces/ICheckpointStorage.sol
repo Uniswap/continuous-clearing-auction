@@ -13,10 +13,6 @@ interface ICheckpointStorage {
     /// @return The current clearing price
     function clearingPrice() external view returns (uint256);
 
-    /// @notice Get the currency raised at the last checkpointed block
-    /// @dev This may be less than the balance of this contract as tokens are sold at different prices
-    function currencyRaised() external view returns (uint256);
-
     /// @notice Get the number of the last checkpointed block
     /// @return The block number of the last checkpoint
     function lastCheckpointedBlock() external view returns (uint64);

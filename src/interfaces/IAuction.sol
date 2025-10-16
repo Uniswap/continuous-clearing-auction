@@ -23,6 +23,7 @@ struct AuctionParameters {
     uint256 tickSpacing; // Fixed granularity for prices
     address validationHook; // Optional hook called before a bid
     uint256 floorPrice; // Starting floor price for the auction
+    uint128 requiredCurrencyRaised; // Amount of currency required to be raised for the auction to graduate
     bytes auctionStepsData; // Packed bytes describing token issuance schedule
 }
 
@@ -153,6 +154,12 @@ interface IAuction is
     /// @dev Be aware that the latest checkpoint may be out of date
     /// @return bool True if the auction has graduated, false otherwise
     function isGraduated() external view returns (bool);
+
+    /// @notice Get the currency raised at the last checkpointed block
+    /// @dev This may be less than the balance of this contract if there are outstanding refunds for bidders
+    /// @dev Be aware that the latest checkpoint may be out of date
+    /// @return The currency raised
+    function currencyRaised() external view returns (uint256);
 
     /// @notice Exit a bid
     /// @dev This function can only be used for bids where the max price is above the final clearing price after the auction has ended

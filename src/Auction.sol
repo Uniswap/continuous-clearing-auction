@@ -14,13 +14,14 @@ import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
+import {ClearingPriceRoundedDownLib} from './libraries/ClearingPriceRoundedDownLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
-
 import {FixedPoint128} from './libraries/FixedPoint128.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
+import {console} from 'forge-std/console.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
@@ -70,7 +71,8 @@ contract Auction is
             _parameters.currency,
             _totalSupply,
             _parameters.tokensRecipient,
-            _parameters.fundsRecipient
+            _parameters.fundsRecipient,
+            _parameters.requiredCurrencyRaised
         )
         TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
         PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
@@ -114,10 +116,20 @@ contract Auction is
     }
 
     /// @notice Whether the auction has graduated as of the given checkpoint
-    /// @dev The auction is considered `graudated` if the clearing price is greater than the floor price
-    ///      since that means it has sold all of the total supply of tokens.
+    /// @dev The auction is considered `graudated` if the currency raised is greater than or equal to the required currency raised
     function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool) {
-        return _checkpoint.clearingPrice > FLOOR_PRICE;
+        return _checkpoint.currencyRaisedQ96_X7.gte(REQUIRED_CURRENCY_RAISED_Q96.scaleUpToX7());
+    }
+
+    /// @inheritdoc IAuction
+    function currencyRaised() public view returns (uint256) {
+        return _currencyRaised(_getCheckpoint($lastCheckpointedBlock));
+    }
+
+    /// @notice Return the currency raised as of the given checkpoint
+    /// @return The currency raised
+    function _currencyRaised(Checkpoint memory _checkpoint) internal view returns (uint256) {
+        return _checkpoint.currencyRaisedQ96_X7.scaleDownToUint256() >> FixedPoint96.RESOLUTION;
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
@@ -128,47 +140,38 @@ contract Auction is
     /// @return The checkpoint with all cumulative values updated
     function _sellTokensAtClearingPrice(Checkpoint memory _checkpoint, uint24 deltaMps)
         internal
-        view
         returns (Checkpoint memory)
     {
-        ValueX7 currencyRaisedQ96_X7;
-        // If the clearing price is above the floor price, the auction is fully subscribed and the amount of
-        // currency which will be raised is deterministic based on the initial supply schedule.
-        if (_checkpoint.clearingPrice > FLOOR_PRICE) {
-            // The currency raised over `deltaMps` percentage of the auction is simply the total supply
-            // over than percentage multiplied by the current clearing price
-            // note that currencyRaised is a ValueX7 because we DO NOT divide by MPS here,
-            // and thus the value is 1e7 larger than the actual currency raised
-            currencyRaisedQ96_X7 = ValueX7.wrap(TOTAL_SUPPLY).mulUint256(_checkpoint.clearingPrice * deltaMps);
-            // There is a special case where the clearing price is at a tick boundary with bids.
-            // In this case, we have to explicitly track the supply sold to that price since they are "partially filled"
-            // and thus the amount of tokens sold to that price is <= to the collective demand at that price, since bidders at higher prices are prioritized.
-            if (
-                _checkpoint.clearingPrice % TICK_SPACING == 0
-                    && _getTick(_checkpoint.clearingPrice).currencyDemandQ96 > 0
-            ) {
-                // The currencyRaisedAtClearingPrice is simply the demand at the clearing price multiplied by the price and the supply schedule
-                // We should divide this by 1e7 (100%) to get the actualized currency raised, but to avoid intermediate division,
-                // we upcast it into a X7X7 value to show that it has implicitly been scaled up by 1e7.
-                // currencyRaisedAboveClearingPriceQ96_X7 is a ValueX7 because we DO NOT divide by MPS here
-                ValueX7 currencyRaisedAboveClearingPriceQ96_X7 =
-                    ValueX7.wrap($sumCurrencyDemandAboveClearingQ96 * deltaMps);
-                ValueX7 currencyRaisedAtClearingPriceQ96_X7 =
-                    currencyRaisedQ96_X7.sub(currencyRaisedAboveClearingPriceQ96_X7);
-                // Update the cumulative value in the checkpoint which will be reset if the clearing price changes
-                _checkpoint.currencyRaisedAtClearingPriceQ96_X7 =
-                    _checkpoint.currencyRaisedAtClearingPriceQ96_X7.add(currencyRaisedAtClearingPriceQ96_X7);
-            }
-        }
-        // In the case where the auction is not fully subscribed yet, we can only sell tokens equal to the current demand above the clearing price
-        else {
-            // We are behind schedule as the clearing price is still at the floor price
-            // So we can only sell tokens to the current demand above the clearing price
-            currencyRaisedQ96_X7 = ValueX7.wrap($sumCurrencyDemandAboveClearingQ96 * deltaMps);
+        // Default assume that all demand is strictly above the clearing price
+        ValueX7 currencyRaisedQ96_X7 = ValueX7.wrap($sumCurrencyDemandAboveClearingQ96 * deltaMps);
+
+        // There is a special case where the clearing price is at a tick boundary with bids.
+        // In this case, we have to explicitly track the supply sold to that price since they are "partially filled"
+        if (_checkpoint.clearingPrice % TICK_SPACING == 0 && _getTick(_checkpoint.clearingPrice).currencyDemandQ96 > 0)
+        {
+            // Get the transiently stored last clearing price rounded down
+            uint256 clearingPriceRoundedDown = ClearingPriceRoundedDownLib.get();
+
+            // Cache the previous value on the stack to avoid recalculating it
+            ValueX7 currencyRaisedAboveClearingPriceQ96_X7 = currencyRaisedQ96_X7;
+
+            // We cannot use the rounded up price because it will inflate currencyRaised
+            // So we use the rounded down price to bias against partially filled bids at `clearingPrice`
+            currencyRaisedQ96_X7 = ValueX7.wrap(TOTAL_SUPPLY).mulUint256(clearingPriceRoundedDown * deltaMps);
+
+            // From `iterateOverTicksAndFindClearingPrice` we know that $sumCurrencyDemandAboveClearingQ96 correctly tracks the demand above the `$nextActiveTickPrice`.
+            // There cannot be bids at both the rounded down and rounded up prices, since tick spacing must be > 1.
+            // Because of this, we know that there must be the same or more demand at the rounded down price than the rounded up price
+            // which is why the following subtraction is safe.
+            ValueX7 currencyRaisedAtClearingPriceQ96_X7 =
+                currencyRaisedQ96_X7.sub(currencyRaisedAboveClearingPriceQ96_X7);
+            _checkpoint.currencyRaisedAtClearingPriceQ96_X7 =
+                _checkpoint.currencyRaisedAtClearingPriceQ96_X7.add(currencyRaisedAtClearingPriceQ96_X7);
         }
         _checkpoint.currencyRaisedQ96_X7 = _checkpoint.currencyRaisedQ96_X7.add(currencyRaisedQ96_X7);
         _checkpoint.cumulativeMps += deltaMps;
-        // Calculate the harmonic mean of the mps and price
+        // Calculate the harmonic mean of the mps and price (the sum of mps/price)
+        // This uses the rounded up clearing price so bids purchase less tokens for higher prices
         _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(deltaMps, _checkpoint.clearingPrice);
         return _checkpoint;
     }
@@ -194,27 +197,6 @@ contract Auction is
             end = _step.endBlock;
         }
         return _checkpoint;
-    }
-
-    /// @notice Calculate the new clearing price, given the cumulative demand and the remaining supply in the auction
-    /// @param _tickLowerPrice The price of the tick which we know we have enough demand to clear
-    /// @param _sumCurrencyDemandAboveClearingQ96 The cumulative demand above the clearing price
-    /// @return The new clearing price
-    function _calculateNewClearingPrice(uint256 _tickLowerPrice, uint256 _sumCurrencyDemandAboveClearingQ96)
-        internal
-        view
-        returns (uint256)
-    {
-        /**
-         * The new clearing price is simply the ratio of the cumulative currency demand above the clearing price
-         * to the total supply of the auction. It is multiplied by Q96 to return a value in terms of X96 form.
-         *
-         * The result of this may be lower than tickLowerPrice.
-         * That just means that we can't sell at any price above and should sell at tickLowerPrice instead.
-         */
-        uint256 clearingPrice = _sumCurrencyDemandAboveClearingQ96.fullMulDivUp(FixedPoint96.Q96, TOTAL_SUPPLY_Q96);
-        if (clearingPrice < _tickLowerPrice) return _tickLowerPrice;
-        return clearingPrice;
     }
 
     /// @notice Iterate to find the tick where the total demand at and above it is strictly less than the remaining supply in the auction
@@ -266,8 +248,26 @@ contract Auction is
             emit NextActiveTickUpdated(nextActiveTickPrice_);
         }
 
-        // Calculate the new clearing price
-        uint256 clearingPrice = _calculateNewClearingPrice(minimumClearingPrice, sumCurrencyDemandAboveClearingQ96_);
+        /**
+         * The new clearing price is simply the ratio of the sum demand above the clearing price
+         * divided by the total supply of the auction. We round up to bias towards higher prices.
+         *
+         * The result of this operation may be lower than tickLowerPrice, in which case
+         * the auction cannot sell at any price above and must use tickLowerPrice instead.
+         */
+        uint256 clearingPrice = sumCurrencyDemandAboveClearingQ96_.fullMulDivUp(1, TOTAL_SUPPLY);
+        if (clearingPrice < minimumClearingPrice) {
+            clearingPrice = minimumClearingPrice;
+        }
+        // If the clearing price is at a tick boundary with bids we must track the remainder of the price which was rounded up.
+        if (clearingPrice % TICK_SPACING == 0 && _getTick(clearingPrice).currencyDemandQ96 > 0) {
+            // If the priceRoundedUp is already the min clearing price, the rounded down price will be the same.
+            ClearingPriceRoundedDownLib.set(
+                clearingPrice == minimumClearingPrice
+                    ? minimumClearingPrice
+                    : sumCurrencyDemandAboveClearingQ96_ / TOTAL_SUPPLY
+            );
+        }
         return clearingPrice;
     }
 
@@ -303,6 +303,9 @@ contract Auction is
         // Insert the checkpoint into storage, updating latest pointer and the linked list
         _insertCheckpoint(_checkpoint, blockNumber);
 
+        // Unset the rounded down price since we no longer need it
+        ClearingPriceRoundedDownLib.unset();
+
         emit CheckpointUpdated(
             blockNumber, _checkpoint.clearingPrice, _checkpoint.currencyRaisedQ96_X7, _checkpoint.cumulativeMps
         );
@@ -327,6 +330,8 @@ contract Auction is
         if (_checkpoint.remainingMpsInAuction() == 0) revert AuctionSoldOut();
         // We don't allow bids to be submitted at or below the clearing price
         if (maxPrice <= _checkpoint.clearingPrice) revert BidMustBeAboveClearingPrice();
+        // Reject bids which would cause TOTAL_SUPPLY * maxPrice to overflow a uint256
+        if (maxPrice > MAX_BID_PRICE) revert InvalidBidPriceTooHigh();
 
         _initializeTickIfNeeded(prevTickPrice, maxPrice);
 
@@ -577,7 +582,7 @@ contract Auction is
         Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
         // Cannot sweep currency if the auction has not graduated, as all of the Currency must be refunded
         if (!_isGraduated(finalCheckpoint)) revert NotGraduated();
-        _sweepCurrency(finalCheckpoint.currencyRaisedQ96_X7.scaleDownToUint256() >> FixedPoint96.RESOLUTION);
+        _sweepCurrency(_currencyRaised(finalCheckpoint));
     }
 
     /// @inheritdoc IAuction

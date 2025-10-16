@@ -13,15 +13,6 @@ contract MockAuction is Auction {
     {}
 
     /// @notice Wrapper around internal function for testing
-    function calculateNewClearingPrice(uint256 tickLowerPrice, uint256 sumCurrencyDemandAboveClearingQ96)
-        external
-        view
-        returns (uint256)
-    {
-        return _calculateNewClearingPrice(tickLowerPrice, sumCurrencyDemandAboveClearingQ96);
-    }
-
-    /// @notice Wrapper around internal function for testing
     function iterateOverTicksAndFindClearingPrice(Checkpoint memory checkpoint) external returns (uint256) {
         return _iterateOverTicksAndFindClearingPrice(checkpoint);
     }

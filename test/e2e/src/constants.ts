@@ -67,6 +67,7 @@ export const ERROR_MESSAGES = {
     "PERCENT_OF_SUPPLY can only be used for auctioned token (OUTPUT), not currency (INPUT)",
   EXPECTED_REVERT_NOT_FOUND: (expected: string, actual: string) =>
     `Expected revert data to contain "${expected}", but got: ${actual}`,
+  PREVIOUS_TICK_OR_TICK_PRICE_NOT_PROVIDED: "previousTick or prevTickPrice must be provided",
 
   // E2ECliRunner errors
   NO_INSTANCE_FOUND: (filePath: string) => `No instance found in ${filePath}`,

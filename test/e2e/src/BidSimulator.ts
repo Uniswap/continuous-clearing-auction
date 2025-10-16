@@ -218,7 +218,7 @@ export class BidSimulator {
     } else if (bidData.previousTick) {
       previousTickPrice = tickNumberToPriceX96(bidData.previousTick, floorPrice, tickSpacing);
     } else {
-      throw new Error("previousTick or prevTickPrice must be provided");
+      throw new Error(ERROR_MESSAGES.PREVIOUS_TICK_OR_TICK_PRICE_NOT_PROVIDED);
     }
 
     const amount = await this.calculateAmount(bidData.amount);
@@ -236,7 +236,7 @@ export class BidSimulator {
         .populateTransaction(price, amount, bidder, previousTickPrice, bidData.hookData || "0x");
     } else {
       // For native currency, send the required amount as msg.value
-      msg = `   Bidding with Native currency`;
+      msg = `   Bidding with Native currency. Price: ${price.toString()}, Amount: ${amount.toString()}, Previous Tick Price: ${previousTickPrice.toString()}`;
       tx = await this.auction
         .getFunction("submitBid(uint256,uint128,address,uint256,bytes)")
         .populateTransaction(price, amount, bidder, previousTickPrice, bidData.hookData || "0x", { value: amount });

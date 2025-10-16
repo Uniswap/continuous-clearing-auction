@@ -155,8 +155,11 @@ contract Temp is AuctionBaseTest {
                 if (_sweepEarly && expectReverts) {
                     vm.expectRevert();
                 }
-                mockAuction.exitBid(bidId2);
-                // mockAuction.exitPartiallyFilledBid(bidId2, bid2Check.startBlock, 0);
+                if(bid2Check.maxPrice > finalCheckpoint.clearingPrice) {
+                    mockAuction.exitBid(bidId2);
+                } else {
+                    mockAuction.exitPartiallyFilledBid(bidId2, bid2Check.startBlock, 0);
+                }
                 emit log_named_decimal_uint('Bid2 refund', bid2Check.owner.balance - ownerBalance, 18);
                 totalRefunded += bid2Check.owner.balance - ownerBalance;
             }
@@ -192,7 +195,13 @@ contract Temp is AuctionBaseTest {
             if (_sweepEarly && expectReverts) {
                 vm.expectRevert();
             }
-            mockAuction.claimTokens(bidId2);
+
+            if(bid2.tokensFilled > 0) {
+                emit log_string('Claiming tokens');
+                mockAuction.claimTokens(bidId2);
+            } else {
+                emit log_string('No tokens to claim');
+            }
 
             emit log_named_decimal_uint('B2 owner token balance', token.balanceOf(address(bid2.owner)), 18);
         }

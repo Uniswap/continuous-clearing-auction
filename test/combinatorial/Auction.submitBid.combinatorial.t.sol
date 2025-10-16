@@ -63,24 +63,27 @@ contract AuctionSubmitBidCombinatorialTest is AuctionBaseTest {
     // uint256 public constant FLOOR_PRICE = 1000 << FixedPoint96.RESOLUTION;
     // uint128 public constant TOTAL_SUPPLY = 1000e18;
     address public constant OTHER_BIDS_OWNER = address(0x1);
+    uint256 public constant MIN_BID_AMOUNT = 1;
+    uint256 public constant MAX_BID_AMOUNT = 100 ether;
+    uint256 public constant MAX_BID_PRICE = 100_000 ether;
 
     uint256 public usersBidId;
 
     function setUp() public {
         console.log('setUp0');
-        ctx.init(5);
+        ctx.init(1);
         ctx.defineSpace('method', 1, 0, uint256(Method.__length) - 1);
-        ctx.defineSpace('bidMaxPrice', 1, 1, BidLib.MAX_BID_PRICE); // Will be lower bound by the auction floor price
-        ctx.defineSpace('bidAmount', 1, BidLib.MIN_BID_AMOUNT, 100 ether); // MAX AMOUNT IS SUBJECT TO CHANGE
+        ctx.defineSpace('bidMaxPrice', 1, 1, MAX_BID_PRICE); // Will be lower bound by the auction floor price
+        ctx.defineSpace('bidAmount', 1, MIN_BID_AMOUNT, MAX_BID_AMOUNT); // MAX AMOUNT IS SUBJECT TO CHANGE
         ctx.defineSpace('bidOwner', 1, 0, uint256(type(uint160).max));
         ctx.defineSpace('bidCaller', 1, 0, uint256(type(uint160).max));
         ctx.defineSpace('blockStart', 1, 0, type(uint32).max); // uint32 to leave room for blockEnd which needs to be uint64
         ctx.defineSpace('auctionTickSpacing', 1, 1, uint64(type(uint64).max));
-        ctx.defineSpace('auctionFloorPrice', 1, 1, 100 ether /* BidLib.MAX_BID_PRICE */ );
+        ctx.defineSpace('auctionFloorPrice', 1, 1, MAX_BID_PRICE);
         ctx.defineSpace('auctionSteps', 1, 1, type(uint8).max);
         ctx.defineSpace('auctionStepsTime', 1, 0, type(uint8).max);
         ctx.defineSpace('blockNr', 1, 0, type(uint64).max); // The exact block number will be bound by the auction start and end block
-        ctx.defineSpace('previousBidAmount', 1, BidLib.MIN_BID_AMOUNT, type(uint64).max); // copied bounds from AuctionStepsBuilder.setUpBidsFuzz
+        ctx.defineSpace('previousBidAmount', 1, 1, type(uint64).max); // copied bounds from AuctionStepsBuilder.setUpBidsFuzz
         ctx.defineSpace('previousBidsPerTick', 1, 0, 10);
         ctx.defineSpace('previousBidStartTick', 1, 1, type(uint8).max - 55); // 55 IS AN ARBITRARY NUMBER Right NOW. GIVING SPACE FOR INCREMENTS.
         ctx.defineSpace('previousBidTickIncrement', 1, 0, 20); // 20 IS AN ARBITRARY NUMBER Right NOW.
@@ -112,6 +115,7 @@ contract AuctionSubmitBidCombinatorialTest is AuctionBaseTest {
                     tickSpacing: selections[uint256(SpaceIndices.auctionTickSpacing)],
                     validationHook: address(0),
                     floorPrice: selections[uint256(SpaceIndices.auctionFloorPrice)],
+                    requiredCurrencyRaised: 0,
                     auctionStepsData: auctionStepsData_
                 }),
                 numberOfSteps: uint8(numberOfSteps)
@@ -136,7 +140,7 @@ contract AuctionSubmitBidCombinatorialTest is AuctionBaseTest {
             uint256 previousBidsPerTick = selections[uint256(SpaceIndices.previousBidsPerTick)];
 
             FuzzBid memory bid = FuzzBid({
-                bidAmount: uint64(_bound(previousBidAmount, BidLib.MIN_BID_AMOUNT, type(uint64).max)),
+                bidAmount: uint64(_bound(previousBidAmount, MIN_BID_AMOUNT, type(uint64).max)),
                 tickNumber: previousBidStartTick // uint8(previousBidStartTick + previousBidTickIncrement)
             });
 
@@ -181,9 +185,9 @@ contract AuctionSubmitBidCombinatorialTest is AuctionBaseTest {
         address owner = address(uint160(selections[uint256(SpaceIndices.bidOwner)]));
         address caller = address(uint160(selections[uint256(SpaceIndices.bidCaller)]));
         uint256 tickSpacing = auction.tickSpacing();
-        uint256 bidAmount = selections[uint256(SpaceIndices.bidAmount)];
+        uint128 bidAmount = uint128(selections[uint256(SpaceIndices.bidAmount)]);
         uint256 maxPrice = helper__roundPriceDownToTickSpacing(
-            bound(selections[uint256(SpaceIndices.bidMaxPrice)], auction.floorPrice(), BidLib.MAX_BID_PRICE),
+            bound(selections[uint256(SpaceIndices.bidMaxPrice)], auction.floorPrice() + tickSpacing, MAX_BID_PRICE),
             tickSpacing
         );
         if (method == Method.submitBid) {
@@ -260,9 +264,9 @@ contract AuctionSubmitBidCombinatorialTest is AuctionBaseTest {
         address owner = address(uint160(selections[uint256(SpaceIndices.bidOwner)]));
         address caller = address(uint160(selections[uint256(SpaceIndices.bidCaller)]));
         uint256 tickSpacing = auction.tickSpacing();
-        uint256 bidAmount = selections[uint256(SpaceIndices.bidAmount)];
+        uint128 bidAmount = uint128(selections[uint256(SpaceIndices.bidAmount)]);
         uint256 maxPrice = helper__roundPriceDownToTickSpacing(
-            bound(selections[uint256(SpaceIndices.bidMaxPrice)], auction.floorPrice(), BidLib.MAX_BID_PRICE),
+            bound(selections[uint256(SpaceIndices.bidMaxPrice)], auction.floorPrice() + tickSpacing, MAX_BID_PRICE),
             tickSpacing
         );
 
@@ -291,7 +295,10 @@ contract AuctionSubmitBidCombinatorialTest is AuctionBaseTest {
         Method method = Method(method_);
         if (method == Method.submitBid) {
             assertEq(auction.nextBidId(), usersBidId + 1);
-            assertEq(auction.bids(usersBidId).amount, selections[uint256(SpaceIndices.bidAmount)]);
+            assertEq(
+                auction.bids(usersBidId).amountQ96 >> FixedPoint96.RESOLUTION,
+                selections[uint256(SpaceIndices.bidAmount)]
+            );
         }
     }
 

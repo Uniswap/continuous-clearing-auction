@@ -104,7 +104,7 @@ contract Temp is AuctionBaseTest {
         emit log_named_uint('Final checkpoint block', block.number);
 
         bool graduated = mockAuction.isGraduated();
-        uint256 raised = ValueX7.unwrap(finalCheckpoint.currencyRaisedQ96_X7);
+        uint256 raised = ValueX7.unwrap(mockAuction.currencyRaisedQ96_X7());
 
         emit log('==================== FINAL CHECKPOINT ====================');
         emit log_named_decimal_uint(

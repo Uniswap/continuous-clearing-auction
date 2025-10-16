@@ -84,11 +84,6 @@ contract AuctionInvariantHandler is Test, Assertions {
         // Check that the clearing price is always increasing
         assertGe(checkpoint.clearingPrice, _checkpoint.clearingPrice, 'Checkpoint clearing price is not increasing');
         // Check that the cumulative variables are always increasing
-        assertGe(
-            checkpoint.currencyRaisedQ96_X7,
-            _checkpoint.currencyRaisedQ96_X7,
-            'Checkpoint total currency raised is not increasing'
-        );
         assertGe(checkpoint.cumulativeMps, _checkpoint.cumulativeMps, 'Checkpoint cumulative mps is not increasing');
         assertGe(
             checkpoint.cumulativeMpsPerPrice,

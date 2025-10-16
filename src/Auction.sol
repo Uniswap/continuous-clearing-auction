@@ -58,6 +58,7 @@ contract Auction is
     /// @notice An optional hook to be called before a bid is registered
     IValidationHook internal immutable VALIDATION_HOOK;
 
+    ValueX7 internal $currencyRaisedQ96_X7;
     /// @notice The sum of currency demand in ticks above the clearing price
     /// @dev This will increase every time a new bid is submitted, and decrease when bids are outbid.
     uint256 internal $sumCurrencyDemandAboveClearingQ96;
@@ -91,10 +92,22 @@ contract Auction is
         _;
     }
 
+    /// @notice Modifier for claim related functions which can only be called after the claim block
+    modifier onlyAfterClaimBlock() {
+        if (block.number < CLAIM_BLOCK) revert NotClaimable();
+        _;
+    }
+
     /// @notice Modifier for functions which can only be called after the auction is started and the tokens have been received
     modifier onlyActiveAuction() {
         if (block.number < START_BLOCK) revert AuctionNotStarted();
         if (!$_tokensReceived) revert TokensNotReceived();
+        _;
+    }
+
+    /// @notice Modifier for functions which require the latest checkpoint to be up to date
+    modifier ensureCheckpointed() {
+        checkpoint();
         _;
     }
 
@@ -112,24 +125,24 @@ contract Auction is
 
     /// @inheritdoc IAuction
     function isGraduated() external view returns (bool) {
-        return _isGraduated(latestCheckpoint());
+        return _isGraduated();
     }
 
     /// @notice Whether the auction has graduated as of the given checkpoint
     /// @dev The auction is considered `graudated` if the currency raised is greater than or equal to the required currency raised
-    function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool) {
-        return _checkpoint.currencyRaisedQ96_X7.gte(REQUIRED_CURRENCY_RAISED_Q96.scaleUpToX7());
+    function _isGraduated() internal view returns (bool) {
+        return $currencyRaisedQ96_X7.gte(REQUIRED_CURRENCY_RAISED_Q96.scaleUpToX7());
     }
 
     /// @inheritdoc IAuction
     function currencyRaised() public view returns (uint256) {
-        return _currencyRaised(_getCheckpoint($lastCheckpointedBlock));
+        return _currencyRaised();
     }
 
-    /// @notice Return the currency raised as of the given checkpoint
+    /// @notice Return the currency raised in uint256 representations
     /// @return The currency raised
-    function _currencyRaised(Checkpoint memory _checkpoint) internal view returns (uint256) {
-        return _checkpoint.currencyRaisedQ96_X7.scaleDownToUint256() >> FixedPoint96.RESOLUTION;
+    function _currencyRaised() internal view returns (uint256) {
+        return $currencyRaisedQ96_X7.scaleDownToUint256() >> FixedPoint96.RESOLUTION;
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
@@ -143,7 +156,7 @@ contract Auction is
         returns (Checkpoint memory)
     {
         // Default assume that all demand is strictly above the clearing price
-        ValueX7 currencyRaisedQ96_X7 = ValueX7.wrap($sumCurrencyDemandAboveClearingQ96 * deltaMps);
+        ValueX7 currencyRaisedQ96_X7_ = ValueX7.wrap($sumCurrencyDemandAboveClearingQ96 * deltaMps);
 
         // There is a special case where the clearing price is at a tick boundary with bids.
         // In this case, we have to explicitly track the supply sold to that price since they are "partially filled"
@@ -153,22 +166,22 @@ contract Auction is
             uint256 clearingPriceRoundedDown = ClearingPriceRoundedDownLib.get();
 
             // Cache the previous value on the stack to avoid recalculating it
-            ValueX7 currencyRaisedAboveClearingPriceQ96_X7 = currencyRaisedQ96_X7;
+            ValueX7 currencyRaisedAboveClearingPriceQ96_X7 = currencyRaisedQ96_X7_;
 
             // We cannot use the rounded up price because it will inflate currencyRaised
             // So we use the rounded down price to bias against partially filled bids at `clearingPrice`
-            currencyRaisedQ96_X7 = ValueX7.wrap(TOTAL_SUPPLY).mulUint256(clearingPriceRoundedDown * deltaMps);
+            currencyRaisedQ96_X7_ = ValueX7.wrap(TOTAL_SUPPLY).mulUint256(clearingPriceRoundedDown * deltaMps);
 
             // From `iterateOverTicksAndFindClearingPrice` we know that $sumCurrencyDemandAboveClearingQ96 correctly tracks the demand above the `$nextActiveTickPrice`.
             // There cannot be bids at both the rounded down and rounded up prices, since tick spacing must be > 1.
             // Because of this, we know that there must be the same or more demand at the rounded down price than the rounded up price
             // which is why the following subtraction is safe.
             ValueX7 currencyRaisedAtClearingPriceQ96_X7 =
-                currencyRaisedQ96_X7.sub(currencyRaisedAboveClearingPriceQ96_X7);
+                currencyRaisedQ96_X7_.sub(currencyRaisedAboveClearingPriceQ96_X7);
             _checkpoint.currencyRaisedAtClearingPriceQ96_X7 =
                 _checkpoint.currencyRaisedAtClearingPriceQ96_X7.add(currencyRaisedAtClearingPriceQ96_X7);
         }
-        _checkpoint.currencyRaisedQ96_X7 = _checkpoint.currencyRaisedQ96_X7.add(currencyRaisedQ96_X7);
+        $currencyRaisedQ96_X7 = $currencyRaisedQ96_X7.add(currencyRaisedQ96_X7_);
         _checkpoint.cumulativeMps += deltaMps;
         // Calculate the harmonic mean of the mps and price (the sum of mps/price)
         // This uses the rounded up clearing price so bids purchase less tokens for higher prices
@@ -306,9 +319,7 @@ contract Auction is
         // Unset the rounded down price since we no longer need it
         ClearingPriceRoundedDownLib.unset();
 
-        emit CheckpointUpdated(
-            blockNumber, _checkpoint.clearingPrice, _checkpoint.currencyRaisedQ96_X7, _checkpoint.cumulativeMps
-        );
+        emit CheckpointUpdated(blockNumber, _checkpoint.clearingPrice, $currencyRaisedQ96_X7, _checkpoint.cumulativeMps);
     }
 
     /// @notice Return the final checkpoint of the auction
@@ -420,7 +431,7 @@ contract Auction is
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
         Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
-        if (!_isGraduated(finalCheckpoint)) {
+        if (!_isGraduated()) {
             // In the case that the auction did not graduate, fully refund the bid
             return _processExit(bidId, 0, 0);
         }
@@ -438,7 +449,6 @@ contract Auction is
         external
     {
         // Checkpoint before checking any of the hints because they could depend on the latest checkpoint
-        // Calling this function after the auction is over will return the final checkpoint
         Checkpoint memory currentBlockCheckpoint = checkpoint();
 
         Bid memory bid = _getBid(bidId);
@@ -528,9 +538,8 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function claimTokens(uint256 _bidId) external {
-        if (block.number < CLAIM_BLOCK) revert NotClaimable();
-        if (!_isGraduated(_getFinalCheckpoint())) revert NotGraduated();
+    function claimTokens(uint256 _bidId) external onlyAfterClaimBlock ensureCheckpointed {
+        if (!_isGraduated()) revert NotGraduated();
 
         (address owner, uint256 tokensFilled) = _internalClaimTokens(_bidId);
         Currency.wrap(address(TOKEN)).transfer(owner, tokensFilled);
@@ -539,9 +548,12 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function claimTokensBatch(address _owner, uint256[] calldata _bidIds) external {
-        if (block.number < CLAIM_BLOCK) revert NotClaimable();
-        if (!_isGraduated(_getFinalCheckpoint())) revert NotGraduated();
+    function claimTokensBatch(address _owner, uint256[] calldata _bidIds)
+        external
+        onlyAfterClaimBlock
+        ensureCheckpointed
+    {
+        if (!_isGraduated()) revert NotGraduated();
 
         uint256 tokensFilled = 0;
         for (uint256 i = 0; i < _bidIds.length; i++) {
@@ -576,20 +588,18 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function sweepCurrency() external onlyAfterAuctionIsOver {
+    function sweepCurrency() external onlyAfterAuctionIsOver ensureCheckpointed {
         // Cannot sweep if already swept
         if (sweepCurrencyBlock != 0) revert CannotSweepCurrency();
-        Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
         // Cannot sweep currency if the auction has not graduated, as all of the Currency must be refunded
-        if (!_isGraduated(finalCheckpoint)) revert NotGraduated();
-        _sweepCurrency(_currencyRaised(finalCheckpoint));
+        if (!_isGraduated()) revert NotGraduated();
+        _sweepCurrency(_currencyRaised());
     }
 
     /// @inheritdoc IAuction
-    function sweepUnsoldTokens() external onlyAfterAuctionIsOver {
+    function sweepUnsoldTokens() external onlyAfterAuctionIsOver ensureCheckpointed {
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
-        Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
-        _sweepUnsoldTokens(_isGraduated(finalCheckpoint) ? 0 : TOTAL_SUPPLY);
+        _sweepUnsoldTokens(_isGraduated() ? 0 : TOTAL_SUPPLY);
     }
 
     // Getters
@@ -601,6 +611,11 @@ contract Auction is
     /// @inheritdoc IAuction
     function validationHook() external view override(IAuction) returns (IValidationHook) {
         return VALIDATION_HOOK;
+    }
+
+    /// @inheritdoc IAuction
+    function currencyRaisedQ96_X7() external view override(IAuction) returns (ValueX7) {
+        return $currencyRaisedQ96_X7;
     }
 
     /// @inheritdoc IAuction

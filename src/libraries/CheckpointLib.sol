@@ -10,7 +10,6 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 struct Checkpoint {
     uint256 clearingPrice; // The X96 price which the auction is currently clearing at
-    ValueX7 currencyRaisedQ96_X7; // The actual currency raised (sold for tokens) so far in the auction
     ValueX7 currencyRaisedAtClearingPriceQ96_X7; // The tokens sold so far to this clearing price
     uint256 cumulativeMpsPerPrice; // A running sum of the ratio between mps and price
     uint24 cumulativeMps; // The number of mps sold in the auction so far (via the original supply schedule)

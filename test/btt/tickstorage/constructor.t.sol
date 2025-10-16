@@ -48,7 +48,7 @@ contract ConstructorTest is BttBase {
     {
         // it reverts with {FloorPriceAboveMaxBidPrice}
 
-        floorPrice = bound(_floorPrice, ConstantsLib.MAX_BID_PRICE, type(uint256).max);
+        floorPrice = bound(_floorPrice, ConstantsLib.MAX_BID_PRICE + 1, type(uint256).max);
         vm.expectRevert(ITickStorage. FloorPriceAboveMaxBidPrice.selector);
         new MockTickStorage(tickSpacing, floorPrice);
     }

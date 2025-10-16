@@ -253,6 +253,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         uint256 tickSpacing = params.tickSpacing;
         uint256 floorPrice = params.floorPrice;
 
+
         if (_tickNumber == 0) return floorPrice;
 
         uint256 maxPrice = ((floorPrice + (_tickNumber * tickSpacing)) / tickSpacing) * tickSpacing;
@@ -260,7 +261,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Find the first value above floorPrice that is a multiple of tickSpacing
         uint256 tickAboveFloorPrice = ((floorPrice / tickSpacing) + 1) * tickSpacing;
 
-        maxPrice = _bound(maxPrice, tickAboveFloorPrice, uint256(type(uint256).max));
+        maxPrice = _bound(maxPrice, tickAboveFloorPrice, type(uint256).max);
         maxPriceQ96 = maxPrice << FixedPoint96.RESOLUTION;
     }
 
@@ -272,7 +273,9 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     ) internal pure returns (uint256) {
         vm.assume(_totalSupply != 0 && _tickSpacing != 0 && _floorPrice != 0 && _maxPrice != 0);
         _maxPrice = _bound(_maxPrice, _floorPrice + _tickSpacing, type(uint256).max);
-        vm.assume(_maxPrice <= type(uint256).max / _totalSupply);
+        
+        // TODO(md): better to be a bound?
+        vm.assume(_maxPrice <= FixedPointMathLib.min(type(uint256).max / _totalSupply, ConstantsLib.MAX_BID_PRICE));
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, _tickSpacing);
         vm.assume(_maxPrice > _floorPrice && _maxPrice < type(uint256).max);
         return _maxPrice;

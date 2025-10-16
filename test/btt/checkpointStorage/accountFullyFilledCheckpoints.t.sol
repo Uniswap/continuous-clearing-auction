@@ -43,16 +43,18 @@ contract AccountFullyFilledCheckpointsTest is BttBase {
         uint256 cumulativeMpsPerPriceDelta = _upper.cumulativeMpsPerPrice - _startCheckpoint.cumulativeMpsPerPrice;
         uint256 cumulativeMpsDelta = _upper.cumulativeMps - _startCheckpoint.cumulativeMps;
 
+        uint256 q96Sqr = FixedPoint96.Q96 * FixedPoint96.Q96;
+
         // Simple maths in uint256. Allow 1 wei diff
         assertApproxEqAbs(
-            tokensFilled, _bid.amountQ96 * cumulativeMpsPerPriceDelta / (FixedPoint96.Q96 * left), 1, 'tokens filled'
+            tokensFilled, _bid.amountQ96 * cumulativeMpsPerPriceDelta / (q96Sqr * left), 1, 'tokens filled'
         );
         assertApproxEqAbs(currencySpent, _bid.amountQ96 * cumulativeMpsDelta / left, 1, 'currency spent');
 
         // Intermediate 512 bits.
         assertEq(
             tokensFilled,
-            FixedPointMathLib.fullMulDiv(_bid.amountQ96, cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * left),
+            FixedPointMathLib.fullMulDiv(_bid.amountQ96, cumulativeMpsPerPriceDelta, q96Sqr * left),
             'tokens filled'
         );
         assertEq(currencySpent, FixedPointMathLib.fullMulDivUp(_bid.amountQ96, cumulativeMpsDelta, left), 'currency spent');

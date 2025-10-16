@@ -17,7 +17,7 @@ contract CalculateFillTest is BttBase {
     }
 
     function test_WhenCalledWithParams(Bid memory _bid, uint256 _cumulativeMpsPerPriceDelta, uint24 _cumulativeMpsDelta)
-        external
+        external view
     {
         // it returns the tokens filled
         // it returns the currency spent
@@ -34,16 +34,18 @@ contract CalculateFillTest is BttBase {
         (uint256 tokensFilled, uint256 currencySpent) =
             mockCheckpointStorage.calculateFill(_bid, _cumulativeMpsPerPriceDelta, _cumulativeMpsDelta);
 
+        uint256 q96Sqr = FixedPoint96.Q96 * FixedPoint96.Q96;
+
         // Simple maths in uint256. Allow 1 wei diff
         assertApproxEqAbs(
-            tokensFilled, _bid.amountQ96 * _cumulativeMpsPerPriceDelta / (FixedPoint96.Q96 * left), 1, 'tokens filled'
+            tokensFilled, _bid.amountQ96 * _cumulativeMpsPerPriceDelta / (q96Sqr * left), 1, 'tokens filled'
         );
         assertApproxEqAbs(currencySpent, _bid.amountQ96 * _cumulativeMpsDelta / left, 1, 'currency spent');
 
         // Intermediate 512 bits.
         assertEq(
             tokensFilled,
-            FixedPointMathLib.fullMulDiv(_bid.amountQ96, _cumulativeMpsPerPriceDelta, FixedPoint96.Q96 * left),
+            FixedPointMathLib.fullMulDiv(_bid.amountQ96, _cumulativeMpsPerPriceDelta, q96Sqr * left),
             'tokens filled'
         );
         assertEq(

@@ -93,19 +93,40 @@ export const extendedInteraction: TestInteractionData = {
       bids: [],
     },
     {
-      address: "0x3333333333333333333333333333333333333333" as Address,
-      label: "ConservativeBidder",
-      recurringBids: [],
-      bids: [
+      address: "0x5555555555555555555555555555555555555555" as Address,
+      label: "SmallRepetitiveBidder",
+      recurringBids: [
         {
-          atBlock: 100900, // During wait period after 33% release
-          amount: { value: "4000000000000000000000" }, // 4,000 ETH at floor
+          startBlock: 100101,
+          intervalBlocks: 2,
+          occurrences: 800,
+          amount: { value: "1000000000000000000" }, // 1 ETH
           price: {
             type: PriceType.RAW,
             value: "6932464219998130000000000", // Floor price
           },
           prevTickPrice: "6932464219998130000000000",
         },
+      ],
+      bids: [],
+    },
+    {
+      address: "0x3333333333333333333333333333333333333333" as Address,
+      label: "ConservativeBidder",
+      recurringBids: [
+        {
+          startBlock: 100100,
+          intervalBlocks: 2,
+          occurrences: 800,
+          amount: { value: "3000000000000000000" }, // 3 ETH
+          price: {
+            type: PriceType.RAW,
+            value: "6932464219998130000000000", // Floor price
+          },
+          prevTickPrice: "6932464219998130000000000",
+        },
+      ],
+      bids: [
         {
           atBlock: 108050, // During wait
           amount: { value: "3000000000000000000000" }, // 3,000 ETH
@@ -168,7 +189,16 @@ export const extendedInteraction: TestInteractionData = {
             type: PriceType.RAW,
             value: "17469809834395287600000000",
           },
-          prevTickPrice: "9705449907997382000000000", // Hint at tick 140
+          prevTickPrice: "6932464219998130000000000", // Hint at tick 140
+        },
+        {
+          atBlock: 140004, // Late in auction
+          amount: { value: "4000000000000000000000" }, // 4,000 ETH
+          price: {
+            type: PriceType.RAW,
+            value: "18024406971995138000000000",
+          },
+          prevTickPrice: "6932464219998130000000000", // Hint at tick 140
         },
         {
           atBlock: 144016, // Final 27% release block
@@ -188,7 +218,7 @@ export const extendedInteraction: TestInteractionData = {
       interactions: [
         [
           {
-            atBlock: 144016,
+            atBlock: 144017,
             method: AdminActionMethod.CHECKPOINT,
           },
         ],

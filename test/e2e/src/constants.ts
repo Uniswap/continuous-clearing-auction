@@ -135,3 +135,9 @@ export const TYPE_FIELD = "type";
 export const PENDING_STATE = "pending";
 export const SETUP = "setup";
 export const INTERACTION = "interaction";
+
+export const EVENTS = {
+  BID_SUBMITTED: "BidSubmitted",
+  CHECKPOINT_UPDATED: "CheckpointUpdated",
+  BID_EXITED: "BidExited",
+};

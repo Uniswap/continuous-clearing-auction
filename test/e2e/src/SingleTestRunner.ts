@@ -12,9 +12,9 @@ import { BidSimulator, InternalBidData } from "./BidSimulator";
 import { AssertionEngine, AuctionState } from "./AssertionEngine";
 import { Contract, Interface } from "ethers";
 import { Network } from "hardhat/types";
-import { PERMIT2_ADDRESS, LOG_PREFIXES, ERROR_MESSAGES, METHODS, TYPES, PENDING_STATE } from "./constants";
+import { PERMIT2_ADDRESS, LOG_PREFIXES, ERROR_MESSAGES, METHODS, TYPES, PENDING_STATE, EVENTS } from "./constants";
 import { artifacts } from "hardhat";
-import { EventData, HashWithRevert, TransactionInfo, EventType, ActionData } from "./types";
+import { EventData, HashWithRevert, TransactionInfo, EventType, ActionData, TokenContract } from "./types";
 import { TransactionRequest } from "ethers";
 import { parseBoolean } from "./utils";
 import hre from "hardhat";
@@ -29,11 +29,26 @@ export interface TestResult {
   success: boolean;
 }
 
+interface BidInfo {
+  bidId: number;
+  owner: string;
+  maxPrice: bigint;
+  amount: bigint;
+}
+
+interface CheckpointInfo {
+  blockNumber: number;
+  clearingPrice: bigint;
+}
+
 export class SingleTestRunner {
   private network: Network;
   private schemaValidator: SchemaValidator;
   private deployer: AuctionDeployer;
   private cachedInterface: Interface | null = null;
+  private bidsByOwner: Map<string, BidInfo[]> = new Map(); // Track bid info per owner
+  private checkpoints: CheckpointInfo[] = []; // Track all checkpoints
+  private auction: Contract | null = null; // Store auction for bid tracking
 
   constructor() {
     this.network = hre.network;
@@ -83,6 +98,7 @@ export class SingleTestRunner {
     setupTransactions = [];
     // Create the auction
     const auction: Contract = await this.deployer.createAuction(setupData, setupTransactions);
+    this.auction = auction; // Store for bid tracking
 
     console.log(LOG_PREFIXES.AUCTION, "Auction deployed:", await auction.getAddress());
 
@@ -120,7 +136,7 @@ export class SingleTestRunner {
 
     // Mine to after the auction ends if needed to get accurate final state
     if (blockBeforeFinalState < auctionEndBlock) {
-      const blocksToMine = auctionEndBlock - blockBeforeFinalState;
+      const blocksToMine = auctionEndBlock - blockBeforeFinalState + 1;
       await hre.ethers.provider.send("hardhat_mine", [`0x${blocksToMine.toString(16)}`]);
     }
 
@@ -129,6 +145,17 @@ export class SingleTestRunner {
 
     console.log(LOG_PREFIXES.FINAL, "Test completed successfully!");
     console.log(LOG_PREFIXES.CONFIG, "Final state (at block", finalState.currentBlock + "):", finalState);
+
+    // Don't add final state as a checkpoint - only use checkpoints from actual events
+    // The contract only validates hints against stored checkpoints from CheckpointUpdated events
+
+    // Exit and claim all bids if auction graduated
+    if (finalState.isGraduated) {
+      await this.exitAndClaimAllBids(auction, setupData);
+    }
+
+    // Log balances for all funded accounts (after claiming)
+    await this.logAccountBalances(setupData, this.deployer, auctionedToken);
 
     return {
       setupData,
@@ -139,6 +166,278 @@ export class SingleTestRunner {
       finalState,
       success: true,
     };
+  }
+
+  /**
+   * Logs balances for all funded accounts showing initial vs final balances
+   */
+  private async logAccountBalances(
+    setupData: TestSetupData,
+    deployer: AuctionDeployer,
+    auctionedToken: TokenContract | null,
+  ): Promise<void> {
+    if (!setupData.env.balances || setupData.env.balances.length === 0) return;
+
+    console.log("\n📊 Account Balances Summary:");
+    console.log("============================");
+
+    // Collect unique addresses
+    const addresses = [...new Set(setupData.env.balances.map((b) => b.address))];
+
+    for (const address of addresses) {
+      console.log(`\n${address}:`);
+
+      // Get all initial balances for this address
+      const addressBalances = setupData.env.balances.filter((b) => b.address === address);
+
+      // Check each token they were funded with
+      for (const initialBalance of addressBalances) {
+        const tokenIdentifier = initialBalance.token;
+        const initialAmount = BigInt(initialBalance.amount);
+
+        let currentBalance: bigint;
+        let tokenSymbol: string;
+        let decimals = 18;
+
+        if (tokenIdentifier === "0x0000000000000000000000000000000000000000") {
+          // Native ETH
+          currentBalance = await hre.ethers.provider.getBalance(address);
+          tokenSymbol = "ETH";
+        } else {
+          // ERC20 token
+          const tokenContract = deployer.getTokenByName(tokenIdentifier);
+          if (tokenContract) {
+            currentBalance = await tokenContract.balanceOf(address);
+            tokenSymbol = await tokenContract.symbol();
+            decimals = Number(await tokenContract.decimals());
+          } else {
+            console.log(`  ⚠️  Token ${tokenIdentifier} not found`);
+            continue;
+          }
+        }
+
+        const difference = currentBalance - initialAmount;
+        const diffSymbol = difference >= 0n ? "+" : "";
+        const diffValue = Number(difference) / 10 ** decimals;
+
+        console.log(`  ${tokenSymbol}:`);
+        console.log(`    Initial: ${(Number(initialAmount) / 10 ** decimals).toFixed(6)}`);
+        console.log(`    Final:   ${(Number(currentBalance) / 10 ** decimals).toFixed(6)}`);
+        console.log(`    Diff:    ${diffSymbol}${diffValue.toFixed(6)}`);
+      }
+
+      // Also check auctioned token balance (tokens received from auction)
+      if (auctionedToken) {
+        const tokenBalance = await auctionedToken.balanceOf(address);
+        if (tokenBalance > 0n) {
+          const tokenSymbol = await auctionedToken.symbol();
+          const decimals = await auctionedToken.decimals();
+          console.log(`  ${tokenSymbol} (claimed from auction):`);
+          console.log(`    Balance: ${(Number(tokenBalance) / 10 ** Number(decimals)).toFixed(6)}`);
+        }
+      }
+    }
+
+    console.log("\n============================\n");
+  }
+
+  /**
+   * Exit and claim all bids for the auction
+   */
+  private async exitAndClaimAllBids(auction: Contract, setupData: TestSetupData): Promise<void> {
+    console.log("\n🎫 Exiting and claiming all bids...");
+
+    // Mine to claim block if needed
+    const currentBlock = await hre.ethers.provider.getBlockNumber();
+    const claimBlock =
+      parseInt(setupData.env.startBlock) +
+      setupData.auctionParameters.auctionDurationBlocks +
+      setupData.auctionParameters.claimDelayBlocks +
+      (setupData.env.offsetBlocks ?? 0);
+
+    if (currentBlock < claimBlock) {
+      const blocksToMine = claimBlock - currentBlock;
+      await hre.ethers.provider.send("hardhat_mine", [`0x${blocksToMine.toString(16)}`]);
+      console.log(`   Mined ${blocksToMine} blocks to reach claim block ${claimBlock}`);
+    }
+
+    // Sort checkpoints by block number for searching
+    const sortedCheckpoints = [...this.checkpoints].sort((a, b) => a.blockNumber - b.blockNumber);
+    const finalCheckpoint = sortedCheckpoints[sortedCheckpoints.length - 1];
+
+    console.log(
+      `   📊 ${sortedCheckpoints.length} checkpoints tracked, final clearing: ${
+        finalCheckpoint?.clearingPrice || "N/A"
+      }`,
+    );
+    console.log("Sorted checkpoints: ", sortedCheckpoints);
+    // Exit and claim for each owner
+    for (const [owner, bids] of this.bidsByOwner.entries()) {
+      if (bids.length === 0) continue;
+
+      console.log(`\n   ${owner}: ${bids.length} bid(s)`);
+
+      const shouldExitBid: Map<number, boolean> = new Map();
+      // Exit each bid first
+      for (const bid of bids) {
+        const bidId = bid.bidId;
+        const maxPrice = bid.maxPrice;
+
+        // Check if bid is above, at, or below final clearing price
+        if (maxPrice > finalCheckpoint.clearingPrice) {
+          // Bid is above final clearing - try simple exitBid first
+          try {
+            await auction.exitBid(bidId);
+            console.log(`     ✅ Exited bid ${bidId} (simple exit - above clearing)`);
+            continue; // Successfully exited, move to next bid
+          } catch (error) {
+            // Simple exit failed, fall through to try partial exit
+          }
+        }
+
+        // Try partial exit (for bids at/below clearing, or if simple exit failed)
+        try {
+          const hints = this.findCheckpointHints(maxPrice, sortedCheckpoints);
+          console.log("Exit partially filled bid params: ", bidId, hints?.lastFullyFilled, hints?.outbid);
+          if (hints) {
+            let tx = await auction.exitPartiallyFilledBid(bidId, hints.lastFullyFilled, hints.outbid);
+            console.log(
+              `     ✅ Exited bid ${bidId} (partial exit with hints: ${hints.lastFullyFilled}, ${hints.outbid})`,
+            );
+            const receipt = await hre.ethers.provider.getTransactionReceipt(tx.hash);
+            for (const log of receipt?.logs ?? []) {
+              const parsedLog = auction.interface.parseLog({
+                topics: log.topics,
+                data: log.data,
+              });
+              if (parsedLog?.name === EVENTS.BID_EXITED) {
+                if (parsedLog.args[2] > 0n) {
+                  shouldExitBid.set(bidId, true);
+                }
+              }
+            }
+          } else {
+            console.log(`     ⚠️  Could not find checkpoint hints for bid ${bidId} (price: ${maxPrice})`);
+          }
+        } catch (partialExitError) {
+          const errorMsg = partialExitError instanceof Error ? partialExitError.message : String(partialExitError);
+
+          console.log(`     ⚠️  Could not exit bid ${bidId}: ${errorMsg.substring(0, 100)}`);
+        }
+      }
+
+      // Claim all tokens in batch
+      const unfilteredBidIds = bids.map((b) => b.bidId);
+      const bidIds = unfilteredBidIds.filter((bidId) => shouldExitBid.get(bidId));
+      try {
+        await auction.claimTokensBatch(owner, bidIds);
+        console.log(`     ✅ Claimed tokens for all bids`);
+      } catch (error) {
+        console.log(`     ⚠️  Batch claim failed, trying individual claims...`);
+        // Fallback to individual claims
+        for (const bid of bids) {
+          const bidId = bid.bidId;
+          try {
+            await auction.claimTokens(bidId);
+            console.log(`     ✅ Claimed tokens for bid ${bidId}`);
+          } catch (e) {
+            const errorMsg = e instanceof Error ? e.message : String(e);
+            console.log(`     ⚠️  Could not claim bid ${bidId}: ${errorMsg.substring(0, 200)}`);
+          }
+        }
+      }
+    }
+
+    console.log();
+  }
+
+  /**
+   * Finds checkpoint hints for exiting a partially filled bid
+   * @param bidMaxPrice - The maximum price of the bid
+   * @param checkpoints - Sorted array of checkpoints
+   * @returns Object with lastFullyFilled and outbid block numbers, or null if not applicable
+   */
+  private findCheckpointHints(
+    bidMaxPrice: bigint,
+    checkpoints: CheckpointInfo[],
+  ): { lastFullyFilled: number; outbid: number } | null {
+    // Find lastFullyFilledCheckpoint: last checkpoint where clearingPrice < bidMaxPrice
+    let lastFullyFilledBlock = 0;
+    for (let i = checkpoints.length - 1; i >= 0; i--) {
+      if (checkpoints[i].clearingPrice < bidMaxPrice) {
+        lastFullyFilledBlock = checkpoints[i].blockNumber;
+        break;
+      }
+    }
+
+    // Find outbidBlock: first checkpoint where clearingPrice > bidMaxPrice
+    let outbidBlock = 0;
+    for (let i = 0; i < checkpoints.length; i++) {
+      const cp = checkpoints[i];
+      if (cp.clearingPrice > bidMaxPrice) {
+        outbidBlock = cp.blockNumber;
+        break;
+      }
+    }
+
+    // If we found a fully filled checkpoint but no outbid (bid partially filled at end)
+    // or if we found both, return the hints
+    if (lastFullyFilledBlock > 0 || outbidBlock > 0) {
+      return {
+        lastFullyFilled: lastFullyFilledBlock,
+        outbid: outbidBlock,
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Tracks bidIds and checkpoints from events in transaction receipts
+   */
+  private async trackBidIdsFromReceipts(receipts: any[], auction: Contract): Promise<void> {
+    let checkpointCount = 0;
+
+    for (const receipt of receipts) {
+      if (!receipt) continue;
+
+      for (const log of receipt.logs) {
+        try {
+          const parsedLog = auction.interface.parseLog({
+            topics: log.topics,
+            data: log.data,
+          });
+
+          if (parsedLog && parsedLog.name === EVENTS.BID_SUBMITTED) {
+            const bidId = Number(parsedLog.args[0]); // bidId
+            const owner = parsedLog.args[1]; // owner
+            const maxPrice = BigInt(parsedLog.args[2]); // maxPrice
+            const amount = BigInt(parsedLog.args[3]); // amount
+
+            const bidInfo: BidInfo = { bidId, owner, maxPrice, amount };
+
+            if (!this.bidsByOwner.has(owner)) {
+              this.bidsByOwner.set(owner, []);
+            }
+            this.bidsByOwner.get(owner)!.push(bidInfo);
+            console.log(`     📝 Tracked bid ${bidId} for ${owner} (price: ${maxPrice}, amount: ${amount})`);
+          } else if (parsedLog && parsedLog.name === EVENTS.CHECKPOINT_UPDATED) {
+            const blockNumber = Number(parsedLog.args[0]); // blockNumber
+            const clearingPrice = BigInt(parsedLog.args[1]); // clearingPrice
+
+            this.checkpoints.push({ blockNumber, clearingPrice });
+            checkpointCount++;
+          }
+        } catch (error) {
+          // Log parsing failed, continue
+          continue;
+        }
+      }
+    }
+
+    if (checkpointCount > 0) {
+      console.log(`     📊 ${checkpointCount} checkpoint(s) created`);
+    }
   }
 
   /**
@@ -376,7 +675,12 @@ export class SingleTestRunner {
       // Mine exactly one block containing all pending txs
       await provider.send(METHODS.EVM.MINE, []);
 
-      await this.validateReceipts(pendingHashes);
+      const receipts = await this.validateReceipts(pendingHashes);
+
+      // Track bidIds from BidSubmitted events
+      if (this.auction && receipts.length > 0) {
+        await this.trackBidIdsFromReceipts(receipts, this.auction);
+      }
     } finally {
       // Restore automining
       await provider.send(METHODS.EVM.SET_AUTOMINE, [true]);
@@ -444,8 +748,9 @@ export class SingleTestRunner {
   /**
    * Validates transaction receipts and checks for expected reverts.
    * @param pendingHashes - Array of transaction hashes with expected revert information
+   * @returns Array of receipts for further processing
    */
-  private async validateReceipts(pendingHashes: HashWithRevert[]): Promise<void> {
+  private async validateReceipts(pendingHashes: HashWithRevert[]): Promise<any[]> {
     // Collect receipts (all from the same block)
     const receipts = await Promise.all(pendingHashes.map((h) => hre.ethers.provider.getTransactionReceipt(h.hash)));
 
@@ -479,6 +784,8 @@ export class SingleTestRunner {
     if (receipts.length > 0) {
       console.log(LOG_PREFIXES.SUCCESS, "Mined", receipts.length, "txs in block", blockNumber);
     }
+
+    return receipts.filter((r) => r !== null);
   }
 
   /**

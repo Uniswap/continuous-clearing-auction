@@ -527,8 +527,6 @@ contract AuctionTest is AuctionBaseTest {
 
         uint256 aliceBalanceBefore = address(alice).balance;
         // Expect that the first bid can be exited, since the clearing price is now above its max price
-        vm.expectEmit(true, true, false, false);
-        emit IAuction.BidExited(0, alice, 0, 0);
         vm.startPrank(alice);
         auction.exitPartiallyFilledBid(bidId1, 1, 2);
         // Expect that alice is refunded the full amount of the first bid

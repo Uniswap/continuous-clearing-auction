@@ -31,11 +31,10 @@ abstract contract TickStorage is ITickStorage {
         if (_tickSpacing <= 1) revert TickSpacingTooSmall();
         TICK_SPACING = _tickSpacing;
         if (_floorPrice == 0) revert FloorPriceIsZero();
-        // Ensure the floor price is at a tick boundary
-        if (_floorPrice % TICK_SPACING != 0) revert TickPriceNotAtBoundary();
         FLOOR_PRICE = _floorPrice;
         // Initialize the floor price as the first tick
-        $_ticks[FLOOR_PRICE].next = MAX_TICK_PTR;
+        // _getTick will validate that it is also at a tick boundary
+        _getTick(FLOOR_PRICE).next = MAX_TICK_PTR;
         $nextActiveTickPrice = MAX_TICK_PTR;
         emit NextActiveTickUpdated(MAX_TICK_PTR);
         emit TickInitialized(FLOOR_PRICE);
@@ -48,7 +47,9 @@ abstract contract TickStorage is ITickStorage {
 
     /// @notice Internal function to get a tick at a price
     /// @dev The returned tick is not guaranteed to be initialized
-    function _getTick(uint256 price) internal view returns (Tick memory) {
+    function _getTick(uint256 price) internal view returns (Tick storage) {
+        // Validate `price` is at a boundary designated by the tick spacing
+        if (price % TICK_SPACING != 0) revert TickPriceNotAtBoundary();
         return $_ticks[price];
     }
 
@@ -60,16 +61,15 @@ abstract contract TickStorage is ITickStorage {
     /// @param prevPrice The price of the previous tick
     /// @param price The price of the tick
     function _initializeTickIfNeeded(uint256 prevPrice, uint256 price) internal {
-        // Validate `price` is at a boundary designated by the tick spacing
-        if (price % TICK_SPACING != 0) revert TickPriceNotAtBoundary();
         if (price == MAX_TICK_PTR) revert InvalidTickPrice();
-        Tick storage $newTick = $_ticks[price];
+        // _getTick will validate that `price` is at a boundary designated by the tick spacing
+        Tick storage $newTick = _getTick(price);
         // Early return if the tick is already initialized
         if ($newTick.next != 0) return;
         // Otherwise, we need to iterate through the linked list to find the correct position for the new tick
         // Require that `prevPrice` is less than `price` since we can only iterate forward
         if (prevPrice >= price) revert TickPreviousPriceInvalid();
-        uint256 nextPrice = $_ticks[prevPrice].next;
+        uint256 nextPrice = _getTick(prevPrice).next;
         // Revert if the next price is 0 as that means the `prevPrice` hint was not an initialized tick
         if (nextPrice == 0) revert TickPreviousPriceInvalid();
         // Move the `prevPrice` pointer up until its next pointer is a tick greater than or equal to `price`
@@ -78,11 +78,11 @@ abstract contract TickStorage is ITickStorage {
         // Iterating to find the tick right before `price` ensures that it is correctly positioned in the linked list.
         while (nextPrice < price) {
             prevPrice = nextPrice;
-            nextPrice = $_ticks[nextPrice].next;
+            nextPrice = _getTick(nextPrice).next;
         }
         // Update linked list pointers
         $newTick.next = nextPrice;
-        $_ticks[prevPrice].next = price;
+        _getTick(prevPrice).next = price;
         // If the next tick is the nextActiveTick, update nextActiveTick to the new tick
         // In the base case, where next == 0 and nextActiveTickPrice == 0, this will set nextActiveTickPrice to price
         if (nextPrice == $nextActiveTickPrice) {
@@ -97,8 +97,9 @@ abstract contract TickStorage is ITickStorage {
     /// @param price The price of the tick
     /// @param currencyDemandQ96 The demand to add
     function _updateTickDemand(uint256 price, uint256 currencyDemandQ96) internal {
-        Tick storage tick = $_ticks[price];
-        tick.currencyDemandQ96 += currencyDemandQ96;
+        Tick storage $tick = _getTick(price);
+        if ($tick.next == 0) revert CannotUpdateUninitializedTick();
+        $tick.currencyDemandQ96 += currencyDemandQ96;
     }
 
     // Getters
@@ -119,6 +120,6 @@ abstract contract TickStorage is ITickStorage {
 
     /// @inheritdoc ITickStorage
     function ticks(uint256 price) external view override(ITickStorage) returns (Tick memory) {
-        return $_ticks[price];
+        return _getTick(price);
     }
 }

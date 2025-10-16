@@ -161,12 +161,15 @@ contract Auction is
 
             // From `iterateOverTicksAndFindClearingPrice` we know that $sumCurrencyDemandAboveClearingQ96 correctly tracks the demand above the `$nextActiveTickPrice`.
             // There cannot be bids at both the rounded down and rounded up prices, since tick spacing must be > 1.
-            // Because of this, we know that there must be the same or more demand at the rounded down price than the rounded up price
-            // which is why the following subtraction is safe.
-            ValueX7 currencyRaisedAtClearingPriceQ96_X7 =
-                currencyRaisedQ96_X7.sub(currencyRaisedAboveClearingPriceQ96_X7);
-            _checkpoint.currencyRaisedAtClearingPriceQ96_X7 =
-                _checkpoint.currencyRaisedAtClearingPriceQ96_X7.add(currencyRaisedAtClearingPriceQ96_X7);
+            // However, it is possible that by rounding down the clearing price, the currency raised is less than
+            // the sumDemandAboveClearing. In this case, we just allocate all of the tokens to demand above the clearing price
+            // and zero to the clearing price.
+            if (currencyRaisedQ96_X7.gte(currencyRaisedAboveClearingPriceQ96_X7)) {
+                ValueX7 currencyRaisedAtClearingPriceQ96_X7 =
+                    currencyRaisedQ96_X7.sub(currencyRaisedAboveClearingPriceQ96_X7);
+                _checkpoint.currencyRaisedAtClearingPriceQ96_X7 =
+                    _checkpoint.currencyRaisedAtClearingPriceQ96_X7.add(currencyRaisedAtClearingPriceQ96_X7);
+            }
         }
         _checkpoint.currencyRaisedQ96_X7 = _checkpoint.currencyRaisedQ96_X7.add(currencyRaisedQ96_X7);
         _checkpoint.cumulativeMps += deltaMps;
@@ -442,9 +445,10 @@ contract Auction is
         Checkpoint memory currentBlockCheckpoint = checkpoint();
 
         Bid memory bid = _getBid(bidId);
+        if (bid.exitedBlock != 0) revert BidAlreadyExited();
+
         uint256 bidMaxPrice = bid.maxPrice;
         uint64 bidStartBlock = bid.startBlock;
-        if (bid.exitedBlock != 0) revert BidAlreadyExited();
 
         // If the provided hint is the current block, use the checkpoint returned by `checkpoint()` instead of getting it from storage
         Checkpoint memory lastFullyFilledCheckpoint = lastFullyFilledCheckpointBlock == block.number
@@ -524,7 +528,14 @@ contract Auction is
             currencySpentQ96 += partialCurrencySpentQ96;
         }
 
-        _processExit(bidId, tokensFilled, currencySpentQ96);
+        // If the auction is not graduated and the bid has tokens filled, it must be refunded
+        // when the bid is outbid before the auction ends, this allows the bidder to make a new bid
+        // when the auction ends with the clearing price equal to the bid's max price
+        if (tokensFilled > 0 && !_isGraduated(currentBlockCheckpoint)) {
+            _processExit(bidId, 0, 0);
+        } else {
+            _processExit(bidId, tokensFilled, currencySpentQ96);
+        }
     }
 
     /// @inheritdoc IAuction

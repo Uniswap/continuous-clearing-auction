@@ -6,6 +6,7 @@ import {Checkpoint} from '../../src/CheckpointStorage.sol';
 import {Tick} from '../../src/TickStorage.sol';
 import {AuctionParameters, IAuction} from '../../src/interfaces/IAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
+import {ITokenCurrencyStorage} from '../../src/interfaces/ITokenCurrencyStorage.sol';
 import {BidLib} from '../../src/libraries/BidLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {FixedPoint128} from '../../src/libraries/FixedPoint128.sol';
@@ -487,6 +488,11 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
             auction.sweepUnsoldTokens();
         } else {
             auction.sweepUnsoldTokens();
+            // Assert that all tokens were swept
+            assertEq(token.balanceOf(auction.tokensRecipient()), auction.totalSupply());
+            // Expect to revert when sweeping currency
+            vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+            auction.sweepCurrency();
         }
     }
 

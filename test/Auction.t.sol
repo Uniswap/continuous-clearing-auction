@@ -914,6 +914,94 @@ contract AuctionTest is AuctionBaseTest {
         vm.stopPrank();
     }
 
+    function test_exitPartiallyFilledBid_notGraduated_butOutbid_revertsWithNotGraduated() public {
+        // Never graduate
+        params = params.withRequiredCurrencyRaised(type(uint128).max);
+        Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(newAuction), TOTAL_SUPPLY);
+        newAuction.onTokensReceived();
+
+        uint256 bidId1 = newAuction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        // Have bidId purchase some tokens
+        vm.roll(block.number + 2);
+        // Now outbid bidId1
+        uint256 bidId2 = newAuction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3))}(
+            tickNumberToPriceX96(3),
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3)),
+            alice,
+            tickNumberToPriceX96(2),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        newAuction.checkpoint();
+
+        vm.expectEmit(true, true, true, true);
+        uint256 expectedTokensFilled = 0;
+        uint256 expectedCurrencyRefunded = inputAmountForTokens(100e18, tickNumberToPriceX96(2));
+        emit IAuction.BidExited(bidId1, alice, expectedTokensFilled, expectedCurrencyRefunded);
+        newAuction.exitPartiallyFilledBid(bidId1, 3, 4);
+
+        vm.roll(newAuction.endBlock());
+        vm.expectEmit(true, true, true, true);
+        expectedTokensFilled = 0;
+        expectedCurrencyRefunded = inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3));
+        emit IAuction.BidExited(bidId2, alice, expectedTokensFilled, expectedCurrencyRefunded);
+        newAuction.exitPartiallyFilledBid(bidId2, 3, 0);
+
+        vm.roll(newAuction.claimBlock());
+        vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+        newAuction.claimTokens(bidId1);
+        vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+        newAuction.claimTokens(bidId2);
+
+        // Expect all tokens were swept
+        vm.expectEmit(true, true, true, true);
+        emit ITokenCurrencyStorage.TokensSwept(newAuction.tokensRecipient(), TOTAL_SUPPLY);
+        newAuction.sweepUnsoldTokens();
+        assertEq(token.balanceOf(newAuction.tokensRecipient()), TOTAL_SUPPLY);
+
+        // Expect no currency was swept
+        vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+        newAuction.sweepCurrency();
+        assertEq(address(newAuction).balance, 0);
+    }
+
+    function test_exitPartiallyFilledBid_notGraudated_endOfAuction_revertsWithNotGraduated() public {
+        // Never graduate
+        params = params.withRequiredCurrencyRaised(type(uint128).max);
+        Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(newAuction), TOTAL_SUPPLY);
+        newAuction.onTokensReceived();
+
+        vm.roll(newAuction.startBlock());
+        // Price ends at 2
+        uint256 bidId = newAuction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(newAuction.endBlock());
+        Checkpoint memory finalCheckpoint = newAuction.checkpoint();
+        assertEq(finalCheckpoint.clearingPrice, tickNumberToPriceX96(2));
+
+        vm.expectEmit(true, true, true, true);
+        uint256 expectedTokensFilled = 0;
+        uint256 expectedCurrencyRefunded = inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2));
+        emit IAuction.BidExited(bidId, alice, expectedTokensFilled, expectedCurrencyRefunded);
+        newAuction.exitPartiallyFilledBid(bidId, 1, 0);
+    }
+
     function test_onTokensReceived_repeatedCall_succeeds() public {
         address bob = makeAddr('bob');
         uint256 balance = token.balanceOf(address(auction));

@@ -155,7 +155,7 @@ contract Temp is AuctionBaseTest {
                 if (_sweepEarly && expectReverts) {
                     vm.expectRevert();
                 }
-                if(bid2Check.maxPrice > finalCheckpoint.clearingPrice) {
+                if (bid2Check.maxPrice > finalCheckpoint.clearingPrice) {
                     mockAuction.exitBid(bidId2);
                 } else {
                     mockAuction.exitPartiallyFilledBid(bidId2, bid2Check.startBlock, 0);
@@ -196,7 +196,7 @@ contract Temp is AuctionBaseTest {
                 vm.expectRevert();
             }
 
-            if(bid2.tokensFilled > 0) {
+            if (bid2.tokensFilled > 0) {
                 emit log_string('Claiming tokens');
                 mockAuction.claimTokens(bidId2);
             } else {

@@ -8,8 +8,8 @@ import {Tick} from '../TickStorage.sol';
 interface ITickStorage {
     /// @notice Error thrown when the floor price is above the maximum bid price
     error FloorPriceAboveMaxBidPrice();
-    /// @notice Error thrown when the tick spacing is zero
-    error TickSpacingIsZero();
+    /// @notice Error thrown when the tick spacing is too small
+    error TickSpacingTooSmall();
     /// @notice Error thrown when the floor price is zero
     error FloorPriceIsZero();
     /// @notice Error thrown when the previous price hint is invalid (higher than the new price)
@@ -20,6 +20,8 @@ interface ITickStorage {
     error TickPriceNotAtBoundary();
     /// @notice Error thrown when the tick price is invalid
     error InvalidTickPrice();
+    /// @notice Error thrown when trying to update the demand of an uninitialized tick
+    error CannotUpdateUninitializedTick();
 
     /// @notice Emitted when a tick is initialized
     /// @param price The price of the tick

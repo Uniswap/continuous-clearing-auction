@@ -15,6 +15,7 @@ library AuctionParamsBuilder {
             startBlock: 0,
             endBlock: 0,
             claimBlock: 0,
+            requiredCurrencyRaised: 0,
             auctionStepsData: new bytes(0)
         });
     }
@@ -130,6 +131,15 @@ library AuctionParamsBuilder {
     {
         require(claimBlock <= type(uint64).max, 'claimBlock too large');
         params.claimBlock = uint64(claimBlock);
+        return params;
+    }
+
+    function withRequiredCurrencyRaised(AuctionParameters memory params, uint128 requiredCurrencyRaised)
+        internal
+        pure
+        returns (AuctionParameters memory)
+    {
+        params.requiredCurrencyRaised = requiredCurrencyRaised;
         return params;
     }
 

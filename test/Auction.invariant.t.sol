@@ -108,6 +108,7 @@ contract AuctionInvariantHandler is Test, Assertions {
     {
         tickNumber = uint8(_bound(tickNumber, 1, uint256(type(uint8).max)));
         uint256 tickNumberPrice = mockAuction.floorPrice() + tickNumber * mockAuction.tickSpacing();
+        vm.assume(clearingPrice + mockAuction.tickSpacing() < type(uint256).max / mockAuction.totalSupply());
         uint256 maxPrice = _bound(
             tickNumberPrice, clearingPrice + mockAuction.tickSpacing(), type(uint256).max / mockAuction.totalSupply()
         );
@@ -146,11 +147,11 @@ contract AuctionInvariantHandler is Test, Assertions {
     /// @notice Roll the block number
     function handleRoll(uint256 seed) public {
         // TODO(ez): Remove this once we have a better way to fuzz auction duration
-        if (seed % 88 == 0) vm.roll(block.number + 1);
+        if (seed % 888 == 0) vm.roll(block.number + 1);
     }
 
     function handleCheckpoint() public validateCheckpoint {
-        if (block.number > mockAuction.endBlock()) vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
+        if (block.number < mockAuction.startBlock()) vm.expectRevert(IAuction.AuctionNotStarted.selector);
         mockAuction.checkpoint();
     }
 
@@ -161,9 +162,12 @@ contract AuctionInvariantHandler is Test, Assertions {
         useActor(actorIndexSeed)
         validateCheckpoint
     {
-        // Bid requests for anything between 1 and 2x the total supply of tokens
-        uint128 amount = SafeCastLib.toUint128(_bound(bidAmount, 1, mockAuction.totalSupply() * 2));
-        (uint128 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(amount, _checkpoint.clearingPrice, tickNumber);
+        // If we are not at the start of the auction - lets roll forward to it
+        if (block.number < mockAuction.startBlock()) {
+            vm.roll(mockAuction.startBlock());
+        }
+
+        (uint128 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(bidAmount, _checkpoint.clearingPrice, tickNumber);
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
         } else {
@@ -187,7 +191,12 @@ contract AuctionInvariantHandler is Test, Assertions {
             } else if (inputAmount == 0) {
                 assertEq(revertData, abi.encodeWithSelector(IAuction.BidAmountTooSmall.selector));
                 metrics.cnt_BidAmountTooSmallError++;
-            } else if (prevTickPrice == 0) {
+            } else if (
+                // If the prevTickPrice is 0, it could maybe be a race that the clearing price has increased since the bid was placed
+                // This is handled in the else condition - so we exclude it here
+                prevTickPrice == 0
+                    && bytes4(revertData) != bytes4(abi.encodeWithSelector(IAuction.BidMustBeAboveClearingPrice.selector))
+            ) {
                 assertEq(revertData, abi.encodeWithSelector(ITickStorage.TickPriceNotIncreasing.selector));
                 metrics.cnt_TickPriceNotIncreasingError++;
             } else if (
@@ -232,7 +241,9 @@ contract AuctionInvariantTest is AuctionUnitTest {
     AuctionInvariantHandler public handler;
 
     function setUp() public {
-        setUpMockAuction();
+        setUpMockAuctionInvariant();
+
+        logFuzzDeploymentParams($deploymentParams);
 
         address[] memory actors = new address[](1);
         actors[0] = alice;
@@ -282,7 +293,7 @@ contract AuctionInvariantTest is AuctionUnitTest {
     }
 
     function invariant_canAlwaysCheckpointDuringAuction() public printMetrics {
-        if (block.number >= mockAuction.startBlock() && block.number < mockAuction.endBlock()) {
+        if (block.number >= mockAuction.startBlock() && block.number < mockAuction.claimBlock()) {
             mockAuction.checkpoint();
         }
     }

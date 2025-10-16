@@ -64,8 +64,6 @@ contract Auction is
     /// @notice Whether the TOTAL_SUPPLY of tokens has been received
     bool private $_tokensReceived;
 
-    ValueX7 internal $sumExtraCurrencyRaisedQ96_X7;
-
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
         AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
         TokenCurrencyStorage(
@@ -120,9 +118,7 @@ contract Auction is
     /// @notice Whether the auction has graduated as of the given checkpoint
     /// @dev The auction is considered `graudated` if the currency raised is greater than or equal to the required currency raised
     function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool) {
-        return _checkpoint.currencyRaisedQ96_X7.sub($sumExtraCurrencyRaisedQ96_X7).gte(
-            REQUIRED_CURRENCY_RAISED_Q96.scaleUpToX7()
-        );
+        return _checkpoint.currencyRaisedQ96_X7.gte(REQUIRED_CURRENCY_RAISED_Q96.scaleUpToX7());
     }
 
     /// @inheritdoc IAuction
@@ -131,25 +127,9 @@ contract Auction is
     }
 
     /// @notice Return the currency raised as of the given checkpoint
-    /// @dev This function subtracts the sumExtraCurrencyRaisedQ96_X7 from the currencyRaisedQ96_X7
-    ///      because the sumExtraCurrencyRaisedQ96_X7 is the accumulation of rounding errors from rounding up clearing prices
     /// @return The currency raised
     function _currencyRaised(Checkpoint memory _checkpoint) internal view returns (uint256) {
-        console.log('----- currencyRaised -----');
-        console.log(
-            'extra currency raised from rounding up',
-            $sumExtraCurrencyRaisedQ96_X7.scaleDownToUint256() >> FixedPoint96.RESOLUTION
-        );
-        if (_checkpoint.currencyRaisedQ96_X7.scaleDownToUint256() > 0) {
-            console.log(
-                'bps drift',
-                $sumExtraCurrencyRaisedQ96_X7.scaleDownToUint256().fullMulDiv(
-                    10_000, _checkpoint.currencyRaisedQ96_X7.scaleDownToUint256()
-                )
-            );
-        }
-        return _checkpoint.currencyRaisedQ96_X7.sub($sumExtraCurrencyRaisedQ96_X7).scaleDownToUint256()
-            >> FixedPoint96.RESOLUTION;
+        return _checkpoint.currencyRaisedQ96_X7.scaleDownToUint256() >> FixedPoint96.RESOLUTION;
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
@@ -167,27 +147,25 @@ contract Auction is
 
         // There is a special case where the clearing price is at a tick boundary with bids.
         // In this case, we have to explicitly track the supply sold to that price since they are "partially filled"
-        // and thus the amount of tokens sold to that price is <= to the collective demand at that price, since bidders at higher prices are prioritized.
         if (_checkpoint.clearingPrice % TICK_SPACING == 0 && _getTick(_checkpoint.clearingPrice).currencyDemandQ96 > 0)
         {
-            // In this case the currency raised is greater than $sumCurrencyDemandAboveClearingQ96 * deltaMps
-            // So we use the total supply and the clearing price to calculate the total currency raised
-            currencyRaisedQ96_X7 = ValueX7.wrap(TOTAL_SUPPLY).mulUint256(_checkpoint.clearingPrice * deltaMps);
-            // Update the cumulative value in the checkpoint which will be reset if the clearing price changes
-            _checkpoint.currencyRaisedAtClearingPriceQ96_X7 = _checkpoint.currencyRaisedAtClearingPriceQ96_X7.add(
-                currencyRaisedQ96_X7.sub(ValueX7.wrap($sumCurrencyDemandAboveClearingQ96 * deltaMps))
-            );
             // Get the transiently stored last clearing price rounded down
-            uint256 lastClearingPriceRoundedDown = ClearingPriceRoundedDownLib.get();
-            // If it is less than the current clearing price, the checkpoint's currencyRaised will be inflated due to the rounding of clearingPrice
-            // Thus we track the "carry" from this rounding in the $sumExtraCurrencyRaisedQ96_X7 state variable.
-            if (lastClearingPriceRoundedDown < _checkpoint.clearingPrice) {
-                $sumExtraCurrencyRaisedQ96_X7 = $sumExtraCurrencyRaisedQ96_X7.add(
-                    currencyRaisedQ96_X7.sub(
-                        ValueX7.wrap(TOTAL_SUPPLY).mulUint256(lastClearingPriceRoundedDown * deltaMps)
-                    )
-                );
-            }
+            uint256 clearingPriceRoundedDown = ClearingPriceRoundedDownLib.get();
+
+            // Cache the previous value on the stack to avoid recalculating it
+            ValueX7 currencyRaisedAboveClearingPriceQ96_X7 = currencyRaisedQ96_X7;
+
+            // The currencyRaised value must use the rounded down price to bias against the partially filled bids at `clearingPrice`
+            currencyRaisedQ96_X7 = ValueX7.wrap(TOTAL_SUPPLY).mulUint256(clearingPriceRoundedDown * deltaMps);
+
+            // From `iterateOverTicksAndFindClearingPrice` we know that $sumCurrencyDemandAboveClearingQ96 correctly tracks the demand above the `$nextActiveTickPrice`.
+            // There cannot be bids at both the rounded down and rounded up prices, since tick spacing must be > 1.
+            // Because of this, we know that there must be the same or more demand at the rounded down price than the rounded up price
+            // which is why the following subtraction is safe.
+            ValueX7 currencyRaisedAtClearingPriceQ96_X7 =
+                currencyRaisedQ96_X7.sub(currencyRaisedAboveClearingPriceQ96_X7);
+            _checkpoint.currencyRaisedAtClearingPriceQ96_X7 =
+                _checkpoint.currencyRaisedAtClearingPriceQ96_X7.add(currencyRaisedAtClearingPriceQ96_X7);
         }
         _checkpoint.currencyRaisedQ96_X7 = _checkpoint.currencyRaisedQ96_X7.add(currencyRaisedQ96_X7);
         _checkpoint.cumulativeMps += deltaMps;
@@ -324,6 +302,9 @@ contract Auction is
         _checkpoint = _sellTokensAtClearingPrice(_checkpoint, mpsSinceLastCheckpoint);
         // Insert the checkpoint into storage, updating latest pointer and the linked list
         _insertCheckpoint(_checkpoint, blockNumber);
+
+        // Unset the rounded down price since we no longer need it
+        ClearingPriceRoundedDownLib.unset();
 
         emit CheckpointUpdated(
             blockNumber, _checkpoint.clearingPrice, _checkpoint.currencyRaisedQ96_X7, _checkpoint.cumulativeMps
@@ -625,10 +606,5 @@ contract Auction is
     /// @inheritdoc IAuction
     function sumCurrencyDemandAboveClearingQ96() external view override(IAuction) returns (uint256) {
         return $sumCurrencyDemandAboveClearingQ96;
-    }
-
-    /// @inheritdoc IAuction
-    function sumExtraCurrencyRaisedQ96_X7() external view override(IAuction) returns (ValueX7) {
-        return $sumExtraCurrencyRaisedQ96_X7;
     }
 }

@@ -84,15 +84,9 @@ contract AuctionGraduationTest is AuctionBaseTest {
         auction.sweepCurrency();
 
         emit log_string('===== Auction is NOT graduated =====');
-        emit log_named_uint(
-            'this is wrong ---> currencyRaised in final checkpoint', expectedCurrencyRaisedFromCheckpoint
-        );
-        emit log_named_uint(
-            'extra currency raised from rounding up',
-            auction.sumExtraCurrencyRaisedQ96_X7().scaleDownToUint256() >> FixedPoint96.RESOLUTION
-        );
+        emit log_named_uint('currencyRaised in final checkpoint', expectedCurrencyRaisedFromCheckpoint);
         emit log_named_uint('balance before refunds', address(auction).balance);
-        emit log_named_uint('currencyRaised minus extra', expectedCurrencyRaised);
+        emit log_named_uint('currencyRaised', expectedCurrencyRaised);
         // Expected currency raised MUST always be less than or equal to the balance since it did not graduate
         assertLe(expectedCurrencyRaised, address(auction).balance);
         // Process refunds
@@ -212,15 +206,9 @@ contract AuctionGraduationTest is AuctionBaseTest {
             finalCheckpoint.currencyRaisedQ96_X7.scaleDownToUint256() >> FixedPoint96.RESOLUTION;
 
         emit log_string('===== Auction is NOT graduated =====');
-        emit log_named_uint(
-            'this is wrong ---> currencyRaised in final checkpoint', expectedCurrencyRaisedFromCheckpoint
-        );
-        emit log_named_uint(
-            'extra currency raised from rounding up',
-            auction.sumExtraCurrencyRaisedQ96_X7().scaleDownToUint256() >> FixedPoint96.RESOLUTION
-        );
+        emit log_named_uint('currencyRaised in final checkpoint', expectedCurrencyRaisedFromCheckpoint);
         emit log_named_uint('balance before refunds', address(auction).balance);
-        emit log_named_uint('currencyRaised minus extra', expectedCurrencyRaised);
+        emit log_named_uint('currencyRaised', expectedCurrencyRaised);
         // Expected currency raised MUST always be less than or equal to the balance since it did not graduate
         assertLe(expectedCurrencyRaised, address(auction).balance);
         // Process refunds

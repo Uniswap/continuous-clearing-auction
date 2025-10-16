@@ -108,6 +108,7 @@ contract AuctionInvariantHandler is Test, Assertions {
     {
         tickNumber = uint8(_bound(tickNumber, 1, uint256(type(uint8).max)));
         uint256 tickNumberPrice = mockAuction.floorPrice() + tickNumber * mockAuction.tickSpacing();
+        vm.assume(clearingPrice + mockAuction.tickSpacing() < type(uint256).max / mockAuction.totalSupply());
         uint256 maxPrice = _bound(
             tickNumberPrice, clearingPrice + mockAuction.tickSpacing(), type(uint256).max / mockAuction.totalSupply()
         );
@@ -292,9 +293,6 @@ contract AuctionInvariantTest is AuctionUnitTest {
     }
 
     function invariant_canAlwaysCheckpointDuringAuction() public printMetrics {
-        console.log('block.number', block.number);
-        console.log('mockAuction.startBlock()', mockAuction.startBlock());
-        console.log('mockAuction.claimBlock()', mockAuction.claimBlock());
         if (block.number >= mockAuction.startBlock() && block.number < mockAuction.claimBlock()) {
             mockAuction.checkpoint();
         }

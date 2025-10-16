@@ -10,15 +10,24 @@ library ClearingPriceRoundedDownLib {
     bytes32 internal constant CLEARING_PRICE_ROUNDED_DOWN_LIB_SLOT =
         0xd30d9d016cea51b92d32e1feb325eebcbc560bff2558b313e5da5b7e4021dc4f;
 
+    /// @notice Helper function to get the stored value
     function get() internal view returns (uint256 price) {
         assembly ("memory-safe") {
             price := tload(CLEARING_PRICE_ROUNDED_DOWN_LIB_SLOT)
         }
     }
 
+    /// @notice Helper function to set the stored value
     function set(uint256 price) internal {
         assembly ("memory-safe") {
             tstore(CLEARING_PRICE_ROUNDED_DOWN_LIB_SLOT, price)
+        }
+    }
+
+    /// @notice Helper function to unset the stored value
+    function unset() internal {
+        assembly ("memory-safe") {
+            tstore(CLEARING_PRICE_ROUNDED_DOWN_LIB_SLOT, 0)
         }
     }
 }

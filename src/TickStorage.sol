@@ -28,7 +28,7 @@ abstract contract TickStorage is ITickStorage {
     uint256 public constant MAX_TICK_PTR = type(uint256).max;
 
     constructor(uint256 _tickSpacing, uint256 _floorPrice) {
-        if (_tickSpacing == 0) revert TickSpacingIsZero();
+        if (_tickSpacing <= 1) revert TickSpacingTooSmall();
         TICK_SPACING = _tickSpacing;
         if (_floorPrice == 0) revert FloorPriceIsZero();
         // Ensure the floor price is at a tick boundary

@@ -205,11 +205,12 @@ contract AuctionFactoryTest is AuctionBaseTest {
         factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
     }
 
-    function test_initializeDistribution_withZeroTickSpacing_reverts() public {
-        params = params.withTickSpacing(0);
+    function test_initializeDistribution_withTickSpacingTooSmall_fuzz(uint256 _tickSpacing) public {
+        _tickSpacing = _bound(_tickSpacing, 0, 1);
+        params = params.withTickSpacing(_tickSpacing);
         bytes memory configData = abi.encode(params);
 
-        vm.expectRevert(ITickStorage.TickSpacingIsZero.selector);
+        vm.expectRevert(ITickStorage.TickSpacingTooSmall.selector);
         factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
     }
 

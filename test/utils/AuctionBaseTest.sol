@@ -109,8 +109,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         deploymentParams.numberOfSteps = _getRandomDivisorOfMPS();
 
         // TODO: these values are wrong - tick spacing too large
-        deploymentParams.auctionParams.floorPrice = uint128(_bound(uint256(vm.randomUint()), 1, type(uint128).max));
-        deploymentParams.auctionParams.tickSpacing = uint256(_bound(uint256(vm.randomUint()), 1, type(uint256).max));
+        deploymentParams.auctionParams.floorPrice = uint128(_bound(uint256(vm.randomUint()), 2, type(uint128).max));
+        deploymentParams.auctionParams.tickSpacing = uint256(_bound(uint256(vm.randomUint()), 2, type(uint256).max));
         _boundPriceParams(deploymentParams);
 
         // Set up the block numbers
@@ -168,10 +168,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     function _boundPriceParams(FuzzDeploymentParams memory _deploymentParams) private pure {
         // Bound tick spacing and floor price to reasonable values
         _deploymentParams.auctionParams.floorPrice =
-            _bound(_deploymentParams.auctionParams.floorPrice, 1, type(uint128).max);
+            _bound(_deploymentParams.auctionParams.floorPrice, 2, type(uint128).max);
         // Bound tick spacing to be less than or equal to floor price
         _deploymentParams.auctionParams.tickSpacing =
-            _bound(_deploymentParams.auctionParams.tickSpacing, 1, _deploymentParams.auctionParams.floorPrice);
+            _bound(_deploymentParams.auctionParams.tickSpacing, 2, _deploymentParams.auctionParams.floorPrice);
         // Round down floor price to the closest multiple of tick spacing
         _deploymentParams.auctionParams.floorPrice = helper__roundPriceDownToTickSpacing(
             _deploymentParams.auctionParams.floorPrice, _deploymentParams.auctionParams.tickSpacing

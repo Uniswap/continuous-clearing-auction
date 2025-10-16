@@ -89,7 +89,7 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         // tickDemandQ96 is a summation of bid effective amounts, so we must scale up the bid
         // by 1e7 and divide by `mpsRemainingInAuctionAfterSubmission` such that we can
         // apply the ratio of the bid demand to the tick demand to the currencyRaisedAtClearingPriceQ96_X7
-        ValueX7 currencySpentQ96_X7 = bid.amountQ96.scaleUpToX7().fullMulDiv(
+        ValueX7 currencySpentQ96_X7 = bid.amountQ96.scaleUpToX7().fullMulDivUp(
             currencyRaisedAtClearingPriceQ96_X7,
             ValueX7.wrap(tickDemandQ96 * bid.mpsRemainingInAuctionAfterSubmission())
         );
@@ -113,6 +113,11 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         returns (uint256 tokensFilled, uint256 currencySpentQ96)
     {
         uint24 mpsRemainingInAuctionAfterSubmission = bid.mpsRemainingInAuctionAfterSubmission();
+
+        // The currency spent is simply the original currency amount multiplied by the percentage of the auction which the bid was fully filled for
+        // and divided by the percentage of the auction which the bid was allocated over
+        currencySpentQ96 = bid.amountQ96.fullMulDivUp(cumulativeMpsDelta, mpsRemainingInAuctionAfterSubmission);
+
         // The tokens filled from the bid are calculated from its effective amount, not the raw amount in the Bid struct
         // As such, we need to multiply it by 1e7 and divide by `mpsRemainingInAuctionAfterSubmission`.
         // We also know that `cumulativeMpsPerPriceDelta` is over `mps` terms, and has not bee divided by 100% (1e7) yet.
@@ -121,9 +126,6 @@ abstract contract CheckpointStorage is ICheckpointStorage {
             cumulativeMpsPerPriceDelta,
             (FixedPoint96.Q96 << FixedPoint96.RESOLUTION) * mpsRemainingInAuctionAfterSubmission
         );
-        // The currency spent is simply the original currency amount multiplied by the percentage of the auction which the bid was fully filled for
-        // and divided by the percentage of the auction which the bid was allocated over
-        currencySpentQ96 = bid.amountQ96.fullMulDivUp(cumulativeMpsDelta, mpsRemainingInAuctionAfterSubmission);
     }
 
     /// @inheritdoc ICheckpointStorage

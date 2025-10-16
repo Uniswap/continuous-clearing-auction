@@ -7,6 +7,8 @@ import { advancedSetup } from "../instances/setup/AdvancedSetup";
 import { advancedInteraction } from "../instances/interaction/AdvancedInteraction";
 import { variationSetup } from "../instances/setup/VariationSetup";
 import { variationInteraction } from "../instances/interaction/VariationInteraction";
+import { extendedSetup } from "../instances/setup/ExtendedSetup";
+import { extendedInteraction } from "../instances/interaction/ExtendedInteraction";
 import { TestSetupData } from "../schemas/TestSetupSchema";
 import { TestInteractionData } from "../schemas/TestInteractionSchema";
 import { CombinationResult } from "../src/MultiTestRunner";
@@ -41,6 +43,13 @@ describe("E2E Tests", function () {
 
   it("should run variation setup and interaction (with random amounts and variance assertions)", async function () {
     const combinations = [{ setup: variationSetup, interaction: variationInteraction }];
+
+    await runTest(combinations);
+  });
+
+  it("should run extended testing parameters", async function () {
+    this.timeout(30000); // Longer timeout for large auction
+    const combinations = [{ setup: extendedSetup, interaction: extendedInteraction }];
 
     await runTest(combinations);
   });

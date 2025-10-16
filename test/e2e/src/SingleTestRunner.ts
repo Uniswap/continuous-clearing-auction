@@ -111,11 +111,24 @@ export class SingleTestRunner {
 
     console.log(LOG_PREFIXES.SUCCESS, "Bids executed and assertions validated successfully");
 
-    // Get final state
+    // Get final state at the end of the auction
+    const blockBeforeFinalState = await hre.ethers.provider.getBlockNumber();
+    const auctionEndBlock =
+      parseInt(setupData.env.startBlock) +
+      setupData.auctionParameters.auctionDurationBlocks +
+      (setupData.env.offsetBlocks ?? 0);
+
+    // Mine to after the auction ends if needed to get accurate final state
+    if (blockBeforeFinalState < auctionEndBlock) {
+      const blocksToMine = auctionEndBlock - blockBeforeFinalState;
+      await hre.ethers.provider.send("hardhat_mine", [`0x${blocksToMine.toString(16)}`]);
+    }
+
+    // Get final state as-is (without forcing a checkpoint)
     const finalState = await assertionEngine.getAuctionState();
 
     console.log(LOG_PREFIXES.FINAL, "Test completed successfully!");
-    console.log(LOG_PREFIXES.CONFIG, "Final state:", finalState);
+    console.log(LOG_PREFIXES.CONFIG, "Final state (at block", finalState.currentBlock + "):", finalState);
 
     return {
       setupData,

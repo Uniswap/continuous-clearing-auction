@@ -93,7 +93,7 @@ export interface AuctionConfig {
   startBlock: number;
   endBlock: number;
   claimBlock: number;
-  tickSpacing: number;
+  tickSpacing: number | bigint | string; // number for small values, bigint/string for large values
   validationHook: Address;
   floorPrice: string;
   auctionStepsData: string;

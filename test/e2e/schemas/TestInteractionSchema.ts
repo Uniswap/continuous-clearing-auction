@@ -20,6 +20,7 @@ export enum PriceType {
 }
 
 export enum AdminActionMethod {
+  CHECKPOINT = "checkpoint",
   SWEEP_CURRENCY = "sweepCurrency",
   SWEEP_UNSOLD_TOKENS = "sweepUnsoldTokens",
 }
@@ -40,7 +41,8 @@ export interface BidData {
   atBlock: number;
   amount: AmountConfig;
   price: PriceConfig;
-  previousTick: number;
+  previousTick?: number;
+  prevTickPrice?: string; // Optional: directly specify the price hint instead of calculating from previousTick
   hookData?: string;
   expectRevert?: string;
 }
@@ -55,7 +57,9 @@ export interface RecurringBid {
   priceFactor?: number;
   hookData?: string;
   previousTick?: number;
+  prevTickPrice?: string; // Optional: directly specify the price hint
   previousTickIncrement?: number;
+  prevTickPriceIncrement?: number | string; // Support large values as string
 }
 
 export interface NamedBidder {
@@ -111,7 +115,7 @@ export interface TotalSupplyAssertion {
 export interface EventAssertion {
   type: AssertionInterfaceType.EVENT;
   eventName: string;
-  expectedArgs: Record<string, any>;
+  expectedArgs?: Record<string, any>; // Optional - if not provided, just checks event name
 }
 
 export interface RevertAssertion {

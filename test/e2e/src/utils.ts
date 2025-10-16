@@ -24,14 +24,14 @@ export async function resolveTokenAddress(tokenIdentifier: string, auctionDeploy
 /**
  * Converts a tick number to a price in X96 format.
  * @param tickNumber - The tick number to convert
+ * @param floorPrice - The auction's floor price (already in Q96 format)
+ * @param tickSpacing - The auction's tick spacing
  * @returns The price in X96 format as a bigint
  */
-export function tickNumberToPriceX96(tickNumber: number): bigint {
-  // This mirrors the logic from AuctionBaseTest.sol
-  const FLOOR_PRICE = 1000n * 2n ** 96n; // 1000 * 2^96
-  const TICK_SPACING = 100n; // From our setup (matches Foundry test)
-
-  return ((FLOOR_PRICE >> 96n) + (BigInt(tickNumber) - 1n) * TICK_SPACING) << 96n;
+export function tickNumberToPriceX96(tickNumber: number, floorPrice: bigint, tickSpacing: bigint): bigint {
+  // Floor price is already in Q96, tick spacing is raw
+  // price = floorPrice + (tickNumber - 1) * tickSpacing
+  return floorPrice + (BigInt(tickNumber) - 1n) * tickSpacing;
 }
 
 /**
@@ -40,12 +40,19 @@ export function tickNumberToPriceX96(tickNumber: number): bigint {
  * @returns The calculated price as a bigint
  * @throws Error if price type is unsupported
  */
-export async function calculatePrice(priceConfig: PriceConfig): Promise<bigint> {
+export async function calculatePrice(
+  priceConfig: PriceConfig,
+  floorPrice?: bigint,
+  tickSpacing?: bigint,
+): Promise<bigint> {
   let value: bigint;
 
   if (priceConfig.type === PriceType.TICK) {
-    // Convert tick to actual price using the same logic as the Foundry tests
-    value = tickNumberToPriceX96(parseInt(priceConfig.value.toString()));
+    // Convert tick to actual price using the auction's parameters
+    if (!floorPrice || !tickSpacing) {
+      throw new Error("floorPrice and tickSpacing required for TICK price type");
+    }
+    value = tickNumberToPriceX96(parseInt(priceConfig.value.toString()), floorPrice, tickSpacing);
   } else {
     // Ensure the value is treated as a string to avoid scientific notation conversion
     value = BigInt(priceConfig.value.toString());

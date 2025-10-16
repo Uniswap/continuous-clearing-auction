@@ -5,21 +5,8 @@ import { TestInstance } from "./SchemaValidator";
 import { TestSetupData } from "../schemas/TestSetupSchema";
 import { TestInteractionData } from "../schemas/TestInteractionSchema";
 import { LOG_PREFIXES, ERROR_MESSAGES, SETUP, INTERACTION } from "./constants";
-
-// Import the actual TypeScript instances
-import { simpleSetup } from "../instances/setup/SimpleSetup";
-import { simpleInteraction } from "../instances/interaction/SimpleInteraction";
-import { erc20Setup } from "../instances/setup/ERC20Setup";
-import { erc20Interaction } from "../instances/interaction/ERC20Interaction";
-import { advancedSetup } from "../instances/setup/AdvancedSetup";
-import { advancedInteraction } from "../instances/interaction/AdvancedInteraction";
-
-// Define the combinations to run
-const COMBINATIONS_TO_RUN = [
-  { setup: simpleSetup, interaction: simpleInteraction },
-  { setup: erc20Setup, interaction: erc20Interaction },
-  { setup: advancedSetup, interaction: advancedInteraction },
-];
+import * as fs from "fs";
+import * as path from "path";
 
 interface CombinationToRun {
   setup: TestSetupData;
@@ -39,17 +26,26 @@ class E2ECliRunner {
   }
 
   /**
-   * Gets available setup and interaction files for testing.
-   * @returns Object containing arrays of available setup and interaction files
+   * Converts a test name to PascalCase filename.
+   * Examples: "simple" → "SimpleSetup", "erc20" → "ERC20Setup", "extended" → "ExtendedSetup"
    */
-  getAvailableFiles(): AvailableFiles {
-    const setupInstances = this.runner["singleTestRunner"]["schemaValidator"].getAllTestInstances(SETUP);
-    const interactionInstances = this.runner["singleTestRunner"]["schemaValidator"].getAllTestInstances(INTERACTION);
+  private toFileName(testName: string, type: "setup" | "interaction"): string {
+    const suffix = type === "setup" ? "Setup" : "Interaction";
+    // Capitalize first letter
+    const pascalName = testName.charAt(0).toUpperCase() + testName.slice(1);
+    return pascalName + suffix;
+  }
 
-    return {
-      setup: setupInstances.map((instance: TestInstance) => instance.filename),
-      interaction: interactionInstances.map((instance: TestInstance) => instance.filename),
-    };
+  /**
+   * Gets available test names by scanning the instances directory.
+   * @returns Array of test names (without Setup/Interaction suffix)
+   */
+  getAvailableTestNames(): string[] {
+    const setupDir = path.join(__dirname, "../instances/setup");
+    if (!fs.existsSync(setupDir)) return [];
+
+    const files = fs.readdirSync(setupDir);
+    return files.filter((file) => file.endsWith(".ts")).map((file) => file.replace(/Setup\.ts$/, "").toLowerCase());
   }
 
   /**
@@ -84,42 +80,54 @@ class E2ECliRunner {
 }
 
 /**
- * Loads test combinations from CLI arguments or returns predefined combinations.
+ * Loads test combinations from CLI arguments or returns all available tests.
+ * Test names can be provided without the "Setup" suffix (e.g., "simple", "extended").
+ * @param runner - The E2ECliRunner instance
  * @returns Array of combinations to run
  */
-async function loadCombinationsFromArgs(): Promise<CombinationToRun[]> {
-  const args = process.argv.slice(2);
+async function loadCombinationsFromArgs(runner: E2ECliRunner): Promise<CombinationToRun[]> {
+  const args = process.argv.slice(2).filter((arg) => !arg.startsWith("-")); // Filter out flags
+  const availableTests = runner.getAvailableTestNames();
 
   if (args.length === 0) {
-    // No arguments provided, use predefined combinations
-    console.log("📋 No arguments provided, using predefined combinations");
-    return COMBINATIONS_TO_RUN;
-  }
+    // No arguments provided, run all available tests
+    console.log("📋 No arguments provided, running all", availableTests.length, "available tests");
+    const combinations: CombinationToRun[] = [];
 
-  if (args.length % 2 !== 0) {
-    console.error("❌ Error: Arguments must be provided in pairs (setup interaction)");
-    console.log("Usage: npm run e2e:run [setup1 interaction1] [setup2 interaction2] ...");
-    process.exit(1);
+    for (const testName of availableTests) {
+      const setupFile = runner["toFileName"](testName, "setup");
+      const interactionFile = runner["toFileName"](testName, "interaction");
+
+      try {
+        const setup = loadInstanceFromFile(setupFile, SETUP);
+        const interaction = loadInstanceFromFile(interactionFile, INTERACTION);
+        combinations.push({ setup, interaction });
+      } catch (error) {
+        console.warn(LOG_PREFIXES.WARNING, `Skipping ${testName}: ${error}`);
+      }
+    }
+
+    return combinations;
   }
 
   const combinations: CombinationToRun[] = [];
 
-  for (let i = 0; i < args.length; i += 2) {
-    const setupFile = args[i];
-    const interactionFile = args[i + 1];
+  for (const testName of args) {
+    const normalizedName = testName.toLowerCase();
+
+    // Convert test name to file names
+    const setupFile = runner["toFileName"](normalizedName, "setup");
+    const interactionFile = runner["toFileName"](normalizedName, "interaction");
 
     try {
-      const setupData = loadInstanceFromFile(setupFile, SETUP);
-      const interactionData = loadInstanceFromFile(interactionFile, INTERACTION);
-
-      combinations.push({
-        setup: setupData,
-        interaction: interactionData,
-      });
-
-      console.log(LOG_PREFIXES.SUCCESS, "Loaded:", setupData.name, "+", interactionData.name);
+      const setup = loadInstanceFromFile(setupFile, SETUP);
+      const interaction = loadInstanceFromFile(interactionFile, INTERACTION);
+      combinations.push({ setup, interaction });
+      console.log(LOG_PREFIXES.SUCCESS, "Loaded test:", testName, "→", setup.name, "+", interaction.name);
     } catch (error) {
-      console.error(LOG_PREFIXES.ERROR, "Failed to load", setupFile, "+", interactionFile + ":", error);
+      console.error(LOG_PREFIXES.ERROR, "Failed to load test:", testName);
+      console.error(LOG_PREFIXES.ERROR, "Error:", error);
+      console.log("\n📝 Available tests:", availableTests.join(", "));
       process.exit(1);
     }
   }
@@ -128,38 +136,18 @@ async function loadCombinationsFromArgs(): Promise<CombinationToRun[]> {
 }
 
 /**
- * Loads a TypeScript instance from a file path.
- * @param filePath - The file path to load the instance from
+ * Loads a TypeScript instance from a file using the SchemaValidator.
+ * @param fileName - The file name to load (e.g., "SimpleSetup", "ExtendedInteraction")
  * @param type - The type of instance to load ("setup" or "interaction")
  * @returns The loaded test instance data
  * @throws Error if the file cannot be loaded or no instance is found
  */
-function loadInstanceFromFile(filePath: string, type: "setup"): TestSetupData;
-function loadInstanceFromFile(filePath: string, type: "interaction"): TestInteractionData;
-function loadInstanceFromFile(filePath: string, type: "setup" | "interaction"): TestSetupData | TestInteractionData {
-  // Remove .ts extension if present
-  const cleanPath = filePath.replace(/\.ts$/, "");
-
-  // Convert file path to require path
-  const requirePath = `../instances/${type}/${cleanPath}`;
-
-  try {
-    // TODO: find a way to avoid require
-    const module = require(requirePath);
-
-    // Find the exported instance (should be the default export or a named export)
-    const instance = module.default || module[cleanPath] || Object.values(module)[0];
-
-    if (!instance) {
-      throw new Error(ERROR_MESSAGES.NO_INSTANCE_FOUND(filePath));
-    }
-
-    return instance;
-  } catch (error) {
-    throw new Error(
-      ERROR_MESSAGES.FAILED_TO_LOAD_FILE(filePath, error instanceof Error ? error.message : String(error)),
-    );
-  }
+function loadInstanceFromFile(fileName: string, type: "setup"): TestSetupData;
+function loadInstanceFromFile(fileName: string, type: "interaction"): TestInteractionData;
+function loadInstanceFromFile(fileName: string, type: "setup" | "interaction"): TestSetupData | TestInteractionData {
+  const { SchemaValidator } = require("./SchemaValidator");
+  const validator = new SchemaValidator();
+  return validator.loadTestInstance(type, fileName);
 }
 
 /**
@@ -173,14 +161,12 @@ async function main(): Promise<void> {
   console.log(LOG_PREFIXES.RUN, "TWAP Auction E2E Test Runner");
   console.log("================================");
 
-  // Show available files
-  const availableFiles = runner.getAvailableFiles();
-  console.log("\n", LOG_PREFIXES.FILES, "Available files:");
-  console.log("   Setup files:", availableFiles.setup.join(", "));
-  console.log("   Interaction files:", availableFiles.interaction.join(", "));
+  // Show available tests
+  const availableTests = runner.getAvailableTestNames();
+  console.log("\n📝 Available tests:", availableTests.join(", "));
 
-  // Load combinations from CLI arguments or use predefined ones
-  const combinationsToRun = await loadCombinationsFromArgs();
+  // Load combinations from CLI arguments or use all available
+  const combinationsToRun = await loadCombinationsFromArgs(runner);
 
   // Run the specified combinations
   console.log(LOG_PREFIXES.INFO, "Running", combinationsToRun.length, "specified combinations...");
@@ -211,15 +197,18 @@ async function main(): Promise<void> {
 
 // Show usage information
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
-  console.log("\n📖 Usage:");
-  console.log("  npx ts-node test/e2e/src/CombinationRunner.ts");
-  console.log("  npx ts-node test/e2e/src/CombinationRunner.ts --setup <setup-file> --interaction <interaction-file>");
-  console.log("\n", LOG_PREFIXES.FILES, "Examples:");
-  console.log("  npx ts-node test/e2e/src/CombinationRunner.ts");
-  console.log(
-    "  npx ts-node test/e2e/src/CombinationRunner.ts --setup SimpleSetup.ts --interaction SimpleInteraction.ts",
-  );
-  console.log("\n", LOG_PREFIXES.NOTE, " Note: Only run compatible setup/interaction combinations!");
+  console.log("\n📖 E2E CLI Test Runner");
+  console.log("======================\n");
+  console.log("Usage:");
+  console.log("  npm run e2e:run [test1] [test2] ...");
+  console.log("  npm run e2e:run                    (runs all tests)\n");
+  console.log("Examples:");
+  console.log("  npm run e2e:run extended              (run just Extended test)");
+  console.log("  npm run e2e:run simple erc20       (run Simple and ERC20 tests)");
+  console.log("  npm run e2e:run                    (run all available tests)");
+  console.log("  npm run e2e:run extended > log.txt    (save output to file)\n");
+  console.log("Test names are auto-discovered from test/e2e/instances/");
+  console.log("Each test loads matching Setup + Interaction files.");
   process.exit(0);
 }
 

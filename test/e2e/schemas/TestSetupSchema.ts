@@ -38,7 +38,7 @@ export interface AuctionParameters {
   fundsRecipient: Address;
   auctionDurationBlocks: number;
   claimDelayBlocks: number;
-  tickSpacing: number;
+  tickSpacing: number | bigint | string; // number for small values, bigint/string for large values
   validationHook: Address;
   floorPrice: string;
   auctionStepsData?: string | StepData[]; // Optional: raw hex string or array of steps

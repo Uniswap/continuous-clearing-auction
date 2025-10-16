@@ -119,7 +119,7 @@ export class BidSimulator {
             }
 
             if (recurringBid.priceFactor && i > 0) {
-              const factor = Math.pow(recurringBid.priceFactor, i);
+              const factor = recurringBid.priceFactor * i;
               // Use BigInt arithmetic to avoid scientific notation conversion
               const originalValue = BigInt(recurringBid.price.value.toString());
               const factorScaled = Math.floor(factor * 1000000); // Scale factor to avoid decimals
@@ -137,11 +137,24 @@ export class BidSimulator {
                 atBlock: blockNumber,
                 amount: adjustedAmount,
                 price: adjustedPrice,
-                previousTick: (recurringBid.previousTick || 0) + (recurringBid.previousTickIncrement || 0) * i,
                 hookData: recurringBid.hookData,
                 expectRevert: undefined,
               },
             };
+            if (recurringBid.previousTick) {
+              internalBid.bidData.previousTick =
+                recurringBid.previousTick + (recurringBid.previousTickIncrement || 0) * i;
+            }
+            if (recurringBid.prevTickPrice) {
+              // Handle prevTickPriceIncrement as number or string (for huge values)
+              const basePrevTickPrice = BigInt(recurringBid.prevTickPrice);
+              const increment = recurringBid.prevTickPriceIncrement
+                ? typeof recurringBid.prevTickPriceIncrement === "string"
+                  ? BigInt(recurringBid.prevTickPriceIncrement)
+                  : BigInt(recurringBid.prevTickPriceIncrement)
+                : 0n;
+              internalBid.bidData.prevTickPrice = (basePrevTickPrice + increment * BigInt(i)).toString();
+            }
             bids.push(internalBid);
           }
         });
@@ -194,12 +207,22 @@ export class BidSimulator {
     const bidData = bid.bidData;
     const bidder = bid.bidder;
 
-    // For the first bid, use tick 1 as prevTickPrice (floor price)
-    // For subsequent bids, we use the previous tick
-    let previousTickPrice: bigint = tickNumberToPriceX96(bidData.previousTick);
+    // Calculate from tick number
+    const floorPrice = await this.auction.floorPrice();
+    const tickSpacing = await this.auction.tickSpacing();
+    // Use prevTickPrice if provided, otherwise calculate from previousTick
+    let previousTickPrice: bigint;
+    if (bidData.prevTickPrice) {
+      // Direct price hint provided
+      previousTickPrice = BigInt(bidData.prevTickPrice);
+    } else if (bidData.previousTick) {
+      previousTickPrice = tickNumberToPriceX96(bidData.previousTick, floorPrice, tickSpacing);
+    } else {
+      throw new Error("previousTick or prevTickPrice must be provided");
+    }
 
     const amount = await this.calculateAmount(bidData.amount);
-    const price = await calculatePrice(bidData.price);
+    const price = await calculatePrice(bidData.price, floorPrice, tickSpacing);
 
     if (this.currency) {
       await this.grantPermit2Allowances(this.currency, bidder, transactionInfos);
@@ -400,7 +423,11 @@ export class BidSimulator {
   async executeAdminActions(adminInteractions: AdminAction[], transactionInfos: TransactionInfo[]): Promise<void> {
     console.log(LOG_PREFIXES.INFO, "Executing admin actions:", adminInteractions);
     for (const interaction of adminInteractions) {
-      if (interaction.method === AdminActionMethod.SWEEP_CURRENCY) {
+      if (interaction.method === AdminActionMethod.CHECKPOINT) {
+        let tx = await this.auction.getFunction("checkpoint").populateTransaction();
+        let msg = `   Creating checkpoint`;
+        transactionInfos.push({ tx, from: null, msg });
+      } else if (interaction.method === AdminActionMethod.SWEEP_CURRENCY) {
         let tx = await this.auction.getFunction("sweepCurrency").populateTransaction();
         let msg = `   Sweeping currency`;
         transactionInfos.push({ tx, from: null, msg });

@@ -44,7 +44,7 @@ export const advancedSetup: TestSetupData = {
     fundsRecipient: "0x4444444444444444444444444444444444444444" as Address,
     auctionDurationBlocks: 100,
     claimDelayBlocks: 20,
-    tickSpacing: 200,
+    tickSpacing: "396140812571321687967719751680",
     validationHook: "0x0000000000000000000000000000000000000000" as Address,
     floorPrice: "79228162514264337593543950336000",
   },

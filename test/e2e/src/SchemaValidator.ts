@@ -36,6 +36,33 @@ export class SchemaValidator {
   }
 
   /**
+   * Converts a filename or test name to the expected export name (camelCase).
+   * @param filename - The filename or test name to convert
+   * @param type - The type of instance ("setup" or "interaction")
+   * @returns The expected export name in camelCase format
+   * @example
+   * toExportName("SimpleSetup", "setup") → "simpleSetup"
+   * toExportName("ERC20Setup", "setup") → "erc20Setup"
+   * toExportName("simple", "setup") → "simpleSetup"
+   * toExportName("extended", "setup") → "extendedSetup"
+   */
+  private toExportName(filename: string, type: "setup" | "interaction"): string {
+    // Remove .ts extension if present
+    let name = filename.replace(/\.ts$/, "");
+
+    // If it doesn't end with Setup/Interaction, add it
+    if (type === "setup" && !name.endsWith("Setup")) {
+      // Capitalize first letter: "simple" → "Simple", "erc20" → "Erc20"
+      name = name.charAt(0).toUpperCase() + name.slice(1) + "Setup";
+    } else if (type === "interaction" && !name.endsWith("Interaction")) {
+      name = name.charAt(0).toUpperCase() + name.slice(1) + "Interaction";
+    }
+
+    // Convert to camelCase: "SimpleSetup" → "simpleSetup", "ERC20Setup" → "erc20Setup"
+    return name.charAt(0).toLowerCase() + name.slice(1);
+  }
+
+  /**
    * Loads a TypeScript instance from a file using ts-node.
    * @param type - Type of test instance ("setup" or "interaction")
    * @param filename - Name of the file to load
@@ -60,19 +87,9 @@ export class SchemaValidator {
       // TODO: find a way to avoid require
       const module = require(modulePath);
 
-      // Try different export patterns - convert filename to camelCase and PascalCase
-      const camelCaseFilename =
-        filename.charAt(0).toLowerCase() + filename.slice(1).replace(/-([a-z])/g, (g) => g[1].toUpperCase());
-      const pascalCaseFilename =
-        filename.charAt(0).toUpperCase() + filename.slice(1).replace(/-([a-z])/g, (g) => g[1].toUpperCase());
-      const data =
-        module[filename] ||
-        module[camelCaseFilename] ||
-        module[pascalCaseFilename] ||
-        module.default ||
-        module[`${filename}Setup`] ||
-        module[`${filename}Data`] ||
-        module[`${filename}Interaction`];
+      // Get the expected export name using the new conversion
+      const exportName = this.toExportName(filename, type);
+      const data = module[exportName] || module.default;
 
       if (!data) {
         throw new Error(ERROR_MESSAGES.NO_EXPORT_FOUND(filename, Object.keys(module).join(", ")));

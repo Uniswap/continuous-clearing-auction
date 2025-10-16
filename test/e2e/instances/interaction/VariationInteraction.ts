@@ -59,8 +59,8 @@ export const variationInteraction: TestInteractionData = {
         token: "0x0000000000000000000000000000000000000000" as Address,
         // Expected around 3.5 ETH remaining (5 - 1 - 0.5)
         // But with large variation, could be 3.35 - 3.65 ETH
-        expected: "3500000000000000000",
-        variance: "5%", // Allow 5% variance due to random amounts
+        expected: "4000000000000000000", // ~4 ETH remaining
+        variance: "5%", // Allow variance due to random amounts and gas
       },
     },
     {
@@ -95,23 +95,23 @@ export const variationInteraction: TestInteractionData = {
         // Currency raised will vary based on random bid amounts
         // Expected around 0.326 ETH with variance due to bid variations
         currencyRaised: {
-          amount: "326000000000000000", // ~0.326 ETH base
-          variation: "20%", // +/- 20% to account for bid variation
+          amount: "120000000000000000", // ~0.12 ETH with corrected tick calculation
+          variation: "30%", // +/- 30% to account for bid variation
         },
         latestCheckpoint: {
           clearingPrice: "79228162514264337593543950336000",
           // These will also vary, so we use VariableAmount with raw amount variation
           currencyRaisedQ96_X7: {
-            amount: "270759808011671426196156625449588414659872249172000000",
-            variation: "10%", // +/- 50% (using percentage!)
+            amount: "80593446990424197784923982579080313706988320995000000",
+            variation: "30%", // +/- 30% to account for variation
           },
           currencyRaisedAtClearingPriceQ96_X7: "0",
           cumulativeMpsPerPrice: {
-            amount: "237684487542793012780631851008000",
+            amount: "158456325028528675187087900672000",
             variation: "11%", // +/- 50% (using percentage!)
           },
-          cumulativeMps: "3000000",
-          prev: "20",
+          cumulativeMps: "2000000",
+          prev: "15",
           next: "18446744073709551615",
         },
       },

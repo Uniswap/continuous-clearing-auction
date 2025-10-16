@@ -310,7 +310,10 @@ export class AuctionDeployer {
       startBlock: Number(startBlock),
       endBlock: Number(endBlock),
       claimBlock: Number(claimBlock),
-      tickSpacing: Number(auctionParameters.tickSpacing),
+      tickSpacing:
+        typeof auctionParameters.tickSpacing === "string"
+          ? BigInt(auctionParameters.tickSpacing)
+          : auctionParameters.tickSpacing,
       validationHook: auctionParameters.validationHook,
       floorPrice: auctionParameters.floorPrice,
       auctionStepsData: auctionStepsData,

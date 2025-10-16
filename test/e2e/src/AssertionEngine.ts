@@ -22,6 +22,7 @@ export interface AuctionState {
   clearingPrice: bigint;
   currencyRaised: bigint;
   latestCheckpoint: CheckpointStruct;
+  currentBlock: number;
 }
 
 export interface BidderState {
@@ -161,7 +162,12 @@ export class AssertionEngine {
         ),
       );
     }
-    console.log(LOG_PREFIXES.SUCCESS, "Assertion validated (within variance of", variance + ")");
+    // Log actual balance for visibility
+    const tokenSymbol = resolvedTokenAddress === ZERO_ADDRESS ? "ETH" : "tokens";
+    console.log(
+      LOG_PREFIXES.SUCCESS,
+      `Assertion validated (within variance of ${variance}). Actual balance: ${actualBalance.toString()} ${tokenSymbol}`,
+    );
   }
 
   /**
@@ -344,7 +350,10 @@ export class AssertionEngine {
    * @param expectedArgs - Object containing expected argument values
    * @returns True if all expected arguments are found in the actual arguments, false otherwise
    */
-  private checkEventArguments(actualArgs: any, expectedArgs: Record<string, any>): boolean {
+  private checkEventArguments(actualArgs: any, expectedArgs?: Record<string, any>): boolean {
+    if (!expectedArgs || Object.keys(expectedArgs).length === 0) {
+      return true; // No args to check, just event name match is enough
+    }
     for (const [, expectedValue] of Object.entries(expectedArgs)) {
       let contains = false;
       softMatchLoop: for (let i = 0; i < actualArgs.length; i++) {
@@ -362,14 +371,15 @@ export class AssertionEngine {
 
   /**
    * Retrieves the current auction state from the contract.
-   * @returns AuctionState object containing isGraduated, clearingPrice, currencyRaised, and latestCheckpoint
+   * @returns AuctionState object containing isGraduated, clearingPrice, currencyRaised, latestCheckpoint, and currentBlock
    */
   async getAuctionState(): Promise<AuctionState> {
-    const [isGraduated, clearingPrice, currencyRaised, latestCheckpoint] = await Promise.all([
+    const [isGraduated, clearingPrice, currencyRaised, latestCheckpoint, currentBlock] = await Promise.all([
       this.auction.isGraduated(),
       this.auction.clearingPrice(),
       this.auction.currencyRaised(),
       this.auction.latestCheckpoint(),
+      hre.ethers.provider.getBlockNumber(),
     ]);
 
     return {
@@ -377,6 +387,7 @@ export class AssertionEngine {
       clearingPrice,
       currencyRaised,
       latestCheckpoint,
+      currentBlock,
     };
   }
 

@@ -155,7 +155,8 @@ contract Auction is
             // Cache the previous value on the stack to avoid recalculating it
             ValueX7 currencyRaisedAboveClearingPriceQ96_X7 = currencyRaisedQ96_X7;
 
-            // The currencyRaised value must use the rounded down price to bias against the partially filled bids at `clearingPrice`
+            // We cannot use the rounded up price because it will inflate currencyRaised
+            // So we use the rounded down price to bias against partially filled bids at `clearingPrice`
             currencyRaisedQ96_X7 = ValueX7.wrap(TOTAL_SUPPLY).mulUint256(clearingPriceRoundedDown * deltaMps);
 
             // From `iterateOverTicksAndFindClearingPrice` we know that $sumCurrencyDemandAboveClearingQ96 correctly tracks the demand above the `$nextActiveTickPrice`.

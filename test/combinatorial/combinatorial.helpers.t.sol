@@ -60,7 +60,7 @@ contract CombinatorialHelpersTest is AuctionBaseTest {
         }
     }
 
-    function helper__setAuctionClearingPrice(uint256 targetClearingPrice, address bidOwner)
+    function helper__setAuctionClearingPrice(uint256 targetClearingPrice, address[] memory bidOwners)
         public
         returns (bool success)
     {
@@ -80,18 +80,35 @@ contract CombinatorialHelpersTest is AuctionBaseTest {
             }
 
             vm.deal(address(this), bidAmountToMoveToTargetClearingPrice);
-            try auction.submitBid{value: bidAmountToMoveToTargetClearingPrice}(
-                targetClearingPrice << FixedPoint96.RESOLUTION,
-                uint128(bidAmountToMoveToTargetClearingPrice),
-                bidOwner,
-                bytes('')
-            ) returns (uint256) {
-                vm.roll(block.number + 1);
-                auction.checkpoint();
-                return true;
-            } catch (bytes memory) {
-                return false;
+            console2.log('bidAmountToMoveToTargetClearingPrice', bidAmountToMoveToTargetClearingPrice);
+            uint256 allBidAmounts = 0;
+            uint256 i = 0;
+            while (bidOwners.length > 0) {
+                uint256 bidAmount = bidAmountToMoveToTargetClearingPrice / bidOwners.length;
+                allBidAmounts += bidAmount;
+                if (i == bidOwners.length - 1) {
+                    // last bid, add the remaining bid amount
+                    bidAmount += bidAmountToMoveToTargetClearingPrice - allBidAmounts;
+                }
+                if (bidAmount == 0) {
+                    break;
+                }
+                address bidOwner = bidOwners[i];
+                try auction.submitBid{value: bidAmount}(
+                    targetClearingPrice << FixedPoint96.RESOLUTION, uint128(bidAmount), bidOwner, bytes('')
+                ) returns (uint256) {
+                    vm.roll(block.number + 1);
+                    auction.checkpoint();
+                } catch (bytes memory) {
+                    return false;
+                }
+
+                i++;
+                if (i >= bidOwners.length) {
+                    break;
+                }
             }
+            return true;
         }
     }
 
@@ -145,7 +162,9 @@ contract CombinatorialHelpersTest is AuctionBaseTest {
         uint128 legalizedTargetClearingPrice = _legalizeBidMaxPrice(targetClearingPrice);
 
         // Move the clearing price to the target price
-        bool success = helper__setAuctionClearingPrice(legalizedTargetClearingPrice, address(this));
+        address[] memory bidOwners = new address[](1);
+        bidOwners[0] = address(this);
+        bool success = helper__setAuctionClearingPrice(legalizedTargetClearingPrice, bidOwners);
 
         // Not successful if clearing price is greater then target, since the price can only go up
         uint256 clearingPrice = auction.clearingPrice() >> FixedPoint96.RESOLUTION;
@@ -177,7 +196,9 @@ contract CombinatorialHelpersTest is AuctionBaseTest {
         console2.log('tickSpacing', tickSpacing);
         console2.log('auction.floorPrice()', auction.floorPrice() >> FixedPoint96.RESOLUTION);
         console2.log('priorBidMaxPrice', priorBidMaxPrice);
-        bool successPriorBid = helper__setAuctionClearingPrice(priorBidMaxPrice, address(this));
+        address[] memory bidOwners = new address[](1);
+        bidOwners[0] = address(this);
+        bool successPriorBid = helper__setAuctionClearingPrice(priorBidMaxPrice, bidOwners);
         assertTrue(successPriorBid);
         assertEq(auction.clearingPrice() >> FixedPoint96.RESOLUTION, priorBidMaxPrice);
 
@@ -186,7 +207,7 @@ contract CombinatorialHelpersTest is AuctionBaseTest {
         console2.log('legalizedTargetClearingPrice', legalizedTargetClearingPrice);
 
         // Move the clearing price to the target price
-        bool success = helper__setAuctionClearingPrice(legalizedTargetClearingPrice, address(this));
+        bool success = helper__setAuctionClearingPrice(legalizedTargetClearingPrice, bidOwners);
 
         // Not successful if clearing price is greater then target, since the price can only go up
         uint256 clearingPrice = auction.clearingPrice() >> FixedPoint96.RESOLUTION;

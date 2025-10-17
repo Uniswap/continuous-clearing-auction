@@ -136,6 +136,8 @@ export const PENDING_STATE = "pending";
 export const SETUP = "setup";
 export const INTERACTION = "interaction";
 
+export const NATIVE_CURRENCY_NAME = "Native Currency";
+
 export const EVENTS = {
   BID_SUBMITTED: "BidSubmitted",
   CHECKPOINT_UPDATED: "CheckpointUpdated",

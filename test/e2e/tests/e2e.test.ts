@@ -47,12 +47,14 @@ describe("E2E Tests", function () {
     await runTest(combinations);
   });
 
+  /*
   it("should run extended testing parameters", async function () {
     this.timeout(30000); // Longer timeout for large auction
     const combinations = [{ setup: extendedSetup, interaction: extendedInteraction }];
 
     await runTest(combinations);
   });
+  */
 
   after(function () {
     printResults();

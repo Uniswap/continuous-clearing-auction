@@ -94,6 +94,17 @@ export const advancedInteraction: TestInteractionData = {
         ],
       ],
     },
+    {
+      type: ActionType.ADMIN_ACTION,
+      interactions: [
+        [
+          {
+            atBlock: 201,
+            method: AdminActionMethod.CHECKPOINT,
+          },
+        ],
+      ],
+    },
   ],
   assertions: [
     {

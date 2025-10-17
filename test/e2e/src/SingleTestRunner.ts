@@ -21,6 +21,7 @@ import {
   PENDING_STATE,
   EVENTS,
   ZERO_ADDRESS,
+  NATIVE_CURRENCY_NAME,
 } from "./constants";
 import { artifacts } from "hardhat";
 import { EventData, HashWithRevert, TransactionInfo, EventType, ActionData, TokenContract } from "./types";
@@ -77,6 +78,12 @@ export class SingleTestRunner {
     console.log(LOG_PREFIXES.TEST, "Running test:", setupData.name, "+", interactionData.name);
 
     console.log(LOG_PREFIXES.SUCCESS, "Schema validation passed");
+
+    // Clear instance state from previous tests
+    this.bidsByOwner.clear();
+    this.checkpoints = [];
+    this.auction = null;
+    this.cachedInterface = null;
 
     // Reset the Hardhat network to start fresh for each test
     // Deploy Permit2 at canonical address (one-time setup)
@@ -239,10 +246,10 @@ export class SingleTestRunner {
         let tokenSymbol: string;
         let decimals = 18;
 
-        if (tokenIdentifier === "0x0000000000000000000000000000000000000000") {
+        if (tokenIdentifier === ZERO_ADDRESS) {
           // Native ETH
           currentBalance = await hre.ethers.provider.getBalance(address);
-          tokenSymbol = "Native Currency";
+          tokenSymbol = NATIVE_CURRENCY_NAME;
         } else {
           // ERC20 token
           const tokenContract = deployer.getTokenByName(tokenIdentifier);
@@ -299,7 +306,7 @@ export class SingleTestRunner {
           const diffSymbol = difference >= 0n ? "+" : "";
           const diffValue = Number(difference) / 10 ** 18;
 
-          console.log(`    Native Currency:`);
+          console.log(`    ${NATIVE_CURRENCY_NAME}:`);
           console.log(`      Initial: ${(Number(initialNativeBalance) / 10 ** 18).toFixed(6)}`);
           console.log(`      Final:   ${(Number(currentNativeBalance) / 10 ** 18).toFixed(6)}`);
           console.log(`      Diff:    ${diffSymbol}${diffValue.toFixed(6)}`);
@@ -438,8 +445,8 @@ export class SingleTestRunner {
           }
         } catch (partialExitError) {
           const errorMsg = partialExitError instanceof Error ? partialExitError.message : String(partialExitError);
-
-          console.log(`     ⚠️  Could not exit bid ${bidId}: ${errorMsg.substring(0, 100)}`);
+          const previousBlock = (await hre.ethers.provider.getBlockNumber()) - 1;
+          console.log(`     ⚠️  Could not exit bid ${bidId} at block ${previousBlock}: ${errorMsg.substring(0, 200)}`);
         }
       }
 

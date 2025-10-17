@@ -169,7 +169,7 @@ contract Auction is
             currencyRaisedQ96_X7_ = ValueX7.wrap(TOTAL_SUPPLY).mulUint256(_checkpoint.clearingPrice * deltaMps);
 
             // The currency raised at the clearing price is equal to the total currency raised according to the supply schedule
-            // and the rounded down clearing price minus the currency demand above the clearing price.
+            // and the rounded up clearing price minus the currency demand above the clearing price.
             // Notice that `sumDemandAboveClearing` tracks the demand strictly above the rounded up clearing price
             // this is guaranteed to be less than or equal to the currency raised at the rounded down price.
             ValueX7 currencyRaisedAtClearingPriceQ96_X7 =
@@ -183,6 +183,7 @@ contract Auction is
             _checkpoint.currencyRaisedAtClearingPriceQ96_X7 =
                 _checkpoint.currencyRaisedAtClearingPriceQ96_X7.add(currencyRaisedAtClearingPriceQ96_X7);
         }
+
         $currencyRaisedQ96_X7 = $currencyRaisedQ96_X7.add(currencyRaisedQ96_X7_);
         _checkpoint.cumulativeMps += deltaMps;
         // Calculate the harmonic mean of the mps and price (the sum of mps/price)

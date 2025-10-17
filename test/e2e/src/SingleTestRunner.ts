@@ -545,7 +545,6 @@ export class SingleTestRunner {
               this.bidsByOwner.set(owner, []);
             }
             this.bidsByOwner.get(owner)!.push(bidInfo);
-            console.log(`     📝 Tracked bid ${bidId} for ${owner} (price: ${maxPrice}, amount: ${amount})`);
           } else if (parsedLog && parsedLog.name === EVENTS.CHECKPOINT_UPDATED) {
             const blockNumber = Number(parsedLog.args[0]); // blockNumber
             const clearingPrice = BigInt(parsedLog.args[1]); // clearingPrice

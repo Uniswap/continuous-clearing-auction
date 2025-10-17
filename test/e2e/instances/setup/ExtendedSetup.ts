@@ -42,6 +42,15 @@ export const extendedSetup: TestSetupData = {
       rpcUrl: "http://localhost:8545",
       blockNumber: "1",
     },
+
+    groups: [
+      {
+        labelPrefix: "FirstGroup",
+        count: 2,
+        startNativeEach: "100000000000000000000000",
+        startAmountEach: "100000000000000000000000",
+      },
+    ],
     balances: [
       {
         address: "0x1111111111111111111111111111111111111111" as Address,

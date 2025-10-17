@@ -103,7 +103,7 @@ export const extendedInteraction: TestInteractionData = {
           amount: { value: "1000000000000000000" }, // 1 ETH
           price: {
             type: PriceType.RAW,
-            value: "6932464219998130000000000", // Floor price
+            value: "9012203485997569000000000", // Floor price
           },
           prevTickPrice: "6932464219998130000000000",
         },
@@ -117,7 +117,7 @@ export const extendedInteraction: TestInteractionData = {
         {
           startBlock: 100100,
           intervalBlocks: 2,
-          occurrences: 800,
+          occurrences: 3,
           amount: { value: "3000000000000000000" }, // 3 ETH
           price: {
             type: PriceType.RAW,
@@ -154,7 +154,7 @@ export const extendedInteraction: TestInteractionData = {
         {
           startBlock: 130007,
           intervalBlocks: 1,
-          occurrences: 902,
+          occurrences: 4,
           amount: { value: "4000000000000000000" }, // 4 ETH
           price: {
             type: PriceType.RAW,
@@ -210,6 +210,19 @@ export const extendedInteraction: TestInteractionData = {
           prevTickPrice: "6932464219998130000000000",
         },
       ],
+    },
+  ],
+  groups: [
+    {
+      labelPrefix: "FirstGroup",
+      startBlock: 100,
+      amount: { value: "500000000000000000" },
+      price: { type: PriceType.RAW, value: "7209762788798055200000000" },
+      prevTickPrice: "6932464219998130000000000",
+      rotationIntervalBlocks: 1,
+      betweenRoundStartsBlocks: 8,
+      rounds: 27,
+      hookData: "0x",
     },
   ],
   actions: [

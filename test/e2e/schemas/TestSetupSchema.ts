@@ -19,6 +19,14 @@ export interface StepData {
   blockDelta: number; // Number of blocks this step lasts
 }
 
+export interface GroupConfig {
+  labelPrefix: string;
+  count: number;
+  startAmountEach: string;
+  startNativeEach: string;
+  addresses?: Address[];
+}
+
 export interface Environment {
   chainId?: ChainId | 31337; // 31337 is local Hardhat network
   startBlock: string;
@@ -29,6 +37,7 @@ export interface Environment {
   baseFeePerGasWei?: string;
   fork?: ForkConfig;
   balances?: BalanceItem[];
+  groups?: GroupConfig[];
 }
 
 export interface AuctionParameters {

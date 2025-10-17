@@ -14,6 +14,7 @@ import { TransactionInfo } from "./types";
 import { TransferAction, AdminAction } from "../schemas/TestInteractionSchema";
 import { calculatePrice, resolveTokenAddress, tickNumberToPriceX96 } from "./utils";
 import hre from "hardhat";
+import { TestSetupData, GroupConfig } from "../schemas/TestSetupSchema";
 
 export enum BiddersType {
   NAMED = "named",
@@ -44,7 +45,7 @@ export class BidSimulator {
    * Sets up label mappings for symbolic addresses and group bidders.
    * @param interactionData - Test interaction data containing named bidders and groups
    */
-  async setupLabels(interactionData: TestInteractionData): Promise<void> {
+  async setupLabels(interactionData: TestInteractionData, setupData: TestSetupData): Promise<void> {
     // Map symbolic labels to actual addresses
     this.labelMap.set("Auction", await this.auction.getAddress());
 
@@ -54,10 +55,9 @@ export class BidSimulator {
         this.labelMap.set(bidder.label || bidder.address, bidder.address);
       });
     }
-
     // Generate group bidders
-    if (interactionData.groups) {
-      await this.generateGroupBidders(interactionData.groups);
+    if (setupData.env.groups) {
+      await this.generateGroupBidders(setupData.env.groups);
     }
   }
 
@@ -65,13 +65,16 @@ export class BidSimulator {
    * Generates group bidders and maps them to their group names.
    * @param groups - Array of group configurations
    */
-  async generateGroupBidders(groups: Group[]): Promise<void> {
+  async generateGroupBidders(groups: GroupConfig[]): Promise<void> {
     for (const group of groups) {
+      if (!group.addresses) {
+        continue;
+      }
       const bidders: string[] = [];
-      for (let i = 0; i < group.count; i++) {
-        const address = hre.ethers.Wallet.createRandom().address;
+      for (let i = 0; i < group.addresses.length; i++) {
+        const address = group.addresses[i];
         bidders.push(address);
-        this.labelMap.set(`${group.labelPrefix}${i}`, address);
+        this.labelMap.set(`${group.labelPrefix}-${i}`, address);
       }
       this.groupBidders.set(group.labelPrefix, bidders);
     }
@@ -167,12 +170,10 @@ export class BidSimulator {
         const bidders = this.groupBidders.get(group.labelPrefix);
         if (bidders) {
           for (let round = 0; round < group.rounds; round++) {
-            for (let i = 0; i < group.count; i++) {
+            for (let i = 0; i < bidders.length; i++) {
               const bidder = bidders[i];
               const atBlock =
-                group.startBlock +
-                round * (group.rotationIntervalBlocks + group.betweenRoundsBlocks) +
-                i * group.rotationIntervalBlocks;
+                group.startBlock + round * group.betweenRoundStartsBlocks + i * group.rotationIntervalBlocks;
 
               bids.push({
                 bidData: {
@@ -181,6 +182,7 @@ export class BidSimulator {
                   price: group.price,
                   hookData: group.hookData,
                   previousTick: group.previousTick,
+                  prevTickPrice: group.prevTickPrice,
                 },
                 bidder,
                 type: BiddersType.GROUP,

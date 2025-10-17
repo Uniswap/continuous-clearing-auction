@@ -12,11 +12,21 @@ import { BidSimulator, InternalBidData } from "./BidSimulator";
 import { AssertionEngine, AuctionState } from "./AssertionEngine";
 import { Contract, Interface } from "ethers";
 import { Network } from "hardhat/types";
-import { PERMIT2_ADDRESS, LOG_PREFIXES, ERROR_MESSAGES, METHODS, TYPES, PENDING_STATE, EVENTS } from "./constants";
+import {
+  PERMIT2_ADDRESS,
+  LOG_PREFIXES,
+  ERROR_MESSAGES,
+  METHODS,
+  TYPES,
+  PENDING_STATE,
+  EVENTS,
+  ZERO_ADDRESS,
+} from "./constants";
 import { artifacts } from "hardhat";
 import { EventData, HashWithRevert, TransactionInfo, EventType, ActionData, TokenContract } from "./types";
 import { TransactionRequest } from "ethers";
 import { parseBoolean } from "./utils";
+import { GroupConfig } from "../schemas/TestSetupSchema";
 import hre from "hardhat";
 
 export interface TestResult {
@@ -92,6 +102,8 @@ export class SingleTestRunner {
     let setupTransactions: TransactionInfo[] = [];
     // Initialize deployer with tokens and factory (one-time setup)
     await this.deployer.initialize(setupData, setupTransactions);
+    this.generateAddressesForGroups(setupData.env.groups ?? []);
+    console.log(LOG_PREFIXES.INFO, "Generated addresses for groups: ", setupData.env.groups);
     // Setup balances
     await this.deployer.setupBalances(setupData, setupTransactions);
     await this.handleInitializeTransactions(setupTransactions);
@@ -113,7 +125,7 @@ export class SingleTestRunner {
     const assertionEngine = new AssertionEngine(auction, auctionedToken, currencyToken, this.deployer);
 
     // Setup labels and execute the interaction scenario
-    await bidSimulator.setupLabels(interactionData);
+    await bidSimulator.setupLabels(interactionData, setupData);
 
     // Execute bids and actions with integrated checkpoint validation
     await this.executeWithAssertions(
@@ -168,6 +180,17 @@ export class SingleTestRunner {
     };
   }
 
+  private generateAddressesForGroups(groups: GroupConfig[]): void {
+    for (const group of groups) {
+      if (!group.addresses) {
+        group.addresses = [];
+      }
+      for (let i = 0; i < group.count; i++) {
+        group.addresses.push(hre.ethers.Wallet.createRandom().address as Address);
+      }
+    }
+  }
+
   /**
    * Logs balances for all funded accounts showing initial vs final balances
    */
@@ -202,7 +225,7 @@ export class SingleTestRunner {
         if (tokenIdentifier === "0x0000000000000000000000000000000000000000") {
           // Native ETH
           currentBalance = await hre.ethers.provider.getBalance(address);
-          tokenSymbol = "ETH";
+          tokenSymbol = "Native Currency";
         } else {
           // ERC20 token
           const tokenContract = deployer.getTokenByName(tokenIdentifier);
@@ -234,6 +257,70 @@ export class SingleTestRunner {
           const decimals = await auctionedToken.decimals();
           console.log(`  ${tokenSymbol} (claimed from auction):`);
           console.log(`    Balance: ${(Number(tokenBalance) / 10 ** Number(decimals)).toFixed(6)}`);
+        }
+      }
+    }
+
+    const groupBalances = setupData.env.groups;
+    if (groupBalances) {
+      for (const group of groupBalances) {
+        if (!group.addresses) continue;
+        console.log(`${group.labelPrefix}:`);
+        for (let i = 0; i < group.addresses.length; i++) {
+          console.log(`    Group Member ID: ${group.labelPrefix}-${i}:`);
+          const groupMember = group.addresses[i];
+          const currentNativeBalance = await hre.ethers.provider.getBalance(groupMember);
+          const initialNativeBalance = BigInt(group.startNativeEach);
+
+          const difference = currentNativeBalance - initialNativeBalance;
+          const diffSymbol = difference >= 0n ? "+" : "";
+          const diffValue = Number(difference) / 10 ** 18;
+
+          console.log(`  Native Currency:`);
+          console.log(`    Initial: ${(Number(initialNativeBalance) / 10 ** 18).toFixed(6)}`);
+          console.log(`    Final:   ${(Number(currentNativeBalance) / 10 ** 18).toFixed(6)}`);
+          console.log(`    Diff:    ${diffSymbol}${diffValue.toFixed(6)}`);
+          const auctionCurrency = setupData.auctionParameters.currency;
+          if (auctionCurrency != ZERO_ADDRESS && (auctionCurrency as string).toLowerCase().includes("native")) {
+            let auctionCurrencyContract: TokenContract | undefined;
+            if (auctionCurrency.startsWith("0x")) {
+              auctionCurrencyContract = deployer.getTokenByName(auctionCurrency as Address);
+            } else {
+              auctionCurrencyContract = deployer.getTokenByName(auctionCurrency);
+            }
+            const currentAuctionCurrencyBalance = await auctionCurrencyContract?.balanceOf(groupMember);
+            const initialAuctionCurrencyBalance = BigInt(group.startAmountEach);
+
+            const difference = currentAuctionCurrencyBalance - initialAuctionCurrencyBalance;
+            const diffSymbol = difference >= 0n ? "+" : "";
+
+            const decimals = await auctionCurrencyContract?.decimals();
+            const diffValue = Number(difference) / 10 ** Number(decimals);
+
+            const tokenSymbol = await auctionCurrencyContract?.symbol();
+
+            console.log(`  ${tokenSymbol}:`);
+            console.log(`    Initial: ${(Number(initialAuctionCurrencyBalance) / 10 ** Number(decimals)).toFixed(6)}`);
+            console.log(`    Final:   ${(Number(currentAuctionCurrencyBalance) / 10 ** Number(decimals)).toFixed(6)}`);
+            console.log(`    Diff:    ${diffSymbol}${diffValue.toFixed(6)}`);
+          }
+          if (auctionedToken) {
+            const currentAuctionedTokenBalance = await auctionedToken.balanceOf(groupMember);
+            if (currentAuctionedTokenBalance == 0n) continue;
+            const initialAuctionedTokenBalance = BigInt(0);
+
+            const difference = currentAuctionedTokenBalance - initialAuctionedTokenBalance;
+            const diffSymbol = difference >= 0n ? "+" : "";
+            const decimals = await auctionedToken.decimals();
+            const diffValue = Number(difference) / 10 ** Number(decimals);
+
+            const tokenSymbol = await auctionedToken.symbol();
+
+            console.log(`  ${tokenSymbol}:`);
+            console.log(`    Initial: ${(Number(initialAuctionedTokenBalance) / 10 ** Number(decimals)).toFixed(6)}`);
+            console.log(`    Final:   ${(Number(currentAuctionedTokenBalance) / 10 ** Number(decimals)).toFixed(6)}`);
+            console.log(`    Diff:    ${diffSymbol}${diffValue.toFixed(6)}`);
+          }
         }
       }
     }
@@ -298,7 +385,6 @@ export class SingleTestRunner {
         // Try partial exit (for bids at/below clearing, or if simple exit failed)
         try {
           const hints = this.findCheckpointHints(maxPrice, sortedCheckpoints);
-          console.log("Exit partially filled bid params: ", bidId, hints?.lastFullyFilled, hints?.outbid);
           if (hints) {
             let tx = await auction.exitPartiallyFilledBid(bidId, hints.lastFullyFilled, hints.outbid);
             console.log(

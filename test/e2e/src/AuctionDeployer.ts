@@ -566,6 +566,23 @@ export class AuctionDeployer {
         await this.setupTokenBalanceByName(balance.address, balance.token, balance.amount, setupTransactions);
       }
     }
+
+    for (const group of env.groups ?? []) {
+      for (const address of group.addresses ?? []) {
+        await this.setupNativeCurrencyBalance(address, group.startNativeEach);
+        const auctionCurrency = setupData.auctionParameters.currency;
+        if (auctionCurrency.startsWith("0x")) {
+          await this.setupTokenBalanceByAddress(
+            address,
+            auctionCurrency as Address,
+            group.startNativeEach,
+            setupTransactions,
+          );
+        } else {
+          await this.setupTokenBalanceByName(address, auctionCurrency, group.startNativeEach, setupTransactions);
+        }
+      }
+    }
   }
 
   /**

@@ -71,13 +71,13 @@ export interface NamedBidder {
 
 export interface Group {
   labelPrefix: string;
-  count: number;
   startBlock: number;
   amount: AmountConfig;
   price: PriceConfig;
-  previousTick: number;
+  previousTick?: number;
+  prevTickPrice?: string;
   rotationIntervalBlocks: number;
-  betweenRoundsBlocks: number;
+  betweenRoundStartsBlocks: number;
   rounds: number;
   hookData?: string;
 }

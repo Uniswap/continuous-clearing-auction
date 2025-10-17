@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Auction} from '../../src/Auction.sol';
+import {Auction, ClearingPrice} from '../../src/Auction.sol';
 import {AuctionParameters} from '../../src/Auction.sol';
 import {Bid} from '../../src/BidStorage.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
@@ -79,12 +79,13 @@ contract AuctionIterateOverTicksTest is AuctionUnitTest {
         mockAuction.uncheckedSetNextActiveTickPrice(lowestTickPrice);
         vm.assume(mockAuction.floorPrice() <= lowestTickPrice);
 
-        uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice(_checkpoint);
+        // TODO(md): assertions around rounding down price
+        ClearingPrice memory clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice(_checkpoint);
         // Assert that the clearing price is greater than or equal to the floor price
-        assertGe(clearingPrice, mockAuction.floorPrice());
+        assertGe(clearingPrice.clearingPriceRoundedUp, mockAuction.floorPrice());
         // Assert that the clearing price is less than or equal to the highest tick price
         // This must be true because we can't find a price higher than the max price of all the bids
-        assertLe(clearingPrice, highestTickPrice);
+        assertLe(clearingPrice.clearingPriceRoundedUp, highestTickPrice);
 
         // Assert that the sumDemandAboveClearing is less than the currency required to move to the next active tick
         if (mockAuction.nextActiveTickPrice() != type(uint256).max) {

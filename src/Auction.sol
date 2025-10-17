@@ -343,8 +343,6 @@ contract Auction is
         if (_checkpoint.remainingMpsInAuction() == 0) revert AuctionSoldOut();
         // We don't allow bids to be submitted at or below the clearing price
         if (maxPrice <= _checkpoint.clearingPrice) revert BidMustBeAboveClearingPrice();
-        // Reject bids which would cause TOTAL_SUPPLY * maxPrice to overflow a uint256
-        if (maxPrice > MAX_BID_PRICE) revert InvalidBidPriceTooHigh();
 
         _initializeTickIfNeeded(prevTickPrice, maxPrice);
 

@@ -159,7 +159,10 @@ contract Auction is
             // So we use the rounded down price to bias against partially filled bids at `clearingPrice`
             currencyRaisedQ96_X7 = ValueX7.wrap(TOTAL_SUPPLY).mulUint256(clearingPriceRoundedDown * deltaMps);
 
-            // TODO(ez): comments here
+            // The currency raised at the clearing price is equal to the total currency raised according to the supply schedule
+            // and the rounded down clearing price minus the currency demand above the clearing price.
+            // Notice that `sumDemandAboveClearing` tracks the demand strictly above the rounded up clearing price
+            // this is guaranteed to be less than or equal to the currency raised at the rounded down price.
             ValueX7 currencyRaisedAtClearingPriceQ96_X7 =
                 currencyRaisedQ96_X7.sub(currencyRaisedAboveClearingPriceQ96_X7);
             _checkpoint.currencyRaisedAtClearingPriceQ96_X7 =

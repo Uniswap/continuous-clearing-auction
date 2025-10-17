@@ -27,6 +27,7 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 struct ClearingPrice {
+    uint256 minimumClearingPrice;
     uint256 clearingPriceRoundedUp;
     uint256 clearingPriceRoundedDown;
 }
@@ -225,7 +226,9 @@ contract Auction is
         // If there are no more remaining mps in the auction, we don't need to iterate over ticks
         // and we can return the minimum clearing price above
         if (_checkpoint.remainingMpsInAuction() == 0) return ClearingPrice({
+            minimumClearingPrice: minimumClearingPrice,
             clearingPriceRoundedUp: minimumClearingPrice,
+            // TODO(md): incorrect
             clearingPriceRoundedDown: minimumClearingPrice
         });
 
@@ -285,6 +288,7 @@ contract Auction is
         }
 
         return ClearingPrice({
+            minimumClearingPrice: minimumClearingPrice,
             clearingPriceRoundedUp: clearingPriceRoundedUp,
             clearingPriceRoundedDown: clearingPriceRoundedDown
         });

@@ -16,7 +16,7 @@ struct FuzzTick {
     uint128 demand;
 }
 
-contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
+contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
     using FixedPointMathLib for *;
 
     function updateFuzzTicksExactlyAtAndAbove(FuzzTick[] memory _fuzzTicks, uint8 _tickNumber, uint256 _totalSupply) public {

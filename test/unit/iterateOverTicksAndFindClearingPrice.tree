@@ -1,4 +1,4 @@
-SellTokensAtClearingPrice
+IterateOverTicksAndFindClearingPrice
 ├── When there is enough demand exactly at and above the tick
 │   ├── it should set clearing price to a tick boundary
 │   ├── it should find clearing price rounded up to be the minimum price

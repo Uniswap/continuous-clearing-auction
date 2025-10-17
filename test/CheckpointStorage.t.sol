@@ -78,7 +78,6 @@ contract CheckpointStorageTest is Assertions, Test {
 
         // The checkpoint should be empty (all fields default to 0)
         assertEq(checkpoint.clearingPrice, 0);
-        assertEq(checkpoint.currencyRaisedQ96_X7, ValueX7.wrap(0));
         assertEq(checkpoint.cumulativeMps, 0);
 
         checkpoint.clearingPrice = 1;

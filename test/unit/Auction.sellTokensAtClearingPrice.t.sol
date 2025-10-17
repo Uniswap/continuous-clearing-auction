@@ -11,8 +11,6 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {MockAuction} from '../utils/MockAuction.sol';
 import {FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
 
-import {console} from 'forge-std/console.sol';
-
 struct FuzzTick {
     uint8 tickNumber;
     uint128 demand;
@@ -175,8 +173,6 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
         uint256 tickSpacing = mockAuction.tickSpacing();
         uint256 floorPrice = mockAuction.floorPrice();
         uint256 nextTickPrice = floorPrice + tickSpacing;
-
-        console.log("tickSpacing", tickSpacing);
 
         uint256 sumDemandAboveClearing = totalSupply * nextTickPrice;
         mockAuction.uncheckedAddToSumDemandAboveClearing(sumDemandAboveClearing);

@@ -98,7 +98,7 @@ contract AuctionSubmitBidCombinatorialTest is AuctionBaseTest {
     /// @param bidId The bid ID to verify
     /// @param expectedOwner Expected owner address
     /// @param expectedMaxPrice Expected max price
-    /// @param expectedAmountQ96 Expected amount in Q96 format
+    /// @param expectedAmount Expected amount in Q96 format
     /// @param expectedStartBlock Expected start block
     /// @param expectedStartCumulativeMps Expected cumulative MPS at start
     function helper__verifyBidStruct(

@@ -243,7 +243,10 @@ export class BidSimulator {
       msg = `   Bidding with Native currency. Price: ${price.toString()}, Amount: ${amount.toString()}, Previous Tick Price: ${previousTickPrice.toString()}`;
       tx = await this.auction
         .getFunction("submitBid(uint256,uint128,address,uint256,bytes)")
-        .populateTransaction(price, amount, bidder, previousTickPrice, bidData.hookData || "0x", { value: amount });
+        .populateTransaction(price, amount, bidder, previousTickPrice, bidData.hookData || "0x", {
+          value: amount,
+          gasLimit: 2000000,
+        });
     }
     transactionInfos.push({ tx, from: bidder, msg, expectRevert: bidData.expectRevert });
   }

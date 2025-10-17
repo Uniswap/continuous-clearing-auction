@@ -50,6 +50,16 @@ export const extendedSetup: TestSetupData = {
         startNativeEach: "100000000000000000000000",
         startAmountEach: "100000000000000000000000",
       },
+      {
+        labelPrefix: "PopulousGroup",
+        count: 297,
+        startNativeEach: "10000000000000000000",
+      },
+      {
+        labelPrefix: "BandwagonGroup",
+        count: 483,
+        startNativeEach: "10000000000000000000",
+      },
     ],
     balances: [
       {

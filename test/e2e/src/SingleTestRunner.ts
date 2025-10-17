@@ -400,7 +400,7 @@ export class SingleTestRunner {
         console.log(`\n   ${owner}: ${bids.length} bid(s)`);
       }
 
-      const shouldExitBid: Map<number, boolean> = new Map();
+      const shouldClaimBid: Map<number, boolean> = new Map();
       // Exit each bid first
       for (const bid of bids) {
         const bidId = bid.bidId;
@@ -413,6 +413,7 @@ export class SingleTestRunner {
             await auction.exitBid(bidId);
             const previousBlock = (await hre.ethers.provider.getBlockNumber()) - 1;
             console.log(`     ✅ Exited bid ${bidId} at block ${previousBlock} (simple exit - above clearing)`);
+            shouldClaimBid.set(bidId, true);
             continue; // Successfully exited, move to next bid
           } catch (error) {
             // Simple exit failed, fall through to try partial exit
@@ -436,7 +437,7 @@ export class SingleTestRunner {
               });
               if (parsedLog?.name === EVENTS.BID_EXITED) {
                 if (parsedLog.args[2] > 0n) {
-                  shouldExitBid.set(bidId, true);
+                  shouldClaimBid.set(bidId, true);
                 }
               }
             }
@@ -452,7 +453,7 @@ export class SingleTestRunner {
 
       // Claim all tokens in batch
       const unfilteredBidIds = bids.map((b) => b.bidId);
-      const bidIds = unfilteredBidIds.filter((bidId) => shouldExitBid.get(bidId));
+      const bidIds = unfilteredBidIds.filter((bidId) => shouldClaimBid.get(bidId));
       try {
         await auction.claimTokensBatch(owner, bidIds);
         console.log(`     ✅ Claimed tokens for all bids`);

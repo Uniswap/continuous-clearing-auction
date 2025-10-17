@@ -94,12 +94,11 @@ export const extendedInteraction: TestInteractionData = {
     },
     {
       address: "0x5555555555555555555555555555555555555555" as Address,
-      label: "SmallRepetitiveBidder",
-      recurringBids: [
+      label: "SmallSingleBidder",
+      recurringBids: [],
+      bids: [
         {
-          startBlock: 100101,
-          intervalBlocks: 2,
-          occurrences: 800,
+          atBlock: 100101,
           amount: { value: "1000000000000000000" }, // 1 ETH
           price: {
             type: PriceType.RAW,
@@ -108,7 +107,6 @@ export const extendedInteraction: TestInteractionData = {
           prevTickPrice: "6932464219998130000000000",
         },
       ],
-      bids: [],
     },
     {
       address: "0x3333333333333333333333333333333333333333" as Address,
@@ -223,6 +221,26 @@ export const extendedInteraction: TestInteractionData = {
       betweenRoundStartsBlocks: 32,
       rounds: 9,
       hookData: "0x",
+    },
+    {
+      labelPrefix: "PopulousGroup",
+      startBlock: 100102,
+      amount: { value: "1000000000000000000" },
+      price: { type: PriceType.RAW, value: "9012203485997569000000000" },
+      prevTickPrice: "6932464219998130000000000",
+      rotationIntervalBlocks: 1,
+      betweenRoundStartsBlocks: 0,
+      rounds: 1,
+    },
+    {
+      labelPrefix: "BandwagonGroup",
+      startBlock: 100403,
+      amount: { value: "1000000000000000000" },
+      price: { type: PriceType.RAW, value: "9012203485997569000000000" },
+      prevTickPrice: "6932464219998130000000000",
+      rotationIntervalBlocks: 1,
+      betweenRoundStartsBlocks: 0,
+      rounds: 1,
     },
   ],
   actions: [

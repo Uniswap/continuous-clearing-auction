@@ -19,10 +19,6 @@ contract MockBidStorage is BidStorage {
     {
         return _createBid(amount, owner, maxPrice, startCumulativeMps);
     }
-
-    function deleteBid(uint256 bidId) external {
-        _deleteBid(bidId);
-    }
 }
 
 contract BidStorageTest is Assertions, Test {
@@ -68,16 +64,5 @@ contract BidStorageTest is Assertions, Test {
         vm.assume(_bidId >= mockBidStorage.nextBidId());
         vm.expectRevert(IBidStorage.BidIdDoesNotExist.selector);
         mockBidStorage.bids(_bidId);
-    }
-
-    function test_deleteBid_succeeds(Bid memory _bid) public {
-        (, uint256 bidId) = helper__createBid(_bid);
-        mockBidStorage.deleteBid(bidId);
-    }
-
-    function test_deleteBid_revertsIfBidDoesNotExist(uint256 _bidId) public {
-        vm.assume(_bidId >= mockBidStorage.nextBidId());
-        vm.expectRevert(IBidStorage.BidIdDoesNotExist.selector);
-        mockBidStorage.deleteBid(_bidId);
     }
 }

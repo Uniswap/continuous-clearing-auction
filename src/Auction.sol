@@ -366,12 +366,8 @@ contract Auction is
 
         uint256 refund = ($bid.amountQ96 - currencySpentQ96) >> FixedPoint96.RESOLUTION;
 
-        if (tokensFilled == 0) {
-            _deleteBid(bidId);
-        } else {
-            $bid.tokensFilled = tokensFilled;
-            $bid.exitedBlock = uint64(block.number);
-        }
+        $bid.tokensFilled = tokensFilled;
+        $bid.exitedBlock = uint64(block.number);
 
         if (refund > 0) {
             CURRENCY.transfer(_owner, refund);

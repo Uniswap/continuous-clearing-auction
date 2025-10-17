@@ -45,13 +45,6 @@ abstract contract BidStorage is IBidStorage {
         $_nextBidId++;
     }
 
-    /// @notice Delete a bid from storage
-    /// @param bidId The id of the bid to delete
-    function _deleteBid(uint256 bidId) internal {
-        if (bidId >= $_nextBidId) revert BidIdDoesNotExist();
-        delete $_bids[bidId];
-    }
-
     /// Getters
     /// @inheritdoc IBidStorage
     function nextBidId() external view override(IBidStorage) returns (uint256) {

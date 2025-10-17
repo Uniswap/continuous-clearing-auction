@@ -20,7 +20,6 @@ import {FixedPoint128} from './libraries/FixedPoint128.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
-import {console} from 'forge-std/console.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
@@ -297,7 +296,7 @@ contract Auction is
             emit ClearingPriceUpdated(blockNumber, clearingPrice);
         }
 
-        // Sine the clearing price is now up to date, we can advance the auction to the current step
+        // Since the clearing price is now up to date, we can advance the auction to the current step
         // and sell tokens at the current clearing price according to the supply schedule
         _checkpoint = _advanceToCurrentStep(_checkpoint, blockNumber);
 

@@ -55,6 +55,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     address public fundsRecipient;
 
     AuctionParameters public params;
+    uint128 public totalSupply;
     FuzzDeploymentParams public $deploymentParams;
     bytes public auctionStepsData;
 
@@ -111,7 +112,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // TODO: these values are wrong - tick spacing too large
         deploymentParams.auctionParams.floorPrice = uint128(_bound(uint256(vm.randomUint()), 2, type(uint128).max));
         deploymentParams.auctionParams.tickSpacing = uint256(_bound(uint256(vm.randomUint()), 2, type(uint256).max));
-        _boundPriceParams(deploymentParams);
+        _boundPriceParams(deploymentParams, false);
 
         // Set up the block numbers
         deploymentParams.auctionParams.startBlock = uint64(_bound(uint256(vm.randomUint()), 1, type(uint64).max));
@@ -124,7 +125,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return deploymentParams;
     }
 
-    function helper__validFuzzDeploymentParams(FuzzDeploymentParams memory _deploymentParams)
+    function helper__validFuzzDeploymentParams(FuzzDeploymentParams memory _deploymentParams, bool _assumeTickSpacingIsFloorPrice)
         public
         returns (AuctionParameters memory)
     {
@@ -132,7 +133,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         vm.assume(_deploymentParams.totalSupply > 0);
 
         _boundBlockNumbers(_deploymentParams);
-        _boundPriceParams(_deploymentParams);
+        _boundPriceParams(_deploymentParams, _assumeTickSpacingIsFloorPrice);
 
         vm.assume(_deploymentParams.numberOfSteps > 0);
         vm.assume(ConstantsLib.MPS % _deploymentParams.numberOfSteps == 0); // such that it is divisible
@@ -141,6 +142,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _deploymentParams.auctionParams.auctionStepsData = _generateAuctionSteps(_deploymentParams.numberOfSteps);
 
         $deploymentParams = _deploymentParams;
+        totalSupply = _deploymentParams.totalSupply;
         return _deploymentParams.auctionParams;
     }
 
@@ -165,17 +167,22 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _deploymentParams.auctionParams.claimBlock = _deploymentParams.auctionParams.endBlock + 1;
     }
 
-    function _boundPriceParams(FuzzDeploymentParams memory _deploymentParams) private pure {
+    function _boundPriceParams(FuzzDeploymentParams memory _deploymentParams, bool _assumeTickSpacingIsFloorPrice) private pure {
         // Bound tick spacing and floor price to reasonable values
         _deploymentParams.auctionParams.floorPrice =
             _bound(_deploymentParams.auctionParams.floorPrice, 2, type(uint128).max);
-        // Bound tick spacing to be less than or equal to floor price
-        _deploymentParams.auctionParams.tickSpacing =
-            _bound(_deploymentParams.auctionParams.tickSpacing, 2, _deploymentParams.auctionParams.floorPrice);
-        // Round down floor price to the closest multiple of tick spacing
-        _deploymentParams.auctionParams.floorPrice = helper__roundPriceDownToTickSpacing(
-            _deploymentParams.auctionParams.floorPrice, _deploymentParams.auctionParams.tickSpacing
-        );
+        
+        if (_assumeTickSpacingIsFloorPrice) {
+            _deploymentParams.auctionParams.tickSpacing = _deploymentParams.auctionParams.floorPrice;
+        } else {
+            // Bound tick spacing to be less than or equal to floor price
+            _deploymentParams.auctionParams.tickSpacing =
+                _bound(_deploymentParams.auctionParams.tickSpacing, 2, _deploymentParams.auctionParams.floorPrice);
+            // Round down floor price to the closest multiple of tick spacing
+            _deploymentParams.auctionParams.floorPrice = helper__roundPriceDownToTickSpacing(
+                _deploymentParams.auctionParams.floorPrice, _deploymentParams.auctionParams.tickSpacing
+            );
+        }
         // Ensure floor price is non-zero
         vm.assume(_deploymentParams.auctionParams.floorPrice != 0);
     }
@@ -377,12 +384,12 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 
-        params = helper__validFuzzDeploymentParams(_deploymentParams);
+        params = helper__validFuzzDeploymentParams(_deploymentParams, false);
 
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(_deploymentParams.auctionParams.floorPrice);
-        auction = new Auction(address(token), _deploymentParams.totalSupply, params);
+            auction = new Auction(address(token), _deploymentParams.totalSupply, params);
 
         token.mint(address(auction), _deploymentParams.totalSupply);
         auction.onTokensReceived();

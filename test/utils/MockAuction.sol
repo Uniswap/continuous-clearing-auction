@@ -17,6 +17,11 @@ contract MockAuction is Auction {
         return _iterateOverTicksAndFindClearingPrice(checkpoint);
     }
 
+    /// @notice Wrapper around internal function for testing
+    function sellTokensAtClearingPrice(Checkpoint memory checkpoint, uint24 deltaMps) external returns (Checkpoint memory) {
+        return _sellTokensAtClearingPrice(checkpoint, deltaMps);
+    }
+
     /// @notice Helper function to insert a checkpoint
     function insertCheckpoint(Checkpoint memory _checkpoint, uint64 blockNumber) external {
         _insertCheckpoint(_checkpoint, blockNumber);

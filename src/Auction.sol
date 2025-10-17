@@ -159,10 +159,7 @@ contract Auction is
             // So we use the rounded down price to bias against partially filled bids at `clearingPrice`
             currencyRaisedQ96_X7 = ValueX7.wrap(TOTAL_SUPPLY).mulUint256(clearingPriceRoundedDown * deltaMps);
 
-            // From `iterateOverTicksAndFindClearingPrice` we know that $sumCurrencyDemandAboveClearingQ96 correctly tracks the demand above the `$nextActiveTickPrice`.
-            // There cannot be bids at both the rounded down and rounded up prices, since tick spacing must be > 1.
-            // Because of this, we know that there must be the same or more demand at the rounded down price than the rounded up price
-            // which is why the following subtraction is safe.
+            // TODO(ez): comments here
             ValueX7 currencyRaisedAtClearingPriceQ96_X7 =
                 currencyRaisedQ96_X7.sub(currencyRaisedAboveClearingPriceQ96_X7);
             _checkpoint.currencyRaisedAtClearingPriceQ96_X7 =
@@ -227,10 +224,16 @@ contract Auction is
          * If the auction was fully subscribed in the first block which it was active, then the total CURRENCY REQUIRED
          * at any given price is equal to totalSupply * p', where p' is that price.
          */
+        uint256 clearingPrice = sumCurrencyDemandAboveClearingQ96_.fullMulDivUp(1, TOTAL_SUPPLY);
         while (
-            nextActiveTickPrice_ != MAX_TICK_PTR
             // Loop while the currency amount above the clearing price is greater than the required currency at `nextActiveTickPrice_`
-            && sumCurrencyDemandAboveClearingQ96_ >= TOTAL_SUPPLY * nextActiveTickPrice_
+            (
+                nextActiveTickPrice_ != MAX_TICK_PTR
+                    && sumCurrencyDemandAboveClearingQ96_ >= TOTAL_SUPPLY * nextActiveTickPrice_
+            )
+            // If the demand above clearing rounds up to the `nextActiveTickPrice`, we need to keep iterating over ticks
+            // This ensures that the `nextActiveTickPrice` is always the next initialized tick strictly above the clearing price
+            || clearingPrice == nextActiveTickPrice_
         ) {
             Tick storage $nextActiveTick = _getTick(nextActiveTickPrice_);
             // Subtract the demand at the current nextActiveTick from the total demand
@@ -239,6 +242,7 @@ contract Auction is
             minimumClearingPrice = nextActiveTickPrice_;
             // Advance to the next tick
             nextActiveTickPrice_ = $nextActiveTick.next;
+            clearingPrice = sumCurrencyDemandAboveClearingQ96_.fullMulDivUp(1, TOTAL_SUPPLY);
             updateStateVariables = true;
         }
         // Set the values into storage if we found a new next active tick price
@@ -248,18 +252,13 @@ contract Auction is
             emit NextActiveTickUpdated(nextActiveTickPrice_);
         }
 
-        /**
-         * The new clearing price is simply the ratio of the sum demand above the clearing price
-         * divided by the total supply of the auction. We round up to bias towards higher prices.
-         *
-         * The result of this operation may be lower than tickLowerPrice, in which case
-         * the auction cannot sell at any price above and must use tickLowerPrice instead.
-         */
-        uint256 clearingPrice = sumCurrencyDemandAboveClearingQ96_.fullMulDivUp(1, TOTAL_SUPPLY);
+        // The minimum clearing price is either the floor price or the last tick we iterated over.
+        // It becomes a lower bound for the clearing price.
         if (clearingPrice < minimumClearingPrice) {
             clearingPrice = minimumClearingPrice;
         }
-        // If the clearing price is at a tick boundary with bids we must track the remainder of the price which was rounded up.
+        // If the clearing price is at a tick boundary with bids we need to store the rounded down price
+        // which will be used to calculate the currency raised by bids at the clearing price.
         if (clearingPrice % TICK_SPACING == 0 && _getTick(clearingPrice).currencyDemandQ96 > 0) {
             // If the priceRoundedUp is already the min clearing price, the rounded down price will be the same.
             ClearingPriceRoundedDownLib.set(

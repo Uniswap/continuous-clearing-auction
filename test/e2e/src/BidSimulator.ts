@@ -32,6 +32,7 @@ export class BidSimulator {
   private auction: Contract;
   private currency: Contract;
   private labelMap: Map<string, string> = new Map();
+  private reverseLabelMap: Map<string, string> = new Map();
   private groupBidders: Map<string, string[]> = new Map();
   private auctionDeployer: any; // Add reference to auction deployer for token resolution
 
@@ -75,6 +76,7 @@ export class BidSimulator {
         const address = group.addresses[i];
         bidders.push(address);
         this.labelMap.set(`${group.labelPrefix}-${i}`, address);
+        this.reverseLabelMap.set(address, `${group.labelPrefix}-${i}`);
       }
       this.groupBidders.set(group.labelPrefix, bidders);
     }
@@ -469,5 +471,8 @@ export class BidSimulator {
     );
     let msg = `   Granting Permit2 allowance to the auction contract`;
     transactionInfos.push({ tx, from: bidder, msg });
+  }
+  public getReverseLabelMap(): Map<string, string> {
+    return this.reverseLabelMap;
   }
 }

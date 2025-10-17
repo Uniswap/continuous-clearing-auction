@@ -22,8 +22,8 @@ export interface StepData {
 export interface GroupConfig {
   labelPrefix: string;
   count: number;
-  startAmountEach: string;
-  startNativeEach: string;
+  startAmountEach?: string;
+  startNativeEach?: string;
   addresses?: Address[];
 }
 

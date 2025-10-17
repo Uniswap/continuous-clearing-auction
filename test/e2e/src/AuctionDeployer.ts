@@ -14,6 +14,7 @@ import {
   LOG_PREFIXES,
   METHODS,
   PENDING_STATE,
+  ZERO_ADDRESS,
 } from "./constants";
 import { AuctionContract, TokenContract, AuctionFactoryContract, AuctionConfig } from "./types";
 import hre from "hardhat";
@@ -569,17 +570,21 @@ export class AuctionDeployer {
 
     for (const group of env.groups ?? []) {
       for (const address of group.addresses ?? []) {
-        await this.setupNativeCurrencyBalance(address, group.startNativeEach);
+        await this.setupNativeCurrencyBalance(address, group.startNativeEach ?? "0");
         const auctionCurrency = setupData.auctionParameters.currency;
+        if (auctionCurrency == ZERO_ADDRESS) {
+          await this.setupNativeCurrencyBalance(address, group.startAmountEach ?? "0");
+          continue;
+        }
         if (auctionCurrency.startsWith("0x")) {
           await this.setupTokenBalanceByAddress(
             address,
             auctionCurrency as Address,
-            group.startNativeEach,
+            group.startNativeEach ?? "0",
             setupTransactions,
           );
         } else {
-          await this.setupTokenBalanceByName(address, auctionCurrency, group.startNativeEach, setupTransactions);
+          await this.setupTokenBalanceByName(address, auctionCurrency, group.startNativeEach ?? "0", setupTransactions);
         }
       }
     }
@@ -591,6 +596,7 @@ export class AuctionDeployer {
    * @param amount - The amount in wei as a string
    */
   private async setupNativeCurrencyBalance(address: Address, amount: string): Promise<void> {
+    if (amount == "0") return;
     const hexAmount = "0x" + BigInt(amount).toString(16);
     await hre.network.provider.send(METHODS.HARDHAT.SET_BALANCE, [address, hexAmount]);
     console.log(LOG_PREFIXES.SUCCESS, "Set native currency balance:", address, "=", amount, "wei");
@@ -609,6 +615,7 @@ export class AuctionDeployer {
     amount: string,
     setupTransactions: TransactionInfo[],
   ): Promise<void> {
+    if (amount == "0") return;
     let token: TokenContract | null = null;
     for (const [, tokenContract] of this.tokens) {
       if ((await tokenContract.getAddress()) === tokenAddress) {
@@ -639,6 +646,7 @@ export class AuctionDeployer {
     amount: string,
     setupTransactions: TransactionInfo[],
   ): Promise<void> {
+    if (amount == "0") return;
     const token = this.getTokenByName(tokenName);
     if (token) {
       let tx = await token.getFunction("transfer").populateTransaction(address, amount);

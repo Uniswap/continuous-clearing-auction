@@ -46,7 +46,7 @@ export const extendedSetup: TestSetupData = {
     groups: [
       {
         labelPrefix: "FirstGroup",
-        count: 2,
+        count: 8,
         startNativeEach: "100000000000000000000000",
         startAmountEach: "100000000000000000000000",
       },

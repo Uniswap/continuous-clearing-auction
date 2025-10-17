@@ -155,17 +155,16 @@ export class SingleTestRunner {
     // Get final state as-is (without forcing a checkpoint)
     const finalState = await assertionEngine.getAuctionState();
 
-    console.log(LOG_PREFIXES.FINAL, "Test completed successfully!");
-    console.log(LOG_PREFIXES.CONFIG, "Final state (at block", finalState.currentBlock + "):", finalState);
-
     // Don't add final state as a checkpoint - only use checkpoints from actual events
     // The contract only validates hints against stored checkpoints from CheckpointUpdated events
 
     // Exit and claim all bids if auction graduated
     if (finalState.isGraduated) {
-      await this.exitAndClaimAllBids(auction, setupData);
+      await this.exitAndClaimAllBids(auction, setupData, bidSimulator.getReverseLabelMap());
     }
 
+    console.log(LOG_PREFIXES.FINAL, "Test completed successfully!");
+    this.logFinalState(finalState);
     // Log balances for all funded accounts (after claiming)
     await this.logAccountBalances(setupData, this.deployer, auctionedToken);
 
@@ -178,6 +177,24 @@ export class SingleTestRunner {
       finalState,
       success: true,
     };
+  }
+
+  private logFinalState(finalState: AuctionState): void {
+    console.log(LOG_PREFIXES.CONFIG, "Final state (as of block", finalState.currentBlock + "):");
+    console.log("  Is graduated:", finalState.isGraduated);
+    console.log("  Clearing price:", finalState.clearingPrice);
+    console.log("  Currency raised:", finalState.currencyRaised);
+    console.log("  Latest checkpoint:");
+    console.log("    Clearing price:", finalState.latestCheckpoint.clearingPrice);
+    console.log("    Currency raised (Q96_X7):", finalState.latestCheckpoint.currencyRaisedQ96_X7);
+    console.log(
+      "    Currency raised at clearing price (Q96_X7):",
+      finalState.latestCheckpoint.currencyRaisedAtClearingPriceQ96_X7,
+    );
+    console.log("    Cumulative MPS per price:", finalState.latestCheckpoint.cumulativeMpsPerPrice);
+    console.log("    Cumulative MPS:", finalState.latestCheckpoint.cumulativeMps);
+    console.log("    Prev:", finalState.latestCheckpoint.prev);
+    console.log("    Next:", finalState.latestCheckpoint.next);
   }
 
   private generateAddressesForGroups(groups: GroupConfig[]): void {
@@ -261,27 +278,32 @@ export class SingleTestRunner {
       }
     }
 
+    const auctionCurrency = setupData.auctionParameters.currency;
+    const auctionCurrencyIsNative =
+      auctionCurrency == ZERO_ADDRESS || (auctionCurrency as string).toLowerCase().includes("native");
     const groupBalances = setupData.env.groups;
     if (groupBalances) {
       for (const group of groupBalances) {
         if (!group.addresses) continue;
-        console.log(`${group.labelPrefix}:`);
+        console.log(`\n\n${group.labelPrefix}:`);
         for (let i = 0; i < group.addresses.length; i++) {
-          console.log(`    Group Member ID: ${group.labelPrefix}-${i}:`);
+          console.log(`\n  Group Member ID: ${group.labelPrefix}-${i}:`);
           const groupMember = group.addresses[i];
           const currentNativeBalance = await hre.ethers.provider.getBalance(groupMember);
-          const initialNativeBalance = BigInt(group.startNativeEach);
+          let initialNativeBalance = BigInt(group.startNativeEach ?? "0");
+          if (auctionCurrencyIsNative) {
+            initialNativeBalance += BigInt(group.startAmountEach ?? "0");
+          }
 
           const difference = currentNativeBalance - initialNativeBalance;
           const diffSymbol = difference >= 0n ? "+" : "";
           const diffValue = Number(difference) / 10 ** 18;
 
-          console.log(`  Native Currency:`);
-          console.log(`    Initial: ${(Number(initialNativeBalance) / 10 ** 18).toFixed(6)}`);
-          console.log(`    Final:   ${(Number(currentNativeBalance) / 10 ** 18).toFixed(6)}`);
-          console.log(`    Diff:    ${diffSymbol}${diffValue.toFixed(6)}`);
-          const auctionCurrency = setupData.auctionParameters.currency;
-          if (auctionCurrency != ZERO_ADDRESS && (auctionCurrency as string).toLowerCase().includes("native")) {
+          console.log(`    Native Currency:`);
+          console.log(`      Initial: ${(Number(initialNativeBalance) / 10 ** 18).toFixed(6)}`);
+          console.log(`      Final:   ${(Number(currentNativeBalance) / 10 ** 18).toFixed(6)}`);
+          console.log(`      Diff:    ${diffSymbol}${diffValue.toFixed(6)}`);
+          if (group.startAmountEach && !auctionCurrencyIsNative) {
             let auctionCurrencyContract: TokenContract | undefined;
             if (auctionCurrency.startsWith("0x")) {
               auctionCurrencyContract = deployer.getTokenByName(auctionCurrency as Address);
@@ -299,27 +321,26 @@ export class SingleTestRunner {
 
             const tokenSymbol = await auctionCurrencyContract?.symbol();
 
-            console.log(`  ${tokenSymbol}:`);
-            console.log(`    Initial: ${(Number(initialAuctionCurrencyBalance) / 10 ** Number(decimals)).toFixed(6)}`);
-            console.log(`    Final:   ${(Number(currentAuctionCurrencyBalance) / 10 ** Number(decimals)).toFixed(6)}`);
-            console.log(`    Diff:    ${diffSymbol}${diffValue.toFixed(6)}`);
+            console.log(`    ${tokenSymbol}:`);
+            console.log(
+              `      Initial: ${(Number(initialAuctionCurrencyBalance) / 10 ** Number(decimals)).toFixed(6)}`,
+            );
+            console.log(
+              `      Final:   ${(Number(currentAuctionCurrencyBalance) / 10 ** Number(decimals)).toFixed(6)}`,
+            );
+            console.log(`      Diff:    ${diffSymbol}${diffValue.toFixed(6)}`);
           }
           if (auctionedToken) {
             const currentAuctionedTokenBalance = await auctionedToken.balanceOf(groupMember);
             if (currentAuctionedTokenBalance == 0n) continue;
-            const initialAuctionedTokenBalance = BigInt(0);
-
-            const difference = currentAuctionedTokenBalance - initialAuctionedTokenBalance;
-            const diffSymbol = difference >= 0n ? "+" : "";
             const decimals = await auctionedToken.decimals();
-            const diffValue = Number(difference) / 10 ** Number(decimals);
 
             const tokenSymbol = await auctionedToken.symbol();
 
-            console.log(`  ${tokenSymbol}:`);
-            console.log(`    Initial: ${(Number(initialAuctionedTokenBalance) / 10 ** Number(decimals)).toFixed(6)}`);
-            console.log(`    Final:   ${(Number(currentAuctionedTokenBalance) / 10 ** Number(decimals)).toFixed(6)}`);
-            console.log(`    Diff:    ${diffSymbol}${diffValue.toFixed(6)}`);
+            console.log(`    ${tokenSymbol} (claimed from auction):`);
+            console.log(
+              `      Balance:   ${(Number(currentAuctionedTokenBalance) / 10 ** Number(decimals)).toFixed(6)}`,
+            );
           }
         }
       }
@@ -331,7 +352,11 @@ export class SingleTestRunner {
   /**
    * Exit and claim all bids for the auction
    */
-  private async exitAndClaimAllBids(auction: Contract, setupData: TestSetupData): Promise<void> {
+  private async exitAndClaimAllBids(
+    auction: Contract,
+    setupData: TestSetupData,
+    reverseLabelMap: Map<string, string>,
+  ): Promise<void> {
     console.log("\n🎫 Exiting and claiming all bids...");
 
     // Mine to claim block if needed
@@ -361,8 +386,12 @@ export class SingleTestRunner {
     // Exit and claim for each owner
     for (const [owner, bids] of this.bidsByOwner.entries()) {
       if (bids.length === 0) continue;
-
-      console.log(`\n   ${owner}: ${bids.length} bid(s)`);
+      const ownerLabel = reverseLabelMap.get(owner);
+      if (ownerLabel) {
+        console.log(`\n   ${ownerLabel}: ${bids.length} bid(s)`);
+      } else {
+        console.log(`\n   ${owner}: ${bids.length} bid(s)`);
+      }
 
       const shouldExitBid: Map<number, boolean> = new Map();
       // Exit each bid first
@@ -375,7 +404,8 @@ export class SingleTestRunner {
           // Bid is above final clearing - try simple exitBid first
           try {
             await auction.exitBid(bidId);
-            console.log(`     ✅ Exited bid ${bidId} (simple exit - above clearing)`);
+            const previousBlock = (await hre.ethers.provider.getBlockNumber()) - 1;
+            console.log(`     ✅ Exited bid ${bidId} at block ${previousBlock} (simple exit - above clearing)`);
             continue; // Successfully exited, move to next bid
           } catch (error) {
             // Simple exit failed, fall through to try partial exit
@@ -387,8 +417,9 @@ export class SingleTestRunner {
           const hints = this.findCheckpointHints(maxPrice, sortedCheckpoints);
           if (hints) {
             let tx = await auction.exitPartiallyFilledBid(bidId, hints.lastFullyFilled, hints.outbid);
+            const previousBlock = (await hre.ethers.provider.getBlockNumber()) - 1;
             console.log(
-              `     ✅ Exited bid ${bidId} (partial exit with hints: ${hints.lastFullyFilled}, ${hints.outbid})`,
+              `     ✅ Exited bid ${bidId} at block ${previousBlock} (partial exit with hints: ${hints.lastFullyFilled}, ${hints.outbid})`,
             );
             const receipt = await hre.ethers.provider.getTransactionReceipt(tx.hash);
             for (const log of receipt?.logs ?? []) {

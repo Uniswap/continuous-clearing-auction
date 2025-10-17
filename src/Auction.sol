@@ -446,6 +446,15 @@ contract Auction is
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
 
+        // Prevent bids from being exited before graduation
+        if (!_isGraduated(currentBlockCheckpoint)) {
+            if (block.number >= END_BLOCK) {
+                // If the auction is over, fully refund the bid
+                return _processExit(bidId, 0, 0);
+            }
+            revert CannotPartiallyExitBidBeforeGraduation();
+        }
+
         uint256 bidMaxPrice = bid.maxPrice;
         uint64 bidStartBlock = bid.startBlock;
 
@@ -469,7 +478,7 @@ contract Auction is
 
         uint256 tokensFilled;
         uint256 currencySpentQ96;
-        // If the lastFullyFilledCheckpoint is not 0, account for the fully filled checkpoints
+        // If the lastFullyFilledCheckpoint is provided, account for the fully filled checkpoints
         if (lastFullyFilledCheckpoint.clearingPrice > 0) {
             (tokensFilled, currencySpentQ96) =
                 _accountFullyFilledCheckpoints(lastFullyFilledCheckpoint, startCheckpoint, bid);
@@ -527,14 +536,7 @@ contract Auction is
             currencySpentQ96 += partialCurrencySpentQ96;
         }
 
-        // If the auction is not graduated and the bid has tokens filled, it must be refunded
-        // when the bid is outbid before the auction ends, this allows the bidder to make a new bid
-        // when the auction ends with the clearing price equal to the bid's max price
-        if (tokensFilled > 0 && !_isGraduated(currentBlockCheckpoint)) {
-            _processExit(bidId, 0, 0);
-        } else {
-            _processExit(bidId, tokensFilled, currencySpentQ96);
-        }
+        _processExit(bidId, tokensFilled, currencySpentQ96);
     }
 
     /// @inheritdoc IAuction

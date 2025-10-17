@@ -943,13 +943,23 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(block.number + 1);
         newAuction.checkpoint();
 
-        vm.expectEmit(true, true, true, true);
-        uint256 expectedTokensFilled = 0;
-        uint256 expectedCurrencyRefunded = inputAmountForTokens(100e18, tickNumberToPriceX96(2));
-        emit IAuction.BidExited(bidId1, alice, expectedTokensFilled, expectedCurrencyRefunded);
+        // Bid 1 is outbid and can be exited before the auction ends
+        // however, auction is not graduated so cannot be exited
+        vm.expectRevert(IAuction.CannotPartiallyExitBidBeforeGraduation.selector);
         newAuction.exitPartiallyFilledBid(bidId1, 3, 4);
 
         vm.roll(newAuction.endBlock());
+        // Assert that the auction is not graduated
+        assertEq(newAuction.isGraduated(), false);
+
+        // Bid 1 can be exited as the auction is over
+        uint256 expectedTokensFilled = 0;
+        uint256 expectedCurrencyRefunded = inputAmountForTokens(100e18, tickNumberToPriceX96(2));
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.BidExited(bidId1, alice, expectedTokensFilled, expectedCurrencyRefunded);
+        newAuction.exitPartiallyFilledBid(bidId1, 3, 0);
+
+        // Bid 2 ends at the final clearing price so can't be exited until the auction ends
         vm.expectEmit(true, true, true, true);
         expectedTokensFilled = 0;
         expectedCurrencyRefunded = inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3));
@@ -991,10 +1001,20 @@ contract AuctionTest is AuctionBaseTest {
             bytes('')
         );
 
+        vm.roll(block.number + 1);
+        // Assert that the auction is not graduated
+        assertEq(newAuction.isGraduated(), false);
+        // And that the bid cannot be exited
+        vm.expectRevert(IAuction.CannotPartiallyExitBidBeforeGraduation.selector);
+        newAuction.exitPartiallyFilledBid(bidId, 1, 0);
+
         vm.roll(newAuction.endBlock());
+        // Assert that the auction is not graduated
+        assertEq(newAuction.isGraduated(), false);
         Checkpoint memory finalCheckpoint = newAuction.checkpoint();
         assertEq(finalCheckpoint.clearingPrice, tickNumberToPriceX96(2));
 
+        // Bid can be exited as the auction is over
         vm.expectEmit(true, true, true, true);
         uint256 expectedTokensFilled = 0;
         uint256 expectedCurrencyRefunded = inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2));

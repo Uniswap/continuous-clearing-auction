@@ -708,7 +708,7 @@ export class SingleTestRunner {
         if (blockNumber === createAuctionBlock.toString()) {
           accumulatedTransactions.push(...remainingTransactions);
         } else {
-          await this.handleTransactions(remainingTransactions);
+          await this.handleTransactions(remainingTransactions, bidSimulator.getReverseLabelMap());
         }
         remainingTransactions = [];
       }
@@ -749,7 +749,7 @@ export class SingleTestRunner {
           }
         }
         // Mine the block with all transactions
-        await this.handleTransactions(accumulatedTransactions);
+        await this.handleTransactions(accumulatedTransactions, bidSimulator.getReverseLabelMap());
       }
 
       // Handle assertion events (after transactions are mined)
@@ -783,7 +783,7 @@ export class SingleTestRunner {
    * Handles transaction execution with same-block support and revert validation.
    * @param transactions - Array of transactions to execute
    */
-  async handleTransactions(transactions: TransactionInfo[]): Promise<void> {
+  async handleTransactions(transactions: TransactionInfo[], reverseLabelMap: Map<string, string>): Promise<void> {
     const provider = hre.network.provider;
 
     // Pause automining so txs pile up in the mempool
@@ -794,7 +794,7 @@ export class SingleTestRunner {
     const nextNonce = new Map<string, number>();
 
     try {
-      await this.submitTransactions(transactions, pendingHashes, nextNonce, provider);
+      await this.submitTransactions(transactions, pendingHashes, nextNonce, reverseLabelMap, provider);
 
       // Mine exactly one block containing all pending txs
       await provider.send(METHODS.EVM.MINE, []);
@@ -822,6 +822,7 @@ export class SingleTestRunner {
     transactions: TransactionInfo[],
     pendingHashes: HashWithRevert[],
     nextNonce: Map<string, number>,
+    reverseLabelMap: Map<string, string>,
     provider: any,
   ): Promise<void> {
     while (transactions.length > 0) {
@@ -829,7 +830,12 @@ export class SingleTestRunner {
       let from = txInfo.from as string;
 
       if (from) {
-        console.log(LOG_PREFIXES.INFO, "From:", from);
+        let fromLabel = reverseLabelMap.get(from);
+        if (fromLabel) {
+          console.log(LOG_PREFIXES.INFO, "From:", from, `(${fromLabel})`);
+        } else {
+          console.log(LOG_PREFIXES.INFO, "From:", from);
+        }
         await provider.send(METHODS.HARDHAT.IMPERSONATE_ACCOUNT, [from]);
       } else {
         const defaultFrom = await (await hre.ethers.getSigners())[0].getAddress();

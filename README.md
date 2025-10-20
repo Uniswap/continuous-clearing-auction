@@ -153,6 +153,7 @@ struct AuctionParameters {
     uint256 tickSpacing; // Fixed granularity for prices
     address validationHook; // Optional hook called before a bid
     uint256 floorPrice; // Starting floor price for the auction
+    uint128 requiredCurrencyRaised; // Amount of currency required to be raised for the auction to graduate
     bytes auctionStepsData; // Packed bytes describing token issuance schedule
 }
 
@@ -230,21 +231,20 @@ The clearing price calculation uses currency raised instead of tokens cleared.
 
 **Clearing Price Formula:**
 
-The clearing price is determined by the ratio of demand to supply at each price level:
+The clearing price is determined by the ratio of demand to supply:
 
-$$\text{clearingPrice} = \frac{\text{sumCurrencyDemandAboveClearingQ96}}{\text{TOTAL\_SUPPLY\_Q96}}$$
+$$\text{clearingPrice} = \frac{\text{sumCurrencyDemandAboveClearingQ96}}{\text{TOTAL\_SUPPLY}}$$
 
 **Implementation:**
 
 ```solidity
-// When auction is fully subscribed
-clearingPrice = sumCurrencyDemandAboveClearingQ96.fullMulDivUp(
-    FixedPoint96.Q96,
-    TOTAL_SUPPLY_Q96
-);
+// Calculate clearing price based on demand
+clearingPrice = sumCurrencyDemandAboveClearingQ96.fullMulDivUp(1, TOTAL_SUPPLY);
 
-// When auction is not fully subscribed (at floor price)
-clearingPrice = FLOOR_PRICE;
+// Bounded by minimum clearing price (floor or last tick)
+if (clearingPrice < minimumClearingPrice) {
+    clearingPrice = minimumClearingPrice;
+}
 ```
 
 </details>
@@ -265,12 +265,11 @@ $$\text{currencyRaised} = \text{sumCurrencyDemandAboveClearingQ96} \times \text{
 **Implementation:**
 
 ```solidity
-// Fully subscribed case
-currencyRaisedQ96_X7 = ValueX7.wrap(TOTAL_SUPPLY_Q96 * deltaMps)
-    .wrapAndFullMulDiv(_checkpoint.clearingPrice, FixedPoint96.Q96);
-
-// Not fully subscribed case  
+// Default: all demand is above clearing price
 currencyRaisedQ96_X7 = ValueX7.wrap($sumCurrencyDemandAboveClearingQ96 * deltaMps);
+
+// Special case: when clearing price is at a tick boundary with bids
+// Additional logic to handle partial fills at the clearing price
 ```
 
 ValueX7 scaling avoids intermediate division by MPS.
@@ -357,7 +356,7 @@ Users can submit bids specifying the currency amount they want to spend. The bid
 interface IAuction {
     function submitBid(
         uint256 maxPrice,
-        uint256 amount,
+        uint128 amount,
         address owner,
         uint256 prevTickPrice,
         bytes calldata hookData
@@ -365,7 +364,7 @@ interface IAuction {
 
     function submitBid(
         uint256 maxPrice,
-        uint256 amount,
+        uint128 amount,
         address owner,
         bytes calldata hookData
     ) external payable returns (uint256 bidId);
@@ -387,7 +386,7 @@ interface IAuction {
     function checkpoint() external returns (Checkpoint memory _checkpoint);
 }
 
-event CheckpointUpdated(uint256 indexed blockNumber, uint256 clearingPrice, uint256 totalCurrencyRaised, uint24 cumulativeMps);
+event CheckpointUpdated(uint256 indexed blockNumber, uint256 clearingPrice, ValueX7 currencyRaisedQ96_X7, uint24 cumulativeMps);
 ```
 
 ### Clearing price
@@ -439,23 +438,23 @@ event BidExited(uint256 indexed bidId, address indexed owner, uint256 tokensFill
 Uses cumulative currency tracking (`currencyRaisedAtClearingPriceQ96_X7`) for partial fill calculation:
 
 ```
-partialFillRate = currencyRaisedAtClearingPriceQ96_X7 * mpsDenominator / (tickDemand * cumulativeMpsDelta)
+currencySpentQ96_X7 = bid.amountQ96 * MPS * currencyRaisedAtClearingPriceQ96_X7 / (tickDemandQ96 * mpsRemainingInAuction)
 ```
 
 **Implementation**: Checkpoint linked-list structure (prev/next pointers) for traversal. Block numbers stored as `uint64`.
 
 ### Auction Graduation
 
-Auctions are "graduated" if clearing price is above floor price.
+Auctions are "graduated" if the currency raised meets or exceeds the required threshold.
 
 ```solidity
 interface IAuction {
-    /// @notice Whether the auction has graduated (clearing price > floor price)
+    /// @notice Whether the auction has graduated (currency raised >= required)
     function isGraduated() external view returns (bool);
 }
 ```
 
-**Implementation**: Graduated auctions have clearing price > floor price. Non-graduated auctions refund currency to bidders.
+**Implementation**: Graduated auctions have raised >= requiredCurrencyRaised. Non-graduated auctions refund currency to bidders.
 
 ### Fund Management
 

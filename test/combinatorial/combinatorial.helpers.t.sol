@@ -9,52 +9,71 @@ import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {AuctionBaseTest} from '../utils/AuctionBaseTest.sol';
 import {FuzzBid} from '../utils/FuzzStructs.sol';
+import {PostBidScenario} from './combinatorialEnums.sol';
+import {PreBidScenario} from './combinatorialEnums.sol';
 
 import {Test} from 'forge-std/Test.sol';
 import {console2} from 'forge-std/console2.sol';
 
 contract CombinatorialHelpersTest is AuctionBaseTest {
-    // PreBidScenario enum - defines what happens before user's bid
-    enum PreBidScenario {
-        NoBidsBeforeUser, // No bids before user's bid
-        BidsBeforeUser, // Bids come before user's bid but not at the users max price
-        BidsBeforeUserAtClearingPrice, // Bids come before user's bid, including at the users max price
-        __length
-    }
-
-    // PostBidScenario enum - defines what happens after user's bid
-    enum PostBidScenario {
-        NoBidsAfterUser, // User bid is last (current behavior)
-        UserAboveClearing, // Bids come after but user stays above clearing
-        UserAtClearing, // User ends at clearing price (partial fill)
-        UserOutbidLater, // User wins initially but gets outbid later
-        UserOutbidImmediately, // User gets outbid in next block
-        __length
-    }
-
     function helper__preBidScenario(PreBidScenario scenario) public pure {
         if (scenario == PreBidScenario.NoBidsBeforeUser) {
             return;
         } else if (scenario == PreBidScenario.BidsBeforeUser) {
             return;
-        } else if (scenario == PreBidScenario.BidsBeforeUserAtClearingPrice) {
+        } else if (scenario == PreBidScenario.ClearingPriceBelowMaxPrice) {
             return;
         } else {
             revert('Invalid pre bid scenario');
         }
     }
 
-    function helper__postBidScenario(PostBidScenario scenario) public pure {
+    function helper__postBidScenario(PostBidScenario scenario, uint256 userMaxPrice) public {
+        uint256 clearingPrice = auction.clearingPrice() >> FixedPoint96.RESOLUTION;
+        uint256 tickSpacing = auction.tickSpacing() >> FixedPoint96.RESOLUTION;
+        if (userMaxPrice % tickSpacing != 0) {
+            revert('postBidScenario: userMaxPrice not compliant with tickSpacing');
+        }
+
         if (scenario == PostBidScenario.NoBidsAfterUser) {
             return;
         } else if (scenario == PostBidScenario.UserAboveClearing) {
-            return;
+            if (userMaxPrice <= clearingPrice + tickSpacing) {
+                // User's bid is at or right above the clearing price
+                return;
+            } else {
+                // User's bid is more then one tick above clearing: Move clearing right below the user's bid
+                helper__setAuctionClearingPrice(userMaxPrice - tickSpacing, new address[](1));
+                return;
+            }
         } else if (scenario == PostBidScenario.UserAtClearing) {
-            return;
+            if (userMaxPrice <= clearingPrice) {
+                // User's bid is at or right above the clearing price
+                return;
+            } else {
+                // User's bid is more then one tick above clearing: Move clearing right below the user's bid
+                helper__setAuctionClearingPrice(userMaxPrice, new address[](1));
+                return;
+            }
         } else if (scenario == PostBidScenario.UserOutbidLater) {
-            return;
+            if (userMaxPrice < clearingPrice) {
+                // User's bid is already below the clearing price
+                return;
+            } else {
+                // User's bid is above or equal to the clearing price: Move clearing above the user's bid after one block
+                vm.roll(block.number + 1); // Outbid in the next block
+                helper__setAuctionClearingPrice(userMaxPrice + tickSpacing, new address[](1));
+                return;
+            }
         } else if (scenario == PostBidScenario.UserOutbidImmediately) {
-            return;
+            if (userMaxPrice < clearingPrice) {
+                // User's bid is already below the clearing price
+                return;
+            } else {
+                // User's bid is above or equal to the clearing price: Move clearing above the user's bid immediately
+                helper__setAuctionClearingPrice(userMaxPrice + tickSpacing, new address[](1));
+                return;
+            }
         } else {
             revert('Invalid post bid scenario');
         }
@@ -128,8 +147,53 @@ contract CombinatorialHelpersTest is AuctionBaseTest {
         setUpAuction();
     }
 
-    function test_combinatorial_helpers_postBidScenario(PostBidScenario scenario) public {
-        helper__postBidScenario(scenario);
+    function test_combinatorial_helpers_postBidScenario(FuzzBid memory bid, uint8 scenarioSelection) public {
+        console2.log('TEST STARTING');
+        auction.checkpoint();
+        uint256 clearingPrice = auction.clearingPrice() >> FixedPoint96.RESOLUTION;
+        uint256 tickSpacing = auction.tickSpacing() >> FixedPoint96.RESOLUTION;
+        uint256 floorPrice = auction.floorPrice() >> FixedPoint96.RESOLUTION;
+        console2.log('tickSpacing:', tickSpacing);
+        console2.log('floorPrice:', floorPrice);
+        console2.log('clearingPrice original:', clearingPrice);
+        // -- Tests with fixed values --
+        bid.bidAmount = 1 ether;
+        bid.tickNumber = 20;
+        scenarioSelection = 4;
+
+        console2.log('bid.tickNumber:', bid.tickNumber);
+
+        PostBidScenario scenario = PostBidScenario(scenarioSelection % uint256(PostBidScenario.__length));
+
+        uint256 maxPrice =
+            helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(bid.tickNumber) >> FixedPoint96.RESOLUTION;
+        (bool bidPlaced, uint256 bidId) = helper__trySubmitBid(0, bid, alice);
+        console2.log('bidPlaced:', bidPlaced);
+        if (bidPlaced) {
+            assertEq(auction.bids(bidId).maxPrice >> FixedPoint96.RESOLUTION, maxPrice);
+        }
+
+        console2.log('Scenario:', uint256(scenario));
+        console2.log('User max price:', maxPrice);
+        console2.log('clearingPrice before Scenario:', auction.clearingPrice() >> FixedPoint96.RESOLUTION);
+        helper__postBidScenario(scenario, maxPrice);
+        console2.log('clearingPrice after Scenario:', auction.clearingPrice() >> FixedPoint96.RESOLUTION);
+        if (scenario == PostBidScenario.NoBidsAfterUser) {
+            assertEq(auction.clearingPrice() >> FixedPoint96.RESOLUTION, clearingPrice);
+        } else if (scenario == PostBidScenario.UserAboveClearing) {
+            assertTrue(auction.clearingPrice() >> FixedPoint96.RESOLUTION > clearingPrice);
+            assertTrue(auction.clearingPrice() >> FixedPoint96.RESOLUTION < maxPrice);
+        } else if (scenario == PostBidScenario.UserAtClearing) {
+            assertTrue(auction.clearingPrice() >> FixedPoint96.RESOLUTION == maxPrice);
+        } else if (scenario == PostBidScenario.UserOutbidLater) {
+            assertTrue(auction.bids(bidId).startBlock < auction.bids(bidId + 1).startBlock);
+            assertTrue(auction.clearingPrice() >> FixedPoint96.RESOLUTION > maxPrice);
+        } else if (scenario == PostBidScenario.UserOutbidImmediately) {
+            assertTrue(auction.bids(bidId).startBlock == auction.bids(bidId + 1).startBlock);
+            assertTrue(auction.clearingPrice() >> FixedPoint96.RESOLUTION > maxPrice);
+        } else {
+            revert('Invalid post bid scenario');
+        }
     }
 
     // function test_cumulativeMPS() public {
@@ -162,8 +226,10 @@ contract CombinatorialHelpersTest is AuctionBaseTest {
         uint128 legalizedTargetClearingPrice = _legalizeBidMaxPrice(targetClearingPrice);
 
         // Move the clearing price to the target price
-        address[] memory bidOwners = new address[](1);
+        address[] memory bidOwners = new address[](3);
         bidOwners[0] = address(this);
+        bidOwners[0] = alice;
+        bidOwners[0] = bob;
         bool success = helper__setAuctionClearingPrice(legalizedTargetClearingPrice, bidOwners);
 
         // Not successful if clearing price is greater then target, since the price can only go up

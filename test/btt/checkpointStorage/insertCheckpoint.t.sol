@@ -42,7 +42,6 @@ contract InsertCheckpointTest is BttBase {
 
         assertEq(mockCheckpointStorage.lastCheckpointedBlock(), _blockNumber);
         assertEq(mockCheckpointStorage.clearingPrice(), _checkpoint.clearingPrice);
-        assertEq(mockCheckpointStorage.currencyRaised(), ValueX7.unwrap(_checkpoint.currencyRaisedQ96_X7) / 1e7 >> FixedPoint96.RESOLUTION);
 
         // On purpose the first link in the list does not update next (unclear why)
         // assertEq(mockCheckpointStorage.getCheckpoint(0).next, _blockNumber);

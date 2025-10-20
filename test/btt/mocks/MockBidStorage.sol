@@ -11,14 +11,6 @@ contract MockBidStorage is BidStorage {
         return super._createBid(amount, owner, maxPrice, startCumulativeMps);
     }
 
-    function deleteBid(uint256 bidId) external {
-        super._deleteBid(bidId);
-    }
-
-    function updateBid(uint256 bidId, Bid memory bid) external {
-        super._updateBid(bidId, bid);
-    }
-
     function getBid(uint256 bidId) external view returns (Bid memory) {
         return super._getBid(bidId);
     }

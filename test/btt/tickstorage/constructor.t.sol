@@ -13,21 +13,22 @@ contract ConstructorTest is BttBase {
     uint256 tickSpacing;
     uint256 floorPrice;
 
-    function test_WhenTickSpacingEQ0(uint256 _floorPrice) external {
-        // it reverts with {TickSpacingIsZero}
+    function test_WhenTickSpacingTooSmall(uint256 _floorPrice, uint256 _tickSpacing) external {
+        // it reverts with {TickSpacingTooSmall}
 
         floorPrice = _floorPrice;
+        _tickSpacing = bound(_tickSpacing, 0, 1);
 
-        vm.expectRevert(ITickStorage.TickSpacingIsZero.selector);
-        new MockTickStorage(0, floorPrice);
+        vm.expectRevert(ITickStorage.TickSpacingTooSmall.selector);
+        new MockTickStorage(_tickSpacing, floorPrice);
     }
 
-    modifier whenTickSpacingGT0(uint256 _tickSpacing) {
-        tickSpacing = bound(_tickSpacing, 1, type(uint256).max);
+    modifier whenTickSpacingValid(uint256 _tickSpacing) {
+        tickSpacing = bound(_tickSpacing, 2, type(uint256).max);
         _;
     }
 
-    function test_WhenFloorPriceEQ0(uint256 _tickSpacing) external whenTickSpacingGT0(_tickSpacing) {
+    function test_WhenFloorPriceEQ0(uint256 _tickSpacing) external whenTickSpacingValid(_tickSpacing) {
         // it reverts with {FloorPriceIsZero}
 
         floorPrice = 0;
@@ -43,7 +44,7 @@ contract ConstructorTest is BttBase {
 
     function test_WhenFloorPriceGTMaxBidPrice(uint256 _tickSpacing, uint256 _floorPrice)
         external
-        whenTickSpacingGT0(_tickSpacing)
+        whenTickSpacingValid(_tickSpacing)
         whenFloorPriceGT0
     {
         // it reverts with {FloorPriceAboveMaxBidPrice}
@@ -55,7 +56,7 @@ contract ConstructorTest is BttBase {
 
     function test_WhenFloorPriceNotPerfectlyDivisibleByTickSpacing(uint256 _tickSpacing, uint256 _floorPrice)
         external
-        whenTickSpacingGT0(_tickSpacing)
+        whenTickSpacingValid(_tickSpacing)
         whenFloorPriceGT0
     {
         // it reverts with {TickPriceNotAtBoundary}
@@ -69,7 +70,7 @@ contract ConstructorTest is BttBase {
 
     function test_WhenFloorPriceIsPerfectlyDivisibleByTickSpacing(uint256 _tickSpacing, uint256 _floorPrice)
         external
-        whenTickSpacingGT0(_tickSpacing)
+        whenTickSpacingValid(_tickSpacing)
         whenFloorPriceGT0
     {
         // it writes FLOOR_PRICE

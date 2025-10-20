@@ -23,6 +23,11 @@ library BidLib {
     using BidLib for *;
     using FixedPointMathLib for *;
 
+    /// @dev Error thrown when a bid is submitted with no remaining percentage of the auction
+    ///      This is prevented by the auction contract as bids cannot be submitted when the auction is sold out,
+    ///      but we catch it instead of reverting with division by zero.
+    error MpsRemainingIsZero();
+
     /// @notice Calculate the number of mps remaining in the auction since the bid was submitted
     /// @param bid The bid to calculate the remaining mps for
     /// @return The number of mps remaining in the auction
@@ -36,6 +41,8 @@ library BidLib {
     /// @param bid The bid to scale
     /// @return The scaled amount
     function toEffectiveAmount(Bid memory bid) internal pure returns (uint256) {
-        return (bid.amountQ96 * ConstantsLib.MPS) / bid.mpsRemainingInAuctionAfterSubmission();
+        uint24 mpsRemainingInAuction = bid.mpsRemainingInAuctionAfterSubmission();
+        if (mpsRemainingInAuction == 0) revert MpsRemainingIsZero();
+        return (bid.amountQ96 * ConstantsLib.MPS) / mpsRemainingInAuction;
     }
 }

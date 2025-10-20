@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {ValidationHookLib} from '../src/libraries/ValidationHookLib.sol';
-import {MockRevertingValidationHook} from './utils/MockRevertingValidationHook.sol';
-import {MockRevertingValidationHookWithCustomError} from './utils/MockRevertingValidationHook.sol';
-import {MockRevertingValidationHookCustomErrorWithString} from './utils/MockRevertingValidationHook.sol';
-import {MockRevertingValidationHookErrorWithString} from './utils/MockRevertingValidationHook.sol';
-
-import {MockValidationHook} from './utils/MockValidationHook.sol';
-import {MockValidationHookLib} from './utils/MockValidationHookLib.sol';
+import {ValidationHookLib} from '../../src/libraries/ValidationHookLib.sol';
+import {MockRevertingValidationHook} from '../utils/MockRevertingValidationHook.sol';
+import {MockRevertingValidationHookWithCustomError} from '../utils/MockRevertingValidationHook.sol';
+import {MockRevertingValidationHookCustomErrorWithString} from '../utils/MockRevertingValidationHook.sol';
+import {MockRevertingValidationHookErrorWithString} from '../utils/MockRevertingValidationHook.sol';
+import {MockValidationHook} from '../utils/MockValidationHook.sol';
+import {MockValidationHookLib} from '../utils/MockValidationHookLib.sol';
 import {Test} from 'forge-std/Test.sol';
 
 contract ValidationHookLibTest is Test {

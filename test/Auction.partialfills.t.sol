@@ -112,10 +112,7 @@ contract PartialFillsTest is AuctionBaseTest {
         emit log_named_decimal_uint('Balance of auction', address(mockAuction).balance, 18);
 
         // When we have one less this will be one less
-        // TODO(md): maybe not keep the -1 here
-        console.log('fail');
-        assertGe(address(mockAuction).balance, raised / 1e7 / FixedPoint96.Q96 - 1);
-        console.log('pass');
+        assertGe(address(mockAuction).balance, raised / 1e7 / FixedPoint96.Q96);
 
         emit log_named_decimal_uint('Cumulative MPS          ', finalCheckpoint.cumulativeMps, 5);
         emit log_named_decimal_uint('Cumulative MPS per price', finalCheckpoint.cumulativeMpsPerPrice, 32);

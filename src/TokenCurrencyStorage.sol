@@ -66,7 +66,9 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
 
     function _sweepCurrency(uint256 amount) internal {
         sweepCurrencyBlock = block.number;
-        CURRENCY.transfer(FUNDS_RECIPIENT, amount);
+        if (amount > 0) {
+            CURRENCY.transfer(FUNDS_RECIPIENT, amount);
+        }
         emit CurrencySwept(FUNDS_RECIPIENT, amount);
     }
 

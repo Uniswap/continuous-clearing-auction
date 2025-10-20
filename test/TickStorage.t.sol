@@ -66,14 +66,14 @@ contract TickStorageTest is Test, Assertions {
     }
 
     function helper__assumeUninitializedTick(uint256 _price) internal {
-        vm.assume(tickStorage.getTick(_price).next == 0);
+        vm.assume(tickStorage.ticks(_price).next == 0);
     }
 
     function helper__assumeValidPreviousHint(uint256 _prevPrice, uint256 _price) internal {
         // Assume ordering is right
         vm.assume(_prevPrice < _price);
         // Assume that next price is greater than or equal to the price, also checks initialized for free
-        vm.assume(tickStorage.getTick(_prevPrice).next >= _price);
+        vm.assume(tickStorage.ticks(_prevPrice).next >= _price);
     }
 
     function test_tickStorage_canBeConstructed_fuzz(uint256 tickSpacing, uint256 floorPrice) public {
@@ -92,7 +92,7 @@ contract TickStorageTest is Test, Assertions {
             assertEq(_tickStorage.floorPrice(), floorPrice);
             assertEq(_tickStorage.tickSpacing(), tickSpacing);
             assertEq(_tickStorage.nextActiveTickPrice(), type(uint256).max);
-            assertEq(_tickStorage.getTick(floorPrice).next, type(uint256).max);
+            assertEq(_tickStorage.ticks(floorPrice).next, type(uint256).max);
         }
     }
 
@@ -107,14 +107,14 @@ contract TickStorageTest is Test, Assertions {
         emit ITickStorage.TickInitialized(_price);
         // $floorPrice_rounded is guaranteed to be initialized already
         tickStorage.initializeTickIfNeeded($floorPrice_rounded, _price);
-        Tick memory tick = tickStorage.getTick(_price);
+        Tick memory tick = tickStorage.ticks(_price);
         assertEq(tick.currencyDemandQ96, 0);
         // Assert there is no next tick (type(uint256).max)
         assertEq(tick.next, tickStorage.MAX_TICK_PTR());
         // Assert the nextActiveTick is unchanged
         assertEq(tickStorage.nextActiveTickPrice(), _price);
 
-        tick = tickStorage.getTick($floorPrice_rounded);
+        tick = tickStorage.ticks($floorPrice_rounded);
         // Assert the next tick from the floor price is the new tick
         assertEq(tick.next, _price);
     }
@@ -132,7 +132,7 @@ contract TickStorageTest is Test, Assertions {
 
         // Intialze the floor price since it is guaranteed to be initialized already
         tickStorage.initializeTickIfNeeded(_prevPrice, $floorPrice_rounded);
-        Tick memory tick = tickStorage.getTick($floorPrice_rounded);
+        Tick memory tick = tickStorage.ticks($floorPrice_rounded);
         assertEq(tick.next, type(uint256).max);
         assertEq(tickStorage.nextActiveTickPrice(), type(uint256).max);
     }
@@ -155,7 +155,7 @@ contract TickStorageTest is Test, Assertions {
         emit ITickStorage.TickInitialized(_price);
         // $floorPrice_rounded is guaranteed to be initialized already
         tickStorage.initializeTickIfNeeded($floorPrice_rounded, _price);
-        Tick memory tick = tickStorage.getTick(_price);
+        Tick memory tick = tickStorage.ticks(_price);
         assertEq(tick.next, type(uint256).max);
 
         // Does not revert, returns the tick
@@ -200,7 +200,7 @@ contract TickStorageTest is Test, Assertions {
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(_price);
         tickStorage.initializeTickIfNeeded($floorPrice_rounded, _price);
-        Tick memory tick = tickStorage.getTick(_price);
+        Tick memory tick = tickStorage.ticks(_price);
         assertEq(tick.next, type(uint256).max);
 
         vm.expectEmit(true, true, true, true);
@@ -283,9 +283,9 @@ contract TickStorageTest is Test, Assertions {
         tickStorage = new MockTickStorage($tickSpacing, $floorPrice_rounded);
         // Assume that the price is not at a boundary
         vm.assume(_price % $tickSpacing != 0);
-        // Expect getTick to revert
+        // Expect ticks to revert
         vm.expectRevert(ITickStorage.TickPriceNotAtBoundary.selector);
-        tickStorage.getTick(_price);
+        tickStorage.ticks(_price);
         // And expect ticks to revert
         vm.expectRevert(ITickStorage.TickPriceNotAtBoundary.selector);
         tickStorage.ticks(_price);
@@ -317,7 +317,7 @@ contract TickStorageTest is Test, Assertions {
         tickStorage.initializeTickIfNeeded($floorPrice_rounded, _price);
 
         tickStorage.updateTickDemand(_price, _demandQ96);
-        assertEq(tickStorage.getTick(_price).currencyDemandQ96, _demandQ96);
+        assertEq(tickStorage.ticks(_price).currencyDemandQ96, _demandQ96);
     }
 
     function test_updateTickDemand_revertsWhenPriceIsNotAtBoundary(

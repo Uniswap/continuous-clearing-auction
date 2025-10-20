@@ -548,15 +548,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     }
 
     // ============================================
-    // Auction State Query Helpers
-    // ============================================
-
-    /// @notice Helper function to return the tick at the given price
-    function getTick(uint256 price) public view returns (Tick memory) {
-        return auction.ticks(price);
-    }
-
-    // ============================================
     // Logging utilities
     // ============================================
     function logFuzzDeploymentParams(FuzzDeploymentParams memory _deploymentParams) public pure {

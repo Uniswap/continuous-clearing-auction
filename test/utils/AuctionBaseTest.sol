@@ -126,10 +126,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return deploymentParams;
     }
 
-    function helper__validFuzzDeploymentParams(FuzzDeploymentParams memory _deploymentParams, bool _assumeTickSpacingIsFloorPrice)
-        public
-        returns (AuctionParameters memory)
-    {
+    function helper__validFuzzDeploymentParams(
+        FuzzDeploymentParams memory _deploymentParams,
+        bool _assumeTickSpacingIsFloorPrice
+    ) public returns (AuctionParameters memory) {
         _setHardcodedParams(_deploymentParams);
         vm.assume(_deploymentParams.totalSupply > 0);
 
@@ -168,11 +168,14 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _deploymentParams.auctionParams.claimBlock = _deploymentParams.auctionParams.endBlock + 1;
     }
 
-    function _boundPriceParams(FuzzDeploymentParams memory _deploymentParams, bool _assumeTickSpacingIsFloorPrice) private pure {
+    function _boundPriceParams(FuzzDeploymentParams memory _deploymentParams, bool _assumeTickSpacingIsFloorPrice)
+        private
+        pure
+    {
         // Bound tick spacing and floor price to reasonable values
         _deploymentParams.auctionParams.floorPrice =
             _bound(_deploymentParams.auctionParams.floorPrice, 2, type(uint128).max);
-        
+
         if (_assumeTickSpacingIsFloorPrice) {
             _deploymentParams.auctionParams.tickSpacing = _deploymentParams.auctionParams.floorPrice;
         } else {
@@ -390,7 +393,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(_deploymentParams.auctionParams.floorPrice);
-            auction = new Auction(address(token), _deploymentParams.totalSupply, params);
+        auction = new Auction(address(token), _deploymentParams.totalSupply, params);
 
         token.mint(address(auction), _deploymentParams.totalSupply);
         auction.onTokensReceived();

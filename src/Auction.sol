@@ -164,8 +164,7 @@ contract Auction is
             // Cache the previous value on the stack to avoid recalculating it
             ValueX7 currencyRaisedAboveClearingPriceQ96_X7 = currencyRaisedQ96_X7_;
 
-            // We cannot use the rounded up price because it will inflate currencyRaised
-            // So we use the rounded down price to bias against partially filled bids at `clearingPrice`
+            // Get the expected currencyRaised at the rounded up clearing price
             currencyRaisedQ96_X7_ = ValueX7.wrap(TOTAL_SUPPLY).mulUint256(_checkpoint.clearingPrice * deltaMps);
 
             // The currency raised at the clearing price is equal to the total currency raised according to the supply schedule
@@ -177,8 +176,16 @@ contract Auction is
 
             // TODO(md): document this properly
             // If currencyDemand at the tick is less than the calculated currency raised, then everyone should fill fully at this price
-            uint256 currencyRaisedAtTick_X7 = _getTick(_checkpoint.clearingPrice).currencyDemandQ96 * deltaMps;
-            currencyRaisedAtClearingPriceQ96_X7 = ValueX7.wrap(FixedPointMathLib.min(currencyRaisedAtTick_X7, ValueX7.unwrap(currencyRaisedAtClearingPriceQ96_X7)));
+            ValueX7 currencyRaisedAtTick_X7 =
+                ValueX7.wrap(_getTick(_checkpoint.clearingPrice).currencyDemandQ96 * deltaMps);
+            currencyRaisedAtClearingPriceQ96_X7 = ValueX7.wrap(
+                FixedPointMathLib.min(
+                    ValueX7.unwrap(currencyRaisedAtTick_X7), ValueX7.unwrap(currencyRaisedAtClearingPriceQ96_X7)
+                )
+            );
+
+            // Finally, we can find the actual currency raised by simply adding the currency raised at the clearing price and the currency raised above the clearing price
+            currencyRaisedQ96_X7_ = currencyRaisedAtClearingPriceQ96_X7.add(currencyRaisedAboveClearingPriceQ96_X7);
 
             _checkpoint.currencyRaisedAtClearingPriceQ96_X7 =
                 _checkpoint.currencyRaisedAtClearingPriceQ96_X7.add(currencyRaisedAtClearingPriceQ96_X7);

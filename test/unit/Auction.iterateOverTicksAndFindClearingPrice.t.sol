@@ -6,10 +6,11 @@ import {Auction} from '../../src/Auction.sol';
 import {AuctionParameters} from '../../src/Auction.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
 import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
+
+import {FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
+import {MockAuction} from '../utils/MockAuction.sol';
 import {AuctionUnitTest} from './AuctionUnitTest.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {MockAuction} from '../utils/MockAuction.sol';
-import {FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
 
 struct FuzzTick {
     uint8 tickNumber;
@@ -19,14 +20,16 @@ struct FuzzTick {
 contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
     using FixedPointMathLib for *;
 
-    function updateFuzzTicksExactlyAtAndAbove(FuzzTick[] memory _fuzzTicks, uint8 _tickNumber, uint256 _totalSupply) public {
+    function updateFuzzTicksExactlyAtAndAbove(FuzzTick[] memory _fuzzTicks, uint8 _tickNumber, uint256 _totalSupply)
+        public
+    {
         // Work out what the highest tick number is given the tick spacing and floor price
         uint256 highestTickNumber = (type(uint256).max - params.floorPrice) / params.tickSpacing;
         _tickNumber = uint8(_bound(_tickNumber, 0, highestTickNumber));
 
         uint256 tickPrice = params.floorPrice + uint256(_tickNumber) * uint256(params.tickSpacing);
         uint256 nextTickPrice = tickPrice + params.tickSpacing;
-        
+
         // We need demand that makes the clearing price round up to nextTickPrice
         // The clearing price is calculated as: sumCurrencyDemandAboveClearingQ96_.fullMulDivUp(1, TOTAL_SUPPLY)
         // We want this to equal nextTickPrice, so we need demand = totalSupply * nextTickPrice
@@ -35,7 +38,7 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
         // 2. clearingPrice != nextActiveTickPrice_
         // Since we want clearingPrice == nextTickPrice, we need to set up the ticks so that
         // nextActiveTickPrice_ > nextTickPrice, which means we need demand at a tick above nextTickPrice
-        uint256 demandRequired = uint256(_totalSupply) * nextTickPrice; 
+        uint256 demandRequired = uint256(_totalSupply) * nextTickPrice;
 
         // Demand found above the tick should be greater than the demand required
         uint256 demandFoundAboveTick = 0;
@@ -65,19 +68,16 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
             uint8 tickAboveNumberInspectingTick = _tickNumber + 1;
 
             uint256 demandDelta = demandRequired - demandFoundAboveTick;
-            FuzzTick memory tickAbove = FuzzTick({
-                tickNumber: tickAboveNumberInspectingTick,
-                demand: uint128(demandDelta)
-            });
+            FuzzTick memory tickAbove =
+                FuzzTick({tickNumber: tickAboveNumberInspectingTick, demand: uint128(demandDelta)});
             demandFoundAboveTick += demandDelta;
 
             createOrAddToTickDemand(tickAbove);
         }
-        
+
         // We don't need extra demand at a higher tick since we want the clearing price to be exactly nextTickPrice
 
         assertEq(demandFoundAboveTick, demandRequired);
-
     }
 
     function createOrAddToTickDemand(FuzzTick memory _fuzzTick) public {
@@ -108,7 +108,7 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
     //     FuzzDeploymentParams memory _deploymentParams,
     //     FuzzTick[] memory _fuzzTicks,
     //     uint8 _tickNumber
-    // ) external 
+    // ) external
     //     lowerTotalSupply(_deploymentParams)
     //     tickSpacingIsFloorPrice(_deploymentParams)
     //     setUpMockAuctionFuzz(_deploymentParams)
@@ -121,7 +121,7 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
     //     // Sum demand above clearing should be enough to purchase all tokens at given ticks
 
     //     // How to structure this test
-    //     // - Update the sum demand above clearing 
+    //     // - Update the sum demand above clearing
     //     // - Update the ticks with the correct demand
     //     // - Allow for some kind of jitter for the ticks that will be used
 
@@ -155,12 +155,10 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
     //     console.log("price at tick number", params.floorPrice + uint256(_tickNumber) * uint256(params.tickSpacing));
     //     console.log("expected clearing price", expectedClearingPrice);
 
-
     //     assertEq(clearingPrice, expectedClearingPrice);
     // }
 
-    function test_WhenThereIsEnoughDemandExactlyAtAndAboveTheTick() external 
-    {
+    function test_WhenThereIsEnoughDemandExactlyAtAndAboveTheTick() external {
         // it should set clearing price to a tick boundary
         // it should find clearing price rounded up to be the minimum price
         // it should find clearing price rounded down to be the minimum price
@@ -178,10 +176,10 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
         mockAuction.uncheckedAddToSumDemandAboveClearing(sumDemandAboveClearing);
         mockAuction.uncheckedInitializeTickIfNeeded(floorPrice, nextTickPrice);
         mockAuction.uncheckedUpdateTickDemand(nextTickPrice, sumDemandAboveClearing);
-        
+
         // TODO: could it be that the next active tick price was 0 in the fuzz test?
         mockAuction.uncheckedSetNextActiveTickPrice(nextTickPrice);
-        
+
         Checkpoint memory checkpoint = Checkpoint({
             clearingPrice: floorPrice,
             currencyRaisedAtClearingPriceQ96_X7: ValueX7.wrap(0),
@@ -196,14 +194,14 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
 
         // In this case, the clearing price rounded down should be the clearing price
         uint256 clearingPriceRoundedDown = sumDemandAboveClearing.fullMulDiv(1, totalSupply);
-        assertEq(clearingPriceRoundedDown, clearingPrice, "clearing price rounded down should be the clearing price");
+        assertEq(clearingPriceRoundedDown, clearingPrice, 'clearing price rounded down should be the clearing price');
 
         // In this case, the clearing price rounded up should be the next tick price
         uint256 clearingPriceRoundedUp = sumDemandAboveClearing.fullMulDivUp(1, totalSupply);
-        assertEq(clearingPriceRoundedUp, clearingPrice, "clearing price rounded up should be the clearing price");
+        assertEq(clearingPriceRoundedUp, clearingPrice, 'clearing price rounded up should be the clearing price');
 
         // Sum demand above clearing should be 0 as all demand is at the correct tick
-        assertEq(mockAuction.sumCurrencyDemandAboveClearingQ96(), 0, "sum demand above clearing should be 0");
+        assertEq(mockAuction.sumCurrencyDemandAboveClearingQ96(), 0, 'sum demand above clearing should be 0');
     }
 
     function test_WhenThereIsEnoughDemandAtTheTickAndTicksAboveButNotEnoughDemandAtTicksAboveToFindAClearingPriceInbetween(
@@ -249,11 +247,13 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
         // In this case, the clearing price rounded down should be BELOW the next tick price
         uint256 sumDemandAboveClearingFromAuction = mockAuction.sumCurrencyDemandAboveClearingQ96();
         uint256 clearingPriceRoundedDown = sumDemandAboveClearingFromAuction.fullMulDiv(1, totalSupply);
-        assertLt(clearingPriceRoundedDown, nextTickPrice, "clearing price rounded down should be below the next tick price");
+        assertLt(
+            clearingPriceRoundedDown, nextTickPrice, 'clearing price rounded down should be below the next tick price'
+        );
 
         // In this case, the clearing price rounded up should be below the next tick price
         uint256 clearingPriceRoundedUp = sumDemandAboveClearingFromAuction.fullMulDivUp(1, totalSupply);
-        assertLt(clearingPriceRoundedUp, nextTickPrice, "clearing price rounded up should be below the next tick price");
+        assertLt(clearingPriceRoundedUp, nextTickPrice, 'clearing price rounded up should be below the next tick price');
 
         // Sum demand above clearing should be the demand at the second tick price
         assertEq(sumDemandAboveClearingFromAuction, demandAtSecondTick);
@@ -318,7 +318,6 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
         // Sum demand above clearing should be the demand at the second tick price
         assertEq(mockAuction.sumCurrencyDemandAboveClearingQ96(), demandAtSecondTick);
     }
-
 
     function test_WhenThereIsEnoughDemandToFallBelowTheNextTickButRoundsUpToTheNextTick() external {
         // it should find clearing price at next tick boundary

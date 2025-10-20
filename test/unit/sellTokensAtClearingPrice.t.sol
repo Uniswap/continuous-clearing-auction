@@ -5,13 +5,14 @@ pragma solidity 0.8.26;
 import {Auction} from '../../src/Auction.sol';
 import {AuctionParameters} from '../../src/Auction.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
+
+import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
+import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
+import {FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
+import {MockAuction} from '../utils/MockAuction.sol';
 import {AuctionUnitTest} from './AuctionUnitTest.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {MockAuction} from '../utils/MockAuction.sol';
-import {FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
-import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
-import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 
 import {console} from 'forge-std/console.sol';
 
@@ -60,12 +61,14 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
         assertEq(mockAuction.sumCurrencyDemandAboveClearingQ96(), 0);
 
         // Currency raised ex
-        // In this example it will be exactly the same 
+        // In this example it will be exactly the same
         uint256 expectedCurrencyRaised = sumDemandAboveClearing * _deltaMps;
         uint256 expectedCurrencyRaisedFromSumDemandAboveClearing = 0 * _deltaMps;
         uint256 expectedCurrencyAtClearingPrice = totalSupply * clearingPrice * _deltaMps;
 
-        assertEq(expectedCurrencyRaised, expectedCurrencyAtClearingPrice - expectedCurrencyRaisedFromSumDemandAboveClearing);
+        assertEq(
+            expectedCurrencyRaised, expectedCurrencyAtClearingPrice - expectedCurrencyRaisedFromSumDemandAboveClearing
+        );
         assertEq(mockAuction.currencyRaisedQ96_X7(), ValueX7.wrap(expectedCurrencyAtClearingPrice));
 
         // Value of demand at the tick should be equal to the value of currency raised when multiplying total supply by clearing price
@@ -75,7 +78,8 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
         // Currency raised at clearing price should be equal to the sum of demand above clearing and the demand at the tick
         assertEq(newCheckpoint.currencyRaisedAtClearingPriceQ96_X7, ValueX7.wrap(expectedCurrencyAtClearingPrice));
 
-        uint256 expectedCumulativeMpsPerPrice = (_deltaMps * (FixedPoint96.Q96 << FixedPoint96.RESOLUTION)) / clearingPrice;
+        uint256 expectedCumulativeMpsPerPrice =
+            (_deltaMps * (FixedPoint96.Q96 << FixedPoint96.RESOLUTION)) / clearingPrice;
         assertEq(newCheckpoint.cumulativeMpsPerPrice, expectedCumulativeMpsPerPrice);
         assertEq(newCheckpoint.cumulativeMps, _deltaMps);
     }
@@ -131,7 +135,6 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
 
         assertEq(clearingPrice, nextTickPrice);
 
-
         // In this case, the clearing price rounded up should be the next tick price
         {
             // In this case, the clearing price rounded down should be below the next tick price
@@ -153,7 +156,7 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
         Checkpoint memory newCheckpoint = mockAuction.sellTokensAtClearingPrice(checkpoint, _deltaMps);
 
         // Currency raised ex
-        // In this example it will be exactly the same 
+        // In this example it will be exactly the same
         uint256 expectedCurrencyRaised = sumDemandAboveClearing * _deltaMps;
         uint256 expectedCurrencyRaisedFromSumDemandAboveClearing = 0 * _deltaMps;
         uint256 expectedCurrencyAtClearingPrice = totalSupply * clearingPrice * _deltaMps;
@@ -169,19 +172,19 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
         assertApproxEqAbs(expectedCurrencyAtClearingPrice, currencyRaisedAtTick, 1 * _deltaMps);
         assertGt(expectedCurrencyAtClearingPrice, currencyRaisedAtTick);
         assertEq(expectedCurrencyRaised, currencyRaisedAtTick - expectedCurrencyRaisedFromSumDemandAboveClearing);
-        
+
         // FALING
-        // Note here: we are calculating currency raised as if we have filled the whole thing successfully, 
-        // however we actually have not - this is using the rounded up clearing price to determine - and 
+        // Note here: we are calculating currency raised as if we have filled the whole thing successfully,
+        // however we actually have not - this is using the rounded up clearing price to determine - and
         // thus is probably calculting that we have earned more than we actually have
         assertEq(mockAuction.currencyRaisedQ96_X7(), ValueX7.wrap(currencyRaisedAtTick));
 
         // Currency raised at clearing price should be equal to the sum of demand above clearing and the demand at the tick
         assertEq(newCheckpoint.currencyRaisedAtClearingPriceQ96_X7, ValueX7.wrap(currencyRaisedAtTick));
 
-        uint256 expectedCumulativeMpsPerPrice = (_deltaMps * (FixedPoint96.Q96 << FixedPoint96.RESOLUTION)) / clearingPrice;
+        uint256 expectedCumulativeMpsPerPrice =
+            (_deltaMps * (FixedPoint96.Q96 << FixedPoint96.RESOLUTION)) / clearingPrice;
         assertEq(newCheckpoint.cumulativeMpsPerPrice, expectedCumulativeMpsPerPrice);
         assertEq(newCheckpoint.cumulativeMps, _deltaMps);
     }
-
 }

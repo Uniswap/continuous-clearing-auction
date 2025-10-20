@@ -1,0 +1,19 @@
+IterateOverTicksAndFindClearingPrice
+├── When there is enough demand exactly at and above the tick
+│   ├── it should set clearing price to a tick boundary
+│   ├── it should find clearing price rounded up to be the minimum price
+│   ├── it should find clearing price rounded down to be the minimum price
+│   └── it should set sumDemandAboveClearing to be sum of ticks above clearing price
+├── When there is enough demand at the tick and ticks above but not enough demand at ticks above to find a clearing price inbetween
+│   ├── it should set clearing price to a tick boundary
+│   └── it should set sumDemandAboveClearing to be sum of ticks above clearing price
+├── When there is enough demand at the ticks above to find a clearing price between tick boundaries
+│   ├── it should find clearing price between tick boundaries
+│   ├── it should find clearing price rounded up to be above tick lower < tick upper
+│   ├── it should find clearing price rounded down to be above tick lower < tick upper
+│   └── it should set sumDemandAboveClearing to be sum of ticks above clearing price
+└── When there is enough demand to fall below the next tick but rounds up to the next tick
+    ├── it should find clearing price at next tick boundary
+    ├── it should find clearing price rounded down falls below tick boundary
+    ├── it should find demand at next tick < currency raised at clearing price
+    └── it should set sumDemandAboveClearing to be sum of ticks above clearing price

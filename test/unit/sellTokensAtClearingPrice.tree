@@ -1,0 +1,22 @@
+SellTokensAtClearingPrice
+├── When there is enough demand exactly at and above the tick
+│   ├── it should not sell more tokens than there is available supply at the current tick - parital fill
+│   ├── it should increase currency raise by amount of tokens there are to sell at the current tick
+│   ├── it should set the cumulativeMpsPerPrice with the rounded up clearing price
+│   └── it should update cumulative mps by deltaMps
+├── When there is enough demand at the tick and ticks above but not enough demand at ticks above to find a clearing price between
+│   ├── it should sell tokens at the clearing price - there should be no demand at the current clearing price
+│   ├── it should set the cumulativeMpsPerPrice with the new floor at tick spacing
+│   └── it should update cumulative mps by deltaMps
+├── When there is enough demand at the ticks above to find a clearing price between tick boundaries
+│   ├── it should update cumulative mps by deltaMps
+│   ├── it should update the cumulativeMpsPerPrice with the rounded up clearing price
+│   ├── it should set currencyRaisedAtClearingPrice to 0
+│   ├── it should increase currencyRaised_X7 by sumCurrencyDemandAboveCleaingQ64 * deltaMps
+│   ├── it should set the cumulativeMpsPerPrice with the rounded up clearing price
+│   └── it should update cumulative mps by deltaMps
+└── When there is enough demand to fall below the next tick but rounds up to the next tick
+    ├── it should not sell more tokens than there is demand at the rounded up tick
+    ├── it should set currencyRaisedAtClearing price to be the sum with demand at the rounded up tick
+    ├── it should set the cumulativeMpsPerPrice with the rounded up clearing price
+    └── it should update cumulative mps by deltaMps

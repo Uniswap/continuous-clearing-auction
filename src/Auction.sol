@@ -175,26 +175,27 @@ contract Auction is
             // If the clearing price is not rounded up, then both methods will give the same result.
 
             // We subtract the currency raised above the clearing price from the total currency raised
-            ValueX7 calculatedCurrencyRaisedAtTick_X7 =
+            ValueX7 demandAtClearingPriceQ96_X7 =
                 currencyRaisedQ96RoundedUp_X7.sub(currencyRaisedAboveClearingPriceQ96_X7);
 
             // Then we determine the currency raised from the demand at the tick using the clearing price
-            ValueX7 currencyRaisedAtTick_X7 =
+            ValueX7 expectedCurrencyRaisedAtClearingPriceTickQ96_X7 =
                 ValueX7.wrap(_getTick(_checkpoint.clearingPrice).currencyDemandQ96 * deltaMps);
 
-            // The usual case is that `calculatedCurrencyRaisedAtTick_X7` is greater than or equal to `currencyRaisedAtTick_X7`.
+            // The usual case is that `demandAtClearingPriceQ96_X7` is >= to `expectedCurrencyRaisedAtClearingPriceTickQ96_X7`.
             // That means that the demand at the clearing price is >= the amount of currency we expect to raise,
             // which intuitively makes sense since these bidders are being partailly filled.
             // There is more demand at the price than supply remaining to sell.
             //
-            // Conversely, if `currencyRaisedAtTick_X7` is less than `calculatedCurrencyRaisedAtTick_X7`,
+            // Conversely, if `expectedCurrencyRaisedAtClearingPriceTickQ96_X7` is less than `demandAtClearingPriceQ96_X7`,
             // then the amount of currency we expect to raise from bids at clearing price is greater
             // than the actual demand at clearing price which is incorrect for a partial fill.
             // This means that we had rounded up in the clearing price and the real clearing price is lower.
             // So everyone is fully filled and we use the smaller of the two values which represents the demand at the clearing price.
             ValueX7 currencyRaisedAtClearingPriceQ96_X7 = ValueX7.wrap(
                 FixedPointMathLib.min(
-                    ValueX7.unwrap(currencyRaisedAtTick_X7), ValueX7.unwrap(calculatedCurrencyRaisedAtTick_X7)
+                    ValueX7.unwrap(demandAtClearingPriceQ96_X7),
+                    ValueX7.unwrap(expectedCurrencyRaisedAtClearingPriceTickQ96_X7)
                 )
             );
 

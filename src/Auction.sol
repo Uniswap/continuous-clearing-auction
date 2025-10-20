@@ -56,6 +56,7 @@ contract Auction is
     /// @notice An optional hook to be called before a bid is registered
     IValidationHook internal immutable VALIDATION_HOOK;
 
+    /// @notice The total currency raised in the auction in Q96 representation, scaled up by X7
     ValueX7 internal $currencyRaisedQ96_X7;
     /// @notice The sum of currency demand in ticks above the clearing price
     /// @dev This will increase every time a new bid is submitted, and decrease when bids are outbid.
@@ -137,7 +138,7 @@ contract Auction is
         return _currencyRaised();
     }
 
-    /// @notice Return the currency raised in uint256 representations
+    /// @notice Return the currency raised in uint256 representation
     /// @return The currency raised
     function _currencyRaised() internal view returns (uint256) {
         return $currencyRaisedQ96_X7.scaleDownToUint256() >> FixedPoint96.RESOLUTION;
@@ -186,7 +187,7 @@ contract Auction is
             // That means that the demand at the clearing price is >= the amount of currency we expect to raise,
             // which intuitively makes sense since these bidders are being partailly filled.
             // There is more demand at the price than supply remaining to sell.
-            //
+
             // Conversely, if `expectedCurrencyRaisedAtClearingPriceTickQ96_X7` is less than `demandAtClearingPriceQ96_X7`,
             // then the amount of currency we expect to raise from bids at clearing price is greater
             // than the actual demand at clearing price which is incorrect for a partial fill.
@@ -209,7 +210,7 @@ contract Auction is
         $currencyRaisedQ96_X7 = $currencyRaisedQ96_X7.add(currencyRaisedQ96_X7_);
         _checkpoint.cumulativeMps += deltaMps;
         // Calculate the harmonic mean of the mps and price (the sum of mps/price)
-        // This uses the rounded up clearing price so bids purchase less tokens for higher prices
+        // This uses the rounded up clearing price so fully filled bids purchase less tokens for higher prices
         _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(deltaMps, _checkpoint.clearingPrice);
         return _checkpoint;
     }

@@ -663,6 +663,30 @@ contract AuctionTest is AuctionBaseTest {
         auction.exitBid(bidId);
     }
 
+    function test_exitBid_revertsWithAlreadyExited(uint128 _bidAmount, uint256 _maxPrice)
+        public
+        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
+        givenValidBidAmount(_bidAmount)
+        givenGraduatedAuction
+        givenFullyFundedAccount
+    {
+        uint256 bidId =
+            auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, tickNumberToPriceX96(1), bytes(''));
+
+        vm.roll(auction.endBlock());
+        Checkpoint memory checkpoint = auction.checkpoint();
+        vm.assume($maxPrice > checkpoint.clearingPrice);
+
+        auction.exitBid(bidId);
+
+        // Check that exitedBlock is set
+        Bid memory bid = auction.bids(bidId);
+        assertEq(bid.exitedBlock, block.number);
+
+        vm.expectRevert(IAuction.BidAlreadyExited.selector);
+        auction.exitBid(bidId);
+    }
+
     /// Simple test for a bid that partially fills at the clearing price but is the only bid at that price, functionally fully filled
     function test_exitPartiallyFilledBid_noOtherBidsAtClearingPrice_succeeds() public {
         uint256 bidId = auction.submitBid{value: inputAmountForTokens(1000e18, tickNumberToPriceX96(2))}(
@@ -912,6 +936,114 @@ contract AuctionTest is AuctionBaseTest {
         vm.startPrank(auction.fundsRecipient());
         auction.sweepCurrency();
         vm.stopPrank();
+    }
+
+    function test_exitPartiallyFilledBid_notGraduated_butOutbid_revertsWithNotGraduated() public {
+        // Never graduate
+        params = params.withRequiredCurrencyRaised(type(uint128).max);
+        Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(newAuction), TOTAL_SUPPLY);
+        newAuction.onTokensReceived();
+
+        uint256 bidId1 = newAuction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        // Have bidId purchase some tokens
+        vm.roll(block.number + 2);
+        // Now outbid bidId1
+        uint256 bidId2 = newAuction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3))}(
+            tickNumberToPriceX96(3),
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3)),
+            alice,
+            tickNumberToPriceX96(2),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        newAuction.checkpoint();
+
+        // Bid 1 is outbid and can be exited before the auction ends
+        // however, auction is not graduated so cannot be exited
+        vm.expectRevert(IAuction.CannotPartiallyExitBidBeforeGraduation.selector);
+        newAuction.exitPartiallyFilledBid(bidId1, 3, 4);
+
+        vm.roll(newAuction.endBlock());
+        // Assert that the auction is not graduated
+        assertEq(newAuction.isGraduated(), false);
+
+        // Bid 1 can be exited as the auction is over
+        uint256 expectedTokensFilled = 0;
+        uint256 expectedCurrencyRefunded = inputAmountForTokens(100e18, tickNumberToPriceX96(2));
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.BidExited(bidId1, alice, expectedTokensFilled, expectedCurrencyRefunded);
+        newAuction.exitPartiallyFilledBid(bidId1, 3, 0);
+
+        // Bid 2 ends at the final clearing price so can't be exited until the auction ends
+        vm.expectEmit(true, true, true, true);
+        expectedTokensFilled = 0;
+        expectedCurrencyRefunded = inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(3));
+        emit IAuction.BidExited(bidId2, alice, expectedTokensFilled, expectedCurrencyRefunded);
+        newAuction.exitPartiallyFilledBid(bidId2, 3, 0);
+
+        vm.roll(newAuction.claimBlock());
+        vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+        newAuction.claimTokens(bidId1);
+        vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+        newAuction.claimTokens(bidId2);
+
+        // Expect all tokens were swept
+        vm.expectEmit(true, true, true, true);
+        emit ITokenCurrencyStorage.TokensSwept(newAuction.tokensRecipient(), TOTAL_SUPPLY);
+        newAuction.sweepUnsoldTokens();
+        assertEq(token.balanceOf(newAuction.tokensRecipient()), TOTAL_SUPPLY);
+
+        // Expect no currency was swept
+        vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+        newAuction.sweepCurrency();
+        assertEq(address(newAuction).balance, 0);
+    }
+
+    function test_exitPartiallyFilledBid_notGraudated_endOfAuction_revertsWithNotGraduated() public {
+        // Never graduate
+        params = params.withRequiredCurrencyRaised(type(uint128).max);
+        Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(newAuction), TOTAL_SUPPLY);
+        newAuction.onTokensReceived();
+
+        vm.roll(newAuction.startBlock());
+        // Price ends at 2
+        uint256 bidId = newAuction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        // Assert that the auction is not graduated
+        assertEq(newAuction.isGraduated(), false);
+        // And that the bid cannot be exited
+        vm.expectRevert(IAuction.CannotPartiallyExitBidBeforeGraduation.selector);
+        newAuction.exitPartiallyFilledBid(bidId, 1, 0);
+
+        vm.roll(newAuction.endBlock());
+        // Assert that the auction is not graduated
+        assertEq(newAuction.isGraduated(), false);
+        Checkpoint memory finalCheckpoint = newAuction.checkpoint();
+        assertEq(finalCheckpoint.clearingPrice, tickNumberToPriceX96(2));
+
+        // Bid can be exited as the auction is over
+        vm.expectEmit(true, true, true, true);
+        uint256 expectedTokensFilled = 0;
+        uint256 expectedCurrencyRefunded = inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2));
+        emit IAuction.BidExited(bidId, alice, expectedTokensFilled, expectedCurrencyRefunded);
+        newAuction.exitPartiallyFilledBid(bidId, 1, 0);
     }
 
     function test_onTokensReceived_repeatedCall_succeeds() public {
@@ -1616,11 +1748,47 @@ contract AuctionTest is AuctionBaseTest {
         // Exit the bid once - this should succeed
         auction.exitPartiallyFilledBid(bidId, 1, 0);
 
-        // Try to exit the same bid again - this should revert with BidAlreadyExited on line 294
+        // Check that exitedBlock is set
+        Bid memory bid = auction.bids(bidId);
+        assertEq(bid.exitedBlock, block.number);
+
         vm.expectRevert(IAuction.BidAlreadyExited.selector);
         auction.exitPartiallyFilledBid(bidId, 1, 0);
 
         vm.stopPrank();
+    }
+
+    function test_exitPartiallyFilledBid_notGraduated_endOfAuction_revertsWithAlreadyExited() public {
+        // Never graduate
+        params = params.withRequiredCurrencyRaised(type(uint128).max);
+        Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(newAuction), TOTAL_SUPPLY);
+        newAuction.onTokensReceived();
+
+        uint256 bidId = newAuction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(newAuction.endBlock());
+        assertEq(newAuction.isGraduated(), false);
+
+        vm.expectEmit(true, true, true, true);
+        uint256 expectedTokensFilled = 0;
+        uint256 expectedCurrencyRefunded = inputAmountForTokens(100e18, tickNumberToPriceX96(2));
+        emit IAuction.BidExited(bidId, alice, expectedTokensFilled, expectedCurrencyRefunded);
+        newAuction.exitPartiallyFilledBid(bidId, 1, 0);
+
+        // Check that exitedBlock is set
+        Bid memory bid = newAuction.bids(bidId);
+        assertEq(bid.exitedBlock, block.number);
+
+        // Expect that you can't exit the bid again
+        vm.expectRevert(IAuction.BidAlreadyExited.selector);
+        newAuction.exitPartiallyFilledBid(bidId, 1, 0);
     }
 
     /// forge-config: default.fuzz.runs = 1000

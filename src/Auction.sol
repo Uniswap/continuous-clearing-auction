@@ -365,12 +365,8 @@ contract Auction is
 
         uint256 refund = ($bid.amountQ96 - currencySpentQ96) >> FixedPoint96.RESOLUTION;
 
-        if (tokensFilled == 0) {
-            _deleteBid(bidId);
-        } else {
-            $bid.tokensFilled = tokensFilled;
-            $bid.exitedBlock = uint64(block.number);
-        }
+        $bid.tokensFilled = tokensFilled;
+        $bid.exitedBlock = uint64(block.number);
 
         if (refund > 0) {
             CURRENCY.transfer(_owner, refund);
@@ -442,9 +438,19 @@ contract Auction is
         Checkpoint memory currentBlockCheckpoint = checkpoint();
 
         Bid memory bid = _getBid(bidId);
+        if (bid.exitedBlock != 0) revert BidAlreadyExited();
+
+        // Prevent bids from being exited before graduation
+        if (!_isGraduated()) {
+            if (block.number >= END_BLOCK) {
+                // If the auction is over, fully refund the bid
+                return _processExit(bidId, 0, 0);
+            }
+            revert CannotPartiallyExitBidBeforeGraduation();
+        }
+
         uint256 bidMaxPrice = bid.maxPrice;
         uint64 bidStartBlock = bid.startBlock;
-        if (bid.exitedBlock != 0) revert BidAlreadyExited();
 
         // If the provided hint is the current block, use the checkpoint returned by `checkpoint()` instead of getting it from storage
         Checkpoint memory lastFullyFilledCheckpoint = lastFullyFilledCheckpointBlock == block.number
@@ -466,7 +472,7 @@ contract Auction is
 
         uint256 tokensFilled;
         uint256 currencySpentQ96;
-        // If the lastFullyFilledCheckpoint is not 0, account for the fully filled checkpoints
+        // If the lastFullyFilledCheckpoint is provided, account for the fully filled checkpoints
         if (lastFullyFilledCheckpoint.clearingPrice > 0) {
             (tokensFilled, currencySpentQ96) =
                 _accountFullyFilledCheckpoints(lastFullyFilledCheckpoint, startCheckpoint, bid);

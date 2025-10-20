@@ -16,11 +16,101 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
 /// @dev These tests fuzz over the full range of inputs for both the auction parameters and the bids submitted
 ///      so we limit the number of fuzz runs.
-/// forge-config: default.fuzz.runs = 500
-/// forge-config: ci.fuzz.runs = 500
+/// forge-config: default.fuzz.runs = 1000
+/// forge-config: ci.fuzz.runs = 1000
 contract AuctionGraduationTest is AuctionBaseTest {
     using ValueX7Lib for *;
     using BidLib for *;
+
+    function test_exitBid_graduated_succeeds(
+        FuzzDeploymentParams memory _deploymentParams,
+        uint128 _bidAmount,
+        uint128 _maxPrice
+    )
+        public
+        setUpAuctionFuzz(_deploymentParams)
+        givenValidMaxPriceWithParams(_maxPrice, $deploymentParams.totalSupply, params.floorPrice, params.tickSpacing)
+        givenValidBidAmount(_bidAmount)
+        givenGraduatedAuction
+        givenAuctionHasStarted
+        givenFullyFundedAccount
+        checkAuctionIsGraduated
+        checkAuctionIsSolvent
+    {
+        uint256 bidId = auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
+
+        vm.roll(auction.endBlock());
+        Checkpoint memory finalCheckpoint = auction.checkpoint();
+        if ($maxPrice > finalCheckpoint.clearingPrice) {
+            auction.exitBid(bidId);
+        } else {
+            auction.exitPartiallyFilledBid(bidId, auction.startBlock(), 0);
+        }
+    }
+
+    function test_exitBid_notGraduated_succeeds(
+        FuzzDeploymentParams memory _deploymentParams,
+        uint128 _bidAmount,
+        uint128 _maxPrice
+    )
+        public
+        setUpAuctionFuzz(_deploymentParams)
+        givenValidMaxPriceWithParams(_maxPrice, $deploymentParams.totalSupply, params.floorPrice, params.tickSpacing)
+        givenValidBidAmount(_bidAmount)
+        givenNotGraduatedAuction
+        givenAuctionHasStarted
+        givenFullyFundedAccount
+        checkAuctionIsNotGraduated
+    {
+        uint256 bidId = auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
+
+        uint256 aliceBalanceBefore = address(alice).balance;
+        vm.roll(auction.endBlock());
+        auction.exitBid(bidId);
+        // Expect 100% refund since the auction did not graduate
+        assertEq(address(alice).balance, aliceBalanceBefore + $bidAmount);
+    }
+
+    function test_exitPartiallyFilledBid_outBid_notGraduated_succeeds(
+        FuzzDeploymentParams memory _deploymentParams,
+        uint128 _bidAmount,
+        uint128 _maxPrice
+    )
+        public
+        setUpAuctionFuzz(_deploymentParams)
+        givenValidMaxPriceWithParams(_maxPrice, $deploymentParams.totalSupply, params.floorPrice, params.tickSpacing)
+        givenValidBidAmount(_bidAmount)
+        givenNotGraduatedAuction
+        givenAuctionHasStarted
+        givenFullyFundedAccount
+        checkAuctionIsNotGraduated
+        checkAuctionIsSolvent
+    {
+        uint64 startBlock = auction.startBlock();
+        uint256 lowPrice = helper__roundPriceUpToTickSpacing(params.floorPrice + 1, params.tickSpacing);
+        uint256 bidId1 = auction.submitBid{value: 1}(lowPrice, 1, alice, params.floorPrice, bytes(''));
+        vm.assume($maxPrice > lowPrice);
+        auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
+
+        vm.roll(block.number + 1);
+        // Assume that the auction is not over
+        vm.assume(block.number < auction.endBlock());
+        Checkpoint memory checkpoint = auction.checkpoint();
+        vm.assume(checkpoint.clearingPrice > lowPrice);
+        assertFalse(auction.isGraduated());
+        // Exit the first bid which is now outbid
+        vm.expectRevert(IAuction.CannotPartiallyExitBidBeforeGraduation.selector);
+        auction.exitPartiallyFilledBid(bidId1, startBlock, startBlock + 1);
+
+        Bid memory bid1 = auction.bids(bidId1);
+        assertEq(bid1.tokensFilled, 0);
+
+        vm.roll(auction.endBlock());
+        // Bid 1 can be exited as the auction is over
+        vm.expectEmit(true, true, true, true);
+        emit IAuction.BidExited(bidId1, alice, 0, 1);
+        auction.exitPartiallyFilledBid(bidId1, startBlock, startBlock + 1);
+    }
 
     function test_claimTokensBatch_notGraduated_reverts(
         FuzzDeploymentParams memory _deploymentParams,

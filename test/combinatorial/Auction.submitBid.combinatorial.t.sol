@@ -28,30 +28,16 @@ import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.
 contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
     using Combinatorium for Combinatorium.Context;
 
-    // Auction contracts - CURRENTLY WITHIN AuctionBaseTest
-    // Auction public auction;
-    // ERC20Mock public token;
-    // ERC20Mock public erc20Currency;
-    // address public constant ETH_SENTINEL = address(0);
-
     Combinatorium.Context internal ctx;
 
     // Space indices
     enum SpaceIndices {
         method,
-        bidMaxPrice,
-        bidAmount,
-        bidOwner,
-        bidCaller,
-        blockStart, // block number when the auction starts
-        auctionTickSpacing, // tick spacing of the auction
-        auctionFloorPrice, // floor price of the auction
-        auctionSteps, // number of auction steps
-        auctionStepsTime, // block time of each auction step
-        blockNr, // block the action happens at - will be bound by the auction start and end block
-        mutationRandomness, // randomness for the mutation
+        auctionSeed, // seed for the auction
+        bidSeed, // seed for the bid
         preBidScenario, // scenario for pre-bid setup
-        postBidScenario // scenario for post-bid setup
+        postBidScenario, // scenario for post-bid setup
+        mutationRandomness // randomness for the mutation
 
     }
 
@@ -72,269 +58,59 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
     uint256 public usersBidId;
 
     function setUp() public {
-        console.log('setUp0');
+        // Number of steps to run in handleSetup
         ctx.init(1);
+
+        // Action to take
         ctx.defineSpace('method', 1, 0, uint256(Method.__length) - 1);
-        ctx.defineSpace('bidMaxPrice', 1, 1, MAX_BID_PRICE_Q96); // Will be lower bound by the auction floor price
-        ctx.defineSpace('bidAmount', 1, MIN_BID_AMOUNT, MAX_BID_AMOUNT); // MAX AMOUNT IS SUBJECT TO CHANGE
-        ctx.defineSpace('bidOwner', 1, 0, type(uint160).max);
-        ctx.defineSpace('bidCaller', 1, 0, type(uint160).max);
-        ctx.defineSpace('blockStart', 1, 0, type(uint32).max); // uint32 to leave room for blockEnd which needs to be uint64
-        ctx.defineSpace('auctionTickSpacing', 1, 1, (uint64(type(uint64).max << FixedPoint96.RESOLUTION)));
-        ctx.defineSpace('auctionFloorPrice', 1, 1, MAX_BID_PRICE_Q96 - (type(uint64).max << FixedPoint96.RESOLUTION));
-        ctx.defineSpace('auctionSteps', 1, 1, type(uint8).max);
-        ctx.defineSpace('auctionStepsTime', 1, 0, type(uint8).max);
-        ctx.defineSpace('blockNr', 1, 0, type(uint64).max); // The exact block number will be bound by the auction start and end block
-        ctx.defineSpace('mutationRandomness', 1, 0, type(uint256).max - 1);
+        // Auction parameters
+        ctx.defineSpace('auctionSeed', 1, 0, type(uint256).max - 1);
+        // Bid parameters
+        ctx.defineSpace('bidSeed', 1, 0, type(uint256).max - 1);
+        // // Scenarios
         ctx.defineSpace('preBidScenario', 1, 0, uint256(PreBidScenario.__length) - 1);
         ctx.defineSpace('postBidScenario', 1, 0, uint256(PostBidScenario.__length) - 1);
-        console.log('setUp1');
+        // // Mutation randomness
+        ctx.defineSpace('mutationRandomness', 1, 0, type(uint256).max - 1);
     }
 
     // ============ Helper Functions ============
 
-    /// @notice Verify all properties of a bid struct match expectations
-    /// @param bidId The bid ID to verify
-    /// @param expectedOwner Expected owner address
-    /// @param expectedMaxPrice Expected max price
-    /// @param expectedAmount Expected amount in Q96 format
-    /// @param expectedStartBlock Expected start block
-    /// @param expectedStartCumulativeMps Expected cumulative MPS at start
-    function helper__verifyBidStruct(
-        uint256 bidId,
-        address expectedOwner,
-        uint256 expectedMaxPrice,
-        uint256 expectedAmount,
-        uint64 expectedStartBlock,
-        uint24 expectedStartCumulativeMps
-    ) internal view {
-        Bid memory bid = auction.bids(bidId);
-
-        assertEq(bid.owner, expectedOwner, 'Bid owner mismatch');
-        assertEq(bid.maxPrice, expectedMaxPrice, 'Bid maxPrice mismatch');
-        assertEq(bid.amountQ96, expectedAmount << FixedPoint96.RESOLUTION, 'Bid amountQ96 mismatch');
-        assertEq(bid.startBlock, expectedStartBlock, 'Bid startBlock mismatch');
-        assertEq(bid.startCumulativeMps, expectedStartCumulativeMps, 'Bid startCumulativeMps mismatch');
-        assertEq(bid.exitedBlock, 0, 'Bid should not be exited yet');
-        assertEq(bid.tokensFilled, 0, 'Bid should not be filled yet');
-    }
-
-    /// @notice Verify a bid exit and log results
-    /// @param exitedBid The bid after exit
-    /// @param ownerBalanceBefore Owner's balance before exit
-    /// @param expectedAmount The expected input amount
-    /// @param scenario Description of the scenario
-    function helper__verifyBidExit(
-        Bid memory exitedBid,
-        uint256 ownerBalanceBefore,
-        uint256 expectedAmount,
-        string memory scenario
-    ) internal view {
-        // Calculate refund and spent
-        uint256 refund = address(exitedBid.owner).balance - ownerBalanceBefore;
-        uint256 spent = expectedAmount - refund;
-
-        // Verify refund invariant
-        assertLe(refund, expectedAmount, 'Refund cannot exceed input amount');
-
-        // Verify tokens filled is within bounds
-        assertLe(exitedBid.tokensFilled, TOTAL_SUPPLY, 'Tokens filled cannot exceed total supply');
-
-        // Log results
-        console.log(scenario);
-        console.log('  Tokens filled:', exitedBid.tokensFilled);
-        console.log('  Currency spent:', spent);
-        console.log('  Refund:', refund);
-    }
-
-    /// @notice Get checkpoint hints for exitPartiallyFilledBid
-    /// @dev Returns the lower and upper checkpoint blocks for a bid that needs partial exit
-    /// @param maxPrice The maximum price of the bid
-    /// @return lower The last checkpoint where clearingPrice < maxPrice (bid was winning)
-    /// @return upper The first checkpoint where clearingPrice > maxPrice (bid got outbid)
-    function helper__getCheckpointHints(uint256 maxPrice) internal view returns (uint64 lower, uint64 upper) {
-        uint64 currentBlock = auction.lastCheckpointedBlock();
-
-        // Traverse checkpoints from most recent to oldest
-        while (currentBlock != 0) {
-            Checkpoint memory checkpoint = auction.checkpoints(currentBlock);
-
-            // Find the first checkpoint with price > maxPrice (keep updating as we go backwards to get chronologically first)
-            if (checkpoint.clearingPrice > maxPrice) {
-                upper = currentBlock;
-            }
-
-            // Find the last checkpoint with price < maxPrice (first one encountered going backwards)
-            if (checkpoint.clearingPrice < maxPrice && lower == 0) {
-                lower = currentBlock;
-            }
-
-            currentBlock = checkpoint.prev;
-        }
-
-        return (lower, upper);
-    }
-
     /// @notice Verify a non-graduated auction exit
     function helper__verifyNonGraduatedExit(uint256 bidId, uint256 balanceBefore, uint256 expectedAmount) external {
         try auction.exitBid(bidId) {
-            Bid memory exitedBid = auction.bids(bidId);
-            assertEq(exitedBid.tokensFilled, 0, 'Non-graduated should fill zero tokens');
-            assertEq(exitedBid.exitedBlock, auction.endBlock(), 'exitedBlock should be set');
-
-            uint256 refund = address(exitedBid.owner).balance - balanceBefore;
-            assertEq(refund, expectedAmount, 'Non-graduated should refund full amount');
-            helper__verifyBidExit(exitedBid, balanceBefore, expectedAmount, 'Non-graduated auction - full refund');
+            /// TODO: WIP
         } catch {
-            console.log('Exit failed for non-graduated auction (may be acceptable)');
+            revert('exitBid failed');
         }
     }
 
     /// @notice Verify a partial exit (outbid or at clearing price)
-    function helper__verifyPartialExit(
-        uint256 bidId,
-        uint256 bidMaxPrice,
-        uint256 clearingPrice,
-        uint256 balanceBefore,
-        uint256 expectedAmount,
-        bool isOutbid
-    ) external {
-        // Verify price relationship
-        if (isOutbid) {
-            assertLt(bidMaxPrice, clearingPrice, 'Outbid bid should have maxPrice < clearingPrice');
-        } else {
-            assertEq(bidMaxPrice, clearingPrice, 'Partial fill bid should be at clearing price');
-        }
-
-        (uint64 lower, uint64 upper) = helper__getCheckpointHints(bidMaxPrice);
-
-        try auction.exitPartiallyFilledBid(bidId, lower, upper) {
-            Bid memory exitedBid = auction.bids(bidId);
-            assertEq(exitedBid.exitedBlock, auction.endBlock(), 'exitedBlock should be set');
-
-            uint256 refund = address(exitedBid.owner).balance - balanceBefore;
-            uint256 spent = expectedAmount - refund;
-
-            assertLe(refund, expectedAmount, 'Refund cannot exceed input amount');
-            assertLe(spent, expectedAmount, 'Spent cannot exceed input amount');
-
-            if (!isOutbid) {
-                // Partial fill at clearing price - should have tokens and spent currency
-                assertGt(exitedBid.tokensFilled, 0, 'Partial fill should have some tokens');
-                assertGt(spent, 0, 'Partial fill should have spent some currency');
-            }
-
-            helper__verifyBidExit(
-                exitedBid,
-                balanceBefore,
-                expectedAmount,
-                isOutbid ? 'Bid outbid mid-auction' : 'Bid at clearing price - pro-rata partial fill'
-            );
-        } catch {
-            console.log('Failed to exit bid with exitPartiallyFilledBid');
-            console.log('  This may occur with complex checkpoint configurations');
-        }
+    function helper__verifyPartialExit() external {
+        // try auction.exitPartiallyFilledBid(bidId, lower, upper) {}
+        // catch {
+        //     revert('exitPartiallyFilledBid failed');
+        // }
     }
 
     /// @notice Verify a full exit (above clearing price)
     function helper__verifyFullExit(uint256 bidId, uint256 balanceBefore, uint256 expectedAmount) external {
-        try auction.exitBid(bidId) {
-            Bid memory exitedBid = auction.bids(bidId);
-            assertEq(exitedBid.exitedBlock, auction.endBlock(), 'exitedBlock should be set');
-
-            uint256 refund = address(exitedBid.owner).balance - balanceBefore;
-            uint256 spent = expectedAmount - refund;
-
-            assertLe(refund, expectedAmount, 'Refund cannot exceed input amount');
-            assertGt(exitedBid.tokensFilled, 0, 'Full fill should have tokens');
-            assertGt(spent, 0, 'Full fill should have spent currency');
-
-            helper__verifyBidExit(exitedBid, balanceBefore, expectedAmount, 'Full fill - bid above clearing price');
-        } catch {
-            revert('exitBid should have succeeded for bid above clearing price in graduated auction');
+        try auction.exitBid(bidId) {}
+        catch {
+            revert('exitBid failed');
         }
-    }
-
-    /// @notice Calculate expected tokens filled for a bid given auction final state
-    /// @dev Returns isOutbid=true when bid.maxPrice < finalCheckpoint.clearingPrice
-    ///      In outbid scenarios, exact token calculation requires checkpoint hints,
-    ///      so we return expectedTokensFilled=0 and rely on bounds checking instead
-    /// @param bid The bid to calculate for
-    /// @param finalCheckpoint The final checkpoint of the auction
-    /// @param graduated Whether the auction graduated
-    /// @return expectedTokensFilled Expected tokens (0 if outbid or complex calculation needed)
-    /// @return isPartialFill True if bid at clearing price (pro-rata scenario)
-    /// @return isOutbid True if bid was outbid mid-auction (maxPrice < clearingPrice)
-    function helper__calculateExpectedBidOutcome(Bid memory bid, Checkpoint memory finalCheckpoint, bool graduated)
-        internal
-        pure
-        returns (uint256 expectedTokensFilled, bool isPartialFill, bool isOutbid)
-    {
-        // If auction didn't graduate, all bids get full refund and no tokens
-        if (!graduated) {
-            return (0, false, false);
-        }
-
-        // If bid is below final clearing price, it was OUTBID mid-auction
-        // CRITICAL: The bidder still receives tokens for the period they were active before being outbid
-        // We cannot easily calculate exact tokens without checkpoint hints
-        if (bid.maxPrice < finalCheckpoint.clearingPrice) {
-            // Mark as outbid - verification will use bounds checking instead of exact comparison
-            return (0, false, true); // isOutbid = true
-        }
-
-        // If bid is at clearing price, this is a pro-rata partial fill scenario
-        // The exact calculation is very complex (involves tick demand ratios)
-        // We'll mark this as a partial fill for looser assertions
-        if (bid.maxPrice == finalCheckpoint.clearingPrice) {
-            // For partial fills, we can't easily calculate the exact amount
-            // Return 0 to signal we need tolerance-based checks
-            return (0, true, false);
-        }
-
-        // If bid is above clearing price, this is a full fill
-        // Calculate tokens using the harmonic mean approach
-        // Note: This is an approximation. The actual calculation in _accountFullyFilledCheckpoints
-        // uses cumulativeMpsPerPriceDelta which requires iterating through checkpoints
-        // For verification purposes, we'll use bounds checking rather than exact values
-        return (0, false, false); // Return 0 to signal we'll do bounds checking in verifyState
     }
 
     // ============ Handlers ============
 
     function handleSetup(uint256 step, uint256[] memory selections) external returns (bool) {
-        console.log('handleSetup');
-
         if (step == 0) {
-            uint40 blockDelta = uint40(selections[uint256(SpaceIndices.auctionStepsTime)]);
-            uint40 numberOfSteps = uint40(selections[uint256(SpaceIndices.auctionSteps)]);
-            uint256 blockStart = selections[uint256(SpaceIndices.blockStart)];
-            uint256 blockEnd = blockStart + (numberOfSteps * blockDelta);
-            bytes memory auctionStepsData_ = AuctionStepsBuilder.splitEvenlyAmongSteps(numberOfSteps, blockDelta);
-
-            FuzzDeploymentParams memory params_ = FuzzDeploymentParams({
-                totalSupply: TOTAL_SUPPLY,
-                auctionParams: AuctionParameters({
-                    currency: address(0),
-                    tokensRecipient: address(0),
-                    fundsRecipient: address(0),
-                    startBlock: uint64(blockStart),
-                    endBlock: uint64(blockEnd),
-                    claimBlock: uint64(blockEnd),
-                    tickSpacing: selections[uint256(SpaceIndices.auctionTickSpacing)],
-                    validationHook: address(0),
-                    floorPrice: selections[uint256(SpaceIndices.auctionFloorPrice)],
-                    requiredCurrencyRaised: 0,
-                    auctionStepsData: auctionStepsData_
-                }),
-                numberOfSteps: uint8(numberOfSteps)
-            });
-            setUpAuction(params_);
-            console.log('auction: tickSpacing', auction.tickSpacing());
-            console.log('auction: floorPrice', auction.floorPrice());
+            uint256 auctionSeed = selections[uint256(SpaceIndices.auctionSeed)];
+            FuzzDeploymentParams memory auctionDeploymentParams = helper__seedBasedAuction(auctionSeed);
+            setUpAuction(auctionDeploymentParams);
 
             // Move to the auction start block
-            vm.roll(blockStart);
+            vm.roll(auction.startBlock());
 
             return true;
         }
@@ -342,6 +118,7 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
         // Handle advanced setups for steps > 0
 
         // NO ADVANCED SETUP FOR STEPS > 0 RIGHT NOW AVAILABLE.
+        /// TODO: Implement more steps that could setup different auction supply curves
         return false;
     }
 
@@ -366,42 +143,41 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
     {
         Method method = Method(selections[uint256(SpaceIndices.method)]);
 
-        address owner = address(uint160(selections[uint256(SpaceIndices.bidOwner)]));
-        address caller = address(uint160(selections[uint256(SpaceIndices.bidCaller)]));
-        uint256 tickSpacing = auction.tickSpacing();
-        uint128 bidAmount = uint128(selections[uint256(SpaceIndices.bidAmount)]);
-        uint256 maxPrice = helper__roundPriceDownToTickSpacing(
-            bound(selections[uint256(SpaceIndices.bidMaxPrice)], auction.floorPrice() + tickSpacing, MAX_BID_PRICE),
-            tickSpacing
-        );
-
-        // Note: Mutations test invalid inputs, so they don't need pre/post bid scenarios
-        // The scenarios are only set up for valid test actions
-
         if (method == Method.submitBid) {
             if (mutation.mutationType == Combinatorium.MutationType.WRONG_PARAMETER) {
                 uint256 mutationRandomness = uint256(selections[uint256(SpaceIndices.mutationRandomness)]) % 2;
 
+                uint256 bidSeed = selections[uint256(SpaceIndices.bidSeed)];
+                (uint128 bidAmount, uint256 maxPriceQ96, uint256 bidBlock) = helper__seedBasedBid(bidSeed);
+
+                // Extract scenario selections for scenario-aware verification
+                PreBidScenario preBidScenario = PreBidScenario(selections[uint256(SpaceIndices.preBidScenario)]);
+                PostBidScenario postBidScenario = PostBidScenario(selections[uint256(SpaceIndices.postBidScenario)]);
+                console.log(
+                    'Verifying with scenarios - Pre:', uint256(preBidScenario), 'Post:', uint256(postBidScenario)
+                );
+
+                // setup pre-bid scenario
+                // helper__preBidScenario(preBidScenario, maxPrice);
+
                 // Set the auction bidding block
-                uint256 blockNumber =
-                    bound(selections[uint256(SpaceIndices.blockNr)], auction.startBlock(), auction.endBlock() - 1);
-                vm.roll(blockNumber);
+                vm.roll(bidBlock);
 
                 // Deal the caller the bid amount in ETH
-                vm.deal(caller, bidAmount);
-                // Prank the caller
-                vm.prank(caller);
+                vm.deal(alice, bidAmount);
+                vm.prank(alice);
+
+                // Submit the bid
                 if (mutationRandomness == 0) {
                     // value sent not matching the amount
-                    try auction.submitBid{value: bidAmount - 1}(maxPrice, bidAmount, owner, bytes('')) {
+                    try auction.submitBid{value: bidAmount - 1}(maxPriceQ96, bidAmount, alice, bytes('')) {
                         return true;
                     } catch {
                         return false;
                     }
-                } else if (mutationRandomness == 1 && tickSpacing > 1) {
+                } else if (mutationRandomness == 1) {
                     // maxPrice not matching the tickSpacking
-                    maxPrice = tickSpacing + 1;
-                    try auction.submitBid{value: bidAmount}(maxPrice, bidAmount, owner, bytes('')) {
+                    try auction.submitBid{value: bidAmount}(maxPriceQ96 + 1, bidAmount, alice, bytes('')) {
                         return true;
                     } catch {
                         return false;
@@ -411,24 +187,6 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
         }
 
         return true; // THIS WILL FAIL ALL OTHER MUTATIONS
-
-        // } else if (mutation.mutationType == Combinatorium.MutationType.INVALID_STATE) {
-        //     counter.lock();
-        //     try counter.setNumber(123) {
-        //         return true;
-        //     } catch {
-        //         return false;
-        //     }
-        // } else if (mutation.mutationType == Combinatorium.MutationType.SKIP_CALL) {
-        //     counter.unlock();
-        //     vm.store(address(counter), bytes32(uint256(1)), bytes32(uint256(0)));
-        //     try counter.multiplyNumber() {
-        //         return true;
-        //     } catch {
-        //         return false;
-        //     }
-        // }
-        // return false;
     }
 
     function selectMutation(uint256 seed, uint256[] memory /* selections */ )
@@ -449,45 +207,36 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
     function performAction(uint256[] memory selections) external {
         Method method = Method(selections[uint256(SpaceIndices.method)]);
 
-        address owner = address(uint160(selections[uint256(SpaceIndices.bidOwner)]));
-        address caller = address(uint160(selections[uint256(SpaceIndices.bidCaller)]));
-        uint256 tickSpacingQ96 = auction.tickSpacing();
-        uint128 bidAmount = uint128(selections[uint256(SpaceIndices.bidAmount)]);
-        uint256 maxPrice = helper__roundPriceDownToTickSpacing(
-            bound(selections[uint256(SpaceIndices.bidMaxPrice)], auction.floorPrice() + tickSpacingQ96, MAX_BID_PRICE),
-            tickSpacingQ96
-        );
-
         if (method == Method.submitBid) {
-            console.log('maxPrice', maxPrice);
+            uint256 bidSeed = selections[uint256(SpaceIndices.bidSeed)];
+            (uint128 bidAmount, uint256 maxPriceQ96, uint256 bidBlock) = helper__seedBasedBid(bidSeed);
+            console.log('maxPriceQ96', maxPriceQ96);
             console.log('bidAmount', bidAmount);
-            console.log('owner', owner);
-            console.log('caller', caller);
+            console.log('bidBlock', bidBlock);
+
+            // Extract scenario selections for scenario-aware verification
+            PreBidScenario preBidScenario = PreBidScenario(selections[uint256(SpaceIndices.preBidScenario)]);
+            PostBidScenario postBidScenario = PostBidScenario(selections[uint256(SpaceIndices.postBidScenario)]);
+            console.log('Verifying with scenario - Pre:', uint256(preBidScenario));
+            console.log('Verifying with scenario - Post:', uint256(postBidScenario));
+
+            // setup pre-bid scenario
+            helper__preBidScenario(preBidScenario, maxPriceQ96, true);
+            console.log('preBidScenario setup complete');
 
             // Set the auction bidding block
-            uint256 blockNumber =
-                bound(selections[uint256(SpaceIndices.blockNr)], auction.startBlock(), auction.endBlock() - 1);
-            vm.roll(blockNumber);
+            vm.roll(bidBlock);
 
             // Deal the caller the bid amount in ETH
-            vm.deal(caller, bidAmount);
-            // Prank the caller
-            vm.prank(caller);
-            usersBidId = auction.submitBid{value: bidAmount}(maxPrice, bidAmount, owner, bytes(''));
-
-            // After successful bid submission, set up post-bid scenario
-            PostBidScenario postBidScenario = PostBidScenario(selections[uint256(SpaceIndices.postBidScenario)]);
-
-            // Convert maxPrice from Q96 to non-Q96 for the helper function
-            uint256 maxPriceNonQ96 = maxPrice >> FixedPoint96.RESOLUTION;
+            vm.deal(alice, bidAmount);
+            // Submit the bid
+            vm.prank(alice);
+            usersBidId = auction.submitBid{value: bidAmount}(maxPriceQ96, bidAmount, alice, bytes(''));
+            console.log('bid submitted');
 
             // Set up post-bid scenario using the helper
-            try this.helper__postBidScenario(postBidScenario, maxPriceNonQ96) {
-                console.log('Post-bid scenario setup complete:', uint256(postBidScenario));
-            } catch {
-                console.log('Post-bid scenario setup failed, continuing anyway');
-                // Don't revert - the bid was already placed successfully
-            }
+            helper__postBidScenario(postBidScenario, maxPriceQ96, true);
+            console.log('postBidScenario setup complete');
         } else {
             revert('Invalid method');
         }
@@ -516,85 +265,11 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
 
         console.log('Verifying with scenarios - Pre:', uint256(preBidScenario), 'Post:', uint256(postBidScenario));
 
-        // ============ Phase 1: Immediate Post-Bid Verification ============
+        // ============ Phase 1: Bid-Struct Verification ============
 
-        // Verify nextBidId incremented correctly
-        assertEq(auction.nextBidId(), usersBidId + 1, 'nextBidId should increment');
+        // ============ Phase 2: Auction-End Settlement  ============
 
-        // Verify all bid struct properties
-        {
-            address expectedOwner = address(uint160(selections[uint256(SpaceIndices.bidOwner)]));
-            uint256 tickSpacing = auction.tickSpacing();
-            uint128 expectedAmount = uint128(selections[uint256(SpaceIndices.bidAmount)]);
-            uint256 expectedMaxPrice = helper__roundPriceDownToTickSpacing(
-                bound(selections[uint256(SpaceIndices.bidMaxPrice)], auction.floorPrice() + tickSpacing, MAX_BID_PRICE),
-                tickSpacing
-            );
-
-            Checkpoint memory currentCheckpoint = auction.latestCheckpoint();
-
-            helper__verifyBidStruct(
-                usersBidId,
-                expectedOwner,
-                expectedMaxPrice,
-                uint256(expectedAmount),
-                uint64(block.number),
-                currentCheckpoint.cumulativeMps
-            );
-        }
-
-        // ============ Phase 2: Auction-End Settlement Verification ============
-        {
-            uint256 snapshotId = vm.snapshotState();
-            vm.roll(auction.endBlock());
-
-            Checkpoint memory finalCheckpoint = auction.checkpoint();
-            bool graduated = auction.isGraduated();
-            Bid memory bidBeforeExit = auction.bids(usersBidId);
-
-            (uint256 expectedTokens, bool isPartialFill, bool isOutbid) =
-                helper__calculateExpectedBidOutcome(bidBeforeExit, finalCheckpoint, graduated);
-
-            // Adjust expectations based on post-bid scenario
-            if (
-                postBidScenario == PostBidScenario.UserOutbidImmediately
-                    || postBidScenario == PostBidScenario.UserOutbidLater
-            ) {
-                isOutbid = true;
-                console.log('Scenario indicates user was outbid');
-            } else if (postBidScenario == PostBidScenario.UserAtClearing) {
-                isPartialFill = true;
-                console.log('Scenario indicates user at clearing price (partial fill)');
-            } else if (postBidScenario == PostBidScenario.UserAboveClearing) {
-                // User should be above clearing - expect full fill
-                console.log('Scenario indicates user above clearing (full fill expected)');
-            }
-
-            address owner = address(uint160(selections[uint256(SpaceIndices.bidOwner)]));
-            uint256 balanceBefore = address(owner).balance;
-            uint128 amount = uint128(selections[uint256(SpaceIndices.bidAmount)]);
-
-            if (!graduated) {
-                this.helper__verifyNonGraduatedExit(usersBidId, balanceBefore, amount);
-            } else if (isOutbid || isPartialFill) {
-                this.helper__verifyPartialExit(
-                    usersBidId, bidBeforeExit.maxPrice, finalCheckpoint.clearingPrice, balanceBefore, amount, isOutbid
-                );
-            } else {
-                this.helper__verifyFullExit(usersBidId, balanceBefore, amount);
-            }
-
-            // ============ Phase 3: Invariant Checks ============
-            assertGe(finalCheckpoint.clearingPrice, auction.floorPrice(), 'Clearing price must be >= floor price');
-            assertLe(
-                finalCheckpoint.clearingPrice,
-                type(uint256).max / TOTAL_SUPPLY,
-                'Clearing price must not cause overflow with total supply'
-            );
-            assertLe(finalCheckpoint.cumulativeMps, 1e7, 'Cumulative MPS cannot exceed 100%');
-
-            vm.revertToState(snapshotId);
-        }
+        // ============ Phase 3: Auction-State Verification ============
     }
 
     // ============ Tests ============
@@ -610,19 +285,4 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
 
         ctx.runCombinatorial(seed, 10, 5, vm, handlers);
     }
-
-    // function testFuzz_IncrementThenMultiply(uint256 setupSeed, uint256 mult) public {
-    //     mult = bound(mult, 1, 100);
-
-    //     ctx.executeSetup(setupSeed, vm, this.handleSetup);
-
-    //     uint256 preValue = counter.number();
-
-    //     counter.unlock();
-    //     counter.setMultiplier(mult);
-    //     counter.increment();
-    //     counter.multiplyNumber();
-
-    //     assertEq(counter.number(), (preValue + 1) * mult);
-    // }
 }

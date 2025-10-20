@@ -16,9 +16,9 @@ import {Test} from 'forge-std/Test.sol';
 import {console2} from 'forge-std/console2.sol';
 
 contract CombinatorialHelpers is AuctionBaseTest {
-    function helper__preBidScenario(PreBidScenario scenario, uint256 userMaxPrice) public {
-        uint256 tickSpacing = auction.tickSpacing() >> FixedPoint96.RESOLUTION;
-        uint256 floorPrice = auction.floorPrice() >> FixedPoint96.RESOLUTION;
+    function helper__preBidScenario(PreBidScenario scenario, uint256 userMaxPrice, bool Q96) public {
+        uint256 tickSpacing = Q96 ? auction.tickSpacing() : auction.tickSpacing() >> FixedPoint96.RESOLUTION;
+        uint256 floorPrice = Q96 ? auction.floorPrice() : auction.floorPrice() >> FixedPoint96.RESOLUTION;
 
         if (userMaxPrice % tickSpacing != 0) {
             revert('preBidScenario: userMaxPrice not compliant with tickSpacing');
@@ -34,7 +34,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
             if (userMaxPrice > floorPrice + tickSpacing * 2) {
                 // Place clearing at least 2 ticks below userMaxPrice
                 targetClearingPrice = userMaxPrice - (2 * tickSpacing);
-                helper__setAuctionClearingPrice(targetClearingPrice, new address[](1));
+                helper__setAuctionClearingPrice(targetClearingPrice, new address[](1), Q96);
             } else {
                 // userMaxPrice is too close to floor, just keep at floor
                 return;
@@ -43,7 +43,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
             // Raise clearing price to exactly one tick below userMaxPrice
             if (userMaxPrice > floorPrice + tickSpacing) {
                 uint256 targetClearingPrice = userMaxPrice - tickSpacing;
-                helper__setAuctionClearingPrice(targetClearingPrice, new address[](1));
+                helper__setAuctionClearingPrice(targetClearingPrice, new address[](1), Q96);
                 return;
             } else {
                 // userMaxPrice is already only one tick above floor, just keep at floor
@@ -53,14 +53,14 @@ contract CombinatorialHelpers is AuctionBaseTest {
             // First, move clearing price to one tick below userMaxPrice
             if (userMaxPrice > floorPrice + tickSpacing) {
                 uint256 targetClearingPrice = userMaxPrice - tickSpacing;
-                helper__setAuctionClearingPrice(targetClearingPrice, new address[](1));
+                helper__setAuctionClearingPrice(targetClearingPrice, new address[](1), Q96);
             }
 
             // Then place a small bid at exactly userMaxPrice (not large enough to move clearing)
             uint256 smallBidAmount = 0.01 ether; // Small bid amount
             vm.deal(address(this), smallBidAmount);
             auction.submitBid{value: smallBidAmount}(
-                userMaxPrice << FixedPoint96.RESOLUTION, uint128(smallBidAmount), address(this), bytes('')
+                userMaxPrice << (Q96 ? 0 : FixedPoint96.RESOLUTION), uint128(smallBidAmount), address(this), bytes('')
             );
             vm.roll(block.number + 1);
             auction.checkpoint();
@@ -70,8 +70,8 @@ contract CombinatorialHelpers is AuctionBaseTest {
         }
     }
 
-    function helper__postBidScenario(PostBidScenario scenario, uint256 userMaxPrice) public {
-        uint256 tickSpacing = auction.tickSpacing() >> FixedPoint96.RESOLUTION;
+    function helper__postBidScenario(PostBidScenario scenario, uint256 userMaxPrice, bool Q96) public {
+        uint256 tickSpacing = Q96 ? auction.tickSpacing() : auction.tickSpacing() >> FixedPoint96.RESOLUTION;
         if (userMaxPrice % tickSpacing != 0) {
             revert('postBidScenario: userMaxPrice not compliant with tickSpacing');
         }
@@ -79,7 +79,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
         uint256 snap = vm.snapshot();
         vm.roll(block.number + 1);
         auction.checkpoint();
-        uint256 clearingPrice = auction.clearingPrice() >> FixedPoint96.RESOLUTION;
+        uint256 clearingPrice = Q96 ? auction.clearingPrice() : auction.clearingPrice() >> FixedPoint96.RESOLUTION;
         vm.revertToState(snap);
 
         if (scenario == PostBidScenario.NoBidsAfterUser) {
@@ -90,18 +90,16 @@ contract CombinatorialHelpers is AuctionBaseTest {
                 return;
             } else {
                 // User's bid is more then one tick above clearing: Move clearing right below the user's bid
-                helper__setAuctionClearingPrice(userMaxPrice - tickSpacing, new address[](1));
+                helper__setAuctionClearingPrice(userMaxPrice - tickSpacing, new address[](1), Q96);
                 return;
             }
         } else if (scenario == PostBidScenario.UserAtClearing) {
-            console2.log('should trigger 1');
             if (userMaxPrice <= clearingPrice) {
                 // User's bid is at or right above the clearing price
                 return;
             } else {
-                console2.log('should trigger 2');
                 // User's bid is more then one tick above clearing: Move clearing right below the user's bid
-                helper__setAuctionClearingPrice(userMaxPrice, new address[](1));
+                helper__setAuctionClearingPrice(userMaxPrice, new address[](1), Q96);
                 return;
             }
         } else if (scenario == PostBidScenario.UserOutbidLater) {
@@ -111,7 +109,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
             } else {
                 // User's bid is above or equal to the clearing price: Move clearing above the user's bid after one block
                 vm.roll(block.number + 1); // Outbid in the next block
-                helper__setAuctionClearingPrice(userMaxPrice + tickSpacing, new address[](1));
+                helper__setAuctionClearingPrice(userMaxPrice + tickSpacing, new address[](1), Q96);
                 return;
             }
         } else if (scenario == PostBidScenario.UserOutbidImmediately) {
@@ -120,7 +118,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
                 return;
             } else {
                 // User's bid is above or equal to the clearing price: Move clearing above the user's bid immediately
-                helper__setAuctionClearingPrice(userMaxPrice + tickSpacing, new address[](1));
+                helper__setAuctionClearingPrice(userMaxPrice + tickSpacing, new address[](1), Q96);
                 return;
             }
         } else {
@@ -128,12 +126,12 @@ contract CombinatorialHelpers is AuctionBaseTest {
         }
     }
 
-    function helper__setAuctionClearingPrice(uint256 targetClearingPrice, address[] memory bidOwners)
+    function helper__setAuctionClearingPrice(uint256 targetClearingPrice, address[] memory bidOwners, bool Q96)
         public
         returns (bool success)
     {
         Checkpoint memory checkpoint = auction.checkpoint();
-        uint256 clearingPrice = auction.clearingPrice() >> FixedPoint96.RESOLUTION;
+        uint256 clearingPrice = Q96 ? auction.clearingPrice() : auction.clearingPrice() >> FixedPoint96.RESOLUTION;
         if (clearingPrice > targetClearingPrice) {
             return false; // Clearing price is already greater than target clearing price
         } else if (clearingPrice == targetClearingPrice) {
@@ -141,14 +139,14 @@ contract CombinatorialHelpers is AuctionBaseTest {
         } else {
             uint256 totalSupply = auction.totalSupply();
             // uint256 bidAmountToMoveToTargetClearingPrice = totalSupply * targetClearingPrice;
-            uint256 bidAmountToMoveToTargetClearingPrice =
-                (totalSupply - ((totalSupply * checkpoint.cumulativeMps) / ConstantsLib.MPS)) * targetClearingPrice;
+            uint256 bidAmountToMoveToTargetClearingPrice = (
+                totalSupply - ((totalSupply * checkpoint.cumulativeMps) / ConstantsLib.MPS)
+            ) * targetClearingPrice / (Q96 ? FixedPoint96.RESOLUTION : 1);
             if (bidAmountToMoveToTargetClearingPrice > uint256(type(uint128).max)) {
                 revert('Bid amount to move to target clearing price is too large');
             }
 
             vm.deal(address(this), bidAmountToMoveToTargetClearingPrice);
-            console2.log('bidAmountToMoveToTargetClearingPrice', bidAmountToMoveToTargetClearingPrice);
             uint256 allBidAmounts = 0;
             uint256 i = 0;
             while (bidOwners.length > 0) {
@@ -163,7 +161,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
                 }
                 address bidOwner = bidOwners[i];
                 try auction.submitBid{value: bidAmount}(
-                    targetClearingPrice << FixedPoint96.RESOLUTION, uint128(bidAmount), bidOwner, bytes('')
+                    targetClearingPrice << (Q96 ? 0 : FixedPoint96.RESOLUTION), uint128(bidAmount), bidOwner, bytes('')
                 ) returns (uint256) {
                     vm.roll(block.number + 1);
                     auction.checkpoint();

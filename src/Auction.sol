@@ -451,7 +451,7 @@ contract Auction is
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
 
         // Prevent bids from being exited before graduation
-        if (!_isGraduated(currentBlockCheckpoint)) {
+        if (!_isGraduated()) {
             if (block.number >= END_BLOCK) {
                 // If the auction is over, fully refund the bid
                 return _processExit(bidId, 0, 0);

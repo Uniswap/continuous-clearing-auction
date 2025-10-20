@@ -163,11 +163,10 @@ contract AuctionGraduationTest is AuctionBaseTest {
         uint256 bidId = auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
         vm.roll(auction.endBlock());
-
-        Checkpoint memory finalCheckpoint = auction.checkpoint();
+        auction.checkpoint();
         uint256 expectedCurrencyRaised = auction.currencyRaised();
         uint256 expectedCurrencyRaisedFromCheckpoint =
-            finalCheckpoint.currencyRaisedQ96_X7.scaleDownToUint256() >> FixedPoint96.RESOLUTION;
+            auction.currencyRaisedQ96_X7().scaleDownToUint256() >> FixedPoint96.RESOLUTION;
 
         vm.prank(fundsRecipient);
         vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
@@ -281,7 +280,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
 
         vm.roll(auction.endBlock());
         // Update the lastCheckpoint
-        Checkpoint memory finalCheckpoint = auction.checkpoint();
+        auction.checkpoint();
 
         // Should sweep ALL tokens since auction didn't graduate
         vm.expectEmit(true, true, true, true);
@@ -293,7 +292,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
 
         uint256 expectedCurrencyRaised = auction.currencyRaised();
         uint256 expectedCurrencyRaisedFromCheckpoint =
-            finalCheckpoint.currencyRaisedQ96_X7.scaleDownToUint256() >> FixedPoint96.RESOLUTION;
+            auction.currencyRaisedQ96_X7().scaleDownToUint256() >> FixedPoint96.RESOLUTION;
 
         emit log_string('===== Auction is NOT graduated =====');
         emit log_named_uint('currencyRaised in final checkpoint', expectedCurrencyRaisedFromCheckpoint);

@@ -165,20 +165,36 @@ contract Auction is
 
             // Get the expected currencyRaised at the rounded up clearing price
             // This uses the rounded up clearing price so this may be higher than the actual amount.
-            currencyRaisedQ96_X7_ = ValueX7.wrap(TOTAL_SUPPLY).mulUint256(_checkpoint.clearingPrice * deltaMps);
+            ValueX7 currencyRaisedQ96RoundedUp_X7 =
+                ValueX7.wrap(TOTAL_SUPPLY).mulUint256(_checkpoint.clearingPrice * deltaMps);
 
-            // The currency raised at the clearing price is the total currency raised minus the currency raised above the clearing price.
-            // This uses the rounded up clearing price so this may be higher than the actual amount.
-            ValueX7 currencyRaisedAtClearingPriceQ96_X7 =
-                currencyRaisedQ96_X7_.sub(currencyRaisedAboveClearingPriceQ96_X7);
+            // We separate all active bids into two groups: those above the clearing price tick and those at the tick
+            // There are two ways to derive the currencyRaised at the clearing price tick, either by subtracting
+            // the demand above the clearing price from the _total_ currency raised found above, OR
+            // by using the currencyDemand at the tick multiplied by the clearing price.
+            // If the clearing price is not rounded up, then both methods will give the same result.
 
-            // TODO(md): document this properly
-            // If currencyDemand at the tick is less than the calculated currency raised, then everyone should fill fully at this price
+            // We subtract the currency raised above the clearing price from the total currency raised
+            ValueX7 calculatedCurrencyRaisedAtTick_X7 =
+                currencyRaisedQ96RoundedUp_X7.sub(currencyRaisedAboveClearingPriceQ96_X7);
+
+            // Then we determine the currency raised from the demand at the tick using the clearing price
             ValueX7 currencyRaisedAtTick_X7 =
                 ValueX7.wrap(_getTick(_checkpoint.clearingPrice).currencyDemandQ96 * deltaMps);
-            currencyRaisedAtClearingPriceQ96_X7 = ValueX7.wrap(
+
+            // The usual case is that `calculatedCurrencyRaisedAtTick_X7` is greater than or equal to `currencyRaisedAtTick_X7`.
+            // That means that the demand at the clearing price is >= the amount of currency we expect to raise,
+            // which intuitively makes sense since these bidders are being partailly filled.
+            // There is more demand at the price than supply remaining to sell.
+            //
+            // Conversely, if `currencyRaisedAtTick_X7` is less than `calculatedCurrencyRaisedAtTick_X7`,
+            // then the amount of currency we expect to raise from bids at clearing price is greater
+            // than the actual demand at clearing price which is incorrect for a partial fill.
+            // This means that we had rounded up in the clearing price and the real clearing price is lower.
+            // So everyone is fully filled and we use the smaller of the two values which represents the demand at the clearing price.
+            ValueX7 currencyRaisedAtClearingPriceQ96_X7 = ValueX7.wrap(
                 FixedPointMathLib.min(
-                    ValueX7.unwrap(currencyRaisedAtTick_X7), ValueX7.unwrap(currencyRaisedAtClearingPriceQ96_X7)
+                    ValueX7.unwrap(currencyRaisedAtTick_X7), ValueX7.unwrap(calculatedCurrencyRaisedAtTick_X7)
                 )
             );
 

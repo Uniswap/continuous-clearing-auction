@@ -128,14 +128,12 @@ library Combinatorium {
 
         Context memory ctx = _loadContext(self);
 
-        console.log('executeSetup', numSteps);
-
         for (uint256 step = 0; step < numSteps; step++) {
             uint256 stepSeed = uint256(keccak256(abi.encodePacked(seed, step)));
-            console.log('executeSetup', stepSeed);
+            console.log('COMBINATORIUM: executeSetup 1');
             uint256[] memory selections = selectSpaces(ctx, stepSeed);
 
-            console.log('executeSetup', step);
+            console.log('COMBINATORIUM: executeSetup 2');
             bool success = setupHandler(step, selections);
 
             self.setupHistory.push(SetupAction({stepNumber: step, selections: selections, success: success}));
@@ -235,7 +233,6 @@ library Combinatorium {
     ) internal {
         // Phase 1: Setup
         self.executeSetup(seed, vm, handlers.setupHandler);
-        console.log('runCombinatorial1');
 
         // Phase 2a: Action tests
         self.runActionTests(seed, numActions, vm, handlers.testHandler);

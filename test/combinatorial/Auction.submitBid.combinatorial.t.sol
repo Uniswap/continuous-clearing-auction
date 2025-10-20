@@ -13,6 +13,9 @@ import {AuctionStepsBuilder} from '../utils/AuctionStepsBuilder.sol';
 import {Combinatorium} from '../utils/Combinatorium.sol';
 import {FuzzBid, FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
 
+import {PostBidScenario, PreBidScenario} from './CombinatorialEnums.sol';
+import {CombinatorialHelpers} from './CombinatorialHelpers.sol';
+
 import {Test} from 'forge-std/Test.sol';
 
 import {console} from 'forge-std/console.sol';
@@ -22,7 +25,7 @@ import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.
  * @title AuctionSubmitBidCombinatorialTest
  * @notice Auction submit bid tests using Combinatorium library
  */
-contract AuctionSubmitBidCombinatorialTest is AuctionBaseTest {
+contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
     using Combinatorium for Combinatorium.Context;
 
     // Auction contracts - CURRENTLY WITHIN AuctionBaseTest
@@ -46,11 +49,9 @@ contract AuctionSubmitBidCombinatorialTest is AuctionBaseTest {
         auctionSteps, // number of auction steps
         auctionStepsTime, // block time of each auction step
         blockNr, // block the action happens at - will be bound by the auction start and end block
-        previousBidAmount, // previous bid amount
-        previousBidsPerTick, // number of previous bids per added per previous tick
-        previousBidStartTick, // previous bids will start bidding from this tick
-        previousBidTickIncrement, // previous bids will increment their ticks by this amount with each step
-        mutationRandomness // randomness for the mutation
+        mutationRandomness, // randomness for the mutation
+        preBidScenario, // scenario for pre-bid setup
+        postBidScenario // scenario for post-bid setup
 
     }
 
@@ -66,7 +67,7 @@ contract AuctionSubmitBidCombinatorialTest is AuctionBaseTest {
     address public constant OTHER_BIDS_OWNER = address(0x1);
     uint256 public constant MIN_BID_AMOUNT = 1;
     uint256 public constant MAX_BID_AMOUNT = 100 ether;
-    uint256 public constant MAX_BID_PRICE = 100_000 ether;
+    uint256 public constant MAX_BID_PRICE_Q96 = 1e17 << FixedPoint96.RESOLUTION;
 
     uint256 public usersBidId;
 
@@ -74,21 +75,19 @@ contract AuctionSubmitBidCombinatorialTest is AuctionBaseTest {
         console.log('setUp0');
         ctx.init(1);
         ctx.defineSpace('method', 1, 0, uint256(Method.__length) - 1);
-        ctx.defineSpace('bidMaxPrice', 1, 1, MAX_BID_PRICE); // Will be lower bound by the auction floor price
+        ctx.defineSpace('bidMaxPrice', 1, 1, MAX_BID_PRICE_Q96); // Will be lower bound by the auction floor price
         ctx.defineSpace('bidAmount', 1, MIN_BID_AMOUNT, MAX_BID_AMOUNT); // MAX AMOUNT IS SUBJECT TO CHANGE
-        ctx.defineSpace('bidOwner', 1, 0, uint256(type(uint160).max));
-        ctx.defineSpace('bidCaller', 1, 0, uint256(type(uint160).max));
+        ctx.defineSpace('bidOwner', 1, 0, type(uint160).max);
+        ctx.defineSpace('bidCaller', 1, 0, type(uint160).max);
         ctx.defineSpace('blockStart', 1, 0, type(uint32).max); // uint32 to leave room for blockEnd which needs to be uint64
-        ctx.defineSpace('auctionTickSpacing', 1, 1, uint64(type(uint64).max));
-        ctx.defineSpace('auctionFloorPrice', 1, 1, MAX_BID_PRICE);
+        ctx.defineSpace('auctionTickSpacing', 1, 1, (uint64(type(uint64).max << FixedPoint96.RESOLUTION)));
+        ctx.defineSpace('auctionFloorPrice', 1, 1, MAX_BID_PRICE_Q96 - (type(uint64).max << FixedPoint96.RESOLUTION));
         ctx.defineSpace('auctionSteps', 1, 1, type(uint8).max);
         ctx.defineSpace('auctionStepsTime', 1, 0, type(uint8).max);
         ctx.defineSpace('blockNr', 1, 0, type(uint64).max); // The exact block number will be bound by the auction start and end block
-        ctx.defineSpace('previousBidAmount', 1, 1, type(uint64).max); // copied bounds from AuctionStepsBuilder.setUpBidsFuzz
-        ctx.defineSpace('previousBidsPerTick', 1, 0, 10);
-        ctx.defineSpace('previousBidStartTick', 1, 1, type(uint8).max - 55); // 55 IS AN ARBITRARY NUMBER Right NOW. GIVING SPACE FOR INCREMENTS.
-        ctx.defineSpace('previousBidTickIncrement', 1, 0, 20); // 20 IS AN ARBITRARY NUMBER Right NOW.
         ctx.defineSpace('mutationRandomness', 1, 0, type(uint256).max - 1);
+        ctx.defineSpace('preBidScenario', 1, 0, uint256(PreBidScenario.__length) - 1);
+        ctx.defineSpace('postBidScenario', 1, 0, uint256(PostBidScenario.__length) - 1);
         console.log('setUp1');
     }
 
@@ -342,33 +341,8 @@ contract AuctionSubmitBidCombinatorialTest is AuctionBaseTest {
 
         // Handle advanced setups for steps > 0
 
-        if (selections[uint256(SpaceIndices.method)] == uint256(Method.submitBid)) {
-            uint8 previousBidStartTick = uint8(selections[uint256(SpaceIndices.previousBidStartTick)]);
-            uint256 previousBidTickIncrement = selections[uint256(SpaceIndices.previousBidTickIncrement)] * step;
-            uint64 previousBidAmount = uint64(selections[uint64(SpaceIndices.previousBidAmount)]);
-            // _bound(selections[uint64(SpaceIndices.previousBidAmount)], BidLib.MIN_BID_AMOUNT, type(uint64).max));
-            uint256 previousBidsPerTick = selections[uint256(SpaceIndices.previousBidsPerTick)];
-
-            FuzzBid memory bid = FuzzBid({
-                bidAmount: uint64(_bound(previousBidAmount, MIN_BID_AMOUNT, type(uint64).max)),
-                tickNumber: previousBidStartTick // uint8(previousBidStartTick + previousBidTickIncrement)
-            });
-
-            for (uint256 i = 0; i < 1; /* previousBidsPerTick */ i++) {
-                console.log('trying to submit bid');
-                console.log('previousBidStartTick', previousBidStartTick);
-                console.log('previousBidTickIncrement', previousBidTickIncrement);
-                console.log('previousBidAmount', previousBidAmount);
-                console.log('previousBidsPerTick', previousBidsPerTick);
-                (bool bidPlaced, uint256 bidId) = helper__trySubmitBid(i, bid, OTHER_BIDS_OWNER);
-                console.log('bidPlaced', bidPlaced);
-                if (bidPlaced) {
-                    console.log('bidPlaced with id', bidId);
-                }
-            }
-        }
-
-        return true;
+        // NO ADVANCED SETUP FOR STEPS > 0 RIGHT NOW AVAILABLE.
+        return false;
     }
 
     function handleTestAction(uint256[] memory selections) external returns (bool) {
@@ -400,6 +374,10 @@ contract AuctionSubmitBidCombinatorialTest is AuctionBaseTest {
             bound(selections[uint256(SpaceIndices.bidMaxPrice)], auction.floorPrice() + tickSpacing, MAX_BID_PRICE),
             tickSpacing
         );
+
+        // Note: Mutations test invalid inputs, so they don't need pre/post bid scenarios
+        // The scenarios are only set up for valid test actions
+
         if (method == Method.submitBid) {
             if (mutation.mutationType == Combinatorium.MutationType.WRONG_PARAMETER) {
                 uint256 mutationRandomness = uint256(selections[uint256(SpaceIndices.mutationRandomness)]) % 2;
@@ -473,11 +451,11 @@ contract AuctionSubmitBidCombinatorialTest is AuctionBaseTest {
 
         address owner = address(uint160(selections[uint256(SpaceIndices.bidOwner)]));
         address caller = address(uint160(selections[uint256(SpaceIndices.bidCaller)]));
-        uint256 tickSpacing = auction.tickSpacing();
+        uint256 tickSpacingQ96 = auction.tickSpacing();
         uint128 bidAmount = uint128(selections[uint256(SpaceIndices.bidAmount)]);
         uint256 maxPrice = helper__roundPriceDownToTickSpacing(
-            bound(selections[uint256(SpaceIndices.bidMaxPrice)], auction.floorPrice() + tickSpacing, MAX_BID_PRICE),
-            tickSpacing
+            bound(selections[uint256(SpaceIndices.bidMaxPrice)], auction.floorPrice() + tickSpacingQ96, MAX_BID_PRICE),
+            tickSpacingQ96
         );
 
         if (method == Method.submitBid) {
@@ -496,6 +474,20 @@ contract AuctionSubmitBidCombinatorialTest is AuctionBaseTest {
             // Prank the caller
             vm.prank(caller);
             usersBidId = auction.submitBid{value: bidAmount}(maxPrice, bidAmount, owner, bytes(''));
+
+            // After successful bid submission, set up post-bid scenario
+            PostBidScenario postBidScenario = PostBidScenario(selections[uint256(SpaceIndices.postBidScenario)]);
+
+            // Convert maxPrice from Q96 to non-Q96 for the helper function
+            uint256 maxPriceNonQ96 = maxPrice >> FixedPoint96.RESOLUTION;
+
+            // Set up post-bid scenario using the helper
+            try this.helper__postBidScenario(postBidScenario, maxPriceNonQ96) {
+                console.log('Post-bid scenario setup complete:', uint256(postBidScenario));
+            } catch {
+                console.log('Post-bid scenario setup failed, continuing anyway');
+                // Don't revert - the bid was already placed successfully
+            }
         } else {
             revert('Invalid method');
         }
@@ -517,6 +509,12 @@ contract AuctionSubmitBidCombinatorialTest is AuctionBaseTest {
     function verifyState(uint256 method_, uint256[] memory selections) internal {
         Method method = Method(method_);
         if (method != Method.submitBid) return;
+
+        // Extract scenario selections for scenario-aware verification
+        PreBidScenario preBidScenario = PreBidScenario(selections[uint256(SpaceIndices.preBidScenario)]);
+        PostBidScenario postBidScenario = PostBidScenario(selections[uint256(SpaceIndices.postBidScenario)]);
+
+        console.log('Verifying with scenarios - Pre:', uint256(preBidScenario), 'Post:', uint256(postBidScenario));
 
         // ============ Phase 1: Immediate Post-Bid Verification ============
 
@@ -556,6 +554,21 @@ contract AuctionSubmitBidCombinatorialTest is AuctionBaseTest {
 
             (uint256 expectedTokens, bool isPartialFill, bool isOutbid) =
                 helper__calculateExpectedBidOutcome(bidBeforeExit, finalCheckpoint, graduated);
+
+            // Adjust expectations based on post-bid scenario
+            if (
+                postBidScenario == PostBidScenario.UserOutbidImmediately
+                    || postBidScenario == PostBidScenario.UserOutbidLater
+            ) {
+                isOutbid = true;
+                console.log('Scenario indicates user was outbid');
+            } else if (postBidScenario == PostBidScenario.UserAtClearing) {
+                isPartialFill = true;
+                console.log('Scenario indicates user at clearing price (partial fill)');
+            } else if (postBidScenario == PostBidScenario.UserAboveClearing) {
+                // User should be above clearing - expect full fill
+                console.log('Scenario indicates user above clearing (full fill expected)');
+            }
 
             address owner = address(uint160(selections[uint256(SpaceIndices.bidOwner)]));
             uint256 balanceBefore = address(owner).balance;

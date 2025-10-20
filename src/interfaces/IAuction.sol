@@ -200,6 +200,9 @@ interface IAuction is
     /// @dev This function can only be called after the auction has ended
     function sweepUnsoldTokens() external;
 
+    /// @notice The currency raised as of the last checkpoint
+    function currencyRaisedQ96_X7() external view returns (ValueX7);
+
     /// @notice The sum of demand in ticks above the clearing price
     function sumCurrencyDemandAboveClearingQ96() external view returns (uint256);
 }

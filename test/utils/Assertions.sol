@@ -12,7 +12,6 @@ abstract contract Assertions is StdAssertions {
         return keccak256(
             abi.encode(
                 _checkpoint.clearingPrice,
-                _checkpoint.currencyRaisedQ96_X7,
                 _checkpoint.cumulativeMps,
                 _checkpoint.prev,
                 _checkpoint.next,

@@ -158,19 +158,17 @@ contract Auction is
 
         // There is a special case where the clearing price is at a tick boundary with bids.
         // In this case, we have to explicitly track the supply sold to that price since they are "partially filled"
-
         if (_checkpoint.clearingPrice % TICK_SPACING == 0 && _getTick(_checkpoint.clearingPrice).currencyDemandQ96 > 0)
         {
             // Cache the previous value on the stack to avoid recalculating it
             ValueX7 currencyRaisedAboveClearingPriceQ96_X7 = currencyRaisedQ96_X7_;
 
             // Get the expected currencyRaised at the rounded up clearing price
+            // This uses the rounded up clearing price so this may be higher than the actual amount.
             currencyRaisedQ96_X7_ = ValueX7.wrap(TOTAL_SUPPLY).mulUint256(_checkpoint.clearingPrice * deltaMps);
 
-            // The currency raised at the clearing price is equal to the total currency raised according to the supply schedule
-            // and the rounded up clearing price minus the currency demand above the clearing price.
-            // Notice that `sumDemandAboveClearing` tracks the demand strictly above the rounded up clearing price
-            // this is guaranteed to be less than or equal to the currency raised at the rounded down price.
+            // The currency raised at the clearing price is the total currency raised minus the currency raised above the clearing price.
+            // This uses the rounded up clearing price so this may be higher than the actual amount.
             ValueX7 currencyRaisedAtClearingPriceQ96_X7 =
                 currencyRaisedQ96_X7_.sub(currencyRaisedAboveClearingPriceQ96_X7);
 
@@ -184,9 +182,9 @@ contract Auction is
                 )
             );
 
-            // Finally, we can find the actual currency raised by simply adding the currency raised at the clearing price and the currency raised above the clearing price
+            // We can now recompute the actual currency raised by adding the currency raised from the clearing price and above
             currencyRaisedQ96_X7_ = currencyRaisedAtClearingPriceQ96_X7.add(currencyRaisedAboveClearingPriceQ96_X7);
-
+            // Finally update the cumulative currency raised at this clearing price
             _checkpoint.currencyRaisedAtClearingPriceQ96_X7 =
                 _checkpoint.currencyRaisedAtClearingPriceQ96_X7.add(currencyRaisedAtClearingPriceQ96_X7);
         }

@@ -99,6 +99,65 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return validDivisors[randomIndex];
     }
 
+    function helper__seedBasedBid(uint256 seed)
+        public
+        view
+        returns (uint128 bidAmount, uint256 maxPriceQ96, uint256 bidBlock)
+    {
+        uint256 bidAmountR = uint256(keccak256(abi.encodePacked(seed, 'bid.bidAmount')));
+        uint256 maxPriceQ96R = uint256(keccak256(abi.encodePacked(seed, 'bid.maxPrice')));
+        uint256 bidBlockR = uint256(keccak256(abi.encodePacked(seed, 'bid.bidBlock')));
+
+        uint256 tickSpacingQ96 = params.tickSpacing;
+        uint256 floorPriceQ96 = params.floorPrice;
+        uint256 maxPriceQ96Max = helper__roundPriceDownToTickSpacing(auction.MAX_BID_PRICE(), params.tickSpacing);
+
+        maxPriceQ96 = helper__roundPriceDownToTickSpacing(maxPriceQ96R, tickSpacingQ96);
+        console.log('maxPriceQ96', maxPriceQ96);
+        console.log('maxPriceQ96Max', maxPriceQ96Max);
+        maxPriceQ96 = _bound(maxPriceQ96, (floorPriceQ96 + tickSpacingQ96), maxPriceQ96Max);
+        /// TODO: ^CONTINUE HERE - maxPriceQ96Max was uint256.max, which brings us further along, ends with "InvalidBidPriceTooHigh" error
+
+        bidAmount = uint128(_bound((bidAmountR % type(uint128).max), 1, type(uint128).max));
+        bidBlock = uint64(_bound(bidBlockR % (auction.endBlock()), auction.startBlock(), auction.endBlock() - 1));
+        return (bidAmount, maxPriceQ96, bidBlock);
+    }
+
+    function helper__seedBasedAuction(uint256 seed) public returns (FuzzDeploymentParams memory) {
+        uint256 totalSupplyR = uint256(keccak256(abi.encodePacked(seed, 'auction.totalSupply')));
+        uint256 floorPriceR = uint256(keccak256(abi.encodePacked(seed, 'auction.floorPrice')));
+        uint256 tickSpacingR = uint256(keccak256(abi.encodePacked(seed, 'auction.tickSpacing')));
+        uint256 startBlockR = uint256(keccak256(abi.encodePacked(seed, 'auction.startBlock')));
+        uint256 auctionStepsR = uint256(keccak256(abi.encodePacked(seed, 'auction.auctionSteps')));
+        uint256 auctionStepsTimeR = uint256(keccak256(abi.encodePacked(seed, 'auction.auctionStepsTime')));
+
+        FuzzDeploymentParams memory deploymentParams;
+
+        _setHardcodedParams(deploymentParams);
+
+        // Generate the random parameteres here
+        deploymentParams.totalSupply = uint128(_bound(totalSupplyR, 1, type(uint128).max));
+
+        // Calculate the number of steps - ensure it's a divisor of ConstantsLib.MPS
+        deploymentParams.numberOfSteps = uint8(auctionStepsR % type(uint8).max);
+
+        deploymentParams.auctionParams.floorPrice = uint128(_bound(floorPriceR, 1, type(uint128).max));
+        deploymentParams.auctionParams.tickSpacing = uint128(_bound(tickSpacingR, 1, type(uint128).max));
+        _boundPriceParams(deploymentParams);
+
+        // Set up the block numbers
+        deploymentParams.auctionParams.startBlock = uint64(_bound(startBlockR, 1, type(uint64).max));
+        _boundBlockNumbers(deploymentParams);
+
+        /// TODO: Make this anything other then a linear supply
+        uint40 timePerStep = uint40(_bound(auctionStepsTimeR, 1, type(uint40).max));
+        deploymentParams.auctionParams.auctionStepsData =
+            _generateAuctionSteps(deploymentParams.numberOfSteps, timePerStep);
+
+        $deploymentParams = deploymentParams;
+        return deploymentParams;
+    }
+
     function helper__validInvariantDeploymentParams() public returns (FuzzDeploymentParams memory) {
         FuzzDeploymentParams memory deploymentParams;
 
@@ -200,6 +259,15 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return stepsData;
     }
 
+    function _generateAuctionSteps(uint256 numberOfSteps, uint40 timePerStep) private pure returns (bytes memory) {
+        uint256 mpsPerStep = ConstantsLib.MPS / numberOfSteps;
+        bytes memory stepsData = new bytes(0);
+        for (uint8 i = 0; i < numberOfSteps; i++) {
+            stepsData = AuctionStepsBuilder.addStep(stepsData, uint24(mpsPerStep), timePerStep);
+        }
+        return stepsData;
+    }
+
     // ============================================
     // Block Management Helpers
     // ============================================
@@ -250,10 +318,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         view
         returns (uint256 maxPriceQ96)
     {
-        uint256 tickSpacing = params.tickSpacing;
-        uint256 floorPrice = params.floorPrice;
+        uint256 tickSpacing = params.tickSpacing >> FixedPoint96.RESOLUTION;
+        uint256 floorPrice = params.floorPrice >> FixedPoint96.RESOLUTION;
 
-        if (_tickNumber == 0) return floorPrice;
+        if (_tickNumber == 0) return floorPrice >> FixedPoint96.RESOLUTION;
 
         uint256 maxPrice = ((floorPrice + (_tickNumber * tickSpacing)) / tickSpacing) * tickSpacing;
 
@@ -308,11 +376,12 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         );
 
         // Get the correct last tick price for the bid
-        uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
-        uint256 lastTickPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(lowerTickNumber);
+        // uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
+        // uint256 lastTickPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(lowerTickNumber);
 
-        try auction.submitBid{value: ethInputAmount}(maxPrice, ethInputAmount, _owner, lastTickPrice, bytes(''))
-        returns (uint256 _bidId) {
+        try auction.submitBid{value: ethInputAmount}(maxPrice, ethInputAmount, _owner, bytes('')) returns (
+            uint256 _bidId
+        ) {
             bidId = _bidId;
         } catch (bytes memory revertData) {
             if (_shouldSkipBidError(revertData, maxPrice)) {

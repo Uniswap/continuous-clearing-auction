@@ -19,12 +19,12 @@ import {Test} from 'forge-std/Test.sol';
 import {console2} from 'forge-std/console2.sol';
 
 contract CombinatorialHelpersTest is CombinatorialHelpers {
-    function _legalizeBidMaxPrice(uint256 maxPrice) internal view returns (uint64 targetClearingPrice) {
-        uint256 auctionTickSpacing = auction.tickSpacing() >> FixedPoint96.RESOLUTION;
+    function _legalizeBidMaxPrice(uint256 maxPrice, bool Q96) internal view returns (uint64 targetClearingPrice) {
+        uint256 auctionTickSpacing = Q96 ? auction.tickSpacing() : auction.tickSpacing() >> FixedPoint96.RESOLUTION;
         console2.log('auctionTickSpacing', auctionTickSpacing);
 
         uint256 targetClearingPriceTemp = helper__roundPriceUpToTickSpacing(maxPrice, auctionTickSpacing);
-        targetClearingPrice = uint64(bound(targetClearingPriceTemp, 1, 1e17));
+        targetClearingPrice = uint64(bound(targetClearingPriceTemp, 1, Q96 ? type(uint256).max : 1e17));
 
         console2.log('rounded targetClearingPrice', targetClearingPrice);
 
@@ -69,7 +69,7 @@ contract CombinatorialHelpersTest is CombinatorialHelpers {
         console2.log('Scenario:', uint256(scenario));
         console2.log('User max price:', maxPrice);
         console2.log('clearingPrice before Scenario:', auction.clearingPrice() >> FixedPoint96.RESOLUTION);
-        helper__postBidScenario(scenario, maxPrice);
+        helper__postBidScenario(scenario, maxPrice, false);
         console2.log('clearingPrice after Scenario:', auction.clearingPrice() >> FixedPoint96.RESOLUTION);
 
         // Verify
@@ -144,7 +144,7 @@ contract CombinatorialHelpersTest is CombinatorialHelpers {
         console2.log('clearingPrice before Scenario:', auction.clearingPrice() >> FixedPoint96.RESOLUTION);
 
         // Setup the pre-bid scenario
-        helper__preBidScenario(scenario, maxPrice);
+        helper__preBidScenario(scenario, maxPrice, false);
 
         uint256 clearingPriceAfterScenario = auction.clearingPrice() >> FixedPoint96.RESOLUTION;
         console2.log('clearingPrice after Scenario:', clearingPriceAfterScenario);
@@ -217,14 +217,14 @@ contract CombinatorialHelpersTest is CombinatorialHelpers {
     function test_combinatorial_helpers_setAuctionClearingPrice(uint64 targetClearingPrice) public {
         // uint128 targetClearingPrice = 1e17;
 
-        uint128 legalizedTargetClearingPrice = _legalizeBidMaxPrice(targetClearingPrice);
+        uint128 legalizedTargetClearingPrice = _legalizeBidMaxPrice(targetClearingPrice, false);
 
         // Move the clearing price to the target price
         address[] memory bidOwners = new address[](3);
         bidOwners[0] = address(this);
         bidOwners[0] = alice;
         bidOwners[0] = bob;
-        bool success = helper__setAuctionClearingPrice(legalizedTargetClearingPrice, bidOwners);
+        bool success = helper__setAuctionClearingPrice(legalizedTargetClearingPrice, bidOwners, false);
 
         // Not successful if clearing price is greater then target, since the price can only go up
         uint256 clearingPrice = auction.clearingPrice() >> FixedPoint96.RESOLUTION;
@@ -258,16 +258,44 @@ contract CombinatorialHelpersTest is CombinatorialHelpers {
         console2.log('priorBidMaxPrice', priorBidMaxPrice);
         address[] memory bidOwners = new address[](1);
         bidOwners[0] = address(this);
-        bool successPriorBid = helper__setAuctionClearingPrice(priorBidMaxPrice, bidOwners);
+        bool successPriorBid = helper__setAuctionClearingPrice(priorBidMaxPrice, bidOwners, false);
         assertTrue(successPriorBid);
         assertEq(auction.clearingPrice() >> FixedPoint96.RESOLUTION, priorBidMaxPrice);
 
         // --- Submit the bid setting the target clearing price ---
-        uint128 legalizedTargetClearingPrice = _legalizeBidMaxPrice(targetClearingPrice);
+        uint128 legalizedTargetClearingPrice = _legalizeBidMaxPrice(targetClearingPrice, false);
         console2.log('legalizedTargetClearingPrice', legalizedTargetClearingPrice);
 
         // Move the clearing price to the target price
-        bool success = helper__setAuctionClearingPrice(legalizedTargetClearingPrice, bidOwners);
+        bool success = helper__setAuctionClearingPrice(legalizedTargetClearingPrice, bidOwners, false);
+
+        // Not successful if clearing price is greater then target, since the price can only go up
+        uint256 clearingPrice = auction.clearingPrice() >> FixedPoint96.RESOLUTION;
+        uint256 floorPrice = auction.floorPrice() >> FixedPoint96.RESOLUTION;
+        if (clearingPrice < floorPrice) {
+            clearingPrice = floorPrice;
+        }
+        console2.log('adjusted clearingPrice', clearingPrice);
+
+        if (clearingPrice > legalizedTargetClearingPrice) {
+            assertFalse(success);
+            return;
+        }
+        assertTrue(success);
+        assertEq(auction.clearingPrice() >> FixedPoint96.RESOLUTION, legalizedTargetClearingPrice);
+    }
+
+    function test_combinatorial_helpers_setAuctionClearingPrice_Q96(uint128 targetClearingPrice) public {
+        // uint128 targetClearingPrice = 1e17;
+
+        uint128 legalizedTargetClearingPrice = _legalizeBidMaxPrice(targetClearingPrice, true);
+
+        // Move the clearing price to the target price
+        address[] memory bidOwners = new address[](3);
+        bidOwners[0] = address(this);
+        bidOwners[0] = alice;
+        bidOwners[0] = bob;
+        bool success = helper__setAuctionClearingPrice(legalizedTargetClearingPrice, bidOwners, false);
 
         // Not successful if clearing price is greater then target, since the price can only go up
         uint256 clearingPrice = auction.clearingPrice() >> FixedPoint96.RESOLUTION;

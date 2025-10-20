@@ -1,5 +1,5 @@
 # AuctionParameters
-[Git Source](https://github.com/Uniswap/twap-auction/blob/1a7f98b9e1cb9ed630b15a7f62d113994de8c338/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/93c0c780ed33d07191c07fe0752db1c29bbcb8f7/src/interfaces/IAuction.sol)
 
 Parameters for the auction
 
@@ -17,6 +17,7 @@ struct AuctionParameters {
     uint256 tickSpacing;
     address validationHook;
     uint256 floorPrice;
+    uint128 requiredCurrencyRaised;
     bytes auctionStepsData;
 }
 ```

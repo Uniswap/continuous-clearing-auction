@@ -1,5 +1,5 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/63f4bfef19ba51e32937745adfe3603976e5bb51/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/93c0c780ed33d07191c07fe0752db1c29bbcb8f7/src/CheckpointStorage.sol)
 
 **Inherits:**
 [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
@@ -66,17 +66,6 @@ function clearingPrice() public view returns (uint256);
 |`<none>`|`uint256`|The current clearing price|
 
 
-### currencyRaised
-
-Get the currency raised at the last checkpointed block
-
-*This may be less than the balance of this contract as tokens are sold at different prices*
-
-
-```solidity
-function currencyRaised() public view returns (uint256);
-```
-
 ### _getCheckpoint
 
 Get a checkpoint from storage
@@ -109,7 +98,7 @@ because it uses lazy accounting to calculate the tokens filled*
 function _accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memory startCheckpoint, Bid memory bid)
     internal
     pure
-    returns (uint256 tokensFilled, uint256 currencySpent);
+    returns (uint256 tokensFilled, uint256 currencySpentQ96);
 ```
 **Parameters**
 
@@ -124,7 +113,7 @@ function _accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memo
 |Name|Type|Description|
 |----|----|-----------|
 |`tokensFilled`|`uint256`|The tokens sold|
-|`currencySpent`|`uint256`|The amount of currency spent|
+|`currencySpentQ96`|`uint256`|The amount of currency spent in Q96 form|
 
 
 ### _accountPartiallyFilledCheckpoints
@@ -135,24 +124,24 @@ Calculate the tokens sold and currency spent for a partially filled bid
 ```solidity
 function _accountPartiallyFilledCheckpoints(
     Bid memory bid,
-    ValueX7 tickDemandX7,
-    ValueX7X7 cumulativeCurrencyRaisedAtClearingPriceX7X7
-) internal pure returns (uint256 tokensFilled, uint256 currencySpent);
+    uint256 tickDemandQ96,
+    ValueX7 currencyRaisedAtClearingPriceQ96_X7
+) internal pure returns (uint256 tokensFilled, uint256 currencySpentQ96);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`bid`|`Bid`|The bid|
-|`tickDemandX7`|`ValueX7`|The total demand at the tick|
-|`cumulativeCurrencyRaisedAtClearingPriceX7X7`|`ValueX7X7`|The cumulative supply sold to the clearing price|
+|`tickDemandQ96`|`uint256`|The total demand at the tick|
+|`currencyRaisedAtClearingPriceQ96_X7`|`ValueX7`|The cumulative supply sold to the clearing price|
 
 **Returns**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`tokensFilled`|`uint256`|The tokens sold|
-|`currencySpent`|`uint256`|The amount of currency spent|
+|`currencySpentQ96`|`uint256`|The amount of currency spent in Q96 form|
 
 
 ### _calculateFill
@@ -167,7 +156,7 @@ It MUST only be used when the bid's max price is strictly greater than the clear
 function _calculateFill(Bid memory bid, uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
     internal
     pure
-    returns (uint256 tokensFilled, uint256 currencySpent);
+    returns (uint256 tokensFilled, uint256 currencySpentQ96);
 ```
 **Parameters**
 
@@ -182,7 +171,7 @@ function _calculateFill(Bid memory bid, uint256 cumulativeMpsPerPriceDelta, uint
 |Name|Type|Description|
 |----|----|-----------|
 |`tokensFilled`|`uint256`|the amount of tokens filled for this bid|
-|`currencySpent`|`uint256`|the amount of currency spent by this bid|
+|`currencySpentQ96`|`uint256`|the amount of currency spent by this bid in Q96 form|
 
 
 ### lastCheckpointedBlock

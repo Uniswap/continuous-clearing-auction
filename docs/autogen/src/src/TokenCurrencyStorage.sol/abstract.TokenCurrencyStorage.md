@@ -1,5 +1,5 @@
 # TokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/1a7f98b9e1cb9ed630b15a7f62d113994de8c338/src/TokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/93c0c780ed33d07191c07fe0752db1c29bbcb8f7/src/TokenCurrencyStorage.sol)
 
 **Inherits:**
 [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -33,12 +33,12 @@ uint128 internal immutable TOTAL_SUPPLY;
 ```
 
 
-### TOTAL_SUPPLY_X7_X7
-The total supply of tokens to sell, scaled up to a ValueX7X7
+### TOTAL_SUPPLY_Q96
+The total supply of tokens to sell in 160.96 form
 
 
 ```solidity
-ValueX7X7 internal immutable TOTAL_SUPPLY_X7_X7;
+uint256 internal immutable TOTAL_SUPPLY_Q96;
 ```
 
 
@@ -57,6 +57,15 @@ The recipient of the raised Currency from the auction
 
 ```solidity
 address internal immutable FUNDS_RECIPIENT;
+```
+
+
+### REQUIRED_CURRENCY_RAISED_Q96
+The amount of currency required to be raised for the auction to graduate in 160.96 form
+
+
+```solidity
+uint256 internal immutable REQUIRED_CURRENCY_RAISED_Q96;
 ```
 
 
@@ -83,7 +92,14 @@ uint256 public sweepUnsoldTokensBlock;
 
 
 ```solidity
-constructor(address _token, address _currency, uint128 _totalSupply, address _tokensRecipient, address _fundsRecipient);
+constructor(
+    address _token,
+    address _currency,
+    uint128 _totalSupply,
+    address _tokensRecipient,
+    address _fundsRecipient,
+    uint128 _requiredCurrencyRaised
+);
 ```
 
 ### _sweepCurrency
@@ -124,7 +140,7 @@ The total supply of tokens to sell
 
 
 ```solidity
-function totalSupply() external view override(ITokenCurrencyStorage) returns (uint256);
+function totalSupply() external view override(ITokenCurrencyStorage) returns (uint128);
 ```
 
 ### tokensRecipient

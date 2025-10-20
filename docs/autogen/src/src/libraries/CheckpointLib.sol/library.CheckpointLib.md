@@ -1,5 +1,5 @@
 # CheckpointLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/1a7f98b9e1cb9ed630b15a7f62d113994de8c338/src/libraries/CheckpointLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/93c0c780ed33d07191c07fe0752db1c29bbcb8f7/src/libraries/CheckpointLib.sol)
 
 
 ## Functions
@@ -46,26 +46,5 @@ function getMpsPerPrice(uint24 mps, uint256 price) internal pure returns (uint25
 |Name|Type|Description|
 |----|----|-----------|
 |`<none>`|`uint256`|the ratio|
-
-
-### getCurrencyRaised
-
-Return the total currency raised at the given checkpoint
-
-
-```solidity
-function getCurrencyRaised(Checkpoint memory checkpoint) internal pure returns (uint256);
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`checkpoint`|`Checkpoint`|the checkpoint|
-
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`uint256`|The total currency raised in uint256 form|
 
 

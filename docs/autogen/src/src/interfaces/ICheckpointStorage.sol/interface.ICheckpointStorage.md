@@ -1,5 +1,5 @@
 # ICheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/69de3ae4ba8e1e42b571cd7d7900cef9574ede92/src/interfaces/ICheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/93c0c780ed33d07191c07fe0752db1c29bbcb8f7/src/interfaces/ICheckpointStorage.sol)
 
 Interface for checkpoint storage operations
 
@@ -34,17 +34,6 @@ function clearingPrice() external view returns (uint256);
 |----|----|-----------|
 |`<none>`|`uint256`|The current clearing price|
 
-
-### currencyRaised
-
-Get the currency raised at the last checkpointed block
-
-*This may be less than the balance of this contract as tokens are sold at different prices*
-
-
-```solidity
-function currencyRaised() external view returns (uint256);
-```
 
 ### lastCheckpointedBlock
 

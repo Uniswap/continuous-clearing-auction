@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/572329a7aabc6c93930b434d7bbc37f669a19160/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/93c0c780ed33d07191c07fe0752db1c29bbcb8f7/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -14,6 +14,17 @@ security-contact: security@uniswap.org
 
 
 ## State Variables
+### MAX_BID_PRICE
+The maximum price which a bid can be submitted at
+
+*Set during construction to type(uint256).max / TOTAL_SUPPLY*
+
+
+```solidity
+uint256 public immutable MAX_BID_PRICE;
+```
+
+
 ### CLAIM_BLOCK
 The block at which purchased tokens can be claimed
 
@@ -32,23 +43,23 @@ IValidationHook internal immutable VALIDATION_HOOK;
 ```
 
 
-### TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7
-The total currency that will be raised selling total supply at the floor price
+### $currencyRaisedQ96_X7
+The total currency raised in the auction in Q96 representation, scaled up by X7
 
 
 ```solidity
-ValueX7X7 internal immutable TOTAL_CURRENCY_RAISED_AT_FLOOR_X7_X7;
+ValueX7 internal $currencyRaisedQ96_X7;
 ```
 
 
-### $sumCurrencyDemandAboveClearingX7
+### $sumCurrencyDemandAboveClearingQ96
 The sum of currency demand in ticks above the clearing price
 
 *This will increase every time a new bid is submitted, and decrease when bids are outbid.*
 
 
 ```solidity
-ValueX7 internal $sumCurrencyDemandAboveClearingX7;
+uint256 internal $sumCurrencyDemandAboveClearingQ96;
 ```
 
 
@@ -58,16 +69,6 @@ Whether the TOTAL_SUPPLY of tokens has been received
 
 ```solidity
 bool private $_tokensReceived;
-```
-
-
-### $_supplyRolloverMultiplier
-A packed uint256 containing `set`, `remainingSupplyX7X7`, and `remainingMps` values derived from the checkpoint
-immediately before the auction becomes fully subscribed. The ratio of these helps account for rollover supply.
-
-
-```solidity
-SupplyRolloverMultiplier internal $_supplyRolloverMultiplier;
 ```
 
 
@@ -83,7 +84,8 @@ constructor(address _token, uint128 _totalSupply, AuctionParameters memory _para
         _parameters.currency,
         _totalSupply,
         _parameters.tokensRecipient,
-        _parameters.fundsRecipient
+        _parameters.fundsRecipient,
+        _parameters.requiredCurrencyRaised
     )
     TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
     PermitSingleForwarder(IAllowanceTransfer(PERMIT2));
@@ -98,6 +100,15 @@ Modifier for functions which can only be called after the auction is over
 modifier onlyAfterAuctionIsOver();
 ```
 
+### onlyAfterClaimBlock
+
+Modifier for claim related functions which can only be called after the claim block
+
+
+```solidity
+modifier onlyAfterClaimBlock();
+```
+
 ### onlyActiveAuction
 
 Modifier for functions which can only be called after the auction is started and the tokens have been received
@@ -105,6 +116,15 @@ Modifier for functions which can only be called after the auction is started and
 
 ```solidity
 modifier onlyActiveAuction();
+```
+
+### ensureCheckpointed
+
+Modifier for functions which require the latest checkpoint to be up to date
+
+
+```solidity
+modifier ensureCheckpointed();
 ```
 
 ### onTokensReceived
@@ -138,13 +158,44 @@ function isGraduated() external view returns (bool);
 
 Whether the auction has graduated as of the given checkpoint
 
-*The auction is considered `graudated` if the clearing price is greater than the floor price
-since that means it has sold all of the total supply of tokens.*
+*The auction is considered `graudated` if the currency raised is greater than or equal to the required currency raised*
 
 
 ```solidity
-function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool);
+function _isGraduated() internal view returns (bool);
 ```
+
+### currencyRaised
+
+Get the currency raised at the last checkpointed block
+
+*This may be less than the balance of this contract if there are outstanding refunds for bidders*
+
+
+```solidity
+function currencyRaised() public view returns (uint256);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The currency raised|
+
+
+### _currencyRaised
+
+Return the currency raised in uint256 representation
+
+
+```solidity
+function _currencyRaised() internal view returns (uint256);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The currency raised|
+
 
 ### _sellTokensAtClearingPrice
 
@@ -185,35 +236,6 @@ function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint64 blockNumber
     returns (Checkpoint memory);
 ```
 
-### _calculateNewClearingPrice
-
-Calculate the new clearing price, given the cumulative demand and the remaining supply in the auction
-
-
-```solidity
-function _calculateNewClearingPrice(
-    uint256 _tickLowerPrice,
-    ValueX7 _sumCurrencyDemandAboveClearingX7,
-    ValueX7X7 _cachedRemainingCurrencyRaisedX7X7,
-    uint24 _cachedRemainingMps
-) internal view returns (uint256);
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`_tickLowerPrice`|`uint256`|The price of the tick which we know we have enough demand to clear|
-|`_sumCurrencyDemandAboveClearingX7`|`ValueX7`|The cumulative demand above the clearing price|
-|`_cachedRemainingCurrencyRaisedX7X7`|`ValueX7X7`|The cached remaining currency raised at the floor price|
-|`_cachedRemainingMps`|`uint24`|The cached remaining mps in the auction|
-
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`uint256`|The new clearing price|
-
-
 ### _iterateOverTicksAndFindClearingPrice
 
 Iterate to find the tick where the total demand at and above it is strictly less than the remaining supply in the auction
@@ -244,7 +266,7 @@ Internal function for checkpointing at a specific block number
 *This updates the state of the auction accounting for the bids placed after the last checkpoint
 Checkpoints are created at the top of each block with a new bid and does NOT include that bid
 Because of this, we need to calculate what the new state of the Auction should be before updating
-purely on the supply we will sell to the potentially updated `sumCurrencyDemandAboveClearingX7` value*
+purely on the supply we will sell to the potentially updated `sumCurrencyDemandAboveClearingQ96` value*
 
 
 ```solidity
@@ -273,7 +295,7 @@ function _getFinalCheckpoint() internal returns (Checkpoint memory);
 
 
 ```solidity
-function _submitBid(uint256 maxPrice, uint256 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
+function _submitBid(uint256 maxPrice, uint128 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
     internal
     returns (uint256 bidId);
 ```
@@ -284,7 +306,7 @@ Given a bid, tokens filled and refund, process the transfers and refund
 
 
 ```solidity
-function _processExit(uint256 bidId, Bid memory bid, uint256 tokensFilled, uint256 refund) internal;
+function _processExit(uint256 bidId, uint256 tokensFilled, uint256 currencySpentQ96) internal;
 ```
 
 ### checkpoint
@@ -312,7 +334,7 @@ Submit a new bid
 
 
 ```solidity
-function submitBid(uint256 maxPrice, uint256 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
+function submitBid(uint256 maxPrice, uint128 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
     public
     payable
     onlyActiveAuction
@@ -323,7 +345,7 @@ function submitBid(uint256 maxPrice, uint256 amount, address owner, uint256 prev
 |Name|Type|Description|
 |----|----|-----------|
 |`maxPrice`|`uint256`|The maximum price the bidder is willing to pay|
-|`amount`|`uint256`|The amount of the bid|
+|`amount`|`uint128`|The amount of the bid|
 |`owner`|`address`|The owner of the bid|
 |`prevTickPrice`|`uint256`|The price of the previous tick|
 |`hookData`|`bytes`|Additional data to pass to the hook required for validation|
@@ -341,7 +363,7 @@ Submit a new bid
 
 
 ```solidity
-function submitBid(uint256 maxPrice, uint256 amount, address owner, bytes calldata hookData)
+function submitBid(uint256 maxPrice, uint128 amount, address owner, bytes calldata hookData)
     public
     payable
     onlyActiveAuction
@@ -352,7 +374,7 @@ function submitBid(uint256 maxPrice, uint256 amount, address owner, bytes callda
 |Name|Type|Description|
 |----|----|-----------|
 |`maxPrice`|`uint256`|The maximum price the bidder is willing to pay|
-|`amount`|`uint256`|The amount of the bid|
+|`amount`|`uint128`|The amount of the bid|
 |`owner`|`address`|The owner of the bid|
 |`hookData`|`bytes`|Additional data to pass to the hook required for validation|
 
@@ -407,7 +429,7 @@ Claim tokens after the auction's claim block
 
 
 ```solidity
-function claimTokens(uint256 _bidId) external;
+function claimTokens(uint256 _bidId) external onlyAfterClaimBlock ensureCheckpointed;
 ```
 **Parameters**
 
@@ -424,7 +446,7 @@ Claim tokens for multiple bids
 
 
 ```solidity
-function claimTokensBatch(address _owner, uint256[] calldata _bidIds) external;
+function claimTokensBatch(address _owner, uint256[] calldata _bidIds) external onlyAfterClaimBlock ensureCheckpointed;
 ```
 **Parameters**
 
@@ -464,7 +486,7 @@ Withdraw all of the currency raised
 
 
 ```solidity
-function sweepCurrency() external onlyAfterAuctionIsOver;
+function sweepCurrency() external onlyAfterAuctionIsOver ensureCheckpointed;
 ```
 
 ### sweepUnsoldTokens
@@ -475,7 +497,7 @@ Sweep any leftover tokens to the tokens recipient
 
 
 ```solidity
-function sweepUnsoldTokens() external onlyAfterAuctionIsOver;
+function sweepUnsoldTokens() external onlyAfterAuctionIsOver ensureCheckpointed;
 ```
 
 ### claimBlock
@@ -496,12 +518,21 @@ The address of the validation hook for the auction
 function validationHook() external view override(IAuction) returns (IValidationHook);
 ```
 
-### sumCurrencyDemandAboveClearingX7
+### currencyRaisedQ96_X7
+
+The currency raised as of the last checkpoint
+
+
+```solidity
+function currencyRaisedQ96_X7() external view override(IAuction) returns (ValueX7);
+```
+
+### sumCurrencyDemandAboveClearingQ96
 
 The sum of demand in ticks above the clearing price
 
 
 ```solidity
-function sumCurrencyDemandAboveClearingX7() external view override(IAuction) returns (ValueX7);
+function sumCurrencyDemandAboveClearingQ96() external view override(IAuction) returns (uint256);
 ```
 

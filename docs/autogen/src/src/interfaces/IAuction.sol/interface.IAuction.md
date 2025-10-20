@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/572329a7aabc6c93930b434d7bbc37f669a19160/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/93c0c780ed33d07191c07fe0752db1c29bbcb8f7/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
@@ -14,7 +14,7 @@ Submit a new bid
 
 
 ```solidity
-function submitBid(uint256 maxPrice, uint256 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
+function submitBid(uint256 maxPrice, uint128 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
     external
     payable
     returns (uint256 bidId);
@@ -24,7 +24,7 @@ function submitBid(uint256 maxPrice, uint256 amount, address owner, uint256 prev
 |Name|Type|Description|
 |----|----|-----------|
 |`maxPrice`|`uint256`|The maximum price the bidder is willing to pay|
-|`amount`|`uint256`|The amount of the bid|
+|`amount`|`uint128`|The amount of the bid|
 |`owner`|`address`|The owner of the bid|
 |`prevTickPrice`|`uint256`|The price of the previous tick|
 |`hookData`|`bytes`|Additional data to pass to the hook required for validation|
@@ -45,7 +45,7 @@ as this function will iterate through every tick starting from the floor price i
 
 
 ```solidity
-function submitBid(uint256 maxPrice, uint256 amount, address owner, bytes calldata hookData)
+function submitBid(uint256 maxPrice, uint128 amount, address owner, bytes calldata hookData)
     external
     payable
     returns (uint256 bidId);
@@ -55,7 +55,7 @@ function submitBid(uint256 maxPrice, uint256 amount, address owner, bytes callda
 |Name|Type|Description|
 |----|----|-----------|
 |`maxPrice`|`uint256`|The maximum price the bidder is willing to pay|
-|`amount`|`uint256`|The amount of the bid|
+|`amount`|`uint128`|The amount of the bid|
 |`owner`|`address`|The owner of the bid|
 |`hookData`|`bytes`|Additional data to pass to the hook required for validation|
 
@@ -103,6 +103,25 @@ function isGraduated() external view returns (bool);
 |Name|Type|Description|
 |----|----|-----------|
 |`<none>`|`bool`|bool True if the auction has graduated, false otherwise|
+
+
+### currencyRaised
+
+Get the currency raised at the last checkpointed block
+
+*This may be less than the balance of this contract if there are outstanding refunds for bidders*
+
+*Be aware that the latest checkpoint may be out of date*
+
+
+```solidity
+function currencyRaised() external view returns (uint256);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The currency raised|
 
 
 ### exitBid
@@ -220,13 +239,22 @@ Sweep any leftover tokens to the tokens recipient
 function sweepUnsoldTokens() external;
 ```
 
-### sumCurrencyDemandAboveClearingX7
+### currencyRaisedQ96_X7
+
+The currency raised as of the last checkpoint
+
+
+```solidity
+function currencyRaisedQ96_X7() external view returns (ValueX7);
+```
+
+### sumCurrencyDemandAboveClearingQ96
 
 The sum of demand in ticks above the clearing price
 
 
 ```solidity
-function sumCurrencyDemandAboveClearingX7() external view returns (ValueX7);
+function sumCurrencyDemandAboveClearingQ96() external view returns (uint256);
 ```
 
 ## Events
@@ -267,7 +295,7 @@ Emitted when a new checkpoint is created
 
 ```solidity
 event CheckpointUpdated(
-    uint256 indexed blockNumber, uint256 clearingPrice, ValueX7X7 totalCurrencyRaisedX7X7, uint24 cumulativeMps
+    uint256 indexed blockNumber, uint256 clearingPrice, ValueX7 currencyRaisedQ96_X7, uint24 cumulativeMps
 );
 ```
 
@@ -277,7 +305,7 @@ event CheckpointUpdated(
 |----|----|-----------|
 |`blockNumber`|`uint256`|The block number of the checkpoint|
 |`clearingPrice`|`uint256`|The clearing price of the checkpoint|
-|`totalCurrencyRaisedX7X7`|`ValueX7X7`|The total currency raised|
+|`currencyRaisedQ96_X7`|`ValueX7`|The total currency raised|
 |`cumulativeMps`|`uint24`|The cumulative percentage of total tokens allocated across all previous steps, represented in ten-millionths of the total supply (1e7 = 100%)|
 
 ### ClearingPriceUpdated
@@ -345,20 +373,28 @@ Error thrown when not enough amount is deposited
 error InvalidAmount();
 ```
 
+### BidMustBeAboveClearingPrice
+Error thrown when the bid price is below the clearing price
+
+
+```solidity
+error BidMustBeAboveClearingPrice();
+```
+
+### InvalidBidPriceTooHigh
+Error thrown when the bid price is too high given the auction's total supply
+
+
+```solidity
+error InvalidBidPriceTooHigh();
+```
+
 ### BidAmountTooSmall
 Error thrown when the bid amount is too small
 
 
 ```solidity
 error BidAmountTooSmall();
-```
-
-### BidAmountTooLarge
-Error thrown when the bid amount is over ConstantsLib.X7X7_UPPER_BOUND
-
-
-```solidity
-error BidAmountTooLarge();
 ```
 
 ### CurrencyIsNotNative
@@ -457,6 +493,14 @@ Error thrown when the bid has not been exited
 error BidNotExited();
 ```
 
+### CannotPartiallyExitBidBeforeGraduation
+Error thrown when the bid cannot be partially exited before the auction has graduated
+
+
+```solidity
+error CannotPartiallyExitBidBeforeGraduation();
+```
+
 ### TokenTransferFailed
 Error thrown when the token transfer fails
 
@@ -471,14 +515,6 @@ Error thrown when the auction is not over
 
 ```solidity
 error AuctionIsNotOver();
-```
-
-### InvalidBidPrice
-Error thrown when a new bid is less than or equal to the clearing price
-
-
-```solidity
-error InvalidBidPrice();
 ```
 
 ### InvalidBidUnableToClear

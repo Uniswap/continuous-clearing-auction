@@ -176,11 +176,13 @@ library FixedPoint96 {
 }
 ```
 
-**Dual Purpose Encoding**: 
+**Dual Purpose Encoding**:
+
 - **Prices**: Stored as `price * 2^96` to represent exact decimal values
 - **Demand**: Currency amounts scaled by Q96 for precision in cumulative calculations (e.g., `sumCurrencyDemandAboveClearingQ96`)
 
 For example:
+
 - A price of 1.5 tokens per currency unit = `1.5 * 2^96`
 - A demand of 100 currency units = `100 * 2^96`
 - Bid amounts are converted: `amountQ96 = amount * FixedPoint96.Q96`
@@ -269,7 +271,7 @@ $$\text{currencyRaised} = \text{sumCurrencyDemandAboveClearingQ96} \times \text{
 currencyRaisedQ96_X7 = ValueX7.wrap(TOTAL_SUPPLY_Q96 * deltaMps)
     .wrapAndFullMulDiv(_checkpoint.clearingPrice, FixedPoint96.Q96);
 
-// Not fully subscribed case  
+// Not fully subscribed case
 currencyRaisedQ96_X7 = ValueX7.wrap($sumCurrencyDemandAboveClearingQ96 * deltaMps);
 ```
 
@@ -349,7 +351,8 @@ interface IValidationHook {
 
 Users can submit bids specifying the currency amount they want to spend. The bid id is returned to the user and can be used to claim tokens or exit the bid. The `prevTickPrice` parameter is used to determine the location of the tick to insert the bid into. The `maxPrice` is the maximum price the user is willing to pay. The `amount` is the amount of currency the user is bidding. The `owner` is the address of the user who can claim tokens or exit the bid.
 
-**Bid Price Validation**: 
+**Bid Price Validation**:
+
 - Bids must be above the current clearing price
 - Maximum bid price is capped at `type(uint256).max / TOTAL_SUPPLY` to prevent overflow in calculations
 

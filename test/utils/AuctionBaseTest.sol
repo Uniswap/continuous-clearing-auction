@@ -505,7 +505,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
             auction.sweepCurrency();
             auction.sweepUnsoldTokens();
-
             // Validate that the tokens and currency dust left in the auction is within a reasonable amount
             assertApproxEqAbs(
                 token.balanceOf(address(auction)),

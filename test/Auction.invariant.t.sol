@@ -109,6 +109,9 @@ contract AuctionInvariantHandler is Test, Assertions {
             (uint256(mockAuction.totalSupply()) * checkpoint.cumulativeMps) / ConstantsLib.MPS
         );
 
+        // We can never have more sweepable tokens than the auction's balance
+        assertLe(mockAuction.sweepableTokens(), token.balanceOf(address(mockAuction)));
+
         _checkpoint = checkpoint;
     }
 

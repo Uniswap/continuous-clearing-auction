@@ -5,12 +5,23 @@ import {Auction} from '../../src/Auction.sol';
 import {AuctionParameters} from '../../src/Auction.sol';
 import {Bid} from '../../src/BidStorage.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
+
+import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
+import {ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 
 contract MockAuction is Auction {
+    using ValueX7Lib for *;
+
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
         Auction(_token, _totalSupply, _parameters)
     {}
+
+    /// @notice The number of tokens that can be swept from the auction
+    /// @dev Only use this function if you know the auction is graduated
+    function sweepableTokens() external view returns (uint256) {
+        return TOTAL_SUPPLY_Q96.scaleUpToX7().sub($totalClearedQ96_X7).divUint256(FixedPoint96.Q96).scaleDownToUint256();
+    }
 
     /// @notice Wrapper around internal function for testing
     function iterateOverTicksAndFindClearingPrice(Checkpoint memory checkpoint) external returns (uint256) {

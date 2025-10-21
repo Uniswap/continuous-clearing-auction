@@ -224,7 +224,7 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
             vm.deal(alice, bidAmount);
             // Submit the bid
             vm.prank(alice);
-            console.log('submitting bid with maxPriceQ96', maxPriceQ96);
+            console.log('starting users bid submission');
             usersBidId = auction.submitBid{value: bidAmount}(maxPriceQ96, bidAmount, alice, bytes(''));
             console.log('bid submitted');
 

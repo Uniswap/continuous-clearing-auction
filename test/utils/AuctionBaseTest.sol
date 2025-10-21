@@ -165,7 +165,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         deploymentParams.totalSupply = uint128(_bound(totalSupplyR, 1, MAX_TOTAL_SUPPLY));
 
         // Calculate the number of steps - ensure it's a divisor of ConstantsLib.MPS
-        deploymentParams.numberOfSteps = uint8(auctionStepsR % deploymentParams.totalSupply);
+        deploymentParams.numberOfSteps = uint8(_bound(auctionStepsR, 1, type(uint8).max));
 
         // Calculate the absolute max bid price
         uint256 maxBidPrice = type(uint256).max / deploymentParams.totalSupply;

@@ -67,8 +67,8 @@ contract CombinatorialHelpers is AuctionBaseTest {
             auction.submitBid{value: smallBidAmount}(
                 userMaxPrice << (Q96 ? 0 : FixedPoint96.RESOLUTION), uint128(smallBidAmount), address(this), bytes('')
             );
-            vm.roll(block.number + 1);
-            auction.checkpoint();
+            // vm.roll(block.number + 1);
+            // auction.checkpoint();
             return;
         } else {
             revert('Invalid pre bid scenario');
@@ -136,9 +136,6 @@ contract CombinatorialHelpers is AuctionBaseTest {
         }
     }
 
-    /// TODO: 1) helper__seedBasedAuction: tickSpacing & floorPrice are way to high (e37 & e38)
-    /// TODO: 2) helper__setAuctionClearingPrice: targetClearingPrice is e46 while clearingPrice is e38. Why is target not current clearing?
-
     function helper__setAuctionClearingPrice(uint256 targetClearingPrice, address[] memory bidOwners, bool Q96)
         public
         returns (bool success)
@@ -151,13 +148,13 @@ contract CombinatorialHelpers is AuctionBaseTest {
         } else if (clearingPrice == targetClearingPrice) {
             return true;
         } else {
-            uint256 totalSupply = auction.totalSupply();
+            uint256 totalSupply_ = auction.totalSupply();
 
             // uint256 bidAmountToMoveToTargetClearingPrice = totalSupply * targetClearingPrice;
             uint256 bidAmountToMoveToTargetClearingPrice = (
-                totalSupply - ((totalSupply * checkpoint.cumulativeMps) / ConstantsLib.MPS)
+                totalSupply_ - ((totalSupply_ * checkpoint.cumulativeMps) / ConstantsLib.MPS)
             ) * targetClearingPrice / (Q96 ? FixedPoint96.Q96 : 1);
-            console.log('helper__setAuctionClearingPrice: totalSupply', totalSupply);
+            console.log('helper__setAuctionClearingPrice: totalSupply', totalSupply_);
             console.log('helper__setAuctionClearingPrice: checkpoint.cumulativeMps', checkpoint.cumulativeMps);
             console.log('helper__setAuctionClearingPrice: clearingPrice', clearingPrice);
             console.log('helper__setAuctionClearingPrice: targetClearingPrice', targetClearingPrice);
@@ -186,8 +183,8 @@ contract CombinatorialHelpers is AuctionBaseTest {
                 try auction.submitBid{value: bidAmount}(
                     targetClearingPrice << (Q96 ? 0 : FixedPoint96.RESOLUTION), uint128(bidAmount), bidOwner, bytes('')
                 ) returns (uint256) {
-                    vm.roll(block.number + 1);
-                    auction.checkpoint();
+                    // vm.roll(block.number + 1);
+                    // auction.checkpoint();
                 } catch (bytes memory) {
                     return false;
                 }

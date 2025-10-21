@@ -501,16 +501,18 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
             emit log_named_decimal_uint('auction.totalSupply()', auction.totalSupply(), 18);
             emit log_named_decimal_uint('auction.totalCleared()', auction.totalCleared(), 18);
 
+            assertLe(auction.totalCleared(), auction.totalSupply(), 'total cleared must be <= total supply');
+
             auction.sweepCurrency();
             auction.sweepUnsoldTokens();
 
+            // Validate that the tokens and currency dust left in the auction is within a reasonable amount
             assertApproxEqAbs(
                 token.balanceOf(address(auction)),
                 0,
                 MAX_ALLOWABLE_DUST_WEI,
                 'Auction should have less than MAX_ALLOWABLE_DUST_WEI tokens left'
             );
-
             assertApproxEqAbs(
                 address(auction).balance,
                 0,

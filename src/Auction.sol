@@ -20,8 +20,6 @@ import {FixedPoint128} from './libraries/FixedPoint128.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
-
-import {console} from 'forge-std/console.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
@@ -60,7 +58,7 @@ contract Auction is
 
     /// @notice The total currency raised in the auction in Q96 representation, scaled up by X7
     ValueX7 internal $currencyRaisedQ96_X7;
-
+    /// @notice The total tokens sold in the auction so far, in Q96 representation, scaled up by X7
     ValueX7 internal $tokensClearedQ96_X7;
     /// @notice The sum of currency demand in ticks above the clearing price
     /// @dev This will increase every time a new bid is submitted, and decrease when bids are outbid.

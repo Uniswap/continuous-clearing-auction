@@ -12,12 +12,14 @@ contract ConstructorTest is BttBase {
     uint128 $totalSupply;
     address $tokensRecipient;
     address $fundsRecipient;
+    uint128 $requiredCurrencyRaised;
 
     function test_WhenTotalSupplyEQ0(
         address _token,
         address _currency,
         address _tokensRecipient,
-        address _fundsRecipient
+        address _fundsRecipient,
+        uint128 _requiredCurrencyRaised
     ) external {
         // it reverts with {TotalSupplyIsZero}
 
@@ -26,9 +28,10 @@ contract ConstructorTest is BttBase {
         $tokensRecipient = _tokensRecipient;
         $fundsRecipient = _fundsRecipient;
         $totalSupply = 0;
+        $requiredCurrencyRaised = _requiredCurrencyRaised;
 
         vm.expectRevert(ITokenCurrencyStorage.TotalSupplyIsZero.selector);
-        new MockTokenCurrencyStorage($token, $currency, $totalSupply, $tokensRecipient, $fundsRecipient);
+        _deployTokenCurrencyStorage();
     }
 
     modifier whenTotalSupplyGT0(uint128 _totalSupply) {
@@ -37,12 +40,29 @@ contract ConstructorTest is BttBase {
         _;
     }
 
+    function test_WhenRequiredRaiseGTUpperBound(uint128 _totalSupply) external whenTotalSupplyGT0(_totalSupply) {
+        // it reverts with {RequiredCurrencyRaisedIsTooLarge}
+
+        // With the `_requiredCurrencyRaised` being uint128, it will never hit this case as the following is false:
+        // `uint256(type(uint128).max) * FixedPoint96.Q96 > X7_UPPER_BOUND
+        // `uint256(type(uint128).max) * 0x1000000000000000000000000 > (type(uint256).max) / 1e7
+        // (0x00000000ffffffffffffffffffffffffffffffff000000000000000000000000
+        // > 0x000001ad7f29abcaf485787a6520ec08d23699194119a5c37387b71906614310)
+        // false
+    }
+
+    modifier whenRequiredRaiseLEUpperBound(uint128 _requiredCurrencyRaised) {
+        $requiredCurrencyRaised = _requiredCurrencyRaised;
+        _;
+    }
+
     function test_WhenTokenEQAddressZero(
         address _currency,
         uint128 _totalSupply,
         address _tokensRecipient,
-        address _fundsRecipient
-    ) external whenTotalSupplyGT0(_totalSupply) {
+        address _fundsRecipient,
+        uint128 _requiredCurrencyRaised
+    ) external whenTotalSupplyGT0(_totalSupply) whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised) {
         // it reverts with {TokenIsAddressZero}
 
         $currency = _currency;
@@ -51,7 +71,7 @@ contract ConstructorTest is BttBase {
         $token = address(0);
 
         vm.expectRevert(ITokenCurrencyStorage.TokenIsAddressZero.selector);
-        new MockTokenCurrencyStorage($token, $currency, $totalSupply, $tokensRecipient, $fundsRecipient);
+        _deployTokenCurrencyStorage();
     }
 
     modifier whenTokenNEQAddressZero(address _token) {
@@ -64,8 +84,14 @@ contract ConstructorTest is BttBase {
         address _token,
         uint128 _totalSupply,
         address _tokensRecipient,
-        address _fundsRecipient
-    ) external whenTotalSupplyGT0(_totalSupply) whenTokenNEQAddressZero(_token) {
+        address _fundsRecipient,
+        uint128 _requiredCurrencyRaised
+    )
+        external
+        whenTotalSupplyGT0(_totalSupply)
+        whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised)
+        whenTokenNEQAddressZero(_token)
+    {
         // it reverts with {TokenAndCurrencyCannotBeTheSame}
 
         $currency = $token;
@@ -73,7 +99,7 @@ contract ConstructorTest is BttBase {
         $fundsRecipient = _fundsRecipient;
 
         vm.expectRevert(ITokenCurrencyStorage.TokenAndCurrencyCannotBeTheSame.selector);
-        new MockTokenCurrencyStorage($token, $currency, $totalSupply, $tokensRecipient, $fundsRecipient);
+        _deployTokenCurrencyStorage();
     }
 
     modifier whenTokenNEQCurrency(address _currency) {
@@ -82,9 +108,15 @@ contract ConstructorTest is BttBase {
         _;
     }
 
-    function test_WhenTokensRecipientEQAddressZero(address _token, uint128 _totalSupply, address _currency)
+    function test_WhenTokensRecipientEQAddressZero(
+        address _token,
+        uint128 _totalSupply,
+        address _currency,
+        uint128 _requiredCurrencyRaised
+    )
         external
         whenTotalSupplyGT0(_totalSupply)
+        whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised)
         whenTokenNEQAddressZero(_token)
         whenTokenNEQCurrency(_currency)
     {
@@ -92,7 +124,7 @@ contract ConstructorTest is BttBase {
 
         $tokensRecipient = address(0);
         vm.expectRevert(ITokenCurrencyStorage.TokensRecipientIsZero.selector);
-        new MockTokenCurrencyStorage($token, $currency, $totalSupply, $tokensRecipient, $fundsRecipient);
+        _deployTokenCurrencyStorage();
     }
 
     modifier whenTokensRecipientNEQAddressZero(address _tokensRecipient) {
@@ -105,10 +137,12 @@ contract ConstructorTest is BttBase {
         address _token,
         uint128 _totalSupply,
         address _currency,
-        address _tokensRecipient
+        address _tokensRecipient,
+        uint128 _requiredCurrencyRaised
     )
         external
         whenTotalSupplyGT0(_totalSupply)
+        whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised)
         whenTokenNEQAddressZero(_token)
         whenTokenNEQCurrency(_currency)
         whenTokensRecipientNEQAddressZero(_tokensRecipient)
@@ -117,7 +151,7 @@ contract ConstructorTest is BttBase {
 
         $fundsRecipient = address(0);
         vm.expectRevert(ITokenCurrencyStorage.FundsRecipientIsZero.selector);
-        new MockTokenCurrencyStorage($token, $currency, $totalSupply, $tokensRecipient, $fundsRecipient);
+        _deployTokenCurrencyStorage();
     }
 
     function test_WhenFundsRecipientNEQAddressZero(
@@ -125,10 +159,12 @@ contract ConstructorTest is BttBase {
         uint128 _totalSupply,
         address _currency,
         address _tokensRecipient,
-        address _fundsRecipient
+        address _fundsRecipient,
+        uint128 _requiredCurrencyRaised
     )
         external
         whenTotalSupplyGT0(_totalSupply)
+        whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised)
         whenTokenNEQAddressZero(_token)
         whenTokenNEQCurrency(_currency)
         whenTokensRecipientNEQAddressZero(_tokensRecipient)
@@ -143,13 +179,18 @@ contract ConstructorTest is BttBase {
         vm.assume(_fundsRecipient != address(0));
         $fundsRecipient = _fundsRecipient;
 
-        MockTokenCurrencyStorage tokenCurrencyStorage =
-            new MockTokenCurrencyStorage($token, $currency, $totalSupply, $tokensRecipient, $fundsRecipient);
+        MockTokenCurrencyStorage tokenCurrencyStorage = _deployTokenCurrencyStorage();
 
         assertEq(address(tokenCurrencyStorage.token()), $token);
         assertEq(Currency.unwrap(tokenCurrencyStorage.currency()), $currency);
         assertEq(tokenCurrencyStorage.totalSupply(), $totalSupply);
         assertEq(tokenCurrencyStorage.tokensRecipient(), $tokensRecipient);
         assertEq(tokenCurrencyStorage.fundsRecipient(), $fundsRecipient);
+    }
+
+    function _deployTokenCurrencyStorage() internal returns (MockTokenCurrencyStorage) {
+        return new MockTokenCurrencyStorage(
+            $token, $currency, $totalSupply, $tokensRecipient, $fundsRecipient, $requiredCurrencyRaised
+        );
     }
 }

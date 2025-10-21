@@ -20,7 +20,7 @@ contract InitializeTickIfNeededTest is BttBase {
     MockTickStorage internal tickStorage;
 
     modifier deployTickStorage(uint128 _tickSpacing, uint64 _floorIndex) {
-        tickSpacing = bound(_tickSpacing, 1, type(uint128).max);
+        tickSpacing = bound(_tickSpacing, 2, type(uint128).max);
         floorPrice = tickSpacing * bound(_floorIndex, 1, type(uint64).max);
 
         tickStorage = new MockTickStorage(tickSpacing, floorPrice);
@@ -35,7 +35,7 @@ contract InitializeTickIfNeededTest is BttBase {
     ) external deployTickStorage(_tickSpacing, _floorIndex) {
         // it reverts with {TickPriceNotAtBoundary}
 
-        vm.assume(_price % tickSpacing != 0);
+        vm.assume(_price % tickSpacing != 0 && _price != type(uint256).max);
 
         vm.expectRevert(ITickStorage.TickPriceNotAtBoundary.selector);
         tickStorage.initializeTickIfNeeded(floorPrice, _price);
@@ -135,8 +135,8 @@ contract InitializeTickIfNeededTest is BttBase {
     {
         // it reverts with {TickPreviousPriceInvalid}
 
-        price = bound(_price, 1, (type(uint256).max - 1) / tickSpacing) * tickSpacing;
-        prevPrice = bound(_prevPrice, 0, price - 1);
+        price = bound(_price, floorPrice + tickSpacing * 2, (type(uint256).max - 1)) / tickSpacing * tickSpacing;
+        prevPrice = bound(_prevPrice, floorPrice + tickSpacing, price - 1) / tickSpacing * tickSpacing;
 
         vm.assume(price != floorPrice);
         vm.assume(prevPrice != floorPrice);

@@ -36,7 +36,7 @@ contract MockCheckpointStorage is CheckpointStorage {
         Bid memory bid,
         uint256 tickDemandQ96,
         ValueX7 currencyRaisedAtClearingPriceQ96_X7
-    ) external returns (uint256 tokensFilled, uint256 currencySpent) {
+    ) external pure returns (uint256 tokensFilled, uint256 currencySpent) {
         return super._accountPartiallyFilledCheckpoints(bid, tickDemandQ96, currencyRaisedAtClearingPriceQ96_X7);
     }
 }

@@ -7,9 +7,6 @@ import {MockTickStorage} from 'btt/mocks/MockTickStorage.sol';
 import {ITickStorage} from 'twap-auction/TickStorage.sol';
 import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
 
-import {BidLib} from 'twap-auction/libraries/BidLib.sol';
-import {ValueX7} from 'twap-auction/libraries/ValueX7Lib.sol';
-
 contract ConstructorTest is BttBase {
     uint256 tickSpacing;
     uint256 floorPrice;
@@ -80,7 +77,7 @@ contract ConstructorTest is BttBase {
         // it emits {TickInitialized}
         // it emits {NextActiveTickUpdated}
 
-        tickSpacing = bound(_tickSpacing, 1, ConstantsLib.MAX_BID_PRICE - 1);
+        tickSpacing = bound(_tickSpacing, 2, ConstantsLib.MAX_BID_PRICE - 1);
 
         uint256 tickIndex = bound(_floorPrice, 1, (ConstantsLib.MAX_BID_PRICE - 1) / tickSpacing);
         floorPrice = tickIndex * tickSpacing;

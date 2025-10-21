@@ -1,3 +1,5 @@
 UpdateTickDemandTest
-└── when called with price and demand
+├── when tick is uninitialized
+│   └── it reverts with {CannotUpdateUninitializedTick}
+└── when tick is initialized
     └── it writes the demand increase at the price (note, not necessarily a possible bid)

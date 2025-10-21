@@ -5,11 +5,10 @@ import {BttBase} from 'btt/BttBase.sol';
 import {MockCheckpointStorage} from 'btt/mocks/MockCheckpointStorage.sol';
 import {Checkpoint} from 'twap-auction/libraries/CheckpointLib.sol';
 
-import {FixedPoint96} from 'twap-auction/libraries/FixedPoint96.sol';
-import {ValueX7} from 'twap-auction/libraries/ValueX7Lib.sol';
-
 contract InsertCheckpointTest is BttBase {
     MockCheckpointStorage public mockCheckpointStorage;
+
+    uint256 public constant STORAGE_SLOTS_PER_CHECKPOINT = 4;
 
     function setUp() external {
         mockCheckpointStorage = new MockCheckpointStorage();
@@ -29,10 +28,10 @@ contract InsertCheckpointTest is BttBase {
         (, bytes32[] memory writes) = vm.accesses(address(mockCheckpointStorage));
 
         if (!isCoverage()) {
-            // 5 writes to update the checkpoint,
+            // STORAGE_SLOTS_PER_CHECKPOINT writes to update the checkpoint,
             // 1 write to update the last checkpointed block,
 
-            assertEq(writes.length, 5 + 1);
+            assertEq(writes.length, STORAGE_SLOTS_PER_CHECKPOINT + 1);
         }
 
         _checkpoint.prev = 0;
@@ -80,13 +79,13 @@ contract InsertCheckpointTest is BttBase {
         bool isFirstZero = _blockNumber == 0;
 
         if (!isCoverage()) {
-            // 5 writes to update the checkpoint,
+            // STORAGE_SLOTS_PER_CHECKPOINT writes to update the checkpoint,
             // 1 write to update next for the last checkpointed
             // 1 write to update the last checkpointed block,
 
             // Beware that when we are overwriting the last, e.g., _blockNumber == last
             // we end up writing multiple times to the same value.
-            assertEq(writes.length, 5 + 1 + (isFirstZero ? 0 : 1));
+            assertEq(writes.length, STORAGE_SLOTS_PER_CHECKPOINT + 1 + (isFirstZero ? 0 : 1));
         }
 
         _checkpoint.prev = 0;

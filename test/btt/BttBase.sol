@@ -48,6 +48,7 @@ contract BttBase is AuctionBaseTest {
 
     function validAuctionConstructorInputs(AuctionFuzzConstructorParams memory _params)
         internal
+        pure
         returns (AuctionFuzzConstructorParams memory)
     {
         // Bound to be sensible values

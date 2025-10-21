@@ -58,6 +58,7 @@ export class SingleTestRunner {
   private deployer: AuctionDeployer;
   private cachedInterface: Interface | null = null;
   private bidsByOwner: Map<string, BidInfo[]> = new Map(); // Track bid info per owner
+  private startBalancesMap: Map<Address, Map<Address, bigint>> = new Map(); // Track start balances for each owner
   private checkpoints: CheckpointInfo[] = []; // Track all checkpoints
   private auction: Contract | null = null; // Store auction for bid tracking
 
@@ -112,7 +113,7 @@ export class SingleTestRunner {
     this.generateAddressesForGroups(setupData.env.groups ?? []);
     console.log(LOG_PREFIXES.INFO, "Generated addresses for groups: ", setupData.env.groups);
     // Setup balances
-    await this.deployer.setupBalances(setupData, setupTransactions);
+    await this.deployer.setupBalances(setupData, setupTransactions, this.startBalancesMap);
     await this.handleInitializeTransactions(setupTransactions);
     setupTransactions = [];
     // Create the auction
@@ -164,17 +165,22 @@ export class SingleTestRunner {
 
     // Don't add final state as a checkpoint - only use checkpoints from actual events
     // The contract only validates hints against stored checkpoints from CheckpointUpdated events
-
+    let calculatedCurrencyRaised = -1;
     // Exit and claim all bids if auction graduated
     if (finalState.isGraduated) {
-      await this.exitAndClaimAllBids(auction, setupData, bidSimulator.getReverseLabelMap());
+      calculatedCurrencyRaised = await this.exitAndClaimAllBids(
+        auction,
+        setupData,
+        currencyToken,
+        bidSimulator.getReverseLabelMap(),
+      );
     }
 
-    console.log(LOG_PREFIXES.FINAL, "Test completed successfully!");
-    this.logFinalState(finalState);
     // Log balances for all funded accounts (after claiming)
     await this.logAccountBalances(setupData, this.deployer, auctionedToken);
-
+    this.logFinalState(finalState);
+    console.log(LOG_PREFIXES.FINAL, "Test completed successfully!");
+    await this.logSummary(auction, currencyToken, auctionedToken, finalState, calculatedCurrencyRaised);
     return {
       setupData,
       interactionData,
@@ -184,6 +190,50 @@ export class SingleTestRunner {
       finalState,
       success: true,
     };
+  }
+
+  private async logSummary(
+    auction: Contract,
+    currencyToken: TokenContract | null,
+    auctionedToken: TokenContract | null,
+    finalState: AuctionState,
+    totalCurrencyRaised: number,
+  ): Promise<void> {
+    let bidCount = 0;
+    for (const [, bids] of this.bidsByOwner.entries()) {
+      bidCount += bids.length;
+    }
+    const auctionDurationBlocks = (await auction.endBlock()) - (await auction.startBlock());
+
+    let auctionCurrencyBalance = 0;
+    if (currencyToken === null) {
+      auctionCurrencyBalance = Number(await hre.ethers.provider.getBalance(auction.getAddress()));
+      auctionCurrencyBalance /= 10 ** 18;
+    } else {
+      auctionCurrencyBalance = Number(await currencyToken.balanceOf(auction.getAddress()));
+      const decimals = await currencyToken.decimals();
+      auctionCurrencyBalance /= 10 ** Number(decimals);
+    }
+
+    let expectedCurrencyRaised = Number(finalState.currencyRaised);
+    if (auctionedToken !== null) {
+      const decimals = await auctionedToken.decimals();
+      expectedCurrencyRaised /= 10 ** Number(decimals);
+    } else {
+      throw new Error(ERROR_MESSAGES.AUCTIONED_TOKEN_IS_NULL);
+    }
+
+    console.log("\n=== After exit and token claims ===");
+    console.log(LOG_PREFIXES.INFO, "Bid count:", bidCount);
+    console.log(LOG_PREFIXES.INFO, "Auction duration (blocks):", auctionDurationBlocks);
+    console.log(LOG_PREFIXES.INFO, "Auction currency balance:", auctionCurrencyBalance);
+
+    if (totalCurrencyRaised !== -1) {
+      console.log(LOG_PREFIXES.INFO, "Actual currency raised (from all bids after refunds):", totalCurrencyRaised);
+    }
+
+    console.log(LOG_PREFIXES.INFO, "Expected currency raised (for sweepCurrency()):", expectedCurrencyRaised);
+    console.log("\n============================\n");
   }
 
   private logFinalState(finalState: AuctionState): void {
@@ -362,8 +412,10 @@ export class SingleTestRunner {
   private async exitAndClaimAllBids(
     auction: Contract,
     setupData: TestSetupData,
+    currencyToken: TokenContract | null,
     reverseLabelMap: Map<string, string>,
-  ): Promise<void> {
+  ): Promise<number> {
+    let calculatedCurrencyRaised = 0;
     console.log("\n🎫 Exiting and claiming all bids...");
 
     // Mine to claim block if needed
@@ -401,16 +453,25 @@ export class SingleTestRunner {
       }
 
       const shouldClaimBid: Map<number, boolean> = new Map();
+      let currencyDecimals = 18;
+      if (currencyToken !== null) {
+        currencyDecimals = await currencyToken.decimals();
+      }
       // Exit each bid first
       for (const bid of bids) {
+        let balanceBefore = 0n;
+        if (currencyToken) {
+          balanceBefore = await currencyToken.balanceOf(owner);
+        } else {
+          balanceBefore = await hre.ethers.provider.getBalance(owner);
+        }
         const bidId = bid.bidId;
         const maxPrice = bid.maxPrice;
-
         // Check if bid is above, at, or below final clearing price
         if (maxPrice > finalCheckpoint.clearingPrice) {
           // Bid is above final clearing - try simple exitBid first
           try {
-            await auction.exitBid(bidId);
+            let tx = await auction.exitBid(bidId);
             const previousBlock = (await hre.ethers.provider.getBlockNumber()) - 1;
             console.log(`     ✅ Exited bid ${bidId} at block ${previousBlock} (simple exit - above clearing)`);
             shouldClaimBid.set(bidId, true);
@@ -449,6 +510,14 @@ export class SingleTestRunner {
           const previousBlock = (await hre.ethers.provider.getBlockNumber()) - 1;
           console.log(`     ⚠️  Could not exit bid ${bidId} at block ${previousBlock}: ${errorMsg.substring(0, 200)}`);
         }
+        let balanceAfter = 0n;
+        if (currencyToken) {
+          balanceAfter = await currencyToken.balanceOf(owner);
+        } else {
+          balanceAfter = await hre.ethers.provider.getBalance(owner);
+        }
+        const refundAmount = balanceAfter - balanceBefore;
+        calculatedCurrencyRaised += Number(bid.amount - refundAmount) / 10 ** currencyDecimals;
       }
 
       // Claim all tokens in batch
@@ -473,7 +542,7 @@ export class SingleTestRunner {
       }
     }
 
-    console.log();
+    return calculatedCurrencyRaised;
   }
 
   /**

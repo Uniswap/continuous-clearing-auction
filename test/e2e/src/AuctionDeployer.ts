@@ -547,7 +547,11 @@ export class AuctionDeployer {
    * @param setupData - Test setup data containing environment configuration
    * @param setupTransactions - Array to collect setup transaction information
    */
-  async setupBalances(setupData: TestSetupData, setupTransactions: TransactionInfo[]): Promise<void> {
+  async setupBalances(
+    setupData: TestSetupData,
+    setupTransactions: TransactionInfo[],
+    startBalancesMap: Map<Address, Map<Address, bigint>>,
+  ): Promise<void> {
     const { env } = setupData;
     if (!env.balances) return;
 
@@ -555,25 +559,32 @@ export class AuctionDeployer {
 
     for (const balance of env.balances) {
       if (balance.token === NATIVE_CURRENCY_ADDRESS) {
-        await this.setupNativeCurrencyBalance(balance.address, balance.amount);
+        await this.setupNativeCurrencyBalance(balance.address, balance.amount, startBalancesMap);
       } else if (balance.token.startsWith("0x")) {
         await this.setupTokenBalanceByAddress(
           balance.address,
           balance.token as Address,
           balance.amount,
           setupTransactions,
+          startBalancesMap,
         );
       } else {
-        await this.setupTokenBalanceByName(balance.address, balance.token, balance.amount, setupTransactions);
+        await this.setupTokenBalanceByName(
+          balance.address,
+          balance.token,
+          balance.amount,
+          setupTransactions,
+          startBalancesMap,
+        );
       }
     }
 
     for (const group of env.groups ?? []) {
       for (const address of group.addresses ?? []) {
-        await this.setupNativeCurrencyBalance(address, group.startNativeEach ?? "0");
+        await this.setupNativeCurrencyBalance(address, group.startNativeEach ?? "0", startBalancesMap);
         const auctionCurrency = setupData.auctionParameters.currency;
         if (auctionCurrency == ZERO_ADDRESS) {
-          await this.setupNativeCurrencyBalance(address, group.startAmountEach ?? "0");
+          await this.setupNativeCurrencyBalance(address, group.startAmountEach ?? "0", startBalancesMap);
           continue;
         }
         if (auctionCurrency.startsWith("0x")) {
@@ -582,9 +593,16 @@ export class AuctionDeployer {
             auctionCurrency as Address,
             group.startNativeEach ?? "0",
             setupTransactions,
+            startBalancesMap,
           );
         } else {
-          await this.setupTokenBalanceByName(address, auctionCurrency, group.startNativeEach ?? "0", setupTransactions);
+          await this.setupTokenBalanceByName(
+            address,
+            auctionCurrency,
+            group.startNativeEach ?? "0",
+            setupTransactions,
+            startBalancesMap,
+          );
         }
       }
     }
@@ -595,13 +613,33 @@ export class AuctionDeployer {
    * @param address - The address to set the balance for
    * @param amount - The amount in wei as a string
    */
-  private async setupNativeCurrencyBalance(address: Address, amount: string): Promise<void> {
+  private async setupNativeCurrencyBalance(
+    address: Address,
+    amount: string,
+    startBalancesMap: Map<Address, Map<Address, bigint>>,
+  ): Promise<void> {
     if (amount == "0") return;
     const hexAmount = "0x" + BigInt(amount).toString(16);
     await hre.network.provider.send(METHODS.HARDHAT.SET_BALANCE, [address, hexAmount]);
+    this.addToStartBalancesMap(address, NATIVE_CURRENCY_ADDRESS, BigInt(amount), startBalancesMap);
     console.log(LOG_PREFIXES.SUCCESS, "Set native currency balance:", address, "=", amount, "wei");
   }
 
+  private addToStartBalancesMap(
+    address: Address,
+    tokenAddress: Address,
+    amount: bigint,
+    startBalancesMap: Map<Address, Map<Address, bigint>>,
+  ): void {
+    if (!startBalancesMap.has(tokenAddress)) {
+      startBalancesMap.set(tokenAddress, new Map());
+    }
+    if (!startBalancesMap.get(tokenAddress)?.has(address)) {
+      startBalancesMap.get(tokenAddress)?.set(address, 0n);
+    }
+    let prevBalance = startBalancesMap.get(tokenAddress)?.get(address) ?? 0n;
+    startBalancesMap.get(tokenAddress)?.set(address, prevBalance + BigInt(amount));
+  }
   /**
    * Sets a token balance at bootup for an address using token address.
    * @param address - The address to set the balance for
@@ -614,6 +652,7 @@ export class AuctionDeployer {
     tokenAddress: Address,
     amount: string,
     setupTransactions: TransactionInfo[],
+    startBalancesMap: Map<Address, Map<Address, bigint>>,
   ): Promise<void> {
     if (amount == "0") return;
     let token: TokenContract | null = null;
@@ -623,7 +662,7 @@ export class AuctionDeployer {
         break;
       }
     }
-
+    this.addToStartBalancesMap(address, tokenAddress, BigInt(amount), startBalancesMap);
     if (token) {
       let tx = await token.getFunction("mint").populateTransaction(address, amount);
       setupTransactions.push({ tx, from: null, msg: "Minted" });
@@ -645,10 +684,15 @@ export class AuctionDeployer {
     tokenName: string,
     amount: string,
     setupTransactions: TransactionInfo[],
+    startBalancesMap: Map<Address, Map<Address, bigint>>,
   ): Promise<void> {
     if (amount == "0") return;
     const token = this.getTokenByName(tokenName);
-    if (token) {
+    let tokenAddress = await token?.getAddress();
+    if (tokenAddress) {
+      this.addToStartBalancesMap(address, tokenAddress as Address, BigInt(amount), startBalancesMap);
+    }
+    if (token && tokenAddress) {
       let tx = await token.getFunction("transfer").populateTransaction(address, amount);
       setupTransactions.push({
         tx,

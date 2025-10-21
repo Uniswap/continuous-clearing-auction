@@ -37,6 +37,7 @@ export const ERROR_MESSAGES = {
   AUCTION_CREATION_FAILED: (errorMessage: string) => `Auction creation failed. Original error: ${errorMessage}`,
   TOKEN_NOT_FOUND: (tokenName: string) => `Token ${tokenName} not found`,
   AUCTION_NOT_DEPLOYED: "Auction not deployed. Call createAuction() first.",
+  AUCTIONED_TOKEN_IS_NULL: "Auctioned token is null",
 
   // AssertionEngine errors
   TOKEN_IDENTIFIER_NOT_FOUND: (tokenIdentifier: string) => `Token with identifier ${tokenIdentifier} not found.`,

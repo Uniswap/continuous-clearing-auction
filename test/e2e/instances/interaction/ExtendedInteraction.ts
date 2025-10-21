@@ -225,7 +225,7 @@ export const extendedInteraction: TestInteractionData = {
     {
       labelPrefix: "PopulousGroup",
       startBlock: 100102,
-      amount: { value: "1000000000000000000" },
+      amount: { value: "1000000000000000000", variation: "1%" },
       price: { type: PriceType.RAW, value: "9012203485997569000000000" },
       prevTickPrice: "6932464219998130000000000",
       rotationIntervalBlocks: 2,
@@ -235,7 +235,7 @@ export const extendedInteraction: TestInteractionData = {
     {
       labelPrefix: "BandwagonGroup",
       startBlock: 100403,
-      amount: { value: "1000000000000000000" },
+      amount: { value: "1000000000000000000", variation: "10%" },
       price: { type: PriceType.RAW, value: "9012203485997569000000000" },
       prevTickPrice: "6932464219998130000000000",
       rotationIntervalBlocks: 2,

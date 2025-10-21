@@ -5,13 +5,14 @@ import {Test} from 'forge-std/Test.sol';
 import {VmSafe} from 'forge-std/Vm.sol';
 
 import {Bid} from 'twap-auction/BidStorage.sol';
-import {Checkpoint} from 'twap-auction/libraries/CheckpointLib.sol';
+
 import {AuctionParameters} from 'twap-auction/interfaces/IAuction.sol';
+import {Checkpoint} from 'twap-auction/libraries/CheckpointLib.sol';
 
 import {ValueX7} from 'twap-auction/libraries/ValueX7Lib.sol';
 
 // Chore: move to a shared place
-import {Step, CompactStepLib, CompactStep} from 'test/btt/libraries/auctionStepLib/StepUtils.sol';
+import {CompactStep, CompactStepLib, Step} from 'test/btt/libraries/auctionStepLib/StepUtils.sol';
 import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
 
 import {AuctionBaseTest} from 'test/utils/AuctionBaseTest.sol';
@@ -24,7 +25,6 @@ struct AuctionFuzzConstructorParams {
 }
 
 contract BttBase is AuctionBaseTest {
-
     function isCoverage() internal view returns (bool) {
         return vm.isContext(VmSafe.ForgeContext.Coverage);
     }
@@ -37,20 +37,19 @@ contract BttBase is AuctionBaseTest {
     // Temporary clone of function within auction base test
     function _boundPriceParams(AuctionParameters memory _parameters) private pure {
         // Bound tick spacing and floor price to reasonable values
-        _parameters.floorPrice =
-            _bound(_parameters.floorPrice, 1, type(uint128).max);
+        _parameters.floorPrice = _bound(_parameters.floorPrice, 1, type(uint128).max);
         // Bound tick spacing to be less than or equal to floor price
-        _parameters.tickSpacing =
-            _bound(_parameters.tickSpacing, 1, _parameters.floorPrice);
+        _parameters.tickSpacing = _bound(_parameters.tickSpacing, 1, _parameters.floorPrice);
         // Round down floor price to the closest multiple of tick spacing
-        _parameters.floorPrice = helper__roundPriceDownToTickSpacing(
-            _parameters.floorPrice, _parameters.tickSpacing
-        );
+        _parameters.floorPrice = helper__roundPriceDownToTickSpacing(_parameters.floorPrice, _parameters.tickSpacing);
         // Ensure floor price is non-zero
         vm.assume(_parameters.floorPrice != 0);
     }
 
-    function validAuctionConstructorInputs(AuctionFuzzConstructorParams memory _params) internal returns (AuctionFuzzConstructorParams memory) {
+    function validAuctionConstructorInputs(AuctionFuzzConstructorParams memory _params)
+        internal
+        returns (AuctionFuzzConstructorParams memory)
+    {
         // Bound to be sensible values
         vm.assume(_params.totalSupply > 0);
         vm.assume(_params.token != _params.parameters.currency);
@@ -60,11 +59,8 @@ contract BttBase is AuctionBaseTest {
 
         (bytes memory auctionStepsData, uint256 numberOfBlocks) = generateAuctionSteps(_params.steps);
 
-        _params.parameters.startBlock = uint64(bound(
-            _params.parameters.startBlock,
-            1,
-            type(uint64).max - numberOfBlocks - 2
-        ));
+        _params.parameters.startBlock =
+            uint64(bound(_params.parameters.startBlock, 1, type(uint64).max - numberOfBlocks - 2));
         _params.parameters.endBlock = _params.parameters.startBlock + uint64(numberOfBlocks);
         _params.parameters.claimBlock = _params.parameters.endBlock + 1;
         _params.parameters.auctionStepsData = auctionStepsData;
@@ -90,7 +86,10 @@ contract BttBase is AuctionBaseTest {
 
             // If the next step would exceed the total mps, or we are on the last step, set the mps and block delta to the remaining mps and 1
             // Otherwise if we are out of fuzz steps, we need to just make up the difference
-            if (totalMps + (_steps[numberOfSteps].mps * _steps[numberOfSteps].blockDelta) > ConstantsLib.MPS || numberOfSteps == _steps.length - 1) {
+            if (
+                totalMps + (_steps[numberOfSteps].mps * _steps[numberOfSteps].blockDelta) > ConstantsLib.MPS
+                    || numberOfSteps == _steps.length - 1
+            ) {
                 _steps[numberOfSteps].mps = uint24(ConstantsLib.MPS - totalMps);
                 _steps[numberOfSteps].blockDelta = 1;
             }

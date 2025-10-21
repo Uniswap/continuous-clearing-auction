@@ -4,8 +4,9 @@ pragma solidity 0.8.26;
 import {Tick, TickStorage} from '../src/TickStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
-import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
+
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
+import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {Test} from 'forge-std/Test.sol';
 
@@ -87,8 +88,7 @@ contract TickStorageTest is Test, Assertions {
         } else if (floorPrice == 0) {
             vm.expectRevert(ITickStorage.FloorPriceIsZero.selector);
             _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
-        }
-        else if (floorPrice > ConstantsLib.MAX_BID_PRICE) {
+        } else if (floorPrice > ConstantsLib.MAX_BID_PRICE) {
             vm.expectRevert(ITickStorage.FloorPriceAboveMaxBidPrice.selector);
             _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
         } else if (floorPrice % tickSpacing != 0) {

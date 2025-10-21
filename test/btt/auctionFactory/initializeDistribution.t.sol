@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {BttBase, AuctionFuzzConstructorParams} from "../BttBase.sol";
-import {ActionConstants} from "v4-periphery/src/libraries/ActionConstants.sol";
-import {IAuctionFactory} from "src/interfaces/IAuctionFactory.sol";
-import {AuctionFactory} from "src/AuctionFactory.sol";
-import {IDistributionContract} from "src/interfaces/external/IDistributionContract.sol";
-import {Auction} from "src/Auction.sol";
+import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
+
+import {Auction} from 'src/Auction.sol';
+import {AuctionFactory} from 'src/AuctionFactory.sol';
+import {IAuctionFactory} from 'src/interfaces/IAuctionFactory.sol';
+import {IDistributionContract} from 'src/interfaces/external/IDistributionContract.sol';
+import {ActionConstants} from 'v4-periphery/src/libraries/ActionConstants.sol';
 
 contract InitializeDistributionTest is BttBase {
     AuctionFactory factory;
@@ -15,7 +16,10 @@ contract InitializeDistributionTest is BttBase {
         factory = new AuctionFactory();
     }
 
-    function test_WhenAmountGTUint128Max(AuctionFuzzConstructorParams memory _params, uint256 _amount) external  setupAuctionConstructorParams(_params) {
+    function test_WhenAmountGTUint128Max(AuctionFuzzConstructorParams memory _params, uint256 _amount)
+        external
+        setupAuctionConstructorParams(_params)
+    {
         // it reverts with {InvalidAmount}
         _amount = uint256(bound(_amount, uint256(type(uint128).max) + 1, type(uint256).max));
 
@@ -55,7 +59,9 @@ contract InitializeDistributionTest is BttBase {
         _params.parameters.fundsRecipient = ActionConstants.MSG_SENDER;
 
         bytes memory auctionParameters = abi.encode(_params.parameters);
-        address predictedAddress = factory.getAuctionAddress(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0), _sender);
+        address predictedAddress = factory.getAuctionAddress(
+            address(_params.token), _params.totalSupply, auctionParameters, bytes32(0), _sender
+        );
 
         // expect the tokens recipient and funds recipient to be updated to msg.sender
         _params.parameters.tokensRecipient = _sender;
@@ -63,7 +69,9 @@ contract InitializeDistributionTest is BttBase {
         bytes memory expectedAuctionParameters = abi.encode(_params.parameters);
 
         vm.expectEmit(false, true, true, true, address(factory));
-        emit IAuctionFactory.AuctionCreated(predictedAddress, address(_params.token), _params.totalSupply, expectedAuctionParameters);
+        emit IAuctionFactory.AuctionCreated(
+            predictedAddress, address(_params.token), _params.totalSupply, expectedAuctionParameters
+        );
         vm.prank(_sender);
         IDistributionContract distributionContract =
             factory.initializeDistribution(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0));
@@ -74,7 +82,10 @@ contract InitializeDistributionTest is BttBase {
         assertEq(auction.fundsRecipient(), _sender);
     }
 
-    function test_WhenFundsRecipientNEQActionConstantsMSG_SENDER(AuctionFuzzConstructorParams memory _params, address _sender)
+    function test_WhenFundsRecipientNEQActionConstantsMSG_SENDER(
+        AuctionFuzzConstructorParams memory _params,
+        address _sender
+    )
         external
         setupAuctionConstructorParams(_params)
         whenAmountLEUint128Max(_params)
@@ -91,16 +102,21 @@ contract InitializeDistributionTest is BttBase {
         vm.assume(_sender != ActionConstants.MSG_SENDER);
 
         bytes memory auctionParameters = abi.encode(_params.parameters);
-        address predictedAddress = factory.getAuctionAddress(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0), _sender);
+        address predictedAddress = factory.getAuctionAddress(
+            address(_params.token), _params.totalSupply, auctionParameters, bytes32(0), _sender
+        );
 
         // expect the tokens recipient to be updated to msg.sender
         _params.parameters.tokensRecipient = _sender;
         bytes memory expectedAuctionParameters = abi.encode(_params.parameters);
 
         vm.expectEmit(false, true, true, true, address(factory));
-        emit IAuctionFactory.AuctionCreated(predictedAddress, address(_params.token), _params.totalSupply, expectedAuctionParameters);
+        emit IAuctionFactory.AuctionCreated(
+            predictedAddress, address(_params.token), _params.totalSupply, expectedAuctionParameters
+        );
         vm.prank(_sender);
-        IDistributionContract distributionContract = factory.initializeDistribution(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0));
+        IDistributionContract distributionContract =
+            factory.initializeDistribution(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0));
 
         assertEq(address(distributionContract), predictedAddress);
 
@@ -114,7 +130,10 @@ contract InitializeDistributionTest is BttBase {
         _;
     }
 
-    function test_WhenFundsRecipientEQActionConstantsMSG_SENDER2(AuctionFuzzConstructorParams memory _params, address _sender)
+    function test_WhenFundsRecipientEQActionConstantsMSG_SENDER2(
+        AuctionFuzzConstructorParams memory _params,
+        address _sender
+    )
         external
         setupAuctionConstructorParams(_params)
         whenAmountLEUint128Max(_params)
@@ -132,26 +151,33 @@ contract InitializeDistributionTest is BttBase {
         _params.parameters.fundsRecipient = ActionConstants.MSG_SENDER;
 
         bytes memory auctionParameters = abi.encode(_params.parameters);
-        address predictedAddress = factory.getAuctionAddress(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0), _sender);
+        address predictedAddress = factory.getAuctionAddress(
+            address(_params.token), _params.totalSupply, auctionParameters, bytes32(0), _sender
+        );
 
         // expect the funds recipient to be updated to msg.sender
         _params.parameters.fundsRecipient = _sender;
         bytes memory expectedAuctionParameters = abi.encode(_params.parameters);
 
         vm.expectEmit(false, true, true, true, address(factory));
-        emit IAuctionFactory.AuctionCreated(predictedAddress, address(_params.token), _params.totalSupply, expectedAuctionParameters);
+        emit IAuctionFactory.AuctionCreated(
+            predictedAddress, address(_params.token), _params.totalSupply, expectedAuctionParameters
+        );
         vm.prank(_sender);
-        IDistributionContract distributionContract = factory.initializeDistribution(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0));
+        IDistributionContract distributionContract =
+            factory.initializeDistribution(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0));
 
         assertEq(address(distributionContract), predictedAddress);
 
         Auction auction = Auction(payable(address(distributionContract)));
         assertEq(auction.tokensRecipient(), _params.parameters.tokensRecipient);
         assertEq(auction.fundsRecipient(), _sender);
-
     }
 
-    function test_WhenFundsRecipientNEQActionConstantsMSG_SENDER2(AuctionFuzzConstructorParams memory _params, address _sender)
+    function test_WhenFundsRecipientNEQActionConstantsMSG_SENDER2(
+        AuctionFuzzConstructorParams memory _params,
+        address _sender
+    )
         external
         setupAuctionConstructorParams(_params)
         whenAmountLEUint128Max(_params)
@@ -168,14 +194,19 @@ contract InitializeDistributionTest is BttBase {
         vm.assume(_params.parameters.fundsRecipient != ActionConstants.MSG_SENDER);
 
         bytes memory auctionParameters = abi.encode(_params.parameters);
-        address predictedAddress = factory.getAuctionAddress(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0), _sender);
+        address predictedAddress = factory.getAuctionAddress(
+            address(_params.token), _params.totalSupply, auctionParameters, bytes32(0), _sender
+        );
 
         bytes memory expectedAuctionParameters = abi.encode(_params.parameters);
 
         vm.expectEmit(false, true, true, true, address(factory));
-        emit IAuctionFactory.AuctionCreated(predictedAddress, address(_params.token), _params.totalSupply, expectedAuctionParameters);
+        emit IAuctionFactory.AuctionCreated(
+            predictedAddress, address(_params.token), _params.totalSupply, expectedAuctionParameters
+        );
         vm.prank(_sender);
-        IDistributionContract distributionContract = factory.initializeDistribution(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0));
+        IDistributionContract distributionContract =
+            factory.initializeDistribution(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0));
 
         assertEq(address(distributionContract), predictedAddress);
 

@@ -11,7 +11,9 @@ contract MockTokenCurrencyStorage is TokenCurrencyStorage {
         address _tokensRecipient,
         address _fundsRecipient,
         uint128 _requiredCurrencyRaised
-    ) TokenCurrencyStorage(_token, _currency, _totalSupply, _tokensRecipient, _fundsRecipient, _requiredCurrencyRaised) {}
+    )
+        TokenCurrencyStorage(_token, _currency, _totalSupply, _tokensRecipient, _fundsRecipient, _requiredCurrencyRaised)
+    {}
 
     function sweepCurrency(uint256 amount) external {
         _sweepCurrency(amount);

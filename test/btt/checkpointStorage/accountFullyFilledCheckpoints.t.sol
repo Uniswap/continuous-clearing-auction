@@ -57,6 +57,8 @@ contract AccountFullyFilledCheckpointsTest is BttBase {
             FixedPointMathLib.fullMulDiv(_bid.amountQ96, cumulativeMpsPerPriceDelta, q96Sqr * left),
             'tokens filled'
         );
-        assertEq(currencySpent, FixedPointMathLib.fullMulDivUp(_bid.amountQ96, cumulativeMpsDelta, left), 'currency spent');
+        assertEq(
+            currencySpent, FixedPointMathLib.fullMulDivUp(_bid.amountQ96, cumulativeMpsDelta, left), 'currency spent'
+        );
     }
 }

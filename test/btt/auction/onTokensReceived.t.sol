@@ -1,25 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {BttBase, AuctionFuzzConstructorParams} from "../BttBase.sol";
-import {IAuction} from "src/interfaces/IAuction.sol";
-import {Auction} from "src/Auction.sol";
-import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
+import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
+
+import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
+import {Auction} from 'src/Auction.sol';
+import {IAuction} from 'src/interfaces/IAuction.sol';
 
 contract OnTokensReceivedTest is BttBase {
-
-    function test_Given_tokensReceivedEQTrue(AuctionFuzzConstructorParams memory _params) external
-    setupAuctionConstructorParams(_params) {
+    function test_Given_tokensReceivedEQTrue(AuctionFuzzConstructorParams memory _params)
+        external
+        setupAuctionConstructorParams(_params)
+    {
         // it returns early
 
         // Use the mock ERC20 contract for the token
         _params.token = address(new ERC20Mock());
 
-        Auction auction = new Auction(
-            _params.token,
-            _params.totalSupply,
-            _params.parameters
-        );
+        Auction auction = new Auction(_params.token, _params.totalSupply, _params.parameters);
 
         ERC20Mock(_params.token).mint(address(auction), _params.totalSupply);
         auction.onTokensReceived();
@@ -40,18 +38,15 @@ contract OnTokensReceivedTest is BttBase {
         _;
     }
 
-    function test_WhenTOKENBalanceLTTOTAL_SUPPLY(
-        AuctionFuzzConstructorParams memory _params,
-        uint256 _amountToSend
-    ) external setupAuctionConstructorParams(_params) given_tokensReceivedNEQTrue {
+    function test_WhenTOKENBalanceLTTOTAL_SUPPLY(AuctionFuzzConstructorParams memory _params, uint256 _amountToSend)
+        external
+        setupAuctionConstructorParams(_params)
+        given_tokensReceivedNEQTrue
+    {
         // it reverts with {InvalidTokenAmountReceived}
 
         _params.token = address(new ERC20Mock());
-        Auction auction = new Auction(
-            _params.token,
-            _params.totalSupply,
-            _params.parameters
-        );
+        Auction auction = new Auction(_params.token, _params.totalSupply, _params.parameters);
 
         uint256 amountToSend = bound(_amountToSend, 0, _params.totalSupply - 1);
 
@@ -60,16 +55,16 @@ contract OnTokensReceivedTest is BttBase {
         auction.onTokensReceived();
     }
 
-    function test_WhenTOKENBalanceGETOTAL_SUPPLY(AuctionFuzzConstructorParams memory _params, uint256 _amountToSend) external setupAuctionConstructorParams(_params) given_tokensReceivedNEQTrue {
+    function test_WhenTOKENBalanceGETOTAL_SUPPLY(AuctionFuzzConstructorParams memory _params, uint256 _amountToSend)
+        external
+        setupAuctionConstructorParams(_params)
+        given_tokensReceivedNEQTrue
+    {
         // it writes _tokensReceived
         // it emits {TokensReceived}
 
         _params.token = address(new ERC20Mock());
-        Auction auction = new Auction(
-            _params.token,
-            _params.totalSupply,
-            _params.parameters
-        );
+        Auction auction = new Auction(_params.token, _params.totalSupply, _params.parameters);
 
         uint256 amountToSend = bound(_amountToSend, _params.totalSupply, type(uint256).max);
 
@@ -90,5 +85,4 @@ contract OnTokensReceivedTest is BttBase {
             assertEq(reads.length, 3);
         }
     }
-
 }

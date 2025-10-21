@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {BttBase} from 'btt/BttBase.sol';
 import {AuctionStepLib} from 'twap-auction/libraries/AuctionStepLib.sol';
 
-import {Step, CompactStepLib, CompactStep} from 'test/btt/libraries/auctionStepLib/StepUtils.sol';
+import {CompactStep, CompactStepLib, Step} from 'test/btt/libraries/auctionStepLib/StepUtils.sol';
 
 contract AuctionStepWrapper {
     constructor() {}
@@ -16,7 +16,6 @@ contract AuctionStepWrapper {
     function get(bytes memory data, uint256 offset) public pure returns (uint24 mps, uint40 blockDelta) {
         (mps, blockDelta) = AuctionStepLib.get(data, offset);
     }
-
 }
 
 contract GetTest is BttBase {

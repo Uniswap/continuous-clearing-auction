@@ -13,7 +13,7 @@ library AuctionStepLib {
 
     /// @notice The size of a uint64 in bytes
     uint256 public constant UINT64_SIZE = 8;
-    
+
     /// @notice Error thrown when the offset is too large for the data length
     error AuctionStepLib__InvalidOffsetTooLarge();
     /// @notice Error thrown when the offset is not at a step boundary - a uint64 aligned offset

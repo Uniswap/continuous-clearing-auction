@@ -11,7 +11,7 @@ import {FixedPoint96} from 'twap-auction/libraries/FixedPoint96.sol';
 import {ValueX7} from 'twap-auction/libraries/ValueX7Lib.sol';
 import {ValueX7Lib} from 'twap-auction/libraries/ValueX7Lib.sol';
 
-import {console} from "forge-std/console.sol";
+import {console} from 'forge-std/console.sol';
 
 contract AccountPartiallyFilledCheckpointsTest is BttBase {
     using ValueX7Lib for uint256;
@@ -33,9 +33,11 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
         assertEq(currencySpent, 0);
     }
 
-    function test_WhenDemandGT0(Bid memory _bid, uint256 _tickDemandQ96, uint256 _cumulativeCurrencyRaisedAtClearingPrice)
-        external
-    {
+    function test_WhenDemandGT0(
+        Bid memory _bid,
+        uint256 _tickDemandQ96,
+        uint256 _cumulativeCurrencyRaisedAtClearingPrice
+    ) external {
         // it returns the currency spent (bid * raised at price / (demand * remaining mps))
         // it returns the tokens filled (currency spent / max price)
 
@@ -43,9 +45,8 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
 
         _cumulativeCurrencyRaisedAtClearingPrice =
             bound(_cumulativeCurrencyRaisedAtClearingPrice, FixedPoint96.Q96, type(uint128).max);
-        
+
         ValueX7 _cumulativeCurrencyRaisedAtClearingPriceX7 = _cumulativeCurrencyRaisedAtClearingPrice.scaleUpToX7();
-        
 
         _bid.amountQ96 = bound(_bid.amountQ96, 0, type(uint128).max / ConstantsLib.MPS);
         _tickDemandQ96 = bound(_tickDemandQ96, 1, type(uint256).max / ConstantsLib.MPS);
@@ -60,16 +61,18 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
         uint256 left = ConstantsLib.MPS - _bid.startCumulativeMps;
 
         uint256 scaledCurrencySpent = FixedPointMathLib.fullMulDivUp(
-            _bid.amountQ96 * ConstantsLib.MPS, ValueX7.unwrap(_cumulativeCurrencyRaisedAtClearingPriceX7), _tickDemandQ96 * left
+            _bid.amountQ96 * ConstantsLib.MPS,
+            ValueX7.unwrap(_cumulativeCurrencyRaisedAtClearingPriceX7),
+            _tickDemandQ96 * left
         );
-
 
         assertEq(currencySpent, scaledCurrencySpent / ConstantsLib.MPS);
         assertEq(tokensFilled, FixedPointMathLib.fullMulDiv(scaledCurrencySpent, 1, _bid.maxPrice) / ConstantsLib.MPS);
 
         // Execute without up and downscaling. Ensure we are very close, allow off by one.
-        uint256 directCurrencySpent =
-            FixedPointMathLib.fullMulDivUp(_bid.amountQ96, _cumulativeCurrencyRaisedAtClearingPrice, _tickDemandQ96 * left);
+        uint256 directCurrencySpent = FixedPointMathLib.fullMulDivUp(
+            _bid.amountQ96, _cumulativeCurrencyRaisedAtClearingPrice, _tickDemandQ96 * left
+        );
         assertApproxEqAbs(currencySpent, directCurrencySpent, 1);
         assertApproxEqAbs(
             tokensFilled, FixedPointMathLib.fullMulDiv(directCurrencySpent, 1, _bid.maxPrice) / ConstantsLib.MPS, 1

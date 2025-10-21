@@ -2,9 +2,7 @@
 pragma solidity 0.8.26;
 
 import {ITickStorage} from './interfaces/ITickStorage.sol';
-import {BidLib} from './libraries/BidLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
-import {ValueX7} from './libraries/ValueX7Lib.sol';
 
 struct Tick {
     uint256 next;

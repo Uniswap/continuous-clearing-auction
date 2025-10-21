@@ -17,7 +17,8 @@ contract CalculateFillTest is BttBase {
     }
 
     function test_WhenCalledWithParams(Bid memory _bid, uint256 _cumulativeMpsPerPriceDelta, uint24 _cumulativeMpsDelta)
-        external view
+        external
+        view
     {
         // it returns the tokens filled
         // it returns the currency spent

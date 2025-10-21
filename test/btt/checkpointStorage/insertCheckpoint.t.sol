@@ -4,8 +4,9 @@ pragma solidity 0.8.26;
 import {BttBase} from 'btt/BttBase.sol';
 import {MockCheckpointStorage} from 'btt/mocks/MockCheckpointStorage.sol';
 import {Checkpoint} from 'twap-auction/libraries/CheckpointLib.sol';
-import {ValueX7} from 'twap-auction/libraries/ValueX7Lib.sol';
+
 import {FixedPoint96} from 'twap-auction/libraries/FixedPoint96.sol';
+import {ValueX7} from 'twap-auction/libraries/ValueX7Lib.sol';
 
 contract InsertCheckpointTest is BttBase {
     MockCheckpointStorage public mockCheckpointStorage;

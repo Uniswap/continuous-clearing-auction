@@ -60,28 +60,34 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
         // All demand above the clearing price should be removed
         assertEq(mockAuction.sumCurrencyDemandAboveClearingQ96(), 0);
 
-        // Currency raised ex
-        // In this example it will be exactly the same
-        uint256 expectedCurrencyRaised = sumDemandAboveClearing * _deltaMps;
-        uint256 expectedCurrencyRaisedFromSumDemandAboveClearing = 0 * _deltaMps;
-        uint256 expectedCurrencyAtClearingPrice = totalSupply * clearingPrice * _deltaMps;
+        {
+            // Currency raised ex
+            // In this example it will be exactly the same
+            uint256 expectedCurrencyRaised = sumDemandAboveClearing * _deltaMps;
+            uint256 expectedCurrencyRaisedFromSumDemandAboveClearing = 0 * _deltaMps;
+            uint256 expectedCurrencyAtClearingPrice = totalSupply * clearingPrice * _deltaMps;
 
-        assertEq(
-            expectedCurrencyRaised, expectedCurrencyAtClearingPrice - expectedCurrencyRaisedFromSumDemandAboveClearing
-        );
-        assertEq(mockAuction.currencyRaisedQ96_X7(), ValueX7.wrap(expectedCurrencyAtClearingPrice));
+            assertEq(
+                expectedCurrencyRaised,
+                expectedCurrencyAtClearingPrice - expectedCurrencyRaisedFromSumDemandAboveClearing
+            );
+            assertEq(mockAuction.currencyRaisedQ96_X7(), ValueX7.wrap(expectedCurrencyAtClearingPrice));
 
-        // Value of demand at the tick should be equal to the value of currency raised when multiplying total supply by clearing price
-        uint256 currencyRaisedAtTick = mockAuction.ticks(clearingPrice).currencyDemandQ96 * _deltaMps;
-        assertEq(currencyRaisedAtTick, expectedCurrencyAtClearingPrice);
+            // Value of demand at the tick should be equal to the value of currency raised when multiplying total supply by clearing price
+            uint256 currencyRaisedAtTick = mockAuction.ticks(clearingPrice).currencyDemandQ96 * _deltaMps;
+            assertEq(currencyRaisedAtTick, expectedCurrencyAtClearingPrice);
 
-        // Currency raised at clearing price should be equal to the sum of demand above clearing and the demand at the tick
-        assertEq(newCheckpoint.currencyRaisedAtClearingPriceQ96_X7, ValueX7.wrap(expectedCurrencyAtClearingPrice));
+            // Currency raised at clearing price should be equal to the sum of demand above clearing and the demand at the tick
+            assertEq(newCheckpoint.currencyRaisedAtClearingPriceQ96_X7, ValueX7.wrap(expectedCurrencyAtClearingPrice));
 
-        uint256 expectedCumulativeMpsPerPrice =
-            (_deltaMps * (FixedPoint96.Q96 << FixedPoint96.RESOLUTION)) / clearingPrice;
-        assertEq(newCheckpoint.cumulativeMpsPerPrice, expectedCumulativeMpsPerPrice);
-        assertEq(newCheckpoint.cumulativeMps, _deltaMps);
+            uint256 expectedCumulativeMpsPerPrice =
+                (_deltaMps * (FixedPoint96.Q96 << FixedPoint96.RESOLUTION)) / clearingPrice;
+            assertEq(newCheckpoint.cumulativeMpsPerPrice, expectedCumulativeMpsPerPrice);
+            assertEq(newCheckpoint.cumulativeMps, _deltaMps);
+        }
+
+        // Assert that total cleared does not exceed the total supply sold
+        assertLe(mockAuction.totalCleared(), (totalSupply * _deltaMps) / ConstantsLib.MPS);
     }
 
     function test_WhenThereIsEnoughDemandAtTheTickAndTicksAboveButNotEnoughDemandAtTicksAboveToFindAClearingPriceBetween(
@@ -151,40 +157,42 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
             assertEq(mockAuction.sumCurrencyDemandAboveClearingQ96(), 0);
         }
 
-        uint24 _deltaMps = 100;
-        checkpoint.clearingPrice = clearingPrice;
-        Checkpoint memory newCheckpoint = mockAuction.sellTokensAtClearingPrice(checkpoint, _deltaMps);
+        {
+            uint24 _deltaMps = 100;
+            checkpoint.clearingPrice = clearingPrice;
+            Checkpoint memory newCheckpoint = mockAuction.sellTokensAtClearingPrice(checkpoint, _deltaMps);
 
-        // Currency raised ex
-        // In this example it will be exactly the same
-        uint256 expectedCurrencyRaised = sumDemandAboveClearing * _deltaMps;
-        uint256 expectedCurrencyRaisedFromSumDemandAboveClearing = 0 * _deltaMps;
-        uint256 expectedCurrencyAtClearingPrice = totalSupply * clearingPrice * _deltaMps;
+            // Currency raised ex
+            // In this example it will be exactly the same
+            uint256 expectedCurrencyRaised = sumDemandAboveClearing * _deltaMps;
+            uint256 expectedCurrencyRaisedFromSumDemandAboveClearing = 0 * _deltaMps;
+            uint256 expectedCurrencyAtClearingPrice = totalSupply * clearingPrice * _deltaMps;
 
-        // The currency raised at the tick should be STRICTLY less than the expected currency due to expected using a rounded up clearing price
-        uint256 demandAtTick = mockAuction.ticks(clearingPrice).currencyDemandQ96;
+            // The currency raised at the tick should be STRICTLY less than the expected currency due to expected using a rounded up clearing price
+            uint256 demandAtTick = mockAuction.ticks(clearingPrice).currencyDemandQ96;
 
-        uint256 currencyRaisedAtTick = demandAtTick * _deltaMps;
-        assertLt(currencyRaisedAtTick, expectedCurrencyAtClearingPrice);
+            uint256 currencyRaisedAtTick = demandAtTick * _deltaMps;
+            assertLt(currencyRaisedAtTick, expectedCurrencyAtClearingPrice);
 
-        // These values should be off by exactly 1 * deltaMps
-        // NOTE: this is where the larger wei discrepancies are coming from - the ronding error is being scaled up by mps
-        assertApproxEqAbs(expectedCurrencyAtClearingPrice, currencyRaisedAtTick, 1 * _deltaMps);
-        assertGt(expectedCurrencyAtClearingPrice, currencyRaisedAtTick);
-        assertEq(expectedCurrencyRaised, currencyRaisedAtTick - expectedCurrencyRaisedFromSumDemandAboveClearing);
+            // These values should be off by exactly 1 * deltaMps
+            // NOTE: this is where the larger wei discrepancies are coming from - the ronding error is being scaled up by mps
+            assertApproxEqAbs(expectedCurrencyAtClearingPrice, currencyRaisedAtTick, 1 * _deltaMps);
+            assertGt(expectedCurrencyAtClearingPrice, currencyRaisedAtTick);
+            assertEq(expectedCurrencyRaised, currencyRaisedAtTick - expectedCurrencyRaisedFromSumDemandAboveClearing);
 
-        // FALING
-        // Note here: we are calculating currency raised as if we have filled the whole thing successfully,
-        // however we actually have not - this is using the rounded up clearing price to determine - and
-        // thus is probably calculting that we have earned more than we actually have
-        assertEq(mockAuction.currencyRaisedQ96_X7(), ValueX7.wrap(currencyRaisedAtTick));
+            // This line will fail if we use the rounded up clearing price to determine the currency raised
+            assertEq(mockAuction.currencyRaisedQ96_X7(), ValueX7.wrap(currencyRaisedAtTick));
 
-        // Currency raised at clearing price should be equal to the sum of demand above clearing and the demand at the tick
-        assertEq(newCheckpoint.currencyRaisedAtClearingPriceQ96_X7, ValueX7.wrap(currencyRaisedAtTick));
+            // Currency raised at clearing price should be equal to the sum of demand above clearing and the demand at the tick
+            assertEq(newCheckpoint.currencyRaisedAtClearingPriceQ96_X7, ValueX7.wrap(currencyRaisedAtTick));
 
-        uint256 expectedCumulativeMpsPerPrice =
-            (_deltaMps * (FixedPoint96.Q96 << FixedPoint96.RESOLUTION)) / clearingPrice;
-        assertEq(newCheckpoint.cumulativeMpsPerPrice, expectedCumulativeMpsPerPrice);
-        assertEq(newCheckpoint.cumulativeMps, _deltaMps);
+            uint256 expectedCumulativeMpsPerPrice =
+                (_deltaMps * (FixedPoint96.Q96 << FixedPoint96.RESOLUTION)) / clearingPrice;
+            assertEq(newCheckpoint.cumulativeMpsPerPrice, expectedCumulativeMpsPerPrice);
+            assertEq(newCheckpoint.cumulativeMps, _deltaMps);
+        }
+
+        // Assert that total cleared does not exceed the total supply sold
+        assertLe(mockAuction.totalCleared(), (totalSupply * 100) / ConstantsLib.MPS);
     }
 }

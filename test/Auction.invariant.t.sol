@@ -103,6 +103,12 @@ contract AuctionInvariantHandler is Test, Assertions {
             'Checkpoint cumulative mps per price is not increasing'
         );
 
+        // Check that total cleared does not exceed the max tokens that can be sold in the auction so far
+        assertLe(
+            mockAuction.totalCleared(),
+            (uint256(mockAuction.totalSupply()) * checkpoint.cumulativeMps) / ConstantsLib.MPS
+        );
+
         _checkpoint = checkpoint;
     }
 
@@ -391,6 +397,7 @@ contract AuctionInvariantTest is AuctionUnitTest {
         );
 
         if (mockAuction.isGraduated()) {
+            emit log_string('==================== GRADUATED AUCTION ====================');
             assertLe(
                 expectedCurrencyRaised,
                 address(mockAuction).balance,
@@ -400,6 +407,10 @@ contract AuctionInvariantTest is AuctionUnitTest {
             vm.expectEmit(true, true, true, true);
             emit ITokenCurrencyStorage.CurrencySwept(mockAuction.fundsRecipient(), expectedCurrencyRaised);
             mockAuction.sweepCurrency();
+
+            emit log_named_decimal_uint(
+                'auction currency balance after sweepCurrency', address(mockAuction).balance, 18
+            );
             // Assert that the currency was swept and matches total currency raised
             assertLe(
                 expectedCurrencyRaised,
@@ -414,10 +425,11 @@ contract AuctionInvariantTest is AuctionUnitTest {
             );
             assertApproxEqAbs(address(mockAuction).balance, 0, 1e6, 'Auction balance is not within 1e6 wei of zero');
         } else {
+            emit log_string('==================== NOT GRADUATED AUCTION ====================');
             vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
             mockAuction.sweepCurrency();
             // At this point we know all bids have been exited so auction balance should be zero
-            assertEq(address(mockAuction).balance, 0, 'Auction balance is not zero after sweeping currency');
+            assertEq(address(mockAuction).balance, 0, 'Auction balance is not zero at end of auction');
         }
     }
 }

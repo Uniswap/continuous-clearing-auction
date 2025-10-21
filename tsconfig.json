@@ -1,34 +1,24 @@
 {
-  "compilerOptions": {
-    "target": "ES2020",
-    "module": "NodeNext",
-    "lib": ["ES2020"],
-    "outDir": "./dist",
-    "rootDir": "./",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "moduleResolution": "NodeNext",
-    "allowSyntheticDefaultImports": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "types": ["node", "mocha", "chai", "@nomicfoundation/hardhat-ethers"]
-  },
-  "include": [
-    "test/e2e/src/**/*",
-    "test/e2e/tests/**/*",
-    "script/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "out",
-    "lib",
-    "cache"
-  ]
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "NodeNext",
+        "lib": ["ES2020"],
+        "outDir": "./dist",
+        "rootDir": "./",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "moduleResolution": "NodeNext",
+        "allowSyntheticDefaultImports": true,
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "types": ["node", "mocha", "chai", "@nomicfoundation/hardhat-ethers"]
+    },
+    "include": ["test/e2e/src/**/*", "test/e2e/tests/**/*", "script/**/*"],
+    "exclude": ["node_modules", "dist", "out", "lib", "cache"]
 }

@@ -29,6 +29,7 @@ You can check events by defining an assertion with the `EVENT` type:
 ```
 
 **How it works:**
+
 - Events emitted on-chain are reconstructed from the contract ABI
 - Each event is formatted as `"EventName(arg1,arg2,arg3)"`
 - The test checks if the event name and arguments match your assertion
@@ -60,6 +61,7 @@ For any action you wish to check a revert on, add the `expectRevert` field:
 ```
 
 **How it works:**
+
 - On-chain reverts are decoded using the contract ABI
 - Reverts are formatted as `"ExampleRevert(arg1,arg2,arg3)"`
 - The test checks if the revert contains your `expectRevert` string
@@ -88,6 +90,7 @@ You can add variance to any checkpoint field to accommodate bid variance by usin
 ```
 
 **How it works:**
+
 - Use `amount` for the expected value
 - Use `variation` for the allowed variance (supports both percentage "5%" and decimal "0.05" formats)
 - The test checks if the actual value is within the variance bounds
@@ -211,21 +214,23 @@ export type Address = `0x${string}` & { readonly length: 42 };
 ```
 
 This type:
+
 - **Enforces 0x prefix**: Must start with `0x`
 - **Enforces exact length**: Must be exactly 42 characters (0x + 40 hex digits)
 - **Provides compile-time safety**: TypeScript will catch invalid addresses at compile time
 - **Supports type assertions**: Use `as Address` for string literals
 
 **Examples:**
+
 ```typescript
 // ✅ Valid addresses
-"0x1111111111111111111111111111111111111111" as Address
-"0x0000000000000000000000000000000000000000" as Address
+"0x1111111111111111111111111111111111111111" as Address;
+"0x0000000000000000000000000000000000000000" as Address;
 
 // ❌ Invalid addresses (TypeScript errors)
-"0x111"  // Too short
-"1111111111111111111111111111111111111111"  // Missing 0x
-"0x11111111111111111111111111111111111111111"  // Too long
+("0x111"); // Too short
+("1111111111111111111111111111111111111111"); // Missing 0x
+("0x11111111111111111111111111111111111111111"); // Too long
 ```
 
 ### Setup Schema
@@ -261,7 +266,7 @@ export const simpleSetup: TestSetupData = {
       {
         mpsPerBlock: 100,
         blockDelta: 100,
-      }, 
+      },
       ...
     ],
   },
@@ -281,7 +286,7 @@ export const simpleSetup: TestSetupData = {
 The interaction schema defines bid scenarios and assertions using TypeScript interfaces:
 
 ```typescript
-import { TestInteractionData, Address, AssertionInterfaceType } from '../schemas/TestInteractionSchema';
+import { TestInteractionData, Address, AssertionInterfaceType } from "../schemas/TestInteractionSchema";
 
 export const simpleInteraction: TestInteractionData = {
   namedBidders: [
@@ -293,11 +298,11 @@ export const simpleInteraction: TestInteractionData = {
           atBlock: 10,
           amount: { side: "input", type: "raw", value: "1000000000000000000" },
           price: { type: "raw", value: "87150978765690771352898345369600" },
-          expectRevert: "InsufficientBalance"
-        }
+          expectRevert: "InsufficientBalance",
+        },
       ],
-      recurringBids: []
-    }
+      recurringBids: [],
+    },
   ],
   assertions: [
     {
@@ -307,10 +312,10 @@ export const simpleInteraction: TestInteractionData = {
         type: AssertionInterfaceType.BALANCE,
         address: "0x1111111111111111111111111111111111111111" as Address,
         token: "0x0000000000000000000000000000000000000000" as Address,
-        expected: "0"
-      }
-    }
-  ]
+        expected: "0",
+      },
+    },
+  ],
 };
 ```
 
@@ -359,6 +364,7 @@ The test suite loads contract artifacts directly from Foundry's `out` directory,
 ### Same-Block Transactions
 
 The test suite supports multiple transactions in the same block, which is useful for testing:
+
 - **MEV scenarios** - Transaction ordering and arbitrage opportunities
 - **Gas optimization** - Multiple transactions hitting block gas limits
 - **Real-world behavior** - True same-block execution like Ethereum
@@ -371,7 +377,7 @@ The test suite supports multiple transactions in the same block, which is useful
       bids: [{ atBlock: 10, ... }]  // Same block
     },
     {
-      address: "0x222..." as Address, 
+      address: "0x222..." as Address,
       bids: [{ atBlock: 10, ... }]  // Same block
     }
   ],
@@ -546,8 +552,8 @@ To add new test combinations, edit `test/e2e/src/E2ECliRunner.ts`:
 
 ```typescript
 const COMBINATIONS_TO_RUN = [
-  { setup: 'SimpleSetup.ts', interaction: 'SimpleInteraction.ts' },
-  { setup: 'MySetup.ts', interaction: 'MyInteraction.ts' },  // Add new combinations
+  { setup: "SimpleSetup.ts", interaction: "SimpleInteraction.ts" },
+  { setup: "MySetup.ts", interaction: "MyInteraction.ts" }, // Add new combinations
   // Only add compatible combinations!
 ];
 ```

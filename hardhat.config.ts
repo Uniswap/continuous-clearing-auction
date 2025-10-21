@@ -10,11 +10,11 @@ import path from "node:path";
 import * as glob from "glob";
 
 subtask(TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS, async (_, { config }) => {
-    const root = config.paths.root;
-    const contractSources = glob.sync(path.join(root, "src/**/*.sol"));
-    const testUtilsSources = glob.sync(path.join(root, "test/utils/**/*.sol"));
-    return [...contractSources, ...testUtilsSources].map(p => path.normalize(p));
-  });
+  const root = config.paths.root;
+  const contractSources = glob.sync(path.join(root, "src/**/*.sol"));
+  const testUtilsSources = glob.sync(path.join(root, "test/utils/**/*.sol"));
+  return [...contractSources, ...testUtilsSources].map((p) => path.normalize(p));
+});
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -49,7 +49,11 @@ const config: HardhatUserConfig = {
     outDir: "typechain-types",
     target: "ethers-v6",
     alwaysGenerateOverloads: false,
-    externalArtifacts: ["out/Auction.sol/Auction.json", "out/AuctionFactory.sol/AuctionFactory.json", "out/WorkingCustomMockToken.sol/WorkingCustomMockToken.json"], // Specific Foundry artifacts
+    externalArtifacts: [
+      "out/Auction.sol/Auction.json",
+      "out/AuctionFactory.sol/AuctionFactory.json",
+      "out/WorkingCustomMockToken.sol/WorkingCustomMockToken.json",
+    ], // Specific Foundry artifacts
     dontOverrideCompile: false, // Let it compile if needed
   },
 };

@@ -120,8 +120,9 @@ abstract contract CheckpointStorage is ICheckpointStorage {
 
         // The tokens filled from the bid are calculated from its effective amount, not the raw amount in the Bid struct
         // As such, we need to multiply it by 1e7 and divide by `mpsRemainingInAuctionAfterSubmission`.
-        // We also know that `cumulativeMpsPerPriceDelta` is over `mps` terms, and has not bee divided by 100% (1e7) yet.
+        // We also know that `cumulativeMpsPerPriceDelta` is over `mps` terms, and has not been divided by 100% (1e7) yet.
         // Thus, we can cancel out the 1e7 terms and just divide by `mpsRemainingInAuctionAfterSubmission`.
+        // Both terms in the numerator (amountQ96 and cumulativeMpsPerPriceDelta) are Q96 form, so we must also divide by Q96 ** 2
         tokensFilled = bid.amountQ96.fullMulDiv(
             cumulativeMpsPerPriceDelta,
             (FixedPoint96.Q96 << FixedPoint96.RESOLUTION) * mpsRemainingInAuctionAfterSubmission

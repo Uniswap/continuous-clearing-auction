@@ -24,6 +24,7 @@ import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol'
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
+import {console} from 'forge-std/console.sol';
 
 /// @title Auction
 /// @custom:security-contact security@uniswap.org
@@ -58,6 +59,8 @@ contract Auction is
 
     /// @notice The total currency raised in the auction in Q96 representation, scaled up by X7
     ValueX7 internal $currencyRaisedQ96_X7;
+
+    ValueX7 internal $tokensClearedQ96_X7;
     /// @notice The sum of currency demand in ticks above the clearing price
     /// @dev This will increase every time a new bid is submitted, and decrease when bids are outbid.
     uint256 internal $sumCurrencyDemandAboveClearingQ96;
@@ -207,7 +210,13 @@ contract Auction is
                 _checkpoint.currencyRaisedAtClearingPriceQ96_X7.add(currencyRaisedAtClearingPriceQ96_X7);
         }
 
+        // Update the global tokens cleared tracked value, rounding up such that some dust is left over after `sweepUnsoldTokens()`
+        $tokensClearedQ96_X7 = $tokensClearedQ96_X7.add(
+            currencyRaisedQ96_X7_.wrapAndFullMulDivUp(FixedPoint96.Q96, _checkpoint.clearingPrice)
+        );
+        // Update the global currency raised tracked value
         $currencyRaisedQ96_X7 = $currencyRaisedQ96_X7.add(currencyRaisedQ96_X7_);
+
         _checkpoint.cumulativeMps += deltaMps;
         // Calculate the harmonic mean of the mps and price (the sum of mps/price)
         // This uses the rounded up clearing price so fully filled bids purchase less tokens for higher prices
@@ -618,7 +627,17 @@ contract Auction is
     /// @inheritdoc IAuction
     function sweepUnsoldTokens() external onlyAfterAuctionIsOver ensureCheckpointed {
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
-        _sweepUnsoldTokens(_isGraduated() ? 0 : TOTAL_SUPPLY);
+        uint256 unsoldTokens;
+        if (_isGraduated()) {
+            console.log('tokensClearedQ96_X7', ValueX7.unwrap($tokensClearedQ96_X7), $tokensClearedQ96_X7.divUint256(FixedPoint96.Q96).scaleDownToUint256());
+            unsoldTokens = TOTAL_SUPPLY_Q96.scaleUpToX7().sub($tokensClearedQ96_X7).divUint256(FixedPoint96.Q96)
+                .scaleDownToUint256();
+            console.log('unsoldTokens', unsoldTokens);
+            console.log('token balance', TOKEN.balanceOf(address(this)));
+        } else {
+            unsoldTokens = TOTAL_SUPPLY;
+        }
+        _sweepUnsoldTokens(unsoldTokens);
     }
 
     // Getters
@@ -640,5 +659,15 @@ contract Auction is
     /// @inheritdoc IAuction
     function sumCurrencyDemandAboveClearingQ96() external view override(IAuction) returns (uint256) {
         return $sumCurrencyDemandAboveClearingQ96;
+    }
+
+    /// @inheritdoc IAuction
+    function totalClearedQ96_X7() external view override(IAuction) returns (ValueX7) {
+        return $tokensClearedQ96_X7;
+    }
+
+    /// @inheritdoc IAuction
+    function totalCleared() external view override(IAuction) returns (uint256) {
+        return $tokensClearedQ96_X7.divUint256(FixedPoint96.Q96).scaleDownToUint256();
     }
 }

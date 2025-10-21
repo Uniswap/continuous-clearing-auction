@@ -6,12 +6,12 @@ import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
-
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {FuzzBid, FuzzDeploymentParams} from './utils/FuzzStructs.sol';
 import {console2} from 'forge-std/console2.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
 /// @dev These tests fuzz over the full range of inputs for both the auction parameters and the bids submitted
@@ -21,6 +21,7 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 contract AuctionGraduationTest is AuctionBaseTest {
     using ValueX7Lib for *;
     using BidLib for *;
+    using FixedPointMathLib for *;
 
     function test_exitBid_graduated_succeeds(
         FuzzDeploymentParams memory _deploymentParams,
@@ -237,7 +238,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         require(success, string(result));
     }
 
-    function test_sweepUnsoldTokens_graduated(
+    function test_sweepUnsoldTokens_graduated_sweepsLeftoverTokens(
         FuzzDeploymentParams memory _deploymentParams,
         uint128 _bidAmount,
         uint128 _maxPrice
@@ -251,15 +252,34 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenFullyFundedAccount
         checkAuctionIsGraduated
     {
-        auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
+        vm.assume($deploymentParams.totalSupply > 1e18);
+        uint64 bidBlock = uint64(_bound(block.number, auction.startBlock(), auction.endBlock() - 1));
+        vm.roll(bidBlock);
+        uint256 bidId = auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
         vm.roll(auction.endBlock());
-        // Should sweep no tokens since graduated
+        Checkpoint memory finalCheckpoint = auction.checkpoint();
+        
+        vm.assume(auction.isGraduated());
+
+        if ($maxPrice > finalCheckpoint.clearingPrice) {
+            auction.exitBid(bidId);
+        } else {
+            auction.exitPartiallyFilledBid(bidId, bidBlock, 0);
+        }
+
+        Bid memory bid = auction.bids(bidId);
+        assertLe(bid.tokensFilled, auction.totalCleared());
+
+        vm.roll(auction.claimBlock());
         vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, 0);
+        emit IAuction.TokensClaimed(bidId, alice, bid.tokensFilled);
+        auction.claimTokens(bidId);
+        assertEq(token.balanceOf(alice), bid.tokensFilled);
+
         auction.sweepUnsoldTokens();
 
-        assertEq(token.balanceOf(tokensRecipient), 0);
+        assertApproxEqAbs(token.balanceOf(address(auction)), 0, 1, 'Auction should have no tokens left');
     }
 
     function test_sweepUnsoldTokens_notGraduated(
@@ -276,11 +296,13 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenFullyFundedAccount
         checkAuctionIsNotGraduated
     {
+        uint64 bidBlock = uint64(_bound(block.number, auction.startBlock(), auction.endBlock() - 1));
+        vm.roll(bidBlock);
         uint256 bidId = auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
         vm.roll(auction.endBlock());
         // Update the lastCheckpoint
-        auction.checkpoint();
+        Checkpoint memory checkpoint = auction.checkpoint();
 
         // Should sweep ALL tokens since auction didn't graduate
         vm.expectEmit(true, true, true, true);
@@ -301,7 +323,11 @@ contract AuctionGraduationTest is AuctionBaseTest {
         // Expected currency raised MUST always be less than or equal to the balance since it did not graduate
         assertLe(expectedCurrencyRaised, address(auction).balance);
         // Process refunds
-        auction.exitBid(bidId);
+        if ($maxPrice > checkpoint.clearingPrice) {
+            auction.exitBid(bidId);
+        } else {
+            auction.exitPartiallyFilledBid(bidId, bidBlock, 0);
+        }
         emit log_named_uint('balance after refunds', address(auction).balance);
         // Assert that the balance is zero since it did not graduate
         assertEq(address(auction).balance, 0);

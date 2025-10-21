@@ -259,7 +259,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
 
         vm.roll(auction.endBlock());
         Checkpoint memory finalCheckpoint = auction.checkpoint();
-        
+
         vm.assume(auction.isGraduated());
 
         if ($maxPrice > finalCheckpoint.clearingPrice) {

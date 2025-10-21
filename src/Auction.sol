@@ -20,11 +20,12 @@ import {FixedPoint128} from './libraries/FixedPoint128.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
+
+import {console} from 'forge-std/console.sol';
 import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
-import {console} from 'forge-std/console.sol';
 
 /// @title Auction
 /// @custom:security-contact security@uniswap.org
@@ -629,7 +630,11 @@ contract Auction is
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
         uint256 unsoldTokens;
         if (_isGraduated()) {
-            console.log('tokensClearedQ96_X7', ValueX7.unwrap($tokensClearedQ96_X7), $tokensClearedQ96_X7.divUint256(FixedPoint96.Q96).scaleDownToUint256());
+            console.log(
+                'tokensClearedQ96_X7',
+                ValueX7.unwrap($tokensClearedQ96_X7),
+                $tokensClearedQ96_X7.divUint256(FixedPoint96.Q96).scaleDownToUint256()
+            );
             unsoldTokens = TOTAL_SUPPLY_Q96.scaleUpToX7().sub($tokensClearedQ96_X7).divUint256(FixedPoint96.Q96)
                 .scaleDownToUint256();
             console.log('unsoldTokens', unsoldTokens);

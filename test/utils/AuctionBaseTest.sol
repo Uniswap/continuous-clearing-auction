@@ -50,6 +50,13 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     uint256 public constant MAX_ALLOWABLE_DUST_WEI = 1e18; // Or 1 unit of token assuming 18 decimals
 
+    // Temp Limits
+    uint256 public constant MAX_TOTAL_SUPPLY = 1 ether;
+    uint128 public constant MAX_BID_AMOUNT = 10 ether;
+    uint256 public constant MAX_BID_PRICE = 1 ether << FixedPoint96.RESOLUTION;
+    uint256 public constant MAX_FLOOR_PRICE = 0.01 ether << FixedPoint96.RESOLUTION;
+    uint256 public constant MAX_TICK_SPACING = 0.01 ether << FixedPoint96.RESOLUTION;
+
     // Test accounts
     address public alice;
     address public bob;
@@ -105,22 +112,41 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         view
         returns (uint128 bidAmount, uint256 maxPriceQ96, uint256 bidBlock)
     {
+        // Generate the random parameters for the bid based on the seed
         uint256 bidAmountR = uint256(keccak256(abi.encodePacked(seed, 'bid.bidAmount')));
         uint256 maxPriceQ96R = uint256(keccak256(abi.encodePacked(seed, 'bid.maxPrice')));
         uint256 bidBlockR = uint256(keccak256(abi.encodePacked(seed, 'bid.bidBlock')));
 
+        // Get the auction based params
         uint256 tickSpacingQ96 = params.tickSpacing;
         uint256 floorPriceQ96 = params.floorPrice;
+        // Calculate the maximum valid max price for the auction (rounded MAX_BID_PRICE down to the nearest multiple of tick spacing)
         uint256 maxPriceQ96Max = helper__roundPriceDownToTickSpacing(auction.MAX_BID_PRICE(), params.tickSpacing);
 
-        maxPriceQ96 = helper__roundPriceDownToTickSpacing(maxPriceQ96R, tickSpacingQ96);
-        console.log('maxPriceQ96', maxPriceQ96);
-        console.log('maxPriceQ96Max', maxPriceQ96Max);
-        maxPriceQ96 = _bound(maxPriceQ96, (floorPriceQ96 + tickSpacingQ96), maxPriceQ96Max);
-        /// TODO: ^CONTINUE HERE - maxPriceQ96Max was uint256.max, which brings us further along, ends with "InvalidBidPriceTooHigh" error
+        // Bind the users max price to be at least the floor price + tick spacing
+        // and at max the closest multiple of MAX_BID_PRICE
+        maxPriceQ96 = _bound(maxPriceQ96R, (floorPriceQ96 + tickSpacingQ96), maxPriceQ96Max);
 
+        // Round the users max price down to the nearest multiple of tick spacing
+        maxPriceQ96 = helper__roundPriceDownToTickSpacing(maxPriceQ96, tickSpacingQ96);
+
+        // Bind the bid amount to be at least 1 and at most the maximum bid amount (uint128.max)
         bidAmount = uint128(_bound((bidAmountR % type(uint128).max), 1, type(uint128).max));
+
+        // Bind the bid block to be at least the start block and at most the end block - 1 (for a valid bid block)
         bidBlock = uint64(_bound(bidBlockR % (auction.endBlock()), auction.startBlock(), auction.endBlock() - 1));
+
+        // --- ADD TEMPORARY MAX LIMITS TO LIMIT CRAZY SIZES ---
+        bidAmount = uint128(_bound(bidAmount, 1, MAX_BID_AMOUNT));
+        maxPriceQ96 = helper__roundPriceDownToTickSpacing(
+            uint256(_bound(maxPriceQ96, floorPriceQ96 + tickSpacingQ96, MAX_BID_PRICE)), tickSpacingQ96
+        );
+        // ----------------------------------------------------
+
+        console.log('helper__seedBasedBid: bidBlock', bidBlock);
+        console.log('helper__seedBasedBid: bidAmount', bidAmount);
+        console.log('helper__seedBasedBid: maxPriceQ96', maxPriceQ96);
+
         return (bidAmount, maxPriceQ96, bidBlock);
     }
 
@@ -137,23 +163,58 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _setHardcodedParams(deploymentParams);
 
         // Generate the random parameteres here
-        deploymentParams.totalSupply = uint128(_bound(totalSupplyR, 1, type(uint128).max));
+        deploymentParams.totalSupply = uint128(_bound(totalSupplyR, 1, MAX_TOTAL_SUPPLY));
 
         // Calculate the number of steps - ensure it's a divisor of ConstantsLib.MPS
-        deploymentParams.numberOfSteps = uint8(auctionStepsR % type(uint8).max);
+        deploymentParams.numberOfSteps = uint8(auctionStepsR % deploymentParams.totalSupply);
 
-        deploymentParams.auctionParams.floorPrice = uint128(_bound(floorPriceR, 1, type(uint128).max));
-        deploymentParams.auctionParams.tickSpacing = uint128(_bound(tickSpacingR, 1, type(uint128).max));
-        _boundPriceParams(deploymentParams);
+        // Calculate the absolute max bid price
+        uint256 maxBidPrice = type(uint256).max / deploymentParams.totalSupply;
+
+        // Ensure tick spacing is bound to a minimum of 1
+        // and a maximum of 1/2 max_bid_price to ensure there is a valid maxPrice above floorPrice.
+        deploymentParams.auctionParams.tickSpacing = uint128(_bound(tickSpacingR, 1, maxBidPrice / 2));
+
+        // Ensure the floor price is bound to a minimum of tick spacing
+        // and a maximum of 1/2 max_bid_price to ensure there is a valid maxPrice above floorPrice.
+        deploymentParams.auctionParams.floorPrice =
+            uint128(_bound(floorPriceR, deploymentParams.auctionParams.tickSpacing, maxBidPrice / 2));
+
+        // Round the floor price down to the nearest multiple of tick spacing
+        deploymentParams.auctionParams.floorPrice = helper__roundPriceDownToTickSpacing(
+            deploymentParams.auctionParams.floorPrice, deploymentParams.auctionParams.tickSpacing
+        );
 
         // Set up the block numbers
         deploymentParams.auctionParams.startBlock = uint64(_bound(startBlockR, 1, type(uint64).max));
         _boundBlockNumbers(deploymentParams);
 
-        /// TODO: Make this anything other then a linear supply
+        /// TODO: Add different types of supply curves. Currently only  linear is available
         uint40 timePerStep = uint40(_bound(auctionStepsTimeR, 1, type(uint40).max));
         deploymentParams.auctionParams.auctionStepsData =
             _generateAuctionSteps(deploymentParams.numberOfSteps, timePerStep);
+
+        // --- ADD TEMPORARY MAX LIMITS TO LIMIT CRAZY SIZES ---
+        deploymentParams.auctionParams.tickSpacing =
+            uint128(_bound(deploymentParams.auctionParams.tickSpacing, 1, MAX_TICK_SPACING));
+        deploymentParams.auctionParams.floorPrice = uint128(
+            helper__roundPriceDownToTickSpacing(
+                _bound(
+                    deploymentParams.auctionParams.floorPrice,
+                    deploymentParams.auctionParams.tickSpacing,
+                    MAX_FLOOR_PRICE
+                ),
+                deploymentParams.auctionParams.tickSpacing
+            )
+        );
+        // ----------------------------------------------------
+        console.log('helper__seedBasedAuction: startBlock', deploymentParams.auctionParams.startBlock);
+        console.log('helper__seedBasedAuction: endBlock', deploymentParams.auctionParams.endBlock);
+        console.log('helper__seedBasedAuction: claimBlock', deploymentParams.auctionParams.claimBlock);
+        console.log('helper__seedBasedAuction: numberOfSteps', deploymentParams.numberOfSteps);
+        console.log('helper__seedBasedAuction: totalSupply', deploymentParams.totalSupply);
+        console.log('helper__seedBasedAuction: tickSpacing', deploymentParams.auctionParams.tickSpacing);
+        console.log('helper__seedBasedAuction: floorPrice', deploymentParams.auctionParams.floorPrice);
 
         $deploymentParams = deploymentParams;
         return deploymentParams;

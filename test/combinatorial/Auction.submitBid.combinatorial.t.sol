@@ -50,10 +50,6 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
     // uint256 public constant TICK_SPACING = 100 << FixedPoint96.RESOLUTION;
     // uint256 public constant FLOOR_PRICE = 1000 << FixedPoint96.RESOLUTION;
     // uint128 public constant TOTAL_SUPPLY = 1000e18;
-    address public constant OTHER_BIDS_OWNER = address(0x1);
-    uint256 public constant MIN_BID_AMOUNT = 1;
-    uint256 public constant MAX_BID_AMOUNT = 100 ether;
-    uint256 public constant MAX_BID_PRICE_Q96 = 1e17 << FixedPoint96.RESOLUTION;
 
     uint256 public usersBidId;
 
@@ -210,9 +206,6 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
         if (method == Method.submitBid) {
             uint256 bidSeed = selections[uint256(SpaceIndices.bidSeed)];
             (uint128 bidAmount, uint256 maxPriceQ96, uint256 bidBlock) = helper__seedBasedBid(bidSeed);
-            console.log('maxPriceQ96', maxPriceQ96);
-            console.log('bidAmount', bidAmount);
-            console.log('bidBlock', bidBlock);
 
             // Extract scenario selections for scenario-aware verification
             PreBidScenario preBidScenario = PreBidScenario(selections[uint256(SpaceIndices.preBidScenario)]);
@@ -231,6 +224,7 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
             vm.deal(alice, bidAmount);
             // Submit the bid
             vm.prank(alice);
+            console.log('submitting bid with maxPriceQ96', maxPriceQ96);
             usersBidId = auction.submitBid{value: bidAmount}(maxPriceQ96, bidAmount, alice, bytes(''));
             console.log('bid submitted');
 

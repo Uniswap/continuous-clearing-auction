@@ -13,10 +13,15 @@ import {FuzzBid} from '../utils/FuzzStructs.sol';
 import {PostBidScenario, PreBidScenario} from './CombinatorialEnums.sol';
 
 import {Test} from 'forge-std/Test.sol';
-import {console2} from 'forge-std/console2.sol';
+import {console} from 'forge-std/console.sol';
 
 contract CombinatorialHelpers is AuctionBaseTest {
     function helper__preBidScenario(PreBidScenario scenario, uint256 userMaxPrice, bool Q96) public {
+        console.log('helper__preBidScenario: Starting pre bid scenario');
+        console.log('helper__preBidScenario: scenario', uint8(scenario));
+        console.log('helper__preBidScenario: userMaxPrice', userMaxPrice);
+        console.log('helper__preBidScenario: Q96', Q96);
+
         uint256 tickSpacing = Q96 ? auction.tickSpacing() : auction.tickSpacing() >> FixedPoint96.RESOLUTION;
         uint256 floorPrice = Q96 ? auction.floorPrice() : auction.floorPrice() >> FixedPoint96.RESOLUTION;
 
@@ -71,6 +76,11 @@ contract CombinatorialHelpers is AuctionBaseTest {
     }
 
     function helper__postBidScenario(PostBidScenario scenario, uint256 userMaxPrice, bool Q96) public {
+        console.log('helper__postBidScenario: Starting post bid scenario');
+        console.log('helper__postBidScenario: scenario', uint8(scenario));
+        console.log('helper__postBidScenario: userMaxPrice', userMaxPrice);
+        console.log('helper__postBidScenario: Q96', Q96);
+
         uint256 tickSpacing = Q96 ? auction.tickSpacing() : auction.tickSpacing() >> FixedPoint96.RESOLUTION;
         if (userMaxPrice % tickSpacing != 0) {
             revert('postBidScenario: userMaxPrice not compliant with tickSpacing');
@@ -95,7 +105,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
             }
         } else if (scenario == PostBidScenario.UserAtClearing) {
             if (userMaxPrice <= clearingPrice) {
-                // User's bid is at or right above the clearing price
+                // User's bid is already at clearing price or outbid
                 return;
             } else {
                 // User's bid is more then one tick above clearing: Move clearing right below the user's bid
@@ -126,11 +136,15 @@ contract CombinatorialHelpers is AuctionBaseTest {
         }
     }
 
+    /// TODO: 1) helper__seedBasedAuction: tickSpacing & floorPrice are way to high (e37 & e38)
+    /// TODO: 2) helper__setAuctionClearingPrice: targetClearingPrice is e46 while clearingPrice is e38. Why is target not current clearing?
+
     function helper__setAuctionClearingPrice(uint256 targetClearingPrice, address[] memory bidOwners, bool Q96)
         public
         returns (bool success)
     {
         Checkpoint memory checkpoint = auction.checkpoint();
+
         uint256 clearingPrice = Q96 ? auction.clearingPrice() : auction.clearingPrice() >> FixedPoint96.RESOLUTION;
         if (clearingPrice > targetClearingPrice) {
             return false; // Clearing price is already greater than target clearing price
@@ -138,10 +152,19 @@ contract CombinatorialHelpers is AuctionBaseTest {
             return true;
         } else {
             uint256 totalSupply = auction.totalSupply();
+
             // uint256 bidAmountToMoveToTargetClearingPrice = totalSupply * targetClearingPrice;
             uint256 bidAmountToMoveToTargetClearingPrice = (
                 totalSupply - ((totalSupply * checkpoint.cumulativeMps) / ConstantsLib.MPS)
-            ) * targetClearingPrice / (Q96 ? FixedPoint96.RESOLUTION : 1);
+            ) * targetClearingPrice / (Q96 ? FixedPoint96.Q96 : 1);
+            console.log('helper__setAuctionClearingPrice: totalSupply', totalSupply);
+            console.log('helper__setAuctionClearingPrice: checkpoint.cumulativeMps', checkpoint.cumulativeMps);
+            console.log('helper__setAuctionClearingPrice: clearingPrice', clearingPrice);
+            console.log('helper__setAuctionClearingPrice: targetClearingPrice', targetClearingPrice);
+            console.log(
+                'helper__setAuctionClearingPrice: bidAmountToMoveToTargetClearingPrice',
+                bidAmountToMoveToTargetClearingPrice
+            );
             if (bidAmountToMoveToTargetClearingPrice > uint256(type(uint128).max)) {
                 revert('Bid amount to move to target clearing price is too large');
             }

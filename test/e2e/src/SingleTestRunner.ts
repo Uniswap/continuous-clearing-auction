@@ -243,7 +243,6 @@ export class SingleTestRunner {
     console.log("  Currency raised:", finalState.currencyRaised);
     console.log("  Latest checkpoint:");
     console.log("    Clearing price:", finalState.latestCheckpoint.clearingPrice);
-    console.log("    Currency raised (Q96_X7):", finalState.latestCheckpoint.currencyRaisedQ96_X7);
     console.log(
       "    Currency raised at clearing price (Q96_X7):",
       finalState.latestCheckpoint.currencyRaisedAtClearingPriceQ96_X7,

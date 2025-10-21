@@ -1,5 +1,5 @@
 import { TestSetupData, Address, AdditionalToken, StepData } from "../schemas/TestSetupSchema";
-import mockTokenArtifact from "../../../out/WorkingCustomMockToken.sol/WorkingCustomMockToken.json";
+import mockTokenArtifact from "../../../out/MockToken.sol/WorkingCustomMockToken.json";
 import auctionArtifact from "../../../out/Auction.sol/Auction.json";
 import auctionFactoryArtifact from "../../../out/AuctionFactory.sol/AuctionFactory.json";
 import { AuctionParametersStruct } from "../../../typechain-types/out/Auction";
@@ -382,6 +382,7 @@ export class AuctionDeployer {
       tickSpacing: config.tickSpacing,
       validationHook: config.validationHook,
       floorPrice: config.floorPrice,
+      requiredCurrencyRaised: config.requiredCurrencyRaised || 0,
       auctionStepsData: config.auctionStepsData,
     };
 

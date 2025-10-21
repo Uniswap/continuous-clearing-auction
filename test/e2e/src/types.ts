@@ -4,7 +4,7 @@ import { Address } from "../schemas/TestSetupSchema";
 // Import contract artifacts to get proper typing
 import auctionArtifact from "../../../out/Auction.sol/Auction.json";
 import auctionFactoryArtifact from "../../../out/AuctionFactory.sol/AuctionFactory.json";
-import mockTokenArtifact from "../../../out/WorkingCustomMockToken.sol/WorkingCustomMockToken.json";
+import mockTokenArtifact from "../../../out/MockToken.sol/WorkingCustomMockToken.json";
 import { ActionType, AdminAction, AssertionInfo, TransferAction } from "../schemas/TestInteractionSchema";
 import { InternalBidData } from "./BidSimulator";
 
@@ -96,6 +96,7 @@ export interface AuctionConfig {
   tickSpacing: number | bigint | string; // number for small values, bigint/string for large values
   validationHook: Address;
   floorPrice: string;
+  requiredCurrencyRaised?: string; // Optional: minimum currency that must be raised
   auctionStepsData: string;
 }
 

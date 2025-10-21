@@ -50,6 +50,7 @@ export interface AuctionParameters {
   tickSpacing: number | bigint | string; // number for small values, bigint/string for large values
   validationHook: Address;
   floorPrice: string;
+  requiredCurrencyRaised?: string; // Optional: minimum currency that must be raised
   auctionStepsData?: string | StepData[]; // Optional: raw hex string or array of steps
 }
 

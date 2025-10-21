@@ -863,7 +863,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepUnsoldTokens();
     }
 
-    function test_exitPartiallyFilledBid_roundingError_succeeds() public {
+    function test_exitPartiallyFilledBid_roundingError_succeeds() public checkAuctionIsSolvent {
         address bob = makeAddr('bob');
         address charlie = makeAddr('charlie');
 
@@ -926,15 +926,6 @@ contract AuctionTest is AuctionBaseTest {
         vm.startPrank(bob);
         auction.exitPartiallyFilledBid(bidId2, 3, 0);
         auction.claimTokens(bidId2);
-        vm.stopPrank();
-
-        // All tokens were sold
-        vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.TokensSwept(auction.tokensRecipient(), 0);
-        auction.sweepUnsoldTokens();
-
-        vm.startPrank(auction.fundsRecipient());
-        auction.sweepCurrency();
         vm.stopPrank();
     }
 

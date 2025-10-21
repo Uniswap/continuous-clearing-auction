@@ -49,6 +49,10 @@ contract AuctionInvariantHandler is Test, Assertions {
     uint256 public bidCount;
 
     struct Metrics {
+        // Stats
+        uint256 cnt_checkpoints;
+        uint256 cnt_clearingPriceUpdated;
+        // Errors
         uint256 cnt_AuctionIsOverError;
         uint256 cnt_BidAmountTooSmallError;
         uint256 cnt_TickPriceNotIncreasingError;
@@ -80,6 +84,14 @@ contract AuctionInvariantHandler is Test, Assertions {
         Checkpoint memory checkpoint = mockAuction.latestCheckpoint();
         if (checkpoint.clearingPrice != 0) {
             assertGe(checkpoint.clearingPrice, mockAuction.floorPrice());
+        }
+        // Update metrics
+        if (checkpoint.clearingPrice != _checkpoint.clearingPrice) {
+            metrics.cnt_clearingPriceUpdated++;
+        }
+        // Reasonable way to check that a new checkpoint was created
+        if (checkpoint.prev != _checkpoint.prev) {
+            metrics.cnt_checkpoints++;
         }
         // Check that the clearing price is always increasing
         assertGe(checkpoint.clearingPrice, _checkpoint.clearingPrice, 'Checkpoint clearing price is not increasing');
@@ -141,8 +153,7 @@ contract AuctionInvariantHandler is Test, Assertions {
 
     /// @notice Roll the block number
     function handleRoll(uint256 seed) public {
-        // TODO(ez): Remove this once we have a better way to fuzz auction duration
-        if (seed % 888 == 0) vm.roll(block.number + 1);
+        if (seed % 88 == 0) vm.roll(block.number + 1);
     }
 
     function handleCheckpoint() public validateCheckpoint {
@@ -174,6 +185,7 @@ contract AuctionInvariantHandler is Test, Assertions {
 
         uint256 prevTickPrice = _getLowerTick(maxPrice);
         uint256 nextBidId = mockAuction.nextBidId();
+        emit log_named_decimal_uint('submitting bid with amount', inputAmount, 18);
         try mockAuction.submitBid{value: currency.isAddressZero() ? inputAmount : 0}(
             maxPrice, inputAmount, currentActor, prevTickPrice, bytes('')
         ) {
@@ -183,6 +195,14 @@ contract AuctionInvariantHandler is Test, Assertions {
             if (block.number >= mockAuction.endBlock()) {
                 assertEq(revertData, abi.encodeWithSelector(IAuctionStepStorage.AuctionIsOver.selector));
                 metrics.cnt_AuctionIsOverError++;
+            } else if (
+                bytes4(revertData) == bytes4(abi.encodeWithSelector(IAuction.BidMustBeAboveClearingPrice.selector))
+            ) {
+                // See if we checkpoint, that the bid maxPrice would be at an invalid price
+                mockAuction.checkpoint();
+                // Because it reverted from BidMustBeAboveClearingPrice, we must assert that it should have
+                assertLe(maxPrice, mockAuction.clearingPrice());
+                metrics.cnt_BidMustBeAboveClearingPriceError++;
             } else if (inputAmount == 0) {
                 assertEq(revertData, abi.encodeWithSelector(IAuction.BidAmountTooSmall.selector));
                 metrics.cnt_BidAmountTooSmallError++;
@@ -203,19 +223,11 @@ contract AuctionInvariantHandler is Test, Assertions {
                 metrics.cnt_InvalidBidUnableToClearError++;
             } else {
                 // For race conditions or any errors that require additional calls to be made
-                if (bytes4(revertData) == bytes4(abi.encodeWithSelector(IAuction.BidMustBeAboveClearingPrice.selector)))
-                {
-                    // See if we checkpoint, that the bid maxPrice would be at an invalid price
-                    mockAuction.checkpoint();
-                    // Because it reverted from BidMustBeAboveClearingPrice, we must assert that it should have
-                    assertLe(maxPrice, mockAuction.clearingPrice());
-                    metrics.cnt_BidMustBeAboveClearingPriceError++;
-                } else {
-                    // Uncaught error so we bubble up the revert reason
-                    emit log_string('Invariant::handleSubmitBid: Uncaught error');
-                    assembly {
-                        revert(add(revertData, 0x20), mload(revertData))
-                    }
+
+                // Uncaught error so we bubble up the revert reason
+                emit log_string('Invariant::handleSubmitBid: Uncaught error');
+                assembly {
+                    revert(add(revertData, 0x20), mload(revertData))
                 }
             }
         }
@@ -224,6 +236,8 @@ contract AuctionInvariantHandler is Test, Assertions {
     function printMetrics() public {
         emit log_string('==================== METRICS ====================');
         emit log_named_uint('bidCount', bidCount);
+        emit log_named_uint('checkpoints count', metrics.cnt_checkpoints);
+        emit log_named_uint('clearingPriceUpdated count', metrics.cnt_clearingPriceUpdated);
         emit log_named_uint('AuctionIsOverError count', metrics.cnt_AuctionIsOverError);
         emit log_named_uint('BidAmountTooSmallError count', metrics.cnt_BidAmountTooSmallError);
         emit log_named_uint('TickPriceNotIncreasingError count', metrics.cnt_TickPriceNotIncreasingError);
@@ -353,9 +367,14 @@ contract AuctionInvariantTest is AuctionUnitTest {
         emit log_string('==================== AFTER EXIT AND CLAIM TOKENS ====================');
         emit log_named_uint('bidCount', bidCount);
         emit log_named_uint('auction duration (blocks)', mockAuction.endBlock() - mockAuction.startBlock());
-        emit log_named_decimal_uint('auction currency balance', address(mockAuction).balance, 18);
-        emit log_named_decimal_uint('actualCurrencyRaised (from all bids after refunds)', totalCurrencyRaised, 18);
-        emit log_named_decimal_uint('expectedCurrencyRaised (for sweepCurrency())', expectedCurrencyRaised, 18);
+        emit log_named_decimal_uint('auction floor price', mockAuction.floorPrice(), 96);
+        emit log_named_decimal_uint('auction final clearing price', mockAuction.clearingPrice(), 96);
+        emit log_named_decimal_uint('auction total supply', mockAuction.totalSupply(), 18);
+        emit log_named_decimal_uint('auction totalCleared', mockAuction.totalCleared(), 18);
+        emit log_named_decimal_uint('auction remaining token balance', token.balanceOf(address(mockAuction)), 18);
+        emit log_named_decimal_uint('auction remaining currency balance', address(mockAuction).balance, 18);
+        emit log_named_decimal_uint('actualCurrencyRaised', totalCurrencyRaised, 18);
+        emit log_named_decimal_uint('expectedCurrencyRaised', expectedCurrencyRaised, 18);
 
         assertEq(
             address(mockAuction).balance,
@@ -364,6 +383,13 @@ contract AuctionInvariantTest is AuctionUnitTest {
         );
 
         mockAuction.sweepUnsoldTokens();
+        emit log_named_decimal_uint(
+            'auction token balance after sweepUnsoldTokens', token.balanceOf(address(mockAuction)), 18
+        );
+        assertApproxEqAbs(
+            token.balanceOf(address(mockAuction)), 0, 1e18, 'Auction should have less than 1e18 tokens left'
+        );
+
         if (mockAuction.isGraduated()) {
             assertLe(
                 expectedCurrencyRaised,

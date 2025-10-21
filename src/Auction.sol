@@ -630,15 +630,8 @@ contract Auction is
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
         uint256 unsoldTokens;
         if (_isGraduated()) {
-            console.log(
-                'tokensClearedQ96_X7',
-                ValueX7.unwrap($tokensClearedQ96_X7),
-                $tokensClearedQ96_X7.divUint256(FixedPoint96.Q96).scaleDownToUint256()
-            );
             unsoldTokens = TOTAL_SUPPLY_Q96.scaleUpToX7().sub($tokensClearedQ96_X7).divUint256(FixedPoint96.Q96)
                 .scaleDownToUint256();
-            console.log('unsoldTokens', unsoldTokens);
-            console.log('token balance', TOKEN.balanceOf(address(this)));
         } else {
             unsoldTokens = TOTAL_SUPPLY;
         }

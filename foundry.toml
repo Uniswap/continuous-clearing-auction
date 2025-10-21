@@ -12,6 +12,7 @@ fs_permissions = [
   { access = "read-write", path = ".forge-snapshots"},
   { access = "read", path = "script/" }
 ]
+extra_output = ["storageLayout"]
 
 remappings = [
   "forge-std=lib/forge-std/src",

@@ -9,8 +9,8 @@ solc = "0.8.26"
 verbosity = 2
 ffi = true
 fs_permissions = [
-  { access = "read-write", path = ".forge-snapshots"},
-  { access = "read", path = "script/" }
+  { access = "read-write", path = ".forge-snapshots" },
+  { access = "read", path = "script/" },
 ]
 
 remappings = [
@@ -19,16 +19,17 @@ remappings = [
   "@openzeppelin/contracts-upgradeable=lib/openzeppelin-contracts-upgradeable/contracts",
   "solady=lib/solady/src",
   "permit2=lib/permit2",
-  "v4-periphery=lib/v4-periphery"
+  "v4-periphery=lib/v4-periphery",
+  "twap-auction=src/",
+  "test=test/",
+  "btt=test/btt/",
 ]
 
-additional_compiler_profiles = [
-  { name = "test", via_ir = false }
-]
+additional_compiler_profiles = [{ name = "test", via_ir = false }]
 
 compilation_restrictions = [
   { paths = "src/AuctionFactory.sol", via_ir = false, optimizer = false, optimzer_runs = 0 },
-  { paths = "test/**", via_ir = false }
+  { paths = "test/**", via_ir = false },
 ]
 
 [profile.default.fuzz]

@@ -1,0 +1,3 @@
+ConstructorTest
+└── when called with permit2
+    └── it writes permit2

@@ -1,0 +1,9 @@
+OnTokensReceivedTest
+├── given _tokensReceived EQ true
+│   └── it returns early
+└── given _tokensReceived NEQ true
+    ├── when TOKEN balance LT TOTAL_SUPPLY
+    │   └── it reverts with {InvalidTokenAmountReceived}
+    └── when TOKEN balance GE TOTAL_SUPPLY
+        ├── it writes _tokensReceived
+        └── it emits {TokensReceived}

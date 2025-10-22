@@ -4,6 +4,8 @@ pragma solidity 0.8.26;
 import {Tick, TickStorage} from '../src/TickStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
+
+import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {Test} from 'forge-std/Test.sol';
@@ -36,12 +38,12 @@ contract TickStorageTest is Test, Assertions {
     MockTickStorage public tickStorage;
 
     modifier givenValidDeploymentParams(uint256 _tickSpacing, uint256 _floorPrice) {
-        $tickSpacing = _tickSpacing;
-        vm.assume(_tickSpacing > 1);
+        $tickSpacing = bound(_tickSpacing, 2, ConstantsLib.MAX_BID_PRICE / 2);
         $floorPrice_rounded = _roundPriceDownToTickSpacing(_floorPrice, $tickSpacing);
-        vm.assume($floorPrice_rounded > 0);
+
         // Assume that floor price is at least one tick away from max price
-        vm.assume($floorPrice_rounded < type(uint256).max - $tickSpacing);
+        $floorPrice_rounded = bound($floorPrice_rounded, $tickSpacing, ConstantsLib.MAX_BID_PRICE - $tickSpacing);
+        $floorPrice_rounded = _roundPriceDownToTickSpacing($floorPrice_rounded, $tickSpacing);
         _;
     }
 
@@ -57,11 +59,11 @@ contract TickStorageTest is Test, Assertions {
 
     function helper__assumeValidPrice(uint256 _price) internal returns (uint256) {
         uint256 minPrice = _roundPriceUpToTickSpacing($floorPrice_rounded, $tickSpacing);
-        uint256 maxPrice = _roundPriceDownToTickSpacing(type(uint256).max, $tickSpacing);
+        uint256 maxPrice = _roundPriceDownToTickSpacing(ConstantsLib.MAX_BID_PRICE, $tickSpacing);
         _price = _bound(_price, minPrice, maxPrice);
         _price = _roundPriceDownToTickSpacing(_price, $tickSpacing);
         vm.assume(_price % $tickSpacing == 0);
-        vm.assume(_price > $floorPrice_rounded && _price < type(uint256).max);
+        vm.assume(_price > $floorPrice_rounded && _price < ConstantsLib.MAX_BID_PRICE);
         return _price;
     }
 
@@ -83,6 +85,9 @@ contract TickStorageTest is Test, Assertions {
             _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
         } else if (floorPrice == 0) {
             vm.expectRevert(ITickStorage.FloorPriceIsZero.selector);
+            _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
+        } else if (floorPrice > ConstantsLib.MAX_BID_PRICE) {
+            vm.expectRevert(ITickStorage.FloorPriceAboveMaxBidPrice.selector);
             _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
         } else if (floorPrice % tickSpacing != 0) {
             vm.expectRevert(ITickStorage.TickPriceNotAtBoundary.selector);

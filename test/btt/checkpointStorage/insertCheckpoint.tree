@@ -1,0 +1,12 @@
+InsertCheckpointTest
+├── given lastCheckpointedBlock EQ 0
+│   ├── it writes _checkpoints[lastCheckpointedBlock].next = blockNumber
+│   ├── it updates checkpoint.prev = lastCheckpointedBlock
+│   ├── it updates checkpoint.next = blockNumber
+│   ├── it writes $_checkpoints[blockNumber] = checkpoint
+│   └── it writes $lastCheckpointedBlock = blockNumber
+└── given lastCheckpointedBlock NEQ 0
+    ├── it updates checkpoint.prev = lastCheckpointedBlock
+    ├── it updates checkpoint.next = blockNumber
+    ├── it writes _checkpoints[blockNumber] = checkpoint
+    └── it writes lastCheckpointedBlock = blockNumber

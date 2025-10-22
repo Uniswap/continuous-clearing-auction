@@ -1,0 +1,25 @@
+ConstructorTest
+├── when total supply EQ 0
+│   └── it reverts with {TotalSupplyIsZero}
+└── when total supply GT 0
+    ├── when required raise GT upper bound
+    │   └── it reverts with {RequiredCurrencyRaisedIsTooLarge}
+    └── when required raise LE upper bound
+        ├── when token EQ address zero
+        │   └── it reverts with {TokenIsAddressZero}
+        └── when token NEQ address zero
+            ├── when token EQ currency
+            │   └── it reverts with {TokenAndCurrencyCannotBeTheSame}
+            └── when token NEQ currency
+                ├── when tokens recipient EQ address zero
+                │   └── it reverts with {TokensRecipientIsZero}
+                └── when tokens recipient NEQ address zero
+                    ├── when funds recipient EQ address zero
+                    │   └── it reverts with {FundsRecipientIsZero}
+                    └── when funds recipient NEQ address zero
+                        ├── it writes token
+                        ├── it writes currency
+                        ├── it writes totalSupply
+                        ├── it writes totalSupply as X7X7
+                        ├── it writes tokens recipient
+                        └── it writes currency recipient

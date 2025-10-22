@@ -81,8 +81,10 @@ contract Auction is
         VALIDATION_HOOK = IValidationHook(_parameters.validationHook);
 
         if (CLAIM_BLOCK < END_BLOCK) revert ClaimBlockIsBeforeEndBlock();
+
         // We cannot support bids at prices which cause TOTAL_SUPPLY * maxPrice to overflow a uint256
-        MAX_BID_PRICE = type(uint256).max / TOTAL_SUPPLY;
+        // However, for tokens with large total supplys and low decimals it would be possible to exceed the Uniswap v4's max tick price
+        MAX_BID_PRICE = FixedPointMathLib.min(type(uint256).max / TOTAL_SUPPLY, ConstantsLib.MAX_BID_PRICE);
     }
 
     /// @notice Modifier for functions which can only be called after the auction is over
@@ -269,13 +271,11 @@ contract Auction is
         uint256 clearingPrice = sumCurrencyDemandAboveClearingQ96_.fullMulDivUp(1, TOTAL_SUPPLY);
         while (
             // Loop while the currency amount above the clearing price is greater than the required currency at `nextActiveTickPrice_`
-            (
-                nextActiveTickPrice_ != MAX_TICK_PTR
-                    && sumCurrencyDemandAboveClearingQ96_ >= TOTAL_SUPPLY * nextActiveTickPrice_
-            )
-            // If the demand above clearing rounds up to the `nextActiveTickPrice`, we need to keep iterating over ticks
-            // This ensures that the `nextActiveTickPrice` is always the next initialized tick strictly above the clearing price
-            || clearingPrice == nextActiveTickPrice_
+            (nextActiveTickPrice_ != MAX_TICK_PTR
+                    && sumCurrencyDemandAboveClearingQ96_ >= TOTAL_SUPPLY * nextActiveTickPrice_)
+                // If the demand above clearing rounds up to the `nextActiveTickPrice`, we need to keep iterating over ticks
+                // This ensures that the `nextActiveTickPrice` is always the next initialized tick strictly above the clearing price
+                || clearingPrice == nextActiveTickPrice_
         ) {
             Tick storage $nextActiveTick = _getTick(nextActiveTickPrice_);
             // Subtract the demand at the current nextActiveTick from the total demand
@@ -344,10 +344,13 @@ contract Auction is
         return _unsafeCheckpoint(END_BLOCK);
     }
 
-    function _submitBid(uint256 maxPrice, uint128 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
-        internal
-        returns (uint256 bidId)
-    {
+    function _submitBid(
+        uint256 maxPrice,
+        uint128 amount,
+        address owner,
+        uint256 prevTickPrice,
+        bytes calldata hookData
+    ) internal returns (uint256 bidId) {
         // Reject bids which would cause TOTAL_SUPPLY * maxPrice to overflow a uint256
         if (maxPrice > MAX_BID_PRICE) revert InvalidBidPriceTooHigh();
 
@@ -454,9 +457,7 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function exitPartiallyFilledBid(uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock)
-        external
-    {
+    function exitPartiallyFilledBid(uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock) external {
         // Checkpoint before checking any of the hints because they could depend on the latest checkpoint
         Checkpoint memory currentBlockCheckpoint = checkpoint();
 

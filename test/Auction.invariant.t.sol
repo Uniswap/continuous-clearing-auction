@@ -328,6 +328,16 @@ contract AuctionInvariantTest is AuctionUnitTest {
         _;
     }
 
+    modifier givenAuctionIsOver() {
+        vm.roll(mockAuction.endBlock());
+        _;
+    }
+
+    modifier givenAuctionIsCheckpointed() {
+        mockAuction.checkpoint();
+        _;
+    }
+
     function _printBalances() internal {
         emit log_string('==================== Auction Balances ====================');
         emit log_named_decimal_uint('currency balance', address(mockAuction).balance, 18);
@@ -338,17 +348,13 @@ contract AuctionInvariantTest is AuctionUnitTest {
         emit log_named_decimal_uint('token balance', token.balanceOf(address(mockAuction.tokensRecipient())), 18);
     }
 
-    function getCheckpoint(uint64 blockNumber) public view returns (Checkpoint memory) {
-        return mockAuction.checkpoints(blockNumber);
-    }
-
     /// Helper function to return the correct checkpoint hints for a partiallFilledBid
     function getLowerUpperCheckpointHints(uint256 maxPrice) public view returns (uint64 lower, uint64 upper) {
         uint64 currentBlock = mockAuction.lastCheckpointedBlock();
 
         // Traverse checkpoints from most recent to oldest
         while (currentBlock != 0) {
-            Checkpoint memory checkpoint = getCheckpoint(currentBlock);
+            Checkpoint memory checkpoint = mockAuction.checkpoints(currentBlock);
 
             // Find the first checkpoint with price > maxPrice (keep updating as we go backwards to get chronologically first)
             if (checkpoint.clearingPrice > maxPrice) {
@@ -366,24 +372,30 @@ contract AuctionInvariantTest is AuctionUnitTest {
         return (lower, upper);
     }
 
-    function invariant_canAlwaysCheckpointDuringAuction() public printMetrics {
-        if (block.number >= mockAuction.startBlock() && block.number < mockAuction.claimBlock()) {
-            mockAuction.checkpoint();
-        }
+    /// @notice Assert that the auction loses no more than 1e18 wei of currency or tokens
+    function assertAcceptableDustBalances() internal {
+        assertApproxEqAbs(
+            address(mockAuction).balance, 0, 1e18, 'Auction currency balance is not within 1e18 wei of zero'
+        );
+        assertApproxEqAbs(
+            token.balanceOf(address(mockAuction)), 0, 1e18, 'Auction token balance is not within 1e18 wei of zero'
+        );
     }
 
-    function invariant_canExitAndClaimAllBids() public printMetrics {
-        // Roll to end of the auction
-        vm.roll(mockAuction.endBlock());
-        mockAuction.checkpoint();
+    /// @notice Exit and claim all outstanding bids on the auction
+    /// @return totalCurrencyRaised The total currency raised from all bids exited and claimed
+    function helper__exitAndClaimAllBids() internal returns (uint256 totalCurrencyRaised) {
+        require(block.number >= mockAuction.endBlock(), 'helper__exitAndClaimAllBids::Auction must be over');
+        require(
+            mockAuction.lastCheckpointedBlock() == mockAuction.endBlock(),
+            'helper__sweep::Auction must be checkpointed at endBlock'
+        );
 
-        Checkpoint memory finalCheckpoint = getCheckpoint(uint64(block.number));
-        // Assert the only thing we know for sure is that the schedule must be 100% at the endBlock
-        assertEq(finalCheckpoint.cumulativeMps, ConstantsLib.MPS, 'Final checkpoint must be 1e7');
         uint256 clearingPrice = mockAuction.clearingPrice();
 
         uint256 bidCount = handler.bidCount();
-        uint256 totalCurrencyRaised = handler.totalCurrencyRaised();
+
+        totalCurrencyRaised = handler.totalCurrencyRaised();
         for (uint256 i = 0; i < bidCount; i++) {
             uint256 bidId = handler.bidIds(i);
             Bid memory bid = mockAuction.bids(bidId);
@@ -433,19 +445,28 @@ contract AuctionInvariantTest is AuctionUnitTest {
         uint256 expectedCurrencyRaised = mockAuction.currencyRaised();
 
         emit log_string('==================== AFTER EXIT AND CLAIM TOKENS ====================');
-        emit log_named_uint('bidCount', bidCount);
+        emit log_named_uint('bidCount', handler.bidCount());
         emit log_named_uint('auction duration (blocks)', mockAuction.endBlock() - mockAuction.startBlock());
         emit log_named_decimal_uint('auction currency balance', address(mockAuction).balance, 18);
-        emit log_named_decimal_uint('actualCurrencyRaised (from all bids after refunds)', totalCurrencyRaised, 18);
-        emit log_named_decimal_uint('expectedCurrencyRaised (for sweepCurrency())', expectedCurrencyRaised, 18);
+        emit log_named_decimal_uint('actualCurrencyRaised', totalCurrencyRaised, 18);
+        emit log_named_decimal_uint('expectedCurrencyRaised', expectedCurrencyRaised, 18);
 
-        assertGe(
-            address(mockAuction).balance,
-            totalCurrencyRaised,
-            'Auction currency balance must be greater than or equal to total currency raised'
+        return totalCurrencyRaised;
+    }
+
+    function helper__sweep() internal {
+        require(block.number >= mockAuction.endBlock(), 'helper__sweep::Auction must be over');
+        require(
+            mockAuction.lastCheckpointedBlock() == mockAuction.endBlock(),
+            'helper__sweep::Auction must be checkpointed at endBlock'
         );
 
+        // Get the expected currency raised from the auction
+        uint256 expectedCurrencyRaised = mockAuction.currencyRaised();
+
+        // We can always sweep unsold tokens regardless of graduation status
         mockAuction.sweepUnsoldTokens();
+
         if (mockAuction.isGraduated()) {
             assertLe(
                 expectedCurrencyRaised,
@@ -456,33 +477,67 @@ contract AuctionInvariantTest is AuctionUnitTest {
             vm.expectEmit(true, true, true, true);
             emit ITokenCurrencyStorage.CurrencySwept(mockAuction.fundsRecipient(), expectedCurrencyRaised);
             mockAuction.sweepCurrency();
-            // Assert that the currency was swept and matches total currency raised
-            assertLe(
-                expectedCurrencyRaised,
-                totalCurrencyRaised,
-                'Expected currency raised is greater than total currency raised'
-            );
             // Assert that the funds recipient received the currency
             assertEq(
                 mockAuction.fundsRecipient().balance,
                 expectedCurrencyRaised,
                 'Funds recipient balance does not match expected currency raised'
             );
-            assertApproxEqAbs(address(mockAuction).balance, 0, 1e6, 'Auction balance is not within 1e6 wei of zero');
         } else {
             vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
             mockAuction.sweepCurrency();
             // At this point we know all bids have been exited so auction balance should be zero
             assertEq(address(mockAuction).balance, 0, 'Auction balance is not zero after sweeping currency');
         }
+    }
 
-        // Assertions
-        assertApproxEqAbs(
-            address(mockAuction).balance, 0, 1e18, 'Auction currency balance is not within 1e18 wei of zero'
+    function invariant_canAlwaysCheckpointDuringAuction() public printMetrics {
+        if (block.number >= mockAuction.startBlock() && block.number < mockAuction.claimBlock()) {
+            mockAuction.checkpoint();
+        }
+    }
+
+    function invariant_canSweep_thenExitAndClaimAllBids()
+        public
+        printMetrics
+        givenAuctionIsOver
+        givenAuctionIsCheckpointed
+    {
+        // Sweep first
+        helper__sweep();
+        // Then exit and claim all bids
+        uint256 totalCurrencyRaised = helper__exitAndClaimAllBids();
+
+        uint256 expectedCurrencyRaised = mockAuction.currencyRaised();
+        assertLe(
+            expectedCurrencyRaised,
+            totalCurrencyRaised,
+            'Expected currency raised is greater than total currency raised'
         );
-        assertApproxEqAbs(
-            token.balanceOf(address(mockAuction)), 0, 1e18, 'Auction token balance is not within 1e18 wei of zero'
-        );
+
         _printBalances();
+        assertAcceptableDustBalances();
+    }
+
+    function invariant_canExitAndClaimAllBids_thenSweep()
+        public
+        printMetrics
+        givenAuctionIsOver
+        givenAuctionIsCheckpointed
+    {
+        // Exit and claim all bids first
+        uint256 totalCurrencyRaised = helper__exitAndClaimAllBids();
+        // Then sweep
+        helper__sweep();
+
+        uint256 expectedCurrencyRaised = mockAuction.currencyRaised();
+        assertLe(
+            expectedCurrencyRaised,
+            totalCurrencyRaised,
+            'Expected currency raised is greater than total currency raised'
+        );
+
+        _printBalances();
+        assertAcceptableDustBalances();
     }
 }

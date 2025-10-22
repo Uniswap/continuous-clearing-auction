@@ -41,6 +41,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
 
         vm.roll(auction.endBlock());
         Checkpoint memory finalCheckpoint = auction.checkpoint();
+
         if ($maxPrice > finalCheckpoint.clearingPrice) {
             auction.exitBid(bidId);
         } else {
@@ -48,7 +49,14 @@ contract AuctionGraduationTest is AuctionBaseTest {
         }
 
         vm.roll(auction.claimBlock());
+        uint256 aliceTokensBefore = token.balanceOf(alice);
         auction.claimTokens(bidId);
+        assertApproxEqAbs(
+            auction.totalCleared(),
+            token.balanceOf(alice) - aliceTokensBefore,
+            MAX_ALLOWABLE_DUST_WEI,
+            'Total cleared must be within 1e18 wei of the tokens filled by alice'
+        );
     }
 
     function test_exitBid_notGraduated_succeeds(
@@ -201,13 +209,14 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenGraduatedAuction
         givenAuctionHasStarted
         givenFullyFundedAccount
+        checkAuctionIsGraduated
+        checkAuctionIsSolvent
     {
         uint64 bidIdBlock = uint64(block.number);
         uint256 bidId = auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
         vm.roll(auction.endBlock());
         Checkpoint memory finalCheckpoint = auction.checkpoint();
-        uint256 expectedCurrencyRaised = auction.currencyRaised();
 
         uint256 aliceBalanceBefore = address(alice).balance;
         if ($maxPrice > finalCheckpoint.clearingPrice) {
@@ -218,20 +227,15 @@ contract AuctionGraduationTest is AuctionBaseTest {
             auction.exitPartiallyFilledBid(bidId, bidIdBlock, 0);
         }
 
-        emit log_string('==================== SWEEP CURRENCY ====================');
-        emit log_named_uint('auction balance', address(auction).balance);
-        emit log_named_uint('bid amount', $bidAmount);
-        emit log_named_uint('max price', $maxPrice);
-        emit log_named_uint('final clearing price', finalCheckpoint.clearingPrice);
-        emit log_named_uint('expectedCurrencyRaised', expectedCurrencyRaised);
-
-        vm.prank(fundsRecipient);
-        vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.CurrencySwept(fundsRecipient, expectedCurrencyRaised);
-        auction.sweepCurrency();
-
-        // Verify funds were transferred
-        assertEq(fundsRecipient.balance, expectedCurrencyRaised);
+        vm.roll(auction.claimBlock());
+        uint256 aliceTokensBefore = token.balanceOf(alice);
+        auction.claimTokens(bidId);
+        assertApproxEqAbs(
+            token.balanceOf(alice),
+            aliceTokensBefore + auction.totalCleared(),
+            MAX_ALLOWABLE_DUST_WEI,
+            'Total cleared must be within 1e18 wei of the tokens filled by alice'
+        );
     }
 
     function test_concrete_expectedCurrencyRaisedGreaterThanBalance() public {
@@ -275,10 +279,18 @@ contract AuctionGraduationTest is AuctionBaseTest {
         assertLe(bid.tokensFilled, auction.totalCleared());
 
         vm.roll(auction.claimBlock());
+        uint256 aliceTokensBefore = token.balanceOf(alice);
         vm.expectEmit(true, true, true, true);
         emit IAuction.TokensClaimed(bidId, alice, bid.tokensFilled);
         auction.claimTokens(bidId);
         assertEq(token.balanceOf(alice), bid.tokensFilled);
+
+        assertApproxEqAbs(
+            auction.totalCleared(),
+            token.balanceOf(alice) - aliceTokensBefore,
+            MAX_ALLOWABLE_DUST_WEI,
+            'Total cleared must be within 1e18 wei of the tokens filled by alice'
+        );
     }
 
     function test_sweepUnsoldTokens_notGraduated(

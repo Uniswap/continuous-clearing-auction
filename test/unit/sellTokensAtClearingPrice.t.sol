@@ -90,8 +90,8 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
         assertLe(mockAuction.totalCleared(), (totalSupply * _deltaMps) / ConstantsLib.MPS);
     }
 
-    function test_WhenThereIsEnoughDemandAtTheTickAndTicksAboveButNotEnoughDemandAtTicksAboveToFindAClearingPriceBetween(
-    ) external {
+    function test_WhenThereIsEnoughDemandAtTheTickAndTicksAboveButNotEnoughDemandAtTicksAboveToFindAClearingPriceBetween()
+        external {
         // it should sell tokens at the clearing price - there should be no demand at the current clearing price
         // it should set the cumulativeMpsPerPrice with the new floor at tick spacing
         // it should update cumulative mps by deltaMps

@@ -1,0 +1,5 @@
+GetBidTest
+├── when bid does not exist
+│   └── it reverts with {BidIdDoesNotExist}
+└── when bid exists
+    └── it returns the bid

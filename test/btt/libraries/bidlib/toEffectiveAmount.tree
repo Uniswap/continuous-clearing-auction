@@ -1,0 +1,5 @@
+ToEffectiveAmountTest
+├── when remaining mps EQ 0
+│   └── it reverts with {MpsRemainingIsZero}
+└── when remaining mps NEQ 0
+    └── it returns bid.amount * mps / (mps - bid.startCumulativeMps)

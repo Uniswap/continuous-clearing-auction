@@ -1,10 +1,10 @@
 {
-  "checkpoint_advanceToCurrentStep": "161736",
+  "checkpoint_advanceToCurrentStep": "161733",
   "checkpoint_noBids": "144975",
   "checkpoint_zeroSupply": "117244",
   "claimTokens": "79459",
   "exitBid": "84623",
-  "exitPartiallyFilledBid": "235691",
+  "exitPartiallyFilledBid": "235688",
   "submitBid": "150117",
   "submitBidWithoutPrevTickPrice": "150149",
   "submitBidWithoutPrevTickPrice_initializeTick_search": "198188",

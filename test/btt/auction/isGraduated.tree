@@ -1,0 +1,5 @@
+IsGraduatedTest
+├── given latestCheckpoint price LE FLOOR_PRICE
+│   └── it returns false
+└── given latestCheckpoint price GT FLOOR_PRICE
+    └── it returns true

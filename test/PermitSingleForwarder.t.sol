@@ -54,10 +54,7 @@ contract PermitSingleForwarderTest is Test {
     function test_permit_success() public {
         IAllowanceTransfer.PermitSingle memory permitSingle = IAllowanceTransfer.PermitSingle({
             details: IAllowanceTransfer.PermitDetails({
-                token: token,
-                amount: 1000,
-                expiration: uint48(block.timestamp + 3600),
-                nonce: 0
+                token: token, amount: 1000, expiration: uint48(block.timestamp + 3600), nonce: 0
             }),
             spender: address(forwarder),
             sigDeadline: uint48(block.timestamp + 3600)
@@ -74,10 +71,7 @@ contract PermitSingleForwarderTest is Test {
     function test_permit_revertsAndReturnsError() public {
         IAllowanceTransfer.PermitSingle memory permitSingle = IAllowanceTransfer.PermitSingle({
             details: IAllowanceTransfer.PermitDetails({
-                token: token,
-                amount: 1000,
-                expiration: uint48(block.timestamp + 3600),
-                nonce: 0
+                token: token, amount: 1000, expiration: uint48(block.timestamp + 3600), nonce: 0
             }),
             spender: address(forwarder),
             sigDeadline: uint48(block.timestamp + 3600)
@@ -101,10 +95,7 @@ contract PermitSingleForwarderTest is Test {
     function test_permit_withEmptySignature() public {
         IAllowanceTransfer.PermitSingle memory permitSingle = IAllowanceTransfer.PermitSingle({
             details: IAllowanceTransfer.PermitDetails({
-                token: token,
-                amount: 1000,
-                expiration: uint48(block.timestamp + 3600),
-                nonce: 0
+                token: token, amount: 1000, expiration: uint48(block.timestamp + 3600), nonce: 0
             }),
             spender: address(forwarder),
             sigDeadline: uint48(block.timestamp + 3600)
@@ -121,10 +112,7 @@ contract PermitSingleForwarderTest is Test {
     function test_permit_withLargeSignature() public {
         IAllowanceTransfer.PermitSingle memory permitSingle = IAllowanceTransfer.PermitSingle({
             details: IAllowanceTransfer.PermitDetails({
-                token: token,
-                amount: 1000,
-                expiration: uint48(block.timestamp + 3600),
-                nonce: 0
+                token: token, amount: 1000, expiration: uint48(block.timestamp + 3600), nonce: 0
             }),
             spender: address(forwarder),
             sigDeadline: uint48(block.timestamp + 3600)
@@ -141,10 +129,7 @@ contract PermitSingleForwarderTest is Test {
     function test_permit_withZeroAddressOwner() public {
         IAllowanceTransfer.PermitSingle memory permitSingle = IAllowanceTransfer.PermitSingle({
             details: IAllowanceTransfer.PermitDetails({
-                token: token,
-                amount: 1000,
-                expiration: uint48(block.timestamp + 3600),
-                nonce: 0
+                token: token, amount: 1000, expiration: uint48(block.timestamp + 3600), nonce: 0
             }),
             spender: address(forwarder),
             sigDeadline: uint48(block.timestamp + 3600)
@@ -161,10 +146,7 @@ contract PermitSingleForwarderTest is Test {
     function test_permit_withDifferentSpender() public {
         IAllowanceTransfer.PermitSingle memory permitSingle = IAllowanceTransfer.PermitSingle({
             details: IAllowanceTransfer.PermitDetails({
-                token: token,
-                amount: 1000,
-                expiration: uint48(block.timestamp + 3600),
-                nonce: 0
+                token: token, amount: 1000, expiration: uint48(block.timestamp + 3600), nonce: 0
             }),
             spender: makeAddr('charlie'),
             sigDeadline: uint48(block.timestamp + 3600)
@@ -281,10 +263,7 @@ contract PermitSingleForwarderTest is Test {
     function test_permit_withComplexError() public {
         IAllowanceTransfer.PermitSingle memory permitSingle = IAllowanceTransfer.PermitSingle({
             details: IAllowanceTransfer.PermitDetails({
-                token: token,
-                amount: 1000,
-                expiration: uint48(block.timestamp + 3600),
-                nonce: 0
+                token: token, amount: 1000, expiration: uint48(block.timestamp + 3600), nonce: 0
             }),
             spender: address(forwarder),
             sigDeadline: uint48(block.timestamp + 3600)
@@ -309,10 +288,7 @@ contract PermitSingleForwarderTest is Test {
     function test_permit_isPayable() public {
         IAllowanceTransfer.PermitSingle memory permitSingle = IAllowanceTransfer.PermitSingle({
             details: IAllowanceTransfer.PermitDetails({
-                token: token,
-                amount: 1000,
-                expiration: uint48(block.timestamp + 3600),
-                nonce: 0
+                token: token, amount: 1000, expiration: uint48(block.timestamp + 3600), nonce: 0
             }),
             spender: address(forwarder),
             sigDeadline: uint48(block.timestamp + 3600)
@@ -330,10 +306,7 @@ contract PermitSingleForwarderTest is Test {
     function test_permit_implementsIPermitSingleForwarder() public {
         IAllowanceTransfer.PermitSingle memory permitSingle = IAllowanceTransfer.PermitSingle({
             details: IAllowanceTransfer.PermitDetails({
-                token: token,
-                amount: 1000,
-                expiration: uint48(block.timestamp + 3600),
-                nonce: 0
+                token: token, amount: 1000, expiration: uint48(block.timestamp + 3600), nonce: 0
             }),
             spender: address(forwarder),
             sigDeadline: uint48(block.timestamp + 3600)

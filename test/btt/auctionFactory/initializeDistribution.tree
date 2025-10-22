@@ -1,0 +1,30 @@
+InitializeDistributionTest
+├── when amount GT uint128 max
+│   └── it reverts with {InvalidAmount}
+└── when amount LE uint128 max
+    ├── when tokensRecipient EQ ActionConstants MSG_SENDER
+    │   ├── when fundsRecipient EQ ActionConstants MSG_SENDER
+    │   │   ├── it uses msg.sender as tokensRecipient
+    │   │   ├── it uses msg.sender as fundsRecipient
+    │   │   ├── it creates an auction
+    │   │   ├── it emits {AuctionCreated}
+    │   │   └── it returns the auction
+    │   └── when fundsRecipient NEQ ActionConstants MSG_SENDER
+    │       ├── it uses msg.sender as tokensRecipient
+    │       ├── it uses fundsRecipient as fundsRecipient
+    │       ├── it creates an auction
+    │       ├── it emits {AuctionCreated}
+    │       └── it returns the auction
+    └── when tokensRecipient NEQ ActionConstants MSG_SENDER
+        ├── when fundsRecipient EQ ActionConstants MSG_SENDER 2
+        │   ├── it uses tokensRecipient as tokensRecipient
+        │   ├── it uses msg.sender as fundsRecipient
+        │   ├── it creates an auction
+        │   ├── it emits {AuctionCreated}
+        │   └── it returns the auction
+        └── when fundsRecipient NEQ ActionConstants MSG_SENDER 2
+            ├── it uses tokensRecipient as tokensRecipient
+            ├── it uses fundsRecipient as fundsRecipient
+            ├── it creates an auction
+            ├── it emits {AuctionCreated}
+            └── it returns the auction

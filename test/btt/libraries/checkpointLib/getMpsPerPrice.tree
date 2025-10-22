@@ -1,0 +1,5 @@
+GetMpsPerPriceTest
+├── when called with price EQ 0
+│   └── it returns 0
+└── when called with price GT 0
+    └── it returns mps * Q96 ** 2 div price

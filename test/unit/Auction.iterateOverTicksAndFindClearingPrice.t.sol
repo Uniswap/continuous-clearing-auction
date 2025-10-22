@@ -204,8 +204,9 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
         assertEq(mockAuction.sumCurrencyDemandAboveClearingQ96(), 0, 'sum demand above clearing should be 0');
     }
 
-    function test_WhenThereIsEnoughDemandAtTheTickAndTicksAboveButNotEnoughDemandAtTicksAboveToFindAClearingPriceInbetween(
-    ) external {
+    function test_WhenThereIsEnoughDemandAtTheTickAndTicksAboveButNotEnoughDemandAtTicksAboveToFindAClearingPriceInbetween()
+        external
+    {
         // it should set clearing price to a tick boundary
         // it should set sumDemandAboveClearing to be sum of ticks above clearing price
 

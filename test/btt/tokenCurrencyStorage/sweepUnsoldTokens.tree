@@ -1,0 +1,9 @@
+SweepUnsoldTokensTest
+├── when amount EQ 0
+│   ├── it writes sweepUnsoldTokensBlock
+│   ├── it does NOT call transfer
+│   └── it emits {TokensSwept}
+└── when amount GT 0
+    ├── it writes sweepUnsoldTokensBlock
+    ├── it transfers amount tokens to tokens recipient
+    └── it emits {TokensSwept}

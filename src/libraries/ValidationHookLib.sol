@@ -21,9 +21,8 @@ library ValidationHookLib {
     ) internal {
         if (address(hook) == address(0)) return;
 
-        (bool success, bytes memory reason) = address(hook).call(
-            abi.encodeWithSelector(IValidationHook.validate.selector, maxPrice, amount, owner, sender, hookData)
-        );
+        (bool success, bytes memory reason) = address(hook)
+            .call(abi.encodeWithSelector(IValidationHook.validate.selector, maxPrice, amount, owner, sender, hookData));
         if (!success) revert ValidationHookCallFailed(reason);
     }
 }

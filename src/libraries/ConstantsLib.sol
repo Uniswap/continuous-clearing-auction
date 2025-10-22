@@ -10,4 +10,8 @@ library ConstantsLib {
     uint256 constant X7_UPPER_BOUND = (type(uint256).max) / 1e7;
     /// @notice The maximum allowable amount for currency or token related values
     uint128 constant MAX_AMOUNT = type(uint128).max / 1e7;
+
+    /// @notice The maximum allowable price for a bid, defined as the square of MAX_SQRT_PRICE from Uniswap v4's TickMath library.
+    uint256 constant MAX_BID_PRICE =
+        26_957_920_004_054_754_506_022_898_809_067_591_261_277_585_227_686_421_694_841_721_768_917;
 }

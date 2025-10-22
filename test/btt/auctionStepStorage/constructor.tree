@@ -1,0 +1,11 @@
+ConstructorTest
+├── when start block GE end block
+│   └── it reverts with {InvalidEndBlock}
+└── when start block LE end block
+    ├── it etches START_BLOCK
+    ├── it etches END_BLOCK
+    ├── it etches _LENGTH
+    ├── it etches $_pointer
+    ├── it writes $_offset
+    ├── it writes $step
+    └── it emits {AuctionStepRecorded}

@@ -2,8 +2,7 @@
 pragma solidity 0.8.26;
 
 import {ITickStorage} from './interfaces/ITickStorage.sol';
-import {BidLib} from './libraries/BidLib.sol';
-import {ValueX7} from './libraries/ValueX7Lib.sol';
+import {ConstantsLib} from './libraries/ConstantsLib.sol';
 
 struct Tick {
     uint256 next;
@@ -31,6 +30,7 @@ abstract contract TickStorage is ITickStorage {
         if (_tickSpacing <= 1) revert TickSpacingTooSmall();
         TICK_SPACING = _tickSpacing;
         if (_floorPrice == 0) revert FloorPriceIsZero();
+        if (_floorPrice > ConstantsLib.MAX_BID_PRICE) revert FloorPriceAboveMaxBidPrice();
         FLOOR_PRICE = _floorPrice;
         // Initialize the floor price as the first tick
         // _getTick will validate that it is also at a tick boundary

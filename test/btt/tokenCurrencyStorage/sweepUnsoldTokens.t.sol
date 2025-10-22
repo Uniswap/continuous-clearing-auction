@@ -10,7 +10,7 @@ import {IERC20} from 'forge-std/interfaces/IERC20.sol';
 import {Currency} from 'twap-auction/libraries/CurrencyLibrary.sol';
 
 contract SweepUnsoldTokensTest is BttBase {
-    function test_WhenAmountEQ0(uint256 _blockNumber) external {
+    function test_WhenAmountEQ0(uint64 _blockNumber) external {
         // it writes sweepUnsoldTokensBlock
         // it does NOT call transfer
         // it emits {TokensSwept}
@@ -38,7 +38,7 @@ contract SweepUnsoldTokensTest is BttBase {
         assertEq(token.balanceOf(address(tokensRecipient)), 0);
     }
 
-    function test_WhenAmountGT0(uint256 _amount, uint256 _blockNumber) external {
+    function test_WhenAmountGT0(uint256 _amount, uint64 _blockNumber) external {
         // it writes sweepUnsoldTokensBlock
         // it transfers amount tokens to tokens recipient
         // it emits {TokensSwept}

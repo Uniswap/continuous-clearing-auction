@@ -12,7 +12,7 @@ import {IERC20} from 'forge-std/interfaces/IERC20.sol';
 import {Currency} from 'twap-auction/libraries/CurrencyLibrary.sol';
 
 contract SweepCurrencyTest is BttBase {
-    function test_WhenAmountEQ0(bool _isNativeCurrency, uint256 _blockNumber) external {
+    function test_WhenAmountEQ0(bool _isNativeCurrency, uint64 _blockNumber) external {
         // it writes sweepCurrencyBlock
         // it transfers 0 currency to funds recipient
         // it emits {CurrencySwept}
@@ -66,7 +66,7 @@ contract SweepCurrencyTest is BttBase {
         assertEq(Currency.wrap(currency).balanceOf(address(fundsRecipient)), 0);
     }
 
-    function test_WhenAmountGT0(bool _isNativeCurrency, uint256 _amount, uint256 _blockNumber) external {
+    function test_WhenAmountGT0(bool _isNativeCurrency, uint256 _amount, uint64 _blockNumber) external {
         // it writes sweepCurrencyBlock
         // it transfers amount currency to funds recipient
         // it emits {CurrencySwept}

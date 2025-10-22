@@ -74,8 +74,6 @@ contract PermitTest is BttBase {
 
         MockPermitSingleForwarder forwarder = new MockPermitSingleForwarder(IAllowanceTransfer(permit2));
 
-        // Very confused here why are we ending up exploding here with an error
-
         vm.mockCall(permit2, PERMIT_SELECTOR, bytes(''));
         bytes memory result = forwarder.permit(_owner, _permitSingle, _signature);
         emit log_bytes(result);

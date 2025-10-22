@@ -5,7 +5,7 @@ import {BttBase} from 'btt/BttBase.sol';
 import {MockCheckpointStorage} from 'btt/mocks/MockCheckpointStorage.sol';
 
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {Bid} from 'twap-auction/libraries/BidLib.sol';
+import {Bid, BidLib} from 'twap-auction/libraries/BidLib.sol';
 import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
 import {FixedPoint96} from 'twap-auction/libraries/FixedPoint96.sol';
 import {ValueX7} from 'twap-auction/libraries/ValueX7Lib.sol';
@@ -20,7 +20,7 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
         mockCheckpointStorage = new MockCheckpointStorage();
     }
 
-    function test_WhenDemandEQ0(Bid memory _bid, ValueX7 _cumulativeCurrencyRaisedAtClearingPriceQ96_X7) external {
+    function test_WhenDemandEQ0(Bid memory _bid, ValueX7 _cumulativeCurrencyRaisedAtClearingPriceQ96_X7) external view {
         // it returns (0, 0)
 
         (uint256 tokensFilled, uint256 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
@@ -35,21 +35,23 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
         Bid memory _bid,
         uint256 _tickDemandQ96,
         uint256 _cumulativeCurrencyRaisedAtClearingPrice
-    ) external {
+    ) external view {
         // it returns the currency spent (bid * raised at price / (demand * remaining mps))
         // it returns the tokens filled (currency spent / max price)
 
         // Limit values such that end results will not be beyond 256 bits.
-        // amount * cumulative * 1e7 * 1e7 * 1e7 <= type(uint256).max
+        // amountQ96 * 1e7 * cumulativeQ96 * 1e7 / tickDemandQ96 * remainingMps
+        // as the amount is part of the demand, amount <= tickDemand, we can "cancel" them (concerning the limits)
+        // cumulativeQ96 * 1e14 / remainingMps.  where the worst value for remainingMps would be 1, so we have
+        // cumulativeQ96 * 1e14 <= type(uint256).max
+
+        _bid.amountQ96 = bound(_bid.amountQ96, 1, type(uint128).max);
+        _bid.maxPrice = bound(_bid.maxPrice, 1, ConstantsLib.MAX_BID_PRICE);
+        _bid.startCumulativeMps = uint24(bound(_bid.startCumulativeMps, 0, ConstantsLib.MPS - 1));
+        _tickDemandQ96 = bound(_tickDemandQ96, BidLib.toEffectiveAmount(_bid), type(uint256).max / ConstantsLib.MPS);
 
         _cumulativeCurrencyRaisedAtClearingPrice =
-            bound(_cumulativeCurrencyRaisedAtClearingPrice, 0, type(uint128).max / 1e14);
-
-        _bid.amountQ96 = bound(_bid.amountQ96, 0, type(uint128).max / ConstantsLib.MPS);
-        _bid.maxPrice = bound(_bid.maxPrice, 1, type(uint96).max);
-        _bid.startCumulativeMps = uint24(bound(_bid.startCumulativeMps, 0, ConstantsLib.MPS - 1));
-
-        _tickDemandQ96 = bound(_tickDemandQ96, 1, type(uint256).max / ConstantsLib.MPS);
+            bound(_cumulativeCurrencyRaisedAtClearingPrice, 0, type(uint256).max / 1e14);
 
         ValueX7 _cumulativeCurrencyRaisedAtClearingPriceX7 = _cumulativeCurrencyRaisedAtClearingPrice.scaleUpToX7();
 
@@ -57,15 +59,13 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
             _bid, _tickDemandQ96, _cumulativeCurrencyRaisedAtClearingPriceX7
         );
 
-        uint256 left = ConstantsLib.MPS - _bid.startCumulativeMps;
-
         uint256 scaledCurrencySpent = FixedPointMathLib.fullMulDivUp(
             _bid.amountQ96 * ConstantsLib.MPS,
             ValueX7.unwrap(_cumulativeCurrencyRaisedAtClearingPriceX7),
-            _tickDemandQ96 * left
+            _tickDemandQ96 * (ConstantsLib.MPS - _bid.startCumulativeMps)
         );
 
         assertEq(currencySpent, scaledCurrencySpent / ConstantsLib.MPS, 'currency spent');
-        assertEq(tokensFilled, scaledCurrencySpent / (_bid.maxPrice * ConstantsLib.MPS), 'tokens filled');
+        assertEq(tokensFilled, scaledCurrencySpent / ConstantsLib.MPS / _bid.maxPrice, 'tokens filled');
     }
 }

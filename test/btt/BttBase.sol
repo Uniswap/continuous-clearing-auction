@@ -7,9 +7,6 @@ import {VmSafe} from 'forge-std/Vm.sol';
 import {Bid} from 'twap-auction/BidStorage.sol';
 
 import {AuctionParameters} from 'twap-auction/interfaces/IAuction.sol';
-import {Checkpoint} from 'twap-auction/libraries/CheckpointLib.sol';
-
-import {ValueX7} from 'twap-auction/libraries/ValueX7Lib.sol';
 
 // Chore: move to a shared place
 import {CompactStep, CompactStepLib, Step} from 'test/btt/libraries/auctionStepLib/StepUtils.sol';
@@ -132,26 +129,4 @@ contract BttBase is AuctionBaseTest {
         assertEq(_step.endBlock, _step2.endBlock, 'endBlock');
         assertEq(_step.mps, _step2.mps, 'mps');
     }
-
-    // function assertEq(ValueX7 _valueX7, ValueX7 _valueX72) internal pure {
-    //     assertEq(ValueX7.unwrap(_valueX7), ValueX7.unwrap(_valueX72));
-    // }
-
-    // function assertEq(ValueX7 _valueX7, ValueX7 _valueX72, string memory _err) internal pure {
-    //     assertEq(ValueX7.unwrap(_valueX7), ValueX7.unwrap(_valueX72), _err);
-    // }
-
-    // function assertEq(Checkpoint memory _checkpoint, Checkpoint memory _checkpoint2) internal pure {
-    //     assertEq(_checkpoint.clearingPrice, _checkpoint2.clearingPrice, 'clearingPrice');
-    //     assertEq(_checkpoint.currencyRaisedQ96_X7, _checkpoint2.currencyRaisedQ96_X7, 'currencyRaisedQ96_X7');
-    //     assertEq(
-    //         _checkpoint.currencyRaisedAtClearingPriceQ96_X7,
-    //         _checkpoint2.currencyRaisedAtClearingPriceQ96_X7,
-    //         'currencyRaisedAtClearingPriceQ96_X7'
-    //     );
-    //     assertEq(_checkpoint.cumulativeMpsPerPrice, _checkpoint2.cumulativeMpsPerPrice, 'cumulativeMpsPerPrice');
-    //     assertEq(_checkpoint.cumulativeMps, _checkpoint2.cumulativeMps, 'cumulativeMps');
-    //     assertEq(_checkpoint.prev, _checkpoint2.prev, 'prev');
-    //     assertEq(_checkpoint.next, _checkpoint2.next, 'next');
-    // }
 }

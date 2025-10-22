@@ -185,6 +185,8 @@ contract AuctionGraduationTest is AuctionBaseTest {
         assertEq(address(auction).balance, 0);
     }
 
+    /// forge-config: default.isolate = true
+    /// forge-config: ci.isolate = true
     function test_sweepCurrency_graduated_succeeds(
         FuzzDeploymentParams memory _deploymentParams,
         uint128 _bidAmount,
@@ -225,6 +227,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.CurrencySwept(fundsRecipient, expectedCurrencyRaised);
         auction.sweepCurrency();
+        vm.snapshotGasLastCall('sweepCurrency_graduated');
 
         // Verify funds were transferred
         assertEq(fundsRecipient.balance, expectedCurrencyRaised);
@@ -237,6 +240,8 @@ contract AuctionGraduationTest is AuctionBaseTest {
         require(success, string(result));
     }
 
+    /// forge-config: ci.isolate = true
+    /// forge-config: default.isolate = true
     function test_sweepUnsoldTokens_graduated(
         FuzzDeploymentParams memory _deploymentParams,
         uint128 _bidAmount,
@@ -258,10 +263,13 @@ contract AuctionGraduationTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, 0);
         auction.sweepUnsoldTokens();
+        vm.snapshotGasLastCall('sweepUnsoldTokens_graduated');
 
         assertEq(token.balanceOf(tokensRecipient), 0);
     }
 
+    /// forge-config: ci.isolate = true
+    /// forge-config: default.isolate = true
     function test_sweepUnsoldTokens_notGraduated(
         FuzzDeploymentParams memory _deploymentParams,
         uint128 _bidAmount,
@@ -286,6 +294,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, $deploymentParams.totalSupply);
         auction.sweepUnsoldTokens();
+        vm.snapshotGasLastCall('sweepUnsoldTokens_notGraduated');
 
         // Verify all tokens were transferred
         assertEq(token.balanceOf(tokensRecipient), $deploymentParams.totalSupply);

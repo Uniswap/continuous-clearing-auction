@@ -1054,6 +1054,7 @@ contract AuctionTest is AuctionBaseTest {
         token.transfer(bob, balance);
         // No revert happens, no event is emitted
         auction.onTokensReceived();
+        vm.snapshotGasLastCall('onTokensReceived');
     }
 
     function test_onTokensReceived_withWrongBalance_reverts() public {
@@ -2021,6 +2022,7 @@ contract AuctionTest is AuctionBaseTest {
             emit IAuction.TokensClaimed(bids[i], alice, amountClearedPerBid);
         }
         auction.claimTokensBatch(alice, bids);
+        vm.snapshotGasLastCall('claimTokensBatch');
 
         assertEq(token.balanceOf(alice), amountClearedPerBid * _numberOfBids);
     }

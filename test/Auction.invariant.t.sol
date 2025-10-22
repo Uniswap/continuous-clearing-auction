@@ -162,7 +162,8 @@ contract AuctionInvariantHandler is Test, Assertions {
 
     /// @notice Roll the block number
     function handleRoll(uint256 seed) public {
-        if (seed % 88 == 0) vm.roll(block.number + 1);
+        // Roll 10% of the time to ensure that we can submit enough bids given the block duration of the auction
+        if (seed % 10 == 0) vm.roll(block.number + 1);
     }
 
     function handleCheckpoint() public validateCheckpoint {

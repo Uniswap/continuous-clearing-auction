@@ -17,7 +17,6 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 /// @dev These tests fuzz over the full range of inputs for both the auction parameters and the bids submitted
 ///      so we limit the number of fuzz runs.
 /// forge-config: default.fuzz.runs = 1000
-/// forge-config: ci.fuzz.runs = 1000
 contract AuctionGraduationTest is AuctionBaseTest {
     using ValueX7Lib for *;
     using BidLib for *;

@@ -1514,7 +1514,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         ValueX7 expectedTotalCurrencyRaised = ValueX7.wrap(TOTAL_SUPPLY_Q96)
             .wrapAndFullMulDivUp(tickNumberToPriceX96(2) * (ConstantsLib.MPS - 100e3 * 10), FixedPoint96.Q96);
-        emit IAuction.CheckpointUpdated(// Yet the `cumulativeMps` should still be 100%
+        emit IAuction.CheckpointUpdated( // Yet the `cumulativeMps` should still be 100%
             startBlock + 40, tickNumberToPriceX96(2), expectedTotalCurrencyRaised, ConstantsLib.MPS
         );
         mockAuction.checkpoint();

@@ -25,6 +25,9 @@ contract InitializeDistributionTest is BttBase {
 
         vm.expectRevert(abi.encodeWithSelector(IAuctionFactory.InvalidAmount.selector, _amount));
         factory.initializeDistribution(address(token), _amount, abi.encode(params), bytes32(0));
+
+        vm.expectRevert(abi.encodeWithSelector(IAuctionFactory.InvalidAmount.selector, _amount));
+        factory.getAuctionAddress(address(token), _amount, abi.encode(params), bytes32(0), address(0));
     }
 
     modifier whenAmountLEUint128Max(AuctionFuzzConstructorParams memory _params) {

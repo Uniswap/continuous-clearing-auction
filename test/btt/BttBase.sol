@@ -16,6 +16,7 @@ import {CompactStep, CompactStepLib, Step} from 'test/btt/libraries/auctionStepL
 import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
 
 import {AuctionBaseTest} from 'test/utils/AuctionBaseTest.sol';
+import {AuctionStep} from 'twap-auction/libraries/AuctionStepLib.sol';
 
 struct AuctionFuzzConstructorParams {
     address token;
@@ -57,7 +58,7 @@ contract BttBase is AuctionBaseTest {
         vm.assume(_params.parameters.fundsRecipient != address(0));
         vm.assume(_params.parameters.tokensRecipient != address(0));
 
-        (bytes memory auctionStepsData, uint256 numberOfBlocks) = generateAuctionSteps(_params.steps);
+        (bytes memory auctionStepsData, uint256 numberOfBlocks,) = generateAuctionSteps(_params.steps);
 
         _params.parameters.startBlock =
             uint64(bound(_params.parameters.startBlock, 1, type(uint64).max - numberOfBlocks - 2));
@@ -75,11 +76,11 @@ contract BttBase is AuctionBaseTest {
     }
 
     /**
-     * Take in a ranomly generated sequencer of auction steps and generate a compatible sequence
+     * Take in a randomly generated sequencer of auction steps and generate a compatible sequence
      * - The sum of all of the mps generated should be equal to the total mps
      * - If the randomly generated sequence becomes too large, or falls short, we fill it with a single step which mades up the difference
      */
-    function generateAuctionSteps(Step[] memory _steps) internal pure returns (bytes memory, uint256) {
+    function generateAuctionSteps(Step[] memory _steps) internal pure returns (bytes memory, uint256, Step[] memory) {
         vm.assume(_steps.length > 0);
 
         uint256 totalMps = 0;
@@ -113,7 +114,7 @@ contract BttBase is AuctionBaseTest {
 
         bytes memory auctionStepsData = CompactStepLib.pack(steps);
 
-        return (auctionStepsData, numberOfBlocks);
+        return (auctionStepsData, numberOfBlocks, _steps);
     }
 
     function assertEq(Bid memory _bid, Bid memory _bid2) internal pure {
@@ -124,6 +125,12 @@ contract BttBase is AuctionBaseTest {
         assertEq(_bid.owner, _bid2.owner, 'owner');
         assertEq(_bid.amountQ96, _bid2.amountQ96, 'amountQ96');
         assertEq(_bid.tokensFilled, _bid2.tokensFilled, 'tokensFilled');
+    }
+
+    function assertEq(AuctionStep memory _step, AuctionStep memory _step2) internal pure {
+        assertEq(_step.startBlock, _step2.startBlock, 'startBlock');
+        assertEq(_step.endBlock, _step2.endBlock, 'endBlock');
+        assertEq(_step.mps, _step2.mps, 'mps');
     }
 
     // function assertEq(ValueX7 _valueX7, ValueX7 _valueX72) internal pure {

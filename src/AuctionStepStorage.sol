@@ -41,7 +41,7 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
 
     /// @notice Validate the data provided in the constructor
     /// @dev Checks that the contract was correctly deployed by SSTORE2 and that the total mps and blocks are valid
-    function _validate(address _pointer) private view {
+    function _validate(address _pointer) internal view {
         bytes memory _auctionStepsData = _pointer.read();
         if (
             _auctionStepsData.length == 0 || _auctionStepsData.length % AuctionStepLib.UINT64_SIZE != 0
@@ -65,7 +65,7 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
     /// @notice Advance the current auction step
     /// @dev This function is called on every new bid if the current step is complete
     function _advanceStep() internal returns (AuctionStep memory) {
-        if ($_offset > _LENGTH) revert AuctionIsOver();
+        if ($_offset >= _LENGTH) revert AuctionIsOver();
 
         bytes8 _auctionStep = bytes8($_pointer.read($_offset, $_offset + AuctionStepLib.UINT64_SIZE));
         (uint24 mps, uint40 blockDelta) = _auctionStep.parse();

@@ -1054,7 +1054,6 @@ contract AuctionTest is AuctionBaseTest {
         token.transfer(bob, balance);
         // No revert happens, no event is emitted
         auction.onTokensReceived();
-        vm.snapshotGasLastCall('onTokensReceived');
     }
 
     function test_onTokensReceived_withWrongBalance_reverts() public {

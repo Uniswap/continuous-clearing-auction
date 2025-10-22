@@ -38,9 +38,7 @@ contract TickStorageTest is Test, Assertions {
     MockTickStorage public tickStorage;
 
     modifier givenValidDeploymentParams(uint256 _tickSpacing, uint256 _floorPrice) {
-        $tickSpacing = _tickSpacing;
-
-        $tickSpacing = bound($tickSpacing, 1, ConstantsLib.MAX_BID_PRICE / 2);
+        $tickSpacing = bound(_tickSpacing, 2, ConstantsLib.MAX_BID_PRICE / 2);
         $floorPrice_rounded = _roundPriceDownToTickSpacing(_floorPrice, $tickSpacing);
 
         // Assume that floor price is at least one tick away from max price

@@ -224,11 +224,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     // Price Calculation Helpers
     // ============================================
 
-    function helper__roundPriceDownToTickSpacing(uint256 _price, uint256 _tickSpacing)
-        internal
-        pure
-        returns (uint256)
-    {
+    function helper__roundPriceDownToTickSpacing(uint256 _price, uint256 _tickSpacing) internal pure returns (uint256) {
         return _price - (_price % _tickSpacing);
     }
 
@@ -286,7 +282,12 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     /// @dev Submit a bid for a given tick number, amount, and owner
     /// @dev if the bid was not successfully placed - i.e. it would not have succeeded at clearing - bidPlaced is false and bidId is 0
-    function helper__trySubmitBid(uint256, /* _i */ FuzzBid memory _bid, address _owner)
+    function helper__trySubmitBid(
+        uint256,
+        /* _i */
+        FuzzBid memory _bid,
+        address _owner
+    )
         internal
         returns (bool bidPlaced, uint256 bidId)
     {
@@ -304,17 +305,19 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
         vm.assume(
             auction.sumCurrencyDemandAboveClearingQ96()
-                < ConstantsLib.X7_UPPER_BOUND
-                    - (ethInputAmount * FixedPoint96.Q96 * ConstantsLib.MPS)
-                        / (ConstantsLib.MPS - latestCheckpoint.cumulativeMps)
+                < ConstantsLib.X7_UPPER_BOUND - (ethInputAmount * FixedPoint96.Q96 * ConstantsLib.MPS)
+                    / (ConstantsLib.MPS - latestCheckpoint.cumulativeMps)
         );
 
         // Get the correct last tick price for the bid
         uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
         uint256 lastTickPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(lowerTickNumber);
 
-        try auction.submitBid{value: ethInputAmount}(maxPrice, ethInputAmount, _owner, lastTickPrice, bytes(''))
-        returns (uint256 _bidId) {
+        try auction.submitBid{value: ethInputAmount}(
+            maxPrice, ethInputAmount, _owner, lastTickPrice, bytes('')
+        ) returns (
+            uint256 _bidId
+        ) {
             bidId = _bidId;
         } catch (bytes memory revertData) {
             if (_shouldSkipBidError(revertData, maxPrice)) {
@@ -411,12 +414,11 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
         auctionStepsData =
             AuctionStepsBuilder.init().addStep(STANDARD_MPS_1_PERCENT, 50).addStep(STANDARD_MPS_1_PERCENT, 50);
-        params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE).withTickSpacing(
-            TICK_SPACING
-        ).withValidationHook(address(0)).withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient)
-            .withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION).withClaimBlock(
-            block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET
-        ).withAuctionStepsData(auctionStepsData);
+        params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE)
+            .withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number)
+            .withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET).withAuctionStepsData(auctionStepsData);
 
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
@@ -436,13 +438,12 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         MockToken failingToken = new MockToken();
 
         bytes memory failingAuctionStepsData = AuctionStepsBuilder.init().addStep(STANDARD_MPS_1_PERCENT, 100);
-        AuctionParameters memory failingParams = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
-            FLOOR_PRICE
-        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET).withAuctionStepsData(
-            failingAuctionStepsData
-        );
+        AuctionParameters memory failingParams = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL)
+            .withFloorPrice(FLOOR_PRICE).withTickSpacing(TICK_SPACING).withValidationHook(address(0))
+            .withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient).withStartBlock(block.number)
+            .withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET)
+            .withAuctionStepsData(failingAuctionStepsData);
 
         Auction failingAuction = new Auction(address(failingToken), TOTAL_SUPPLY, failingParams);
         failingToken.mint(address(failingAuction), TOTAL_SUPPLY);

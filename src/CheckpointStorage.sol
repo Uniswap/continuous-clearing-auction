@@ -88,10 +88,11 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         // tickDemandQ96 is a summation of bid effective amounts, so we must scale up the bid
         // by 1e7 and divide by `mpsRemainingInAuctionAfterSubmission` such that we can
         // apply the ratio of the bid demand to the tick demand to the currencyRaisedAtClearingPriceQ96_X7
-        ValueX7 currencySpentQ96_X7 = bid.amountQ96.scaleUpToX7().fullMulDivUp(
-            currencyRaisedAtClearingPriceQ96_X7,
-            ValueX7.wrap(tickDemandQ96 * bid.mpsRemainingInAuctionAfterSubmission())
-        );
+        ValueX7 currencySpentQ96_X7 = bid.amountQ96.scaleUpToX7()
+            .fullMulDivUp(
+                currencyRaisedAtClearingPriceQ96_X7,
+                ValueX7.wrap(tickDemandQ96 * bid.mpsRemainingInAuctionAfterSubmission())
+            );
         // The currency spent ValueX7 is then scaled down to a uint256
         currencySpentQ96 = currencySpentQ96_X7.scaleDownToUint256();
         // The tokens filled uses the currencySpent ValueX7 value and scales down to a uint256
@@ -121,10 +122,11 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         // As such, we need to multiply it by 1e7 and divide by `mpsRemainingInAuctionAfterSubmission`.
         // We also know that `cumulativeMpsPerPriceDelta` is over `mps` terms, and has not bee divided by 100% (1e7) yet.
         // Thus, we can cancel out the 1e7 terms and just divide by `mpsRemainingInAuctionAfterSubmission`.
-        tokensFilled = bid.amountQ96.fullMulDiv(
-            cumulativeMpsPerPriceDelta,
-            (FixedPoint96.Q96 << FixedPoint96.RESOLUTION) * mpsRemainingInAuctionAfterSubmission
-        );
+        tokensFilled = bid.amountQ96
+            .fullMulDiv(
+                cumulativeMpsPerPriceDelta,
+                (FixedPoint96.Q96 << FixedPoint96.RESOLUTION) * mpsRemainingInAuctionAfterSubmission
+            );
     }
 
     /// @inheritdoc ICheckpointStorage

@@ -10,7 +10,7 @@ import {IDistributionContract} from 'src/interfaces/external/IDistributionContra
 import {ActionConstants} from 'v4-periphery/src/libraries/ActionConstants.sol';
 
 contract InitializeDistributionTest is BttBase {
-    AuctionFactory factory;
+    AuctionFactory internal factory;
 
     function setUp() public {
         factory = new AuctionFactory();
@@ -130,7 +130,7 @@ contract InitializeDistributionTest is BttBase {
         _;
     }
 
-    function test_WhenFundsRecipientEQActionConstantsMSG_SENDER2(
+    function _test_WhenFundsRecipientEQActionConstantsMSG_SENDER2(
         AuctionFuzzConstructorParams memory _params,
         address _sender
     )

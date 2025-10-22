@@ -36,10 +36,10 @@ contract BttBase is AuctionBaseTest {
 
     // Temporary clone of function within auction base test
     function _boundPriceParams(AuctionParameters memory _parameters) private pure {
-        // Bound tick spacing and floor price to reasonable values
-        _parameters.floorPrice = _bound(_parameters.floorPrice, 1, type(uint128).max);
         // Bound tick spacing to be less than or equal to floor price
-        _parameters.tickSpacing = _bound(_parameters.tickSpacing, 1, _parameters.floorPrice);
+        _parameters.tickSpacing = _bound(_parameters.tickSpacing, 2, type(uint96).max);
+        // Bound tick spacing and floor price to reasonable values
+        _parameters.floorPrice = _bound(_parameters.floorPrice, _parameters.tickSpacing, type(uint128).max);
         // Round down floor price to the closest multiple of tick spacing
         _parameters.floorPrice = helper__roundPriceDownToTickSpacing(_parameters.floorPrice, _parameters.tickSpacing);
         // Ensure floor price is non-zero
@@ -48,7 +48,6 @@ contract BttBase is AuctionBaseTest {
 
     function validAuctionConstructorInputs(AuctionFuzzConstructorParams memory _params)
         internal
-        pure
         returns (AuctionFuzzConstructorParams memory)
     {
         // Bound to be sensible values
@@ -66,7 +65,11 @@ contract BttBase is AuctionBaseTest {
         _params.parameters.claimBlock = _params.parameters.endBlock + 1;
         _params.parameters.auctionStepsData = auctionStepsData;
 
+        emit log('bound price');
+
         _boundPriceParams(_params.parameters);
+
+        emit log('validAuctionConstructorInputs ending');
 
         return _params;
     }

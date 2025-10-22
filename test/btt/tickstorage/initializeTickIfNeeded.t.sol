@@ -78,9 +78,8 @@ contract InitializeTickIfNeededTest is BttBase {
         // it returns early
 
         // Overwrite the storage directly to trigger early initialization.
-        stdstore.target(address(tickStorage)).sig(ITickStorage.getTick.selector).with_key(price).depth(0).checked_write(
-            type(uint256).max
-        );
+        stdstore.target(address(tickStorage)).sig(ITickStorage.getTick.selector).with_key(price).depth(0)
+            .checked_write(type(uint256).max);
 
         vm.record();
         tickStorage.initializeTickIfNeeded(prevPrice, price);

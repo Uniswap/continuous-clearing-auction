@@ -190,14 +190,15 @@ contract AuctionInvariantHandler is Test, Assertions {
                 // If the prevTickPrice is 0, it could maybe be a race that the clearing price has increased since the bid was placed
                 // This is handled in the else condition - so we exclude it here
                 prevTickPrice == 0
-                    && bytes4(revertData) != bytes4(abi.encodeWithSelector(IAuction.BidMustBeAboveClearingPrice.selector))
+                    && bytes4(revertData)
+                        != bytes4(abi.encodeWithSelector(IAuction.BidMustBeAboveClearingPrice.selector))
             ) {
                 assertEq(revertData, abi.encodeWithSelector(ITickStorage.TickPriceNotIncreasing.selector));
                 metrics.cnt_TickPriceNotIncreasingError++;
             } else if (
                 mockAuction.sumCurrencyDemandAboveClearingQ96()
-                    >= ConstantsLib.X7_UPPER_BOUND
-                        - (inputAmount * FixedPoint96.Q96 * ConstantsLib.MPS) / (ConstantsLib.MPS - _checkpoint.cumulativeMps)
+                    >= ConstantsLib.X7_UPPER_BOUND - (inputAmount * FixedPoint96.Q96 * ConstantsLib.MPS)
+                        / (ConstantsLib.MPS - _checkpoint.cumulativeMps)
             ) {
                 assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidBidUnableToClear.selector));
                 metrics.cnt_InvalidBidUnableToClearError++;

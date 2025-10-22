@@ -111,8 +111,9 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         deploymentParams.numberOfSteps = _getRandomDivisorOfMPS();
 
         // TODO: these values are wrong - tick spacing too large
-        deploymentParams.auctionParams.floorPrice = uint128(_bound(uint256(vm.randomUint()), 2, type(uint128).max));
-        deploymentParams.auctionParams.tickSpacing = uint256(_bound(uint256(vm.randomUint()), 2, type(uint256).max));
+        deploymentParams.auctionParams.floorPrice = uint128(_bound(uint256(vm.randomUint()), 2, type(uint64).max));
+        deploymentParams.auctionParams.tickSpacing =
+            uint256(_bound(uint256(vm.randomUint()), 2, deploymentParams.auctionParams.floorPrice));
         _boundPriceParams(deploymentParams, false);
 
         // Set up the block numbers

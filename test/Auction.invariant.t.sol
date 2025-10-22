@@ -48,12 +48,19 @@ contract AuctionInvariantHandler is Test, Assertions {
     uint256[] public bidIds;
     uint256 public bidCount;
 
+    // Sum of the actual currency raised from all bids exited in the setup, less refunds
+    uint256 public totalCurrencyRaised;
+
     struct Metrics {
+        uint256 cnt_BidEarlyExited;
+        // Errors
         uint256 cnt_AuctionIsOverError;
         uint256 cnt_BidAmountTooSmallError;
         uint256 cnt_TickPriceNotIncreasingError;
         uint256 cnt_InvalidBidUnableToClearError;
         uint256 cnt_BidMustBeAboveClearingPriceError;
+        uint256 cnt_NoBidToEarlyExitError;
+        uint256 cnt_BidAlreadyExitedError;
     }
 
     Metrics public metrics;
@@ -118,6 +125,20 @@ contract AuctionInvariantHandler is Test, Assertions {
         return (inputAmount, maxPrice);
     }
 
+    /// @notice Find the first bid which can be early exited as of the stale checkpoint
+    /// @return bidId The id of the first bid which can be early exited, or type(uint256).max if no bid can be exited
+    function _useOutbidBidId() internal returns (uint256) {
+        // Find first bid which can be exited as of the stale checkpoint
+        // We could checkpoint again but no need, can use the stale checkpoint
+        for (uint256 i = 0; i < bidCount; i++) {
+            Bid memory bid = mockAuction.bids(bidIds[i]);
+            if (bid.exitedBlock != 0) continue;
+            if (bid.maxPrice < _checkpoint.clearingPrice) return bidIds[i];
+        }
+        // If no bid can be exited, return type(uint256).max
+        return type(uint256).max;
+    }
+
     /// @notice Return the tick immediately equal to or below the given price
     function _getLowerTick(uint256 maxPrice) internal view returns (uint256) {
         uint256 _price = mockAuction.floorPrice();
@@ -137,6 +158,31 @@ contract AuctionInvariantHandler is Test, Assertions {
             _cachedPrice = _price;
         }
         return _cachedPrice;
+    }
+
+    // TODO(ez): copy and pasted function from below
+    /// Helper function to return the correct checkpoint hints for a partiallFilledBid
+    function _getLowerUpperCheckpointHints(uint256 maxPrice) internal view returns (uint64 lower, uint64 upper) {
+        uint64 currentBlock = mockAuction.lastCheckpointedBlock();
+
+        // Traverse checkpoints from most recent to oldest
+        while (currentBlock != 0) {
+            Checkpoint memory checkpoint = mockAuction.checkpoints(currentBlock);
+
+            // Find the first checkpoint with price > maxPrice (keep updating as we go backwards to get chronologically first)
+            if (checkpoint.clearingPrice > maxPrice) {
+                upper = currentBlock;
+            }
+
+            // Find the last checkpoint with price < maxPrice (first one encountered going backwards)
+            if (checkpoint.clearingPrice < maxPrice && lower == 0) {
+                lower = currentBlock;
+            }
+
+            currentBlock = checkpoint.prev;
+        }
+
+        return (lower, upper);
     }
 
     /// @notice Roll the block number
@@ -221,14 +267,41 @@ contract AuctionInvariantHandler is Test, Assertions {
         }
     }
 
+    function handleEarlyExitPartiallyFilledBid(uint256 actorIndexSeed) public useActor(actorIndexSeed) {
+        uint256 outbidBidId = _useOutbidBidId();
+        if (outbidBidId == type(uint256).max) {
+            metrics.cnt_NoBidToEarlyExitError++;
+            return;
+        }
+        Bid memory bid = mockAuction.bids(outbidBidId);
+        if (bid.exitedBlock != 0) {
+            metrics.cnt_BidAlreadyExitedError++;
+            return;
+        }
+
+        assertLt(bid.maxPrice, _checkpoint.clearingPrice, 'Bid must be less than clearing price to early exit');
+        (uint64 lower, uint64 upper) = _getLowerUpperCheckpointHints(bid.maxPrice);
+
+        uint256 ownerBalanceBefore = bid.owner.balance;
+        mockAuction.exitPartiallyFilledBid(outbidBidId, lower, upper);
+        uint256 refundAmount = bid.owner.balance - ownerBalanceBefore;
+        totalCurrencyRaised += bid.amountQ96 / FixedPoint96.Q96 - refundAmount;
+        assertLe(refundAmount, bid.amountQ96, 'Bid owner can never be refunded more Currency than provided');
+
+        metrics.cnt_BidEarlyExited++;
+    }
+
     function printMetrics() public {
         emit log_string('==================== METRICS ====================');
         emit log_named_uint('bidCount', bidCount);
+        emit log_named_uint('BidEarlyExited count', metrics.cnt_BidEarlyExited);
         emit log_named_uint('AuctionIsOverError count', metrics.cnt_AuctionIsOverError);
         emit log_named_uint('BidAmountTooSmallError count', metrics.cnt_BidAmountTooSmallError);
         emit log_named_uint('TickPriceNotIncreasingError count', metrics.cnt_TickPriceNotIncreasingError);
         emit log_named_uint('InvalidBidUnableToClearError count', metrics.cnt_InvalidBidUnableToClearError);
         emit log_named_uint('BidMustBeAboveClearingPriceError count', metrics.cnt_BidMustBeAboveClearingPriceError);
+        emit log_named_uint('NoBidToEarlyExitError count', metrics.cnt_NoBidToEarlyExitError);
+        emit log_named_uint('BidAlreadyExitedError count', metrics.cnt_BidAlreadyExitedError);
     }
 }
 
@@ -251,16 +324,22 @@ contract AuctionInvariantTest is AuctionUnitTest {
     }
 
     modifier printMetrics() {
-        _;
         handler.printMetrics();
+        _;
+    }
+
+    function _printBalances() internal {
+        emit log_string('==================== Auction Balances ====================');
+        emit log_named_decimal_uint('currency balance', address(mockAuction).balance, 18);
+        emit log_named_decimal_uint('token balance', token.balanceOf(address(mockAuction)), 18);
+        emit log_string('==================== Funds Recipient Balances ====================');
+        emit log_named_decimal_uint('currency balance', address(mockAuction.fundsRecipient()).balance, 18);
+        emit log_string('==================== Tokens Recipient Balances ====================');
+        emit log_named_decimal_uint('token balance', token.balanceOf(address(mockAuction.tokensRecipient())), 18);
     }
 
     function getCheckpoint(uint64 blockNumber) public view returns (Checkpoint memory) {
         return mockAuction.checkpoints(blockNumber);
-    }
-
-    function getBid(uint256 bidId) public view returns (Bid memory) {
-        return mockAuction.bids(bidId);
     }
 
     /// Helper function to return the correct checkpoint hints for a partiallFilledBid
@@ -304,10 +383,13 @@ contract AuctionInvariantTest is AuctionUnitTest {
         uint256 clearingPrice = mockAuction.clearingPrice();
 
         uint256 bidCount = handler.bidCount();
-        uint256 totalCurrencyRaised;
+        uint256 totalCurrencyRaised = handler.totalCurrencyRaised();
         for (uint256 i = 0; i < bidCount; i++) {
             uint256 bidId = handler.bidIds(i);
-            Bid memory bid = getBid(bidId);
+            Bid memory bid = mockAuction.bids(bidId);
+            // Some bids may have been exited already as part of the setup run
+            // Their total currency raised was already accounted for in handler.totalCurrencyRaised()
+            if (bid.exitedBlock != 0) continue;
 
             uint256 ownerBalanceBefore = address(bid.owner).balance;
 
@@ -325,7 +407,7 @@ contract AuctionInvariantTest is AuctionUnitTest {
             assertLe(refundAmount, bid.amountQ96, 'Bid owner can never be refunded more Currency than provided');
 
             // Bid might be deleted if tokensFilled = 0
-            bid = getBid(bidId);
+            bid = mockAuction.bids(bidId);
             if (bid.tokensFilled == 0) continue;
             assertEq(bid.exitedBlock, block.number);
         }
@@ -333,7 +415,7 @@ contract AuctionInvariantTest is AuctionUnitTest {
         vm.roll(mockAuction.claimBlock());
         for (uint256 i = 0; i < bidCount; i++) {
             uint256 bidId = handler.bidIds(i);
-            Bid memory bid = getBid(bidId);
+            Bid memory bid = mockAuction.bids(bidId);
             if (bid.tokensFilled == 0) continue;
             assertNotEq(bid.exitedBlock, 0);
 
@@ -344,7 +426,7 @@ contract AuctionInvariantTest is AuctionUnitTest {
             // Assert that the owner received the tokens
             assertEq(token.balanceOf(bid.owner), ownerBalanceBefore + bid.tokensFilled);
 
-            bid = getBid(bidId);
+            bid = mockAuction.bids(bidId);
             assertEq(bid.tokensFilled, 0);
         }
 
@@ -357,10 +439,10 @@ contract AuctionInvariantTest is AuctionUnitTest {
         emit log_named_decimal_uint('actualCurrencyRaised (from all bids after refunds)', totalCurrencyRaised, 18);
         emit log_named_decimal_uint('expectedCurrencyRaised (for sweepCurrency())', expectedCurrencyRaised, 18);
 
-        assertEq(
+        assertGe(
             address(mockAuction).balance,
             totalCurrencyRaised,
-            'Auction currency balance does not match total currency raised'
+            'Auction currency balance must be greater than or equal to total currency raised'
         );
 
         mockAuction.sweepUnsoldTokens();
@@ -393,5 +475,14 @@ contract AuctionInvariantTest is AuctionUnitTest {
             // At this point we know all bids have been exited so auction balance should be zero
             assertEq(address(mockAuction).balance, 0, 'Auction balance is not zero after sweeping currency');
         }
+
+        // Assertions
+        assertApproxEqAbs(
+            address(mockAuction).balance, 0, 1e18, 'Auction currency balance is not within 1e18 wei of zero'
+        );
+        assertApproxEqAbs(
+            token.balanceOf(address(mockAuction)), 0, 1e18, 'Auction token balance is not within 1e18 wei of zero'
+        );
+        _printBalances();
     }
 }

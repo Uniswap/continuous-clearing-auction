@@ -476,13 +476,8 @@ contract Auction is
         uint256 bidMaxPrice = bid.maxPrice;
         uint64 bidStartBlock = bid.startBlock;
 
-        // If the provided hint is the current block, use the checkpoint returned by `checkpoint()` instead of getting it from storage
-        Checkpoint memory lastFullyFilledCheckpoint = lastFullyFilledCheckpointBlock == block.number
-            ? currentBlockCheckpoint
-            : _getCheckpoint(lastFullyFilledCheckpointBlock);
-        // There is guaranteed to be a checkpoint at the bid's startBlock because we always checkpoint before bid submission
-        Checkpoint memory startCheckpoint = _getCheckpoint(bidStartBlock);
-
+        // Get the last fully filled checkpoint from the user's provided hint
+        Checkpoint memory lastFullyFilledCheckpoint = _getCheckpoint(lastFullyFilledCheckpointBlock);
         // Since `lower` points to the last fully filled Checkpoint, it must be < bid.maxPrice
         // The next Checkpoint after `lower` must be partially or fully filled (clearingPrice >= bid.maxPrice)
         // `lower` also cannot be before the bid's startCheckpoint
@@ -493,6 +488,9 @@ contract Auction is
         ) {
             revert InvalidLastFullyFilledCheckpointHint();
         }
+
+        // There is guaranteed to be a checkpoint at the bid's startBlock because we always checkpoint before bid submission
+        Checkpoint memory startCheckpoint = _getCheckpoint(bidStartBlock);
 
         uint256 tokensFilled;
         uint256 currencySpentQ96;
@@ -507,7 +505,7 @@ contract Auction is
         // If outbidBlock is not zero, the bid was outbid and the bidder is requesting an early exit
         // This can be done before the auction's endBlock
         if (outbidBlock != 0) {
-            // If the provided hint is the current block, use the checkpoint returned by `checkpoint()` instead of getting it from storage
+            // If the provided outbid block is the current block, use the checkpoint returned by `checkpoint()` instead of getting it from storage
             Checkpoint memory outbidCheckpoint =
                 outbidBlock == block.number ? currentBlockCheckpoint : _getCheckpoint(outbidBlock);
 

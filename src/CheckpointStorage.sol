@@ -89,20 +89,20 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         // `tickDemandQ96` is a summation of bid effective amounts, so we must use BidLib.toEffectiveAmount(bid) in the numerator
         // The full expanded equation is:
         // (bid.amountQ96 * ConstantsLib.MPS / mpsRemainingInAuctionAfterSubmission()) * currencyRaisedAtClearingPriceQ96_X7 / tickDemandQ96
-        // 
+        //
         // We can move the division of mpsRemainingInAuctionAfterSubmission() to the denominator to get:
         // bid.amountQ96 * ConstantsLib.MPS * currencyRaisedAtClearingPriceQ96_X7 / (tickDemandQ96 * mpsRemainingInAuctionAfterSubmission())
-        // 
+        //
         // And we know that we eventually want the result in `uint256` form so we remove the multiplication by ConstantsLib.MPS in the numerator:
         // so the final equation is: bid.amountQ96 * currencyRaisedAtClearingPriceQ96_X7 / (tickDemandQ96 * mpsRemainingInAuctionAfterSubmission())
         // Cache the denominator here to avoid recalculating it
         uint256 denominator = tickDemandQ96 * bid.mpsRemainingInAuctionAfterSubmission();
-        
+
         // Apply the ratio between bid demand and tick demand to the currencyRaisedAtClearingPriceQ96_X7 value
-        // If currency spent is calculated to have a remainder, we round up. 
+        // If currency spent is calculated to have a remainder, we round up.
         // In the case where the result would have been 0, we will return 1 wei.
         currencySpentQ96 = bid.amountQ96.fullMulDivUp(ValueX7.unwrap(currencyRaisedAtClearingPriceQ96_X7), denominator);
-        
+
         // We derive tokens filled from the currency spent by dividing it by the max price
         // If the currency spent is calculated to have a remainder, we round that down here in favor of the auction.
         // In the case where the currency spent is 0, we will return 0 tokens filled.

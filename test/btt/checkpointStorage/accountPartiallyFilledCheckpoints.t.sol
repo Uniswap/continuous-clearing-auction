@@ -101,7 +101,7 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
         assertEq(tokensFilled, tokensFilledRoundedDown, 'tokens filled');
 
         // In the case where the currency spent rounded down is 0, we must assert that no tokens were filled.
-        if(currencySpentQ96RoundedDown == 0) {
+        if (currencySpentQ96RoundedDown == 0) {
             assertEq(tokensFilled, 0, 'tokens filled must be 0 if currency spent rounded down is 0');
         }
     }

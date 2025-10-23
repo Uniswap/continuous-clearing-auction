@@ -5,9 +5,6 @@
     "main": "index.js",
     "scripts": {
         "test": "hardhat test",
-        "test:setup": "hardhat test --grep 'Setup'",
-        "test:interaction": "hardhat test --grep 'Interaction'",
-        "test:combined": "hardhat test --grep 'Combined'",
         "test:all": "hardhat test",
         "e2e": "forge build && npm run typechain && hardhat test test/e2e/tests/e2e.test.ts",
         "e2e:run": "forge build && npm run typechain && npx ts-node test/e2e/src/E2ECliRunner.ts",

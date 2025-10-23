@@ -7,11 +7,12 @@ import {
   Assertion,
   Address,
   VariableAmount,
+  InternalCheckpointStruct,
 } from "../schemas/TestInteractionSchema";
 import { Contract } from "ethers";
 import { TokenContract } from "./types";
 import { AuctionDeployer } from "./AuctionDeployer";
-import { ZERO_ADDRESS, LOG_PREFIXES, ERROR_MESSAGES, TYPES, TYPE_FIELD } from "./constants";
+import { ZERO_ADDRESS, LOG_PREFIXES, ERROR_MESSAGES, TYPES, ONE_MILLION } from "./constants";
 import { CheckpointStruct } from "../../../typechain-types/out/Auction";
 import { resolveTokenAddress } from "./utils";
 import hre from "hardhat";
@@ -58,11 +59,13 @@ export class AssertionEngine {
     if (assertion.type === AssertionInterfaceType.BALANCE) {
       await this.validateBalanceAssertion(assertion);
     } else if (assertion.type === AssertionInterfaceType.TOTAL_SUPPLY) {
-      await this.validateTotalSupplyAssertion([assertion]);
+      await this.validateTotalSupplyAssertions([assertion]);
     } else if (assertion.type === AssertionInterfaceType.EVENT) {
-      await this.validateEventAssertion([assertion]);
+      await this.validateEventAssertions([assertion]);
     } else if (assertion.type === AssertionInterfaceType.AUCTION) {
-      await this.validateAuctionAssertion([assertion]);
+      await this.validateAuctionAssertions([assertion]);
+    } else {
+      throw new Error(ERROR_MESSAGES.INVALID_ASSERTION_TYPE);
     }
   }
 
@@ -88,12 +91,12 @@ export class AssertionEngine {
       // Percentage: convert to ratio and apply to expected (e.g., "5%" -> 5% of expected)
       const percentage = parseFloat(varianceStr.slice(0, -1));
       const ratio = percentage / 100;
-      varianceAmount = (expected * BigInt(Math.floor(ratio * 1000000))) / 1000000n;
+      varianceAmount = (expected * BigInt(Math.floor(ratio * ONE_MILLION))) / BigInt(ONE_MILLION);
     } else {
       if (varianceStr.includes(".")) {
         const numericValue = parseFloat(varianceStr);
         // Ratio: treat as percentage in decimal form (e.g., "0.05" -> 5% of expected)
-        varianceAmount = (expected * BigInt(Math.floor(numericValue * 1000000))) / 1000000n;
+        varianceAmount = (expected * BigInt(Math.floor(numericValue * ONE_MILLION))) / BigInt(ONE_MILLION);
       } else {
         // Raw amount: use as absolute tolerance (e.g., "100000000000000000")
         varianceAmount = BigInt(varianceStr);
@@ -175,7 +178,7 @@ export class AssertionEngine {
    * @param totalSupplyAssertion - Array of total supply assertions to validate
    * @throws Error if any total supply assertion fails or token is not found
    */
-  async validateTotalSupplyAssertion(totalSupplyAssertion: TotalSupplyAssertion[]): Promise<void> {
+  async validateTotalSupplyAssertions(totalSupplyAssertion: TotalSupplyAssertion[]): Promise<void> {
     for (const assertion of totalSupplyAssertion) {
       const tokenAddress = await resolveTokenAddress(assertion.token, this.auctionDeployer);
       const token = await this.auctionDeployer.getTokenByAddress(tokenAddress);
@@ -211,57 +214,12 @@ export class AssertionEngine {
    * @param auctionAssertions - Array of auction assertions, optionally including variances, to validate
    * @throws Error if any auction assertion fails
    */
-  async validateAuctionAssertion(auctionAssertions: AuctionAssertion[]): Promise<void> {
+  async validateAuctionAssertions(auctionAssertions: AuctionAssertion[]): Promise<void> {
     for (const assertion of auctionAssertions) {
       console.log(LOG_PREFIXES.INFO, "Auction assertion validation");
-
       // Get the current auction state
       const auctionState = await this.getAuctionState();
-
-      for (const key of Object.keys(assertion)) {
-        if (key === TYPE_FIELD) continue;
-        if (key === "latestCheckpoint") continue;
-        let expected = assertion[key as keyof AuctionAssertion];
-        if (expected != undefined && expected != null) {
-          if (!this.validateEquality(expected, auctionState[key as keyof AuctionState])) {
-            // Check if this is a VariableAmount with variance
-            const variance = typeof expected === "object" && "variation" in expected ? expected.variation : undefined;
-            throw new Error(
-              ERROR_MESSAGES.AUCTION_ASSERTION_FAILED(
-                typeof expected === "object" && "amount" in expected
-                  ? expected.amount
-                  : assertion[key as keyof AuctionAssertion],
-                auctionState[key as keyof AuctionState],
-                key,
-                variance,
-              ),
-            );
-          }
-        }
-      }
-
-      if (assertion.latestCheckpoint) {
-        for (const key of Object.keys(assertion.latestCheckpoint)) {
-          if (key === TYPE_FIELD) continue;
-          let expected = assertion.latestCheckpoint[key as keyof CheckpointStruct];
-          if (expected != undefined && expected != null) {
-            if (!this.validateEquality(expected, auctionState.latestCheckpoint[key as keyof CheckpointStruct])) {
-              // Check if this is a VariableAmount with variance
-              const variance = typeof expected === "object" && "variation" in expected ? expected.variation : undefined;
-              throw new Error(
-                ERROR_MESSAGES.AUCTION_CHECKPOINT_ASSERTION_FAILED(
-                  typeof expected === "object" && "amount" in expected
-                    ? expected.amount
-                    : assertion.latestCheckpoint[key as keyof CheckpointStruct],
-                  auctionState.latestCheckpoint[key as keyof CheckpointStruct],
-                  key,
-                  variance,
-                ),
-              );
-            }
-          }
-        }
-      }
+      this.validateAuctionAssertion(assertion, auctionState);
       const { type, ...assertionWithoutType } = assertion;
       console.log(
         LOG_PREFIXES.SUCCESS,
@@ -273,12 +231,136 @@ export class AssertionEngine {
     }
   }
 
+  async validateAuctionAssertion(auctionAssertion: AuctionAssertion, auctionState: AuctionState): Promise<void> {
+    if (auctionAssertion.isGraduated !== undefined) {
+      if (!this.validateEquality(auctionAssertion.isGraduated, auctionState.isGraduated)) {
+        this.throwAuctionAssertionError(
+          auctionAssertion.isGraduated,
+          auctionState.isGraduated,
+          "isGraduated",
+          ERROR_MESSAGES.AUCTION_ASSERTION_FAILED,
+        );
+      }
+    }
+    if (auctionAssertion.clearingPrice !== undefined) {
+      if (!this.validateEquality(auctionAssertion.clearingPrice, auctionState.clearingPrice)) {
+        this.throwAuctionAssertionError(
+          auctionAssertion.clearingPrice,
+          auctionState.clearingPrice,
+          "clearingPrice",
+          ERROR_MESSAGES.AUCTION_ASSERTION_FAILED,
+        );
+      }
+    }
+    if (auctionAssertion.currencyRaised !== undefined) {
+      if (!this.validateEquality(auctionAssertion.currencyRaised, auctionState.currencyRaised)) {
+        this.throwAuctionAssertionError(
+          auctionAssertion.currencyRaised,
+          auctionState.currencyRaised,
+          "currencyRaised",
+          ERROR_MESSAGES.AUCTION_ASSERTION_FAILED,
+        );
+      }
+    }
+    if (auctionAssertion.latestCheckpoint !== undefined) {
+      this.validateAuctionCheckpointAssertion(auctionAssertion.latestCheckpoint, auctionState.latestCheckpoint);
+    }
+  }
+
+  async validateAuctionCheckpointAssertion(
+    checkpointAssertion: InternalCheckpointStruct,
+    stateCheckpoint: CheckpointStruct,
+  ): Promise<void> {
+    if (checkpointAssertion.clearingPrice !== undefined) {
+      if (!this.validateEquality(checkpointAssertion.clearingPrice, stateCheckpoint.clearingPrice)) {
+        this.throwAuctionAssertionError(
+          checkpointAssertion.clearingPrice,
+          stateCheckpoint.clearingPrice,
+          "clearingPrice",
+          ERROR_MESSAGES.AUCTION_ASSERTION_FAILED,
+        );
+      }
+    }
+    if (checkpointAssertion.currencyRaisedAtClearingPriceQ96_X7 !== undefined) {
+      if (
+        !this.validateEquality(
+          checkpointAssertion.currencyRaisedAtClearingPriceQ96_X7,
+          stateCheckpoint.currencyRaisedAtClearingPriceQ96_X7,
+        )
+      ) {
+        this.throwAuctionAssertionError(
+          checkpointAssertion.currencyRaisedAtClearingPriceQ96_X7,
+          stateCheckpoint.currencyRaisedAtClearingPriceQ96_X7,
+          "currencyRaisedAtClearingPriceQ96_X7",
+          ERROR_MESSAGES.AUCTION_ASSERTION_FAILED,
+        );
+      }
+    }
+    if (checkpointAssertion.cumulativeMpsPerPrice !== undefined) {
+      if (!this.validateEquality(checkpointAssertion.cumulativeMpsPerPrice, stateCheckpoint.cumulativeMpsPerPrice)) {
+        this.throwAuctionAssertionError(
+          checkpointAssertion.cumulativeMpsPerPrice,
+          stateCheckpoint.cumulativeMpsPerPrice,
+          "cumulativeMpsPerPrice",
+          ERROR_MESSAGES.AUCTION_ASSERTION_FAILED,
+        );
+      }
+    }
+    if (checkpointAssertion.cumulativeMps !== undefined) {
+      if (!this.validateEquality(checkpointAssertion.cumulativeMps, stateCheckpoint.cumulativeMps)) {
+        this.throwAuctionAssertionError(
+          checkpointAssertion.cumulativeMps,
+          stateCheckpoint.cumulativeMps,
+          "cumulativeMps",
+          ERROR_MESSAGES.AUCTION_ASSERTION_FAILED,
+        );
+      }
+    }
+    if (checkpointAssertion.prev !== undefined) {
+      if (!this.validateEquality(checkpointAssertion.prev, stateCheckpoint.prev)) {
+        this.throwAuctionAssertionError(
+          checkpointAssertion.prev,
+          stateCheckpoint.prev,
+          "prev",
+          ERROR_MESSAGES.AUCTION_ASSERTION_FAILED,
+        );
+      }
+    }
+    if (checkpointAssertion.next !== undefined) {
+      if (!this.validateEquality(checkpointAssertion.next, stateCheckpoint.next)) {
+        this.throwAuctionAssertionError(
+          checkpointAssertion.next,
+          stateCheckpoint.next,
+          "next",
+          ERROR_MESSAGES.AUCTION_ASSERTION_FAILED,
+        );
+      }
+    }
+  }
+
+  async throwAuctionAssertionError(
+    expected: any,
+    actual: any,
+    field: string,
+    errorFunction: (expected: any, actual: any, field?: string, variance?: string) => string,
+  ): Promise<void> {
+    const variance = typeof expected === "object" && "variation" in expected ? expected.variation : undefined;
+    throw new Error(
+      errorFunction(
+        typeof expected === "object" && "amount" in expected ? expected.amount : expected,
+        actual,
+        field,
+        variance,
+      ),
+    );
+  }
+
   /**
    * Validates event assertions by checking if specific events were emitted in the current block.
    * @param eventAssertion - Array of event assertions to validate
    * @throws Error if any event assertion fails or block is not found
    */
-  async validateEventAssertion(eventAssertion: EventAssertion[]): Promise<void> {
+  async validateEventAssertions(eventAssertion: EventAssertion[]): Promise<void> {
     for (const assertion of eventAssertion) {
       console.log(LOG_PREFIXES.INFO, "Event assertion validation for event:", assertion.eventName);
 
@@ -355,13 +437,7 @@ export class AssertionEngine {
       return true; // No args to check, just event name match is enough
     }
     for (const [, expectedValue] of Object.entries(expectedArgs)) {
-      let contains = false;
-      softMatchLoop: for (let i = 0; i < actualArgs.length; i++) {
-        if (actualArgs[i].toString() == expectedValue.toString()) {
-          contains = true;
-          break softMatchLoop;
-        }
-      }
+      let contains = actualArgs.some((value: any) => value == expectedValue).length > 0;
       if (!contains) {
         return false;
       }
@@ -397,6 +473,12 @@ export class AssertionEngine {
    * @returns BidderState object containing address, tokenBalance, and currencyBalance
    */
   async getBidderState(bidderAddress: Address): Promise<BidderState> {
+    if (this.token == undefined) {
+      throw new Error(ERROR_MESSAGES.TOKEN_UNSET);
+    }
+    if (this.currency === undefined) {
+      throw new Error(ERROR_MESSAGES.CURRENCY_UNSET);
+    }
     const tokenBalance = this.token ? await this.token.balanceOf(bidderAddress) : 0n;
     const currencyBalance = this.currency ? await this.currency.balanceOf(bidderAddress) : 0n;
 

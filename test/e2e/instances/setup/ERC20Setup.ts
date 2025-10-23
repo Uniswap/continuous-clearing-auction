@@ -34,9 +34,10 @@ export const erc20Setup: TestSetupData = {
     fundsRecipient: "0x3333333333333333333333333333333333333333" as Address,
     auctionDurationBlocks: 50,
     claimDelayBlocks: 10,
-    tickSpacing: 100,
+    tickSpacing: 100n,
     validationHook: "0x0000000000000000000000000000000000000000" as Address,
     floorPrice: "79228162514264337593543950336000",
+    requiredCurrencyRaised: "0",
   },
 
   additionalTokens: [

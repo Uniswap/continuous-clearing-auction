@@ -166,15 +166,14 @@ export class SingleTestRunner {
     // Don't add final state as a checkpoint - only use checkpoints from actual events
     // The contract only validates hints against stored checkpoints from CheckpointUpdated events
     let calculatedCurrencyRaised = -1;
-    // Exit and claim all bids if auction graduated
-    if (finalState.isGraduated) {
-      calculatedCurrencyRaised = await this.exitAndClaimAllBids(
-        auction,
-        setupData,
-        currencyToken,
-        bidSimulator.getReverseLabelMap(),
-      );
-    }
+    // Exit and claim all bids
+    calculatedCurrencyRaised = await this.exitAndClaimAllBids(
+      auction,
+      setupData,
+      currencyToken,
+      bidSimulator.getReverseLabelMap(),
+      finalState.isGraduated,
+    );
 
     // Log balances for all funded accounts (after claiming)
     await this.logAccountBalances(setupData, this.deployer, auctionedToken);
@@ -413,6 +412,7 @@ export class SingleTestRunner {
     setupData: TestSetupData,
     currencyToken: TokenContract | null,
     reverseLabelMap: Map<string, string>,
+    isGraduated: boolean,
   ): Promise<number> {
     let calculatedCurrencyRaised = 0;
     console.log("\n🎫 Exiting and claiming all bids...");
@@ -517,6 +517,10 @@ export class SingleTestRunner {
         }
         const refundAmount = balanceAfter - balanceBefore;
         calculatedCurrencyRaised += Number(bid.amount - refundAmount) / 10 ** currencyDecimals;
+      }
+
+      if (!isGraduated) {
+        continue; // Skip claiming if auction didn't graduate
       }
 
       // Claim all tokens in batch
@@ -703,7 +707,7 @@ export class SingleTestRunner {
     createAuctionBlock: string,
     offsetBlocks: number,
   ): Promise<void> {
-    // Collect all events (bids, actions, assertions) and sort by block
+    // Collect all objectives (bids, actions, assertions) and sort by block
     const allEvents: EventData[] = [];
 
     // Add bids using BidSimulator's collection logic

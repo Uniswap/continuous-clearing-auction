@@ -29,9 +29,10 @@ export const simpleSetup: TestSetupData = {
     fundsRecipient: "0x3333333333333333333333333333333333333333" as Address,
     auctionDurationBlocks: 50,
     claimDelayBlocks: 10,
-    tickSpacing: 100,
+    tickSpacing: 100n,
     validationHook: "0x0000000000000000000000000000000000000000" as Address,
     floorPrice: "79228162514264337593543950336000",
+    requiredCurrencyRaised: "0",
   },
 
   additionalTokens: [
@@ -40,12 +41,6 @@ export const simpleSetup: TestSetupData = {
       decimals: "18",
       totalSupply: "1000000000000000000000",
       percentAuctioned: "10.0",
-    },
-    {
-      name: "USDC",
-      decimals: "6",
-      totalSupply: "1000000000000",
-      percentAuctioned: "0.0",
     },
   ],
 };

@@ -93,10 +93,10 @@ export interface AuctionConfig {
   startBlock: number;
   endBlock: number;
   claimBlock: number;
-  tickSpacing: number | bigint | string; // number for small values, bigint/string for large values
+  tickSpacing: bigint | string;
   validationHook: Address;
-  floorPrice: string;
-  requiredCurrencyRaised?: string; // Optional: minimum currency that must be raised
+  floorPrice: bigint | string;
+  requiredCurrencyRaised: bigint | string;
   auctionStepsData: string;
 }
 

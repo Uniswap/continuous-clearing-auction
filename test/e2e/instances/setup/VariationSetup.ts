@@ -34,9 +34,10 @@ export const variationSetup: TestSetupData = {
     fundsRecipient: "0x4444444444444444444444444444444444444444" as Address,
     auctionDurationBlocks: 50,
     claimDelayBlocks: 10,
-    tickSpacing: 100,
+    tickSpacing: 100n,
     validationHook: "0x0000000000000000000000000000000000000000" as Address,
-    floorPrice: "79228162514264337593543950336000",
+    floorPrice: 79228162514264337593543950336000n,
+    requiredCurrencyRaised: "0",
   },
 
   additionalTokens: [
@@ -45,12 +46,6 @@ export const variationSetup: TestSetupData = {
       decimals: "18",
       totalSupply: "1000000000000000000000",
       percentAuctioned: "10.0",
-    },
-    {
-      name: "USDC",
-      decimals: "6",
-      totalSupply: "1000000000000",
-      percentAuctioned: "0.0",
     },
   ],
 };

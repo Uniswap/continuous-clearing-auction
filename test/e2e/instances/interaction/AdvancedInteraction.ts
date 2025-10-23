@@ -174,12 +174,11 @@ export const advancedInteraction: TestInteractionData = {
       reason: "Check auction state parameters",
       assert: {
         type: AssertionInterfaceType.AUCTION,
-        isGraduated: false,
+        isGraduated: true,
         clearingPrice: "79228162514264337593543950336000",
         currencyRaised: "661363636363636363",
         latestCheckpoint: {
           clearingPrice: "79228162514264337593543950336000",
-          currencyRaisedQ96_X7: "523986256628430050902756580631272727272727272726000000",
           currencyRaisedAtClearingPriceQ96_X7: "0",
           cumulativeMpsPerPrice: "435754893828453856764491726848000",
           cumulativeMps: "5500000",

@@ -100,6 +100,7 @@ export const extendedSetup: TestSetupData = {
     tickSpacing: "69324642199981300000000", // From params - large value as string
     validationHook: "0x0000000000000000000000000000000000000000" as Address,
     floorPrice: "6932464219998130000000000", // 0.0000875 ETH in Q96 format
+    requiredCurrencyRaised: "0",
     // Using the exact hex string from the params file
     auctionStepsData:
       "0x00000000000189c0325aa000000000010000000000001c2007a12000000000010000000000001c2007a12000000000010000000000001c200f424000000000010000000000001c200f424000000000010000000000001c200f424000000000010000000000001c202932e00000000001",
@@ -111,12 +112,6 @@ export const extendedSetup: TestSetupData = {
       decimals: "18",
       totalSupply: "1000000000000000000000000000", // 1 billion tokens (1e9 * 1e18)
       percentAuctioned: "15.0", // 15% of 1B = 150M tokens
-    },
-    {
-      name: "USDC",
-      decimals: "6",
-      totalSupply: "1000000000000",
-      percentAuctioned: "0.0",
     },
   ],
 };

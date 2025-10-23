@@ -316,7 +316,11 @@ export class AuctionDeployer {
           ? BigInt(auctionParameters.tickSpacing)
           : auctionParameters.tickSpacing,
       validationHook: auctionParameters.validationHook,
-      floorPrice: auctionParameters.floorPrice,
+      floorPrice:
+        typeof auctionParameters.floorPrice === "string"
+          ? BigInt(auctionParameters.floorPrice)
+          : auctionParameters.floorPrice,
+      requiredCurrencyRaised: auctionParameters.requiredCurrencyRaised,
       auctionStepsData: auctionStepsData,
     };
   }
@@ -381,8 +385,8 @@ export class AuctionDeployer {
       claimBlock: config.claimBlock,
       tickSpacing: config.tickSpacing,
       validationHook: config.validationHook,
-      floorPrice: config.floorPrice,
-      requiredCurrencyRaised: config.requiredCurrencyRaised || 0,
+      floorPrice: typeof config.floorPrice === "string" ? BigInt(config.floorPrice) : config.floorPrice,
+      requiredCurrencyRaised: config.requiredCurrencyRaised,
       auctionStepsData: config.auctionStepsData,
     };
 

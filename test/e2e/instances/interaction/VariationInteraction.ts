@@ -90,7 +90,7 @@ export const variationInteraction: TestInteractionData = {
       reason: "Check auction state with variance on currencyRaised",
       assert: {
         type: AssertionInterfaceType.AUCTION,
-        isGraduated: false,
+        isGraduated: true,
         clearingPrice: "79228162514264337593543950336000",
         // Currency raised will vary based on random bid amounts
         // Expected around 0.326 ETH with variance due to bid variations
@@ -101,10 +101,6 @@ export const variationInteraction: TestInteractionData = {
         latestCheckpoint: {
           clearingPrice: "79228162514264337593543950336000",
           // These will also vary, so we use VariableAmount with raw amount variation
-          currencyRaisedQ96_X7: {
-            amount: "80593446990424197784923982579080313706988320995000000",
-            variation: "30%", // +/- 30% to account for variation
-          },
           currencyRaisedAtClearingPriceQ96_X7: "0",
           cumulativeMpsPerPrice: {
             amount: "158456325028528675187087900672000",

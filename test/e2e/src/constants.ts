@@ -23,7 +23,8 @@ export const HARDHAT_METHODS = {
 } as const;
 
 // True constants - values that never change
-export const MPS = 10000000; // 1e7 - Million Price Steps
+export const MPS = 10000000; // 1e7 - mBPS
+export const ONE_MILLION = 1000000;
 export const MAX_SYMBOL_LENGTH = 4;
 export const HEX_PADDING_LENGTH = 16;
 export const DEFAULT_TOTAL_SUPPLY = "1000000000000000000000"; // 1000 tokens with 18 decimals
@@ -62,6 +63,9 @@ export const ERROR_MESSAGES = {
     variance
       ? `Balance assertion failed for ${address} token ${token}. Expected ${expected} ± ${variance}, got ${actual}`
       : `Balance assertion failed for ${address} token ${token}. Expected ${expected}, got ${actual}`,
+  INVALID_ASSERTION_TYPE: `Invalid assertion type`,
+  TOKEN_UNSET: `Token is not set`,
+  CURRENCY_UNSET: `Currency is not set`,
 
   // BidSimulator errors
   PERCENT_OF_SUPPLY_INVALID_SIDE:
@@ -69,6 +73,7 @@ export const ERROR_MESSAGES = {
   EXPECTED_REVERT_NOT_FOUND: (expected: string, actual: string) =>
     `Expected revert data to contain "${expected}", but got: ${actual}`,
   PREVIOUS_TICK_OR_TICK_PRICE_NOT_PROVIDED: "previousTick or prevTickPrice must be provided",
+  INVALID_ACTION_METHOD: "Invalid action method",
 
   // E2ECliRunner errors
   NO_INSTANCE_FOUND: (filePath: string) => `No instance found in ${filePath}`,

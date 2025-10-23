@@ -28,10 +28,16 @@ export async function resolveTokenAddress(tokenIdentifier: string, auctionDeploy
  * @param tickSpacing - The auction's tick spacing
  * @returns The price in X96 format as a bigint
  */
-export function tickNumberToPriceX96(tickNumber: number, floorPrice: bigint, tickSpacing: bigint): bigint {
+export function tickNumberToPriceX96(
+  tickNumber: number,
+  floorPrice: bigint | string,
+  tickSpacing: bigint | string,
+): bigint {
   // Floor price is already in Q96, tick spacing is raw
   // price = floorPrice + (tickNumber - 1) * tickSpacing
-  return floorPrice + (BigInt(tickNumber) - 1n) * tickSpacing;
+  const floorPriceBigInt = typeof floorPrice === "string" ? BigInt(floorPrice) : floorPrice;
+  const tickSpacingBigInt = typeof tickSpacing === "string" ? BigInt(tickSpacing) : tickSpacing;
+  return floorPriceBigInt + (BigInt(tickNumber) - 1n) * tickSpacingBigInt;
 }
 
 /**
@@ -42,8 +48,8 @@ export function tickNumberToPriceX96(tickNumber: number, floorPrice: bigint, tic
  */
 export async function calculatePrice(
   priceConfig: PriceConfig,
-  floorPrice?: bigint,
-  tickSpacing?: bigint,
+  floorPrice?: bigint | string,
+  tickSpacing?: bigint | string,
 ): Promise<bigint> {
   let value: bigint;
 

@@ -133,7 +133,6 @@ export interface AuctionAssertion {
 
 export interface InternalCheckpointStruct {
   clearingPrice: string | VariableAmount;
-  currencyRaisedQ96_X7: string | VariableAmount;
   currencyRaisedAtClearingPriceQ96_X7: string | VariableAmount;
   cumulativeMpsPerPrice: string | VariableAmount;
   cumulativeMps: string | VariableAmount;

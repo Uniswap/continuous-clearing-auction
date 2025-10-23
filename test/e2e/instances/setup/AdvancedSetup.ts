@@ -36,7 +36,6 @@ export const advancedSetup: TestSetupData = {
       },
     ],
   },
-
   auctionParameters: {
     currency: "0x0000000000000000000000000000000000000000" as Address,
     auctionedToken: "AdvancedToken",
@@ -47,8 +46,8 @@ export const advancedSetup: TestSetupData = {
     tickSpacing: "396140812571321687967719751680",
     validationHook: "0x0000000000000000000000000000000000000000" as Address,
     floorPrice: "79228162514264337593543950336000",
+    requiredCurrencyRaised: "0",
   },
-
   additionalTokens: [
     {
       name: "AdvancedToken",

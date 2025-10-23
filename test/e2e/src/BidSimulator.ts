@@ -8,6 +8,7 @@ import {
   UINT_48_MAX,
   LOG_PREFIXES,
   ERROR_MESSAGES,
+  ONE_MILLION,
 } from "./constants";
 import { IAllowanceTransfer } from "../../../typechain-types/test/e2e/artifacts/permit2/src/interfaces/IAllowanceTransfer";
 import { TransactionInfo } from "./types";
@@ -115,8 +116,8 @@ export class BidSimulator {
               const factor = Math.pow(recurringBid.amountFactor, i);
               // Use BigInt arithmetic to avoid scientific notation conversion
               const originalValue = BigInt(recurringBid.amount.value.toString());
-              const factorScaled = Math.floor(factor * 1000000); // Scale factor to avoid decimals
-              const adjustedValue = (originalValue * BigInt(factorScaled)) / BigInt(1000000);
+              const factorScaled = Math.floor(factor * ONE_MILLION); // Scale factor to avoid decimals
+              const adjustedValue = (originalValue * BigInt(factorScaled)) / BigInt(ONE_MILLION);
               adjustedAmount = {
                 ...recurringBid.amount,
                 value: adjustedValue.toString(),
@@ -127,8 +128,8 @@ export class BidSimulator {
               const factor = recurringBid.priceFactor * i;
               // Use BigInt arithmetic to avoid scientific notation conversion
               const originalValue = BigInt(recurringBid.price.value.toString());
-              const factorScaled = Math.floor(factor * 1000000); // Scale factor to avoid decimals
-              const adjustedValue = (originalValue * BigInt(factorScaled)) / BigInt(1000000);
+              const factorScaled = Math.floor(factor * ONE_MILLION); // Scale factor to avoid decimals
+              const adjustedValue = (originalValue * BigInt(factorScaled)) / BigInt(ONE_MILLION);
               adjustedPrice = {
                 ...recurringBid.price,
                 value: adjustedValue.toString(),
@@ -442,6 +443,8 @@ export class BidSimulator {
         let tx = await this.auction.getFunction("sweepUnsoldTokens").populateTransaction();
         let msg = `   Sweeping unsold tokens`;
         transactionInfos.push({ tx, from: null, msg });
+      } else {
+        throw new Error(ERROR_MESSAGES.INVALID_ACTION_METHOD);
       }
     }
   }

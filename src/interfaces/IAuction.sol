@@ -71,6 +71,8 @@ interface IAuction is
     error BatchClaimDifferentOwner(address expectedOwner, address receivedOwner);
     /// @notice Error thrown when the bid has not been exited
     error BidNotExited();
+    /// @notice Error thrown when the bid has no claimable tokens
+    error BidNoClaimableTokens(uint256 bidId);
     /// @notice Error thrown when the bid cannot be partially exited before the auction has graduated
     error CannotPartiallyExitBidBeforeGraduation();
     /// @notice Error thrown when the token transfer fails

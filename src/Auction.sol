@@ -598,6 +598,7 @@ contract Auction is
     function _internalClaimTokens(uint256 bidId) internal returns (address owner, uint256 tokensFilled) {
         Bid storage $bid = _getBid(bidId);
         if ($bid.exitedBlock == 0) revert BidNotExited();
+        if ($bid.tokensFilled == 0) revert BidNoClaimableTokens(bidId);
 
         // Set return values
         owner = $bid.owner;

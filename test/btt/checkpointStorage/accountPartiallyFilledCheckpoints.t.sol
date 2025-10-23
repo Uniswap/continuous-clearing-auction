@@ -71,8 +71,16 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
             _tickDemandQ96 * BidLib.mpsRemainingInAuctionAfterSubmission(_bid)
         );
 
+        // We don't multiply the amountQ96 by ConstantsLib.MPS here to implicitly move the result into uint256.
+        // See the comments in CheckpointStorage.sol for more details.
         uint256 currencySpentQ96RoundedUp = FixedPointMathLib.fullMulDivUp(
-            _bid.amountQ96 * ConstantsLib.MPS,
+            _bid.amountQ96,
+            ValueX7.unwrap(_cumulativeCurrencyRaisedAtClearingPriceX7),
+            _tickDemandQ96 * BidLib.mpsRemainingInAuctionAfterSubmission(_bid)
+        );
+
+        uint256 currencySpentQ96RoundedDown = FixedPointMathLib.fullMulDiv(
+            _bid.amountQ96,
             ValueX7.unwrap(_cumulativeCurrencyRaisedAtClearingPriceX7),
             _tickDemandQ96 * BidLib.mpsRemainingInAuctionAfterSubmission(_bid)
         );
@@ -84,13 +92,18 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
 
         uint256 tokensFilledRoundedDown =
             FixedPointMathLib.fullMulDiv(
-                    _bid.amountQ96 * ConstantsLib.MPS,
+                    _bid.amountQ96,
                     ValueX7.unwrap(_cumulativeCurrencyRaisedAtClearingPriceX7),
-                    _tickDemandQ96 * (ConstantsLib.MPS - _bid.startCumulativeMps)
-                ) / ConstantsLib.MPS / _bid.maxPrice;
+                    _tickDemandQ96 * BidLib.mpsRemainingInAuctionAfterSubmission(_bid)
+                ) / _bid.maxPrice;
 
-        assertEq(currencySpent, currencySpentQ96RoundedUp / ConstantsLib.MPS, 'currency spent');
+        assertEq(currencySpent, currencySpentQ96RoundedUp, 'currency spent');
         assertEq(tokensFilled, tokensFilledRoundedDown, 'tokens filled');
+
+        // In the case where the currency spent rounded down is 0, we must assert that no tokens were filled.
+        if(currencySpentQ96RoundedDown == 0) {
+            assertEq(tokensFilled, 0, 'tokens filled must be 0 if currency spent rounded down is 0');
+        }
     }
 
     function test_WhenCurrencyRaisedAtClearingPriceEQ0(Bid memory _bid, uint256 _tickDemandQ96) external view {

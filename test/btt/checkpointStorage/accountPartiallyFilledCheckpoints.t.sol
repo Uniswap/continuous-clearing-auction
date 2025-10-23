@@ -35,7 +35,7 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
         Bid memory _bid,
         uint256 _tickDemandQ96,
         uint256 _cumulativeCurrencyRaisedAtClearingPrice
-    ) external {
+    ) external view {
         // it returns the currency spent (bid * raised at price / (demand * remaining mps))
         // it returns the tokens filled (currency spent / max price)
 
@@ -61,16 +61,6 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
             _bid, _tickDemandQ96, _cumulativeCurrencyRaisedAtClearingPriceX7
         );
 
-        emit log_named_uint('bid.amountQ96 * ConstantsLib.MPS', _bid.amountQ96 * ConstantsLib.MPS);
-        emit log_named_uint('_cumulativeCurrencyRaisedAtClearingPrice', _cumulativeCurrencyRaisedAtClearingPrice);
-        emit log_named_uint(
-            'BidLib.mpsRemainingInAuctionAfterSubmission(_bid)', BidLib.mpsRemainingInAuctionAfterSubmission(_bid)
-        );
-        emit log_named_uint(
-            '_tickDemandQ96 * BidLib.mpsRemainingInAuctionAfterSubmission(_bid)',
-            _tickDemandQ96 * BidLib.mpsRemainingInAuctionAfterSubmission(_bid)
-        );
-
         // We don't multiply the amountQ96 by ConstantsLib.MPS here to implicitly move the result into uint256.
         // See the comments in CheckpointStorage.sol for more details.
         uint256 currencySpentQ96RoundedUp = FixedPointMathLib.fullMulDivUp(
@@ -87,6 +77,7 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
 
         // Given that the bid amount is greater than 0, the currency spent must be greater than 0
         assertGt(_bid.amountQ96, 0, 'bid amount must be greater than 0');
+        // Assert that currency spent rounded up is always greater than 0
         assertGt(currencySpentQ96RoundedUp, 0, 'currencySpentQ96RoundedUp must be greater than 0');
         assertGt(currencySpent, 0, 'currency spent must be greater than 0');
 

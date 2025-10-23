@@ -108,7 +108,6 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
     }
 
     /// forge-config: default.fuzz.runs = 888
-    /// forge-config: ci.fuzz.runs = 888
     function test_WhenThereIsEnoughDemandToFallBelowTheNextTickButRoundsUpToTheNextTick(FuzzDeploymentParams memory _deploymentParams)
         external
         setUpMockAuctionFuzz(_deploymentParams)

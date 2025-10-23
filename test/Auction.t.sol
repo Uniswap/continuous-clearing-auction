@@ -46,7 +46,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_Auction_codeSize() public {
-        vm.snapshotValue("Auction bytecode size", address(auction).code.length);
+        vm.snapshotValue('Auction bytecode size', address(auction).code.length);
     }
 
     function test_submitBid_beforeTokensReceived_reverts() public {

@@ -349,6 +349,15 @@ contract AuctionInvariantTest is AuctionUnitTest {
         emit log_named_decimal_uint('token balance', token.balanceOf(address(mockAuction.tokensRecipient())), 18);
     }
 
+    function _printState() internal {
+        emit log_string('==================== Auction State ====================');
+        emit log_named_decimal_uint('totalSupply', mockAuction.totalSupply(), 18);
+        emit log_named_uint('floorPrice', mockAuction.floorPrice());
+        emit log_named_uint('tickSpacing', mockAuction.tickSpacing());
+        emit log_named_uint('final clearing price', mockAuction.clearingPrice());
+        emit log_named_decimal_uint('currencyRaised', mockAuction.currencyRaised(), 18);
+    }
+
     /// Helper function to return the correct checkpoint hints for a partiallFilledBid
     function getLowerUpperCheckpointHints(uint256 maxPrice) public view returns (uint64 lower, uint64 upper) {
         uint64 currentBlock = mockAuction.lastCheckpointedBlock();
@@ -518,6 +527,7 @@ contract AuctionInvariantTest is AuctionUnitTest {
 
         _printBalances();
         assertAcceptableDustBalances();
+        _printState();
     }
 
     function invariant_canExitAndClaimAllBids_thenSweep()
@@ -540,5 +550,6 @@ contract AuctionInvariantTest is AuctionUnitTest {
 
         _printBalances();
         assertAcceptableDustBalances();
+        _printState();
     }
 }

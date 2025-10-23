@@ -35,7 +35,7 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
         Bid memory _bid,
         uint256 _tickDemandQ96,
         uint256 _cumulativeCurrencyRaisedAtClearingPrice
-    ) external view {
+    ) external {
         // it returns the currency spent (bid * raised at price / (demand * remaining mps))
         // it returns the tokens filled (currency spent / max price)
 
@@ -45,13 +45,15 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
         // cumulativeQ96 * 1e14 / remainingMps.  where the worst value for remainingMps would be 1, so we have
         // cumulativeQ96 * 1e14 <= type(uint256).max
 
-        _bid.amountQ96 = bound(_bid.amountQ96, 1, type(uint128).max);
+        _bid.amountQ96 =
+            bound(_bid.amountQ96, 1 << FixedPoint96.RESOLUTION, type(uint128).max << FixedPoint96.RESOLUTION);
         _bid.maxPrice = bound(_bid.maxPrice, 1, ConstantsLib.MAX_BID_PRICE);
         _bid.startCumulativeMps = uint24(bound(_bid.startCumulativeMps, 0, ConstantsLib.MPS - 1));
         _tickDemandQ96 = bound(_tickDemandQ96, BidLib.toEffectiveAmount(_bid), type(uint256).max / ConstantsLib.MPS);
 
+        // Must assume that at least one currency has been raised at the clearing price, otherwise currency spent will be zero
         _cumulativeCurrencyRaisedAtClearingPrice =
-            bound(_cumulativeCurrencyRaisedAtClearingPrice, 0, type(uint256).max / 1e14);
+            bound(_cumulativeCurrencyRaisedAtClearingPrice, 1, type(uint256).max / 1e14);
 
         ValueX7 _cumulativeCurrencyRaisedAtClearingPriceX7 = _cumulativeCurrencyRaisedAtClearingPrice.scaleUpToX7();
 
@@ -59,13 +61,45 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
             _bid, _tickDemandQ96, _cumulativeCurrencyRaisedAtClearingPriceX7
         );
 
+        emit log_named_uint('bid.amountQ96 * ConstantsLib.MPS', _bid.amountQ96 * ConstantsLib.MPS);
+        emit log_named_uint('_cumulativeCurrencyRaisedAtClearingPrice', _cumulativeCurrencyRaisedAtClearingPrice);
+        emit log_named_uint(
+            'BidLib.mpsRemainingInAuctionAfterSubmission(_bid)', BidLib.mpsRemainingInAuctionAfterSubmission(_bid)
+        );
+        emit log_named_uint(
+            '_tickDemandQ96 * BidLib.mpsRemainingInAuctionAfterSubmission(_bid)',
+            _tickDemandQ96 * BidLib.mpsRemainingInAuctionAfterSubmission(_bid)
+        );
+
         uint256 scaledCurrencySpent = FixedPointMathLib.fullMulDivUp(
             _bid.amountQ96 * ConstantsLib.MPS,
             ValueX7.unwrap(_cumulativeCurrencyRaisedAtClearingPriceX7),
-            _tickDemandQ96 * (ConstantsLib.MPS - _bid.startCumulativeMps)
+            _tickDemandQ96 * BidLib.mpsRemainingInAuctionAfterSubmission(_bid)
         );
 
+        emit log_named_uint('scaledCurrencySpent', scaledCurrencySpent);
+        emit log_named_uint('currencySpent', currencySpent);
         assertEq(currencySpent, scaledCurrencySpent / ConstantsLib.MPS, 'currency spent');
+        // Given that the bid amount is greater than 0, the currency spent must be greater than 0
+        // This is given, but just for sanity
+        assertGt(_bid.amountQ96, 0, 'bid amount must be greater than 0');
+        assertGt(scaledCurrencySpent, 0, 'scaled currency spent must be greater than 0');
+        assertGt(currencySpent, 0, 'currency spent must be greater than 0');
         assertEq(tokensFilled, scaledCurrencySpent / ConstantsLib.MPS / _bid.maxPrice, 'tokens filled');
+    }
+
+    function test_WhenCurrencyRaisedAtClearingPriceEQ0(Bid memory _bid, uint256 _tickDemandQ96) external view {
+        // it returns (0, 0)
+        _bid.amountQ96 =
+            bound(_bid.amountQ96, 1 << FixedPoint96.RESOLUTION, type(uint128).max << FixedPoint96.RESOLUTION);
+        _bid.maxPrice = bound(_bid.maxPrice, 1, ConstantsLib.MAX_BID_PRICE);
+        _bid.startCumulativeMps = uint24(bound(_bid.startCumulativeMps, 0, ConstantsLib.MPS - 1));
+        _tickDemandQ96 = bound(_tickDemandQ96, BidLib.toEffectiveAmount(_bid), type(uint256).max / ConstantsLib.MPS);
+
+        (uint256 tokensFilled, uint256 currencySpent) =
+            mockCheckpointStorage.accountPartiallyFilledCheckpoints(_bid, _tickDemandQ96, ValueX7.wrap(0));
+
+        assertEq(tokensFilled, 0);
+        assertEq(currencySpent, 0);
     }
 }

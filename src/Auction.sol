@@ -24,10 +24,11 @@ import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol'
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
+import {console} from 'forge-std/console.sol';
 
 /// @title Auction
 /// @custom:security-contact security@uniswap.org
-/// @notice Implements a time weighted uniform clearing price auction
+/// @notice Implements a time weighted unifcorm clearing price auction
 /// @dev Can be constructed directly or through the AuctionFactory. In either case, users must validate
 ///      that the auction parameters are correct and it has sufficient token balance.
 contract Auction is
@@ -197,6 +198,9 @@ contract Auction is
             // than the actual demand at clearing price which is incorrect for a partial fill.
             // This means that we had rounded up in the clearing price and the real clearing price is lower.
             // So everyone is fully filled and we use the smaller of the two values which represents the demand at the clearing price.
+            console.log("demandAtClearingPriceQ96_X7", ValueX7.unwrap(demandAtClearingPriceQ96_X7));
+            console.log("expectedCurrencyRaisedAtClearingPriceTickQ96_X7", ValueX7.unwrap(expectedCurrencyRaisedAtClearingPriceTickQ96_X7));
+            console.log('using min', FixedPointMathLib.min(ValueX7.unwrap(demandAtClearingPriceQ96_X7), ValueX7.unwrap(expectedCurrencyRaisedAtClearingPriceTickQ96_X7)));
             ValueX7 currencyRaisedAtClearingPriceQ96_X7 = ValueX7.wrap(
                 FixedPointMathLib.min(
                     ValueX7.unwrap(demandAtClearingPriceQ96_X7),
@@ -206,14 +210,17 @@ contract Auction is
 
             // We can now recompute the actual currency raised by adding the currency raised from the clearing price and above
             currencyRaisedQ96_X7_ = currencyRaisedAtClearingPriceQ96_X7.add(currencyRaisedAboveClearingPriceQ96_X7);
+            console.log("currencyRaisedQ96_X7_", ValueX7.unwrap(currencyRaisedQ96_X7_));
             // Finally update the cumulative currency raised at this clearing price
             _checkpoint.currencyRaisedAtClearingPriceQ96_X7 =
                 _checkpoint.currencyRaisedAtClearingPriceQ96_X7.add(currencyRaisedAtClearingPriceQ96_X7);
+            console.log("checkpoint currencyRaisedAtClearingPriceQ96_X7", ValueX7.unwrap(_checkpoint.currencyRaisedAtClearingPriceQ96_X7));
         }
 
         // Update the global tokens cleared tracked value, rounding up such that some dust is left over after `sweepUnsoldTokens()`
+        // note that this still uses the rounded up clearing price in the denominator, so the result can bias lower
         $totalClearedQ96_X7 = $totalClearedQ96_X7.add(
-            currencyRaisedQ96_X7_.wrapAndFullMulDivUp(FixedPoint96.Q96, _checkpoint.clearingPrice)
+            currencyRaisedQ96_X7_.wrapAndFullMulDiv(FixedPoint96.Q96, _checkpoint.clearingPrice)
         );
         // Update the global currency raised tracked value
         $currencyRaisedQ96_X7 = $currencyRaisedQ96_X7.add(currencyRaisedQ96_X7_);

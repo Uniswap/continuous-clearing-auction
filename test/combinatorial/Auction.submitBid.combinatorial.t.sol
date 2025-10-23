@@ -4,16 +4,18 @@ pragma solidity 0.8.26;
 import {Auction} from '../../src/Auction.sol';
 
 import {AuctionParameters} from '../../src/interfaces/IAuction.sol';
-import {Bid, BidLib} from '../../src/libraries/BidLib.sol';
+import {Bid} from '../../src/libraries/BidLib.sol';
 import {Checkpoint} from '../../src/libraries/CheckpointLib.sol';
+import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {AuctionBaseTest} from '../utils/AuctionBaseTest.sol';
 
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
+
 import {AuctionStepsBuilder} from '../utils/AuctionStepsBuilder.sol';
 import {Combinatorium} from '../utils/Combinatorium.sol';
 import {FuzzBid, FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
 
-import {PostBidScenario, PreBidScenario} from './CombinatorialEnums.sol';
+import {ExitPath, PostBidScenario, PreBidScenario} from './CombinatorialEnums.sol';
 import {CombinatorialHelpers} from './CombinatorialHelpers.sol';
 
 import {Test} from 'forge-std/Test.sol';
@@ -52,6 +54,8 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
     // uint128 public constant TOTAL_SUPPLY = 1000e18;
 
     uint256 public usersBidId;
+    uint64 public usersBidStartBlock; // Track the block where bid was submitted
+    PostBidScenario public actualPostBidScenario; // Track the actual post-bid scenario
 
     function setUp() public {
         // Number of steps to run in handleSetup
@@ -68,33 +72,6 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
         ctx.defineSpace('postBidScenario', 1, 0, uint256(PostBidScenario.__length) - 1);
         // // Mutation randomness
         ctx.defineSpace('mutationRandomness', 1, 0, type(uint256).max - 1);
-    }
-
-    // ============ Helper Functions ============
-
-    /// @notice Verify a non-graduated auction exit
-    function helper__verifyNonGraduatedExit(uint256 bidId, uint256 balanceBefore, uint256 expectedAmount) external {
-        try auction.exitBid(bidId) {
-            /// TODO: WIP
-        } catch {
-            revert('exitBid failed');
-        }
-    }
-
-    /// @notice Verify a partial exit (outbid or at clearing price)
-    function helper__verifyPartialExit() external {
-        // try auction.exitPartiallyFilledBid(bidId, lower, upper) {}
-        // catch {
-        //     revert('exitPartiallyFilledBid failed');
-        // }
-    }
-
-    /// @notice Verify a full exit (above clearing price)
-    function helper__verifyFullExit(uint256 bidId, uint256 balanceBefore, uint256 expectedAmount) external {
-        try auction.exitBid(bidId) {}
-        catch {
-            revert('exitBid failed');
-        }
     }
 
     // ============ Handlers ============
@@ -127,7 +104,7 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
         }
     }
 
-    function handleNormalAction(uint256[] memory /* selections */ ) external returns (bool) {
+    function handleNormalAction(uint256[] memory /* selections */ ) external pure returns (bool) {
         // counter.unlock();
         // counter.setNumber(42);
         return true;
@@ -187,7 +164,7 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
 
     function selectMutation(uint256 seed, uint256[] memory /* selections */ )
         external
-        view
+        pure
         returns (Combinatorium.Mutation memory)
     {
         Combinatorium.MutationType mutType = Combinatorium.MutationType.WRONG_PARAMETER;
@@ -225,12 +202,13 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
             // Submit the bid
             vm.prank(alice);
             console.log('starting users bid submission');
+            usersBidStartBlock = uint64(block.number); // Store block number before submission
             usersBidId = auction.submitBid{value: bidAmount}(maxPriceQ96, bidAmount, alice, bytes(''));
             console.log('bid submitted');
 
             // Set up post-bid scenario using the helper
-            helper__postBidScenario(postBidScenario, maxPriceQ96, true);
-            console.log('postBidScenario setup complete');
+            actualPostBidScenario = helper__postBidScenario(postBidScenario, maxPriceQ96, true);
+            console.log('PostBidScenario setup complete, actual scenario:', uint256(actualPostBidScenario));
         } else {
             revert('Invalid method');
         }
@@ -255,15 +233,137 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
 
         // Extract scenario selections for scenario-aware verification
         PreBidScenario preBidScenario = PreBidScenario(selections[uint256(SpaceIndices.preBidScenario)]);
-        PostBidScenario postBidScenario = PostBidScenario(selections[uint256(SpaceIndices.postBidScenario)]);
+        PostBidScenario postBidScenario = actualPostBidScenario; // Use the actual scenario that was set up
 
         console.log('Verifying with scenarios - Pre:', uint256(preBidScenario), 'Post:', uint256(postBidScenario));
 
-        // ============ Phase 1: Bid-Struct Verification ============
+        // ============ Phase 1: Immediate Post-Bid Verification ============
+        console.log('=== Phase 1: Immediate Post-Bid Verification ===');
 
-        // ============ Phase 2: Auction-End Settlement  ============
+        // Extract original bid parameters from selections
+        uint256 bidSeed = selections[uint256(SpaceIndices.bidSeed)];
+        (uint128 bidAmount, uint256 maxPriceQ96,) = helper__seedBasedBid(bidSeed);
 
-        // ============ Phase 3: Auction-State Verification ============
+        // Verify bid struct properties
+        helper__verifyBidStruct(
+            usersBidId,
+            alice, // owner
+            maxPriceQ96, // maxPrice
+            uint256(bidAmount) << FixedPoint96.RESOLUTION, // amountQ96
+            usersBidStartBlock // startBlock (stored at submission time)
+        );
+
+        // Verify bid is in tick's linked list (if above clearing)
+        Checkpoint memory currentCP = auction.checkpoint();
+        if (maxPriceQ96 > currentCP.clearingPrice) {
+            uint256 tickDemand = auction.ticks(maxPriceQ96).currencyDemandQ96;
+            assertGt(tickDemand, 0, 'Tick should have demand after bid submission');
+            console.log('  Tick demand updated successfully');
+        }
+
+        console.log('Phase 1 verification complete');
+
+        // ============ Phase 2: Auction-End Settlement Verification ============
+        console.log('=== Phase 2: Auction-End Settlement Verification ===');
+
+        // Save current state for snapshot revert
+        uint256 preSettlementSnapshot = vm.snapshot();
+
+        // Jump to auction end and checkpoint
+        vm.roll(auction.endBlock());
+        Checkpoint memory finalCheckpoint = auction.checkpoint();
+        bool graduated = auction.isGraduated();
+
+        console.log('Auction end state:');
+        console.log('  endBlock:', auction.endBlock());
+        console.log('  finalClearing:', finalCheckpoint.clearingPrice);
+        console.log('  graduated:', graduated);
+
+        // Get the bid at auction end
+        Bid memory finalBid = auction.bids(usersBidId);
+
+        // SCENARIO VALIDATION: Check if actual state matches intended scenario
+        helper__validateScenarioMatchesReality(postBidScenario, usersBidId, finalCheckpoint);
+
+        // Classify exit path based on actual final state
+        ExitPath exitPath = helper__classifyExitPath(finalBid, finalCheckpoint, graduated);
+        console.log('Exit path:', uint256(exitPath));
+
+        // Get owner balance before exit
+        address bidOwner = finalBid.owner;
+        uint256 balanceBefore = address(bidOwner).balance;
+
+        // Verify exit based on path
+        if (exitPath == ExitPath.NonGraduated) {
+            console.log('Verifying NonGraduated exit path');
+            uint256 expectedRefund = finalBid.amountQ96 >> FixedPoint96.RESOLUTION;
+            helper__verifyNonGraduatedExit(usersBidId, balanceBefore, expectedRefund);
+        } else if (exitPath == ExitPath.FullExit) {
+            console.log('Verifying FullExit path');
+            helper__verifyFullExit(usersBidId, balanceBefore);
+        } else if (exitPath == ExitPath.PartialExit) {
+            console.log('Verifying PartialExit path');
+
+            // Detect edge cases
+            uint64 lastFullyFilledBlock = helper__findLastFullyFilledCheckpoint(finalBid, finalBid.startBlock);
+            uint64 outbidBlock = helper__findOutbidBlock(finalBid, finalBid.startBlock);
+
+            if (lastFullyFilledBlock == 0) {
+                console.log('  Edge case: At clearing from start (no fully-filled period)');
+            }
+            if (outbidBlock == finalBid.startBlock) {
+                console.log('  Edge case: Outbid immediately at startBlock');
+            }
+
+            helper__verifyPartialExit(usersBidId);
+        }
+
+        console.log('Phase 2 verification complete');
+
+        // Revert to pre-settlement state to avoid polluting future iterations
+        vm.revertToState(preSettlementSnapshot);
+
+        // ============ Phase 3: Auction Invariants Verification ============
+        console.log('=== Phase 3: Auction Invariants Verification ===');
+
+        // Invariant 1: Bid struct consistency
+        Bid memory currentBid = auction.bids(usersBidId);
+        assertEq(currentBid.exitedBlock, 0, 'Bid should not be exited in current timeline');
+        assertTrue(currentBid.startBlock >= auction.startBlock(), 'Bid startBlock before auction start');
+        assertTrue(currentBid.startBlock < auction.endBlock(), 'Bid startBlock after auction end');
+
+        // Invariant 2: Checkpoint linked list integrity
+        Checkpoint memory latestCP = auction.latestCheckpoint();
+        uint64 checkpointBlock = auction.lastCheckpointedBlock();
+
+        // Traverse backwards to verify prev pointers
+        uint64 traverseBlock = checkpointBlock;
+        uint256 traverseCount = 0;
+        while (traverseBlock != 0 && traverseCount < CHECKPOINT_TRAVERSAL_LIMIT) {
+            Checkpoint memory cp = auction.checkpoints(traverseBlock);
+            if (cp.prev != 0) {
+                Checkpoint memory prevCP = auction.checkpoints(cp.prev);
+                assertEq(prevCP.next, traverseBlock, 'Checkpoint linked list broken');
+            }
+            traverseBlock = cp.prev;
+            traverseCount++;
+        }
+        assertTrue(traverseCount < CHECKPOINT_TRAVERSAL_LIMIT, 'Checkpoint list too long');
+
+        // Invariant 3: Clearing price monotonicity
+        // Clearing price should never decrease
+        Checkpoint memory bidStartCP = auction.checkpoints(currentBid.startBlock);
+        assertTrue(latestCP.clearingPrice >= bidStartCP.clearingPrice, 'Clearing price decreased (should be monotonic)');
+
+        // Invariant 4: CumulativeMps monotonicity
+        assertTrue(latestCP.cumulativeMps >= bidStartCP.cumulativeMps, 'CumulativeMps should never decrease');
+
+        // Invariant 5: Bid owner is valid address
+        assertTrue(currentBid.owner != address(0), 'Bid owner should not be zero address');
+        assertEq(currentBid.owner, alice, 'Bid owner should be alice');
+
+        console.log('Phase 3 invariants verified');
+        console.log('=== Verification Complete for bidId:', usersBidId, '===');
     }
 
     // ============ Tests ============

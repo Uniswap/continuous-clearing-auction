@@ -71,21 +71,26 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
             _tickDemandQ96 * BidLib.mpsRemainingInAuctionAfterSubmission(_bid)
         );
 
-        uint256 scaledCurrencySpent = FixedPointMathLib.fullMulDivUp(
+        uint256 currencySpentQ96RoundedUp = FixedPointMathLib.fullMulDivUp(
             _bid.amountQ96 * ConstantsLib.MPS,
             ValueX7.unwrap(_cumulativeCurrencyRaisedAtClearingPriceX7),
             _tickDemandQ96 * BidLib.mpsRemainingInAuctionAfterSubmission(_bid)
         );
 
-        emit log_named_uint('scaledCurrencySpent', scaledCurrencySpent);
-        emit log_named_uint('currencySpent', currencySpent);
-        assertEq(currencySpent, scaledCurrencySpent / ConstantsLib.MPS, 'currency spent');
         // Given that the bid amount is greater than 0, the currency spent must be greater than 0
-        // This is given, but just for sanity
         assertGt(_bid.amountQ96, 0, 'bid amount must be greater than 0');
-        assertGt(scaledCurrencySpent, 0, 'scaled currency spent must be greater than 0');
+        assertGt(currencySpentQ96RoundedUp, 0, 'currencySpentQ96RoundedUp must be greater than 0');
         assertGt(currencySpent, 0, 'currency spent must be greater than 0');
-        assertEq(tokensFilled, scaledCurrencySpent / ConstantsLib.MPS / _bid.maxPrice, 'tokens filled');
+
+        uint256 tokensFilledRoundedDown =
+            FixedPointMathLib.fullMulDiv(
+                    _bid.amountQ96 * ConstantsLib.MPS,
+                    ValueX7.unwrap(_cumulativeCurrencyRaisedAtClearingPriceX7),
+                    _tickDemandQ96 * (ConstantsLib.MPS - _bid.startCumulativeMps)
+                ) / ConstantsLib.MPS / _bid.maxPrice;
+
+        assertEq(currencySpent, currencySpentQ96RoundedUp / ConstantsLib.MPS, 'currency spent');
+        assertEq(tokensFilled, tokensFilledRoundedDown, 'tokens filled');
     }
 
     function test_WhenCurrencyRaisedAtClearingPriceEQ0(Bid memory _bid, uint256 _tickDemandQ96) external view {

@@ -88,15 +88,13 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         // tickDemandQ96 is a summation of bid effective amounts, so we must scale up the bid
         // by 1e7 and divide by `mpsRemainingInAuctionAfterSubmission` such that we can
         // apply the ratio of the bid demand to the tick demand to the currencyRaisedAtClearingPriceQ96_X7
-        ValueX7 currencySpentQ96_X7 = bid.amountQ96.scaleUpToX7()
-            .fullMulDivUp(
-                currencyRaisedAtClearingPriceQ96_X7,
-                ValueX7.wrap(tickDemandQ96 * bid.mpsRemainingInAuctionAfterSubmission())
-            );
-        // The currency spent ValueX7 is then scaled down to a uint256
-        currencySpentQ96 = currencySpentQ96_X7.scaleDownToUint256();
-        // The tokens filled uses the currencySpent ValueX7 value and scales down to a uint256
-        tokensFilled = currencySpentQ96_X7.divUint256(bid.maxPrice).scaleDownToUint256();
+        ValueX7 numerator = bid.amountQ96.scaleUpToX7();
+        ValueX7 denominator = ValueX7.wrap(tickDemandQ96 * bid.mpsRemainingInAuctionAfterSubmission());
+        // If currency spent is calculated to have a remainder, we round up.
+        currencySpentQ96 = numerator.fullMulDivUp(currencyRaisedAtClearingPriceQ96_X7, denominator).scaleDownToUint256();
+        // Tokens filled uses the currency spent but rounds it down before dividing by the max price
+        tokensFilled = numerator.fullMulDiv(currencyRaisedAtClearingPriceQ96_X7, denominator).divUint256(bid.maxPrice)
+            .scaleDownToUint256();
     }
 
     /// @notice Calculate the tokens filled and currency spent for a bid

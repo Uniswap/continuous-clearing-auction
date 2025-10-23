@@ -109,7 +109,10 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
 
     /// forge-config: default.fuzz.runs = 888
     /// forge-config: ci.fuzz.runs = 888
-    function test_WhenThereIsEnoughDemandToFallBelowTheNextTickButRoundsUpToTheNextTick(FuzzDeploymentParams memory _deploymentParams) external setUpMockAuctionFuzz(_deploymentParams) {
+    function test_WhenThereIsEnoughDemandToFallBelowTheNextTickButRoundsUpToTheNextTick(FuzzDeploymentParams memory _deploymentParams)
+        external
+        setUpMockAuctionFuzz(_deploymentParams)
+    {
         // it should not sell more tokens than there is demand at the rounded up tick
         // it should set currencyRaisedAtClearing price to be the sum with demand at the rounded up tick
         // it should set the cumulativeMpsPerPrice with the rounded up clearing price
@@ -140,7 +143,7 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
             next: type(uint64).max
         });
         uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice(checkpoint);
-        
+
         // Require that the clearing price rounds up to the next tick price
         vm.assume(clearingPrice == nextTickPrice);
 
@@ -203,11 +206,11 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
             // Maximize the number of checkpoints to maximize the rounding error
             // we have already sold 1000 mps
             uint24 remainingMps = ConstantsLib.MPS - checkpoint.cumulativeMps;
-            for(uint24 i = 0; i < remainingMps; i+=10_000) {
+            for (uint24 i = 0; i < remainingMps; i += 10_000) {
                 checkpoint = mockAuction.sellTokensAtClearingPrice(checkpoint, 10_000);
             }
             assertEq(checkpoint.cumulativeMps, ConstantsLib.MPS);
-            
+
             // From the previous setup in the test, we know that the clearing price == bid max price
             // Calculate the partial tokens filled
             ValueX7 currencySpentQ96_X7 = demandAtNextTick.scaleUpToX7()

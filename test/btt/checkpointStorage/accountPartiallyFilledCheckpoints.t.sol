@@ -59,13 +59,20 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
             _bid, _tickDemandQ96, _cumulativeCurrencyRaisedAtClearingPriceX7
         );
 
-        uint256 scaledCurrencySpent = FixedPointMathLib.fullMulDivUp(
+        uint256 currencySpentQ96RoundedUp = FixedPointMathLib.fullMulDivUp(
             _bid.amountQ96 * ConstantsLib.MPS,
             ValueX7.unwrap(_cumulativeCurrencyRaisedAtClearingPriceX7),
             _tickDemandQ96 * (ConstantsLib.MPS - _bid.startCumulativeMps)
         );
 
-        assertEq(currencySpent, scaledCurrencySpent / ConstantsLib.MPS, 'currency spent');
-        assertEq(tokensFilled, scaledCurrencySpent / ConstantsLib.MPS / _bid.maxPrice, 'tokens filled');
+        uint256 tokensFilledRoundedDown =
+            FixedPointMathLib.fullMulDiv(
+                    _bid.amountQ96 * ConstantsLib.MPS,
+                    ValueX7.unwrap(_cumulativeCurrencyRaisedAtClearingPriceX7),
+                    _tickDemandQ96 * (ConstantsLib.MPS - _bid.startCumulativeMps)
+                ) / ConstantsLib.MPS / _bid.maxPrice;
+
+        assertEq(currencySpent, currencySpentQ96RoundedUp / ConstantsLib.MPS, 'currency spent');
+        assertEq(tokensFilled, tokensFilledRoundedDown, 'tokens filled');
     }
 }

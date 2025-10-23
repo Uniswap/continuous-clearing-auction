@@ -16,7 +16,6 @@ import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
-import {FixedPoint128} from './libraries/FixedPoint128.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
@@ -99,9 +98,15 @@ contract Auction is
 
     /// @notice Modifier for functions which can only be called after the auction is started and the tokens have been received
     modifier onlyActiveAuction() {
+        _onlyActiveAuction();
+        _;
+    }
+
+    /// @notice Internal function to check if the auction is active
+    /// @dev Submitting bids or checkpointing is not allowed unless the auction is active
+    function _onlyActiveAuction() internal view {
         if (block.number < START_BLOCK) revert AuctionNotStarted();
         if (!$_tokensReceived) revert TokensNotReceived();
-        _;
     }
 
     /// @notice Modifier for functions which require the latest checkpoint to be up to date

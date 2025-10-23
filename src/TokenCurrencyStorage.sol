@@ -8,7 +8,7 @@ import {BidLib} from './libraries/BidLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
-import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
+import {ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @title TokenCurrencyStorage

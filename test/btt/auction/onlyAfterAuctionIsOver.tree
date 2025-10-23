@@ -1,0 +1,5 @@
+OnlyAfterAuctionIsOverTest
+├── when block number LT endBlock
+│   └── it reverts with {AuctionIsNotOver}
+└── when block number GE endBlock
+    └── it does not revert

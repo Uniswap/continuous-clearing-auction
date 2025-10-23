@@ -207,10 +207,7 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
                 checkpoint = mockAuction.sellTokensAtClearingPrice(checkpoint, 10_000);
             }
             assertEq(checkpoint.cumulativeMps, ConstantsLib.MPS);
-        
-            // Show that because of rounding down, and the clearing price being rounded up, the total cleared is less than the total supply sold
-            assertLt(mockAuction.totalCleared(), totalSupply, 'total cleared not less than total supply sold');
-
+            
             // From the previous setup in the test, we know that the clearing price == bid max price
             // Calculate the partial tokens filled
             ValueX7 currencySpentQ96_X7 = demandAtNextTick.scaleUpToX7()

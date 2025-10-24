@@ -11,6 +11,7 @@ ffi = true
 fs_permissions = [
   { access = "read-write", path = ".forge-snapshots" },
   { access = "read", path = "script/" },
+  { access = "write", path = "./" }
 ]
 extra_output = ["storageLayout"]
 

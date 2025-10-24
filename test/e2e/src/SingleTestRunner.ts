@@ -93,6 +93,7 @@ export class SingleTestRunner {
 
     // PHASE 1: Setup the auction environment
     console.log(LOG_PREFIXES.INFO, "Phase 1: Setting up auction environment...");
+    await hre.network.provider.send(METHODS.EVM.SET_AUTOMINE, [false]);
 
     // Check current block and auction start block
     const currentBlock = await hre.ethers.provider.getBlockNumber();
@@ -159,8 +160,11 @@ export class SingleTestRunner {
       const blocksToMine = auctionEndBlock - blockBeforeFinalState + 1;
       await hre.ethers.provider.send("hardhat_mine", [`0x${blocksToMine.toString(16)}`]);
     }
+    await hre.network.provider.send(METHODS.EVM.SET_AUTOMINE, [true]);
 
-    // Get final state as-is (without forcing a checkpoint)
+    // Force checkpoint and call sweep functions
+    await this.forceCheckpointAndSweep(auction);
+    // Get final state as-is
     const finalState = await assertionEngine.getAuctionState();
 
     // Don't add final state as a checkpoint - only use checkpoints from actual events
@@ -189,6 +193,18 @@ export class SingleTestRunner {
       finalState,
       success: true,
     };
+  }
+
+  private async forceCheckpointAndSweep(auction: Contract): Promise<void> {
+    // Force checkpoint
+    await auction.checkpoint();
+    try {
+      await auction.sweepCurrency();
+    } catch (error) {
+      console.log(LOG_PREFIXES.INFO, ERROR_MESSAGES.CURRENCY_SWEEP_ATTEMPT_FAILED, error);
+    }
+
+    await auction.sweepUnsoldTokens();
   }
 
   private async logSummary(
@@ -466,48 +482,51 @@ export class SingleTestRunner {
         }
         const bidId = bid.bidId;
         const maxPrice = bid.maxPrice;
+        let skipPartial = false;
         // Check if bid is above, at, or below final clearing price
         if (maxPrice > finalCheckpoint.clearingPrice) {
           // Bid is above final clearing - try simple exitBid first
           try {
-            let tx = await auction.exitBid(bidId);
             const previousBlock = (await hre.ethers.provider.getBlockNumber()) - 1;
             console.log(`     ✅ Exited bid ${bidId} at block ${previousBlock} (simple exit - above clearing)`);
             shouldClaimBid.set(bidId, true);
-            continue; // Successfully exited, move to next bid
+            skipPartial = true;
           } catch (error) {
             // Simple exit failed, fall through to try partial exit
           }
         }
-
-        // Try partial exit (for bids at/below clearing, or if simple exit failed)
-        try {
-          const hints = this.findCheckpointHints(maxPrice, sortedCheckpoints);
-          if (hints) {
-            let tx = await auction.exitPartiallyFilledBid(bidId, hints.lastFullyFilled, hints.outbid);
-            const previousBlock = (await hre.ethers.provider.getBlockNumber()) - 1;
-            console.log(
-              `     ✅ Exited bid ${bidId} at block ${previousBlock} (partial exit with hints: ${hints.lastFullyFilled}, ${hints.outbid})`,
-            );
-            const receipt = await hre.ethers.provider.getTransactionReceipt(tx.hash);
-            for (const log of receipt?.logs ?? []) {
-              const parsedLog = auction.interface.parseLog({
-                topics: log.topics,
-                data: log.data,
-              });
-              if (parsedLog?.name === EVENTS.BID_EXITED) {
-                if (parsedLog.args[2] > 0n) {
-                  shouldClaimBid.set(bidId, true);
+        if (!skipPartial) {
+          // Try partial exit (for bids at/below clearing, or if simple exit failed)
+          try {
+            const hints = this.findCheckpointHints(maxPrice, sortedCheckpoints);
+            if (hints) {
+              let tx = await auction.exitPartiallyFilledBid(bidId, hints.lastFullyFilled, hints.outbid);
+              const previousBlock = (await hre.ethers.provider.getBlockNumber()) - 1;
+              console.log(
+                `     ✅ Exited bid ${bidId} at block ${previousBlock} (partial exit with hints: ${hints.lastFullyFilled}, ${hints.outbid})`,
+              );
+              const receipt = await hre.ethers.provider.getTransactionReceipt(tx.hash);
+              for (const log of receipt?.logs ?? []) {
+                const parsedLog = auction.interface.parseLog({
+                  topics: log.topics,
+                  data: log.data,
+                });
+                if (parsedLog?.name === EVENTS.BID_EXITED) {
+                  if (parsedLog.args[2] > 0n) {
+                    shouldClaimBid.set(bidId, true);
+                  }
                 }
               }
+            } else {
+              console.log(`     ⚠️  Could not find checkpoint hints for bid ${bidId} (price: ${maxPrice})`);
             }
-          } else {
-            console.log(`     ⚠️  Could not find checkpoint hints for bid ${bidId} (price: ${maxPrice})`);
+          } catch (partialExitError) {
+            const errorMsg = partialExitError instanceof Error ? partialExitError.message : String(partialExitError);
+            const previousBlock = (await hre.ethers.provider.getBlockNumber()) - 1;
+            console.log(
+              `     ⚠️  Could not exit bid ${bidId} at block ${previousBlock}: ${errorMsg.substring(0, 200)}`,
+            );
           }
-        } catch (partialExitError) {
-          const errorMsg = partialExitError instanceof Error ? partialExitError.message : String(partialExitError);
-          const previousBlock = (await hre.ethers.provider.getBlockNumber()) - 1;
-          console.log(`     ⚠️  Could not exit bid ${bidId} at block ${previousBlock}: ${errorMsg.substring(0, 200)}`);
         }
         let balanceAfter = 0n;
         if (currencyToken) {
@@ -517,6 +536,9 @@ export class SingleTestRunner {
         }
         const refundAmount = balanceAfter - balanceBefore;
         calculatedCurrencyRaised += Number(bid.amount - refundAmount) / 10 ** currencyDecimals;
+        if (bid.amount == 0n) {
+          throw Error("bid 0");
+        }
       }
 
       if (!isGraduated) {
@@ -643,8 +665,6 @@ export class SingleTestRunner {
   async handleInitializeTransactions(setupTransactions: TransactionInfo[]): Promise<void> {
     const provider = hre.ethers.provider;
 
-    // Pause automine so all txs pile up
-    await provider.send(METHODS.EVM.SET_AUTOMINE, [false]);
     await provider.send(METHODS.EVM.SET_INTERVAL_MINING, [0]);
 
     const nextNonce = new Map<string, number>();
@@ -684,8 +704,6 @@ export class SingleTestRunner {
 
     // mine exactly one block
     await provider.send(METHODS.EVM.MINE, []);
-
-    await provider.send(METHODS.EVM.SET_AUTOMINE, [true]);
   }
 
   /**
@@ -857,29 +875,21 @@ export class SingleTestRunner {
    */
   async handleTransactions(transactions: TransactionInfo[], reverseLabelMap: Map<string, string>): Promise<void> {
     const provider = hre.network.provider;
-
-    // Pause automining so txs pile up in the mempool
-    await provider.send(METHODS.EVM.SET_AUTOMINE, [false]);
     await provider.send(METHODS.EVM.SET_INTERVAL_MINING, [0]); // ensure no timer mines a block
 
     const pendingHashes: HashWithRevert[] = [];
     const nextNonce = new Map<string, number>();
 
-    try {
-      await this.submitTransactions(transactions, pendingHashes, nextNonce, reverseLabelMap, provider);
+    await this.submitTransactions(transactions, pendingHashes, nextNonce, reverseLabelMap, provider);
 
-      // Mine exactly one block containing all pending txs
-      await provider.send(METHODS.EVM.MINE, []);
+    // Mine exactly one block containing all pending txs
+    await provider.send(METHODS.EVM.MINE, []);
 
-      const receipts = await this.validateReceipts(pendingHashes);
+    const receipts = await this.validateReceipts(pendingHashes);
 
-      // Track bidIds from BidSubmitted events
-      if (this.auction && receipts.length > 0) {
-        await this.trackBidIdsFromReceipts(receipts, this.auction);
-      }
-    } finally {
-      // Restore automining
-      await provider.send(METHODS.EVM.SET_AUTOMINE, [true]);
+    // Track bidIds from BidSubmitted events
+    if (this.auction && receipts.length > 0) {
+      await this.trackBidIdsFromReceipts(receipts, this.auction);
     }
   }
 

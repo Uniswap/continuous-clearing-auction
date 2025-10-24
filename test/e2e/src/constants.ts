@@ -84,6 +84,7 @@ export const ERROR_MESSAGES = {
     `Current block ${currentBlock} is already past auction start block ${auctionStartBlock}`,
   BLOCK_ALREADY_MINED: (blockNum: number) => `Block ${blockNum} is already mined`,
   EXPECTED_REVERT_MISMATCH: (expected: string, actual: string) => `Expected revert "${expected}" but got: ${actual}`,
+  CURRENCY_SWEEP_ATTEMPT_FAILED: "Currency sweep attempt failed",
 
   // SchemaValidator errors
   TYPESCRIPT_FILE_NOT_FOUND: (tsFilePath: string) => `TypeScript test instance file not found: ${tsFilePath}`,

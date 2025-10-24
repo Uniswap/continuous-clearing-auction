@@ -55,6 +55,8 @@ contract Auction is
 
     /// @notice The total currency raised in the auction in Q96 representation, scaled up by X7
     ValueX7 internal $currencyRaisedQ96_X7;
+    /// @notice The total tokens sold in the auction so far, in Q96 representation, scaled up by X7
+    ValueX7 internal $totalClearedQ96_X7;
     /// @notice The sum of currency demand in ticks above the clearing price
     /// @dev This will increase every time a new bid is submitted, and decrease when bids are outbid.
     uint256 internal $sumCurrencyDemandAboveClearingQ96;
@@ -214,7 +216,14 @@ contract Auction is
             }
         }
 
+        // Update the global tokens cleared tracked value, rounding up such that some dust is left over after `sweepUnsoldTokens()`
+        // note that this still uses the rounded up clearing price in the denominator, so the result can bias lower
+        $totalClearedQ96_X7 = $totalClearedQ96_X7.add(
+            currencyRaisedQ96_X7_.wrapAndFullMulDivUp(FixedPoint96.Q96, _checkpoint.clearingPrice)
+        );
+        // Update the global currency raised tracked value
         $currencyRaisedQ96_X7 = $currencyRaisedQ96_X7.add(currencyRaisedQ96_X7_);
+
         _checkpoint.cumulativeMps += deltaMps;
         // Calculate the harmonic mean of the mps and price (the sum of mps/price)
         // This uses the rounded up clearing price so fully filled bids purchase less tokens for higher prices
@@ -670,7 +679,14 @@ contract Auction is
     /// @inheritdoc IAuction
     function sweepUnsoldTokens() external onlyAfterAuctionIsOver ensureEndBlockIsCheckpointed {
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
-        _sweepUnsoldTokens(_isGraduated() ? 0 : TOTAL_SUPPLY);
+        uint256 unsoldTokens;
+        if (_isGraduated()) {
+            unsoldTokens = TOTAL_SUPPLY_Q96.scaleUpToX7().sub($totalClearedQ96_X7).divUint256(FixedPoint96.Q96)
+                .scaleDownToUint256();
+        } else {
+            unsoldTokens = TOTAL_SUPPLY;
+        }
+        _sweepUnsoldTokens(unsoldTokens);
     }
 
     // Getters
@@ -692,5 +708,15 @@ contract Auction is
     /// @inheritdoc IAuction
     function sumCurrencyDemandAboveClearingQ96() external view override(IAuction) returns (uint256) {
         return $sumCurrencyDemandAboveClearingQ96;
+    }
+
+    /// @inheritdoc IAuction
+    function totalClearedQ96_X7() external view override(IAuction) returns (ValueX7) {
+        return $totalClearedQ96_X7;
+    }
+
+    /// @inheritdoc IAuction
+    function totalCleared() external view override(IAuction) returns (uint256) {
+        return $totalClearedQ96_X7.divUint256(FixedPoint96.Q96).scaleDownToUint256();
     }
 }

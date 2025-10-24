@@ -43,7 +43,6 @@ contract AuctionIterateOverTicksTest is AuctionUnitTest {
 
     // Less fuzz runs because this is a pretty intensive test
     /// forge-config: default.fuzz.runs = 888
-    /// forge-config: ci.fuzz.runs = 888
     function test_iterateOverTicks(
         FuzzDeploymentParams memory _deploymentParams,
         FuzzBid[] memory _bids,

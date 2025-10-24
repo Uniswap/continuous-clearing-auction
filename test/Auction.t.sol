@@ -551,7 +551,6 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     /// forge-config: default.fuzz.runs = 1000
-    /// forge-config: ci.fuzz.runs = 1000
     function test_exitBid_afterEndBlock_succeeds(uint128 _bidAmount, uint128 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
@@ -862,7 +861,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepUnsoldTokens();
     }
 
-    function test_exitPartiallyFilledBid_roundingError_succeeds() public {
+    function test_exitPartiallyFilledBid_roundingError_succeeds() public checkAuctionIsSolvent {
         address bob = makeAddr('bob');
         address charlie = makeAddr('charlie');
 
@@ -925,15 +924,6 @@ contract AuctionTest is AuctionBaseTest {
         vm.startPrank(bob);
         auction.exitPartiallyFilledBid(bidId2, 3, 0);
         auction.claimTokens(bidId2);
-        vm.stopPrank();
-
-        // All tokens were sold
-        vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.TokensSwept(auction.tokensRecipient(), 0);
-        auction.sweepUnsoldTokens();
-
-        vm.startPrank(auction.fundsRecipient());
-        auction.sweepCurrency();
         vm.stopPrank();
     }
 
@@ -1781,7 +1771,6 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     /// forge-config: default.fuzz.runs = 1000
-    /// forge-config: ci.fuzz.runs = 1000
     function test_claimTokens_beforeBidExited_reverts(uint128 _bidAmount, uint256 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
@@ -1877,7 +1866,6 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     /// forge-config: default.fuzz.runs = 1000
-    /// forge-config: ci.fuzz.runs = 1000
     function test_claimTokensBatch_beforeBidExited_reverts(
         uint128 _bidAmount,
         uint128 _numberOfBids,
@@ -1898,7 +1886,6 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     /// forge-config: default.fuzz.runs = 1000
-    /// forge-config: ci.fuzz.runs = 1000
     function test_claimTokensBatch_beforeClaimBlock_reverts(
         uint128 _bidAmount,
         uint128 _numberOfBids,
@@ -1936,7 +1923,6 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     /// forge-config: default.fuzz.runs = 1000
-    /// forge-config: ci.fuzz.runs = 1000
     function test_claimTokensBatch_tokenTransferFails_reverts(
         uint128 _bidAmount,
         uint128 _numberOfBids,
@@ -1976,7 +1962,6 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     /// forge-config: default.fuzz.runs = 1000
-    /// forge-config: ci.fuzz.runs = 1000
     function test_claimTokensBatch_succeeds(uint128 _bidAmount, uint128 _numberOfBids, uint256 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)

@@ -207,4 +207,10 @@ interface IAuction is
 
     /// @notice The sum of demand in ticks above the clearing price
     function sumCurrencyDemandAboveClearingQ96() external view returns (uint256);
+
+    /// @notice The total currency raised as of the last checkpoint
+    function totalClearedQ96_X7() external view returns (ValueX7);
+
+    /// @notice The total tokens cleared as of the last checkpoint in uint256 representation
+    function totalCleared() external view returns (uint256);
 }

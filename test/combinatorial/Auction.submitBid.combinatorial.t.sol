@@ -57,6 +57,9 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
     uint64 public usersBidStartBlock; // Track the block where bid was submitted
     PostBidScenario public actualPostBidScenario; // Track the actual post-bid scenario
 
+    // Coverage tracking event
+    event CoverageData(uint8 preBidScenario, uint8 postBidScenario, uint128 bidAmount, uint256 maxPrice);
+
     function setUp() public {
         // Number of steps to run in handleSetup
         ctx.init(1);
@@ -98,6 +101,7 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
     function handleTestAction(uint256[] memory selections) external returns (bool) {
         try this.performAction(selections) {
             verifyState(selections[uint256(SpaceIndices.method)], selections);
+            documentState(selections);
             return true;
         } catch {
             return false;
@@ -364,6 +368,33 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
 
         console.log('Phase 3 invariants verified');
         console.log('=== Verification Complete for bidId:', usersBidId, '===');
+    }
+
+    /**
+     * @notice Document test case coverage data
+     * @dev Lightweight function to log test parameters without complex stack operations
+     * @param selections The parameter selections from the design space
+     */
+    function documentState(uint256[] memory selections) internal {
+        // Extract basic scenario info
+        PreBidScenario preBid = PreBidScenario(selections[uint256(SpaceIndices.preBidScenario)]);
+        PostBidScenario postBid = actualPostBidScenario;
+
+        // Get bid parameters
+        uint256 bidSeed = selections[uint256(SpaceIndices.bidSeed)];
+        (uint128 bidAmount, uint256 maxPrice,) = helper__seedBasedBid(bidSeed);
+
+        // Emit event for coverage tracking
+        emit CoverageData(uint8(preBid), uint8(postBid), bidAmount, maxPrice);
+
+        // Write to file for aggregation across all fuzz runs
+        string memory coverageLine = string(abi.encodePacked(
+            vm.toString(uint256(preBid)), ",",
+            vm.toString(uint256(postBid)), ",",
+            vm.toString(uint256(bidAmount)), ",",
+            vm.toString(maxPrice), "\n"
+        ));
+        vm.writeLine("./coverage_data.csv", coverageLine);
     }
 
     // ============ Tests ============

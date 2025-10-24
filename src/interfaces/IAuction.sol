@@ -185,7 +185,7 @@ interface IAuction is
 
     /// @notice Claim tokens for multiple bids
     /// @dev Anyone can claim tokens for bids of the same owner, the tokens are transferred to the owner
-    /// @dev All tokens are transferred in a single transfer
+    /// @dev A TokensClaimed event is emitted for each bid but only one token transfer will be made
     /// @param owner The owner of the bids
     /// @param bidIds The ids of the bids
     function claimTokensBatch(address owner, uint256[] calldata bidIds) external;

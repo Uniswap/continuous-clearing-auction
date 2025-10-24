@@ -167,8 +167,6 @@ export class SingleTestRunner {
     // Get final state as-is
     const finalState = await assertionEngine.getAuctionState();
 
-    // Don't add final state as a checkpoint - only use checkpoints from actual events
-    // The contract only validates hints against stored checkpoints from CheckpointUpdated events
     let calculatedCurrencyRaised = -1;
     // Exit and claim all bids
     calculatedCurrencyRaised = await this.exitAndClaimAllBids(

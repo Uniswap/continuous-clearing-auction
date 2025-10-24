@@ -343,7 +343,7 @@ contract Auction is
         // Insert the checkpoint into storage, updating latest pointer and the linked list
         _insertCheckpoint(_checkpoint, blockNumber);
 
-        emit CheckpointUpdated(blockNumber, _checkpoint.clearingPrice, $currencyRaisedQ96_X7, _checkpoint.cumulativeMps);
+        emit CheckpointUpdated(blockNumber, _checkpoint.clearingPrice, _checkpoint.cumulativeMps);
     }
 
     /// @notice Return the final checkpoint of the auction

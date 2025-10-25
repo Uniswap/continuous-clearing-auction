@@ -152,7 +152,7 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
             uint256 clearingPriceRoundedDown = sumDemandAboveClearing.fullMulDiv(1, totalSupply);
             assertLt(clearingPriceRoundedDown, nextTickPrice);
 
-            uint256 clearingPriceRoundedUp = sumDemandAboveClearing.fullMulDivUp(1, totalSupply);
+            uint256 clearingPriceRoundedUp = sumDemandAboveClearing.divUp(totalSupply);
             assertEq(clearingPriceRoundedUp, nextTickPrice);
 
             // assert approx rounded up and down

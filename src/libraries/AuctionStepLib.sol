@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 struct AuctionStep {
-    uint24 mps; // Mps to sell per block in the step
+    uint24 mpsPerBlock; // Mps to sell per block in the step
     uint64 startBlock; // Start block of the step (inclusive)
     uint64 endBlock; // Ending block of the step (exclusive)
 }
@@ -19,14 +19,14 @@ library AuctionStepLib {
     /// @notice Error thrown when the offset is not at a step boundary - a uint64 aligned offset
     error AuctionStepLib__InvalidOffsetNotAtStepBoundary();
 
-    /// @notice Unpack the mps and block delta from the auction steps data
-    function parse(bytes8 data) internal pure returns (uint24 mps, uint40 blockDelta) {
-        mps = uint24(bytes3(data));
+    /// @notice Unpack the mpsPerBlock and block delta from the auction steps data
+    function parse(bytes8 data) internal pure returns (uint24 mpsPerBlock, uint40 blockDelta) {
+        mpsPerBlock = uint24(bytes3(data));
         blockDelta = uint40(uint64(data));
     }
 
     /// @notice Load a word at `offset` from data and parse it into mps and blockDelta
-    function get(bytes memory data, uint256 offset) internal pure returns (uint24 mps, uint40 blockDelta) {
+    function get(bytes memory data, uint256 offset) internal pure returns (uint24 mpsPerBlock, uint40 blockDelta) {
         // Offset cannot be greater than the data length
         if (offset >= data.length) revert AuctionStepLib__InvalidOffsetTooLarge();
         // Offset must be a multiple of a step (uint64 -  uint24|uint40)
@@ -35,7 +35,7 @@ library AuctionStepLib {
         assembly {
             let packedValue := mload(add(add(data, 0x20), offset))
             packedValue := shr(192, packedValue)
-            mps := shr(40, packedValue)
+            mpsPerBlock := shr(40, packedValue)
             blockDelta := and(packedValue, 0xFFFFFFFFFF)
         }
     }

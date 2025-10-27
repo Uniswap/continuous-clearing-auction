@@ -48,7 +48,7 @@ contract AdvanceStepTest is BttBase {
         // This is executed as part of the constructor.
 
         vm.expectEmit(true, true, true, true);
-        emit IAuctionStepStorage.AuctionStepRecorded(startBlock, startBlock + steps[0].blockDelta, steps[0].mps);
+        emit IAuctionStepStorage.AuctionStepRecorded(startBlock, startBlock + steps[0].blockDelta, steps[0].mpsPerBlock);
         vm.record();
         auctionStepStorage = new MockAuctionStepStorage(auctionStepsData, startBlock, endBlock);
         (, bytes32[] memory writes) = vm.accesses(address(auctionStepStorage));
@@ -64,7 +64,7 @@ contract AdvanceStepTest is BttBase {
         assertEq(step.startBlock, startBlock);
         assertEq(step.endBlock, startBlock + steps[0].blockDelta);
         assertGt(step.endBlock, step.startBlock);
-        assertEq(step.mps, steps[0].mps);
+        assertEq(step.mpsPerBlock, steps[0].mpsPerBlock);
         assertEq(startBlock, auctionStepStorage.startBlock());
     }
 
@@ -91,7 +91,7 @@ contract AdvanceStepTest is BttBase {
         for (uint256 i = 8; i < auctionStepsData.length; i += 8) {
             vm.expectEmit(true, true, true, true, address(auctionStepStorage));
             emit IAuctionStepStorage.AuctionStepRecorded(
-                prevStep.endBlock, prevStep.endBlock + steps[i / 8].blockDelta, steps[i / 8].mps
+                prevStep.endBlock, prevStep.endBlock + steps[i / 8].blockDelta, steps[i / 8].mpsPerBlock
             );
             vm.record();
             AuctionStep memory step = auctionStepStorage.advanceStep();
@@ -110,7 +110,7 @@ contract AdvanceStepTest is BttBase {
 
             assertEq(step.startBlock, prevStep.endBlock);
             assertEq(step.endBlock, step.startBlock + steps[i / 8].blockDelta);
-            assertEq(step.mps, steps[i / 8].mps);
+            assertEq(step.mpsPerBlock, steps[i / 8].mpsPerBlock);
             assertGt(step.endBlock, step.startBlock);
 
             prevStep = step;

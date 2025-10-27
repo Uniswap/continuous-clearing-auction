@@ -9,11 +9,11 @@ library AuctionStepsBuilder {
     }
 
     function splitEvenlyAmongSteps(uint40 numberOfSteps) internal pure returns (bytes memory) {
-        uint24 mps = uint24(ConstantsLib.MPS / numberOfSteps);
-        return abi.encodePacked(mps, numberOfSteps);
+        uint24 mpsPerBlock = uint24(ConstantsLib.MPS / numberOfSteps);
+        return abi.encodePacked(mpsPerBlock, numberOfSteps);
     }
 
-    function addStep(bytes memory steps, uint24 mps, uint40 blockDelta) internal pure returns (bytes memory) {
-        return abi.encodePacked(steps, abi.encodePacked(mps, blockDelta));
+    function addStep(bytes memory steps, uint24 mpsPerBlock, uint40 blockDelta) internal pure returns (bytes memory) {
+        return abi.encodePacked(steps, abi.encodePacked(mpsPerBlock, blockDelta));
     }
 }

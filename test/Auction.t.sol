@@ -1322,14 +1322,14 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(block.number + 15);
         newAuction.checkpoint();
 
-        uint24 mps = newAuction.step().mps;
-        assertEq(mps, 150e3);
+        uint24 mpsPerBlock = newAuction.step().mpsPerBlock;
+        assertEq(mpsPerBlock, 150e3);
 
         vm.roll(block.number + 20);
         newAuction.checkpoint();
 
         AuctionStep memory step = newAuction.step();
-        assertEq(step.mps, 250e3);
+        assertEq(step.mpsPerBlock, 250e3);
     }
 
     // Test the edge case where the blockNumber happens to be on the end of a step, which is exclusive
@@ -1345,7 +1345,7 @@ contract AuctionTest is AuctionBaseTest {
         mockAuction.onTokensReceived();
 
         AuctionStep memory step = mockAuction.step();
-        assertEq(step.mps, 0);
+        assertEq(step.mpsPerBlock, 0);
         assertEq(step.startBlock, startBlock);
         assertEq(step.endBlock, startBlock + 10);
 
@@ -1434,7 +1434,7 @@ contract AuctionTest is AuctionBaseTest {
         mockAuction.onTokensReceived();
 
         AuctionStep memory step = mockAuction.step();
-        assertEq(step.mps, 100e3);
+        assertEq(step.mpsPerBlock, 100e3);
         assertEq(step.startBlock, startBlock);
         assertEq(step.endBlock, startBlock + 10);
 

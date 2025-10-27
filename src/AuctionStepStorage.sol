@@ -68,17 +68,17 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
         if ($_offset >= _LENGTH) revert AuctionIsOver();
 
         bytes8 _auctionStep = bytes8($_pointer.read($_offset, $_offset + AuctionStepLib.UINT64_SIZE));
-        (uint24 mps, uint40 blockDelta) = _auctionStep.parse();
+        (uint24 mpsPerBlock, uint40 blockDelta) = _auctionStep.parse();
 
         uint64 _startBlock = $step.endBlock;
         if (_startBlock == 0) _startBlock = START_BLOCK;
         uint64 _endBlock = _startBlock + uint64(blockDelta);
 
-        $step = AuctionStep({startBlock: _startBlock, endBlock: _endBlock, mps: mps});
+        $step = AuctionStep({startBlock: _startBlock, endBlock: _endBlock, mpsPerBlock: mpsPerBlock});
 
         $_offset += AuctionStepLib.UINT64_SIZE;
 
-        emit AuctionStepRecorded(_startBlock, _endBlock, mps);
+        emit AuctionStepRecorded(_startBlock, _endBlock, mpsPerBlock);
         return $step;
     }
 

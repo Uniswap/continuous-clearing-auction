@@ -34,14 +34,14 @@ contract AuctionStepStorageTest is Test {
             uint64 cumulativeBlockDelta = 0;
             while (mpsLeft > 0) {
                 // random values between 0 and 1e4
-                uint24 mps = uint24(vm.randomUint() % 1e4);
+                uint24 mpsPerBlock = uint24(vm.randomUint() % 1e4);
                 uint40 blockDelta = uint40(_bound(uint40(vm.randomUint() % 1e4), 1, 1e4));
-                if (mpsLeft < mps * blockDelta) {
+                if (mpsLeft < mpsPerBlock * blockDelta) {
                     break;
                 }
-                mpsLeft -= uint24(mps * blockDelta);
+                mpsLeft -= uint24(mpsPerBlock * blockDelta);
                 cumulativeBlockDelta += blockDelta;
-                auctionStepsData = auctionStepsData.addStep(mps, blockDelta);
+                auctionStepsData = auctionStepsData.addStep(mpsPerBlock, blockDelta);
             }
             // Add the remaining mps as a single step
             if (mpsLeft > 0) {
@@ -97,7 +97,7 @@ contract AuctionStepStorageTest is Test {
 
         AuctionStep memory step = auctionStepStorage.step();
 
-        assertEq(step.mps, 1);
+        assertEq(step.mpsPerBlock, 1);
         assertEq(step.startBlock, auctionStartBlock);
         assertEq(step.endBlock, auctionStartBlock + 1e7);
     }
@@ -115,7 +115,7 @@ contract AuctionStepStorageTest is Test {
         AuctionStep memory step = auctionStepStorage.step();
         // Assert that the current block is the next block
         assertEq(block.number, auctionStartBlock + 100);
-        assertEq(step.mps, 1);
+        assertEq(step.mpsPerBlock, 1);
         assertEq(step.startBlock, auctionStartBlock);
         assertEq(step.endBlock, auctionStartBlock + 1e7);
     }
@@ -129,7 +129,7 @@ contract AuctionStepStorageTest is Test {
 
         // Expect first step to be initialized
         AuctionStep memory step = auctionStepStorage.step();
-        assertEq(step.mps, 1);
+        assertEq(step.mpsPerBlock, 1);
         assertEq(step.startBlock, auctionStartBlock);
         assertEq(step.endBlock, step1EndBlock);
 
@@ -139,7 +139,7 @@ contract AuctionStepStorageTest is Test {
 
         step = auctionStepStorage.step();
 
-        assertEq(step.mps, 2);
+        assertEq(step.mpsPerBlock, 2);
         assertEq(step.startBlock, step1EndBlock);
         assertEq(step.endBlock, step2EndBlock);
     }

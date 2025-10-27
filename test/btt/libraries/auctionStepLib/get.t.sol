@@ -31,7 +31,7 @@ contract GetTest is BttBase {
     function _setupSteps(Step[] memory _steps) private {
         CompactStep[] memory steps = new CompactStep[](_steps.length);
         for (uint256 i = 0; i < _steps.length; i++) {
-            steps[i] = CompactStepLib.create(_steps[i].mps, _steps[i].blockDelta);
+            steps[i] = CompactStepLib.create(_steps[i].mpsPerBlock, _steps[i].blockDelta);
         }
         $steps = steps;
         $data = CompactStepLib.pack(steps);
@@ -94,7 +94,7 @@ contract GetTest is BttBase {
         uint256 offset = index * 8;
 
         (uint24 mps, uint40 blockDelta) = AuctionStepLib.get(data, offset);
-        assertEq(mps, _steps[index].mps);
+        assertEq(mps, _steps[index].mpsPerBlock);
         assertEq(blockDelta, _steps[index].blockDelta);
     }
 }

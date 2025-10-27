@@ -32,7 +32,7 @@ contract ConstructorTest is BttBase {
         uint64 startBlock = uint64(bound(_startBlock, 1, type(uint64).max - numberOfBlocks));
 
         vm.expectEmit(true, true, true, true);
-        emit IAuctionStepStorage.AuctionStepRecorded(startBlock, startBlock + uint64(steps[0].blockDelta), steps[0].mps);
+        emit IAuctionStepStorage.AuctionStepRecorded(startBlock, startBlock + uint64(steps[0].blockDelta), steps[0].mpsPerBlock);
         vm.record();
         auctionStepStorage =
             new MockAuctionStepStorage(auctionStepsData, startBlock, startBlock + uint64(numberOfBlocks));
@@ -49,7 +49,7 @@ contract ConstructorTest is BttBase {
 
         assertEq(
             auctionStepStorage.step(),
-            AuctionStep({startBlock: startBlock, endBlock: startBlock + uint64(steps[0].blockDelta), mps: steps[0].mps})
+            AuctionStep({startBlock: startBlock, endBlock: startBlock + uint64(steps[0].blockDelta), mpsPerBlock: steps[0].mpsPerBlock})
         );
 
         bytes memory expectedCode = bytes.concat(bytes1(0x00), auctionStepsData);

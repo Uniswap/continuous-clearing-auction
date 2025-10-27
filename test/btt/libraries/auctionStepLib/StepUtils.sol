@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 // TODO: move to a shared place
 
 struct Step {
-    uint24 mps;
+    uint24 mpsPerBlock;
     uint40 blockDelta;
 }
 

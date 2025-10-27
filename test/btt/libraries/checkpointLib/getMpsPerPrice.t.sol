@@ -14,12 +14,12 @@ contract GetMpsPerPriceTest is BttBase {
         assertEq(CheckpointLib.getMpsPerPrice(_mps, 0), 0);
     }
 
-    function test_WhenCalledWithPriceGT0(uint24 _mps, uint256 _price) external {
-        // it returns mps * Q96 ** 2 div price
+    function test_WhenCalledWithPriceGT0(uint24 _mpsPerBlock, uint256 _price) external {
+        // it returns mpsPerBlock * Q96 ** 2 div price
 
-        uint24 mps = uint24(bound(_mps, 0, ConstantsLib.MPS));
+        uint24 mpsPerBlock = uint24(bound(_mpsPerBlock, 0, ConstantsLib.MPS));
         uint256 price = bound(_price, 1, type(uint256).max);
 
-        assertEq(CheckpointLib.getMpsPerPrice(mps, price), (mps * FixedPoint96.Q96 ** 2) / price);
+        assertEq(CheckpointLib.getMpsPerPrice(mpsPerBlock, price), (mpsPerBlock * FixedPoint96.Q96 ** 2) / price);
     }
 }

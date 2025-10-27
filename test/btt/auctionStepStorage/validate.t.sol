@@ -44,7 +44,7 @@ contract ValidateTest is BttBase {
         // it reverts with {InvalidAuctionDataLength}
 
         Step[] memory steps = new Step[](1);
-        steps[0].mps = 1e7;
+        steps[0].mpsPerBlock = 1e7;
         steps[0].blockDelta = 1;
         (bytes memory auctionStepsData, uint256 numberOfBlocks,) = generateAuctionSteps(steps);
 

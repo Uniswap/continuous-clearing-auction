@@ -83,19 +83,19 @@ contract BttBase is AuctionBaseTest {
         uint256 totalMps = 0;
         uint256 numberOfSteps = 0;
         while (totalMps < ConstantsLib.MPS && numberOfSteps < _steps.length) {
-            _steps[numberOfSteps].mps = uint24(bound(_steps[numberOfSteps].mps, 0, ConstantsLib.MPS - totalMps));
+            _steps[numberOfSteps].mpsPerBlock = uint24(bound(_steps[numberOfSteps].mpsPerBlock, 0, ConstantsLib.MPS - totalMps));
             _steps[numberOfSteps].blockDelta = uint40(bound(_steps[numberOfSteps].blockDelta, 1, type(uint16).max));
 
             // If the next step would exceed the total mps, or we are on the last step, set the mps and block delta to the remaining mps and 1
             // Otherwise if we are out of fuzz steps, we need to just make up the difference
             if (
-                totalMps + (_steps[numberOfSteps].mps * _steps[numberOfSteps].blockDelta) > ConstantsLib.MPS
+                totalMps + (_steps[numberOfSteps].mpsPerBlock * _steps[numberOfSteps].blockDelta) > ConstantsLib.MPS
                     || numberOfSteps == _steps.length - 1
             ) {
-                _steps[numberOfSteps].mps = uint24(ConstantsLib.MPS - totalMps);
+                _steps[numberOfSteps].mpsPerBlock = uint24(ConstantsLib.MPS - totalMps);
                 _steps[numberOfSteps].blockDelta = 1;
             }
-            totalMps += _steps[numberOfSteps].mps * _steps[numberOfSteps].blockDelta;
+            totalMps += _steps[numberOfSteps].mpsPerBlock * _steps[numberOfSteps].blockDelta;
             numberOfSteps++;
         }
         assertEq(totalMps, ConstantsLib.MPS, 'totalMps');
@@ -105,7 +105,7 @@ contract BttBase is AuctionBaseTest {
         CompactStep[] memory steps = new CompactStep[](numberOfSteps);
         uint256 numberOfBlocks = 0;
         for (uint256 i = 0; i < numberOfSteps; i++) {
-            steps[i] = CompactStepLib.create(uint24(_steps[i].mps), uint40(_steps[i].blockDelta));
+            steps[i] = CompactStepLib.create(uint24(_steps[i].mpsPerBlock), uint40(_steps[i].blockDelta));
             numberOfBlocks += _steps[i].blockDelta;
         }
 
@@ -127,6 +127,6 @@ contract BttBase is AuctionBaseTest {
     function assertEq(AuctionStep memory _step, AuctionStep memory _step2) internal pure {
         assertEq(_step.startBlock, _step2.startBlock, 'startBlock');
         assertEq(_step.endBlock, _step2.endBlock, 'endBlock');
-        assertEq(_step.mps, _step2.mps, 'mps');
+        assertEq(_step.mpsPerBlock, _step2.mpsPerBlock, 'mpsPerBlock');
     }
 }

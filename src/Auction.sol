@@ -237,13 +237,13 @@ contract Auction is
         uint64 start = $step.startBlock < $lastCheckpointedBlock ? $lastCheckpointedBlock : $step.startBlock;
         uint64 end = $step.endBlock;
 
-        uint24 mps = $step.mps;
+        uint24 mpsPerBlock = $step.mpsPerBlock;
         while (blockNumber > end) {
-            _checkpoint = _sellTokensAtClearingPrice(_checkpoint, uint24((end - start) * mps));
+            _checkpoint = _sellTokensAtClearingPrice(_checkpoint, uint24((end - start) * mpsPerBlock));
             start = end;
             if (end == END_BLOCK) break;
             AuctionStep memory _step = _advanceStep();
-            mps = _step.mps;
+            mpsPerBlock = _step.mpsPerBlock;
             end = _step.endBlock;
         }
         return _checkpoint;
@@ -336,7 +336,7 @@ contract Auction is
         // Now account for any time in between this checkpoint and the greater of the start of the step or the last checkpointed block
         uint64 blockDelta =
             blockNumber - ($step.startBlock > $lastCheckpointedBlock ? $step.startBlock : $lastCheckpointedBlock);
-        uint24 mpsSinceLastCheckpoint = uint256($step.mps * blockDelta).toUint24();
+        uint24 mpsSinceLastCheckpoint = uint256($step.mpsPerBlock * blockDelta).toUint24();
 
         // Sell the percentage of outstanding tokens since the last checkpoint to the current clearing price
         _checkpoint = _sellTokensAtClearingPrice(_checkpoint, mpsSinceLastCheckpoint);
@@ -348,7 +348,7 @@ contract Auction is
 
     /// @notice Return the final checkpoint of the auction
     /// @dev Only called when the auction is over. Changes the current state of the `step` to the final step in the auction
-    ///      any future calls to `step.mps` will return the mps of the last step in the auction
+    ///      any future calls to `step.mpsPerBlock` will return the mps of the last step in the auction
     function _getFinalCheckpoint() internal returns (Checkpoint memory) {
         return _unsafeCheckpoint(END_BLOCK);
     }

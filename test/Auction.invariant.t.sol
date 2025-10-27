@@ -312,8 +312,12 @@ contract AuctionInvariantHandler is Test, Assertions {
 
         uint256 refundAmount = bid.owner.balance - ownerBalanceBefore;
         totalCurrencyRaised += bid.amountQ96 / FixedPoint96.Q96 - refundAmount;
-        assertLe(refundAmount, bid.amountQ96 / FixedPoint96.Q96, 'Bid owner can never be refunded more Currency than provided');
-        if(refundAmount == bid.amountQ96 / FixedPoint96.Q96) {
+        assertLe(
+            refundAmount,
+            bid.amountQ96 / FixedPoint96.Q96,
+            'Bid owner can never be refunded more Currency than provided'
+        );
+        if (refundAmount == bid.amountQ96 / FixedPoint96.Q96) {
             assertEq(bid.tokensFilled, 0, 'Bid tokens filled must be 0 if bid is fully refunded');
         }
 
@@ -417,9 +421,9 @@ contract AuctionInvariantTest is AuctionUnitTest {
         assertApproxEqAbs(
             address(mockAuction).balance, 0, 1e18, 'Auction currency balance is not within 1e18 wei of zero'
         );
-        // assertApproxEqAbs(
-        //     token.balanceOf(address(mockAuction)), 0, 1e18, 'Auction token balance is not within 1e18 wei of zero'
-        // );
+        assertApproxEqAbs(
+            token.balanceOf(address(mockAuction)), 0, 1e18, 'Auction token balance is not within 1e18 wei of zero'
+        );
     }
 
     /// @notice Exit and claim all outstanding bids on the auction
@@ -454,7 +458,11 @@ contract AuctionInvariantTest is AuctionUnitTest {
             totalCurrencyRaised += bid.amountQ96 / FixedPoint96.Q96 - refundAmount;
 
             // can never gain more Currency than provided
-            assertLe(refundAmount, bid.amountQ96 / FixedPoint96.Q96, 'Bid owner can never be refunded more Currency than provided');
+            assertLe(
+                refundAmount,
+                bid.amountQ96 / FixedPoint96.Q96,
+                'Bid owner can never be refunded more Currency than provided'
+            );
 
             // Bid might be deleted if tokensFilled = 0
             bid = mockAuction.bids(bidId);

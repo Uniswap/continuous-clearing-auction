@@ -83,7 +83,8 @@ contract BttBase is AuctionBaseTest {
         uint256 totalMps = 0;
         uint256 numberOfSteps = 0;
         while (totalMps < ConstantsLib.MPS && numberOfSteps < _steps.length) {
-            _steps[numberOfSteps].mpsPerBlock = uint24(bound(_steps[numberOfSteps].mpsPerBlock, 0, ConstantsLib.MPS - totalMps));
+            _steps[numberOfSteps].mpsPerBlock =
+                uint24(bound(_steps[numberOfSteps].mpsPerBlock, 0, ConstantsLib.MPS - totalMps));
             _steps[numberOfSteps].blockDelta = uint40(bound(_steps[numberOfSteps].blockDelta, 1, type(uint16).max));
 
             // If the next step would exceed the total mps, or we are on the last step, set the mps and block delta to the remaining mps and 1

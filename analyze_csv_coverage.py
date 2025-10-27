@@ -10,6 +10,7 @@ Usage:
 import sys
 import csv
 from collections import Counter
+import statistics
 
 # Enum mappings
 PRE_BID_SCENARIOS = {
@@ -27,6 +28,340 @@ POST_BID_SCENARIOS = {
     4: "UserOutbidImmediately",
 }
 
+def analyze_fill_ratios(test_cases):
+    """Generate fill ratio distribution report."""
+    print(f"\n{'─'*80}")
+    print("FILL RATIO DISTRIBUTION")
+    print(f"{'─'*80}\n")
+
+    # Filter cases with Phase 1 metrics
+    cases_with_metrics = [tc for tc in test_cases if 'fill_ratio' in tc]
+    if not cases_with_metrics:
+        print("No Phase 1 metrics found in CSV. Run tests with enhanced metrics collection.\n")
+        return
+
+    # Bin fill ratios
+    bins = [(0, 0, "0% (Not Filled)"), (1, 25, "1-25%"), (26, 50, "26-50%"),
+            (51, 75, "51-75%"), (76, 99, "76-99%"), (100, 100, "100% (Fully Filled)")]
+
+    bin_counts = Counter()
+    reason_counts = Counter()
+
+    for tc in cases_with_metrics:
+        fr = tc['fill_ratio']
+        reason = tc['partial_fill_reason']
+        reason_counts[reason] += 1
+
+        for low, high, label in bins:
+            if low <= fr <= high:
+                bin_counts[label] += 1
+                break
+
+    print("Fill Ratio Distribution:")
+    for _, _, label in bins:
+        count = bin_counts.get(label, 0)
+        pct = (count / len(cases_with_metrics) * 100) if cases_with_metrics else 0
+        bar = '█' * int(pct / 2)
+        print(f"  {label:<25} {count:>5} ({pct:>5.1f}%) {bar}")
+
+    print("\nPartial Fill Reasons:")
+    for reason, count in sorted(reason_counts.items()):
+        pct = (count / len(cases_with_metrics) * 100) if cases_with_metrics else 0
+        print(f"  {reason:<25} {count:>5} ({pct:>5.1f}%)")
+
+    # Detailed Partial Fill Statistics
+    print("\nDetailed Fill Ratio Statistics:")
+
+    # All fill ratios
+    all_fill_ratios = [tc['fill_ratio'] for tc in cases_with_metrics]
+    if all_fill_ratios:
+        print(f"  All Bids:")
+        print(f"    Mean:   {statistics.mean(all_fill_ratios):>8.2f}%")
+        print(f"    Median: {statistics.median(all_fill_ratios):>8.2f}%")
+        print(f"    Min:    {min(all_fill_ratios):>8.2f}%")
+        print(f"    Max:    {max(all_fill_ratios):>8.2f}%")
+
+    # Partial fills only (0% < fill < 100%)
+    partial_fills = [tc['fill_ratio'] for tc in cases_with_metrics if 0 < tc['fill_ratio'] < 100]
+    if partial_fills:
+        print(f"  Partial Fills Only (0% < fill < 100%):")
+        print(f"    Count:  {len(partial_fills):>8} bids")
+        print(f"    Mean:   {statistics.mean(partial_fills):>8.2f}%")
+        print(f"    Median: {statistics.median(partial_fills):>8.2f}%")
+        print(f"    Min:    {min(partial_fills):>8.2f}%")
+        print(f"    Max:    {max(partial_fills):>8.2f}%")
+
+        # Show quartiles for partial fills
+        partial_fills_sorted = sorted(partial_fills)
+        q1_idx = len(partial_fills_sorted) // 4
+        q3_idx = 3 * len(partial_fills_sorted) // 4
+        print(f"    Q1:     {partial_fills_sorted[q1_idx]:>8.2f}%")
+        print(f"    Q3:     {partial_fills_sorted[q3_idx]:>8.2f}%")
+
+def analyze_timing_metrics(test_cases):
+    """Generate timing analysis report."""
+    print(f"\n{'─'*80}")
+    print("TIMING METRICS ANALYSIS")
+    print(f"{'─'*80}\n")
+
+    cases_with_metrics = [tc for tc in test_cases if 'bid_lifetime_blocks' in tc]
+    if not cases_with_metrics:
+        print("No Phase 1 metrics found in CSV.\n")
+        return
+
+    # Extract timing data
+    lifetimes = [tc['bid_lifetime_blocks'] for tc in cases_with_metrics]
+    blocks_from_start = [tc['blocks_from_start'] for tc in cases_with_metrics]
+    outbid_times = [tc['time_to_outbid'] for tc in cases_with_metrics if tc['time_to_outbid'] > 0]
+
+    print("Bid Lifetime (blocks from start to exit):")
+    if lifetimes:
+        print(f"  Mean:   {statistics.mean(lifetimes):>10.2f} blocks")
+        print(f"  Median: {statistics.median(lifetimes):>10.2f} blocks")
+        print(f"  Min:    {min(lifetimes):>10} blocks")
+        print(f"  Max:    {max(lifetimes):>10} blocks")
+
+    print("\nBid Start Position (blocks from auction start):")
+    if blocks_from_start:
+        print(f"  Mean:   {statistics.mean(blocks_from_start):>10.2f} blocks")
+        print(f"  Median: {statistics.median(blocks_from_start):>10.2f} blocks")
+        print(f"  Min:    {min(blocks_from_start):>10} blocks")
+        print(f"  Max:    {max(blocks_from_start):>10} blocks")
+
+    print("\nTime to Outbid:")
+    # New interpretation using wasOutbid flag:
+    # - wasOutbid=true, timeToOutbid=0: Same block outbid (immediate)
+    # - wasOutbid=true, timeToOutbid>0: Later outbid (1+ blocks)
+    # - wasOutbid=false: Never outbid (at/below clearing at auction end)
+
+    never_outbid = sum(1 for tc in cases_with_metrics if not tc['was_outbid'])
+    immediate_outbids = sum(1 for tc in cases_with_metrics if tc['was_outbid'] and tc['time_to_outbid'] == 0)
+    later_outbids = sum(1 for tc in cases_with_metrics if tc['was_outbid'] and tc['time_to_outbid'] > 0)
+
+    print(f"  Never outbid (at/below clearing):  {never_outbid:>5} bids ({never_outbid/len(cases_with_metrics)*100:>5.1f}%)")
+    print(f"  Outbid immediately (same block):   {immediate_outbids:>5} bids ({immediate_outbids/len(cases_with_metrics)*100:>5.1f}%)")
+
+    if later_outbids > 0:
+        later_times = [tc['time_to_outbid'] for tc in cases_with_metrics if tc['was_outbid'] and tc['time_to_outbid'] > 0]
+        print(f"  Outbid later (not same block):")
+        print(f"    Count:  {later_outbids:>10} bids ({later_outbids/len(cases_with_metrics)*100:>5.1f}%)")
+        if later_times:
+            print(f"    Mean:   {statistics.mean(later_times):>10.2f} blocks")
+            print(f"    Median: {statistics.median(later_times):>10.2f} blocks")
+            print(f"    Min:    {min(later_times):>10} blocks")
+            print(f"    Max:    {max(later_times):>10} blocks")
+    else:
+        print(f"  Outbid later (not same block):      {later_outbids:>5} bids (  0.0%)")
+
+def analyze_bid_patterns(test_cases):
+    """Generate bid pattern analysis report."""
+    print(f"\n{'─'*80}")
+    print("BID PATTERN ANALYSIS")
+    print(f"{'─'*80}\n")
+
+    cases_with_metrics = [tc for tc in test_cases if 'was_outbid' in tc]
+    if not cases_with_metrics:
+        print("No Phase 1 metrics found in CSV.\n")
+        return
+
+    total = len(cases_with_metrics)
+
+    # Analyze bid lifetime patterns
+    short_lifetime = sum(1 for tc in cases_with_metrics if tc['bid_lifetime_blocks'] <= 5)
+    medium_lifetime = sum(1 for tc in cases_with_metrics if 6 <= tc['bid_lifetime_blocks'] <= 50)
+    long_lifetime = sum(1 for tc in cases_with_metrics if tc['bid_lifetime_blocks'] > 50)
+
+    print("Bid Lifetime Patterns:")
+    print(f"  Short (≤5 blocks):   {short_lifetime:>5} ({short_lifetime/total*100:>5.1f}%)")
+    print(f"  Medium (6-50):       {medium_lifetime:>5} ({medium_lifetime/total*100:>5.1f}%)")
+    print(f"  Long (>50):          {long_lifetime:>5} ({long_lifetime/total*100:>5.1f}%)")
+
+    # Analyze bid entry timing
+    early_entry = sum(1 for tc in cases_with_metrics if tc['blocks_from_start'] <= 10)
+    mid_entry = sum(1 for tc in cases_with_metrics if 11 <= tc['blocks_from_start'] <= 50)
+    late_entry = sum(1 for tc in cases_with_metrics if tc['blocks_from_start'] > 50)
+
+    print("\nBid Entry Timing:")
+    print(f"  Early (≤10 blocks):  {early_entry:>5} ({early_entry/total*100:>5.1f}%)")
+    print(f"  Mid (11-50):         {mid_entry:>5} ({mid_entry/total*100:>5.1f}%)")
+    print(f"  Late (>50):          {late_entry:>5} ({late_entry/total*100:>5.1f}%)")
+
+    # Analyze token fill outcomes
+    no_fill = sum(1 for tc in cases_with_metrics if tc['tokens_received'] == 0)
+    partial_fill = sum(1 for tc in cases_with_metrics if 0 < tc['tokens_received'] < tc.get('total_supply', float('inf')))
+
+    print("\nToken Fill Outcomes:")
+    print(f"  No tokens received:  {no_fill:>5} ({no_fill/total*100:>5.1f}%)")
+    print(f"  Partial fill:        {partial_fill:>5} ({partial_fill/total*100:>5.1f}%)")
+
+    # Analyze competitive pressure
+    immediate_outbid = sum(1 for tc in cases_with_metrics if tc['was_outbid'] and tc['time_to_outbid'] == 0)
+    later_outbid = sum(1 for tc in cases_with_metrics if tc['was_outbid'] and tc['time_to_outbid'] > 0)
+    print(f"\nCompetitive Pressure:")
+    print(f"  Outbid immediately (same block):  {immediate_outbid:>5} ({immediate_outbid/total*100:>5.1f}%)")
+    print(f"  Outbid later (not same block):    {later_outbid:>5} ({later_outbid/total*100:>5.1f}%)")
+
+def analyze_token_outcomes(test_cases):
+    """Generate token output and price analysis report."""
+    print(f"\n{'─'*80}")
+    print("TOKEN OUTCOMES & PRICE ANALYSIS")
+    print(f"{'─'*80}\n")
+
+    cases_with_metrics = [tc for tc in test_cases if 'tokens_received' in tc]
+    if not cases_with_metrics:
+        print("No Phase 1 metrics found in CSV.\n")
+        return
+
+    # Token statistics
+    tokens_received_list = [tc['tokens_received'] for tc in cases_with_metrics]
+
+    print("Tokens Received (wei):")
+    if tokens_received_list:
+        print(f"  Mean:   {statistics.mean(tokens_received_list):>20,.0f} ({statistics.mean(tokens_received_list)/1e18:.4f} tokens)")
+        print(f"  Median: {statistics.median(tokens_received_list):>20,.0f} ({statistics.median(tokens_received_list)/1e18:.4f} tokens)")
+        print(f"  Min:    {min(tokens_received_list):>20,} ({min(tokens_received_list)/1e18:.4f} tokens)")
+        print(f"  Max:    {max(tokens_received_list):>20,} ({max(tokens_received_list)/1e18:.4f} tokens)")
+
+        # Zero fills
+        zero_fills = sum(1 for t in tokens_received_list if t == 0)
+        print(f"  Zero fills: {zero_fills} ({zero_fills/len(tokens_received_list)*100:.1f}%)")
+
+    # Price per token statistics (only for non-zero fills)
+    prices_per_token = [tc['price_per_token_eth'] for tc in cases_with_metrics if tc['tokens_received'] > 0]
+
+    print("\nPrice Paid Per Token (ETH, for filled bids only):")
+    if prices_per_token:
+        print(f"  Mean:   {statistics.mean(prices_per_token)/1e18:>10.6f} ETH")
+        print(f"  Median: {statistics.median(prices_per_token)/1e18:>10.6f} ETH")
+        print(f"  Min:    {min(prices_per_token)/1e18:>10.6f} ETH")
+        print(f"  Max:    {max(prices_per_token)/1e18:>10.6f} ETH")
+
+    # Clearing price movement and tick distance analysis
+    price_changes = []
+    tick_distances = []
+    Q96 = 2**96
+
+    for tc in cases_with_metrics:
+        start = tc['clearing_price_start']
+        end = tc['clearing_price_end']
+        floor = tc['floor_price']
+        tick_spacing = tc['tick_spacing']
+
+        if start > 0:
+            change = end - start
+            price_changes.append(change)
+
+        # Calculate tick distance from floor price to final clearing price
+        if tick_spacing > 0 and end >= floor:
+            # Number of ticks = (final_price - floor_price) / tick_spacing
+            ticks_from_floor = (end - floor) / tick_spacing
+            tick_distances.append(ticks_from_floor)
+
+    print("\nClearing Price Movement (Start to End):")
+    if price_changes:
+        increases = sum(1 for pc in price_changes if pc > 0)
+        decreases = sum(1 for pc in price_changes if pc < 0)
+        no_change = sum(1 for pc in price_changes if pc == 0)
+        print(f"  Increased: {increases:>5} cases ({increases/len(price_changes)*100:>5.1f}%)")
+        print(f"  Decreased: {decreases:>5} cases ({decreases/len(price_changes)*100:>5.1f}%)")
+        print(f"  No Change: {no_change:>5} cases ({no_change/len(price_changes)*100:>5.1f}%)")
+
+    print("\nTick Distance from Floor Price to Final Clearing Price:")
+    if tick_distances:
+        print(f"  Mean:   {statistics.mean(tick_distances):>10.2f} ticks")
+        print(f"  Median: {statistics.median(tick_distances):>10.2f} ticks")
+        print(f"  Min:    {min(tick_distances):>10.2f} ticks")
+        print(f"  Max:    {max(tick_distances):>10.2f} ticks")
+
+def analyze_graduation_impact(test_cases):
+    """Generate graduation impact analysis report."""
+    print(f"\n{'─'*80}")
+    print("GRADUATION ANALYSIS")
+    print(f"{'─'*80}\n")
+
+    cases_with_metrics = [tc for tc in test_cases if 'did_graduate' in tc]
+    if not cases_with_metrics:
+        print("No Phase 1 metrics found in CSV.\n")
+        return
+
+    graduated = [tc for tc in cases_with_metrics if tc['did_graduate']]
+    not_graduated = [tc for tc in cases_with_metrics if not tc['did_graduate']]
+
+    grad_rate = len(graduated) / len(cases_with_metrics) * 100 if cases_with_metrics else 0
+
+    print(f"Graduation Rate: {len(graduated)}/{len(cases_with_metrics)} ({grad_rate:.1f}%)")
+
+    # Fill ratio comparison
+    if graduated and not_graduated:
+        grad_fill_ratios = [tc['fill_ratio'] for tc in graduated]
+        non_grad_fill_ratios = [tc['fill_ratio'] for tc in not_graduated]
+
+        print(f"\nFill Ratio Comparison:")
+        print(f"  Graduated Mean:     {statistics.mean(grad_fill_ratios):>6.1f}%")
+        print(f"  Not Graduated Mean: {statistics.mean(non_grad_fill_ratios):>6.1f}%")
+    elif graduated:
+        grad_fill_ratios = [tc['fill_ratio'] for tc in graduated]
+        print(f"\nFill Ratio (Graduated Only):")
+        print(f"  Mean: {statistics.mean(grad_fill_ratios):>6.1f}%")
+
+def analyze_auction_context(test_cases):
+    """Generate auction context summary report."""
+    print(f"\n{'─'*80}")
+    print("AUCTION CONTEXT SUMMARY")
+    print(f"{'─'*80}\n")
+
+    cases_with_metrics = [tc for tc in test_cases if 'auction_start_block' in tc]
+    if not cases_with_metrics:
+        print("No auction context metrics found in CSV.\n")
+        return
+
+    # Extract auction parameters
+    start_blocks = [tc['auction_start_block'] for tc in cases_with_metrics]
+    durations = [tc['auction_duration_blocks'] for tc in cases_with_metrics]
+    floor_prices = [tc['floor_price'] for tc in cases_with_metrics]
+    tick_spacings = [tc['tick_spacing'] for tc in cases_with_metrics]
+    total_supplies = [tc['total_supply'] for tc in cases_with_metrics]
+
+    print("Auction Start Block:")
+    print(f"  Range: {min(start_blocks)} - {max(start_blocks)}")
+    print(f"  Unique auctions: ~{len(set(start_blocks))}")
+
+    print("\nAuction Duration (blocks):")
+    print(f"  Mean:   {statistics.mean(durations):>10.2f} blocks")
+    print(f"  Median: {statistics.median(durations):>10.0f} blocks")
+    print(f"  Min:    {min(durations):>10} blocks")
+    print(f"  Max:    {max(durations):>10} blocks")
+
+    Q96 = 2**96
+
+    print("\nFloor Price:")
+    unique_floor_prices = set(floor_prices)
+    if len(unique_floor_prices) == 1:
+        fp = list(unique_floor_prices)[0]
+        print(f"  Constant: {fp:>30,}  [{fp/Q96:>12.6f}]")
+    else:
+        min_fp = min(floor_prices)
+        max_fp = max(floor_prices)
+        print(f"  Min: {min_fp:>30,}  [{min_fp/Q96:>12.6f}]")
+        print(f"  Max: {max_fp:>30,}  [{max_fp/Q96:>12.6f}]")
+
+    print("\nTick Spacing:")
+    unique_tick_spacings = set(tick_spacings)
+    if len(unique_tick_spacings) == 1:
+        ts = list(unique_tick_spacings)[0]
+        print(f"  Constant: {ts:>30,}  [{ts/Q96:>12.6f}]")
+    else:
+        min_ts = min(tick_spacings)
+        max_ts = max(tick_spacings)
+        print(f"  Min: {min_ts:>30,}  [{min_ts/Q96:>12.6f}]")
+        print(f"  Max: {max_ts:>30,}  [{max_ts/Q96:>12.6f}]")
+
+    print("\nToken Total Supply (wei):")
+    print(f"  Mean:   {statistics.mean(total_supplies):>20,.0f} ({statistics.mean(total_supplies)/1e18:.2f} tokens)")
+    print(f"  Median: {statistics.median(total_supplies):>20,.0f} ({statistics.median(total_supplies)/1e18:.2f} tokens)")
+    print(f"  Min:    {min(total_supplies):>20,} ({min(total_supplies)/1e18:.2f} tokens)")
+    print(f"  Max:    {max(total_supplies):>20,} ({max(total_supplies)/1e18:.2f} tokens)")
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: python3 analyze_csv_coverage.py coverage_data.csv")
@@ -35,17 +370,38 @@ def main():
     filename = sys.argv[1]
     test_cases = []
 
-    # Read CSV file
+    # Read CSV file (supports both old 4-column and new 16-column formats)
     with open(filename, 'r') as f:
         reader = csv.reader(f)
         for row in reader:
             if len(row) >= 4:
-                test_cases.append({
+                tc = {
                     'pre': int(row[0]),
                     'post': int(row[1]),
                     'bid_amount': int(row[2]),
                     'max_price': int(row[3]),
-                })
+                }
+                # Parse Phase 1 metrics if available (new format with auction context)
+                if len(row) >= 20:
+                    tc['fill_ratio'] = int(row[4])
+                    tc['partial_fill_reason'] = row[5]
+                    tc['bid_lifetime_blocks'] = int(row[6])
+                    tc['blocks_from_start'] = int(row[7])
+                    tc['time_to_outbid'] = int(row[8])
+                    tc['was_outbid'] = row[9].lower() == 'true'
+                    tc['never_fully_filled'] = row[10].lower() == 'true'
+                    tc['near_graduation_boundary'] = row[11].lower() == 'true'
+                    tc['clearing_price_start'] = int(row[12])
+                    tc['clearing_price_end'] = int(row[13])
+                    tc['tokens_received'] = int(row[14])
+                    tc['price_per_token_eth'] = int(row[15])
+                    tc['did_graduate'] = row[16].lower() == 'true'
+                    tc['auction_start_block'] = int(row[17])
+                    tc['auction_duration_blocks'] = int(row[18])
+                    tc['floor_price'] = int(row[19])
+                    tc['tick_spacing'] = int(row[20])
+                    tc['total_supply'] = int(row[21])
+                test_cases.append(tc)
 
     if not test_cases:
         print("No coverage data found in file.")
@@ -88,18 +444,19 @@ def main():
 
     # Max price statistics
     print(f"\n{'─'*80}")
-    print("MAX PRICE STATISTICS (Q96 format)")
+    print("MAX PRICE STATISTICS")
     print(f"{'─'*80}\n")
 
     max_prices = [tc['max_price'] for tc in test_cases]
+    Q96 = 2**96
     if max_prices:
         min_price = min(max_prices)
         max_price = max(max_prices)
         avg_price = sum(max_prices) / len(max_prices)
 
-        print(f"Min Max Price: {min_price:>30,}")
-        print(f"Max Max Price: {max_price:>30,}")
-        print(f"Avg Max Price: {avg_price:>30,.0f}")
+        print(f"Min Max Price: {min_price:>30,}  [{min_price/Q96:>12.6f}]")
+        print(f"Max Max Price: {max_price:>30,}  [{max_price/Q96:>12.6f}]")
+        print(f"Avg Max Price: {avg_price:>30,.0f}  [{avg_price/Q96:>12.6f}]")
 
     # Coverage gaps
     print(f"\n{'─'*80}")
@@ -164,6 +521,16 @@ def main():
         print()
 
     print(f"\n{'='*80}\n")
+
+    # Phase 1 Metrics Analysis (if available)
+    if any('fill_ratio' in tc for tc in test_cases):
+        analyze_fill_ratios(test_cases)
+        analyze_timing_metrics(test_cases)
+        analyze_bid_patterns(test_cases)
+        analyze_token_outcomes(test_cases)
+        analyze_graduation_impact(test_cases)
+        analyze_auction_context(test_cases)
+        print(f"\n{'='*80}\n")
 
 if __name__ == "__main__":
     main()

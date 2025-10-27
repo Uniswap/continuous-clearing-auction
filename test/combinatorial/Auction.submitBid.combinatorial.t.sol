@@ -10,6 +10,7 @@ import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {AuctionBaseTest} from '../utils/AuctionBaseTest.sol';
 
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
+import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 
 import {AuctionStepsBuilder} from '../utils/AuctionStepsBuilder.sol';
 import {Combinatorium} from '../utils/Combinatorium.sol';
@@ -29,6 +30,7 @@ import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.
  */
 contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
     using Combinatorium for Combinatorium.Context;
+    using ValueX7Lib for ValueX7;
 
     Combinatorium.Context internal ctx;
 
@@ -56,6 +58,27 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
     uint256 public usersBidId;
     uint64 public usersBidStartBlock; // Track the block where bid was submitted
     PostBidScenario public actualPostBidScenario; // Track the actual post-bid scenario
+
+    // Phase 1 Metrics Storage (populated by verifyState, consumed by documentState)
+    uint256 private metrics_fillRatioPercent;
+    string private metrics_partialFillReason;
+    uint256 private metrics_bidLifetimeBlocks;
+    uint256 private metrics_blocksFromStart;
+    uint256 private metrics_timeToOutbid;
+    bool private metrics_wasOutbid;
+    bool private metrics_neverFullyFilled;
+    bool private metrics_nearGraduationBoundary;
+    uint256 private metrics_clearingPriceStart;
+    uint256 private metrics_clearingPriceEnd;
+    uint256 private metrics_tokensReceived;
+    uint256 private metrics_pricePerTokenETH;
+    bool private metrics_didGraduate;
+    // Auction context metrics
+    uint64 private metrics_auctionStartBlock;
+    uint64 private metrics_auctionDurationBlocks;
+    uint256 private metrics_floorPrice;
+    uint256 private metrics_tickSpacing;
+    uint256 private metrics_totalSupply;
 
     // Coverage tracking event
     event CoverageData(uint8 preBidScenario, uint8 postBidScenario, uint128 bidAmount, uint256 maxPrice);
@@ -125,7 +148,7 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
                 uint256 mutationRandomness = uint256(selections[uint256(SpaceIndices.mutationRandomness)]) % 2;
 
                 uint256 bidSeed = selections[uint256(SpaceIndices.bidSeed)];
-                (uint128 bidAmount, uint256 maxPriceQ96, uint256 bidBlock) = helper__seedBasedBid(bidSeed);
+                (uint128 bidAmount, uint256 maxPriceQ96, uint256 bidBlock,) = helper__seedBasedBid(bidSeed);
 
                 // Extract scenario selections for scenario-aware verification
                 PreBidScenario preBidScenario = PreBidScenario(selections[uint256(SpaceIndices.preBidScenario)]);
@@ -186,33 +209,39 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
 
         if (method == Method.submitBid) {
             uint256 bidSeed = selections[uint256(SpaceIndices.bidSeed)];
-            (uint128 bidAmount, uint256 maxPriceQ96, uint256 bidBlock) = helper__seedBasedBid(bidSeed);
-
-            // Extract scenario selections for scenario-aware verification
-            PreBidScenario preBidScenario = PreBidScenario(selections[uint256(SpaceIndices.preBidScenario)]);
-            PostBidScenario postBidScenario = PostBidScenario(selections[uint256(SpaceIndices.postBidScenario)]);
-            console.log('Verifying with scenario - Pre:', uint256(preBidScenario));
-            console.log('Verifying with scenario - Post:', uint256(postBidScenario));
 
             // setup pre-bid scenario
-            helper__preBidScenario(preBidScenario, maxPriceQ96, true);
-            console.log('preBidScenario setup complete');
+            {
+                PreBidScenario preBidScenario = PreBidScenario(selections[uint256(SpaceIndices.preBidScenario)]);
+                console.log('Verifying with scenario - Pre:', uint256(preBidScenario));
+                (, uint256 maxPriceQ96,,) = helper__seedBasedBid(bidSeed);
+                helper__preBidScenario(preBidScenario, maxPriceQ96, true);
+                console.log('preBidScenario setup complete');
+            }
 
             // Set the auction bidding block
-            vm.roll(bidBlock);
+            {
+                (uint128 bidAmount, uint256 maxPriceQ96, uint256 bidBlock,) = helper__seedBasedBid(bidSeed);
+                vm.roll(bidBlock);
 
-            // Deal the caller the bid amount in ETH
-            vm.deal(alice, bidAmount);
-            // Submit the bid
-            vm.prank(alice);
-            console.log('starting users bid submission');
-            usersBidStartBlock = uint64(block.number); // Store block number before submission
-            usersBidId = auction.submitBid{value: bidAmount}(maxPriceQ96, bidAmount, alice, bytes(''));
-            console.log('bid submitted');
+                // Deal the caller the bid amount in ETH
+                vm.deal(alice, bidAmount);
+                // Submit the bid
+                vm.prank(alice);
+                console.log('starting users bid submission');
+                usersBidStartBlock = uint64(block.number); // Store block number before submission
+                usersBidId = auction.submitBid{value: bidAmount}(maxPriceQ96, bidAmount, alice, bytes(''));
+                console.log('bid submitted');
+            }
 
             // Set up post-bid scenario using the helper
-            actualPostBidScenario = helper__postBidScenario(postBidScenario, maxPriceQ96, true);
-            console.log('PostBidScenario setup complete, actual scenario:', uint256(actualPostBidScenario));
+            {
+                (, uint256 maxPriceQ96,, uint64 furtherBidsDelay) = helper__seedBasedBid(bidSeed);
+                PostBidScenario postBidScenario = PostBidScenario(selections[uint256(SpaceIndices.postBidScenario)]);
+                console.log('Verifying with scenario - Post:', uint256(postBidScenario));
+                actualPostBidScenario = helper__postBidScenario(postBidScenario, maxPriceQ96, true, furtherBidsDelay);
+                console.log('PostBidScenario setup complete, actual scenario:', uint256(actualPostBidScenario));
+            }
         } else {
             revert('Invalid method');
         }
@@ -246,7 +275,7 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
 
         // Extract original bid parameters from selections
         uint256 bidSeed = selections[uint256(SpaceIndices.bidSeed)];
-        (uint128 bidAmount, uint256 maxPriceQ96,) = helper__seedBasedBid(bidSeed);
+        (uint128 bidAmount, uint256 maxPriceQ96,,) = helper__seedBasedBid(bidSeed);
 
         // Verify bid struct properties
         helper__verifyBidStruct(
@@ -297,20 +326,24 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
         address bidOwner = finalBid.owner;
         uint256 balanceBefore = address(bidOwner).balance;
 
+        // Track currency spent for accurate fill ratio calculation
+        uint256 currencySpentQ96 = 0;
+
         // Verify exit based on path
         if (exitPath == ExitPath.NonGraduated) {
             console.log('Verifying NonGraduated exit path');
             uint256 expectedRefund = finalBid.amountQ96 >> FixedPoint96.RESOLUTION;
             helper__verifyNonGraduatedExit(usersBidId, balanceBefore, expectedRefund);
+            currencySpentQ96 = 0; // No currency spent for non-graduated
         } else if (exitPath == ExitPath.FullExit) {
             console.log('Verifying FullExit path');
-            helper__verifyFullExit(usersBidId, balanceBefore);
+            currencySpentQ96 = helper__verifyFullExit(usersBidId, balanceBefore);
         } else if (exitPath == ExitPath.PartialExit) {
             console.log('Verifying PartialExit path');
 
             // Detect edge cases
-            uint64 lastFullyFilledBlock = helper__findLastFullyFilledCheckpoint(finalBid, finalBid.startBlock);
-            uint64 outbidBlock = helper__findOutbidBlock(finalBid, finalBid.startBlock);
+            uint64 lastFullyFilledBlock = helper__findLastFullyFilledCheckpoint(finalBid);
+            (uint64 outbidBlock,) = helper__findOutbidBlock(finalBid);
 
             if (lastFullyFilledBlock == 0) {
                 console.log('  Edge case: At clearing from start (no fully-filled period)');
@@ -319,13 +352,61 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
                 console.log('  Edge case: Outbid immediately at startBlock');
             }
 
-            helper__verifyPartialExit(usersBidId);
+            currencySpentQ96 = helper__verifyPartialExit(usersBidId);
         }
 
         console.log('Phase 2 verification complete');
 
+        // Capture tokens filled from bid struct after exit (bid was exited by verification helpers)
+        Bid memory exitedBid = auction.bids(usersBidId);
+        uint256 tokensFilled = exitedBid.tokensFilled;
+
+        // ============ Phase 1 Metrics Collection (BEFORE snapshot revert) ============
+        // Collect metrics from Phase 2 state BEFORE reverting
+        // Store in memory to survive the revert
+        (
+            uint256 fillRatioPercent,
+            string memory partialFillReason,
+            uint256 bidLifetimeBlocks,
+            uint256 blocksFromStart,
+            uint256 timeToOutbid,
+            bool wasOutbid,
+            bool neverFullyFilled,
+            bool nearGraduationBoundary,
+            uint256 clearingPriceStart,
+            uint256 clearingPriceEnd,
+            uint256 tokensReceived,
+            uint256 pricePerTokenETH,
+            bool didGraduate,
+            uint64 auctionStartBlock,
+            uint64 auctionDurationBlocks,
+            uint256 floorPrice,
+            uint256 tickSpacing,
+            uint256 totalSupply_
+        ) = _computePhase1Metrics(finalBid, finalCheckpoint, exitPath, graduated, tokensFilled, currencySpentQ96);
+
         // Revert to pre-settlement state to avoid polluting future iterations
         vm.revertToState(preSettlementSnapshot);
+
+        // Store metrics in storage AFTER revert so they persist for documentState()
+        metrics_fillRatioPercent = fillRatioPercent;
+        metrics_partialFillReason = partialFillReason;
+        metrics_bidLifetimeBlocks = bidLifetimeBlocks;
+        metrics_blocksFromStart = blocksFromStart;
+        metrics_timeToOutbid = timeToOutbid;
+        metrics_wasOutbid = wasOutbid;
+        metrics_neverFullyFilled = neverFullyFilled;
+        metrics_nearGraduationBoundary = nearGraduationBoundary;
+        metrics_clearingPriceStart = clearingPriceStart;
+        metrics_clearingPriceEnd = clearingPriceEnd;
+        metrics_tokensReceived = tokensReceived;
+        metrics_pricePerTokenETH = pricePerTokenETH;
+        metrics_didGraduate = didGraduate;
+        metrics_auctionStartBlock = auctionStartBlock;
+        metrics_auctionDurationBlocks = auctionDurationBlocks;
+        metrics_floorPrice = floorPrice;
+        metrics_tickSpacing = tickSpacing;
+        metrics_totalSupply = totalSupply_;
 
         // ============ Phase 3: Auction Invariants Verification ============
         console.log('=== Phase 3: Auction Invariants Verification ===');
@@ -356,11 +437,13 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
 
         // Invariant 3: Clearing price monotonicity
         // Clearing price should never decrease
-        Checkpoint memory bidStartCP = auction.checkpoints(currentBid.startBlock);
-        assertTrue(latestCP.clearingPrice >= bidStartCP.clearingPrice, 'Clearing price decreased (should be monotonic)');
+        Checkpoint memory currentBidStartCP = auction.checkpoints(currentBid.startBlock);
+        assertTrue(
+            latestCP.clearingPrice >= currentBidStartCP.clearingPrice, 'Clearing price decreased (should be monotonic)'
+        );
 
         // Invariant 4: CumulativeMps monotonicity
-        assertTrue(latestCP.cumulativeMps >= bidStartCP.cumulativeMps, 'CumulativeMps should never decrease');
+        assertTrue(latestCP.cumulativeMps >= currentBidStartCP.cumulativeMps, 'CumulativeMps should never decrease');
 
         // Invariant 5: Bid owner is valid address
         assertTrue(currentBid.owner != address(0), 'Bid owner should not be zero address');
@@ -368,6 +451,115 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
 
         console.log('Phase 3 invariants verified');
         console.log('=== Verification Complete for bidId:', usersBidId, '===');
+    }
+
+    /**
+     * @notice Compute Phase 1 metrics from auction-end state
+     * @dev Returns metrics as memory values that survive snapshot revert
+     * @dev Uses actualPostBidScenario as the SOURCE OF TRUTH for outbid status
+     * @param finalBid The bid struct at auction end
+     * @param finalCheckpoint The checkpoint at auction end
+     * @param exitPath The classified exit path
+     * @param graduated Whether the auction graduated
+     * @param tokensFilled Tokens filled by the bid
+     * @param currencySpentQ96 Actual currency spent in Q96 format
+     */
+    function _computePhase1Metrics(
+        Bid memory finalBid,
+        Checkpoint memory finalCheckpoint,
+        ExitPath exitPath,
+        bool graduated,
+        uint256 tokensFilled,
+        uint256 currencySpentQ96
+    )
+        private
+        view
+        returns (
+            uint256 fillRatioPercent,
+            string memory partialFillReason,
+            uint256 bidLifetimeBlocks,
+            uint256 blocksFromStart,
+            uint256 timeToOutbid,
+            bool wasOutbid,
+            bool neverFullyFilled,
+            bool nearGraduationBoundary,
+            uint256 clearingPriceStart,
+            uint256 clearingPriceEnd,
+            uint256 tokensReceived,
+            uint256 pricePerTokenETH,
+            bool didGraduate,
+            uint64 auctionStartBlock,
+            uint64 auctionDurationBlocks,
+            uint256 floorPrice,
+            uint256 tickSpacing,
+            uint256 totalSupply
+        )
+    {
+        // Step 1: Fill Ratio Metrics (ACCURATE CALCULATION)
+        // fillRatio = (currencySpentQ96 / originalBidAmountQ96) * 100
+        if (exitPath == ExitPath.FullExit) {
+            fillRatioPercent = 100;
+            partialFillReason = 'full';
+        } else if (exitPath == ExitPath.NonGraduated) {
+            fillRatioPercent = 0;
+            partialFillReason = 'non_graduated';
+        } else {
+            // PartialExit - Calculate actual fill ratio
+            if (finalBid.amountQ96 > 0) {
+                // Calculate fill ratio with high precision (basis points)
+                // Multiply by 10000 first to get 2 decimal places (e.g., 5432 = 54.32%)
+                uint256 fillRatioBasisPoints = (currencySpentQ96 * 10_000) / finalBid.amountQ96;
+                // Convert to percentage (divide by 100 to get 0-100 range with 2 decimals)
+                fillRatioPercent = fillRatioBasisPoints / 100;
+            } else {
+                fillRatioPercent = 0;
+            }
+            partialFillReason = graduated ? 'partial_graduated' : 'partial_outbid';
+        }
+
+        // Step 2: Timing Metrics - USE POSTBIDSCENARIO AS SOURCE OF TRUTH
+        // The PostBidScenario enum accurately represents what actually happened
+        bidLifetimeBlocks = finalBid.exitedBlock > 0
+            ? finalBid.exitedBlock - finalBid.startBlock
+            : auction.endBlock() - finalBid.startBlock;
+        blocksFromStart = finalBid.startBlock - auction.startBlock();
+
+        // Find the block where the bid was outbid
+        (uint64 outbidBlock, bool wasOutbid_) = helper__findOutbidBlock(finalBid);
+        wasOutbid = wasOutbid_;
+        timeToOutbid = wasOutbid_ ? outbidBlock - finalBid.startBlock : 0;
+
+        // Step 3: Edge Case Flags
+        neverFullyFilled = (fillRatioPercent < 100);
+        nearGraduationBoundary =
+            !graduated && (block.number - auction.startBlock() > (auction.endBlock() - auction.startBlock()) * 90 / 100);
+
+        // Step 4: Price Analysis Metrics
+        clearingPriceStart = auction.checkpoints(finalBid.startBlock).clearingPrice;
+        clearingPriceEnd = finalCheckpoint.clearingPrice;
+
+        // Step 5: Token Output Metrics
+        // Tokens received from the bid struct (set by exitBid)
+        tokensReceived = tokensFilled;
+
+        // Calculate price per token in ETH (wei)
+        // pricePerToken = actualCurrencySpent / tokensReceived
+        uint256 currencySpent = currencySpentQ96 >> FixedPoint96.RESOLUTION;
+        if (tokensReceived > 0) {
+            pricePerTokenETH = (currencySpent * 1e18) / tokensReceived;
+        } else {
+            pricePerTokenETH = 0;
+        }
+
+        // Step 6: Graduation Tracking
+        didGraduate = graduated;
+
+        // Step 7: Auction Context Info
+        auctionStartBlock = auction.startBlock();
+        auctionDurationBlocks = auction.endBlock() - auction.startBlock();
+        floorPrice = auction.floorPrice();
+        tickSpacing = auction.tickSpacing();
+        totalSupply = auction.totalSupply();
     }
 
     /**
@@ -382,19 +574,69 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
 
         // Get bid parameters
         uint256 bidSeed = selections[uint256(SpaceIndices.bidSeed)];
-        (uint128 bidAmount, uint256 maxPrice,) = helper__seedBasedBid(bidSeed);
+        (uint128 bidAmount, uint256 maxPrice,,) = helper__seedBasedBid(bidSeed);
 
         // Emit event for coverage tracking
         emit CoverageData(uint8(preBid), uint8(postBid), bidAmount, maxPrice);
 
-        // Write to file for aggregation across all fuzz runs
-        string memory coverageLine = string(abi.encodePacked(
-            vm.toString(uint256(preBid)), ",",
-            vm.toString(uint256(postBid)), ",",
-            vm.toString(uint256(bidAmount)), ",",
-            vm.toString(maxPrice), "\n"
-        ));
-        vm.writeLine("./coverage_data.csv", coverageLine);
+        // Write to file for aggregation across all fuzz runs (new format with auction context)
+        string memory coverageLine = string(
+            abi.encodePacked(
+                // Original 4 columns
+                vm.toString(uint256(preBid)),
+                ',',
+                vm.toString(uint256(postBid)),
+                ',',
+                vm.toString(uint256(bidAmount)),
+                ',',
+                vm.toString(maxPrice),
+                ',',
+                // Fill ratio metrics
+                vm.toString(metrics_fillRatioPercent),
+                ',',
+                metrics_partialFillReason,
+                ',',
+                // Timing metrics
+                vm.toString(metrics_bidLifetimeBlocks),
+                ',',
+                vm.toString(metrics_blocksFromStart),
+                ',',
+                vm.toString(metrics_timeToOutbid),
+                ',',
+                // Outbid status flags
+                metrics_wasOutbid ? 'true' : 'false',
+                ',',
+                metrics_neverFullyFilled ? 'true' : 'false',
+                ',',
+                metrics_nearGraduationBoundary ? 'true' : 'false',
+                ',',
+                // Price analysis
+                vm.toString(metrics_clearingPriceStart),
+                ',',
+                vm.toString(metrics_clearingPriceEnd),
+                ',',
+                // Token output metrics
+                vm.toString(metrics_tokensReceived),
+                ',',
+                vm.toString(metrics_pricePerTokenETH),
+                ',',
+                // Graduation tracking
+                metrics_didGraduate ? 'true' : 'false',
+                ',',
+                // Auction context
+                vm.toString(uint256(metrics_auctionStartBlock)),
+                ',',
+                vm.toString(uint256(metrics_auctionDurationBlocks)),
+                ',',
+                vm.toString(metrics_floorPrice),
+                ',',
+                vm.toString(metrics_tickSpacing),
+                ',',
+                vm.toString(metrics_totalSupply),
+                '\n'
+            )
+        );
+        vm.writeLine('./coverage_data.csv', coverageLine);
     }
 
     // ============ Tests ============

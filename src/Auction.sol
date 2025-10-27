@@ -354,6 +354,9 @@ contract Auction is
         return _unsafeCheckpoint(END_BLOCK);
     }
 
+    /// @notice Internal function for bid submission
+    /// @dev Validates `maxPrice`, calls the validation hook (if set) and updates global state variables
+    ///      For gas efficiency, `prevTickPrice` should be the price of the tick immediately before `maxPrice`.
     function _submitBid(
         uint256 maxPrice,
         uint128 amount,

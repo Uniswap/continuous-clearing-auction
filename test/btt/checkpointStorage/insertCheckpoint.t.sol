@@ -21,7 +21,8 @@ contract InsertCheckpointTest is BttBase {
         // it writes $_checkpoints[blockNumber] = checkpoint
         // it writes $lastCheckpointedBlock = blockNumber
 
-        // When it is the first block we do not need to update the previous
+        // Assume that we are not inserting at 0
+        vm.assume(_blockNumber != 0);
 
         vm.record();
         mockCheckpointStorage.insertCheckpoint(_checkpoint, _blockNumber);
@@ -30,8 +31,9 @@ contract InsertCheckpointTest is BttBase {
         if (!isCoverage()) {
             // STORAGE_SLOTS_PER_CHECKPOINT writes to update the checkpoint,
             // 1 write to update the last checkpointed block,
+            // 1 write to update the previous checkpoint's next pointer
 
-            assertEq(writes.length, STORAGE_SLOTS_PER_CHECKPOINT + 1);
+            assertEq(writes.length, STORAGE_SLOTS_PER_CHECKPOINT + 2);
         }
 
         _checkpoint.prev = 0;
@@ -43,8 +45,7 @@ contract InsertCheckpointTest is BttBase {
         assertEq(mockCheckpointStorage.lastCheckpointedBlock(), _blockNumber);
         assertEq(mockCheckpointStorage.clearingPrice(), _checkpoint.clearingPrice);
 
-        // On purpose the first link in the list does not update next (unclear why)
-        // assertEq(mockCheckpointStorage.getCheckpoint(0).next, _blockNumber);
+        assertEq(mockCheckpointStorage.getCheckpoint(0).next, _blockNumber);
     }
 
     function test_GivenLastCheckpointedBlockNEQ0(
@@ -55,6 +56,7 @@ contract InsertCheckpointTest is BttBase {
     ) external {
         // it updates checkpoint.prev = lastCheckpointedBlock
         // it updates checkpoint.next = blockNumber
+        // it writes _checkpoints[lastCheckpointedBlock].next = blockNumber
         // it writes _checkpoints[blockNumber] = checkpoint
         // it writes lastCheckpointedBlock = blockNumber
 
@@ -76,8 +78,6 @@ contract InsertCheckpointTest is BttBase {
             emit log_named_bytes32('writes', writes[i]);
         }
 
-        bool isFirstZero = _blockNumber == 0;
-
         if (!isCoverage()) {
             // STORAGE_SLOTS_PER_CHECKPOINT writes to update the checkpoint,
             // 1 write to update next for the last checkpointed
@@ -85,11 +85,11 @@ contract InsertCheckpointTest is BttBase {
 
             // Beware that when we are overwriting the last, e.g., _blockNumber == last
             // we end up writing multiple times to the same value.
-            assertEq(writes.length, STORAGE_SLOTS_PER_CHECKPOINT + 1 + (isFirstZero ? 0 : 1));
+            assertEq(writes.length, STORAGE_SLOTS_PER_CHECKPOINT + 2);
         }
 
         _checkpoint.prev = 0;
-        _checkpoint.next = isFirstZero ? type(uint64).max : _blockNumber2;
+        _checkpoint.next = _blockNumber2;
 
         _checkpoint2.prev = _blockNumber;
         _checkpoint2.next = type(uint64).max;
@@ -107,9 +107,7 @@ contract InsertCheckpointTest is BttBase {
             assertEq(mockCheckpointStorage.checkpoints(_blockNumber), _checkpoint2);
         } else {
             assertEq(mockCheckpointStorage.checkpoints(_blockNumber), _checkpoint);
-            assertEq(
-                mockCheckpointStorage.getCheckpoint(_blockNumber).next, isFirstZero ? type(uint64).max : _blockNumber2
-            );
+            assertEq(mockCheckpointStorage.getCheckpoint(_blockNumber).next, _blockNumber2);
         }
     }
 }

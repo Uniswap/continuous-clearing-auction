@@ -11,6 +11,7 @@ import {AuctionStep} from 'twap-auction/libraries/AuctionStepLib.sol';
 
 contract ValidateTest is BttBase {
     using SSTORE2 for *;
+
     MockAuctionStepStorage public auctionStepStorage;
 
     function test_WhenAuctionStepsDataLengthEQ0() external {

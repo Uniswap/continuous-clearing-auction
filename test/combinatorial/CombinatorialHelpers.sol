@@ -90,7 +90,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
         }
     }
 
-    function helper__postBidScenario(PostBidScenario scenario, uint256 userMaxPrice, bool Q96)
+    function helper__postBidScenario(PostBidScenario scenario, uint256 userMaxPrice, bool Q96, uint64 bidDelay)
         public
         returns (PostBidScenario actualScenario)
     {
@@ -136,11 +136,11 @@ contract CombinatorialHelpers is AuctionBaseTest {
                 return PostBidScenario.NoBidsAfterUser;
             } else {
                 // User's bid is above or equal to the clearing price: Move clearing above the user's bid after one block
-                if (auction.endBlock() == block.number + 1) {
+                if (auction.endBlock() <= block.number + bidDelay) {
                     // The next block is past the auction, so no bids will be placed
                     return PostBidScenario.NoBidsAfterUser;
                 }
-                vm.roll(block.number + 1); // Outbid in the next block
+                vm.roll(block.number + bidDelay); // Outbid in the next block
                 helper__setAuctionClearingPrice(userMaxPrice + tickSpacing, new address[](1), Q96);
                 return PostBidScenario.UserOutbidLater;
             }
@@ -259,7 +259,8 @@ contract CombinatorialHelpers is AuctionBaseTest {
 
     /// @notice Verify a partial exit (outbid mid-auction or at clearing at end)
     /// @param bidId The bid ID to exit
-    function helper__verifyPartialExit(uint256 bidId) internal {
+    /// @return currencySpentQ96 The actual currency spent in Q96 format (for metrics)
+    function helper__verifyPartialExit(uint256 bidId) internal returns (uint256 currencySpentQ96) {
         console.log('Verifying partial exit for bidId:', bidId);
 
         // Get bid info
@@ -271,8 +272,8 @@ contract CombinatorialHelpers is AuctionBaseTest {
         Checkpoint memory startCP = auction.checkpoints(bid.startBlock);
 
         // Find hints using robust checkpoint inspection
-        uint64 lastFullyFilledBlock = helper__findLastFullyFilledCheckpoint(bid, bid.startBlock);
-        uint64 outbidBlock = helper__findOutbidBlock(bid, bid.startBlock);
+        uint64 lastFullyFilledBlock = helper__findLastFullyFilledCheckpoint(bid);
+        (uint64 outbidBlock,) = helper__findOutbidBlock(bid);
 
         console.log('  lastFullyFilledBlock:', lastFullyFilledBlock);
         console.log('  outbidBlock:', outbidBlock);
@@ -304,19 +305,26 @@ contract CombinatorialHelpers is AuctionBaseTest {
             console.log('  Expected tokens:', expectedTokens);
             console.log('  Refund:', actualRefund);
             console.log('  Partial exit verified successfully');
+
+            // Return the actual currency spent for metrics
+            return expectedCurrencyQ96;
         } catch (bytes memory err) {
             console.log('  Partial exit failed:');
             console.logBytes(err);
 
             // Graceful degradation: log warning but don't fail test
             console.log('  WARNING: Partial exit verification failed, but continuing test');
+
+            // Return 0 for failed exits
+            return 0;
         }
     }
 
     /// @notice Verify a full exit (bid above clearing at auction end)
     /// @param bidId The bid ID to exit
     /// @param balanceBefore Currency balance before exit
-    function helper__verifyFullExit(uint256 bidId, uint256 balanceBefore) internal {
+    /// @return currencySpentQ96 The actual currency spent in Q96 format (for metrics)
+    function helper__verifyFullExit(uint256 bidId, uint256 balanceBefore) internal returns (uint256 currencySpentQ96) {
         console.log('Verifying full exit for bidId:', bidId);
 
         // Get bid info
@@ -351,6 +359,9 @@ contract CombinatorialHelpers is AuctionBaseTest {
             console.log('  Currency spent (Q96):', expectedCurrencyQ96);
             console.log('  Refund:', actualRefund);
             console.log('  Full exit verified successfully');
+
+            // Return the actual currency spent for metrics
+            return expectedCurrencyQ96;
         } catch (bytes memory err) {
             console.log('  Exit failed:');
             console.logBytes(err);
@@ -397,13 +408,13 @@ contract CombinatorialHelpers is AuctionBaseTest {
     /// @notice Find the last checkpoint where bid was fully filled (clearing < maxPrice)
     /// @dev Returns 0 if bid was never fully filled (at clearing from start)
     /// @param bid The bid to analyze
-    /// @param bidStartBlock The block where bid was submitted
     /// @return lastFullyFilledBlock The last block where clearing < maxPrice, or 0 if never fully filled
-    function helper__findLastFullyFilledCheckpoint(Bid memory bid, uint64 bidStartBlock)
+    function helper__findLastFullyFilledCheckpoint(Bid memory bid)
         internal
         view
         returns (uint64 lastFullyFilledBlock)
     {
+        uint64 bidStartBlock = bid.startBlock;
         Checkpoint memory startCP = auction.checkpoints(bidStartBlock);
 
         // Special case: If clearing >= maxPrice at start, bid was never filled at all
@@ -437,37 +448,65 @@ contract CombinatorialHelpers is AuctionBaseTest {
 
     /// @notice Find the block where bid was outbid (clearing > maxPrice)
     /// @dev Returns 0 if bid was never outbid
+    /// @dev Special handling for same-block outbids: checks subsequent bids in same block
     /// @param bid The bid to analyze
-    /// @param bidStartBlock The block where bid was submitted
     /// @return outbidBlock The first block where clearing > maxPrice, or 0 if never outbid
-    function helper__findOutbidBlock(Bid memory bid, uint64 bidStartBlock) internal view returns (uint64 outbidBlock) {
-        Checkpoint memory startCP = auction.checkpoints(bidStartBlock);
+    function helper__findOutbidBlock(Bid memory bid) internal view returns (uint64 outbidBlock, bool wasOutbid) {
+        uint64 bidStartBlock = bid.startBlock;
+        uint256 bidId = helper__findBidId(bid);
 
-        // Check if outbid immediately at startBlock (same-block outbid edge case)
-        if (startCP.clearingPrice > bid.maxPrice) {
-            return bidStartBlock;
-        }
+        // Check for same-block outbid by examining subsequent bids
+        // Checkpoints are created at block start, so same-block events aren't visible in startCP
+        uint256 nextBidId = bidId + 1;
+        while (nextBidId < auction.nextBidId()) {
+            Bid memory checkBid = auction.bids(nextBidId);
 
-        // Traverse forward to find first checkpoint where clearing > maxPrice
-        uint64 currentBlock = startCP.next;
-        uint256 safetyCounter = 0;
-
-        while (currentBlock != 0 && currentBlock <= auction.endBlock() && safetyCounter < CHECKPOINT_TRAVERSAL_LIMIT) {
-            Checkpoint memory cp = auction.checkpoints(currentBlock);
-
-            // Found the outbid point
-            if (cp.clearingPrice > bid.maxPrice) {
-                return currentBlock;
+            // If next bid is in same block and would push clearing above our maxPrice
+            if (checkBid.startBlock == bidStartBlock && checkBid.maxPrice > bid.maxPrice) {
+                // Same-block outbid detected
+                return (bidStartBlock, true);
             }
 
-            currentBlock = cp.next;
-            safetyCounter++;
+            // Stop checking if we've moved past the start block
+            if (checkBid.startBlock > bidStartBlock) {
+                break;
+            }
+
+            nextBidId++;
         }
 
-        require(safetyCounter < CHECKPOINT_TRAVERSAL_LIMIT, 'Checkpoint traversal limit exceeded');
+        // Check for next-block and later outbids by examining all subsequent bids
+        // This gives accurate block-of-placement instead of checkpoint-based detection
+        nextBidId = bidId + 1;
+        while (nextBidId < auction.nextBidId()) {
+            Bid memory checkBid = auction.bids(nextBidId);
+
+            // If a later bid has higher maxPrice, it could have outbid us
+            if (checkBid.maxPrice > bid.maxPrice) {
+                // Return the block where this outbidding bid was placed
+                return (checkBid.startBlock, true);
+            }
+
+            nextBidId++;
+        }
 
         // Not outbid - ended at or below clearing
-        return 0;
+        return (0, false);
+    }
+
+    /// @notice Helper to find bid ID by matching bid struct
+    function helper__findBidId(Bid memory targetBid) private view returns (uint256) {
+        uint256 nextId = auction.nextBidId();
+        for (uint256 i = 0; i < nextId; i++) {
+            Bid memory checkBid = auction.bids(i);
+            if (
+                checkBid.owner == targetBid.owner && checkBid.startBlock == targetBid.startBlock
+                    && checkBid.maxPrice == targetBid.maxPrice && checkBid.amountQ96 == targetBid.amountQ96
+            ) {
+                return i;
+            }
+        }
+        revert('Bid ID not found');
     }
 
     /// @notice Find first checkpoint at or after a given block

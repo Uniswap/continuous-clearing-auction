@@ -69,7 +69,7 @@ contract CombinatorialHelpersTest is CombinatorialHelpers {
         console2.log('Scenario:', uint256(scenario));
         console2.log('User max price:', maxPrice);
         console2.log('clearingPrice before Scenario:', auction.clearingPrice() >> FixedPoint96.RESOLUTION);
-        helper__postBidScenario(scenario, maxPrice, false);
+        helper__postBidScenario(scenario, maxPrice, false, 1);
         console2.log('clearingPrice after Scenario:', auction.clearingPrice() >> FixedPoint96.RESOLUTION);
 
         // Verify

@@ -109,12 +109,13 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     function helper__seedBasedBid(uint256 seed)
         public
         view
-        returns (uint128 bidAmount, uint256 maxPriceQ96, uint256 bidBlock)
+        returns (uint128 bidAmount, uint256 maxPriceQ96, uint256 bidBlock, uint64 furtherBidsDelay)
     {
         // Generate the random parameters for the bid based on the seed
         uint256 bidAmountR = uint256(keccak256(abi.encodePacked(seed, 'bid.bidAmount')));
         uint256 maxPriceQ96R = uint256(keccak256(abi.encodePacked(seed, 'bid.maxPrice')));
         uint256 bidBlockR = uint256(keccak256(abi.encodePacked(seed, 'bid.bidBlock')));
+        uint256 furtherBidsDelayR = uint256(keccak256(abi.encodePacked(seed, 'bid.furtherBidsDelay')));
 
         // Get the auction based params
         uint256 tickSpacingQ96 = params.tickSpacing;
@@ -135,6 +136,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Bind the bid block to be at least the start block and at most the end block - 1 (for a valid bid block)
         bidBlock = uint64(_bound(bidBlockR % (auction.endBlock()), auction.startBlock(), auction.endBlock() - 1));
 
+        // Bind the further bids delay to be at least 1 and at most the end block - bid block (for a valid further bids delay)
+        furtherBidsDelay =
+            uint64(_bound(furtherBidsDelayR % (auction.endBlock() - bidBlock), 1, auction.endBlock() - bidBlock));
+
         // --- ADD TEMPORARY MAX LIMITS TO LIMIT CRAZY SIZES ---
         bidAmount = uint128(_bound(bidAmount, 1, MAX_BID_AMOUNT));
         maxPriceQ96 = helper__roundPriceDownToTickSpacing(
@@ -146,7 +151,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         console.log('helper__seedBasedBid: bidAmount', bidAmount);
         console.log('helper__seedBasedBid: maxPriceQ96', maxPriceQ96);
 
-        return (bidAmount, maxPriceQ96, bidBlock);
+        return (bidAmount, maxPriceQ96, bidBlock, furtherBidsDelay);
     }
 
     function helper__seedBasedAuction(uint256 seed) public returns (FuzzDeploymentParams memory) {

@@ -6,6 +6,7 @@ import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {CheckpointLib} from '../src/libraries/CheckpointLib.sol';
+import {ICheckpointStorage} from '../src/interfaces/ICheckpointStorage.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {FixedPoint128} from '../src/libraries/FixedPoint128.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
@@ -32,6 +33,20 @@ contract CheckpointStorageTest is Assertions, Test {
 
     function setUp() public {
         mockCheckpointStorage = new MockCheckpointStorage();
+    }
+
+    function test_insertCheckpoint_equalBlock_reverts() public {
+        Checkpoint memory _checkpoint;
+        mockCheckpointStorage.insertCheckpoint(_checkpoint, 100);
+        vm.expectRevert(ICheckpointStorage.CheckpointBlockNotIncreasing.selector);
+        mockCheckpointStorage.insertCheckpoint(_checkpoint, 100);
+    }
+
+    function test_insertCheckpoint_lowerBlock_reverts() public {
+        Checkpoint memory _checkpoint;
+        mockCheckpointStorage.insertCheckpoint(_checkpoint, 100);
+        vm.expectRevert(ICheckpointStorage.CheckpointBlockNotIncreasing.selector);
+        mockCheckpointStorage.insertCheckpoint(_checkpoint, 99);
     }
 
     function test_insertCheckpoint_firstCheckpoint_succeeds() public {

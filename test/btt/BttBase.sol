@@ -49,7 +49,7 @@ contract BttBase is AuctionBaseTest {
         returns (AuctionFuzzConstructorParams memory)
     {
         // Bound to be sensible values
-        vm.assume(_params.totalSupply > 0);
+        _params.totalSupply = uint128(_bound(_params.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
         vm.assume(_params.token != _params.parameters.currency);
         vm.assume(_params.token != address(0));
         vm.assume(_params.parameters.fundsRecipient != address(0));

@@ -49,6 +49,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         TOKEN = IERC20Minimal(_token);
         CURRENCY = Currency.wrap(_currency);
         if (_totalSupply == 0) revert TotalSupplyIsZero();
+        if (_totalSupply > ConstantsLib.MAX_TOTAL_SUPPLY) revert TotalSupplyIsTooLarge();
         TOTAL_SUPPLY = _totalSupply;
         TOTAL_SUPPLY_Q96 = uint256(_totalSupply) << FixedPoint96.RESOLUTION;
         TOKENS_RECIPIENT = _tokensRecipient;

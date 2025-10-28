@@ -1406,8 +1406,8 @@ contract AuctionTest is AuctionBaseTest {
 
         // Roll to end of the auction
         vm.roll(endBlock);
-        uint256 expectedTotalCurrencyRaised = TOTAL_SUPPLY_Q96
-            .fullMulDivUp(tickNumberToPriceX96(2) * ConstantsLib.MPS, FixedPoint96.Q96);
+        uint256 expectedTotalCurrencyRaised =
+            TOTAL_SUPPLY_Q96.fullMulDivUp(tickNumberToPriceX96(2) * ConstantsLib.MPS, FixedPoint96.Q96);
         vm.expectEmit(true, true, true, true);
         // Expect that we sold the total supply at price of 2
         emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), ConstantsLib.MPS);

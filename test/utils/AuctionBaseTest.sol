@@ -65,6 +65,11 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     uint128 public $bidAmount;
     uint256 public $maxPrice;
 
+    // Wrapper around vm.randomUint() to return a random uint128
+    function _randomUint128() private returns (uint128) {
+        return uint128(bound(uint256(vm.randomUint() >> 128), 1, type(uint128).max));
+    }
+
     // ============================================
     // Fuzz Parameter Validation Helpers
     // ============================================
@@ -107,15 +112,14 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _setHardcodedParams(deploymentParams);
 
         // Generate the random parameteres here
-        deploymentParams.totalSupply = uint128(_bound(uint256(vm.randomUint()), 1, type(uint128).max));
+        deploymentParams.totalSupply = uint128(_bound(_randomUint128(), 1, ConstantsLib.MAX_TOTAL_SUPPLY));
 
         // Calculate the number of steps - ensure it's a divisor of ConstantsLib.MPS
         deploymentParams.numberOfSteps = _getRandomDivisorOfMPS();
 
-        // TODO: these values are wrong - tick spacing too large
-        deploymentParams.auctionParams.floorPrice = uint128(_bound(uint256(vm.randomUint()), 2, type(uint128).max));
+        deploymentParams.auctionParams.floorPrice = uint128(bound(_randomUint128(), 2, 1000 << FixedPoint96.RESOLUTION));
         deploymentParams.auctionParams.tickSpacing =
-            uint256(_bound(uint256(vm.randomUint()), 2, deploymentParams.auctionParams.floorPrice));
+            uint256(_bound(_randomUint128(), 2, deploymentParams.auctionParams.floorPrice));
         _boundPriceParams(deploymentParams, false);
 
         // Set up the block numbers
@@ -134,7 +138,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         bool _assumeTickSpacingIsFloorPrice
     ) public returns (AuctionParameters memory) {
         _setHardcodedParams(_deploymentParams);
-        vm.assume(_deploymentParams.totalSupply > 0);
+        _deploymentParams.totalSupply = uint128(_bound(_deploymentParams.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
 
         _boundBlockNumbers(_deploymentParams);
         _boundPriceParams(_deploymentParams, _assumeTickSpacingIsFloorPrice);
@@ -272,8 +276,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         vm.assume(_totalSupply != 0 && _tickSpacing != 0 && _floorPrice != 0 && _maxPrice != 0);
         _maxPrice = _bound(_maxPrice, _floorPrice + _tickSpacing, type(uint256).max);
 
-        // TODO(md): better to be a bound?
-        vm.assume(_maxPrice <= FixedPointMathLib.min(type(uint256).max / _totalSupply, ConstantsLib.MAX_BID_PRICE));
+        // We cannot support bids at prices which would cause the total currency raised to overflow a uint128
+        vm.assume(_maxPrice <= ConstantsLib.MAX_BID_PRICE / _totalSupply);
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, _tickSpacing);
         vm.assume(_maxPrice > _floorPrice && _maxPrice < type(uint256).max);
         return _maxPrice;

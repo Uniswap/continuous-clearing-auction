@@ -53,9 +53,6 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         TOTAL_SUPPLY_Q96 = uint256(_totalSupply) << FixedPoint96.RESOLUTION;
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;
-        if (_requiredCurrencyRaised * FixedPoint96.Q96 > ConstantsLib.X7_UPPER_BOUND) {
-            revert RequiredCurrencyRaisedIsTooLarge();
-        }
         REQUIRED_CURRENCY_RAISED_Q96 = _requiredCurrencyRaised * FixedPoint96.Q96;
 
         if (_token == address(0)) revert TokenIsAddressZero();

@@ -172,10 +172,14 @@ contract CombinatorialHelpers is AuctionBaseTest {
         } else {
             uint256 totalSupply_ = auction.totalSupply();
 
-            // uint256 bidAmountToMoveToTargetClearingPrice = totalSupply * targetClearingPrice;
-            uint256 bidAmountToMoveToTargetClearingPrice = (
-                totalSupply_ - ((totalSupply_ * checkpoint.cumulativeMps) / ConstantsLib.MPS)
-            ) * targetClearingPrice / (Q96 ? FixedPoint96.Q96 : 1);
+            // Calculate remaining supply (amount not yet sold)
+            uint256 remainingSupply = totalSupply_ - ((totalSupply_ * checkpoint.cumulativeMps) / ConstantsLib.MPS);
+
+            // Use fullMulDiv to prevent overflow during multiplication
+            // bidAmount = remainingSupply * targetClearingPrice / (Q96 ? Q96 : 1)
+            uint256 bidAmountToMoveToTargetClearingPrice =
+                remainingSupply.fullMulDivUp(targetClearingPrice, Q96 ? FixedPoint96.Q96 : 1);
+
             console.log('helper__setAuctionClearingPrice: totalSupply', totalSupply_);
             console.log('helper__setAuctionClearingPrice: checkpoint.cumulativeMps', checkpoint.cumulativeMps);
             console.log('helper__setAuctionClearingPrice: clearingPrice', clearingPrice);
@@ -587,23 +591,20 @@ contract CombinatorialHelpers is AuctionBaseTest {
         Checkpoint memory startCheckpoint,
         Checkpoint memory finalCheckpoint
     ) internal pure returns (uint256 expectedTokensFilled, uint256 expectedCurrencySpent) {
-        // Check for overflow before calculation
+        // Calculate cumulative deltas
         uint24 cumulativeMpsDelta = finalCheckpoint.cumulativeMps - startCheckpoint.cumulativeMps;
         uint256 cumulativeMpsPerPriceDelta =
             finalCheckpoint.cumulativeMpsPerPrice - startCheckpoint.cumulativeMpsPerPrice;
-
-        require(
-            helper__checkQ96MulSafe(bid.amountQ96, cumulativeMpsDelta),
-            'Full exit: Q96 overflow in currency calculation'
-        );
 
         // Use the same calculation as CheckpointStorage._calculateFill
         uint24 mpsRemaining = ConstantsLib.MPS - bid.startCumulativeMps;
 
         // Currency spent = bid amount * (mps delta / mps remaining)
+        // Using fullMulDivUp handles large multiplications safely without overflow
         expectedCurrencySpent = bid.amountQ96.fullMulDivUp(cumulativeMpsDelta, mpsRemaining);
 
         // Tokens filled uses effective amount and harmonic mean
+        // Using fullMulDiv handles large multiplications safely without overflow
         expectedTokensFilled = bid.amountQ96.fullMulDiv(
             cumulativeMpsPerPriceDelta, (FixedPoint96.Q96 << FixedPoint96.RESOLUTION) * mpsRemaining
         );
@@ -781,6 +782,8 @@ contract CombinatorialHelpers is AuctionBaseTest {
         }
 
         if (actualScenario != intendedScenario) {
+            console.log('Actual scenario:', uint8(actualScenario));
+            console.log('Intended scenario:', uint8(intendedScenario));
             revert('Scenario mismatch detected');
         }
     }

@@ -91,16 +91,13 @@ interface IAuction is
     /// @param owner The owner of the bid
     /// @param price The price of the bid
     /// @param amount The amount of the bid
-    event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, uint256 amount);
+    event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, uint128 amount);
 
     /// @notice Emitted when a new checkpoint is created
     /// @param blockNumber The block number of the checkpoint
     /// @param clearingPrice The clearing price of the checkpoint
-    /// @param currencyRaisedQ96_X7 The total currency raised
     /// @param cumulativeMps The cumulative percentage of total tokens allocated across all previous steps, represented in ten-millionths of the total supply (1e7 = 100%)
-    event CheckpointUpdated(
-        uint256 indexed blockNumber, uint256 clearingPrice, ValueX7 currencyRaisedQ96_X7, uint24 cumulativeMps
-    );
+    event CheckpointUpdated(uint256 indexed blockNumber, uint256 indexed clearingPrice, uint24 cumulativeMps);
 
     /// @notice Emitted when the clearing price is updated
     /// @param clearingPrice The new clearing price

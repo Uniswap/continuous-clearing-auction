@@ -85,16 +85,29 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpentQ96) {
         if (tickDemandQ96 == 0) return (0, 0);
 
-        // tickDemandQ96 is a summation of bid effective amounts, so we must scale up the bid
-        // by 1e7 and divide by `mpsRemainingInAuctionAfterSubmission` such that we can
-        // apply the ratio of the bid demand to the tick demand to the currencyRaisedAtClearingPriceQ96_X7
-        ValueX7 numerator = bid.amountQ96.scaleUpToX7();
-        ValueX7 denominator = ValueX7.wrap(tickDemandQ96 * bid.mpsRemainingInAuctionAfterSubmission());
+        // For partially filled bids, we need to apply the ratio between the bid demand and the demand at the tick to the currency raised
+        // `tickDemandQ96` is a summation of bid effective amounts, so we must use BidLib.toEffectiveAmount(bid) in the numerator
+        // The full expanded equation is:
+        // (bid.amountQ96 * ConstantsLib.MPS / mpsRemainingInAuctionAfterSubmission()) * currencyRaisedAtClearingPriceQ96_X7 / tickDemandQ96
+        //
+        // We can move the division of mpsRemainingInAuctionAfterSubmission() to the denominator to get:
+        // bid.amountQ96 * ConstantsLib.MPS * currencyRaisedAtClearingPriceQ96_X7 / (tickDemandQ96 * mpsRemainingInAuctionAfterSubmission())
+        //
+        // And we know that we eventually want the result in `uint256` form so we remove the multiplication by ConstantsLib.MPS in the numerator:
+        // so the final equation is: bid.amountQ96 * currencyRaisedAtClearingPriceQ96_X7 / (tickDemandQ96 * mpsRemainingInAuctionAfterSubmission())
+        // Cache the denominator here to avoid recalculating it
+        uint256 denominator = tickDemandQ96 * bid.mpsRemainingInAuctionAfterSubmission();
+
+        // Apply the ratio between bid demand and tick demand to the currencyRaisedAtClearingPriceQ96_X7 value
         // If currency spent is calculated to have a remainder, we round up.
-        currencySpentQ96 = numerator.fullMulDivUp(currencyRaisedAtClearingPriceQ96_X7, denominator).scaleDownToUint256();
-        // Tokens filled uses the currency spent but rounds it down before dividing by the max price
-        tokensFilled = numerator.fullMulDiv(currencyRaisedAtClearingPriceQ96_X7, denominator).divUint256(bid.maxPrice)
-            .scaleDownToUint256();
+        // In the case where the result would have been 0, we will return 1 wei.
+        currencySpentQ96 = bid.amountQ96.fullMulDivUp(ValueX7.unwrap(currencyRaisedAtClearingPriceQ96_X7), denominator);
+
+        // We derive tokens filled from the currency spent by dividing it by the max price
+        // If the currency spent is calculated to have a remainder, we round that down here in favor of the auction.
+        // In the case where the currency spent is 0, we will return 0 tokens filled.
+        tokensFilled =
+            bid.amountQ96.fullMulDiv(ValueX7.unwrap(currencyRaisedAtClearingPriceQ96_X7), denominator) / bid.maxPrice;
     }
 
     /// @notice Calculate the tokens filled and currency spent for a bid

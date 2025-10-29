@@ -134,11 +134,10 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         // We also know that `cumulativeMpsPerPriceDelta` is over `mps` terms, and has not been divided by 100% (1e7) yet.
         // Thus, we can cancel out the 1e7 terms and just divide by `mpsRemainingInAuctionAfterSubmission`.
         // Both terms in the numerator (amountQ96 and cumulativeMpsPerPriceDelta) are Q96 form, so we must also divide by Q96 ** 2
-        tokensFilled = bid.amountQ96
-            .fullMulDiv(
-                cumulativeMpsPerPriceDelta,
-                (FixedPoint96.Q96 << FixedPoint96.RESOLUTION) * mpsRemainingInAuctionAfterSubmission
-            );
+        tokensFilled = bid.amountQ96.fullMulDiv(
+            cumulativeMpsPerPriceDelta,
+            (FixedPoint96.Q96 << FixedPoint96.RESOLUTION) * mpsRemainingInAuctionAfterSubmission
+        );
     }
 
     /// @inheritdoc ICheckpointStorage

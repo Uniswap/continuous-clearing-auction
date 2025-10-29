@@ -2,6 +2,8 @@
 pragma solidity 0.8.26;
 
 import {Tick} from '../src/TickStorage.sol';
+
+import {ICheckpointStorage} from '../src/interfaces/ICheckpointStorage.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';

@@ -217,8 +217,7 @@ contract AuctionInvariantHandler is Test, Assertions {
                 // If the prevTickPrice is 0, it could maybe be a race that the clearing price has increased since the bid was placed
                 // This is handled in the else condition - so we exclude it here
                 prevTickPrice == 0
-                    && bytes4(revertData)
-                        != bytes4(abi.encodeWithSelector(IAuction.BidMustBeAboveClearingPrice.selector))
+                    && bytes4(revertData) != bytes4(abi.encodeWithSelector(IAuction.BidMustBeAboveClearingPrice.selector))
             ) {
                 assertEq(revertData, abi.encodeWithSelector(ITickStorage.TickPriceNotIncreasing.selector));
                 metrics.cnt_TickPriceNotIncreasingError++;
@@ -227,8 +226,8 @@ contract AuctionInvariantHandler is Test, Assertions {
                 metrics.cnt_BidAmountTooSmallError++;
             } else if (
                 mockAuction.sumCurrencyDemandAboveClearingQ96()
-                    >= ConstantsLib.X7_UPPER_BOUND - (inputAmount * FixedPoint96.Q96 * ConstantsLib.MPS)
-                        / (ConstantsLib.MPS - _checkpoint.cumulativeMps)
+                    >= ConstantsLib.X7_UPPER_BOUND
+                        - (inputAmount * FixedPoint96.Q96 * ConstantsLib.MPS) / (ConstantsLib.MPS - _checkpoint.cumulativeMps)
             ) {
                 assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidBidUnableToClear.selector));
                 metrics.cnt_InvalidBidUnableToClearError++;
@@ -352,6 +351,29 @@ contract AuctionInvariantTest is AuctionUnitTest {
             // Bid might be deleted if tokensFilled = 0
             bid = getBid(bidId);
             if (bid.tokensFilled == 0) continue;
+
+            // UNIVERSAL INVARIANT: Average purchase price must never exceed maxPrice
+            // This ensures bidders never pay more per token than their bid price
+            // Works for both fully-filled and partially-filled bids
+
+            // Mathematical form: avgPrice = currencySpent / tokensFilled ≤ maxPrice
+            // Rearranged: currencySpent ≤ tokensFilled × maxPrice
+
+            uint256 currencySpent = (bid.amountQ96 / FixedPoint96.Q96) - refundAmount;
+            uint256 maxValueAtBidPrice = FixedPointMathLib.fullMulDiv(bid.tokensFilled, bid.maxPrice, FixedPoint96.Q96);
+
+            // Allow small rounding tolerance (up to 1 wei) for edge cases with tiny fills
+            // where tokensFilled × maxPrice / Q96 might round to zero
+            assertLe(
+                currencySpent,
+                maxValueAtBidPrice + 1,
+                string.concat(
+                    'ROUNDING INVARIANT VIOLATED: Bid ',
+                    vm.toString(bidId),
+                    ' - average purchase price exceeds maxPrice'
+                )
+            );
+
             assertEq(bid.exitedBlock, block.number);
         }
 

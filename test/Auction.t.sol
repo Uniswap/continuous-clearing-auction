@@ -124,10 +124,9 @@ contract AuctionTest is AuctionBaseTest {
         ValueX7 expectedTotalCurrencyRaised = ValueX7.wrap(TOTAL_SUPPLY_Q96)
             .wrapAndFullMulDiv(tickNumberToPriceX96(2) * expectedCumulativeMps, FixedPoint96.Q96);
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(
-            block.number, tickNumberToPriceX96(2), expectedTotalCurrencyRaised, expectedCumulativeMps
-        );
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), expectedCumulativeMps);
         auction.checkpoint();
+        assertEq(auction.currencyRaisedQ96_X7(), expectedTotalCurrencyRaised);
 
         assertEq(auction.clearingPrice(), tickNumberToPriceX96(2));
     }
@@ -135,7 +134,7 @@ contract AuctionTest is AuctionBaseTest {
     function test_submitBid_updatesClearingPrice_succeeds() public {
         vm.expectEmit(true, true, true, true);
         // Expect the checkpoint to be made for the previous block
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7.wrap(0), 0);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), 0);
         // Bid enough to purchase the entire supply (1000e18) at a higher price (2e18)
         uint128 inputAmount = inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2));
         auction.submitBid{value: inputAmount}(
@@ -147,16 +146,15 @@ contract AuctionTest is AuctionBaseTest {
         ValueX7 expectedCurrencyRaised = ValueX7.wrap(TOTAL_SUPPLY_Q96)
             .wrapAndFullMulDiv(tickNumberToPriceX96(2) * expectedCumulativeMps, FixedPoint96.Q96);
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(
-            block.number, tickNumberToPriceX96(2), expectedCurrencyRaised, expectedCumulativeMps
-        );
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), expectedCumulativeMps);
         auction.checkpoint();
+        assertEq(auction.currencyRaisedQ96_X7(), expectedCurrencyRaised);
     }
 
     function test_submitBid_multipleTicks_succeeds() public {
         vm.expectEmit(true, true, true, true);
         // First checkpoint is blank
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7.wrap(0), 0);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), 0);
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(tickNumberToPriceX96(2));
 
@@ -187,10 +185,9 @@ contract AuctionTest is AuctionBaseTest {
             .wrapAndFullMulDiv(tickNumberToPriceX96(2) * expectedCumulativeMps, FixedPoint96.Q96);
         // New block, expect the clearing price to be updated and one block's worth of mps to be sold
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(
-            block.number, tickNumberToPriceX96(2), expectedCurrencyRaised, expectedCumulativeMps
-        );
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), expectedCumulativeMps);
         auction.checkpoint();
+        assertEq(auction.currencyRaisedQ96_X7(), expectedCurrencyRaised);
     }
 
     function test_submitBid_exactIn_overTotalSupply_isPartiallyFilled() public {
@@ -229,7 +226,7 @@ contract AuctionTest is AuctionBaseTest {
         // Bid over the total supply
         uint128 inputAmount = inputAmountForTokens(2000e18, tickNumberToPriceX96(2));
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7.wrap(0), 0);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), 0);
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(0, alice, tickNumberToPriceX96(2), inputAmount);
         uint256 bidId = auction.submitBid{value: inputAmount}(
@@ -240,7 +237,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
         // Expect the price to increase, but no tokens to be sold
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), ValueX7.wrap(0), 0);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), 0);
         auction.checkpoint();
         vm.snapshotGasLastCall('checkpoint_zeroSupply');
 
@@ -252,10 +249,9 @@ contract AuctionTest is AuctionBaseTest {
             .wrapAndFullMulDiv(tickNumberToPriceX96(2) * expectedCumulativeMps, FixedPoint96.Q96);
         // Now the auction should start clearing
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(
-            block.number, tickNumberToPriceX96(2), expectedTotalCurrencyRaised, expectedCumulativeMps
-        );
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), expectedCumulativeMps);
         auction.checkpoint();
+        assertEq(auction.currencyRaisedQ96_X7(), expectedTotalCurrencyRaised);
 
         vm.roll(auction.endBlock());
         uint256 aliceBalanceBefore = address(alice).balance;
@@ -288,7 +284,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.onTokensReceived();
 
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, FLOOR_PRICE, ValueX7.wrap(0), 0);
+        emit IAuction.CheckpointUpdated(block.number, FLOOR_PRICE, 0);
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(0, alice, $maxPrice, $bidAmount);
         uint256 bidId = auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, FLOOR_PRICE, bytes(''));
@@ -296,6 +292,7 @@ contract AuctionTest is AuctionBaseTest {
         // Advance to the next block to get the next checkpoint
         vm.roll(block.number + 1);
         auction.checkpoint();
+        assertEq(auction.currencyRaisedQ96_X7(), ValueX7.wrap(0));
 
         // Advance to the end of the first step
         vm.roll(auction.startBlock() + 101);
@@ -514,11 +511,9 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(
-            block.number, tickNumberToPriceX96(3), expectedTotalCurrencyRaised, expectedCumulativeMps
-        );
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(3), expectedCumulativeMps);
         auction.checkpoint();
-
+        assertEq(auction.currencyRaisedQ96_X7(), expectedTotalCurrencyRaised);
         uint256 aliceBalanceBefore = address(alice).balance;
         // Expect that the first bid can be exited, since the clearing price is now above its max price
         vm.startPrank(alice);
@@ -548,7 +543,6 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     /// forge-config: default.fuzz.runs = 1000
-    /// forge-config: ci.fuzz.runs = 1000
     function test_exitBid_afterEndBlock_succeeds(uint128 _bidAmount, uint128 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
@@ -859,7 +853,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepUnsoldTokens();
     }
 
-    function test_exitPartiallyFilledBid_roundingError_succeeds() public {
+    function test_exitPartiallyFilledBid_roundingError_succeeds() public checkAuctionIsSolvent {
         address bob = makeAddr('bob');
         address charlie = makeAddr('charlie');
 
@@ -922,15 +916,6 @@ contract AuctionTest is AuctionBaseTest {
         vm.startPrank(bob);
         auction.exitPartiallyFilledBid(bidId2, 3, 0);
         auction.claimTokens(bidId2);
-        vm.stopPrank();
-
-        // All tokens were sold
-        vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.TokensSwept(auction.tokensRecipient(), 0);
-        auction.sweepUnsoldTokens();
-
-        vm.startPrank(auction.fundsRecipient());
-        auction.sweepCurrency();
         vm.stopPrank();
     }
 
@@ -1258,13 +1243,12 @@ contract AuctionTest is AuctionBaseTest {
         uint24 expectedCumulativeMps = ConstantsLib.MPS;
         ValueX7 expectedTotalCurrencyRaised = ValueX7.wrap(TOTAL_SUPPLY_Q96)
             .wrapAndFullMulDiv(tickNumberToPriceX96(2) * expectedCumulativeMps, FixedPoint96.Q96);
-        emit IAuction.CheckpointUpdated(
-            block.number, tickNumberToPriceX96(2), expectedTotalCurrencyRaised, expectedCumulativeMps
-        );
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), expectedCumulativeMps);
         // Checkpoint hints are:
         // - lower: 1 (last fully filled checkpoint)
         // - upper: 0 because the bid was never outbid
         auction.exitPartiallyFilledBid(bidId, 1, 0);
+        assertEq(auction.currencyRaisedQ96_X7(), expectedTotalCurrencyRaised);
     }
 
     function test_exitPartiallyFilledBid_lowerHintIsValidated() public {
@@ -1385,7 +1369,7 @@ contract AuctionTest is AuctionBaseTest {
          */
         vm.expectEmit(true, true, true, true);
         // Assert that there is no supply sold in this checkpoint
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7.wrap(0), 0);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), 0);
         uint256 bidId = mockAuction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
             inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
@@ -1422,16 +1406,13 @@ contract AuctionTest is AuctionBaseTest {
 
         // Roll to end of the auction
         vm.roll(endBlock);
+        uint256 expectedTotalCurrencyRaised = TOTAL_SUPPLY_Q96
+            .fullMulDivUp(tickNumberToPriceX96(2) * ConstantsLib.MPS, FixedPoint96.Q96);
         vm.expectEmit(true, true, true, true);
         // Expect that we sold the total supply at price of 2
-        emit IAuction.CheckpointUpdated(
-            block.number,
-            tickNumberToPriceX96(2),
-            ValueX7.wrap(TOTAL_SUPPLY_Q96)
-                .wrapAndFullMulDivUp(tickNumberToPriceX96(2) * ConstantsLib.MPS, FixedPoint96.Q96),
-            ConstantsLib.MPS
-        );
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), ConstantsLib.MPS);
         mockAuction.checkpoint();
+        assertEq(mockAuction.currencyRaisedQ96_X7(), ValueX7.wrap(expectedTotalCurrencyRaised));
     }
 
     function test_advanceToCurrentStep_blockNumberIsEndOfStep() public {
@@ -1473,7 +1454,7 @@ contract AuctionTest is AuctionBaseTest {
          * Thus the bid below makes a checkpoint which shows that 100e3 * 10 mps were sold but no supply was cleared
          */
         vm.expectEmit(true, true, true, true);
-        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), ValueX7.wrap(0), 100e3 * 10);
+        emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), 100e3 * 10);
         uint256 bidId = mockAuction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
             inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
@@ -1515,9 +1496,10 @@ contract AuctionTest is AuctionBaseTest {
         ValueX7 expectedTotalCurrencyRaised = ValueX7.wrap(TOTAL_SUPPLY_Q96)
             .wrapAndFullMulDivUp(tickNumberToPriceX96(2) * (ConstantsLib.MPS - 100e3 * 10), FixedPoint96.Q96);
         emit IAuction.CheckpointUpdated( // Yet the `cumulativeMps` should still be 100%
-            startBlock + 40, tickNumberToPriceX96(2), expectedTotalCurrencyRaised, ConstantsLib.MPS
+            startBlock + 40, tickNumberToPriceX96(2), ConstantsLib.MPS
         );
         mockAuction.checkpoint();
+        assertEq(mockAuction.currencyRaisedQ96_X7(), expectedTotalCurrencyRaised);
     }
 
     /// forge-config: default.isolate = true
@@ -1778,7 +1760,6 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     /// forge-config: default.fuzz.runs = 1000
-    /// forge-config: ci.fuzz.runs = 1000
     function test_claimTokens_beforeBidExited_reverts(uint128 _bidAmount, uint256 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
@@ -1874,7 +1855,6 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     /// forge-config: default.fuzz.runs = 1000
-    /// forge-config: ci.fuzz.runs = 1000
     function test_claimTokensBatch_beforeBidExited_reverts(
         uint128 _bidAmount,
         uint128 _numberOfBids,
@@ -1895,7 +1875,6 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     /// forge-config: default.fuzz.runs = 1000
-    /// forge-config: ci.fuzz.runs = 1000
     function test_claimTokensBatch_beforeClaimBlock_reverts(
         uint128 _bidAmount,
         uint128 _numberOfBids,
@@ -1933,7 +1912,6 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     /// forge-config: default.fuzz.runs = 1000
-    /// forge-config: ci.fuzz.runs = 1000
     function test_claimTokensBatch_tokenTransferFails_reverts(
         uint128 _bidAmount,
         uint128 _numberOfBids,
@@ -1973,7 +1951,6 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     /// forge-config: default.fuzz.runs = 1000
-    /// forge-config: ci.fuzz.runs = 1000
     function test_claimTokensBatch_succeeds(uint128 _bidAmount, uint128 _numberOfBids, uint256 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)

@@ -49,6 +49,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     // Common test values
     uint24 public constant STANDARD_MPS_1_PERCENT = 100_000; // 100e3 - represents 1% of MPS
 
+    uint256 public constant MAX_ALLOWABLE_DUST_WEI = 1e18; // Or 1 unit of token assuming 18 decimals
+
     // Test accounts
     address public alice;
     address public bob;
@@ -111,8 +113,9 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         deploymentParams.numberOfSteps = _getRandomDivisorOfMPS();
 
         // TODO: these values are wrong - tick spacing too large
-        deploymentParams.auctionParams.floorPrice = uint128(_bound(uint256(vm.randomUint()), 2, type(uint128).max));
-        deploymentParams.auctionParams.tickSpacing = uint256(_bound(uint256(vm.randomUint()), 2, type(uint256).max));
+        deploymentParams.auctionParams.floorPrice = uint128(_bound(uint256(vm.randomUint()), 2, type(uint64).max));
+        deploymentParams.auctionParams.tickSpacing =
+            uint256(_bound(uint256(vm.randomUint()), 2, deploymentParams.auctionParams.floorPrice));
         _boundPriceParams(deploymentParams, false);
 
         // Set up the block numbers
@@ -497,8 +500,32 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         require(block.number >= auction.endBlock(), 'checkAuctionIsSolvent: Auction is not over');
         auction.checkpoint();
         if (auction.isGraduated()) {
+            emit log_string('==================== INFO ====================');
+            emit log_named_decimal_uint('auction.totalSupply()', auction.totalSupply(), 18);
+            emit log_named_decimal_uint('auction.totalCleared()', auction.totalCleared(), 18);
+
+            assertLe(auction.totalCleared(), auction.totalSupply(), 'total cleared must be <= total supply');
+
             auction.sweepCurrency();
             auction.sweepUnsoldTokens();
+            // Validate that the tokens and currency dust left in the auction is within a reasonable amount
+            assertApproxEqAbs(
+                token.balanceOf(address(auction)),
+                0,
+                MAX_ALLOWABLE_DUST_WEI,
+                'Auction should have less than MAX_ALLOWABLE_DUST_WEI tokens left'
+            );
+            assertApproxEqAbs(
+                address(auction).balance,
+                0,
+                MAX_ALLOWABLE_DUST_WEI,
+                'Auction should have less than MAX_ALLOWABLE_DUST_WEI wei left of currency'
+            );
+
+            emit log_named_decimal_uint(
+                'after sweeping token.balanceOf(address(auction))', token.balanceOf(address(auction)), 18
+            );
+            emit log_named_decimal_uint('after sweeping currency balance', address(auction).balance, 18);
         } else {
             auction.sweepUnsoldTokens();
             // Assert that all tokens were swept

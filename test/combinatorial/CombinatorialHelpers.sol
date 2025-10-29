@@ -82,18 +82,19 @@ contract CombinatorialHelpers is AuctionBaseTest {
             auction.submitBid{value: smallBidAmount}(
                 userMaxPrice << (Q96 ? 0 : FixedPoint96.RESOLUTION), uint128(smallBidAmount), address(this), bytes('')
             );
-            // vm.roll(block.number + 1);
-            // auction.checkpoint();
             return;
         } else {
             revert('Invalid pre bid scenario');
         }
     }
 
-    function helper__postBidScenario(PostBidScenario scenario, uint256 userMaxPrice, bool Q96, uint64 bidDelay)
-        public
-        returns (PostBidScenario actualScenario)
-    {
+    function helper__postBidScenario(
+        PostBidScenario scenario,
+        uint256 userMaxPrice,
+        bool Q96,
+        uint64 bidDelay,
+        uint256 clearingPriceFillPercentage
+    ) public returns (PostBidScenario actualScenario) {
         console.log('helper__postBidScenario: Starting post bid scenario');
         console.log('helper__postBidScenario: scenario', uint8(scenario));
         console.log('helper__postBidScenario: userMaxPrice', userMaxPrice);
@@ -127,7 +128,17 @@ contract CombinatorialHelpers is AuctionBaseTest {
                 return PostBidScenario.NoBidsAfterUser;
             } else {
                 // User's bid is more then one tick above clearing: Move clearing right below the user's bid
+                if (auction.endBlock() <= block.number + bidDelay) {
+                    // The next block is past the auction, so no bids will be placed
+                    return PostBidScenario.NoBidsAfterUser;
+                }
+                vm.roll(block.number + bidDelay); // Outbid in the next block
                 helper__setAuctionClearingPrice(userMaxPrice, new address[](1), Q96);
+                if (clearingPriceFillPercentage > 0) {
+                    helper__setAuctionClearingPrice(
+                        userMaxPrice + tickSpacing, new address[](1), Q96, clearingPriceFillPercentage
+                    );
+                }
                 return PostBidScenario.UserAtClearing;
             }
         } else if (scenario == PostBidScenario.UserOutbidLater) {
@@ -135,7 +146,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
                 // User's bid is already below the clearing price
                 return PostBidScenario.NoBidsAfterUser;
             } else {
-                // User's bid is above or equal to the clearing price: Move clearing above the user's bid after one block
+                // User's bid is above or equal to the clearing price: Move clearing above the user's bid
                 if (auction.endBlock() <= block.number + bidDelay) {
                     // The next block is past the auction, so no bids will be placed
                     return PostBidScenario.NoBidsAfterUser;
@@ -162,6 +173,18 @@ contract CombinatorialHelpers is AuctionBaseTest {
         public
         returns (bool success)
     {
+        return helper__setAuctionClearingPrice(targetClearingPrice, bidOwners, Q96, ConstantsLib.MPS);
+    }
+
+    function helper__setAuctionClearingPrice(
+        uint256 targetClearingPrice,
+        address[] memory bidOwners,
+        bool Q96,
+        uint256 clearingPriceFillPercentage
+    ) public returns (bool success) {
+        if (clearingPriceFillPercentage > ConstantsLib.MPS) {
+            revert('clearingPriceFillPercentage is greater than ConstantsLib.MPS');
+        }
         Checkpoint memory checkpoint = auction.checkpoint();
 
         uint256 clearingPrice = Q96 ? auction.clearingPrice() : auction.clearingPrice() >> FixedPoint96.RESOLUTION;
@@ -170,24 +193,62 @@ contract CombinatorialHelpers is AuctionBaseTest {
         } else if (clearingPrice == targetClearingPrice) {
             return true;
         } else {
-            uint256 totalSupply_ = auction.totalSupply();
+            uint256 bidAmountToMoveToTargetClearingPrice;
+            // Calculate the bid amount to move to the target clearing price
+            {
+                uint256 totalSupply_ = auction.totalSupply();
 
-            // Calculate remaining supply (amount not yet sold)
-            uint256 remainingSupply = totalSupply_ - ((totalSupply_ * checkpoint.cumulativeMps) / ConstantsLib.MPS);
+                /*
+                // Calculate remaining supply (amount not yet sold)
+                uint256 remainingSupply =
+                    totalSupply_ - totalSupply_.fullMulDiv(checkpoint.cumulativeMps, ConstantsLib.MPS);
 
-            // Use fullMulDiv to prevent overflow during multiplication
-            // bidAmount = remainingSupply * targetClearingPrice / (Q96 ? Q96 : 1)
-            uint256 bidAmountToMoveToTargetClearingPrice =
-                remainingSupply.fullMulDivUp(targetClearingPrice, Q96 ? FixedPoint96.Q96 : 1);
+                // TEMP force clearingPercentage
+                if (clearingPriceFillPercentage < ConstantsLib.MPS) {
+                    clearingPriceFillPercentage = 9_500_000;
 
-            console.log('helper__setAuctionClearingPrice: totalSupply', totalSupply_);
-            console.log('helper__setAuctionClearingPrice: checkpoint.cumulativeMps', checkpoint.cumulativeMps);
-            console.log('helper__setAuctionClearingPrice: clearingPrice', clearingPrice);
-            console.log('helper__setAuctionClearingPrice: targetClearingPrice', targetClearingPrice);
-            console.log(
-                'helper__setAuctionClearingPrice: bidAmountToMoveToTargetClearingPrice',
-                bidAmountToMoveToTargetClearingPrice
-            );
+                    auction.bids(0); // PreBidScenario
+                    auction.bids(1); // Users Bid
+                    auction.bids(2); // Moved Clearing Price
+                    auction.nextBidId();
+                    console.log('targetClearingPrice', targetClearingPrice);
+                    console.log('cumulativeMps', checkpoint.cumulativeMps);
+                }
+
+                // TODO: a low clearingPriceFillPercentage indeed increases the fillRatioPercent of the user (less demand, more left over for the user),
+                // while a high clearingPriceFillPercentage decreases the fillRatioPercent of the user (more demand, less left over for the user).
+                // But why is a clearingPriceFillPercentage of 9_500_000 already moving the clearing price up???
+
+                // Use fullMulDiv to prevent overflow during multiplication
+                // bidAmount = remainingSupply * targetClearingPrice / (Q96 ? Q96 : 1)
+                bidAmountToMoveToTargetClearingPrice =
+                    remainingSupply.fullMulDivUp(targetClearingPrice, Q96 ? FixedPoint96.Q96 : 1);
+                // Scale the bid amount to the clearing price fill percentage
+                bidAmountToMoveToTargetClearingPrice =
+                    bidAmountToMoveToTargetClearingPrice.fullMulDiv(clearingPriceFillPercentage, ConstantsLib.MPS);
+                    */
+
+                /* TEST --- */
+                if (clearingPriceFillPercentage < ConstantsLib.MPS) {
+                    clearingPriceFillPercentage = 9_500_000;
+                    auction.bids(0); // PreBidScenario
+                    auction.bids(1); // Users Bid
+                    auction.bids(2); // Moved Clearing Price
+                    auction.nextBidId();
+                    console.log('targetClearingPrice', targetClearingPrice);
+                }
+                uint256 bidAmountToMoveToTargetClearingPriceQ96 = totalSupply_ * targetClearingPrice;
+                // Scale to fill percentage
+                bidAmountToMoveToTargetClearingPriceQ96 =
+                    bidAmountToMoveToTargetClearingPriceQ96.fullMulDiv(clearingPriceFillPercentage, ConstantsLib.MPS);
+                // Scale down to remaining supply
+                uint256 remainingSupplyPercentage = ConstantsLib.MPS - checkpoint.cumulativeMps;
+                bidAmountToMoveToTargetClearingPriceQ96 =
+                    bidAmountToMoveToTargetClearingPriceQ96.fullMulDiv(remainingSupplyPercentage, ConstantsLib.MPS);
+                bidAmountToMoveToTargetClearingPrice =
+                    bidAmountToMoveToTargetClearingPriceQ96 >> (Q96 ? FixedPoint96.RESOLUTION : 0);
+                /* TEST END */
+            }
             if (bidAmountToMoveToTargetClearingPrice > uint256(type(uint128).max)) {
                 revert('Bid amount to move to target clearing price is too large');
             }
@@ -208,9 +269,10 @@ contract CombinatorialHelpers is AuctionBaseTest {
                 address bidOwner = bidOwners[i];
                 try auction.submitBid{value: bidAmount}(
                     targetClearingPrice << (Q96 ? 0 : FixedPoint96.RESOLUTION), uint128(bidAmount), bidOwner, bytes('')
-                ) returns (uint256) {
+                ) returns (uint256 bidId) {
                     // vm.roll(block.number + 1);
                     // auction.checkpoint();
+                    console.log('BID', auction.bids(bidId).startCumulativeMps);
                 } catch (bytes memory) {
                     return false;
                 }
@@ -276,11 +338,12 @@ contract CombinatorialHelpers is AuctionBaseTest {
         Checkpoint memory startCP = auction.checkpoints(bid.startBlock);
 
         // Find hints using robust checkpoint inspection
-        uint64 lastFullyFilledBlock = helper__findLastFullyFilledCheckpoint(bid);
-        (uint64 outbidBlock,) = helper__findOutbidBlock(bid);
+        (uint64 lastFullyFilledBlock,, bool notFullyFilled) = helper__findLastFullyFilledCheckpoint(bid);
+        (uint64 outbidBlock, bool wasOutbid) = helper__findOutbidBlock(bid);
 
-        console.log('  lastFullyFilledBlock:', lastFullyFilledBlock);
-        console.log('  outbidBlock:', outbidBlock);
+        if (!notFullyFilled && !wasOutbid) {
+            revert('Bid was fully filled and not outbid');
+        }
 
         // Calculate expected outcome using two-phase approach
         (uint256 expectedTokens, uint256 expectedCurrencyQ96) =
@@ -293,7 +356,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
             assertEq(bidAfter.exitedBlock, uint64(block.number), 'Exit block not set');
 
             // Verify tokens filled with tolerance
-            uint256 tolerance = bidAfter.tokensFilled / 1000; // 0.1% tolerance
+            uint256 tolerance = 0; // 0% tolerance
             assertApproxEqAbs(bidAfter.tokensFilled, expectedTokens, tolerance, 'Partial exit tokens mismatch');
 
             // Verify refund
@@ -302,7 +365,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
             uint256 expectedRefund = (bid.amountQ96 - expectedCurrencyQ96) >> FixedPoint96.RESOLUTION;
 
             // Allow tolerance for Q96 + pro-rata rounding
-            uint256 refundTolerance = expectedRefund / 1000; // 0.1% tolerance
+            uint256 refundTolerance = 0; // 0 tolerance
             assertApproxEqAbs(actualRefund, expectedRefund, refundTolerance, 'Partial exit refund mismatch');
 
             console.log('  Tokens filled:', bidAfter.tokensFilled);
@@ -318,9 +381,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
 
             // Graceful degradation: log warning but don't fail test
             console.log('  WARNING: Partial exit verification failed, but continuing test');
-
-            // Return 0 for failed exits
-            return 0;
+            revert('Partial exit verification failed');
         }
     }
 
@@ -413,41 +474,26 @@ contract CombinatorialHelpers is AuctionBaseTest {
     /// @dev Returns 0 if bid was never fully filled (at clearing from start)
     /// @param bid The bid to analyze
     /// @return lastFullyFilledBlock The last block where clearing < maxPrice, or 0 if never fully filled
+    /// @return notFullyFilledBlock The last block where clearing < maxPrice, or 0 if never fully filled
+    /// @return notFullyFilled Whether the bid was never fully filled
     function helper__findLastFullyFilledCheckpoint(Bid memory bid)
         internal
         view
-        returns (uint64 lastFullyFilledBlock)
+        returns (uint64 lastFullyFilledBlock, uint64 notFullyFilledBlock, bool notFullyFilled)
     {
-        uint64 bidStartBlock = bid.startBlock;
-        Checkpoint memory startCP = auction.checkpoints(bidStartBlock);
+        uint64 currentBlock = bid.startBlock;
 
-        // Special case: If clearing >= maxPrice at start, bid was never filled at all
-        if (startCP.clearingPrice >= bid.maxPrice) {
-            return 0;
-        }
-
-        // Start with bid's start block as last known fully-filled
-        lastFullyFilledBlock = bidStartBlock;
-        uint64 currentBlock = startCP.next;
-        uint256 safetyCounter = 0;
-
-        // Traverse forward until we find clearing >= maxPrice or reach end
-        while (currentBlock != 0 && currentBlock <= auction.endBlock() && safetyCounter < CHECKPOINT_TRAVERSAL_LIMIT) {
-            Checkpoint memory cp = auction.checkpoints(currentBlock);
-
-            // If clearing price jumped to or above maxPrice, stop here
-            if (cp.clearingPrice >= bid.maxPrice) {
-                break;
+        while (currentBlock != 0 && currentBlock != type(uint64).max) {
+            Checkpoint memory currentCP = auction.checkpoints(currentBlock);
+            if (currentCP.clearingPrice >= bid.maxPrice) {
+                notFullyFilledBlock = currentBlock;
+                return (currentCP.prev, notFullyFilledBlock, true);
             }
-
-            // Still fully filled at this checkpoint
-            lastFullyFilledBlock = currentBlock;
-            currentBlock = cp.next;
-            safetyCounter++;
+            currentBlock = currentCP.next;
         }
 
-        require(safetyCounter < CHECKPOINT_TRAVERSAL_LIMIT, 'Checkpoint traversal limit exceeded');
-        return lastFullyFilledBlock;
+        // Fully filled
+        return (0, 0, false);
     }
 
     /// @notice Find the block where bid was outbid (clearing > maxPrice)
@@ -455,62 +501,20 @@ contract CombinatorialHelpers is AuctionBaseTest {
     /// @dev Special handling for same-block outbids: checks subsequent bids in same block
     /// @param bid The bid to analyze
     /// @return outbidBlock The first block where clearing > maxPrice, or 0 if never outbid
+    /// @return wasOutbid Whether the bid was outbid
     function helper__findOutbidBlock(Bid memory bid) internal view returns (uint64 outbidBlock, bool wasOutbid) {
-        uint64 bidStartBlock = bid.startBlock;
-        uint256 bidId = helper__findBidId(bid);
+        uint64 currentBlock = bid.startBlock;
 
-        // Check for same-block outbid by examining subsequent bids
-        // Checkpoints are created at block start, so same-block events aren't visible in startCP
-        uint256 nextBidId = bidId + 1;
-        while (nextBidId < auction.nextBidId()) {
-            Bid memory checkBid = auction.bids(nextBidId);
-
-            // If next bid is in same block and would push clearing above our maxPrice
-            if (checkBid.startBlock == bidStartBlock && checkBid.maxPrice > bid.maxPrice) {
-                // Same-block outbid detected
-                return (bidStartBlock, true);
+        while (currentBlock != 0 && currentBlock != type(uint64).max) {
+            Checkpoint memory currentCP = auction.checkpoints(currentBlock);
+            if (currentCP.clearingPrice > bid.maxPrice) {
+                return (currentBlock, true);
             }
-
-            // Stop checking if we've moved past the start block
-            if (checkBid.startBlock > bidStartBlock) {
-                break;
-            }
-
-            nextBidId++;
-        }
-
-        // Check for next-block and later outbids by examining all subsequent bids
-        // This gives accurate block-of-placement instead of checkpoint-based detection
-        nextBidId = bidId + 1;
-        while (nextBidId < auction.nextBidId()) {
-            Bid memory checkBid = auction.bids(nextBidId);
-
-            // If a later bid has higher maxPrice, it could have outbid us
-            if (checkBid.maxPrice > bid.maxPrice) {
-                // Return the block where this outbidding bid was placed
-                return (checkBid.startBlock, true);
-            }
-
-            nextBidId++;
+            currentBlock = currentCP.next;
         }
 
         // Not outbid - ended at or below clearing
         return (0, false);
-    }
-
-    /// @notice Helper to find bid ID by matching bid struct
-    function helper__findBidId(Bid memory targetBid) private view returns (uint256) {
-        uint256 nextId = auction.nextBidId();
-        for (uint256 i = 0; i < nextId; i++) {
-            Bid memory checkBid = auction.bids(i);
-            if (
-                checkBid.owner == targetBid.owner && checkBid.startBlock == targetBid.startBlock
-                    && checkBid.maxPrice == targetBid.maxPrice && checkBid.amountQ96 == targetBid.amountQ96
-            ) {
-                return i;
-            }
-        }
-        revert('Bid ID not found');
     }
 
     /// @notice Find first checkpoint at or after a given block
@@ -747,6 +751,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
     ) internal view {
         PostBidScenario actualScenario;
         uint256 finalClearing = finalCheckpoint.clearingPrice;
+        console.log('finalClearing', finalClearing);
 
         Bid memory bid = auction.bids(userBidId);
 

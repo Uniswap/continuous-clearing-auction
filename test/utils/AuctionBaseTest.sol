@@ -165,14 +165,15 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         }
 
         // Round and bound max price
-        maxPriceQ96Max = helper__roundPriceDownToTickSpacing(maxPriceQ96Max, params.tickSpacing);
-        maxPriceQ96 = _bound(
-            uint256(keccak256(abi.encodePacked(seed, 'bid.maxPrice'))),
-            params.floorPrice + params.tickSpacing, // Min price is floor price + tick spacing (minimum required to enter an auction)
-            maxPriceQ96Max
-        );
-        maxPriceQ96 = helper__roundPriceDownToTickSpacing(maxPriceQ96, params.tickSpacing);
-
+        {
+            maxPriceQ96Max = helper__roundPriceDownToTickSpacing(maxPriceQ96Max, params.tickSpacing);
+            maxPriceQ96 = _bound(
+                uint256(keccak256(abi.encodePacked(seed, 'bid.maxPrice'))),
+                params.floorPrice + params.tickSpacing, // Min price is floor price + tick spacing (minimum required to enter an auction)
+                maxPriceQ96Max
+            );
+            maxPriceQ96 = helper__roundPriceDownToTickSpacing(maxPriceQ96, params.tickSpacing);
+        }
         // DYNAMIC BOUNDS: Bid amount can be any portion of supply
         // Real-world scenario: Someone might want to buy the entire supply or even more
         {
@@ -185,16 +186,21 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         }
 
         // Bind block numbers
-        bidBlock = uint64(
-            _bound(
-                uint256(keccak256(abi.encodePacked(seed, 'bid.bidBlock'))), auction.startBlock(), auction.endBlock() - 1
-            )
-        );
+        {
+            bidBlock = uint64(
+                _bound(
+                    uint256(keccak256(abi.encodePacked(seed, 'bid.bidBlock'))),
+                    auction.startBlock(),
+                    auction.endBlock() - 1
+                )
+            );
 
-        furtherBidsDelay = uint64(
-            _bound(uint256(keccak256(abi.encodePacked(seed, 'bid.furtherBidsDelay'))), 1, auction.endBlock() - bidBlock)
-        );
-
+            furtherBidsDelay = uint64(
+                _bound(
+                    uint256(keccak256(abi.encodePacked(seed, 'bid.furtherBidsDelay'))), 1, auction.endBlock() - bidBlock
+                )
+            );
+        }
         console.log('helper__seedBasedBid: bidBlock', bidBlock);
         console.log('helper__seedBasedBid: bidAmount', bidAmount);
         console.log('helper__seedBasedBid: maxPriceQ96', maxPriceQ96);

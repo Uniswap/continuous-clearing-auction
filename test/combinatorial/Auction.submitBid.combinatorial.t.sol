@@ -55,6 +55,7 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
     // uint256 public constant FLOOR_PRICE = 1000 << FixedPoint96.RESOLUTION;
     // uint128 public constant TOTAL_SUPPLY = 1000e18;
 
+    uint256 public seed;
     uint256 public usersBidId;
     uint64 public usersBidStartBlock; // Track the block where bid was submitted
     PostBidScenario public actualPostBidScenario; // Track the actual post-bid scenario
@@ -236,10 +237,22 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
 
             // Set up post-bid scenario using the helper
             {
-                (, uint256 maxPriceQ96,, uint64 furtherBidsDelay) = helper__seedBasedBid(bidSeed);
+                (, uint256 maxPriceQ96, uint256 bidBlock, uint64 furtherBidsDelay) = helper__seedBasedBid(bidSeed);
+                // TEMP: fixed furtherBidsDelay to mid auction
+                furtherBidsDelay = uint64((auction.endBlock() - bidBlock) / 2);
                 PostBidScenario postBidScenario = PostBidScenario(selections[uint256(SpaceIndices.postBidScenario)]);
+                // TEMP: fixed postBidScenario to UserOutbidLater
+                postBidScenario = PostBidScenario.UserAtClearing;
                 console.log('Verifying with scenario - Post:', uint256(postBidScenario));
-                actualPostBidScenario = helper__postBidScenario(postBidScenario, maxPriceQ96, true, furtherBidsDelay);
+                uint256 clearingPriceFillPercentage = 0;
+                if (postBidScenario == PostBidScenario.UserAtClearing) {
+                    clearingPriceFillPercentage =
+                        uint256(keccak256(abi.encodePacked(seed, 'bid.clearingPriceFillPercentage')));
+                    clearingPriceFillPercentage = bound(clearingPriceFillPercentage, 0, ConstantsLib.MPS - 1);
+                }
+                actualPostBidScenario = helper__postBidScenario(
+                    postBidScenario, maxPriceQ96, true, furtherBidsDelay, clearingPriceFillPercentage
+                );
                 console.log('PostBidScenario setup complete, actual scenario:', uint256(actualPostBidScenario));
             }
         } else {
@@ -340,18 +353,6 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
             currencySpentQ96 = helper__verifyFullExit(usersBidId, balanceBefore);
         } else if (exitPath == ExitPath.PartialExit) {
             console.log('Verifying PartialExit path');
-
-            // Detect edge cases
-            uint64 lastFullyFilledBlock = helper__findLastFullyFilledCheckpoint(finalBid);
-            (uint64 outbidBlock,) = helper__findOutbidBlock(finalBid);
-
-            if (lastFullyFilledBlock == 0) {
-                console.log('  Edge case: At clearing from start (no fully-filled period)');
-            }
-            if (outbidBlock == finalBid.startBlock) {
-                console.log('  Edge case: Outbid immediately at startBlock');
-            }
-
             currencySpentQ96 = helper__verifyPartialExit(usersBidId);
         }
 
@@ -507,10 +508,33 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
             // PartialExit - Calculate actual fill ratio
             if (finalBid.amountQ96 > 0) {
                 // Calculate fill ratio with high precision (basis points)
-                // Multiply by 10000 first to get 2 decimal places (e.g., 5432 = 54.32%)
+                // Multiply by 10_000 first to get 2 decimal places
                 uint256 fillRatioBasisPoints = (currencySpentQ96 * 10_000) / finalBid.amountQ96;
                 // Convert to percentage (divide by 100 to get 0-100 range with 2 decimals)
                 fillRatioPercent = fillRatioBasisPoints / 100;
+                console.log('  fillRatioBasisPoints:', fillRatioBasisPoints);
+                console.log('  finalBid.amountQ96:', finalBid.amountQ96);
+                console.log('  currencySpentQ96:', currencySpentQ96);
+                console.log('  fillRatioPercent:', fillRatioPercent);
+                console.log('  finalBid.startBlock:', finalBid.startBlock);
+                console.log('  auction.startBlock():', auction.startBlock());
+                console.log('  auction.endBlock():', auction.endBlock());
+                (uint64 lastFullyFilledBlock, uint64 notFullyFilledBlock, bool notFullyFilled) =
+                    helper__findLastFullyFilledCheckpoint(finalBid);
+                console.log('  lastFullyFilledBlock:', lastFullyFilledBlock);
+                console.log('  notFullyFilledBlock:', notFullyFilledBlock);
+                console.log('  notFullyFilled:', notFullyFilled);
+                (uint64 outbidBlock, bool wasOutbid) = helper__findOutbidBlock(finalBid);
+                console.log('  outbidBlock:', outbidBlock);
+                console.log('  wasOutbid:', wasOutbid);
+                Checkpoint memory finalCP = auction.checkpoints(auction.endBlock());
+                console.log('  finalCP.clearingPrice:', finalCP.clearingPrice);
+                console.log('  finalCP.cumulativeMps:', finalCP.cumulativeMps);
+                console.log('  finalCP.cumulativeMpsPerPrice:', finalCP.cumulativeMpsPerPrice);
+                console.log('  finalCP.prev:', finalCP.prev);
+                console.log('  finalCP.next:', finalCP.next);
+                console.log('  finalCP.prev:', finalCP.prev);
+                revert('test');
             } else {
                 fillRatioPercent = 0;
             }
@@ -641,7 +665,8 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
 
     // ============ Tests ============
 
-    function testFuzz_CombinatorialExploration(uint256 seed) public {
+    function testFuzz_CombinatorialExploration(uint256 seed_) public {
+        seed = seed_;
         Combinatorium.Handlers memory handlers = Combinatorium.Handlers({
             setupHandler: this.handleSetup,
             testHandler: this.handleTestAction,

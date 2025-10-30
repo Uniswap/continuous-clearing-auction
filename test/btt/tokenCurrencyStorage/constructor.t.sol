@@ -40,17 +40,6 @@ contract ConstructorTest is BttBase {
         _;
     }
 
-    function test_WhenRequiredRaiseGTUpperBound(uint128 _totalSupply) external whenTotalSupplyGT0(_totalSupply) {
-        // it reverts with {RequiredCurrencyRaisedIsTooLarge}
-
-        // With the `_requiredCurrencyRaised` being uint128, it will never hit this case as the following is false:
-        // `uint256(type(uint128).max) * FixedPoint96.Q96 > X7_UPPER_BOUND
-        // `uint256(type(uint128).max) * 0x1000000000000000000000000 > (type(uint256).max) / 1e7
-        // (0x00000000ffffffffffffffffffffffffffffffff000000000000000000000000
-        // > 0x000001ad7f29abcaf485787a6520ec08d23699194119a5c37387b71906614310)
-        // false
-    }
-
     modifier whenRequiredRaiseLEUpperBound(uint128 _requiredCurrencyRaised) {
         $requiredCurrencyRaised = _requiredCurrencyRaised;
         _;

@@ -277,7 +277,7 @@ contract Auction is
          * If the auction was fully subscribed in the first block which it was active, then the total CURRENCY REQUIRED
          * at any given price is equal to totalSupply * p', where p' is that price.
          */
-        uint256 clearingPrice = sumCurrencyDemandAboveClearingQ96_.fullMulDivUp(1, TOTAL_SUPPLY);
+        uint256 clearingPrice = sumCurrencyDemandAboveClearingQ96_.divUp(TOTAL_SUPPLY);
         while (
             // Loop while the currency amount above the clearing price is greater than the required currency at `nextActiveTickPrice_`
             (nextActiveTickPrice_ != MAX_TICK_PTR
@@ -293,7 +293,7 @@ contract Auction is
             minimumClearingPrice = nextActiveTickPrice_;
             // Advance to the next tick
             nextActiveTickPrice_ = $nextActiveTick.next;
-            clearingPrice = sumCurrencyDemandAboveClearingQ96_.fullMulDivUp(1, TOTAL_SUPPLY);
+            clearingPrice = sumCurrencyDemandAboveClearingQ96_.divUp(TOTAL_SUPPLY);
             updateStateVariables = true;
         }
         // Set the values into storage if we found a new next active tick price

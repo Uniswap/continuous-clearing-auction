@@ -40,9 +40,14 @@ def analyze_fill_ratios(test_cases):
         print("No Phase 1 metrics found in CSV. Run tests with enhanced metrics collection.\n")
         return
 
-    # Bin fill ratios
-    bins = [(0, 0, "0% (Not Filled)"), (1, 25, "1-25%"), (26, 50, "26-50%"),
-            (51, 75, "51-75%"), (76, 99, "76-99%"), (100, 100, "100% (Fully Filled)")]
+    # Bin fill ratios (MPS precision: 1e7 = 100%)
+    MPS = 10_000_000
+    bins = [(0, 0, "0% (Not Filled)"),
+            (1, int(MPS * 0.25), "1-25%"),
+            (int(MPS * 0.26), int(MPS * 0.50), "26-50%"),
+            (int(MPS * 0.51), int(MPS * 0.75), "51-75%"),
+            (int(MPS * 0.76), int(MPS * 0.99), "76-99%"),
+            (MPS, MPS, "100% (Fully Filled)")]
 
     bin_counts = Counter()
     reason_counts = Counter()
@@ -72,31 +77,31 @@ def analyze_fill_ratios(test_cases):
     # Detailed Partial Fill Statistics
     print("\nDetailed Fill Ratio Statistics:")
 
-    # All fill ratios
+    # All fill ratios (convert MPS to percentage with 5 decimal places)
     all_fill_ratios = [tc['fill_ratio'] for tc in cases_with_metrics]
     if all_fill_ratios:
         print(f"  All Bids:")
-        print(f"    Mean:   {statistics.mean(all_fill_ratios):>8.2f}%")
-        print(f"    Median: {statistics.median(all_fill_ratios):>8.2f}%")
-        print(f"    Min:    {min(all_fill_ratios):>8.2f}%")
-        print(f"    Max:    {max(all_fill_ratios):>8.2f}%")
+        print(f"    Mean:   {statistics.mean(all_fill_ratios)/1e5:>10.5f}%")
+        print(f"    Median: {statistics.median(all_fill_ratios)/1e5:>10.5f}%")
+        print(f"    Min:    {min(all_fill_ratios)/1e5:>10.5f}%")
+        print(f"    Max:    {max(all_fill_ratios)/1e5:>10.5f}%")
 
     # Partial fills only (0% < fill < 100%)
-    partial_fills = [tc['fill_ratio'] for tc in cases_with_metrics if 0 < tc['fill_ratio'] < 100]
+    partial_fills = [tc['fill_ratio'] for tc in cases_with_metrics if 0 < tc['fill_ratio'] < MPS]
     if partial_fills:
         print(f"  Partial Fills Only (0% < fill < 100%):")
         print(f"    Count:  {len(partial_fills):>8} bids")
-        print(f"    Mean:   {statistics.mean(partial_fills):>8.2f}%")
-        print(f"    Median: {statistics.median(partial_fills):>8.2f}%")
-        print(f"    Min:    {min(partial_fills):>8.2f}%")
-        print(f"    Max:    {max(partial_fills):>8.2f}%")
+        print(f"    Mean:   {statistics.mean(partial_fills)/1e5:>10.5f}%")
+        print(f"    Median: {statistics.median(partial_fills)/1e5:>10.5f}%")
+        print(f"    Min:    {min(partial_fills)/1e5:>10.5f}%")
+        print(f"    Max:    {max(partial_fills)/1e5:>10.5f}%")
 
         # Show quartiles for partial fills
         partial_fills_sorted = sorted(partial_fills)
         q1_idx = len(partial_fills_sorted) // 4
         q3_idx = 3 * len(partial_fills_sorted) // 4
-        print(f"    Q1:     {partial_fills_sorted[q1_idx]:>8.2f}%")
-        print(f"    Q3:     {partial_fills_sorted[q3_idx]:>8.2f}%")
+        print(f"    Q1:     {partial_fills_sorted[q1_idx]/1e5:>10.5f}%")
+        print(f"    Q3:     {partial_fills_sorted[q3_idx]/1e5:>10.5f}%")
 
 def analyze_timing_metrics(test_cases):
     """Generate timing analysis report."""
@@ -291,18 +296,18 @@ def analyze_graduation_impact(test_cases):
 
     print(f"Graduation Rate: {len(graduated)}/{len(cases_with_metrics)} ({grad_rate:.1f}%)")
 
-    # Fill ratio comparison
+    # Fill ratio comparison (convert MPS to percentage with 5 decimal places)
     if graduated and not_graduated:
         grad_fill_ratios = [tc['fill_ratio'] for tc in graduated]
         non_grad_fill_ratios = [tc['fill_ratio'] for tc in not_graduated]
 
         print(f"\nFill Ratio Comparison:")
-        print(f"  Graduated Mean:     {statistics.mean(grad_fill_ratios):>6.1f}%")
-        print(f"  Not Graduated Mean: {statistics.mean(non_grad_fill_ratios):>6.1f}%")
+        print(f"  Graduated Mean:     {statistics.mean(grad_fill_ratios)/1e5:>10.5f}%")
+        print(f"  Not Graduated Mean: {statistics.mean(non_grad_fill_ratios)/1e5:>10.5f}%")
     elif graduated:
         grad_fill_ratios = [tc['fill_ratio'] for tc in graduated]
         print(f"\nFill Ratio (Graduated Only):")
-        print(f"  Mean: {statistics.mean(grad_fill_ratios):>6.1f}%")
+        print(f"  Mean: {statistics.mean(grad_fill_ratios)/1e5:>10.5f}%")
 
 def analyze_auction_context(test_cases):
     """Generate auction context summary report."""
@@ -413,20 +418,22 @@ def main():
     print(f"{'='*80}\n")
     print(f"Total Test Cases: {len(test_cases)}\n")
 
-    # Scenario coverage
-    print(f"{'─'*80}")
-    print("SCENARIO COVERAGE")
-    print(f"{'─'*80}\n")
-
+    # Pre-compute scenario combinations for later use
     scenario_combos = Counter((tc['pre'], tc['post']) for tc in test_cases)
 
-    print(f"{'Pre Scenario':<35} {'Post Scenario':<35} {'Count':>8}")
-    print(f"{'-'*35} {'-'*35} {'-'*8}")
-    for (pre, post), count in sorted(scenario_combos.items()):
-        pre_name = PRE_BID_SCENARIOS.get(pre, f"Unknown({pre})")
-        post_name = POST_BID_SCENARIOS.get(post, f"Unknown({post})")
-        print(f"{pre_name:<35} {post_name:<35} {count:>8}")
+    # Phase 1 Metrics Analysis (if available) - organized by auction → bid → scenario
+    if any('fill_ratio' in tc for tc in test_cases):
+        # AUCTION-LEVEL METRICS FIRST
+        analyze_auction_context(test_cases)
+        analyze_graduation_impact(test_cases)
+        analyze_token_outcomes(test_cases)
 
+        # BID-LEVEL METRICS SECOND
+        analyze_fill_ratios(test_cases)
+        analyze_timing_metrics(test_cases)
+        analyze_bid_patterns(test_cases)
+
+    # BID PARAMETER STATISTICS
     # Bid amount statistics
     print(f"\n{'─'*80}")
     print("BID AMOUNT STATISTICS")
@@ -458,23 +465,18 @@ def main():
         print(f"Max Max Price: {max_price:>30,}  [{max_price/Q96:>12.6f}]")
         print(f"Avg Max Price: {avg_price:>30,.0f}  [{avg_price/Q96:>12.6f}]")
 
-    # Coverage gaps
+    # SCENARIO COVERAGE ANALYSIS LAST
+    # Scenario coverage
     print(f"\n{'─'*80}")
-    print("COVERAGE GAPS")
+    print("SCENARIO COVERAGE")
     print(f"{'─'*80}\n")
 
-    all_scenarios = set((pre, post) for pre in PRE_BID_SCENARIOS.keys() for post in POST_BID_SCENARIOS.keys())
-    tested_scenarios = set(scenario_combos.keys())
-    missing_scenarios = all_scenarios - tested_scenarios
-
-    if missing_scenarios:
-        print(f"Missing {len(missing_scenarios)}/20 scenario combinations:")
-        for pre, post in sorted(missing_scenarios):
-            pre_name = PRE_BID_SCENARIOS[pre]
-            post_name = POST_BID_SCENARIOS[post]
-            print(f"  • {pre_name} + {post_name}")
-    else:
-        print("✓ All 20 scenario combinations covered!")
+    print(f"{'Pre Scenario':<35} {'Post Scenario':<35} {'Count':>8}")
+    print(f"{'-'*35} {'-'*35} {'-'*8}")
+    for (pre, post), count in sorted(scenario_combos.items()):
+        pre_name = PRE_BID_SCENARIOS.get(pre, f"Unknown({pre})")
+        post_name = POST_BID_SCENARIOS.get(post, f"Unknown({post})")
+        print(f"{pre_name:<35} {post_name:<35} {count:>8}")
 
     # Distribution analysis
     print(f"\n{'─'*80}")
@@ -520,17 +522,25 @@ def main():
             print(f" {count:>8}", end="")
         print()
 
-    print(f"\n{'='*80}\n")
+    # Coverage gaps
+    print(f"\n{'─'*80}")
+    print("COVERAGE GAPS")
+    print(f"{'─'*80}\n")
 
-    # Phase 1 Metrics Analysis (if available)
-    if any('fill_ratio' in tc for tc in test_cases):
-        analyze_fill_ratios(test_cases)
-        analyze_timing_metrics(test_cases)
-        analyze_bid_patterns(test_cases)
-        analyze_token_outcomes(test_cases)
-        analyze_graduation_impact(test_cases)
-        analyze_auction_context(test_cases)
-        print(f"\n{'='*80}\n")
+    all_scenarios = set((pre, post) for pre in PRE_BID_SCENARIOS.keys() for post in POST_BID_SCENARIOS.keys())
+    tested_scenarios = set(scenario_combos.keys())
+    missing_scenarios = all_scenarios - tested_scenarios
+
+    if missing_scenarios:
+        print(f"Missing {len(missing_scenarios)}/20 scenario combinations:")
+        for pre, post in sorted(missing_scenarios):
+            pre_name = PRE_BID_SCENARIOS[pre]
+            post_name = POST_BID_SCENARIOS[post]
+            print(f"  • {pre_name} + {post_name}")
+    else:
+        print("✓ All 20 scenario combinations covered!")
+
+    print(f"\n{'='*80}\n")
 
 if __name__ == "__main__":
     main()

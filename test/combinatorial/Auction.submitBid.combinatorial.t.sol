@@ -55,7 +55,7 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
     // uint256 public constant FLOOR_PRICE = 1000 << FixedPoint96.RESOLUTION;
     // uint128 public constant TOTAL_SUPPLY = 1000e18;
 
-    uint256 public seed;
+    uint256 public currentSeed;
     uint256 public usersBidId;
     uint64 public usersBidStartBlock; // Track the block where bid was submitted
     PostBidScenario public actualPostBidScenario; // Track the actual post-bid scenario
@@ -237,18 +237,13 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
 
             // Set up post-bid scenario using the helper
             {
-                (, uint256 maxPriceQ96, uint256 bidBlock, uint64 furtherBidsDelay) = helper__seedBasedBid(bidSeed);
-                // TEMP: fixed furtherBidsDelay to mid auction
-                furtherBidsDelay = uint64((auction.endBlock() - bidBlock) / 2);
+                (, uint256 maxPriceQ96,, uint64 furtherBidsDelay) = helper__seedBasedBid(bidSeed);
                 PostBidScenario postBidScenario = PostBidScenario(selections[uint256(SpaceIndices.postBidScenario)]);
-                // TEMP: fixed postBidScenario to UserOutbidLater
-                postBidScenario = PostBidScenario.UserAtClearing;
                 console.log('Verifying with scenario - Post:', uint256(postBidScenario));
                 uint256 clearingPriceFillPercentage = 0;
                 if (postBidScenario == PostBidScenario.UserAtClearing) {
                     clearingPriceFillPercentage =
-                        uint256(keccak256(abi.encodePacked(seed, 'bid.clearingPriceFillPercentage')));
-                    clearingPriceFillPercentage = bound(clearingPriceFillPercentage, 0, ConstantsLib.MPS - 1);
+                        uint256(keccak256(abi.encodePacked(currentSeed, 'bid.clearingPriceFillPercentage')));
                 }
                 actualPostBidScenario = helper__postBidScenario(
                     postBidScenario, maxPriceQ96, true, furtherBidsDelay, clearingPriceFillPercentage
@@ -497,44 +492,19 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
         )
     {
         // Step 1: Fill Ratio Metrics (ACCURATE CALCULATION)
-        // fillRatio = (currencySpentQ96 / originalBidAmountQ96) * 100
+        // fillRatio = (currencySpentQ96 / originalBidAmountQ96) * MPS
+        // Uses MPS precision (1e7) for 5 decimal places: 100.00000%
         if (exitPath == ExitPath.FullExit) {
-            fillRatioPercent = 100;
+            fillRatioPercent = ConstantsLib.MPS; // 10,000,000 = 100%
             partialFillReason = 'full';
         } else if (exitPath == ExitPath.NonGraduated) {
             fillRatioPercent = 0;
             partialFillReason = 'non_graduated';
         } else {
-            // PartialExit - Calculate actual fill ratio
+            // PartialExit - Calculate actual fill ratio with MPS precision
             if (finalBid.amountQ96 > 0) {
-                // Calculate fill ratio with high precision (basis points)
-                // Multiply by 10_000 first to get 2 decimal places
-                uint256 fillRatioBasisPoints = (currencySpentQ96 * 10_000) / finalBid.amountQ96;
-                // Convert to percentage (divide by 100 to get 0-100 range with 2 decimals)
-                fillRatioPercent = fillRatioBasisPoints / 100;
-                console.log('  fillRatioBasisPoints:', fillRatioBasisPoints);
-                console.log('  finalBid.amountQ96:', finalBid.amountQ96);
-                console.log('  currencySpentQ96:', currencySpentQ96);
-                console.log('  fillRatioPercent:', fillRatioPercent);
-                console.log('  finalBid.startBlock:', finalBid.startBlock);
-                console.log('  auction.startBlock():', auction.startBlock());
-                console.log('  auction.endBlock():', auction.endBlock());
-                (uint64 lastFullyFilledBlock, uint64 notFullyFilledBlock, bool notFullyFilled) =
-                    helper__findLastFullyFilledCheckpoint(finalBid);
-                console.log('  lastFullyFilledBlock:', lastFullyFilledBlock);
-                console.log('  notFullyFilledBlock:', notFullyFilledBlock);
-                console.log('  notFullyFilled:', notFullyFilled);
-                (uint64 outbidBlock, bool wasOutbid) = helper__findOutbidBlock(finalBid);
-                console.log('  outbidBlock:', outbidBlock);
-                console.log('  wasOutbid:', wasOutbid);
-                Checkpoint memory finalCP = auction.checkpoints(auction.endBlock());
-                console.log('  finalCP.clearingPrice:', finalCP.clearingPrice);
-                console.log('  finalCP.cumulativeMps:', finalCP.cumulativeMps);
-                console.log('  finalCP.cumulativeMpsPerPrice:', finalCP.cumulativeMpsPerPrice);
-                console.log('  finalCP.prev:', finalCP.prev);
-                console.log('  finalCP.next:', finalCP.next);
-                console.log('  finalCP.prev:', finalCP.prev);
-                revert('test');
+                // Calculate fill ratio using MPS precision (0 to 10,000,000)
+                fillRatioPercent = (currencySpentQ96 * ConstantsLib.MPS) / finalBid.amountQ96;
             } else {
                 fillRatioPercent = 0;
             }
@@ -552,9 +522,13 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
         (uint64 outbidBlock, bool wasOutbid_) = helper__findOutbidBlock(finalBid);
         wasOutbid = wasOutbid_;
         timeToOutbid = wasOutbid_ ? outbidBlock - finalBid.startBlock : 0;
+        if (wasOutbid) {
+            // reduce timeToOutbid by one block, since 1 block between start and outbid is the minimum, since checkpoints summarize previous blocks
+            timeToOutbid--;
+        }
 
         // Step 3: Edge Case Flags
-        neverFullyFilled = (fillRatioPercent < 100);
+        neverFullyFilled = (fillRatioPercent < ConstantsLib.MPS);
         nearGraduationBoundary =
             !graduated && (block.number - auction.startBlock() > (auction.endBlock() - auction.startBlock()) * 90 / 100);
 
@@ -666,7 +640,7 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
     // ============ Tests ============
 
     function testFuzz_CombinatorialExploration(uint256 seed_) public {
-        seed = seed_;
+        currentSeed = seed_;
         Combinatorium.Handlers memory handlers = Combinatorium.Handlers({
             setupHandler: this.handleSetup,
             testHandler: this.handleTestAction,
@@ -675,6 +649,6 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
             mutationSelector: this.selectMutation
         });
 
-        ctx.runCombinatorial(seed, 10, 5, vm, handlers);
+        ctx.runCombinatorial(seed_, 10, 5, vm, handlers);
     }
 }

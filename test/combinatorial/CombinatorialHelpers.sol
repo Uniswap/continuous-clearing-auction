@@ -134,6 +134,12 @@ contract CombinatorialHelpers is AuctionBaseTest {
                 }
                 vm.roll(block.number + bidDelay); // Outbid in the next block
                 helper__setAuctionClearingPrice(userMaxPrice, new address[](1), Q96);
+
+                // Limit the clearing price fill percentage to the maximum value before moving the clearing price
+                uint256 maxClearingPriceFillPercentage =
+                    helper__findClearingPriceFillPercentageBeforeMovingPrice(userMaxPrice, userMaxPrice + tickSpacing);
+                clearingPriceFillPercentage = bound(clearingPriceFillPercentage, 0, maxClearingPriceFillPercentage);
+
                 if (clearingPriceFillPercentage > 0) {
                     helper__setAuctionClearingPrice(
                         userMaxPrice + tickSpacing, new address[](1), Q96, clearingPriceFillPercentage
@@ -198,22 +204,21 @@ contract CombinatorialHelpers is AuctionBaseTest {
             {
                 uint256 totalSupply_ = auction.totalSupply();
 
-                /*
                 // Calculate remaining supply (amount not yet sold)
                 uint256 remainingSupply =
                     totalSupply_ - totalSupply_.fullMulDiv(checkpoint.cumulativeMps, ConstantsLib.MPS);
 
-                // TEMP force clearingPercentage
-                if (clearingPriceFillPercentage < ConstantsLib.MPS) {
-                    clearingPriceFillPercentage = 9_500_000;
+                // // TEMP force clearingPercentage
+                // if (clearingPriceFillPercentage < ConstantsLib.MPS) {
+                //     clearingPriceFillPercentage = 9_999_999;
 
-                    auction.bids(0); // PreBidScenario
-                    auction.bids(1); // Users Bid
-                    auction.bids(2); // Moved Clearing Price
-                    auction.nextBidId();
-                    console.log('targetClearingPrice', targetClearingPrice);
-                    console.log('cumulativeMps', checkpoint.cumulativeMps);
-                }
+                //     auction.bids(0); // PreBidScenario
+                //     auction.bids(1); // Users Bid
+                //     auction.bids(2); // Moved Clearing Price
+                //     auction.nextBidId();
+                //     console.log('targetClearingPrice', targetClearingPrice);
+                //     console.log('cumulativeMps', checkpoint.cumulativeMps);
+                // }
 
                 // TODO: a low clearingPriceFillPercentage indeed increases the fillRatioPercent of the user (less demand, more left over for the user),
                 // while a high clearingPriceFillPercentage decreases the fillRatioPercent of the user (more demand, less left over for the user).
@@ -226,28 +231,15 @@ contract CombinatorialHelpers is AuctionBaseTest {
                 // Scale the bid amount to the clearing price fill percentage
                 bidAmountToMoveToTargetClearingPrice =
                     bidAmountToMoveToTargetClearingPrice.fullMulDiv(clearingPriceFillPercentage, ConstantsLib.MPS);
-                    */
 
-                /* TEST --- */
-                if (clearingPriceFillPercentage < ConstantsLib.MPS) {
-                    clearingPriceFillPercentage = 9_500_000;
-                    auction.bids(0); // PreBidScenario
-                    auction.bids(1); // Users Bid
-                    auction.bids(2); // Moved Clearing Price
-                    auction.nextBidId();
-                    console.log('targetClearingPrice', targetClearingPrice);
-                }
-                uint256 bidAmountToMoveToTargetClearingPriceQ96 = totalSupply_ * targetClearingPrice;
-                // Scale to fill percentage
-                bidAmountToMoveToTargetClearingPriceQ96 =
-                    bidAmountToMoveToTargetClearingPriceQ96.fullMulDiv(clearingPriceFillPercentage, ConstantsLib.MPS);
-                // Scale down to remaining supply
-                uint256 remainingSupplyPercentage = ConstantsLib.MPS - checkpoint.cumulativeMps;
-                bidAmountToMoveToTargetClearingPriceQ96 =
-                    bidAmountToMoveToTargetClearingPriceQ96.fullMulDiv(remainingSupplyPercentage, ConstantsLib.MPS);
-                bidAmountToMoveToTargetClearingPrice =
-                    bidAmountToMoveToTargetClearingPriceQ96 >> (Q96 ? FixedPoint96.RESOLUTION : 0);
-                /* TEST END */
+                // // Temp: Testing values
+                // if (clearingPriceFillPercentage < ConstantsLib.MPS) {
+                //     bidAmountToMoveToTargetClearingPrice = remainingSupply.fullMulDivUp(
+                //         targetClearingPrice - auction.tickSpacing(), Q96 ? FixedPoint96.Q96 : 1
+                //     );
+                //     bidAmountToMoveToTargetClearingPrice =
+                //         bidAmountToMoveToTargetClearingPrice.fullMulDiv(clearingPriceFillPercentage, ConstantsLib.MPS);
+                // }
             }
             if (bidAmountToMoveToTargetClearingPrice > uint256(type(uint128).max)) {
                 revert('Bid amount to move to target clearing price is too large');
@@ -269,11 +261,10 @@ contract CombinatorialHelpers is AuctionBaseTest {
                 address bidOwner = bidOwners[i];
                 try auction.submitBid{value: bidAmount}(
                     targetClearingPrice << (Q96 ? 0 : FixedPoint96.RESOLUTION), uint128(bidAmount), bidOwner, bytes('')
-                ) returns (uint256 bidId) {
-                    // vm.roll(block.number + 1);
-                    // auction.checkpoint();
-                    console.log('BID', auction.bids(bidId).startCumulativeMps);
+                ) returns (uint256) {
+                    // Bid was successfully submitted
                 } catch (bytes memory) {
+                    // TODO: test reverting for a failing bid submission
                     return false;
                 }
 
@@ -284,6 +275,34 @@ contract CombinatorialHelpers is AuctionBaseTest {
             }
             return true;
         }
+    }
+
+    function helper__findClearingPriceFillPercentageBeforeMovingPrice(
+        uint256 currentClearingPrice,
+        uint256 targetClearingPrice
+    ) internal returns (uint256 maxClearingPriceFillPercentage) {
+        uint256 tickSpacing = auction.tickSpacing();
+        uint256 totalSupply_ = auction.totalSupply();
+        Checkpoint memory checkpoint = auction.checkpoint();
+
+        if (targetClearingPrice != currentClearingPrice + tickSpacing) {
+            revert('invalid targetClearingPrice');
+        }
+
+        maxClearingPriceFillPercentage = ConstantsLib.MPS;
+
+        // Calculate remaining supply (amount not yet sold)
+        uint256 remainingSupply = totalSupply_ - totalSupply_.fullMulDiv(checkpoint.cumulativeMps, ConstantsLib.MPS);
+
+        uint256 previousClearingPriceBidAmount = remainingSupply.fullMulDivUp(currentClearingPrice, FixedPoint96.Q96);
+        uint256 targetClearingPriceBidAmount = remainingSupply.fullMulDivUp(targetClearingPrice, FixedPoint96.Q96);
+
+        // Calculate the percentage at which the clearing price starts moving.
+        // We round down: for this reason we end up with the last percentage value that does not move up the clearing price.
+        maxClearingPriceFillPercentage =
+            previousClearingPriceBidAmount.fullMulDiv(ConstantsLib.MPS, targetClearingPriceBidAmount);
+
+        return maxClearingPriceFillPercentage;
     }
 
     // ===== VERIFICATION HELPERS =====

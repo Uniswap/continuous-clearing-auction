@@ -3,7 +3,168 @@
   COMBINATORIAL TEST COVERAGE REPORT
 ================================================================================
 
-Total Test Cases: 41013
+Total Test Cases: 25030
+
+
+────────────────────────────────────────────────────────────────────────────────
+AUCTION CONTEXT SUMMARY
+────────────────────────────────────────────────────────────────────────────────
+
+Auction Start Block:
+  Range: 16004075914160300 - 18445502361399836544
+  Unique auctions: ~1673
+
+Auction Duration (blocks):
+  Mean:        63.74 blocks
+  Median:         32 blocks
+  Min:             1 blocks
+  Max:           250 blocks
+
+Floor Price:
+  Min: 5,328,675,564,141,448,187,958,130,912,164,705,031  [67257341.266523]
+  Max: 340,270,269,366,648,735,300,897,198,021,907,527,965  [4294814603.397953]
+
+Tick Spacing:
+  Min: 36,263,810,098,488,593,679,260,089,184,183,413  [457713.632977]
+  Max: 340,270,269,366,648,735,300,897,198,021,907,527,965  [4294814603.397953]
+
+Token Total Supply (wei):
+  Mean:   4,977,874,225,332,135,768,486,838,272 (4977874225.33 tokens)
+  Median: 5,028,172,630,676,303,839,882,117,120 (5028172630.68 tokens)
+  Min:    20,681,131,393,712,319,555,117,780 (20681131.39 tokens)
+  Max:    9,997,052,784,998,169,203,175,294,885 (9997052785.00 tokens)
+
+────────────────────────────────────────────────────────────────────────────────
+GRADUATION ANALYSIS
+────────────────────────────────────────────────────────────────────────────────
+
+Graduation Rate: 25030/25030 (100.0%)
+
+Fill Ratio (Graduated Only):
+  Mean:   68.15294%
+
+────────────────────────────────────────────────────────────────────────────────
+TOKEN OUTCOMES & PRICE ANALYSIS
+────────────────────────────────────────────────────────────────────────────────
+
+Tokens Received (wei):
+  Mean:   263,637,284,638,507,072 (0.2636 tokens)
+  Median: 39,245,050,636,722,272 (0.0392 tokens)
+  Min:                       0 (0.0000 tokens)
+  Max:    34,548,747,727,952,628,512 (34.5487 tokens)
+  Zero fills: 4996 (20.0%)
+
+Price Paid Per Token (ETH, for filled bids only):
+  Mean:   79494507115.959412 ETH
+  Median: 22291383821.088844 ETH
+  Min:    67257341.266523 ETH
+  Max:    13464010425114.730469 ETH
+
+Clearing Price Movement (Start to End):
+  Increased: 16630 cases ( 66.4%)
+  Decreased:     0 cases (  0.0%)
+  No Change:  8400 cases ( 33.6%)
+
+Tick Distance from Floor Price to Final Clearing Price:
+  Mean:       182.81 ticks
+  Median:      14.00 ticks
+  Min:          0.00 ticks
+  Max:     193910.00 ticks
+
+────────────────────────────────────────────────────────────────────────────────
+FILL RATIO DISTRIBUTION
+────────────────────────────────────────────────────────────────────────────────
+
+Fill Ratio Distribution:
+  0% (Not Filled)            4996 ( 20.0%) █████████
+  1-25%                       987 (  3.9%) █
+  26-50%                     1647 (  6.6%) ███
+  51-75%                     2121 (  8.5%) ████
+  76-99%                     2888 ( 11.5%) █████
+  100% (Fully Filled)       12088 ( 48.3%) ████████████████████████
+
+Partial Fill Reasons:
+  full                      12088 ( 48.3%)
+  partial_graduated         12942 ( 51.7%)
+
+Detailed Fill Ratio Statistics:
+  All Bids:
+    Mean:     68.15294%
+    Median:   97.54186%
+    Min:       0.00000%
+    Max:     100.00000%
+  Partial Fills Only (0% < fill < 100%):
+    Count:      7946 bids
+    Mean:     62.55576%
+    Median:   66.66666%
+    Min:       1.05263%
+    Max:      99.99623%
+    Q1:       42.85714%
+    Q3:       85.53482%
+
+────────────────────────────────────────────────────────────────────────────────
+TIMING METRICS ANALYSIS
+────────────────────────────────────────────────────────────────────────────────
+
+Bid Lifetime (blocks from start to exit):
+  Mean:        32.57 blocks
+  Median:      14.00 blocks
+  Min:             1 blocks
+  Max:           250 blocks
+
+Bid Start Position (blocks from auction start):
+  Mean:        31.17 blocks
+  Median:      12.00 blocks
+  Min:             0 blocks
+  Max:           249 blocks
+
+Time to Outbid:
+  Never outbid (at/below clearing):  16079 bids ( 64.2%)
+  Outbid immediately (same block):     724 bids (  2.9%)
+  Outbid later (not same block):
+    Count:        8227 bids ( 32.9%)
+    Mean:        38.30 blocks
+    Median:      19.00 blocks
+    Min:             1 blocks
+    Max:           249 blocks
+
+────────────────────────────────────────────────────────────────────────────────
+BID PATTERN ANALYSIS
+────────────────────────────────────────────────────────────────────────────────
+
+Bid Lifetime Patterns:
+  Short (≤5 blocks):    8259 ( 33.0%)
+  Medium (6-50):       11400 ( 45.5%)
+  Long (>50):           5371 ( 21.5%)
+
+Bid Entry Timing:
+  Early (≤10 blocks):  11758 ( 47.0%)
+  Mid (11-50):          8024 ( 32.1%)
+  Late (>50):           5248 ( 21.0%)
+
+Token Fill Outcomes:
+  No tokens received:   4996 ( 20.0%)
+  Partial fill:        20034 ( 80.0%)
+
+Competitive Pressure:
+  Outbid immediately (same block):    724 (  2.9%)
+  Outbid later (not same block):     8227 ( 32.9%)
+
+────────────────────────────────────────────────────────────────────────────────
+BID AMOUNT STATISTICS
+────────────────────────────────────────────────────────────────────────────────
+
+Min Bid Amount: 13,982,554,997,499,145,158,027 wei (13982.5550 ETH)
+Max Bid Amount: 9,913,514,860,065,819,084,833,539,208 wei (9913514860.0658 ETH)
+Avg Bid Amount: 2,514,768,826,144,479,826,325,536,768 wei (2514768826.1445 ETH)
+
+────────────────────────────────────────────────────────────────────────────────
+MAX PRICE STATISTICS
+────────────────────────────────────────────────────────────────────────────────
+
+Min Max Price: 56,684,973,314,967,072,062,865,314,455,318,509,470  [715464949.786781]
+Max Max Price: 1,066,888,927,459,187,247,944,670,654,235,963,204,028,124  [13466031441371.662109]
+Avg Max Price: 7,837,277,376,915,561,356,172,228,780,894,453,760,000  [98920347616.348267]
 
 ────────────────────────────────────────────────────────────────────────────────
 SCENARIO COVERAGE
@@ -11,40 +172,52 @@ SCENARIO COVERAGE
 
 Pre Scenario                        Post Scenario                          Count
 ----------------------------------- ----------------------------------- --------
-NoBidsBeforeUser                    NoBidsAfterUser                         2321
-NoBidsBeforeUser                    UserAboveClearing                       1997
-NoBidsBeforeUser                    UserAtClearing                          2072
-NoBidsBeforeUser                    UserOutbidLater                         1860
-NoBidsBeforeUser                    UserOutbidImmediately                   2145
-BidsBeforeUser                      NoBidsAfterUser                         2365
-BidsBeforeUser                      UserAboveClearing                       1997
-BidsBeforeUser                      UserAtClearing                          2160
-BidsBeforeUser                      UserOutbidLater                         1861
-BidsBeforeUser                      UserOutbidImmediately                   2033
-ClearingPriceBelowMaxPrice          NoBidsAfterUser                         4363
-ClearingPriceBelowMaxPrice          UserAtClearing                          1953
-ClearingPriceBelowMaxPrice          UserOutbidLater                         1835
-ClearingPriceBelowMaxPrice          UserOutbidImmediately                   2079
-BidsAtClearingPrice                 NoBidsAfterUser                         4320
-BidsAtClearingPrice                 UserAtClearing                          1952
-BidsAtClearingPrice                 UserOutbidLater                         1728
-BidsAtClearingPrice                 UserOutbidImmediately                   1972
+NoBidsBeforeUser                    NoBidsAfterUser                         1804
+NoBidsBeforeUser                    UserAboveClearing                       1194
+NoBidsBeforeUser                    UserAtClearing                          1023
+NoBidsBeforeUser                    UserOutbidLater                         1000
+NoBidsBeforeUser                    UserOutbidImmediately                   1286
+BidsBeforeUser                      NoBidsAfterUser                         1906
+BidsBeforeUser                      UserAboveClearing                       1248
+BidsBeforeUser                      UserAtClearing                           992
+BidsBeforeUser                      UserOutbidLater                          964
+BidsBeforeUser                      UserOutbidImmediately                   1224
+ClearingPriceBelowMaxPrice          NoBidsAfterUser                         3022
+ClearingPriceBelowMaxPrice          UserAtClearing                          1013
+ClearingPriceBelowMaxPrice          UserOutbidLater                         1005
+ClearingPriceBelowMaxPrice          UserOutbidImmediately                   1279
+BidsAtClearingPrice                 NoBidsAfterUser                         2914
+BidsAtClearingPrice                 UserAtClearing                           963
+BidsAtClearingPrice                 UserOutbidLater                          986
+BidsAtClearingPrice                 UserOutbidImmediately                   1207
 
 ────────────────────────────────────────────────────────────────────────────────
-BID AMOUNT STATISTICS
+SCENARIO DISTRIBUTION
 ────────────────────────────────────────────────────────────────────────────────
 
-Min Bid Amount:  361,026,798,144,563 wei (0.0004 ETH)
-Max Bid Amount: 9,999,299,204,974,410,509 wei (9.9993 ETH)
-Avg Bid Amount: 4,942,425,287,055,696,896 wei (4.9424 ETH)
+Pre-Bid Scenario Distribution:
+  NoBidsBeforeUser                     6307 ( 25.2%) ████████████
+  BidsBeforeUser                       6334 ( 25.3%) ████████████
+  ClearingPriceBelowMaxPrice           6319 ( 25.2%) ████████████
+  BidsAtClearingPrice                  6070 ( 24.3%) ████████████
+
+Post-Bid Scenario Distribution:
+  NoBidsAfterUser                      9646 ( 38.5%) ███████████████████
+  UserAboveClearing                    2442 (  9.8%) ████
+  UserAtClearing                       3991 ( 15.9%) ███████
+  UserOutbidLater                      3955 ( 15.8%) ███████
+  UserOutbidImmediately                4996 ( 20.0%) █████████
 
 ────────────────────────────────────────────────────────────────────────────────
-MAX PRICE STATISTICS
+SCENARIO COMBINATION HEATMAP
 ────────────────────────────────────────────────────────────────────────────────
 
-Min Max Price: 6,966,288,378,278,706,672,661,618,980,704,538,570,786,250  [87926920897912.875000]
-Max Max Price: 79,227,853,636,920,996,405,580,179,958,640,124,233,768,050,708  [999996101419829248.000000]
-Avg Max Price: 39,622,889,046,116,298,229,139,943,789,130,971,993,673,302,016  [500111169926256256.000000]
+Pre \ Post                NoBidsAf UserAbov UserAtCl UserOutb UserOutb
+----------------------------------------------------------------------
+NoBidsBeforeUser              1804     1194     1023     1000     1286
+BidsBeforeUser                1906     1248      992      964     1224
+ClearingPriceBelowMaxPrice     3022        0     1013     1005     1279
+BidsAtClearingPrice           2914        0      963      986     1207
 
 ────────────────────────────────────────────────────────────────────────────────
 COVERAGE GAPS
@@ -53,181 +226,6 @@ COVERAGE GAPS
 Missing 2/20 scenario combinations:
   • ClearingPriceBelowMaxPrice + UserAboveClearing
   • BidsAtClearingPrice + UserAboveClearing
-
-────────────────────────────────────────────────────────────────────────────────
-SCENARIO DISTRIBUTION
-────────────────────────────────────────────────────────────────────────────────
-
-Pre-Bid Scenario Distribution:
-  NoBidsBeforeUser                    10395 ( 25.3%) ████████████
-  BidsBeforeUser                      10416 ( 25.4%) ████████████
-  ClearingPriceBelowMaxPrice          10230 ( 24.9%) ████████████
-  BidsAtClearingPrice                  9972 ( 24.3%) ████████████
-
-Post-Bid Scenario Distribution:
-  NoBidsAfterUser                     13369 ( 32.6%) ████████████████
-  UserAboveClearing                    3994 (  9.7%) ████
-  UserAtClearing                       8137 ( 19.8%) █████████
-  UserOutbidLater                      7284 ( 17.8%) ████████
-  UserOutbidImmediately                8229 ( 20.1%) ██████████
-
-────────────────────────────────────────────────────────────────────────────────
-SCENARIO COMBINATION HEATMAP
-────────────────────────────────────────────────────────────────────────────────
-
-Pre \ Post                NoBidsAf UserAbov UserAtCl UserOutb UserOutb
-----------------------------------------------------------------------
-NoBidsBeforeUser              2321     1997     2072     1860     2145
-BidsBeforeUser                2365     1997     2160     1861     2033
-ClearingPriceBelowMaxPrice     4363        0     1953     1835     2079
-BidsAtClearingPrice           4320        0     1952     1728     1972
-
-================================================================================
-
-
-────────────────────────────────────────────────────────────────────────────────
-FILL RATIO DISTRIBUTION
-────────────────────────────────────────────────────────────────────────────────
-
-Fill Ratio Distribution:
-  0% (Not Filled)           15513 ( 37.8%) ██████████████████
-  1-25%                         0 (  0.0%) 
-  26-50%                        0 (  0.0%) 
-  51-75%                        0 (  0.0%) 
-  76-99%                     8137 ( 19.8%) █████████
-  100% (Fully Filled)       17363 ( 42.3%) █████████████████████
-
-Partial Fill Reasons:
-  full                      17363 ( 42.3%)
-  partial_graduated         23650 ( 57.7%)
-
-Detailed Fill Ratio Statistics:
-  All Bids:
-    Mean:      61.98%
-    Median:    99.00%
-    Min:        0.00%
-    Max:      100.00%
-  Partial Fills Only (0% < fill < 100%):
-    Count:      8137 bids
-    Mean:      99.00%
-    Median:    99.00%
-    Min:       99.00%
-    Max:       99.00%
-    Q1:        99.00%
-    Q3:        99.00%
-
-────────────────────────────────────────────────────────────────────────────────
-TIMING METRICS ANALYSIS
-────────────────────────────────────────────────────────────────────────────────
-
-Bid Lifetime (blocks from start to exit):
-  Mean:        33.15 blocks
-  Median:      14.00 blocks
-  Min:             1 blocks
-  Max:           250 blocks
-
-Bid Start Position (blocks from auction start):
-  Mean:        31.61 blocks
-  Median:      13.00 blocks
-  Min:             0 blocks
-  Max:           249 blocks
-
-Time to Outbid:
-  Never outbid (at/below clearing):  25500 bids ( 62.2%)
-  Outbid immediately (same block):    8229 bids ( 20.1%)
-  Outbid later (not same block):
-    Count:        7284 bids ( 17.8%)
-    Mean:         5.75 blocks
-    Median:       1.00 blocks
-    Min:             1 blocks
-    Max:           232 blocks
-
-────────────────────────────────────────────────────────────────────────────────
-BID PATTERN ANALYSIS
-────────────────────────────────────────────────────────────────────────────────
-
-Bid Lifetime Patterns:
-  Short (≤5 blocks):   13153 ( 32.1%)
-  Medium (6-50):       18818 ( 45.9%)
-  Long (>50):           9042 ( 22.0%)
-
-Bid Entry Timing:
-  Early (≤10 blocks):  19009 ( 46.3%)
-  Mid (11-50):         13168 ( 32.1%)
-  Late (>50):           8836 ( 21.5%)
-
-Token Fill Outcomes:
-  No tokens received:  16738 ( 40.8%)
-  Partial fill:        24275 ( 59.2%)
-
-Competitive Pressure:
-  Outbid immediately (same block):   8229 ( 20.1%)
-  Outbid later (not same block):     7284 ( 17.8%)
-
-────────────────────────────────────────────────────────────────────────────────
-TOKEN OUTCOMES & PRICE ANALYSIS
-────────────────────────────────────────────────────────────────────────────────
-
-Tokens Received (wei):
-  Mean:            155,398,348 (0.0000 tokens)
-  Median:                    4 (0.0000 tokens)
-  Min:                       0 (0.0000 tokens)
-  Max:         118,604,176,531 (0.0000 tokens)
-  Zero fills: 16738 (40.8%)
-
-Price Paid Per Token (ETH, for filled bids only):
-  Mean:   493855372878234944.000000 ETH
-  Median: 459659062339338304.000000 ETH
-  Min:    50728731.303473 ETH
-  Max:    1951061334317735936.000000 ETH
-
-Clearing Price Movement (Start to End):
-  Increased: 34963 cases ( 85.2%)
-  Decreased:     0 cases (  0.0%)
-  No Change:  6050 cases ( 14.8%)
-
-Tick Distance from Floor Price to Final Clearing Price:
-  Mean:   1198261417.31 ticks
-  Median: 222799205.00 ticks
-  Min:          0.00 ticks
-  Max:    2464277645128.00 ticks
-
-────────────────────────────────────────────────────────────────────────────────
-GRADUATION ANALYSIS
-────────────────────────────────────────────────────────────────────────────────
-
-Graduation Rate: 41013/41013 (100.0%)
-
-Fill Ratio (Graduated Only):
-  Mean:   62.0%
-
-────────────────────────────────────────────────────────────────────────────────
-AUCTION CONTEXT SUMMARY
-────────────────────────────────────────────────────────────────────────────────
-
-Auction Start Block:
-  Range: 20813615142119948 - 18439509040604265532
-  Unique auctions: ~2944
-
-Auction Duration (blocks):
-  Mean:        64.76 blocks
-  Median:         32 blocks
-  Min:             1 blocks
-  Max:           250 blocks
-
-Floor Price:
-  Min: 4,019,144,167,833,099,906,464,106,055,027,690,500  [50728731.303209]
-  Max: 340,272,496,042,267,987,648,557,602,899,352,720,389  [4294842707.995467]
-
-Tick Spacing:
-  Min: 31,818,739,746,992,075,010,788,242,898,526,061  [401608.957437]
-  Max: 340,272,496,042,267,987,648,557,602,899,352,720,389  [4294842707.995467]
-
-Token Total Supply (wei):
-  Mean:   500,168,826,883,780,864 (0.50 tokens)
-  Median: 503,545,776,146,123,072 (0.50 tokens)
-  Min:      35,016,628,340,538 (0.00 tokens)
-  Max:    999,707,823,845,502,684 (1.00 tokens)
 
 ================================================================================
 

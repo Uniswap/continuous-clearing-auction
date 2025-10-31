@@ -18,7 +18,6 @@ import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionUnitTest} from './unit/AuctionUnitTest.sol';
 import {Assertions} from './utils/Assertions.sol';
-
 import {FuzzDeploymentParams} from './utils/FuzzStructs.sol';
 import {MockAuction} from './utils/MockAuction.sol';
 import {Test} from 'forge-std/Test.sol';
@@ -70,7 +69,7 @@ contract AuctionInvariantHandler is Test, Assertions {
 
     constructor(MockAuction _auction, address[] memory _actors) {
         mockAuction = _auction;
-        permit2 = IPermit2(mockAuction.PERMIT2());
+        permit2 = IPermit2(0x000000000022D473030F116dDEE9F6B43aC78BA3);
         currency = mockAuction.currency();
         token = mockAuction.token();
         actors = _actors;

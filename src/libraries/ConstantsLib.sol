@@ -31,7 +31,7 @@ library ConstantsLib {
     ///        2^(k/2)  <= 2^107 / 2^100
     ///        k/2 <= 7
     ///        k <= 14
-    ///      Therefore, our price range is [2^-14 to 2^14]. 
+    ///      Therefore, our price range is [2^-14 to 2^14].
     ///
     ///      For a total supply of 1, this will be max price. For the MAX_TOTAL_SUPPLY, this will be a max pice of 2^14, or 8192.
     ///      This is low and as such launchers and users should be aware that in the case where the currency is less valuable

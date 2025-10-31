@@ -1,8 +1,8 @@
 ConstructorTest
 ├── when claimBlock LT endBlock
 │   └── it reverts with {ClaimBlockIsBeforeEndBlock}
-├── when type(uint256).max / totalSupply > uni v4 max tick
-│   └── it sets bid max price to be uni v4 max tick
+├── when total supply LTE MAX_TOTAL_SUPPLY
+│   └──  it calculates max bid price to be within uni v4 liquidity bounds
 ├── when type(uint256).max / totalSupply < uni v4 max tick
 │   └── it sets bid max price to be ConstantsLib.MAX_BID_PRICE / totalSupply
 └── when claimBlock GE endBlock

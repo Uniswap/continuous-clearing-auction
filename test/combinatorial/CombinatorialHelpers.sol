@@ -453,6 +453,17 @@ contract CombinatorialHelpers is AuctionBaseTest {
         }
     }
 
+    /// @notice Verify the tokens filled for a bid after claiming
+    /// @param bidOwner The owner of the bid
+    /// @param bidId The id of the bid
+    /// @param tokensFilled The expected tokens filled
+    function helper_verifyTokensFilled(address bidOwner, uint256 bidId, uint256 tokensFilled) internal {
+        uint256 previousBalance = token.balanceOf(bidOwner);
+        auction.claimTokens(bidId);
+        uint256 newBalance = token.balanceOf(bidOwner);
+        assertEq(newBalance - previousBalance, tokensFilled, 'Tokens filled mismatch');
+    }
+
     /// @notice Check if Q96 multiplication would overflow
     /// @param a First operand
     /// @param b Second operand

@@ -3,12 +3,11 @@ pragma solidity 0.8.26;
 
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
-
 import {AuctionStep} from '../src/libraries/AuctionStepLib.sol';
+import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {MockAuctionStepStorage} from './utils/MockAuctionStepStorage.sol';
 import {Test} from 'forge-std/Test.sol';
-import {console2} from 'forge-std/console2.sol';
 
 contract AuctionStepStorageTest is Test {
     using AuctionStepsBuilder for bytes;
@@ -160,7 +159,7 @@ contract AuctionStepStorageTest is Test {
     function test_reverts_withInvalidStepDataMps() public {
         // The sum is only 100, but must be 1e7
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(1, 100);
-        vm.expectRevert(IAuctionStepStorage.InvalidStepDataMps.selector);
+        vm.expectRevert(abi.encodeWithSelector(IAuctionStepStorage.InvalidStepDataMps.selector, 100, ConstantsLib.MPS));
         _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7);
     }
 
@@ -168,13 +167,21 @@ contract AuctionStepStorageTest is Test {
         // The sum is 1e7 + 1, but must be 1e7
         uint40 blockDelta = 1e7 + 1;
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(1, blockDelta);
-        vm.expectRevert(IAuctionStepStorage.InvalidStepDataMps.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(IAuctionStepStorage.InvalidStepDataMps.selector, 1e7 + 1, ConstantsLib.MPS)
+        );
         _create(auctionStepsData, auctionStartBlock, auctionStartBlock + blockDelta);
     }
 
     function test_reverts_withInvalidEndBlockGivenStepData() public {
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(1, 1e7);
-        vm.expectRevert(IAuctionStepStorage.InvalidEndBlockGivenStepData.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAuctionStepStorage.InvalidEndBlockGivenStepData.selector,
+                auctionStartBlock + 1e7,
+                auctionStartBlock + 1e7 - 1
+            )
+        );
         // The end block should be block.number + 1e7, but is 1e7 - 1
         _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7 - 1);
     }

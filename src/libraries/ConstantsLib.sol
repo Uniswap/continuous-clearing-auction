@@ -7,7 +7,7 @@ library ConstantsLib {
     /// @notice we use milli-bips, or one thousandth of a basis point
     uint24 constant MPS = 1e7;
     /// @notice The upper bound of a ValueX7 value
-    uint256 constant X7_UPPER_BOUND = (type(uint256).max) / 1e7;
+    uint256 constant X7_UPPER_BOUND = type(uint256).max / 1e7;
     /// @notice The maximum total supply of tokens that can be sold is 1 quadrillion tokens assuming 18 decimals
     uint128 constant MAX_TOTAL_SUPPLY = 1e33;
 

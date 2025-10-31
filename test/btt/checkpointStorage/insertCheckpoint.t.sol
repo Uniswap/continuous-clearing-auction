@@ -63,6 +63,10 @@ contract InsertCheckpointTest is BttBase {
         // - It is possible for the "next" to be itself
         // - The $lastCheckpointedBlock might not be the highest block number check pointed
 
+        // Enforce monotonicity constraints introduced by CheckpointStorage
+        vm.assume(_blockNumber > 0);
+        vm.assume(_blockNumber2 > _blockNumber);
+
         mockCheckpointStorage.insertCheckpoint(_checkpoint, _blockNumber);
 
         vm.record();

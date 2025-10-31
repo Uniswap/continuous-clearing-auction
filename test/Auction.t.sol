@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 import {Auction, AuctionParameters} from '../src/Auction.sol';
 import {Bid} from '../src/BidStorage.sol';
 import {Checkpoint} from '../src/CheckpointStorage.sol';
+import {ICheckpointStorage} from '../src/interfaces/ICheckpointStorage.sol';
 import {IAuction} from '../src/interfaces/IAuction.sol';
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
@@ -1641,6 +1642,35 @@ contract AuctionTest is AuctionBaseTest {
         // Try to call checkpoint before the auction starts
         vm.expectRevert(IAuction.AuctionNotStarted.selector);
         futureAuction.checkpoint();
+    }
+
+    function test_checkpoint_sameBlock_doesNotAdvance() public {
+        // Ensure auction is started
+        vm.roll(auction.startBlock());
+        auction.checkpoint();
+        uint64 lastBlock = auction.lastCheckpointedBlock();
+        // Call again in the same block; should not revert and should not advance
+        Checkpoint memory cp2 = auction.checkpoint();
+        assertEq(auction.lastCheckpointedBlock(), lastBlock);
+        // The returned checkpoint should be the same as latest
+        Checkpoint memory latest = auction.latestCheckpoint();
+        assertEq(latest.cumulativeMps, cp2.cumulativeMps);
+        assertEq(latest.clearingPrice, cp2.clearingPrice);
+    }
+
+    function test_insertCheckpoint_nonIncreasing_reverts_viaMockAuction() public {
+        MockAuction mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(mockAuction), TOTAL_SUPPLY);
+        mockAuction.onTokensReceived();
+
+        Checkpoint memory cp;
+        mockAuction.insertCheckpoint(cp, 100);
+        vm.expectRevert(ICheckpointStorage.CheckpointBlockNotIncreasing.selector);
+        mockAuction.insertCheckpoint(cp, 100); // equal
+
+        vm.roll(block.number + 1);
+        vm.expectRevert(ICheckpointStorage.CheckpointBlockNotIncreasing.selector);
+        mockAuction.insertCheckpoint(cp, 99); // lower
     }
 
     function test_submitBid_afterAuctionEnds_reverts() public {

@@ -6,6 +6,7 @@ import {MockCheckpointStorage} from 'btt/mocks/MockCheckpointStorage.sol';
 
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {Bid} from 'twap-auction/libraries/BidLib.sol';
+import {CheckpointAccountingLib} from 'twap-auction/libraries/CheckpointAccountingLib.sol';
 import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
 import {FixedPoint96} from 'twap-auction/libraries/FixedPoint96.sol';
 
@@ -38,7 +39,7 @@ contract CalculateFillTest is BttBase {
         _cumulativeMpsPerPriceDelta = bound(_cumulativeMpsPerPriceDelta, 1, type(uint256).max);
 
         (uint256 tokensFilled, uint256 currencySpent) =
-            mockCheckpointStorage.calculateFill(_bid, _cumulativeMpsPerPriceDelta, _cumulativeMpsDelta);
+            CheckpointAccountingLib.calculateFill(_bid, _cumulativeMpsPerPriceDelta, _cumulativeMpsDelta);
 
         uint256 q96Sqr = FixedPoint96.Q96 * FixedPoint96.Q96;
 

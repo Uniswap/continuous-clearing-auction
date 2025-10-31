@@ -14,41 +14,7 @@ contract InsertCheckpointTest is BttBase {
         mockCheckpointStorage = new MockCheckpointStorage();
     }
 
-    function test_GivenLastCheckpointedBlockEQ0(Checkpoint memory _checkpoint, uint64 _blockNumber) external {
-        // it writes _checkpoints[lastCheckpointedBlock].next = blockNumber
-        // it updates checkpoint.prev = lastCheckpointedBlock
-        // it updates checkpoint.next = blockNumber
-        // it writes $_checkpoints[blockNumber] = checkpoint
-        // it writes $lastCheckpointedBlock = blockNumber
-
-        // Assume that we are not inserting at 0
-        vm.assume(_blockNumber != 0);
-
-        vm.record();
-        mockCheckpointStorage.insertCheckpoint(_checkpoint, _blockNumber);
-        (, bytes32[] memory writes) = vm.accesses(address(mockCheckpointStorage));
-
-        if (!isCoverage()) {
-            // STORAGE_SLOTS_PER_CHECKPOINT writes to update the checkpoint,
-            // 1 write to update the last checkpointed block,
-            // 1 write to update the previous checkpoint's next pointer
-
-            assertEq(writes.length, STORAGE_SLOTS_PER_CHECKPOINT + 2);
-        }
-
-        _checkpoint.prev = 0;
-        _checkpoint.next = type(uint64).max;
-
-        assertEq(mockCheckpointStorage.latestCheckpoint(), _checkpoint);
-        assertEq(mockCheckpointStorage.checkpoints(_blockNumber), _checkpoint);
-
-        assertEq(mockCheckpointStorage.lastCheckpointedBlock(), _blockNumber);
-        assertEq(mockCheckpointStorage.clearingPrice(), _checkpoint.clearingPrice);
-
-        assertEq(mockCheckpointStorage.getCheckpoint(0).next, _blockNumber);
-    }
-
-    function test_GivenLastCheckpointedBlockNEQ0(
+    function test_GivenLastCheckpointedBlock(
         Checkpoint memory _checkpoint,
         uint64 _blockNumber,
         Checkpoint memory _checkpoint2,
@@ -65,8 +31,9 @@ contract InsertCheckpointTest is BttBase {
         // - It is possible for the "next" to be itself
         // - The $lastCheckpointedBlock might not be the highest block number check pointed
 
-        // Enforce monotonicity constraints introduced by CheckpointStorage
+        // Assume block number is not zero as this cannot happen realistically and would break monotonicity constraints due to uninitialized $lastCheckpointedBlock
         vm.assume(_blockNumber > 0);
+        // Enforce monotonicity constraints introduced by CheckpointStorage
         vm.assume(_blockNumber2 > _blockNumber);
 
         mockCheckpointStorage.insertCheckpoint(_checkpoint, _blockNumber);

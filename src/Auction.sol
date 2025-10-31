@@ -563,7 +563,7 @@ contract Auction is
 
         (address owner, uint256 tokensFilled) = _internalClaimTokens(_bidId);
 
-        if(tokensFilled > 0) {
+        if (tokensFilled > 0) {
             Currency.wrap(address(TOKEN)).transfer(owner, tokensFilled);
             emit TokensClaimed(_bidId, owner, tokensFilled);
         }
@@ -587,12 +587,12 @@ contract Auction is
 
             tokensFilled += bidTokensFilled;
 
-            if(bidTokensFilled > 0) {
+            if (bidTokensFilled > 0) {
                 emit TokensClaimed(_bidIds[i], bidOwner, bidTokensFilled);
             }
         }
 
-        if(tokensFilled > 0) {
+        if (tokensFilled > 0) {
             Currency.wrap(address(TOKEN)).transfer(_owner, tokensFilled);
         }
     }

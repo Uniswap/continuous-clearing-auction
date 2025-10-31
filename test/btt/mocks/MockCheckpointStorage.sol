@@ -16,14 +16,6 @@ contract MockCheckpointStorage is CheckpointStorage {
         return super._getCheckpoint(blockNumber);
     }
 
-    function calculateFill(Bid memory bid, uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
-        external
-        pure
-        returns (uint256 tokensFilled, uint256 currencySpent)
-    {
-        return super._calculateFill(bid, cumulativeMpsPerPriceDelta, cumulativeMpsDelta);
-    }
-
     function accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memory startCheckpoint, Bid memory bid)
         external
         pure

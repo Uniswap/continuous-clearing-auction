@@ -180,8 +180,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         pure
     {
         // Bound tick spacing and floor price to reasonable values
-        _deploymentParams.auctionParams.floorPrice =
-            _bound(_deploymentParams.auctionParams.floorPrice, 2, type(uint128).max);
+        // The max possible price is MAX_BID_PRICE / totalSupply
+        _deploymentParams.auctionParams.floorPrice = _bound(
+            _deploymentParams.auctionParams.floorPrice, 2, ConstantsLib.MAX_BID_PRICE / _deploymentParams.totalSupply
+        );
 
         if (_assumeTickSpacingIsFloorPrice) {
             _deploymentParams.auctionParams.tickSpacing = _deploymentParams.auctionParams.floorPrice;
@@ -264,7 +266,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         uint256 tickAboveFloorPrice = ((floorPrice / tickSpacing) + 1) * tickSpacing;
 
         maxPrice = _bound(maxPrice, tickAboveFloorPrice, type(uint256).max);
-        maxPriceQ96 = maxPrice << FixedPoint96.RESOLUTION;
     }
 
     function helper__assumeValidMaxPrice(
@@ -274,12 +275,11 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         uint256 _tickSpacing
     ) internal pure returns (uint256) {
         vm.assume(_totalSupply != 0 && _tickSpacing != 0 && _floorPrice != 0 && _maxPrice != 0);
-        _maxPrice = _bound(_maxPrice, _floorPrice + _tickSpacing, type(uint256).max);
+        vm.assume(_floorPrice + _tickSpacing <= ConstantsLib.MAX_BID_PRICE / _totalSupply);
+        _maxPrice = _bound(_maxPrice, _floorPrice + _tickSpacing, ConstantsLib.MAX_BID_PRICE / _totalSupply);
 
-        // We cannot support bids at prices which would cause the total currency raised to overflow a uint128
-        vm.assume(_maxPrice <= ConstantsLib.MAX_BID_PRICE / _totalSupply);
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, _tickSpacing);
-        vm.assume(_maxPrice > _floorPrice && _maxPrice < type(uint256).max);
+        vm.assume(_maxPrice > _floorPrice && _maxPrice < ConstantsLib.MAX_BID_PRICE / _totalSupply);
         return _maxPrice;
     }
 

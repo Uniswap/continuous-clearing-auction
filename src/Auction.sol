@@ -365,7 +365,7 @@ contract Auction is
         bytes calldata hookData
     ) internal returns (uint256 bidId) {
         // Reject bids which would cause TOTAL_SUPPLY * maxPrice to overflow a uint256
-        if (maxPrice > MAX_BID_PRICE) revert InvalidBidPriceTooHigh();
+        if (maxPrice > MAX_BID_PRICE) revert InvalidBidPriceTooHigh(maxPrice, MAX_BID_PRICE);
 
         Checkpoint memory _checkpoint = checkpoint();
         // Revert if there are no more tokens to be sold

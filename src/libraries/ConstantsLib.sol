@@ -18,17 +18,22 @@ library ConstantsLib {
     ///      given the smallest possible tick spacing of 1, the max liquidity per tick (L_max) is 2^107.
     ///
     ///      Given that L_max = L_0 + L_1, where L_0 is the amount0 liquidity and L_1 is the amount1 liquidity,
-    ///      we can express L in terms of amount0 and amount1, as well as some price `k`:
+    ///      we can express L in terms of amount0 and amount1, as well as some price bound `k`: [2^-k, 2^k]
     ///         amount0 <= L_max * (sqrt(P_max) - sqrt(k)) / (sqrt(P_max) * sqrt(k))
     ///                 <= L_max * (P_max^(-1/2) - k^(-1/2))
     ///                 <= L_max * (k^(-1/2)) , given that P_max is extremely large and to the power of -1/2 is ~0
-    ///                 <= 2^107 - k/2
+    ///                 <= 2^(107 - k/2)
     ///      and similarly,
     ///         amount1 <= L_max * (k^(-1/2))
-    ///                 <= 2^107 - k/2
+    ///                 <= 2^(107 - k/2)
+    ///      Since `k` is minimized when amount0 or amount 1 are largest, so substitute the MAX_TOTAL_SUPPLY for amount to find `k`
+    ///                 <= 2^107 / 2^(k/2)
+    ///        2^(k/2)  <= 2^107 / 2^100
+    ///        k/2 <= 7
+    ///        k <= 14
+    ///      Therefore, our price range is [2^-14 to 2^14]. 
     ///
-    ///      This is expressed in Q96 form as 2^107 * 2^96 = 2^203.
-    ///      For a total supply of 1, this will be max price. For the MAX_TOTAL_SUPPLY, this will be a max pice of 2^7, or 128.
+    ///      For a total supply of 1, this will be max price. For the MAX_TOTAL_SUPPLY, this will be a max pice of 2^14, or 8192.
     ///      This is low and as such launchers and users should be aware that in the case where the currency is less valuable
     ///      than the token and the total supply is very large, the clearing price will be low.
     uint256 constant MAX_BID_PRICE = 1 << 203;

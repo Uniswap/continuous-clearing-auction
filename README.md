@@ -171,7 +171,7 @@ It is imperative that bidders and users of the Auction carefully validate the pa
 Auction launchers should be aware of the following limitations regarding total supply and maximum bid prices:
 - The maximum total supply that can be sold in the auction is 1e30 wei of `token`. For a token with 18 decimals, this is 1 trillion tokens.
 - The auction also ensures that the total currency raised does not exceed the maximum allowable liquidity for a Uniswap v4 liquidity position. The lowest bound for this is 2^107 wei (given the smallest possible tick spacing of 1).
-- Assuming the maximum total supply is used, the maximum bid price is equal to `1e30 * maxPrice / 2^96 < 2^107`. This is equal to 2^7, or a ratio of 128 currency units per token.
+- Assuming the maximum total supply is used, the maximum bid price is equal to `1e30 * maxPrice / 2^96 < 2^107`. This is equal to 2^14, or a ratio of 8192 currency units per token.
 
 This is why we strongly recommend that the `currency` is chosen to be more valuable than `token`, and that the total supply is not excessively large.
 

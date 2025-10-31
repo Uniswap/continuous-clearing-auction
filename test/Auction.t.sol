@@ -7,7 +7,6 @@ import {Checkpoint} from '../src/CheckpointStorage.sol';
 import {ICheckpointStorage} from '../src/interfaces/ICheckpointStorage.sol';
 import {IAuction} from '../src/interfaces/IAuction.sol';
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
-import {ICheckpointStorage} from '../src/interfaces/ICheckpointStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {AuctionStep} from '../src/libraries/AuctionStepLib.sol';

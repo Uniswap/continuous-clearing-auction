@@ -15,7 +15,6 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
     using BidLib for *;
 
     /// forge-config: default.fuzz.runs = 1000
-    /// forge-config: ci.fuzz.runs = 1000
     function test_submitBid_exactIn_succeeds(FuzzDeploymentParams memory _deploymentParams, FuzzBid[] memory _bids)
         public
         setUpAuctionFuzz(_deploymentParams)

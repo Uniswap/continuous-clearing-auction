@@ -23,6 +23,9 @@ contract ConstructorTest is BttBase {
     ) external {
         // it reverts with {TotalSupplyIsZero}
 
+        vm.assume(_token != address(0)); // this check preceeds the TotalSupplyIsZero check
+        vm.assume(_token != _currency); // this check preceeds the TotalSupplyIsZero check
+
         $token = _token;
         $currency = _currency;
         $tokensRecipient = _tokensRecipient;
@@ -38,17 +41,6 @@ contract ConstructorTest is BttBase {
         $totalSupply = uint128(bound(_totalSupply, 1, type(uint128).max));
 
         _;
-    }
-
-    function test_WhenRequiredRaiseGTUpperBound(uint128 _totalSupply) external whenTotalSupplyGT0(_totalSupply) {
-        // it reverts with {RequiredCurrencyRaisedIsTooLarge}
-
-        // With the `_requiredCurrencyRaised` being uint128, it will never hit this case as the following is false:
-        // `uint256(type(uint128).max) * FixedPoint96.Q96 > X7_UPPER_BOUND
-        // `uint256(type(uint128).max) * 0x1000000000000000000000000 > (type(uint256).max) / 1e7
-        // (0x00000000ffffffffffffffffffffffffffffffff000000000000000000000000
-        // > 0x000001ad7f29abcaf485787a6520ec08d23699194119a5c37387b71906614310)
-        // false
     }
 
     modifier whenRequiredRaiseLEUpperBound(uint128 _requiredCurrencyRaised) {

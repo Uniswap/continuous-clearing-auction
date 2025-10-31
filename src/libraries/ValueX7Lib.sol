@@ -58,7 +58,7 @@ library ValueX7Lib {
     uint256 public constant X7 = ConstantsLib.MPS;
 
     /// @notice Multiply a uint256 value by MPS
-    /// @dev This ensures that future operations (ex. scaleByMps) will not lose precision
+    /// @dev This ensures that future operations will not lose precision
     /// @return The result as a ValueX7
     function scaleUpToX7(uint256 value) internal pure returns (ValueX7) {
         return ValueX7.wrap(value * X7);
@@ -67,17 +67,15 @@ library ValueX7Lib {
     /// @notice Divide a ValueX7 value by MPS
     /// @return The result as a uint256
     function scaleDownToUint256(ValueX7 value) internal pure returns (uint256) {
-        return ValueX7.unwrap(value.divUint256(X7));
+        return ValueX7.unwrap(value) / X7;
     }
 
-    /// @notice Wrapper around free fullMulDiv function to support cases where we want to use uint256 values
-    /// @dev Ensure that `b` and `c` should be compared against the ValueX7 value
+    /// @notice Helper wrapper around fullMulDiv to support operations with uint256 values
     function wrapAndFullMulDiv(ValueX7 a, uint256 b, uint256 c) internal pure returns (ValueX7) {
         return a.fullMulDiv(ValueX7.wrap(b), ValueX7.wrap(c));
     }
 
-    /// @notice Wrapper around free fullMulDivUp function to support cases where we want to use uint256 values
-    /// @dev Ensure that `b` and `c` should be compared against the ValueX7 value
+    /// @notice Helper wrapper around fullMulDivUp to support operations with uint256 values
     function wrapAndFullMulDivUp(ValueX7 a, uint256 b, uint256 c) internal pure returns (ValueX7) {
         return a.fullMulDivUp(ValueX7.wrap(b), ValueX7.wrap(c));
     }

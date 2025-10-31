@@ -294,13 +294,11 @@ contract Auction is
         uint256 clearingPrice = sumCurrencyDemandAboveClearingQ96_.divUp(TOTAL_SUPPLY);
         while (
             // Loop while the currency amount above the clearing price is greater than the required currency at `nextActiveTickPrice_`
-            (
-                nextActiveTickPrice_ != MAX_TICK_PTR
-                    && sumCurrencyDemandAboveClearingQ96_ >= TOTAL_SUPPLY * nextActiveTickPrice_
-            )
-            // If the demand above clearing rounds up to the `nextActiveTickPrice`, we need to keep iterating over ticks
-            // This ensures that the `nextActiveTickPrice` is always the next initialized tick strictly above the clearing price
-            || clearingPrice == nextActiveTickPrice_
+            (nextActiveTickPrice_ != MAX_TICK_PTR
+                    && sumCurrencyDemandAboveClearingQ96_ >= TOTAL_SUPPLY * nextActiveTickPrice_)
+                // If the demand above clearing rounds up to the `nextActiveTickPrice`, we need to keep iterating over ticks
+                // This ensures that the `nextActiveTickPrice` is always the next initialized tick strictly above the clearing price
+                || clearingPrice == nextActiveTickPrice_
         ) {
             Tick storage $nextActiveTick = _getTick(nextActiveTickPrice_);
             // Subtract the demand at the current nextActiveTick from the total demand
@@ -487,9 +485,7 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function exitPartiallyFilledBid(uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock)
-        external
-    {
+    function exitPartiallyFilledBid(uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock) external {
         // Checkpoint before checking any of the hints because they could depend on the latest checkpoint
         Checkpoint memory currentBlockCheckpoint = checkpoint();
 

@@ -2,11 +2,11 @@
 pragma solidity 0.8.26;
 
 import {AuctionFuzzConstructorParams, BttBase} from 'btt/BttBase.sol';
-
 import {MockAuction} from 'btt/mocks/MockAuction.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {IAuction} from 'twap-auction/interfaces/IAuction.sol';
 import {ITokenCurrencyStorage} from 'twap-auction/interfaces/ITokenCurrencyStorage.sol';
+import {IERC20Minimal} from 'twap-auction/interfaces/external/IERC20Minimal.sol';
 import {Checkpoint} from 'twap-auction/libraries/CheckpointLib.sol';
 import {FixedPoint96} from 'twap-auction/libraries/FixedPoint96.sol';
 
@@ -101,6 +101,8 @@ contract SweepUnsoldTokensTest is BttBase {
         vm.roll(auction.endBlock());
         Checkpoint memory checkpoint = auction.checkpoint();
 
+        assertTrue(auction.isGraduated(), 'auction is not graduated');
+
         assertGe(maxPrice, checkpoint.clearingPrice, 'the clearing price rounded upwards to bigger than bids');
 
         if (maxPrice > checkpoint.clearingPrice) {
@@ -111,8 +113,12 @@ contract SweepUnsoldTokensTest is BttBase {
             revert('the clearing price rounded downwards to smaller than bids');
         }
 
-        vm.expectEmit(true, true, true, true, address(auction));
-        emit ITokenCurrencyStorage.TokensSwept(mParams.parameters.tokensRecipient, 0);
+        // Expect 0 calls to transfer
+        vm.expectCall(
+            mParams.token,
+            abi.encodeWithSelector(IERC20Minimal.transfer.selector, address(mParams.parameters.tokensRecipient), 0),
+            0
+        );
         vm.record();
         auction.sweepUnsoldTokens();
 

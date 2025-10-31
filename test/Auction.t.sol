@@ -1413,8 +1413,8 @@ contract AuctionTest is AuctionBaseTest {
 
         // Roll to end of the auction
         vm.roll(endBlock);
-        uint256 expectedTotalCurrencyRaised = TOTAL_SUPPLY_Q96
-            .fullMulDivUp(tickNumberToPriceX96(2) * ConstantsLib.MPS, FixedPoint96.Q96);
+        uint256 expectedTotalCurrencyRaised =
+            TOTAL_SUPPLY_Q96.fullMulDivUp(tickNumberToPriceX96(2) * ConstantsLib.MPS, FixedPoint96.Q96);
         vm.expectEmit(true, true, true, true);
         // Expect that we sold the total supply at price of 2
         emit IAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), ConstantsLib.MPS);
@@ -1648,6 +1648,35 @@ contract AuctionTest is AuctionBaseTest {
         // Try to call checkpoint before the auction starts
         vm.expectRevert(IAuction.AuctionNotStarted.selector);
         futureAuction.checkpoint();
+    }
+
+    function test_checkpoint_sameBlock_doesNotAdvance() public {
+        // Ensure auction is started
+        vm.roll(auction.startBlock());
+        auction.checkpoint();
+        uint64 lastBlock = auction.lastCheckpointedBlock();
+        // Call again in the same block; should not revert and should not advance
+        Checkpoint memory cp2 = auction.checkpoint();
+        assertEq(auction.lastCheckpointedBlock(), lastBlock);
+        // The returned checkpoint should be the same as latest
+        Checkpoint memory latest = auction.latestCheckpoint();
+        assertEq(latest.cumulativeMps, cp2.cumulativeMps);
+        assertEq(latest.clearingPrice, cp2.clearingPrice);
+    }
+
+    function test_insertCheckpoint_nonIncreasing_reverts_viaMockAuction() public {
+        MockAuction mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(mockAuction), TOTAL_SUPPLY);
+        mockAuction.onTokensReceived();
+
+        Checkpoint memory cp;
+        mockAuction.insertCheckpoint(cp, 100);
+        vm.expectRevert(ICheckpointStorage.CheckpointBlockNotIncreasing.selector);
+        mockAuction.insertCheckpoint(cp, 100); // equal
+
+        vm.roll(block.number + 1);
+        vm.expectRevert(ICheckpointStorage.CheckpointBlockNotIncreasing.selector);
+        mockAuction.insertCheckpoint(cp, 99); // lower
     }
 
     function test_submitBid_afterAuctionEnds_reverts() public {

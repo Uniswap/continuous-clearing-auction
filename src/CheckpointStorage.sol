@@ -8,9 +8,9 @@ import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+
 /// @title CheckpointStorage
 /// @notice Abstract contract for managing auction checkpoints and bid fill calculations
-
 abstract contract CheckpointStorage is ICheckpointStorage {
     using FixedPointMathLib for *;
     using AuctionStepLib for *;
@@ -85,18 +85,29 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpentQ96) {
         if (tickDemandQ96 == 0) return (0, 0);
 
-        // tickDemandQ96 is a summation of bid effective amounts, so we must scale up the bid
-        // by 1e7 and divide by `mpsRemainingInAuctionAfterSubmission` such that we can
-        // apply the ratio of the bid demand to the tick demand to the currencyRaisedAtClearingPriceQ96_X7
-        ValueX7 currencySpentQ96_X7 = bid.amountQ96.scaleUpToX7()
-            .fullMulDivUp(
-                currencyRaisedAtClearingPriceQ96_X7,
-                ValueX7.wrap(tickDemandQ96 * bid.mpsRemainingInAuctionAfterSubmission())
-            );
-        // The currency spent ValueX7 is then scaled down to a uint256
-        currencySpentQ96 = currencySpentQ96_X7.scaleDownToUint256();
-        // The tokens filled uses the currencySpent ValueX7 value and scales down to a uint256
-        tokensFilled = currencySpentQ96_X7.divUint256(bid.maxPrice).scaleDownToUint256();
+        // For partially filled bids, we need to apply the ratio between the bid demand and the demand at the tick to the currency raised
+        // `tickDemandQ96` is a summation of bid effective amounts, so we must use BidLib.toEffectiveAmount(bid) in the numerator
+        // The full expanded equation is:
+        // (bid.amountQ96 * ConstantsLib.MPS / mpsRemainingInAuctionAfterSubmission()) * currencyRaisedAtClearingPriceQ96_X7 / tickDemandQ96
+        //
+        // We can move the division of mpsRemainingInAuctionAfterSubmission() to the denominator to get:
+        // bid.amountQ96 * ConstantsLib.MPS * currencyRaisedAtClearingPriceQ96_X7 / (tickDemandQ96 * mpsRemainingInAuctionAfterSubmission())
+        //
+        // And we know that we eventually want the result in `uint256` form so we remove the multiplication by ConstantsLib.MPS in the numerator:
+        // so the final equation is: bid.amountQ96 * currencyRaisedAtClearingPriceQ96_X7 / (tickDemandQ96 * mpsRemainingInAuctionAfterSubmission())
+        // Cache the denominator here to avoid recalculating it
+        uint256 denominator = tickDemandQ96 * bid.mpsRemainingInAuctionAfterSubmission();
+
+        // Apply the ratio between bid demand and tick demand to the currencyRaisedAtClearingPriceQ96_X7 value
+        // If currency spent is calculated to have a remainder, we round up.
+        // In the case where the result would have been 0, we will return 1 wei.
+        currencySpentQ96 = bid.amountQ96.fullMulDivUp(ValueX7.unwrap(currencyRaisedAtClearingPriceQ96_X7), denominator);
+
+        // We derive tokens filled from the currency spent by dividing it by the max price
+        // If the currency spent is calculated to have a remainder, we round that down here in favor of the auction.
+        // In the case where the currency spent is 0, we will return 0 tokens filled.
+        tokensFilled =
+            bid.amountQ96.fullMulDiv(ValueX7.unwrap(currencyRaisedAtClearingPriceQ96_X7), denominator) / bid.maxPrice;
     }
 
     /// @notice Calculate the tokens filled and currency spent for a bid
@@ -120,8 +131,9 @@ abstract contract CheckpointStorage is ICheckpointStorage {
 
         // The tokens filled from the bid are calculated from its effective amount, not the raw amount in the Bid struct
         // As such, we need to multiply it by 1e7 and divide by `mpsRemainingInAuctionAfterSubmission`.
-        // We also know that `cumulativeMpsPerPriceDelta` is over `mps` terms, and has not bee divided by 100% (1e7) yet.
+        // We also know that `cumulativeMpsPerPriceDelta` is over `mps` terms, and has not been divided by 100% (1e7) yet.
         // Thus, we can cancel out the 1e7 terms and just divide by `mpsRemainingInAuctionAfterSubmission`.
+        // Both terms in the numerator (amountQ96 and cumulativeMpsPerPriceDelta) are Q96 form, so we must also divide by Q96 ** 2
         tokensFilled = bid.amountQ96
             .fullMulDiv(
                 cumulativeMpsPerPriceDelta,

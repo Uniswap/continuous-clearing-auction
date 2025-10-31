@@ -43,6 +43,6 @@ library BidLib {
     function toEffectiveAmount(Bid memory bid) internal pure returns (uint256) {
         uint24 mpsRemainingInAuction = bid.mpsRemainingInAuctionAfterSubmission();
         if (mpsRemainingInAuction == 0) revert MpsRemainingIsZero();
-        return (bid.amountQ96 * ConstantsLib.MPS) / mpsRemainingInAuction;
+        return bid.amountQ96 * ConstantsLib.MPS / mpsRemainingInAuction;
     }
 }

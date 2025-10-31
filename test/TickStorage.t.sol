@@ -30,7 +30,6 @@ contract MockTickStorage is TickStorage {
 // Fuzzer has a tendency to assume too many values and I think 5000 is enough to test
 // the tick storage logic
 /// forge-config: default.fuzz.runs = 5000
-/// forge-config: ci.fuzz.runs = 5000
 contract TickStorageTest is Test, Assertions {
     uint256 $floorPrice_rounded;
     uint256 $tickSpacing;

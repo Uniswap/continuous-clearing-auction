@@ -20,13 +20,13 @@ contract InitializeDistributionTest is BttBase {
         external
         setupAuctionConstructorParams(_params)
     {
-        // it reverts with {InvalidAmount}
+        // it reverts with {InvalidTokenAmount}
         _amount = uint256(bound(_amount, uint256(type(uint128).max) + 1, type(uint256).max));
 
-        vm.expectRevert(abi.encodeWithSelector(IAuctionFactory.InvalidAmount.selector, _amount));
+        vm.expectRevert(abi.encodeWithSelector(IAuctionFactory.InvalidTokenAmount.selector, _amount));
         factory.initializeDistribution(address(token), _amount, abi.encode(params), bytes32(0));
 
-        vm.expectRevert(abi.encodeWithSelector(IAuctionFactory.InvalidAmount.selector, _amount));
+        vm.expectRevert(abi.encodeWithSelector(IAuctionFactory.InvalidTokenAmount.selector, _amount));
         factory.getAuctionAddress(address(token), _amount, abi.encode(params), bytes32(0), address(0));
     }
 

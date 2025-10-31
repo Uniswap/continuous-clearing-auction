@@ -56,13 +56,13 @@ contract BidStorageTest is Assertions, Test {
 
     function test_getBid_revertsIfBidDoesNotExist(uint256 _bidId) public {
         vm.assume(_bidId >= mockBidStorage.nextBidId());
-        vm.expectRevert(IBidStorage.BidIdDoesNotExist.selector);
+        vm.expectRevert(abi.encodeWithSelector(IBidStorage.BidIdDoesNotExist.selector, _bidId));
         mockBidStorage.getBid(_bidId);
     }
 
     function test_bids_revertsIfBidDoesNotExist(uint256 _bidId) public {
         vm.assume(_bidId >= mockBidStorage.nextBidId());
-        vm.expectRevert(IBidStorage.BidIdDoesNotExist.selector);
+        vm.expectRevert(abi.encodeWithSelector(IBidStorage.BidIdDoesNotExist.selector, _bidId));
         mockBidStorage.bids(_bidId);
     }
 }

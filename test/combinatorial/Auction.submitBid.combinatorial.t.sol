@@ -357,6 +357,9 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
         Bid memory exitedBid = auction.bids(usersBidId);
         uint256 tokensFilled = exitedBid.tokensFilled;
 
+        vm.roll(auction.claimBlock());
+        helper_verifyTokensFilled(bidOwner, usersBidId, tokensFilled);
+
         // ============ Phase 1 Metrics Collection (BEFORE snapshot revert) ============
         // Collect metrics from Phase 2 state BEFORE reverting
         // Store in memory to survive the revert

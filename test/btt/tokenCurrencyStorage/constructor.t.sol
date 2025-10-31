@@ -41,6 +41,10 @@ contract ConstructorTest is BttBase {
     function test_WhenTotalSupplyGTMax(uint128 _totalSupply) external {
         // it reverts with {TotalSupplyIsTooLarge}
 
+        // Prevent early reverts
+        $token = address(1);
+        $currency = address(2);
+
         $totalSupply = uint128(_bound(_totalSupply, ConstantsLib.MAX_TOTAL_SUPPLY + 1, type(uint128).max));
 
         vm.expectRevert(ITokenCurrencyStorage.TotalSupplyIsTooLarge.selector);

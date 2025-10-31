@@ -13,6 +13,8 @@ interface ITokenCurrencyStorage {
     error TokenAndCurrencyCannotBeTheSame();
     /// @notice Error thrown when the total supply is zero
     error TotalSupplyIsZero();
+    /// @notice Error thrown when the total supply is too large
+    error TotalSupplyIsTooLarge();
     /// @notice Error thrown when the funds recipient is the zero address
     error FundsRecipientIsZero();
     /// @notice Error thrown when the tokens recipient is the zero address

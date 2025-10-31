@@ -51,7 +51,7 @@ contract ConstructorTest is BttBase {
         _deployTokenCurrencyStorage();
     }
 
-    modifier whenTotalSupplyGT0AndLessThanMax(uint128 _totalSupply) {
+    modifier whenTotalSupplyGT0AndLTEMax(uint128 _totalSupply) {
         $totalSupply = uint128(_bound(_totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
 
         _;
@@ -68,7 +68,7 @@ contract ConstructorTest is BttBase {
         address _tokensRecipient,
         address _fundsRecipient,
         uint128 _requiredCurrencyRaised
-    ) external whenTotalSupplyGT0AndLessThanMax(_totalSupply) whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised) {
+    ) external whenTotalSupplyGT0AndLTEMax(_totalSupply) whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised) {
         // it reverts with {TokenIsAddressZero}
 
         $currency = _currency;
@@ -94,7 +94,7 @@ contract ConstructorTest is BttBase {
         uint128 _requiredCurrencyRaised
     )
         external
-        whenTotalSupplyGT0AndLessThanMax(_totalSupply)
+        whenTotalSupplyGT0AndLTEMax(_totalSupply)
         whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised)
         whenTokenNEQAddressZero(_token)
     {
@@ -121,7 +121,7 @@ contract ConstructorTest is BttBase {
         uint128 _requiredCurrencyRaised
     )
         external
-        whenTotalSupplyGT0AndLessThanMax(_totalSupply)
+        whenTotalSupplyGT0AndLTEMax(_totalSupply)
         whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised)
         whenTokenNEQAddressZero(_token)
         whenTokenNEQCurrency(_currency)
@@ -147,7 +147,7 @@ contract ConstructorTest is BttBase {
         uint128 _requiredCurrencyRaised
     )
         external
-        whenTotalSupplyGT0AndLessThanMax(_totalSupply)
+        whenTotalSupplyGT0AndLTEMax(_totalSupply)
         whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised)
         whenTokenNEQAddressZero(_token)
         whenTokenNEQCurrency(_currency)
@@ -169,7 +169,7 @@ contract ConstructorTest is BttBase {
         uint128 _requiredCurrencyRaised
     )
         external
-        whenTotalSupplyGT0AndLessThanMax(_totalSupply)
+        whenTotalSupplyGT0AndLTEMax(_totalSupply)
         whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised)
         whenTokenNEQAddressZero(_token)
         whenTokenNEQCurrency(_currency)

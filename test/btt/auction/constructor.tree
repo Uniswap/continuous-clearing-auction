@@ -4,7 +4,7 @@ ConstructorTest
 ├── when type(uint256).max / totalSupply > uni v4 max tick
 │   └── it sets bid max price to be uni v4 max tick
 ├── when type(uint256).max / totalSupply < uni v4 max tick
-│   └── it sets bid max price to be type(uint256).max / totalSupply
+│   └── it sets bid max price to be ConstantsLib.MAX_BID_PRICE / totalSupply
 └── when claimBlock GE endBlock
     ├── it writes CLAIM_BLOCK
     ├── it writes VALIDATION_HOOK

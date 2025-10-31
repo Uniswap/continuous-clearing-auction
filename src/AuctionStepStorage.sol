@@ -58,8 +58,9 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
             sumMps += mps * blockDelta;
             sumBlockDelta += blockDelta;
         }
-        if (sumMps != ConstantsLib.MPS) revert InvalidStepDataMps();
-        if (sumBlockDelta + START_BLOCK != END_BLOCK) revert InvalidEndBlockGivenStepData();
+        if (sumMps != ConstantsLib.MPS) revert InvalidStepDataMps(sumMps, ConstantsLib.MPS);
+        uint64 calculatedEndBlock = START_BLOCK + sumBlockDelta;
+        if (calculatedEndBlock != END_BLOCK) revert InvalidEndBlockGivenStepData(calculatedEndBlock, END_BLOCK);
     }
 
     /// @notice Advance the current auction step

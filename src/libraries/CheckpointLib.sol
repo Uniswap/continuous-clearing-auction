@@ -35,7 +35,7 @@ library CheckpointLib {
     /// @return the ratio
     function getMpsPerPrice(uint24 mps, uint256 price) internal pure returns (uint256) {
         if (price == 0) return 0;
-        // The bitshift cannot overflow because a uint24 shifted left Q96 ** 2 will always be less than 2^256
-        return (uint256(mps) * (FixedPoint96.Q96 << FixedPoint96.RESOLUTION)) / price;
+        // The bitshift cannot overflow because a uint24 shifted left FixedPoint96.RESOLUTION * 2 (192) bits will always be less than 2^256
+        return (uint256(mps) << 192) / price;
     }
 }

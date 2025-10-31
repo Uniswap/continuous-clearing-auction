@@ -5,7 +5,7 @@ import {Bid} from '../libraries/BidLib.sol';
 
 interface IBidStorage {
     /// @notice Error thrown when doing an operation on a bid that does not exist
-    error BidIdDoesNotExist();
+    error BidIdDoesNotExist(uint256 bidId);
 
     /// @notice Get the id of the next bid to be created
     function nextBidId() external view returns (uint256);

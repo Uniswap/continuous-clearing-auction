@@ -23,6 +23,9 @@ contract ConstructorTest is BttBase {
     ) external {
         // it reverts with {TotalSupplyIsZero}
 
+        vm.assume(_token != address(0)); // this check preceeds the TotalSupplyIsZero check
+        vm.assume(_token != _currency); // this check preceeds the TotalSupplyIsZero check
+
         $token = _token;
         $currency = _currency;
         $tokensRecipient = _tokensRecipient;

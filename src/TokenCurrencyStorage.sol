@@ -46,19 +46,19 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         address _fundsRecipient,
         uint128 _requiredCurrencyRaised
     ) {
+        if (_token == address(0)) revert TokenIsAddressZero();
+        if (_token == address(_currency)) revert TokenAndCurrencyCannotBeTheSame();
+        if (_totalSupply == 0) revert TotalSupplyIsZero();
+        if (_tokensRecipient == address(0)) revert TokensRecipientIsZero();
+        if (_fundsRecipient == address(0)) revert FundsRecipientIsZero();
+
         TOKEN = IERC20Minimal(_token);
         CURRENCY = Currency.wrap(_currency);
-        if (_totalSupply == 0) revert TotalSupplyIsZero();
         TOTAL_SUPPLY = _totalSupply;
         TOTAL_SUPPLY_Q96 = uint256(_totalSupply) << FixedPoint96.RESOLUTION;
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;
         REQUIRED_CURRENCY_RAISED_Q96 = _requiredCurrencyRaised * FixedPoint96.Q96;
-
-        if (_token == address(0)) revert TokenIsAddressZero();
-        if (_token == address(_currency)) revert TokenAndCurrencyCannotBeTheSame();
-        if (TOKENS_RECIPIENT == address(0)) revert TokensRecipientIsZero();
-        if (FUNDS_RECIPIENT == address(0)) revert FundsRecipientIsZero();
     }
 
     function _sweepCurrency(uint256 amount) internal {

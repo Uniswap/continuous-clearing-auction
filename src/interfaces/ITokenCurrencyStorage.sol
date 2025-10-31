@@ -7,8 +7,6 @@ import {IERC20Minimal} from './external/IERC20Minimal.sol';
 
 /// @notice Interface for token and currency storage operations
 interface ITokenCurrencyStorage {
-    /// @notice Error thrown when the total supply is too large
-    error TotalSupplyIsTooLarge();
     /// @notice Error thrown when the token is the native currency
     error TokenIsAddressZero();
     /// @notice Error thrown when the token and currency are the same

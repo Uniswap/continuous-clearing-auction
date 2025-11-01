@@ -393,6 +393,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         setUpTokens();
 
         alice = makeAddr('alice');
+        bob = makeAddr('bob');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 
@@ -412,6 +413,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         setUpTokens();
 
         alice = makeAddr('alice');
+        bob = makeAddr('bob');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 

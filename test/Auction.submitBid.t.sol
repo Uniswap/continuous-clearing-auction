@@ -46,4 +46,14 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
         vm.expectRevert(IAuction.InvalidBidPriceTooHigh.selector);
         auction.submitBid{value: 1}(_maxPrice, 1, alice, params.floorPrice, bytes(''));
     }
+
+    function test_submitBid_revertsWithBidOwnerCannotBeZeroAddress(FuzzDeploymentParams memory _deploymentParams)
+        public
+        setUpAuctionFuzz(_deploymentParams)
+        givenAuctionHasStarted
+        givenFullyFundedAccount
+    {
+        vm.expectRevert(IAuction.BidOwnerCannotBeZeroAddress.selector);
+        auction.submitBid{value: 1}(1, 1, address(0), params.floorPrice, bytes(''));
+    }
 }

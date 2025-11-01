@@ -41,6 +41,8 @@ interface IAuction is
 
     /// @notice Error thrown when not enough amount is deposited
     error InvalidAmount();
+    /// @notice Error thrown when the bid owner is the zero address
+    error BidOwnerCannotBeZeroAddress();
     /// @notice Error thrown when the bid price is below the clearing price
     error BidMustBeAboveClearingPrice();
     /// @notice Error thrown when the bid price is too high given the auction's total supply

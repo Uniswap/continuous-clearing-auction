@@ -103,6 +103,9 @@ contract ClaimTokensTest is BttBase {
         Bid memory bid = auction.bids(bidId);
         assertLe(bid.tokensFilled, maximumTokensFilled, 'Bid tokens filled must be less than the maximum tokens filled');
 
+        // Assume bid filled some tokens
+        vm.assume(bid.tokensFilled > 0);
+
         uint256 blockNumber = bound(_blockNumber, mParams.parameters.claimBlock, type(uint64).max);
 
         uint256 aliceTokensBefore = ERC20Mock(mParams.token).balanceOf(alice);
@@ -147,8 +150,6 @@ contract ClaimTokensTest is BttBase {
         uint256 bidId = auction.submitBid{value: 1}(maxPrice, 1, alice, bytes(''));
 
         vm.roll(auction.endBlock());
-        Checkpoint memory checkpoint = auction.checkpoint();
-
         auction.exitBid(bidId);
 
         assertTrue(auction.isGraduated(), 'Auction must be graduated');

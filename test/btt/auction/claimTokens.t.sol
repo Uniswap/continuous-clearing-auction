@@ -27,13 +27,13 @@ contract ClaimTokensTest is BttBase {
         auction.claimTokens(0);
     }
 
-    modifier whenPastClaimBlock() {
+    modifier givenPastClaimBlock() {
         _;
     }
 
     function test_WhenNotGraduated(AuctionFuzzConstructorParams memory _params, uint256 _blockNumber)
         external
-        whenPastClaimBlock
+        givenPastClaimBlock
     {
         // it reverts with {NotGraduated}
 
@@ -60,7 +60,7 @@ contract ClaimTokensTest is BttBase {
         uint256 _blockNumber,
         uint128 _bidAmount,
         uint128 _requiredCurrencyRaised
-    ) external whenPastClaimBlock {
+    ) external givenPastClaimBlock {
         // it claims tokens
         // it emits {TokensClaimed}
 
@@ -114,14 +114,14 @@ contract ClaimTokensTest is BttBase {
         assertLe(ERC20Mock(mParams.token).balanceOf(alice), aliceTokensBefore + bid.tokensFilled, 'tokens filled');
     }
 
-    modifier whenGraduated() {
+    modifier givenGraduated() {
         _;
     }
 
     function test_WhenTokensFilledIsZero(AuctionFuzzConstructorParams memory _params, uint256 _blockNumber)
         external
-        whenPastClaimBlock
-        whenGraduated
+        givenPastClaimBlock
+        givenGraduated
     {
         // it does not emit {TokensClaimed}
         // it does not transfer tokens

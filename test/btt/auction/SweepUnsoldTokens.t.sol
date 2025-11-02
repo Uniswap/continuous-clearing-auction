@@ -134,7 +134,10 @@ contract SweepUnsoldTokensTest is BttBase {
         auction.claimTokens(bidId);
 
         assertApproxEqAbs(
-            ERC20Mock(mParams.token).balanceOf(address(auction)), 0, MAX_ALLOWABLE_DUST_WEI, 'more than dust left in the contract'
+            ERC20Mock(mParams.token).balanceOf(address(auction)),
+            0,
+            MAX_ALLOWABLE_DUST_WEI,
+            'more than dust left in the contract'
         );
     }
 

@@ -1,7 +1,7 @@
 SweepCurrencyTest
 ├── when amount EQ 0
 │   ├── it writes sweepCurrencyBlock
-│   ├── it does not transfer currency to the funds recipient
+│   ├── it does not transfer currency to funds recipient
 │   └── it emits {CurrencySwept}
 └── when amount GT 0
     ├── it writes sweepCurrencyBlock

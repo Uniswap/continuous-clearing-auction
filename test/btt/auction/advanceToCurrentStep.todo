@@ -1,0 +1,3 @@
+AdvanceToCurrentStep
+# when start block LT last checkpoint
+# when start block GE last checkpoint

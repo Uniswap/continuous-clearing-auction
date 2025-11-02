@@ -83,6 +83,9 @@ contract OnTokensReceivedTest is BttBase {
             // 1 read of TOKEN.balanceOf(address(this))
             // 1 read when writing
             assertEq(reads.length, 3);
+
+            bool tokensReceived = uint256(vm.load(address(auction), writes[0])) & 1 == 1;
+            assertEq(tokensReceived, true);
         }
     }
 }

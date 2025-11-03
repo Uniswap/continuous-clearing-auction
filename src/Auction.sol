@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 import {AuctionStepStorage} from './AuctionStepStorage.sol';
 import {BidStorage} from './BidStorage.sol';
 import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
@@ -18,14 +20,12 @@ import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 /// @title Auction
 /// @custom:security-contact security@uniswap.org
 /// @notice Implements a time weighted uniform clearing price auction
 /// @dev Can be constructed directly or through the AuctionFactory. In either case, users must validate
-///      that the auction parameters are correct and it has sufficient token balance.
+///      that the auction parameters are correct and not incorrectly set.
 contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStorage, TokenCurrencyStorage, IAuction {
     using FixedPointMathLib for *;
     using CurrencyLibrary for Currency;
@@ -110,7 +110,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
     function onTokensReceived() external {
         // Don't check balance or emit the TokensReceived event if the tokens have already been received
         if ($_tokensReceived) return;
-        // Use the normal totalSupply value instead of the scaled up X7 value
+        // Use the normal totalSupply value instead of the Q96 value
         if (TOKEN.balanceOf(address(this)) < TOTAL_SUPPLY) {
             revert InvalidTokenAmountReceived();
         }
@@ -126,7 +126,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
     /// @notice Whether the auction has graduated as of the given checkpoint
     /// @dev The auction is considered `graudated` if the currency raised is greater than or equal to the required currency raised
     function _isGraduated() internal view returns (bool) {
-        return $currencyRaisedQ96_X7.gte(REQUIRED_CURRENCY_RAISED_Q96.scaleUpToX7());
+        return $currencyRaisedQ96_X7.gte(REQUIRED_CURRENCY_RAISED_Q96_X7);
     }
 
     /// @inheritdoc IAuction

@@ -26,7 +26,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     address internal immutable TOKENS_RECIPIENT;
     /// @notice The recipient of the raised Currency from the auction
     address internal immutable FUNDS_RECIPIENT;
-    /// @notice The amount of currency required to be raised for the auction 
+    /// @notice The amount of currency required to be raised for the auction
     ///         to graduate in Q96 form, scaled up by X7
     ValueX7 internal immutable REQUIRED_CURRENCY_RAISED_Q96_X7;
 

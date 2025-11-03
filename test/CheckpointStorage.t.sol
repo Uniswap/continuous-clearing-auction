@@ -72,17 +72,12 @@ contract CheckpointStorageTest is Assertions, Test {
     }
 
     function test_insertCheckpoint_fuzz_succeeds(uint8 n) public {
-        for (uint8 i = 0; i < n; i++) {
+        for (uint8 i = 1; i < n; i++) {
             Checkpoint memory _checkpoint;
             mockCheckpointStorage.insertCheckpoint(_checkpoint, i);
             _checkpoint = mockCheckpointStorage.getCheckpoint(i);
-            if (i > 0) {
-                assertEq(_checkpoint.prev, i - 1);
-                assertEq(_checkpoint.next, type(uint64).max);
-            } else {
-                assertEq(_checkpoint.prev, 0);
-                assertEq(_checkpoint.next, type(uint64).max);
-            }
+            assertEq(_checkpoint.prev, i - 1);
+            assertEq(_checkpoint.next, type(uint64).max);
         }
     }
 

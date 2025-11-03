@@ -38,14 +38,16 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     /// @dev This function updates the prev and next pointers of the latest checkpoint and the new checkpoint
     function _insertCheckpoint(Checkpoint memory checkpoint, uint64 blockNumber) internal {
         uint64 _lastCheckpointedBlock = $lastCheckpointedBlock;
-        // Enforce strictly increasing checkpoint block numbers after the first insert
-        if (_lastCheckpointedBlock != 0 && blockNumber <= _lastCheckpointedBlock) {
-            revert CheckpointBlockNotIncreasing();
-        }
-        if (_lastCheckpointedBlock != 0) $_checkpoints[_lastCheckpointedBlock].next = blockNumber;
+        // Enforce strictly increasing checkpoint block numbers
+        if (blockNumber <= _lastCheckpointedBlock) revert CheckpointBlockNotIncreasing();
+        // Link new checkpoint to the previous checkpoint
         checkpoint.prev = _lastCheckpointedBlock;
         checkpoint.next = MAX_BLOCK_NUMBER;
+        // Link previous checkpoint to the new checkpoint
+        $_checkpoints[_lastCheckpointedBlock].next = blockNumber;
+        // Write the new checkpoint
         $_checkpoints[blockNumber] = checkpoint;
+        // Update the last checkpointed block
         $lastCheckpointedBlock = blockNumber;
     }
 

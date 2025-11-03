@@ -27,14 +27,7 @@ import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 /// @notice Implements a time weighted uniform clearing price auction
 /// @dev Can be constructed directly or through the AuctionFactory. In either case, users must validate
 ///      that the auction parameters are correct and it has sufficient token balance.
-contract Auction is
-    BidStorage,
-    CheckpointStorage,
-    AuctionStepStorage,
-    TickStorage,
-    TokenCurrencyStorage,
-    IAuction
-{
+contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStorage, TokenCurrencyStorage, IAuction {
     using FixedPointMathLib for *;
     using CurrencyLibrary for Currency;
     using BidLib for *;

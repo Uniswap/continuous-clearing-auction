@@ -14,7 +14,7 @@ import {Currency} from 'twap-auction/libraries/CurrencyLibrary.sol';
 contract SweepCurrencyTest is BttBase {
     function test_WhenAmountEQ0(bool _isNativeCurrency, uint64 _blockNumber) external {
         // it writes sweepCurrencyBlock
-        // it does not transfer currency to the funds recipient
+        // it does not transfer currency to funds recipient
         // it emits {CurrencySwept}
 
         vm.roll(_blockNumber);
@@ -30,12 +30,11 @@ contract SweepCurrencyTest is BttBase {
         assertEq(Currency.wrap(currency).balanceOf(address(tokenCurrencyStorage)), 0);
         assertEq(Currency.wrap(currency).balanceOf(address(fundsRecipient)), 0);
 
-        if (!_isNativeCurrency) {
-            vm.expectCall(currency, abi.encodeWithSelector(IERC20.transfer.selector, address(fundsRecipient), 0), 0);
-        }
-
         if (_isNativeCurrency) {
             vm.startStateDiffRecording();
+        } else {
+            // Expect 0 calls to transfer
+            vm.expectCall(currency, abi.encodeWithSelector(IERC20.transfer.selector, address(fundsRecipient), 0), 0);
         }
 
         tokenCurrencyStorage.sweepCurrency(0);
@@ -52,7 +51,6 @@ contract SweepCurrencyTest is BttBase {
                     callCountToFundsRecipient++;
                 }
             }
-            // Expect 0 calls to transfer
             assertEq(callCountToFundsRecipient, 0);
         }
 

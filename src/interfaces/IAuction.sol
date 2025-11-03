@@ -170,9 +170,9 @@ interface IAuction is
     /// @notice Exit a bid which has been partially filled
     /// @dev This function can be used only for partially filled bids. For fully filled bids, `exitBid` must be used
     /// @param bidId The id of the bid
-    /// @param lower The last checkpointed block where the clearing price is strictly < bid.maxPrice
+    /// @param lastFullyFilledCheckpointBlock The last checkpointed block where the clearing price is strictly < bid.maxPrice
     /// @param outbidBlock The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction
-    function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 outbidBlock) external;
+    function exitPartiallyFilledBid(uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock) external;
 
     /// @notice Claim tokens after the auction's claim block
     /// @notice The bid must be exited before claiming tokens
@@ -182,7 +182,7 @@ interface IAuction is
 
     /// @notice Claim tokens for multiple bids
     /// @dev Anyone can claim tokens for bids of the same owner, the tokens are transferred to the owner
-    /// @dev All tokens are transferred in a single transfer
+    /// @dev A TokensClaimed event is emitted for each bid but only one token transfer will be made
     /// @param owner The owner of the bids
     /// @param bidIds The ids of the bids
     function claimTokensBatch(address owner, uint256[] calldata bidIds) external;

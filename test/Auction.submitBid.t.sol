@@ -112,4 +112,69 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
         Checkpoint memory checkpoint = auction.checkpoint();
         assertEq(checkpoint.clearingPrice, maxPrice, 'checkpoint clearing price is not equal to max price');
     }
+
+    function test_WhenCalculatedBidMaxPriceWouldCauseTotalSupplyTimesMaxPriceTimesMPSToOverflow(FuzzDeploymentParams memory _deploymentParams)
+        public
+        givenFullyFundedAccount
+    {
+        _deploymentParams.totalSupply = type(uint128).max - 1;
+        vm.assume(_deploymentParams.auctionParams.floorPrice > 2);
+        _deploymentParams.auctionParams.tickSpacing = 2;
+        _deploymentParams.numberOfSteps = 2;
+        setUpAuction(_deploymentParams);
+
+        uint256 expectedMaxBidPrice = type(uint256).max / auction.totalSupply();
+
+        uint256 maxPrice = auction.MAX_BID_PRICE();
+        assertEq(maxPrice, expectedMaxBidPrice, 'maxPrice is not equal to expectedMaxBidPrice');
+        maxPrice = helper__roundPriceDownToTickSpacing(maxPrice, params.tickSpacing);
+        // Assert that we didn't fall below after rounding down to tick spacing
+        assertEq(
+            maxPrice,
+            auction.MAX_BID_PRICE(),
+            'maxPrice is not equal to MAX_BID_PRICE after rounding down to tick spacing'
+        );
+
+        // Assert that the auction was setup correctly
+        assertTrue(auction.startBlock() + 2 == auction.endBlock(), 'start block + 1 should be equal to end block');
+
+        vm.roll(auction.startBlock());
+        // Since we can't bid more than uint128 in a single bid,
+        // we need to submit many bids to raise the price up to the max price.
+        uint256 maxBidCurrencyAmount = type(uint128).max;
+        uint256 maxBidTokenAmount = maxBidCurrencyAmount * FixedPoint96.Q96 / maxPrice;
+        // Factor in the MPS term here
+        uint256 numBidsRequired = totalSupply / (maxBidTokenAmount * ConstantsLib.MPS);
+        // Show that we need a lot of bids to raise the price to the max price
+        assertEq(numBidsRequired, 429, 'numBidsRequired is not 429');
+
+        // We can only submit 429 bids of uint128.max in to the auction until the
+        // sumDemandAboveClearingQ96 becomes too large.
+        // Observe that this is the same number as the test above
+        for (uint256 i = 0; i < 429; i++) {
+            auction.submitBid{value: maxBidCurrencyAmount}(
+                maxPrice, uint128(maxBidCurrencyAmount), alice, params.floorPrice, bytes('')
+            );
+        }
+
+        // Show that another bid would revert and be blocked
+        vm.expectRevert(IAuction.InvalidBidUnableToClear.selector);
+        auction.submitBid{value: maxBidCurrencyAmount}(
+            maxPrice, uint128(maxBidCurrencyAmount), alice, params.floorPrice, bytes('')
+        );
+
+        // Show that checkpointing again does not clear the sumDemandAboveClearingQ96,
+        // since the price has not moved to the next tick
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+
+        // And that it is still not possible to submit another bid
+        vm.expectRevert(IAuction.InvalidBidUnableToClear.selector);
+        auction.submitBid{value: maxBidCurrencyAmount}(
+            maxPrice, uint128(maxBidCurrencyAmount), alice, params.floorPrice, bytes('')
+        );
+
+        // Thus, there is no way to submit more than 429 bids into the auction which would
+        // cause the operation TOTAL_SUPPLY * MAX_PRICE * MPS to overflow a uint256.
+    }
 }

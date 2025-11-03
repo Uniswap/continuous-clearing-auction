@@ -63,7 +63,7 @@ contract AuctionInvariantHandler is Test, Assertions {
 
     constructor(MockAuction _auction, address[] memory _actors) {
         mockAuction = _auction;
-        permit2 = IPermit2(mockAuction.PERMIT2());
+        permit2 = IPermit2(0x000000000022D473030F116dDEE9F6B43aC78BA3);
         currency = mockAuction.currency();
         token = mockAuction.token();
         actors = _actors;

@@ -2,7 +2,6 @@
 pragma solidity 0.8.26;
 
 import {TickStorage} from 'twap-auction/TickStorage.sol';
-import {ValueX7} from 'twap-auction/libraries/ValueX7Lib.sol';
 
 contract MockTickStorage is TickStorage {
     constructor(uint256 _tickSpacing, uint256 _floorPrice) TickStorage(_tickSpacing, _floorPrice) {}

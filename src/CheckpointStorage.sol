@@ -2,23 +2,15 @@
 pragma solidity 0.8.26;
 
 import {ICheckpointStorage} from './interfaces/ICheckpointStorage.sol';
-import {AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointAccountingLib} from './libraries/CheckpointAccountingLib.sol';
 import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @title CheckpointStorage
 /// @notice Abstract contract for managing auction checkpoints and bid fill calculations
 abstract contract CheckpointStorage is ICheckpointStorage {
-    using FixedPointMathLib for *;
-    using AuctionStepLib for *;
-    using BidLib for *;
-    using CheckpointLib for Checkpoint;
-    using ValueX7Lib for *;
-
     /// @notice Maximum block number value used as sentinel for last checkpoint
     uint64 public constant MAX_BLOCK_NUMBER = type(uint64).max;
 
@@ -33,7 +25,7 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     }
 
     /// @inheritdoc ICheckpointStorage
-    function clearingPrice() public view returns (uint256) {
+    function clearingPrice() external view returns (uint256) {
         return _getCheckpoint($lastCheckpointedBlock).clearingPrice;
     }
 
@@ -90,12 +82,12 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     }
 
     /// @inheritdoc ICheckpointStorage
-    function lastCheckpointedBlock() external view override(ICheckpointStorage) returns (uint64) {
+    function lastCheckpointedBlock() external view returns (uint64) {
         return $lastCheckpointedBlock;
     }
 
     /// @inheritdoc ICheckpointStorage
-    function checkpoints(uint64 blockNumber) external view override(ICheckpointStorage) returns (Checkpoint memory) {
+    function checkpoints(uint64 blockNumber) external view returns (Checkpoint memory) {
         return $_checkpoints[blockNumber];
     }
 }

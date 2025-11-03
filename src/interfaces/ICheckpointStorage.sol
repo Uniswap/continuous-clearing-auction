@@ -27,5 +27,6 @@ interface ICheckpointStorage {
     function lastCheckpointedBlock() external view returns (uint64);
 
     /// @notice Get a checkpoint at a block number
+    /// @param blockNumber The block number to get the checkpoint for
     function checkpoints(uint64 blockNumber) external view returns (Checkpoint memory);
 }

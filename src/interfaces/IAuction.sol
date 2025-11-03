@@ -41,6 +41,8 @@ interface IAuction is
 
     /// @notice Error thrown when not enough amount is deposited
     error InvalidAmount();
+    /// @notice Error thrown when the bid owner is the zero address
+    error BidOwnerCannotBeZeroAddress();
     /// @notice Error thrown when the bid price is below the clearing price
     error BidMustBeAboveClearingPrice();
     /// @notice Error thrown when the bid price is too high given the auction's total supply
@@ -97,11 +99,12 @@ interface IAuction is
     /// @param blockNumber The block number of the checkpoint
     /// @param clearingPrice The clearing price of the checkpoint
     /// @param cumulativeMps The cumulative percentage of total tokens allocated across all previous steps, represented in ten-millionths of the total supply (1e7 = 100%)
-    event CheckpointUpdated(uint256 indexed blockNumber, uint256 indexed clearingPrice, uint24 cumulativeMps);
+    event CheckpointUpdated(uint256 blockNumber, uint256 clearingPrice, uint24 cumulativeMps);
 
     /// @notice Emitted when the clearing price is updated
+    /// @param blockNumber The block number when the clearing price was updated
     /// @param clearingPrice The new clearing price
-    event ClearingPriceUpdated(uint256 indexed blockNumber, uint256 clearingPrice);
+    event ClearingPriceUpdated(uint256 blockNumber, uint256 clearingPrice);
 
     /// @notice Emitted when a bid is exited
     /// @param bidId The id of the bid
@@ -148,8 +151,7 @@ interface IAuction is
     function checkpoint() external returns (Checkpoint memory _checkpoint);
 
     /// @notice Whether the auction has graduated as of the given checkpoint
-    /// @dev The auction is considered `graudated` if the clearing price is greater than the floor price
-    ///      since that means it has sold all of the total supply of tokens.
+    /// @dev The auction is considered `graudated` if the total currency raised exceeds the required currency raised
     /// @dev Be aware that the latest checkpoint may be out of date
     /// @return bool True if the auction has graduated, false otherwise
     function isGraduated() external view returns (bool);

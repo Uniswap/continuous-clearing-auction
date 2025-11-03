@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
-import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
+import {ValueX7} from '../src/libraries/ValueX7Lib.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {Test} from 'forge-std/Test.sol';
 

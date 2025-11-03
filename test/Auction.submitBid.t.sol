@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Auction} from '../src/Auction.sol';
 import {IAuction} from '../src/interfaces/IAuction.sol';
 import {AuctionParameters} from '../src/interfaces/IAuction.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
@@ -176,5 +175,15 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
 
         // Thus, there is no way to submit more than 429 bids into the auction which would
         // cause the operation TOTAL_SUPPLY * MAX_PRICE * MPS to overflow a uint256.
+    }
+    
+    function test_submitBid_revertsWithBidOwnerCannotBeZeroAddress(FuzzDeploymentParams memory _deploymentParams)
+        public
+        setUpAuctionFuzz(_deploymentParams)
+        givenAuctionHasStarted
+        givenFullyFundedAccount
+    {
+        vm.expectRevert(IAuction.BidOwnerCannotBeZeroAddress.selector);
+        auction.submitBid{value: 1}(1, 1, address(0), params.floorPrice, bytes(''));
     }
 }

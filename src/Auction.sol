@@ -137,7 +137,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
     /// @notice Return the currency raised in uint256 representation
     /// @return The currency raised
     function _currencyRaised() internal view returns (uint256) {
-        return $currencyRaisedQ96_X7.scaleDownToUint256() >> FixedPoint96.RESOLUTION;
+        return $currencyRaisedQ96_X7.divUint256(FixedPoint96.Q96).scaleDownToUint256();
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`

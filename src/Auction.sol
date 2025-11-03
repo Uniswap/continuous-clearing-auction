@@ -4,7 +4,6 @@ pragma solidity 0.8.26;
 import {AuctionStepStorage} from './AuctionStepStorage.sol';
 import {BidStorage} from './BidStorage.sol';
 import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
-import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
 import {TokenCurrencyStorage} from './TokenCurrencyStorage.sol';
 import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
@@ -19,7 +18,6 @@ import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
-import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
@@ -29,15 +27,7 @@ import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 /// @notice Implements a time weighted uniform clearing price auction
 /// @dev Can be constructed directly or through the AuctionFactory. In either case, users must validate
 ///      that the auction parameters are correct and it has sufficient token balance.
-contract Auction is
-    BidStorage,
-    CheckpointStorage,
-    AuctionStepStorage,
-    TickStorage,
-    PermitSingleForwarder,
-    TokenCurrencyStorage,
-    IAuction
-{
+contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStorage, TokenCurrencyStorage, IAuction {
     using FixedPointMathLib for *;
     using CurrencyLibrary for Currency;
     using BidLib for *;
@@ -76,7 +66,6 @@ contract Auction is
             _parameters.requiredCurrencyRaised
         )
         TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
-        PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
     {
         CLAIM_BLOCK = _parameters.claimBlock;
         VALIDATION_HOOK = IValidationHook(_parameters.validationHook);

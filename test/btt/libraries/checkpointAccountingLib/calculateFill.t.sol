@@ -78,7 +78,7 @@ contract CalculateFillTest is BttBase {
         assertEq(currencySpent, 1);
     }
 
-    function test_WhenTokensFilledRoundsDown(Bid memory _bid, uint24 _cumulativeMpsDelta)
+    function test_WhenTokensFilledRoundsDownToZero(Bid memory _bid, uint24 _cumulativeMpsDelta)
         external
         whenBidAmountQ96GT0
         whenCumulativeMpsDeltaGT0AndCumulativeMpsPerPriceDeltaGT0

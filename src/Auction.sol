@@ -492,7 +492,7 @@ contract Auction is
 
         // Get the last fully filled checkpoint from the user's provided hint
         Checkpoint memory lastFullyFilledCheckpoint = _getCheckpoint(lastFullyFilledCheckpointBlock);
-        // Since `lower` points to the last fully filled Checkpoint, it must be < bid.maxPrice
+        // Since `lastFullyFilledCheckpointBlock` points to the last fully filled Checkpoint, it must be < bid.maxPrice
         // The next Checkpoint after `lastFullyFilledCheckpoint` must be partially or fully filled (clearingPrice >= bid.maxPrice)
         // `lastFullyFilledCheckpoint` also cannot be before the bid's startCheckpoint
         if (
@@ -562,9 +562,11 @@ contract Auction is
         if (!_isGraduated()) revert NotGraduated();
 
         (address owner, uint256 tokensFilled) = _internalClaimTokens(_bidId);
-        Currency.wrap(address(TOKEN)).transfer(owner, tokensFilled);
 
-        emit TokensClaimed(_bidId, owner, tokensFilled);
+        if (tokensFilled > 0) {
+            Currency.wrap(address(TOKEN)).transfer(owner, tokensFilled);
+            emit TokensClaimed(_bidId, owner, tokensFilled);
+        }
     }
 
     /// @inheritdoc IAuction
@@ -585,10 +587,14 @@ contract Auction is
 
             tokensFilled += bidTokensFilled;
 
-            emit TokensClaimed(_bidIds[i], bidOwner, bidTokensFilled);
+            if (bidTokensFilled > 0) {
+                emit TokensClaimed(_bidIds[i], bidOwner, bidTokensFilled);
+            }
         }
 
-        Currency.wrap(address(TOKEN)).transfer(_owner, tokensFilled);
+        if (tokensFilled > 0) {
+            Currency.wrap(address(TOKEN)).transfer(_owner, tokensFilled);
+        }
     }
 
     /// @notice Internal function to claim tokens for a single bid

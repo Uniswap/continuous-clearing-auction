@@ -1,74 +1,65 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity 0.8.26;
 
 import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
 
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {Auction} from 'src/Auction.sol';
 import {IAuction} from 'src/interfaces/IAuction.sol';
 import {ConstantsLib} from 'src/libraries/ConstantsLib.sol';
 
-contract AuctionConstructorTest is BttBase {
-    function test_WhenClaimBlockLTEndBlock(AuctionFuzzConstructorParams memory _params)
-        external
-        setupAuctionConstructorParams(_params)
-    {
+contract ConstructorTest is BttBase {
+    function test_WhenClaimBlockLTEndBlock(AuctionFuzzConstructorParams memory _params) external {
         // it reverts with {ClaimBlockIsBeforeEndBlock}
 
-        // Set the claim block to be less than the end block
-        _params.parameters.claimBlock = uint64(bound(_params.parameters.claimBlock, 0, _params.parameters.endBlock - 1));
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        mParams.parameters.claimBlock = uint64(bound(mParams.parameters.claimBlock, 0, mParams.parameters.endBlock - 1));
 
         vm.expectRevert(IAuction.ClaimBlockIsBeforeEndBlock.selector);
-        new Auction(_params.token, _params.totalSupply, _params.parameters);
+        new Auction(mParams.token, mParams.totalSupply, mParams.parameters);
     }
 
-    function test_WhenTypeUint256MaxDivTotalSupplyGTUniV4MaxTick(AuctionFuzzConstructorParams memory _params)
-        external
-        setupAuctionConstructorParams(_params)
-    {
-        // it sets bid max price to be uni v4 max tick
-
-        // Assume total supply to be tiny - uniswap max tick is 224 bits, to anything less than a uint32 should do it
-        _params.totalSupply = uint128(bound(_params.totalSupply, 1, type(uint32).max));
-
-        Auction auction = new Auction(_params.token, _params.totalSupply, _params.parameters);
-
-        assertEq(auction.MAX_BID_PRICE(), ConstantsLib.MAX_BID_PRICE);
+    modifier whenClaimBlockGEEndBlock() {
+        _;
     }
 
-    function test_WhenTypeUint256MaxDivTotalSupplyLTUniV4MaxTick(AuctionFuzzConstructorParams memory _params)
-        external
-        setupAuctionConstructorParams(_params)
-    {
-        // it sets bid max price to be type(uint256).max / totalSupply
-
-        // Anything greater than a uint32 should do it
-        _params.totalSupply = uint128(bound(_params.totalSupply, uint128(type(uint40).max), type(uint128).max));
-        uint256 expectedBidMaxPrice = type(uint256).max / _params.totalSupply;
-
-        Auction auction = new Auction(_params.token, _params.totalSupply, _params.parameters);
-
-        assertEq(auction.MAX_BID_PRICE(), expectedBidMaxPrice);
-    }
-
-    function test_WhenClaimBlockGEEndBlock(AuctionFuzzConstructorParams memory _params)
-        external
-        setupAuctionConstructorParams(_params)
-    {
+    function test_WhenUint256MaxDivTotalSupplyGEUniV4MaxTick(
+        AuctionFuzzConstructorParams memory _params,
+        uint64 _claimBlock,
+        uint128 _totalSupply
+    ) external whenClaimBlockGEEndBlock {
         // it writes CLAIM_BLOCK
         // it writes VALIDATION_HOOK
-        // it writes BID_MAX_PRICE
+        // it writes BID_MAX_PRICE as uni v4 max tick
 
-        _params.parameters.claimBlock =
-            uint64(bound(_params.parameters.claimBlock, _params.parameters.endBlock, type(uint64).max));
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        mParams.parameters.claimBlock = uint64(bound(_claimBlock, mParams.parameters.endBlock, type(uint64).max));
+        mParams.totalSupply = uint128(bound(_totalSupply, 1, type(uint256).max / ConstantsLib.MAX_BID_PRICE));
 
-        uint256 expectedBidMaxPrice =
-            FixedPointMathLib.min(type(uint256).max / _params.totalSupply, ConstantsLib.MAX_BID_PRICE);
+        Auction auction = new Auction(mParams.token, mParams.totalSupply, mParams.parameters);
 
-        Auction auction = new Auction(_params.token, _params.totalSupply, _params.parameters);
+        assertEq(auction.MAX_BID_PRICE(), ConstantsLib.MAX_BID_PRICE);
+        assertEq(auction.claimBlock(), mParams.parameters.claimBlock);
+        assertEq(address(auction.validationHook()), address(mParams.parameters.validationHook));
+    }
 
-        assertEq(auction.claimBlock(), _params.parameters.claimBlock);
-        assertEq(address(auction.validationHook()), _params.parameters.validationHook);
-        assertEq(auction.MAX_BID_PRICE(), expectedBidMaxPrice);
+    function test_WhenUint256MaxDivTotalSupplyLEUniV4MaxTick(
+        AuctionFuzzConstructorParams memory _params,
+        uint64 _claimBlock,
+        uint128 _totalSupply
+    ) external whenClaimBlockGEEndBlock {
+        // it writes CLAIM_BLOCK
+        // it writes VALIDATION_HOOK
+        // it writes BID_MAX_PRICE as type(uint256).max / totalSupply
+
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        mParams.parameters.claimBlock = uint64(bound(_claimBlock, mParams.parameters.endBlock, type(uint64).max));
+        mParams.totalSupply =
+            uint128(bound(_totalSupply, type(uint256).max / ConstantsLib.MAX_BID_PRICE + 1, type(uint128).max));
+
+        Auction auction = new Auction(mParams.token, mParams.totalSupply, mParams.parameters);
+
+        assertEq(auction.MAX_BID_PRICE(), type(uint256).max / mParams.totalSupply);
+        assertEq(auction.claimBlock(), mParams.parameters.claimBlock);
+        assertEq(address(auction.validationHook()), address(mParams.parameters.validationHook));
     }
 }

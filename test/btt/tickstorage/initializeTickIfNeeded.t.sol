@@ -78,7 +78,7 @@ contract InitializeTickIfNeededTest is BttBase {
         // it returns early
 
         // Overwrite the storage directly to trigger early initialization.
-        stdstore.target(address(tickStorage)).sig(ITickStorage.getTick.selector).with_key(price).depth(0)
+        stdstore.target(address(tickStorage)).sig(ITickStorage.ticks.selector).with_key(price).depth(0)
             .checked_write(type(uint256).max);
 
         vm.record();
@@ -184,8 +184,8 @@ contract InitializeTickIfNeededTest is BttBase {
         (, bytes32[] memory writes) = vm.accesses(address(tickStorage));
         assertEq(writes.length, 2, 'should write 2 slots');
 
-        assertEq(tickStorage.getTick(firstPrice).next, price);
-        assertEq(tickStorage.getTick(price).next, type(uint256).max);
+        assertEq(tickStorage.ticks(firstPrice).next, price);
+        assertEq(tickStorage.ticks(price).next, type(uint256).max);
     }
 
     function test_GivenWeInsertRightBeforeTheNextActiveTickPrice(
@@ -228,8 +228,8 @@ contract InitializeTickIfNeededTest is BttBase {
         (, bytes32[] memory writes) = vm.accesses(address(tickStorage));
         assertEq(writes.length, 3, 'should write 3 slots');
 
-        assertEq(tickStorage.getTick(floorPrice).next, price);
-        assertEq(tickStorage.getTick(price).next, firstPrice);
+        assertEq(tickStorage.ticks(floorPrice).next, price);
+        assertEq(tickStorage.ticks(price).next, firstPrice);
         assertEq(tickStorage.nextActiveTickPrice(), price);
     }
 }

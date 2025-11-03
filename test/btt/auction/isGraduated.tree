@@ -1,5 +1,5 @@
 IsGraduatedTest
-├── given latestCheckpoint price LE FLOOR_PRICE
+├── given raised is LT required
 │   └── it returns false
-└── given latestCheckpoint price GT FLOOR_PRICE
+└── given raised is GE required
     └── it returns true

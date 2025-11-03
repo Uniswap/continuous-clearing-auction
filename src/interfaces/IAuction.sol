@@ -41,6 +41,8 @@ interface IAuction is
 
     /// @notice Error thrown when not enough amount is deposited
     error InvalidAmount();
+    /// @notice Error thrown when the bid owner is the zero address
+    error BidOwnerCannotBeZeroAddress();
     /// @notice Error thrown when the bid price is below the clearing price
     error BidMustBeAboveClearingPrice();
     /// @notice Error thrown when the bid price is too high given the auction's total supply
@@ -97,11 +99,12 @@ interface IAuction is
     /// @param blockNumber The block number of the checkpoint
     /// @param clearingPrice The clearing price of the checkpoint
     /// @param cumulativeMps The cumulative percentage of total tokens allocated across all previous steps, represented in ten-millionths of the total supply (1e7 = 100%)
-    event CheckpointUpdated(uint256 indexed blockNumber, uint256 indexed clearingPrice, uint24 cumulativeMps);
+    event CheckpointUpdated(uint256 blockNumber, uint256 clearingPrice, uint24 cumulativeMps);
 
     /// @notice Emitted when the clearing price is updated
+    /// @param blockNumber The block number when the clearing price was updated
     /// @param clearingPrice The new clearing price
-    event ClearingPriceUpdated(uint256 indexed blockNumber, uint256 clearingPrice);
+    event ClearingPriceUpdated(uint256 blockNumber, uint256 clearingPrice);
 
     /// @notice Emitted when a bid is exited
     /// @param bidId The id of the bid
@@ -148,8 +151,7 @@ interface IAuction is
     function checkpoint() external returns (Checkpoint memory _checkpoint);
 
     /// @notice Whether the auction has graduated as of the given checkpoint
-    /// @dev The auction is considered `graudated` if the clearing price is greater than the floor price
-    ///      since that means it has sold all of the total supply of tokens.
+    /// @dev The auction is considered `graudated` if the total currency raised exceeds the required currency raised
     /// @dev Be aware that the latest checkpoint may be out of date
     /// @return bool True if the auction has graduated, false otherwise
     function isGraduated() external view returns (bool);
@@ -168,9 +170,9 @@ interface IAuction is
     /// @notice Exit a bid which has been partially filled
     /// @dev This function can be used only for partially filled bids. For fully filled bids, `exitBid` must be used
     /// @param bidId The id of the bid
-    /// @param lower The last checkpointed block where the clearing price is strictly < bid.maxPrice
+    /// @param lastFullyFilledCheckpointBlock The last checkpointed block where the clearing price is strictly < bid.maxPrice
     /// @param outbidBlock The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction
-    function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 outbidBlock) external;
+    function exitPartiallyFilledBid(uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock) external;
 
     /// @notice Claim tokens after the auction's claim block
     /// @notice The bid must be exited before claiming tokens
@@ -180,7 +182,7 @@ interface IAuction is
 
     /// @notice Claim tokens for multiple bids
     /// @dev Anyone can claim tokens for bids of the same owner, the tokens are transferred to the owner
-    /// @dev All tokens are transferred in a single transfer
+    /// @dev A TokensClaimed event is emitted for each bid but only one token transfer will be made
     /// @param owner The owner of the bids
     /// @param bidIds The ids of the bids
     function claimTokensBatch(address owner, uint256[] calldata bidIds) external;

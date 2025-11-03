@@ -1,0 +1,20 @@
+SweepUnsoldTokensTest
+├── when auction not over
+│   └── it reverts with {AuctionIsNotOver}
+└── when auction is over
+    ├── given previously swept
+    │   └── it reverts with {CannotSweepTokens}
+    └── given not previously swept
+        ├── given graduated
+        │   ├── it sweeps 0 tokens
+        │   ├── it writes sweepUnsoldTokensBlock
+        │   ├── it does NOT call transfer
+        │   ├── it emits {TokensSwept}
+        │   └── it only has dust after bids are claimed
+        └── given not graduated
+            ├── it sweeps total supply tokens
+            ├── it writes sweepUnsoldTokensBlock
+            ├── it calls transfer
+            ├── it emits {TokensSwept}
+            ├── it has no balance
+            └── it has increased the balance of the tokens recipient

@@ -1,27 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Auction} from '../src/Auction.sol';
-import {Tick, TickStorage} from '../src/TickStorage.sol';
-import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
+import {IAuction} from '../src/interfaces/IAuction.sol';
 import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
-import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
-import {FixedPoint128} from '../src/libraries/FixedPoint128.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
+import {ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionUnitTest} from './unit/AuctionUnitTest.sol';
 import {Assertions} from './utils/Assertions.sol';
-import {FuzzDeploymentParams} from './utils/FuzzStructs.sol';
 import {MockAuction} from './utils/MockAuction.sol';
 import {Test} from 'forge-std/Test.sol';
-import {console} from 'forge-std/console.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
@@ -308,6 +302,9 @@ contract AuctionInvariantHandler is Test, Assertions {
         mockAuction.exitPartiallyFilledBid(outbidBidId, lower, upper);
         // Refetch the bid data, which now has `tokensFilled` set
         bid = mockAuction.bids(outbidBidId);
+        uint256 maximumTokensFilled =
+            FixedPointMathLib.min(BidLib.toEffectiveAmount(bid) / mockAuction.floorPrice(), mockAuction.totalSupply());
+        assertLe(bid.tokensFilled, maximumTokensFilled, 'Bid tokens filled must be less than the maximum tokens filled');
 
         uint256 refundAmount = bid.owner.balance - ownerBalanceBefore;
         totalCurrencyRaised += bid.amountQ96 / FixedPoint96.Q96 - refundAmount;
@@ -467,6 +464,13 @@ contract AuctionInvariantTest is AuctionUnitTest {
             bid = mockAuction.bids(bidId);
             if (bid.tokensFilled == 0) continue;
             assertEq(bid.exitedBlock, block.number);
+
+            uint256 maximumTokensFilled = FixedPointMathLib.min(
+                BidLib.toEffectiveAmount(bid) / mockAuction.floorPrice(), mockAuction.totalSupply()
+            );
+            assertLe(
+                bid.tokensFilled, maximumTokensFilled, 'Bid tokens filled must be less than the maximum tokens filled'
+            );
         }
 
         vm.roll(mockAuction.claimBlock());

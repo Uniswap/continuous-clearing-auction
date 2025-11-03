@@ -10,7 +10,7 @@ import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 import {AuctionBaseTest} from '../utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from '../utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from '../utils/AuctionStepsBuilder.sol';
-import {FuzzBid, FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
+import {FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
 import {MockAuction} from '../utils/MockAuction.sol';
 
 contract AuctionUnitTest is AuctionBaseTest {

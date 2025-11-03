@@ -55,6 +55,8 @@ interface IAuction is
     error TokensNotReceived();
     /// @notice Error thrown when the claim block is before the end block
     error ClaimBlockIsBeforeEndBlock();
+    /// @notice Error thrown when the floor price is above the computed maximum bid price
+    error FloorPriceAboveMaxBidPrice(uint256 floorPrice, uint256 maxBidPrice);
     /// @notice Error thrown when the bid has already been exited
     error BidAlreadyExited();
     /// @notice Error thrown when the bid is higher than the clearing price

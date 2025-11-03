@@ -42,6 +42,33 @@ contract ConstructorTest is BttBase {
         assertEq(address(auction.validationHook()), address(mParams.parameters.validationHook));
     }
 
+    modifier whenUint256MaxDivTotalSupplyGEUniV4MaxTick() {
+        _;
+    }
+
+    function test_WhenFloorPriceGTConstantsLibMaxBidPrice(
+        AuctionFuzzConstructorParams memory _params,
+        uint256 _tickSpacing,
+        uint256 _floorPrice,
+        uint128 _totalSupply
+    ) external whenUint256MaxDivTotalSupplyGEUniV4MaxTick {
+        // it reverts with {FloorPriceAboveMaxBidPrice}
+
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        // Set total supply such that the computed max bid price is greater than the ConstantsLib.MAX_BID_PRICE
+        mParams.totalSupply = uint128(bound(_totalSupply, 1, type(uint256).max / ConstantsLib.MAX_BID_PRICE + 1));
+        mParams.parameters.floorPrice = bound(_floorPrice, ConstantsLib.MAX_BID_PRICE + 1, type(uint256).max);
+        // Easy default to pass the tick boundary check
+        mParams.parameters.tickSpacing = mParams.parameters.floorPrice;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAuction.FloorPriceAboveMaxBidPrice.selector, mParams.parameters.floorPrice, ConstantsLib.MAX_BID_PRICE
+            )
+        );
+        new Auction(mParams.token, mParams.totalSupply, mParams.parameters);
+    }
+
     function test_WhenUint256MaxDivTotalSupplyLEUniV4MaxTick(
         AuctionFuzzConstructorParams memory _params,
         uint64 _claimBlock,
@@ -61,5 +88,34 @@ contract ConstructorTest is BttBase {
         assertEq(auction.MAX_BID_PRICE(), type(uint256).max / mParams.totalSupply);
         assertEq(auction.claimBlock(), mParams.parameters.claimBlock);
         assertEq(address(auction.validationHook()), address(mParams.parameters.validationHook));
+    }
+
+    modifier whenUint256MaxDivTotalSupplyLEUniV4MaxTick() {
+        _;
+    }
+
+    function test_WhenFloorPriceGTComputedMaxBidPrice(
+        AuctionFuzzConstructorParams memory _params,
+        uint256 _tickSpacing,
+        uint256 _floorPrice,
+        uint128 _totalSupply
+    ) external whenUint256MaxDivTotalSupplyGEUniV4MaxTick {
+        // it reverts with {FloorPriceAboveMaxBidPrice}
+
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        // Set total supply such that the computed max bid price is less than the ConstantsLib.MAX_BID_PRICE
+        mParams.totalSupply =
+            uint128(bound(_totalSupply, type(uint256).max / ConstantsLib.MAX_BID_PRICE + 1, type(uint128).max));
+        uint256 computedMaxBidPrice = type(uint256).max / mParams.totalSupply;
+        mParams.parameters.floorPrice = bound(_floorPrice, computedMaxBidPrice + 1, type(uint256).max);
+        // Easy default to pass the tick boundary check
+        mParams.parameters.tickSpacing = mParams.parameters.floorPrice;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAuction.FloorPriceAboveMaxBidPrice.selector, mParams.parameters.floorPrice, computedMaxBidPrice
+            )
+        );
+        new Auction(mParams.token, mParams.totalSupply, mParams.parameters);
     }
 }

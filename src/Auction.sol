@@ -87,6 +87,10 @@ contract Auction is
         // We cannot support bids at prices which cause TOTAL_SUPPLY * maxPrice to overflow a uint256
         // However, for tokens with large total supplys and low decimals it would be possible to exceed the Uniswap v4's max tick price
         MAX_BID_PRICE = FixedPointMathLib.min(type(uint256).max / TOTAL_SUPPLY, ConstantsLib.MAX_BID_PRICE);
+        // Revert if the floor price is above the computed maximum bid price
+        if (_parameters.floorPrice > MAX_BID_PRICE) {
+            revert FloorPriceAboveMaxBidPrice(_parameters.floorPrice, MAX_BID_PRICE);
+        }
     }
 
     /// @notice Modifier for functions which can only be called after the auction is over

@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 import {BttBase} from 'btt/BttBase.sol';
 import {MockCheckpointStorage} from 'btt/mocks/MockCheckpointStorage.sol';
 import {Checkpoint} from 'twap-auction/libraries/CheckpointLib.sol';
+import {ICheckpointStorage} from 'twap-auction/interfaces/ICheckpointStorage.sol';
 
 contract InsertCheckpointTest is BttBase {
     MockCheckpointStorage public mockCheckpointStorage;
@@ -12,6 +13,24 @@ contract InsertCheckpointTest is BttBase {
 
     function setUp() external {
         mockCheckpointStorage = new MockCheckpointStorage();
+    }
+
+    function test_GivenBlockNumberLTELastCheckpointedBlock(
+        Checkpoint memory _checkpoint,
+        uint64 _blockNumber,
+        Checkpoint memory _checkpoint2,
+        uint64 _blockNumber2
+    ) external {
+        // it reverts with {CheckpointBlockNotIncreasing}
+
+        // Assume block number is not zero as this cannot happen realistically and would break monotonicity constraints due to uninitialized $lastCheckpointedBlock
+        vm.assume(_blockNumber > 0);
+
+        mockCheckpointStorage.insertCheckpoint(_checkpoint, _blockNumber);
+        vm.assume(_blockNumber2 <= _blockNumber);
+
+        vm.expectRevert(ICheckpointStorage.CheckpointBlockNotIncreasing.selector);
+        mockCheckpointStorage.insertCheckpoint(_checkpoint, _blockNumber2);
     }
 
     function test_GivenLastCheckpointedBlock(

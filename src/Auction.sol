@@ -229,7 +229,7 @@ contract Auction is
         // Convert currency to tokens at price, rounding up, and update global cleared tokens.
         // Intentional round-up leaves a small amount of dust to sweep, ensuring cleared tokens never exceed TOTAL_SUPPLY
         // even when using rounded-up clearing prices on tick boundaries.
-        uint256 tokensClearedQ96X7 = FixedPointMathLib.fullMulDivUp(currencyFromAboveQ96X7, FixedPoint96.Q96, priceQ96);
+        uint256 tokensClearedQ96X7 = currencyFromAboveQ96X7.fullMulDivUp(FixedPoint96.Q96, priceQ96);
         $totalClearedQ96_X7 = ValueX7.wrap(ValueX7.unwrap($totalClearedQ96_X7) + tokensClearedQ96X7);
         // Update global currency raised
         $currencyRaisedQ96_X7 = ValueX7.wrap(ValueX7.unwrap($currencyRaisedQ96_X7) + currencyFromAboveQ96X7);

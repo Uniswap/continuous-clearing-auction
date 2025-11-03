@@ -443,10 +443,10 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
+    /// @dev The call to `submitBid` checks `onlyActiveAuction` so it's not required on this function
     function submitBid(uint256 maxPrice, uint128 amount, address owner, bytes calldata hookData)
         external
         payable
-        onlyActiveAuction
         returns (uint256)
     {
         return submitBid(maxPrice, amount, owner, FLOOR_PRICE, hookData);

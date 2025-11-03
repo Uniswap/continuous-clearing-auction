@@ -99,22 +99,22 @@ abstract contract TickStorage is ITickStorage {
 
     // Getters
     /// @inheritdoc ITickStorage
-    function floorPrice() external view override(ITickStorage) returns (uint256) {
+    function floorPrice() external view returns (uint256) {
         return FLOOR_PRICE;
     }
 
     /// @inheritdoc ITickStorage
-    function tickSpacing() external view override(ITickStorage) returns (uint256) {
+    function tickSpacing() external view returns (uint256) {
         return TICK_SPACING;
     }
 
     /// @inheritdoc ITickStorage
-    function nextActiveTickPrice() external view override(ITickStorage) returns (uint256) {
+    function nextActiveTickPrice() external view returns (uint256) {
         return $nextActiveTickPrice;
     }
 
     /// @inheritdoc ITickStorage
-    function ticks(uint256 price) external view override(ITickStorage) returns (Tick memory) {
+    function ticks(uint256 price) external view returns (Tick memory) {
         return _getTick(price);
     }
 }

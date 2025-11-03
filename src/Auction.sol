@@ -4,7 +4,6 @@ pragma solidity 0.8.26;
 import {AuctionStepStorage} from './AuctionStepStorage.sol';
 import {BidStorage} from './BidStorage.sol';
 import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
-import {PermitSingleForwarder} from './PermitSingleForwarder.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
 import {TokenCurrencyStorage} from './TokenCurrencyStorage.sol';
 import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
@@ -16,11 +15,9 @@ import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
-import {FixedPoint128} from './libraries/FixedPoint128.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
-import {IAllowanceTransfer} from 'permit2/src/interfaces/IAllowanceTransfer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
@@ -35,7 +32,6 @@ contract Auction is
     CheckpointStorage,
     AuctionStepStorage,
     TickStorage,
-    PermitSingleForwarder,
     TokenCurrencyStorage,
     IAuction
 {
@@ -77,7 +73,6 @@ contract Auction is
             _parameters.requiredCurrencyRaised
         )
         TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
-        PermitSingleForwarder(IAllowanceTransfer(PERMIT2))
     {
         CLAIM_BLOCK = _parameters.claimBlock;
         VALIDATION_HOOK = IValidationHook(_parameters.validationHook);
@@ -138,7 +133,7 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function currencyRaised() public view returns (uint256) {
+    function currencyRaised() external view returns (uint256) {
         return _currencyRaised();
     }
 
@@ -433,6 +428,7 @@ contract Auction is
     {
         // Bids cannot be submitted at the endBlock or after
         if (block.number >= END_BLOCK) revert AuctionIsOver();
+        if (owner == address(0)) revert BidOwnerCannotBeZeroAddress();
         if (CURRENCY.isAddressZero()) {
             if (msg.value != amount) revert InvalidAmount();
         } else {
@@ -443,10 +439,10 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
+    /// @dev The call to `submitBid` checks `onlyActiveAuction` so it's not required on this function
     function submitBid(uint256 maxPrice, uint128 amount, address owner, bytes calldata hookData)
-        public
+        external
         payable
-        onlyActiveAuction
         returns (uint256)
     {
         return submitBid(maxPrice, amount, owner, FLOOR_PRICE, hookData);
@@ -637,32 +633,32 @@ contract Auction is
 
     // Getters
     /// @inheritdoc IAuction
-    function claimBlock() external view override(IAuction) returns (uint64) {
+    function claimBlock() external view returns (uint64) {
         return CLAIM_BLOCK;
     }
 
     /// @inheritdoc IAuction
-    function validationHook() external view override(IAuction) returns (IValidationHook) {
+    function validationHook() external view returns (IValidationHook) {
         return VALIDATION_HOOK;
     }
 
     /// @inheritdoc IAuction
-    function currencyRaisedQ96_X7() external view override(IAuction) returns (ValueX7) {
+    function currencyRaisedQ96_X7() external view returns (ValueX7) {
         return $currencyRaisedQ96_X7;
     }
 
     /// @inheritdoc IAuction
-    function sumCurrencyDemandAboveClearingQ96() external view override(IAuction) returns (uint256) {
+    function sumCurrencyDemandAboveClearingQ96() external view returns (uint256) {
         return $sumCurrencyDemandAboveClearingQ96;
     }
 
     /// @inheritdoc IAuction
-    function totalClearedQ96_X7() external view override(IAuction) returns (ValueX7) {
+    function totalClearedQ96_X7() external view returns (ValueX7) {
         return $totalClearedQ96_X7;
     }
 
     /// @inheritdoc IAuction
-    function totalCleared() external view override(IAuction) returns (uint256) {
+    function totalCleared() external view returns (uint256) {
         return $totalClearedQ96_X7.divUint256(FixedPoint96.Q96).scaleDownToUint256();
     }
 }

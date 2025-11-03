@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Auction} from '../src/Auction.sol';
-import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
+import {IAuction} from '../src/interfaces/IAuction.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
+import {ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
-import {FuzzBid, FuzzDeploymentParams} from './utils/FuzzStructs.sol';
-import {console2} from 'forge-std/console2.sol';
+import {FuzzDeploymentParams} from './utils/FuzzStructs.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 

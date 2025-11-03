@@ -1,0 +1,15 @@
+SellTokensAtClearingPriceTest
+├── when clearing price not at tick
+│   ├── it increase raised by demand per mps times delta mps
+│   ├── it increases cumulative mps by delta mps
+│   └── it increases cumulative mps per price by delta mps / price
+└── when clearing price at tick
+    ├── when demand at clearing price EQ 0
+    │   ├── it increase raised by demand per mps times delta mps
+    │   ├── it increases cumulative mps by delta mps
+    │   └── it increases cumulative mps per price by delta mps / price
+    └── when demand at clearing price GT 0
+        ├── it computes currency needed to fill at current price (total supply * clearing price * delta mps) - (demand above clearing * delta mps)
+        ├── it computes currency available to fill at current price (demand at clearing price * delta mps)
+        ├── it increases checkpoint raised at price with min(needed, available)
+        └── it increases the currency raised with min(needed, available)

@@ -15,10 +15,9 @@ contract AuctionFactory is IAuctionFactory {
     /// @inheritdoc IDistributionStrategy
     function initializeDistribution(address token, uint256 amount, bytes calldata configData, bytes32 salt)
         external
-        override(IDistributionStrategy)
         returns (IDistributionContract distributionContract)
     {
-        if (amount > type(uint128).max) revert InvalidAmount(amount);
+        if (amount > type(uint128).max) revert InvalidTokenAmount(amount);
 
         AuctionParameters memory parameters = abi.decode(configData, (AuctionParameters));
         // If the tokensRecipient is address(1), set it to the msg.sender
@@ -35,12 +34,11 @@ contract AuctionFactory is IAuctionFactory {
 
     /// @inheritdoc IAuctionFactory
     function getAuctionAddress(address token, uint256 amount, bytes calldata configData, bytes32 salt, address sender)
-        public
+        external
         view
-        override(IAuctionFactory)
         returns (address)
     {
-        if (amount > type(uint128).max) revert InvalidAmount(amount);
+        if (amount > type(uint128).max) revert InvalidTokenAmount(amount);
         AuctionParameters memory parameters = abi.decode(configData, (AuctionParameters));
         // If the tokensRecipient is address(1), set it to the msg.sender
         if (parameters.tokensRecipient == ActionConstants.MSG_SENDER) parameters.tokensRecipient = sender;

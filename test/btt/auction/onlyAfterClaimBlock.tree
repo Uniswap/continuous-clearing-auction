@@ -1,0 +1,5 @@
+OnlyAfterClaimBlockTest
+├── when block number LT claimBlock
+│   └── it reverts with {NotClaimable}
+└── when block number GE claimBlock
+    └── it does not revert

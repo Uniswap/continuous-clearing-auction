@@ -15,7 +15,7 @@ contract GetBidTest is BttBase {
     function test_WhenBidDoesNotExist(uint256 _bidId) external {
         // it reverts with {BidIdDoesNotExist}
 
-        vm.expectRevert(IBidStorage.BidIdDoesNotExist.selector);
+        vm.expectRevert(abi.encodeWithSelector(IBidStorage.BidIdDoesNotExist.selector, _bidId));
         bidStorage.getBid(_bidId);
     }
 

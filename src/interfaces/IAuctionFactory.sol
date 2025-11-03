@@ -6,14 +6,14 @@ import {IDistributionStrategy} from './external/IDistributionStrategy.sol';
 /// @title IAuctionFactory
 interface IAuctionFactory is IDistributionStrategy {
     /// @notice Error thrown when the amount is invalid
-    error InvalidAmount(uint256 amount);
+    error InvalidTokenAmount(uint256 amount);
 
     /// @notice Emitted when an auction is created
     /// @param auction The address of the auction contract
     /// @param token The address of the token
     /// @param amount The amount of tokens to sell
     /// @param configData The configuration data for the auction
-    event AuctionCreated(address indexed auction, address token, uint256 amount, bytes configData);
+    event AuctionCreated(address indexed auction, address indexed token, uint256 amount, bytes configData);
 
     /// @notice Get the address of an auction contract
     /// @param token The address of the token

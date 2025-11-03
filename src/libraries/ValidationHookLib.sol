@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.4;
 
 import {IValidationHook} from '../interfaces/IValidationHook.sol';
 
@@ -21,8 +21,9 @@ library ValidationHookLib {
     ) internal {
         if (address(hook) == address(0)) return;
 
-        (bool success, bytes memory reason) = address(hook)
-            .call(abi.encodeWithSelector(IValidationHook.validate.selector, maxPrice, amount, owner, sender, hookData));
-        if (!success) revert ValidationHookCallFailed(reason);
+        try hook.validate(maxPrice, amount, owner, sender, hookData) {}
+        catch (bytes memory reason) {
+            revert ValidationHookCallFailed(reason);
+        }
     }
 }

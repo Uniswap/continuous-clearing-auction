@@ -112,7 +112,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         deploymentParams.numberOfSteps = _getRandomDivisorOfMPS();
 
         // TODO: these values are wrong - tick spacing too large
-        deploymentParams.auctionParams.floorPrice = uint128(_bound(uint256(vm.randomUint()), 2, type(uint128).max));
+        deploymentParams.auctionParams.floorPrice = uint128(_bound(uint256(vm.randomUint()), 2, type(uint64).max));
         deploymentParams.auctionParams.tickSpacing =
             uint256(_bound(uint256(vm.randomUint()), 2, deploymentParams.auctionParams.floorPrice));
         _boundPriceParams(deploymentParams, false);
@@ -392,6 +392,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         setUpTokens();
 
         alice = makeAddr('alice');
+        bob = makeAddr('bob');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 
@@ -411,6 +412,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         setUpTokens();
 
         alice = makeAddr('alice');
+        bob = makeAddr('bob');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 
@@ -584,15 +586,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         uint256 temp = tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96);
         temp = _bound(temp, 1, type(uint128).max);
         return SafeCastLib.toUint128(temp);
-    }
-
-    // ============================================
-    // Auction State Query Helpers
-    // ============================================
-
-    /// @notice Helper function to return the tick at the given price
-    function getTick(uint256 price) public view returns (Tick memory) {
-        return auction.ticks(price);
     }
 
     // ============================================

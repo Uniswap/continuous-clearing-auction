@@ -15,7 +15,7 @@ abstract contract BidStorage is IBidStorage {
     /// @param bidId The id of the bid to get
     /// @return bid The bid
     function _getBid(uint256 bidId) internal view returns (Bid storage) {
-        if (bidId >= $_nextBidId) revert BidIdDoesNotExist();
+        if (bidId >= $_nextBidId) revert BidIdDoesNotExist(bidId);
         return $_bids[bidId];
     }
 
@@ -47,12 +47,12 @@ abstract contract BidStorage is IBidStorage {
 
     /// Getters
     /// @inheritdoc IBidStorage
-    function nextBidId() external view override(IBidStorage) returns (uint256) {
+    function nextBidId() external view returns (uint256) {
         return $_nextBidId;
     }
 
     /// @inheritdoc IBidStorage
-    function bids(uint256 bidId) external view override(IBidStorage) returns (Bid memory) {
+    function bids(uint256 bidId) external view returns (Bid memory) {
         return _getBid(bidId);
     }
 }

@@ -3,16 +3,13 @@ pragma solidity 0.8.26;
 
 import {Auction} from '../src/Auction.sol';
 import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
-import {BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
-import {Assertions} from './utils/Assertions.sol';
+import {ValueX7} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
-import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @title AuctionStepDiffTest

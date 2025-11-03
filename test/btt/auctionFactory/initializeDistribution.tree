@@ -1,6 +1,6 @@
 InitializeDistributionTest
 ├── when amount GT uint128 max
-│   └── it reverts with {InvalidAmount}
+│   └── it reverts with {InvalidTokenAmount}
 └── when amount LE uint128 max
     ├── when tokensRecipient EQ ActionConstants MSG_SENDER
     │   ├── when fundsRecipient EQ ActionConstants MSG_SENDER

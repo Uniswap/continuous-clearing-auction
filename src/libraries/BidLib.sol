@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.4;
 
 import {ConstantsLib} from './ConstantsLib.sol';
 
@@ -8,8 +8,8 @@ struct Bid {
     uint24 startCumulativeMps; // Cumulative mps at the start of the bid
     uint64 exitedBlock; // Block number when the bid was exited
     uint256 maxPrice; // The max price of the bid
-    address owner; // Who is allowed to exit the bid
-    uint256 amountQ96; // User's demand
+    address owner; // Who will receive the tokens filled and currency refunded
+    uint256 amountQ96; // User's currency amount in Q96 form
     uint256 tokensFilled; // Amount of tokens filled
 }
 
@@ -37,6 +37,6 @@ library BidLib {
     function toEffectiveAmount(Bid memory bid) internal pure returns (uint256) {
         uint24 mpsRemainingInAuction = bid.mpsRemainingInAuctionAfterSubmission();
         if (mpsRemainingInAuction == 0) revert MpsRemainingIsZero();
-        return (bid.amountQ96 * ConstantsLib.MPS) / mpsRemainingInAuction;
+        return bid.amountQ96 * ConstantsLib.MPS / mpsRemainingInAuction;
     }
 }

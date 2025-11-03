@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import {MockAuctionStepStorage} from 'btt/mocks/MockAuctionStepStorage.sol';
-
 import {BttBase, Step} from 'btt/BttBase.sol';
 import {CompactStep, CompactStepLib} from 'btt/libraries/auctionStepLib/StepUtils.sol';
+import {MockAuctionStepStorage} from 'btt/mocks/MockAuctionStepStorage.sol';
 import {SSTORE2} from 'solady/utils/SSTORE2.sol';
 import {IAuctionStepStorage} from 'twap-auction/interfaces/IAuctionStepStorage.sol';
 import {AuctionStep} from 'twap-auction/libraries/AuctionStepLib.sol';
+import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
 
 contract ValidateTest is BttBase {
     using SSTORE2 for *;
@@ -92,7 +92,9 @@ contract ValidateTest is BttBase {
         steps[0] = CompactStepLib.create(1e7 - 1, 1);
         bytes memory auctionStepsData = CompactStepLib.pack(steps);
 
-        vm.expectRevert(IAuctionStepStorage.InvalidStepDataMps.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(IAuctionStepStorage.InvalidStepDataMps.selector, 1e7 - 1, ConstantsLib.MPS)
+        );
         auctionStepStorage = new MockAuctionStepStorage(auctionStepsData, 1, 2);
     }
 
@@ -113,7 +115,7 @@ contract ValidateTest is BttBase {
         steps[0] = CompactStepLib.create(1e7, 1);
         bytes memory auctionStepsData = CompactStepLib.pack(steps);
 
-        vm.expectRevert(IAuctionStepStorage.InvalidEndBlockGivenStepData.selector);
+        vm.expectRevert(abi.encodeWithSelector(IAuctionStepStorage.InvalidEndBlockGivenStepData.selector, 2, 3));
         auctionStepStorage = new MockAuctionStepStorage(auctionStepsData, 1, 3);
     }
 

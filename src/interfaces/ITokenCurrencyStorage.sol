@@ -6,8 +6,6 @@ import {IERC20Minimal} from './external/IERC20Minimal.sol';
 
 /// @notice Interface for token and currency storage operations
 interface ITokenCurrencyStorage {
-    /// @notice Error thrown when the total supply is too large
-    error TotalSupplyIsTooLarge();
     /// @notice Error thrown when the token is the native currency
     error TokenIsAddressZero();
     /// @notice Error thrown when the token and currency are the same
@@ -24,8 +22,6 @@ interface ITokenCurrencyStorage {
     error CannotSweepTokens();
     /// @notice Error thrown when the auction has not graduated
     error NotGraduated();
-    /// @notice Error thrown when the required currency raised is too large
-    error RequiredCurrencyRaisedIsTooLarge();
 
     /// @notice Emitted when the tokens are swept
     /// @param tokensRecipient The address of the tokens recipient

@@ -20,7 +20,7 @@ contract UpdateTickDemandTest is BttBase {
 
         uint256 expectedDemand = 0;
 
-        assertEq(tickStorage.getTick(price).currencyDemandQ96, expectedDemand);
+        assertEq(tickStorage.ticks(price).currencyDemandQ96, expectedDemand);
 
         vm.expectRevert(ITickStorage.CannotUpdateUninitializedTick.selector);
         tickStorage.updateTickDemand(price, _demand);
@@ -45,11 +45,10 @@ contract UpdateTickDemandTest is BttBase {
         uint256 expectedDemand = 0;
 
         for (uint256 i = 0; i < _demand.length; i++) {
-            assertEq(tickStorage.getTick(price).currencyDemandQ96, expectedDemand);
+            assertEq(tickStorage.ticks(price).currencyDemandQ96, expectedDemand);
             tickStorage.updateTickDemand(price, _demand[i]);
             expectedDemand += _demand[i];
         }
-        assertEq(tickStorage.getTick(price).currencyDemandQ96, expectedDemand);
         assertEq(tickStorage.ticks(price).currencyDemandQ96, expectedDemand);
     }
 }

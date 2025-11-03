@@ -306,6 +306,9 @@ contract AuctionInvariantHandler is Test, Assertions {
         mockAuction.exitPartiallyFilledBid(outbidBidId, lower, upper);
         // Refetch the bid data, which now has `tokensFilled` set
         bid = mockAuction.bids(outbidBidId);
+        uint256 maximumTokensFilled =
+            FixedPointMathLib.min(BidLib.toEffectiveAmount(bid) / mockAuction.floorPrice(), mockAuction.totalSupply());
+        assertLe(bid.tokensFilled, maximumTokensFilled, 'Bid tokens filled must be less than the maximum tokens filled');
 
         uint256 refundAmount = bid.owner.balance - ownerBalanceBefore;
         totalCurrencyRaised += bid.amountQ96 / FixedPoint96.Q96 - refundAmount;
@@ -465,6 +468,13 @@ contract AuctionInvariantTest is AuctionUnitTest {
             bid = mockAuction.bids(bidId);
             if (bid.tokensFilled == 0) continue;
             assertEq(bid.exitedBlock, block.number);
+
+            uint256 maximumTokensFilled = FixedPointMathLib.min(
+                BidLib.toEffectiveAmount(bid) / mockAuction.floorPrice(), mockAuction.totalSupply()
+            );
+            assertLe(
+                bid.tokensFilled, maximumTokensFilled, 'Bid tokens filled must be less than the maximum tokens filled'
+            );
         }
 
         vm.roll(mockAuction.claimBlock());

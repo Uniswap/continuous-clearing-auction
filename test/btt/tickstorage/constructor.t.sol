@@ -92,7 +92,7 @@ contract ConstructorTest is BttBase {
         assertEq(tickStorage.floorPrice(), floorPrice);
         assertEq(tickStorage.tickSpacing(), tickSpacing);
         assertEq(tickStorage.nextActiveTickPrice(), type(uint256).max);
-        assertEq(tickStorage.getTick(floorPrice).next, type(uint256).max);
-        assertEq(tickStorage.getTick(floorPrice).currencyDemandQ96, 0);
+        assertEq(tickStorage.ticks(floorPrice).next, type(uint256).max);
+        assertEq(tickStorage.ticks(floorPrice).currencyDemandQ96, 0);
     }
 }

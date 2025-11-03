@@ -1,0 +1,11 @@
+CalculateFillTest
+├── when bid amountQ96 eq 0
+│   └── it returns 0 tokens filled and 0 currency spent
+└── when bid amountQ96 gt 0
+    ├── when cumulativeMpsDelta eq 0 and cumulativeMpsPerPriceDelta eq 0
+    │   └── it returns 0 tokens filled and 0 currency spent
+    └── when cumulativeMpsDelta gt 0 and cumulativeMpsPerPriceDelta gt 0
+        ├── when currencySpent rounds down to 0
+        │   └── it returns 1 currency spent
+        └── when tokens filled rounds down to 0
+            └── it returns 0 tokens filled

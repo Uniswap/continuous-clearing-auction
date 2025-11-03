@@ -1,0 +1,12 @@
+ClaimTokensTest
+├── given block number is LT claim block
+│   └── it reverts with {NotClaimable}
+└── given block number is GTE claim block
+    ├── when not graduated
+    │   └── it reverts with {NotGraduated}
+    └── when graduated
+        ├── it claims tokens
+        └── it emits {TokensClaimed}
+            └── when tokens filled eq 0
+                ├── it does not emit {TokensClaimed}
+                └── it does not transfer tokens

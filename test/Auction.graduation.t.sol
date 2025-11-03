@@ -280,10 +280,13 @@ contract AuctionGraduationTest is AuctionBaseTest {
 
         vm.roll(auction.claimBlock());
         uint256 aliceTokensBefore = token.balanceOf(alice);
-        vm.expectEmit(true, true, true, true);
-        emit IAuction.TokensClaimed(bidId, alice, bid.tokensFilled);
-        auction.claimTokens(bidId);
-        assertEq(token.balanceOf(alice), bid.tokensFilled);
+
+        if (bid.tokensFilled > 0) {
+            vm.expectEmit(true, true, true, true);
+            emit IAuction.TokensClaimed(bidId, alice, bid.tokensFilled);
+            auction.claimTokens(bidId);
+            assertEq(token.balanceOf(alice), bid.tokensFilled);
+        }
 
         assertApproxEqAbs(
             auction.totalCleared(),

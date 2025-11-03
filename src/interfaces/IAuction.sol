@@ -99,11 +99,12 @@ interface IAuction is
     /// @param blockNumber The block number of the checkpoint
     /// @param clearingPrice The clearing price of the checkpoint
     /// @param cumulativeMps The cumulative percentage of total tokens allocated across all previous steps, represented in ten-millionths of the total supply (1e7 = 100%)
-    event CheckpointUpdated(uint256 indexed blockNumber, uint256 indexed clearingPrice, uint24 cumulativeMps);
+    event CheckpointUpdated(uint256 blockNumber, uint256 clearingPrice, uint24 cumulativeMps);
 
     /// @notice Emitted when the clearing price is updated
+    /// @param blockNumber The block number when the clearing price was updated
     /// @param clearingPrice The new clearing price
-    event ClearingPriceUpdated(uint256 indexed blockNumber, uint256 clearingPrice);
+    event ClearingPriceUpdated(uint256 blockNumber, uint256 clearingPrice);
 
     /// @notice Emitted when a bid is exited
     /// @param bidId The id of the bid

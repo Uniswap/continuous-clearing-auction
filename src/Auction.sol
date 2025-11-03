@@ -232,10 +232,13 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         uint64 end = $step.endBlock;
 
         uint24 mps = $step.mps;
+        uint24 deltaMps;
         while (blockNumber > end) {
             uint64 blockDelta = end - start;
             // Checks in the constructor ensure that blockDelta * mps will not be larger than ConstantsLib.MPS
-            uint24 deltaMps = uint24(blockDelta * mps);
+            unchecked { 
+                deltaMps = uint24(blockDelta * mps); 
+            }
             _checkpoint = _sellTokensAtClearingPrice(_checkpoint, deltaMps);
             start = end;
             if (end == END_BLOCK) break;
@@ -252,12 +255,12 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
     /// @return The new clearing price
     function _iterateOverTicksAndFindClearingPrice(Checkpoint memory _checkpoint) internal returns (uint256) {
         // The clearing price can never be lower than the last checkpoint.
-        uint256 minimumClearingPrice = _checkpoint.clearingPrice;
+        // If the clearing price is zero, set it to the floor price
+        uint256 minimumClearingPrice = _checkpoint.clearingPrice.coalesce(FLOOR_PRICE);
         // If there are no more remaining mps in the auction, we don't need to iterate over ticks
         // and we can return the minimum clearing price above
         if (_checkpoint.remainingMpsInAuction() == 0) {
-            // If clearing price is zero, set it to the floor price
-            return _checkpoint.clearingPrice.coalesce(FLOOR_PRICE);
+            return minimumClearingPrice;
         }
 
         // Place state variables on the stack to save gas
@@ -308,10 +311,6 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         if (clearingPrice < minimumClearingPrice) {
             return minimumClearingPrice;
         }
-        // Special case for the first checkpoint where the clearing price is zero, we set it to the floor price
-        else if (minimumClearingPrice == 0) {
-            return FLOOR_PRICE;
-        }
         // Otherwise, return the calculated clearing price
         else {
             return clearingPrice;
@@ -332,6 +331,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         if (clearingPrice != _checkpoint.clearingPrice) {
             // Set the new clearing price
             _checkpoint.clearingPrice = clearingPrice;
+            // Reset the currencyRaisedAtClearingPrice to zero since the clearing price has changed
             _checkpoint.currencyRaisedAtClearingPriceQ96_X7 = ValueX7.wrap(0);
             emit ClearingPriceUpdated(blockNumber, clearingPrice);
         }
@@ -341,9 +341,12 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         _checkpoint = _advanceToCurrentStep(_checkpoint, blockNumber);
 
         // Now account for any time in between this checkpoint and the greater of the start of the step or the last checkpointed block
-        uint64 blockDelta = blockNumber - uint64(FixedPointMathLib.max($step.startBlock, $lastCheckpointedBlock));
-        // Checks in the constructor ensure that blockDelta * mps will not be larger than ConstantsLib.MPS
-        uint24 mpsSinceLastCheckpoint = uint24($step.mps * blockDelta);
+        // Checks in the constructor ensure that blockDelta * mps will not be larger than ConstantsLib.MPS, which is less than type(uint24).max
+        uint24 mpsSinceLastCheckpoint;
+        unchecked {
+            mpsSinceLastCheckpoint =
+                uint24($step.mps * (blockNumber - FixedPointMathLib.max($step.startBlock, $lastCheckpointedBlock)));
+        }
 
         // Sell the percentage of outstanding tokens since the last checkpoint to the current clearing price
         _checkpoint = _sellTokensAtClearingPrice(_checkpoint, mpsSinceLastCheckpoint);

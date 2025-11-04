@@ -102,7 +102,9 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
 
     /// @notice Modifier for functions which require the latest checkpoint to be up to date
     modifier ensureEndBlockIsCheckpointed() {
-        if ($lastCheckpointedBlock != END_BLOCK) checkpoint();
+        if ($lastCheckpointedBlock != END_BLOCK) {
+            checkpoint();
+        }
         _;
     }
 

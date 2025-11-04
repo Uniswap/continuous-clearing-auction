@@ -216,11 +216,15 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
 
     /// @notice Fast forward to the start of the current step and return the number of `mps` sold since the last checkpoint
     /// @param _blockNumber The current block number
+    /// @param _lastCheckpointedBlock The block number of the last checkpointed block
     /// @return deltaMps The number of `mps` sold between the last checkpointed block and the start of the current step
-    function _advanceToStartOfCurrentStep(uint64 _blockNumber) internal returns (uint24 deltaMps) {
+    function _advanceToStartOfCurrentStep(uint64 _blockNumber, uint64 _lastCheckpointedBlock)
+        internal
+        returns (uint24 deltaMps)
+    {
         // Advance the current step until the current block is within the step
         // Start at the larger of the last checkpointed block or the start block of the current step
-        uint64 start = uint64(FixedPointMathLib.max($step.startBlock, $lastCheckpointedBlock));
+        uint64 start = uint64(FixedPointMathLib.max($step.startBlock, _lastCheckpointedBlock));
         uint64 end = $step.endBlock;
 
         uint24 mps = $step.mps;
@@ -307,7 +311,8 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
     ///      purely on the supply we will sell to the potentially updated `sumCurrencyDemandAboveClearingQ96` value
     /// @param blockNumber The block number to checkpoint at
     function _unsafeCheckpoint(uint64 blockNumber) internal returns (Checkpoint memory _checkpoint) {
-        if (blockNumber == $lastCheckpointedBlock) return latestCheckpoint();
+        uint64 lastCheckpointedBlock = $lastCheckpointedBlock;
+        if (blockNumber == lastCheckpointedBlock) return latestCheckpoint();
 
         _checkpoint = latestCheckpoint();
         uint256 clearingPrice = _iterateOverTicksAndFindClearingPrice(_checkpoint);
@@ -319,11 +324,11 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         }
 
         // Calculate the percentage of the supply that has been sold since the last checkpoint and the start of the current step
-        uint24 deltaMps = _advanceToStartOfCurrentStep(blockNumber);
+        uint24 deltaMps = _advanceToStartOfCurrentStep(blockNumber, lastCheckpointedBlock);
         // `deltaMps` above is equal to the percentage of tokens sold up until the start of the current step.
         // If the last checkpointed block is more recent than the start of the current step, account for the percentage
         // sold since the last checkpointed block. Otherwise, add the percent sold since the start of the current step.
-        uint64 blockDelta = blockNumber - uint64(FixedPointMathLib.max($step.startBlock, $lastCheckpointedBlock));
+        uint64 blockDelta = blockNumber - uint64(FixedPointMathLib.max($step.startBlock, lastCheckpointedBlock));
         unchecked {
             deltaMps += uint24(blockDelta * $step.mps);
         }

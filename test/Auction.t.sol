@@ -46,6 +46,10 @@ contract AuctionTest is AuctionBaseTest {
         setUpAuction();
     }
 
+    function test_Auction_codeSize() public {
+        vm.snapshotValue('Auction bytecode size', address(auction).code.length);
+    }
+
     function test_submitBid_beforeTokensReceived_reverts() public {
         Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(newAuction), TOTAL_SUPPLY);

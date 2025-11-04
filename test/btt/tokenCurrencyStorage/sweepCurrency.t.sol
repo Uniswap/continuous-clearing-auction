@@ -4,12 +4,9 @@ pragma solidity 0.8.26;
 import {BttBase} from 'btt/BttBase.sol';
 import {MockTokenCurrencyStorage} from 'btt/mocks/MockTokenCurrencyStorage.sol';
 import {ITokenCurrencyStorage} from 'twap-auction/interfaces/ITokenCurrencyStorage.sol';
-
 import {MockERC20} from 'btt/mocks/MockERC20.sol';
-
 import {Vm, VmSafe} from 'forge-std/Vm.sol';
 import {IERC20} from 'forge-std/interfaces/IERC20.sol';
-import {Currency} from 'twap-auction/libraries/CurrencyLibrary.sol';
 
 contract SweepCurrencyTest is BttBase {
     function test_WhenAmountEQ0(bool _isNativeCurrency, uint64 _blockNumber) external {
@@ -27,8 +24,8 @@ contract SweepCurrencyTest is BttBase {
 
         assertEq(tokenCurrencyStorage.sweepCurrencyBlock(), 0);
 
-        assertEq(Currency.wrap(currency).balanceOf(address(tokenCurrencyStorage)), 0);
-        assertEq(Currency.wrap(currency).balanceOf(address(fundsRecipient)), 0);
+        assertEq(address(tokenCurrencyStorage).balance, 0);
+        assertEq(address(fundsRecipient).balance, 0);
 
         if (_isNativeCurrency) {
             vm.startStateDiffRecording();
@@ -57,8 +54,8 @@ contract SweepCurrencyTest is BttBase {
         assertEq(
             tokenCurrencyStorage.sweepCurrencyBlock(), _blockNumber, 'sweepCurrencyBlock is not equal to block number'
         );
-        assertEq(Currency.wrap(currency).balanceOf(address(tokenCurrencyStorage)), 0);
-        assertEq(Currency.wrap(currency).balanceOf(address(fundsRecipient)), 0);
+        assertEq(address(tokenCurrencyStorage).balance, 0);
+        assertEq(address(fundsRecipient).balance, 0);
     }
 
     function test_WhenAmountGT0(bool _isNativeCurrency, uint256 _amount, uint64 _blockNumber) external {
@@ -82,8 +79,8 @@ contract SweepCurrencyTest is BttBase {
             deal(address(currency), address(tokenCurrencyStorage), amount);
         }
 
-        assertEq(Currency.wrap(currency).balanceOf(address(tokenCurrencyStorage)), amount);
-        assertEq(Currency.wrap(currency).balanceOf(address(fundsRecipient)), 0);
+        assertEq(address(tokenCurrencyStorage).balance, amount);
+        assertEq(address(fundsRecipient).balance, 0);
 
         if (!_isNativeCurrency) {
             vm.expectEmit(true, true, true, true, address(currency));
@@ -116,7 +113,7 @@ contract SweepCurrencyTest is BttBase {
         assertEq(
             tokenCurrencyStorage.sweepCurrencyBlock(), _blockNumber, 'sweepCurrencyBlock is not equal to block number'
         );
-        assertEq(Currency.wrap(currency).balanceOf(address(tokenCurrencyStorage)), 0);
-        assertEq(Currency.wrap(currency).balanceOf(address(fundsRecipient)), amount);
+        assertEq(address(tokenCurrencyStorage).balance, 0);
+        assertEq(address(fundsRecipient).balance, amount);
     }
 }

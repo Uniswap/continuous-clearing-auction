@@ -9,7 +9,6 @@ import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
-import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionUnitTest} from './unit/AuctionUnitTest.sol';
@@ -21,7 +20,6 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
 contract AuctionInvariantHandler is Test, Assertions {
-    using CurrencyLibrary for Currency;
     using FixedPointMathLib for *;
     using ValueX7Lib for *;
 
@@ -31,7 +29,7 @@ contract AuctionInvariantHandler is Test, Assertions {
     address[] public actors;
     address public currentActor;
 
-    Currency public currency;
+    address public currency;
     IERC20Minimal public token;
 
     uint256 public BID_MIN_PRICE;
@@ -222,19 +220,12 @@ contract AuctionInvariantHandler is Test, Assertions {
         }
 
         (uint128 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(bidAmount, _checkpoint.clearingPrice, tickNumber);
-        if (currency.isAddressZero()) {
-            vm.deal(currentActor, inputAmount);
-        } else {
-            deal(Currency.unwrap(currency), currentActor, inputAmount);
-            // Approve the auction to spend the currency
-            IERC20Minimal(Currency.unwrap(currency)).approve(address(permit2), type(uint256).max);
-            permit2.approve(Currency.unwrap(currency), address(mockAuction), type(uint160).max, type(uint48).max);
-        }
+        vm.deal(currentActor, inputAmount);
 
         uint256 prevTickPrice = _getLowerTick(maxPrice);
         uint256 nextBidId = mockAuction.nextBidId();
         emit log_named_decimal_uint('submitting bid with amount', inputAmount, 18);
-        try mockAuction.submitBid{value: currency.isAddressZero() ? inputAmount : 0}(
+        try mockAuction.submitBid{value: inputAmount}(
             maxPrice, inputAmount, currentActor, prevTickPrice, bytes('')
         ) {
             bidIds.push(nextBidId);

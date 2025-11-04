@@ -49,8 +49,6 @@ interface IAuction is
     error InvalidBidPriceTooHigh();
     /// @notice Error thrown when the bid amount is too small
     error BidAmountTooSmall();
-    /// @notice Error thrown when msg.value is non zero when currency is not ETH
-    error CurrencyIsNotNative();
     /// @notice Error thrown when the auction is not started
     error AuctionNotStarted();
     /// @notice Error thrown when the tokens required for the auction have not been received

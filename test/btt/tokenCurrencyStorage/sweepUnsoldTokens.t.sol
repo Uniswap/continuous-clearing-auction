@@ -4,10 +4,8 @@ pragma solidity 0.8.26;
 import {BttBase} from 'btt/BttBase.sol';
 import {MockTokenCurrencyStorage} from 'btt/mocks/MockTokenCurrencyStorage.sol';
 import {ITokenCurrencyStorage} from 'twap-auction/interfaces/ITokenCurrencyStorage.sol';
-
 import {MockERC20} from 'btt/mocks/MockERC20.sol';
 import {IERC20} from 'forge-std/interfaces/IERC20.sol';
-import {Currency} from 'twap-auction/libraries/CurrencyLibrary.sol';
 
 contract SweepUnsoldTokensTest is BttBase {
     function test_WhenAmountEQ0(uint64 _blockNumber) external {
@@ -18,10 +16,10 @@ contract SweepUnsoldTokensTest is BttBase {
         vm.roll(_blockNumber);
         address tokensRecipient = makeAddr('tokensRecipient');
 
-        Currency token = Currency.wrap(address(new MockERC20()));
+        IERC20 token = IERC20(address(new MockERC20()));
 
         MockTokenCurrencyStorage tokenCurrencyStorage =
-            new MockTokenCurrencyStorage(Currency.unwrap(token), address(1), 100e18, tokensRecipient, address(1), 0);
+            new MockTokenCurrencyStorage(address(token), address(0), 100e18, tokensRecipient, address(1), 0);
 
         assertEq(tokenCurrencyStorage.sweepUnsoldTokensBlock(), 0);
         assertEq(token.balanceOf(address(tokenCurrencyStorage)), 0);
@@ -48,18 +46,18 @@ contract SweepUnsoldTokensTest is BttBase {
         address tokensRecipient = makeAddr('tokensRecipient');
         uint256 amount = bound(_amount, 1, type(uint128).max);
 
-        Currency token = Currency.wrap(address(new MockERC20()));
+        IERC20 token = IERC20(address(new MockERC20()));
 
         MockTokenCurrencyStorage tokenCurrencyStorage =
-            new MockTokenCurrencyStorage(Currency.unwrap(token), address(1), 100e18, tokensRecipient, address(1), 0);
+            new MockTokenCurrencyStorage(address(token), address(0), 100e18, tokensRecipient, address(1), 0);
 
-        deal(Currency.unwrap(token), address(tokenCurrencyStorage), amount);
+        deal(address(token), address(tokenCurrencyStorage), amount);
         assertEq(token.balanceOf(address(tokenCurrencyStorage)), amount);
         assertEq(token.balanceOf(address(tokensRecipient)), 0);
 
         assertEq(tokenCurrencyStorage.sweepUnsoldTokensBlock(), 0);
 
-        vm.expectEmit(true, true, true, true, Currency.unwrap(token));
+        vm.expectEmit(true, true, true, true, address(token));
         emit IERC20.Transfer(address(tokenCurrencyStorage), tokensRecipient, amount);
 
         vm.expectEmit(true, true, true, true, address(tokenCurrencyStorage));

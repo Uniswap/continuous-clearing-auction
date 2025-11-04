@@ -4,17 +4,15 @@ pragma solidity 0.8.26;
 import {ITokenCurrencyStorage} from './interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
-import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValueX7} from './libraries/ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 /// @title TokenCurrencyStorage
 abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
-    using CurrencyLibrary for Currency;
-
     /// @notice The currency being raised in the auction
-    Currency internal immutable CURRENCY;
+    address internal immutable CURRENCY;
     /// @notice The token being sold in the auction
     IERC20Minimal internal immutable TOKEN;
     /// @notice The total supply of tokens to sell
@@ -42,13 +40,13 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         uint128 _requiredCurrencyRaised
     ) {
         if (_token == address(0)) revert TokenIsAddressZero();
-        if (_token == _currency) revert TokenAndCurrencyCannotBeTheSame();
+        if (_currency != address(0)) revert CurrencyMustBeNative();
         if (_totalSupply == 0) revert TotalSupplyIsZero();
         if (_tokensRecipient == address(0)) revert TokensRecipientIsZero();
         if (_fundsRecipient == address(0)) revert FundsRecipientIsZero();
 
         TOKEN = IERC20Minimal(_token);
-        CURRENCY = Currency.wrap(_currency);
+        CURRENCY = _currency;
         TOTAL_SUPPLY = _totalSupply;
         TOTAL_SUPPLY_Q96 = uint256(_totalSupply) << FixedPoint96.RESOLUTION;
         TOKENS_RECIPIENT = _tokensRecipient;
@@ -59,7 +57,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     function _sweepCurrency(uint256 amount) internal {
         sweepCurrencyBlock = block.number;
         if (amount > 0) {
-            CURRENCY.transfer(FUNDS_RECIPIENT, amount);
+            SafeTransferLib.safeTransferETH(FUNDS_RECIPIENT, amount);
         }
         emit CurrencySwept(FUNDS_RECIPIENT, amount);
     }
@@ -67,14 +65,14 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     function _sweepUnsoldTokens(uint256 amount) internal {
         sweepUnsoldTokensBlock = block.number;
         if (amount > 0) {
-            Currency.wrap(address(TOKEN)).transfer(TOKENS_RECIPIENT, amount);
+            SafeTransferLib.safeTransfer(address(TOKEN), TOKENS_RECIPIENT, amount);
         }
         emit TokensSwept(TOKENS_RECIPIENT, amount);
     }
 
     // Getters
     /// @inheritdoc ITokenCurrencyStorage
-    function currency() external view returns (Currency) {
+    function currency() external view returns (address) {
         return CURRENCY;
     }
 

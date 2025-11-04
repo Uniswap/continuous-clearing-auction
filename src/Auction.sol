@@ -14,7 +14,6 @@ import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
-import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
@@ -28,8 +27,8 @@ import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 /// @dev Can be constructed directly or through the AuctionFactory. In either case, users must validate
 ///      that the auction parameters are correct and it has sufficient token balance.
 contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStorage, TokenCurrencyStorage, IAuction {
+    using SafeTransferLib for address;
     using FixedPointMathLib for *;
-    using CurrencyLibrary for Currency;
     using BidLib for *;
     using AuctionStepLib for *;
     using CheckpointLib for Checkpoint;
@@ -396,7 +395,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         $bid.exitedBlock = uint64(block.number);
 
         if (refund > 0) {
-            CURRENCY.transfer(_owner, refund);
+            SafeTransferLib.safeTransferETH(_owner, refund);
         }
 
         emit BidExited(bidId, _owner, tokensFilled, refund);
@@ -422,12 +421,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         // Bids cannot be submitted at the endBlock or after
         if (block.number >= END_BLOCK) revert AuctionIsOver();
         if (owner == address(0)) revert BidOwnerCannotBeZeroAddress();
-        if (CURRENCY.isAddressZero()) {
-            if (msg.value != amount) revert InvalidAmount();
-        } else {
-            if (msg.value != 0) revert CurrencyIsNotNative();
-            SafeTransferLib.permit2TransferFrom(Currency.unwrap(CURRENCY), msg.sender, address(this), amount);
-        }
+        if (msg.value != amount) revert InvalidAmount();
         return _submitBid(maxPrice, amount, owner, prevTickPrice, hookData);
     }
 
@@ -553,7 +547,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         (address owner, uint256 tokensFilled) = _internalClaimTokens(_bidId);
 
         if (tokensFilled > 0) {
-            Currency.wrap(address(TOKEN)).transfer(owner, tokensFilled);
+            address(TOKEN).safeTransfer(owner, tokensFilled);
             emit TokensClaimed(_bidId, owner, tokensFilled);
         }
     }
@@ -582,7 +576,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         }
 
         if (tokensFilled > 0) {
-            Currency.wrap(address(TOKEN)).transfer(_owner, tokensFilled);
+            address(TOKEN).safeTransfer(_owner, tokensFilled);
         }
     }
 

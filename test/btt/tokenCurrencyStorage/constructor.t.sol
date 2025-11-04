@@ -4,7 +4,6 @@ pragma solidity 0.8.26;
 import {BttBase} from 'btt/BttBase.sol';
 import {MockTokenCurrencyStorage} from 'btt/mocks/MockTokenCurrencyStorage.sol';
 import {ITokenCurrencyStorage} from 'twap-auction/interfaces/ITokenCurrencyStorage.sol';
-import {Currency} from 'twap-auction/libraries/CurrencyLibrary.sol';
 
 contract ConstructorTest is BttBase {
     address $token;
@@ -72,8 +71,9 @@ contract ConstructorTest is BttBase {
         _;
     }
 
-    function test_WhenTokenEQCurrency(
+    function test_WhenCurrencyIsNotNative(
         address _token,
+        address _currency,
         uint128 _totalSupply,
         address _tokensRecipient,
         address _fundsRecipient,
@@ -84,19 +84,19 @@ contract ConstructorTest is BttBase {
         whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised)
         whenTokenNEQAddressZero(_token)
     {
-        // it reverts with {TokenAndCurrencyCannotBeTheSame}
+        // it reverts with {CurrencyMustBeNative}
 
-        $currency = $token;
+        vm.assume(_currency != address(0));
+        $currency = _currency;
         $tokensRecipient = _tokensRecipient;
         $fundsRecipient = _fundsRecipient;
 
-        vm.expectRevert(ITokenCurrencyStorage.TokenAndCurrencyCannotBeTheSame.selector);
+        vm.expectRevert(ITokenCurrencyStorage.CurrencyMustBeNative.selector);
         _deployTokenCurrencyStorage();
     }
 
-    modifier whenTokenNEQCurrency(address _currency) {
-        vm.assume(_currency != $token);
-        $currency = _currency;
+    modifier whenCurrencyIsNative(address _currency) {
+        $currency = address(0);
         _;
     }
 
@@ -110,7 +110,7 @@ contract ConstructorTest is BttBase {
         whenTotalSupplyGT0(_totalSupply)
         whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised)
         whenTokenNEQAddressZero(_token)
-        whenTokenNEQCurrency(_currency)
+        whenCurrencyIsNative(_currency)
     {
         // it reverts with {TokensRecipientIsZero}
 
@@ -136,8 +136,8 @@ contract ConstructorTest is BttBase {
         whenTotalSupplyGT0(_totalSupply)
         whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised)
         whenTokenNEQAddressZero(_token)
-        whenTokenNEQCurrency(_currency)
         whenTokensRecipientNEQAddressZero(_tokensRecipient)
+        whenCurrencyIsNative(_currency)
     {
         // it reverts with {FundsRecipientIsZero}
 
@@ -158,8 +158,8 @@ contract ConstructorTest is BttBase {
         whenTotalSupplyGT0(_totalSupply)
         whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised)
         whenTokenNEQAddressZero(_token)
-        whenTokenNEQCurrency(_currency)
         whenTokensRecipientNEQAddressZero(_tokensRecipient)
+        whenCurrencyIsNative(_currency)
     {
         // it writes token
         // it writes currency
@@ -174,7 +174,7 @@ contract ConstructorTest is BttBase {
         MockTokenCurrencyStorage tokenCurrencyStorage = _deployTokenCurrencyStorage();
 
         assertEq(address(tokenCurrencyStorage.token()), $token);
-        assertEq(Currency.unwrap(tokenCurrencyStorage.currency()), $currency);
+        assertEq(tokenCurrencyStorage.currency(), $currency);
         assertEq(tokenCurrencyStorage.totalSupply(), $totalSupply);
         assertEq(tokenCurrencyStorage.tokensRecipient(), $tokensRecipient);
         assertEq(tokenCurrencyStorage.fundsRecipient(), $fundsRecipient);

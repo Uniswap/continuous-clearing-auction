@@ -48,6 +48,7 @@ contract BttBase is AuctionBaseTest {
         vm.assume(_params.totalSupply > 0);
         vm.assume(_params.token != _params.parameters.currency);
         vm.assume(_params.token != address(0));
+        _params.parameters.currency = address(0);
         vm.assume(_params.parameters.fundsRecipient != address(0));
         vm.assume(_params.parameters.tokensRecipient != address(0));
 

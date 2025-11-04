@@ -6,9 +6,9 @@ ConstructorTest
         ├── when token EQ address zero
         │   └── it reverts with {TokenIsAddressZero}
         └── when token NEQ address zero
-            ├── when token EQ currency
-            │   └── it reverts with {TokenAndCurrencyCannotBeTheSame}
-            └── when token NEQ currency
+            ├── when currency is not native
+            │   └── it reverts with {CurrencyMustBeNative}
+            └── when currency is native
                 ├── when tokens recipient EQ address zero
                 │   └── it reverts with {TokensRecipientIsZero}
                 └── when tokens recipient NEQ address zero

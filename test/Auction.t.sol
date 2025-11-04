@@ -15,7 +15,6 @@ import {BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {CheckpointLib} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
-import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
@@ -1527,54 +1526,6 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(bidId, 0);
     }
 
-    function test_submitBid_withERC20Currency_unpermittedPermit2Transfer_reverts() public {
-        // Create auction parameters with ERC20 currency instead of ETH
-        params = params.withCurrency(address(erc20Currency));
-        Auction erc20Auction = new Auction(address(token), TOTAL_SUPPLY, params);
-        token.mint(address(erc20Auction), TOTAL_SUPPLY);
-        erc20Auction.onTokensReceived();
-        // Mint currency tokens to alice
-        erc20Currency.mint(alice, 1000e18);
-
-        // For now, let's just verify that the currency is set correctly
-        // and that we would reach line 252 if the Permit2 transfer worked
-        assertEq(Currency.unwrap(erc20Auction.currency()), address(erc20Currency));
-        assertFalse(erc20Auction.currency().isAddressZero());
-
-        vm.expectRevert(SafeTransferLib.TransferFromFailed.selector); // Expect revert due to Permit2 transfer failure
-        erc20Auction.submitBid{value: 0}(
-            tickNumberToPriceX96(2),
-            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
-            alice,
-            tickNumberToPriceX96(1),
-            bytes('')
-        );
-    }
-
-    function test_submitBid_withERC20Currency_nonZeroMsgValue_reverts() public {
-        // Create auction parameters with ERC20 currency instead of ETH
-        params = params.withCurrency(address(erc20Currency));
-        Auction erc20Auction = new Auction(address(token), TOTAL_SUPPLY, params);
-        token.mint(address(erc20Auction), TOTAL_SUPPLY);
-        erc20Auction.onTokensReceived();
-
-        // Mint currency tokens to alice
-        erc20Currency.mint(alice, 1000e18);
-
-        // For now, let's just verify that the currency is set correctly
-        assertEq(Currency.unwrap(erc20Auction.currency()), address(erc20Currency));
-        assertFalse(erc20Auction.currency().isAddressZero());
-
-        vm.expectRevert(IAuction.CurrencyIsNotNative.selector);
-        erc20Auction.submitBid{value: 100e18}(
-            tickNumberToPriceX96(2),
-            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
-            alice,
-            tickNumberToPriceX96(1),
-            bytes('')
-        );
-    }
-
     function test_exitPartiallyFilledBid_withInvalidLowerCheckpointHint_atEndBlock_reverts() public {
         uint256 bidId = auction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
             tickNumberToPriceX96(2),
@@ -1836,36 +1787,6 @@ contract AuctionTest is AuctionBaseTest {
         auction.claimTokens(bidId);
     }
 
-    function test_claimTokens_tokenTransferFails_reverts(uint128 _bidAmount, uint128 _maxPrice)
-        public
-        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
-        givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
-        givenFullyFundedAccount
-    {
-        Auction failingAuction = helper__deployAuctionWithFailingToken();
-
-        uint256 bidId = failingAuction.submitBid{value: $bidAmount}(
-            $maxPrice, $bidAmount, alice, tickNumberToPriceX96(1), bytes('')
-        );
-
-        vm.roll(auction.endBlock() + 1);
-        Checkpoint memory checkpoint = failingAuction.checkpoint();
-        if ($maxPrice > checkpoint.clearingPrice) {
-            failingAuction.exitBid(bidId);
-        } else {
-            failingAuction.exitPartiallyFilledBid(bidId, 1, 0);
-        }
-
-        uint256 expectedTokensFilled = failingAuction.bids(bidId).tokensFilled;
-        vm.assume(expectedTokensFilled > 0);
-
-        vm.roll(failingAuction.claimBlock());
-
-        vm.expectRevert(CurrencyLibrary.ERC20TransferFailed.selector);
-        failingAuction.claimTokens(bidId);
-    }
-
     function test_claimTokensBatch_notSameOwner_reverts() public givenFullyFundedAccount {
         uint256 bidId0 = helper__submitBid(auction, alice, TOTAL_SUPPLY - 1, tickNumberToPriceX96(2));
         uint256 bidId1 = helper__submitBid(auction, bob, TOTAL_SUPPLY - 1, tickNumberToPriceX96(2));
@@ -1938,45 +1859,6 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(auction.claimBlock() - 1);
         vm.expectRevert(IAuction.NotClaimable.selector);
         auction.claimTokensBatch(alice, bids);
-    }
-
-    /// forge-config: default.fuzz.runs = 1000
-    function test_claimTokensBatch_tokenTransferFails_reverts(
-        uint128 _bidAmount,
-        uint128 _numberOfBids,
-        uint256 _maxPrice
-    )
-        public
-        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
-        givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
-        givenFullyFundedAccount
-    {
-        _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
-        vm.assume($maxPrice < (uint256(type(uint128).max) * FixedPoint96.Q96) / (TOTAL_SUPPLY + _numberOfBids));
-        $bidAmount = uint128(
-            _bound(
-                $bidAmount, (TOTAL_SUPPLY + _numberOfBids).fullMulDivUp($maxPrice, FixedPoint96.Q96), type(uint128).max
-            )
-        );
-
-        Auction failingAuction = helper__deployAuctionWithFailingToken();
-
-        uint256[] memory bids = helper__submitNBids(failingAuction, alice, $bidAmount, _numberOfBids, $maxPrice);
-
-        vm.roll(failingAuction.endBlock() + 1);
-        Checkpoint memory checkpoint = failingAuction.checkpoint();
-        for (uint256 i = 0; i < _numberOfBids; i++) {
-            if ($maxPrice > checkpoint.clearingPrice) {
-                failingAuction.exitBid(bids[i]);
-            } else {
-                failingAuction.exitPartiallyFilledBid(bids[i], 1, 0);
-            }
-        }
-
-        vm.roll(failingAuction.claimBlock());
-        vm.expectRevert(CurrencyLibrary.ERC20TransferFailed.selector);
-        failingAuction.claimTokensBatch(alice, bids);
     }
 
     /// forge-config: default.fuzz.runs = 1000
@@ -2075,7 +1957,7 @@ contract AuctionTest is AuctionBaseTest {
 
     // Test that all of the state getters for constants / immutable variables are correct
     function test_constructor_immutable_getters() public {
-        assertEq(Currency.unwrap(auction.currency()), ETH_SENTINEL);
+        assertEq(auction.currency(), ETH_SENTINEL);
         assertEq(address(auction.token()), address(token));
         assertEq(auction.totalSupply(), TOTAL_SUPPLY);
         assertEq(auction.tokensRecipient(), tokensRecipient);

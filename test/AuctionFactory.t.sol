@@ -221,11 +221,10 @@ contract AuctionFactoryTest is AuctionBaseTest {
         factory.initializeDistribution(address(0), TOTAL_SUPPLY, configData, bytes32(0));
     }
 
-    function test_initializeDistribution_withTokenAndCurrencyAreTheSame_reverts() public {
-        params = params.withCurrency(address(token));
-        bytes memory configData = abi.encode(params);
+    function test_initializeDistribution_withCurrencyIsNotNative_reverts() public {
+        bytes memory configData = abi.encode(params.withCurrency(makeAddr('currency')));
 
-        vm.expectRevert(ITokenCurrencyStorage.TokenAndCurrencyCannotBeTheSame.selector);
+        vm.expectRevert(ITokenCurrencyStorage.CurrencyMustBeNative.selector);
         factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
     }
 }

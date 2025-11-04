@@ -16,7 +16,6 @@ import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
 import {FuzzBid, FuzzDeploymentParams} from './FuzzStructs.sol';
 import {MockFundsRecipient} from './MockFundsRecipient.sol';
-import {MockToken} from './MockToken.sol';
 import {TickBitmap, TickBitmapLib} from './TickBitmap.sol';
 import {TokenHandler} from './TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
@@ -432,28 +431,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         token.mint(address(auction), TOTAL_SUPPLY);
         // Expect the tokens to be received
         auction.onTokensReceived();
-    }
-
-    // ============================================
-    // Special Auction Configurations
-    // ============================================
-
-    function helper__deployAuctionWithFailingToken() internal returns (Auction) {
-        MockToken failingToken = new MockToken();
-
-        bytes memory failingAuctionStepsData = AuctionStepsBuilder.init().addStep(STANDARD_MPS_1_PERCENT, 100);
-        AuctionParameters memory failingParams = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL)
-            .withFloorPrice(FLOOR_PRICE).withTickSpacing(TICK_SPACING).withValidationHook(address(0))
-            .withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient).withStartBlock(block.number)
-            .withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET)
-            .withAuctionStepsData(failingAuctionStepsData);
-
-        Auction failingAuction = new Auction(address(failingToken), TOTAL_SUPPLY, failingParams);
-        failingToken.mint(address(failingAuction), TOTAL_SUPPLY);
-        failingAuction.onTokensReceived();
-
-        return failingAuction;
     }
 
     // ============================================

@@ -214,27 +214,27 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         return _checkpoint;
     }
 
-    /// @notice Fast forward to the current step, selling tokens at the current clearing price according to the supply schedule
-    /// @dev The checkpoint MUST have the most up to date clearing price since `sellTokensAtClearingPrice` depends on it
-    function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint64 blockNumber)
-        internal
-        returns (Checkpoint memory)
-    {
+    /// @notice Fast forward to the start of the current step and return the number of `mps` sold since the last checkpoint
+    /// @param _blockNumber The current block number
+    /// @return deltaMps The number of `mps` sold between the last checkpointed block and the start of the current step
+    function _advanceToStartOfCurrentStep(uint64 _blockNumber) internal returns (uint24 deltaMps) {
         // Advance the current step until the current block is within the step
         // Start at the larger of the last checkpointed block or the start block of the current step
-        uint64 start = $step.startBlock < $lastCheckpointedBlock ? $lastCheckpointedBlock : $step.startBlock;
+        uint64 start = uint64(FixedPointMathLib.max($step.startBlock, $lastCheckpointedBlock));
         uint64 end = $step.endBlock;
 
         uint24 mps = $step.mps;
-        while (blockNumber > end) {
-            _checkpoint = _sellTokensAtClearingPrice(_checkpoint, uint24((end - start) * mps));
+        while (_blockNumber > end) {
+            uint64 blockDelta = end - start;
+            unchecked {
+                deltaMps += uint24(blockDelta * mps);
+            }
             start = end;
             if (end == END_BLOCK) break;
             AuctionStep memory _step = _advanceStep();
             mps = _step.mps;
             end = _step.endBlock;
         }
-        return _checkpoint;
     }
 
     /// @notice Iterate to find the tick where the total demand at and above it is strictly less than the remaining supply in the auction
@@ -318,17 +318,18 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
             emit ClearingPriceUpdated(blockNumber, clearingPrice);
         }
 
-        // Since the clearing price is now up to date, we can advance the auction to the current step
-        // and sell tokens at the current clearing price according to the supply schedule
-        _checkpoint = _advanceToCurrentStep(_checkpoint, blockNumber);
+        // Calculate the percentage of the supply that has been sold since the last checkpoint and the start of the current step
+        uint24 deltaMps = _advanceToStartOfCurrentStep(blockNumber);
+        // `deltaMps` above is equal to the percentage of tokens sold up until the start of the current step.
+        // If the last checkpointed block is more recent than the start of the current step, account for the percentage
+        // sold since the last checkpointed block. Otherwise, add the percent sold since the start of the current step.
+        uint64 blockDelta = blockNumber - uint64(FixedPointMathLib.max($step.startBlock, $lastCheckpointedBlock));
+        unchecked {
+            deltaMps += uint24(blockDelta * $step.mps);
+        }
 
-        // Now account for any time in between this checkpoint and the greater of the start of the step or the last checkpointed block
-        uint64 blockDelta =
-            blockNumber - ($step.startBlock > $lastCheckpointedBlock ? $step.startBlock : $lastCheckpointedBlock);
-        uint24 mpsSinceLastCheckpoint = uint256($step.mps * blockDelta).toUint24();
-
-        // Sell the percentage of outstanding tokens since the last checkpoint to the current clearing price
-        _checkpoint = _sellTokensAtClearingPrice(_checkpoint, mpsSinceLastCheckpoint);
+        // Sell the percentage of outstanding tokens since the last checkpoint at the current clearing price
+        _checkpoint = _sellTokensAtClearingPrice(_checkpoint, deltaMps);
         // Insert the checkpoint into storage, updating latest pointer and the linked list
         _insertCheckpoint(_checkpoint, blockNumber);
 

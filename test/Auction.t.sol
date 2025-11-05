@@ -1500,7 +1500,9 @@ contract AuctionTest is AuctionBaseTest {
         ValueX7 expectedTotalCurrencyRaised = ValueX7.wrap(TOTAL_SUPPLY_Q96)
             .wrapAndFullMulDivUp(tickNumberToPriceX96(2) * (ConstantsLib.MPS - 100e3 * 10), FixedPoint96.Q96);
         emit IAuction.CheckpointUpdated( // Yet the `cumulativeMps` should still be 100%
-            startBlock + 40, tickNumberToPriceX96(2), ConstantsLib.MPS
+            startBlock + 40,
+            tickNumberToPriceX96(2),
+            ConstantsLib.MPS
         );
         mockAuction.checkpoint();
         assertEq(mockAuction.currencyRaisedQ96_X7(), expectedTotalCurrencyRaised);
@@ -1888,11 +1890,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     /// forge-config: default.fuzz.runs = 1000
-    function test_claimTokensBatch_beforeBidExited_reverts(
-        uint128 _bidAmount,
-        uint128 _numberOfBids,
-        uint256 _maxPrice
-    )
+    function test_claimTokensBatch_beforeBidExited_reverts(uint128 _bidAmount, uint128 _numberOfBids, uint256 _maxPrice)
         public
         givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
         givenValidBidAmount(_bidAmount)

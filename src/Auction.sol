@@ -234,33 +234,33 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         return _checkpoint;
     }
 
-    /// @notice Fast forward to the current step, selling tokens at the current clearing price according to the supply schedule
-    /// @dev The checkpoint MUST have the most up to date clearing price since `sellTokensAtClearingPrice` depends on it
-    function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint64 blockNumber)
+    /// @notice Fast forward to the start of the current step and return the number of `mps` sold since the last checkpoint
+    /// @param _blockNumber The current block number
+    /// @param _lastCheckpointedBlock The block number of the last checkpointed block
+    /// @return step The current step in the auction which contains `_blockNumber`
+    /// @return deltaMps The number of `mps` sold between the last checkpointed block and the start of the current step
+    function _advanceToStartOfCurrentStep(uint64 _blockNumber, uint64 _lastCheckpointedBlock)
         internal
-        returns (Checkpoint memory)
+        returns (AuctionStep memory step, uint24 deltaMps)
     {
         // Advance the current step until the current block is within the step
         // Start at the larger of the last checkpointed block or the start block of the current step
-        uint64 start = uint64(FixedPointMathLib.max($step.startBlock, $lastCheckpointedBlock));
-        uint64 end = $step.endBlock;
+        step = $step;
+        uint64 start = uint64(FixedPointMathLib.max(step.startBlock, _lastCheckpointedBlock));
+        uint64 end = step.endBlock;
 
-        uint24 mps = $step.mps;
-        uint24 deltaMps;
-        while (blockNumber > end) {
+        uint24 mps = step.mps;
+        while (_blockNumber > end) {
             uint64 blockDelta = end - start;
-            // Checks in the constructor ensure that blockDelta * mps will not be larger than ConstantsLib.MPS
-            unchecked { 
-                deltaMps = uint24(blockDelta * mps); 
+            unchecked {
+                deltaMps += uint24(blockDelta * mps);
             }
-            _checkpoint = _sellTokensAtClearingPrice(_checkpoint, deltaMps);
             start = end;
             if (end == END_BLOCK) break;
-            AuctionStep memory _step = _advanceStep();
-            mps = _step.mps;
-            end = _step.endBlock;
+            step = _advanceStep();
+            mps = step.mps;
+            end = step.endBlock;
         }
-        return _checkpoint;
     }
 
     /// @notice Iterate to find the tick where the total demand at and above it is strictly less than the remaining supply in the auction
@@ -338,7 +338,8 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
     ///      purely on the supply we will sell to the potentially updated `sumCurrencyDemandAboveClearingQ96` value
     /// @param blockNumber The block number to checkpoint at
     function _checkpointAtBlock(uint64 blockNumber) internal returns (Checkpoint memory _checkpoint) {
-        if (blockNumber == $lastCheckpointedBlock) return latestCheckpoint();
+        uint64 lastCheckpointedBlock = $lastCheckpointedBlock;
+        if (blockNumber == lastCheckpointedBlock) return latestCheckpoint();
 
         _checkpoint = latestCheckpoint();
         uint256 clearingPrice = _iterateOverTicksAndFindClearingPrice(_checkpoint);
@@ -350,20 +351,18 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
             emit ClearingPriceUpdated(blockNumber, clearingPrice);
         }
 
-        // Since the clearing price is now up to date, we can advance the auction to the current step
-        // and sell tokens at the current clearing price according to the supply schedule
-        _checkpoint = _advanceToCurrentStep(_checkpoint, blockNumber);
-
-        // Now account for any time in between this checkpoint and the greater of the start of the step or the last checkpointed block
-        // Checks in the constructor ensure that blockDelta * mps will not be larger than ConstantsLib.MPS, which is less than type(uint24).max
-        uint24 mpsSinceLastCheckpoint;
+        // Calculate the percentage of the supply that has been sold since the last checkpoint and the start of the current step
+        (AuctionStep memory step, uint24 deltaMps) = _advanceToStartOfCurrentStep(blockNumber, lastCheckpointedBlock);
+        // `deltaMps` above is equal to the percentage of tokens sold up until the start of the current step.
+        // If the last checkpointed block is more recent than the start of the current step, account for the percentage
+        // sold since the last checkpointed block. Otherwise, add the percent sold since the start of the current step.
+        uint64 blockDelta = blockNumber - uint64(FixedPointMathLib.max(step.startBlock, lastCheckpointedBlock));
         unchecked {
-            mpsSinceLastCheckpoint =
-                uint24($step.mps * (blockNumber - FixedPointMathLib.max($step.startBlock, $lastCheckpointedBlock)));
+            deltaMps += uint24(blockDelta * step.mps);
         }
 
-        // Sell the percentage of outstanding tokens since the last checkpoint to the current clearing price
-        _checkpoint = _sellTokensAtClearingPrice(_checkpoint, mpsSinceLastCheckpoint);
+        // Sell the percentage of outstanding tokens since the last checkpoint at the current clearing price
+        _checkpoint = _sellTokensAtClearingPrice(_checkpoint, deltaMps);
         // Insert the checkpoint into storage, updating latest pointer and the linked list
         _insertCheckpoint(_checkpoint, blockNumber);
 
@@ -382,13 +381,10 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
     ///      For gas efficiency, `prevTickPrice` should be the price of the tick immediately before `maxPrice`.
     /// @dev Does not check that the actual value `amount` was received by the contract
     /// @return bidId The id of the created bid
-    function _submitBid(
-        uint256 maxPrice,
-        uint128 amount,
-        address owner,
-        uint256 prevTickPrice,
-        bytes calldata hookData
-    ) internal returns (uint256 bidId) {
+    function _submitBid(uint256 maxPrice, uint128 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
+        internal
+        returns (uint256 bidId)
+    {
         // Reject bids which would cause TOTAL_SUPPLY * maxPrice to overflow a uint256
         if (maxPrice > MAX_BID_PRICE) revert InvalidBidPriceTooHigh();
 

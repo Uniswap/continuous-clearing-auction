@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
-
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {Auction} from 'src/Auction.sol';
 import {IAuction} from 'src/interfaces/IAuction.sol';
 import {ConstantsLib} from 'src/libraries/ConstantsLib.sol';
@@ -57,6 +57,7 @@ contract ConstructorTest is BttBase {
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
         // Set total supply such that the computed max bid price is greater than the ConstantsLib.MAX_BID_PRICE
         mParams.totalSupply = uint128(bound(_totalSupply, 1, type(uint256).max / ConstantsLib.MAX_BID_PRICE + 1));
+        // So the max bid price is equal to ConstantsLib.MAX_BID_PRICE
         mParams.parameters.floorPrice = bound(_floorPrice, ConstantsLib.MAX_BID_PRICE + 1, type(uint256).max);
         // Easy default to pass the tick boundary check
         mParams.parameters.tickSpacing = mParams.parameters.floorPrice;
@@ -114,6 +115,59 @@ contract ConstructorTest is BttBase {
         vm.expectRevert(
             abi.encodeWithSelector(
                 IAuction.FloorPriceAboveMaxBidPrice.selector, mParams.parameters.floorPrice, computedMaxBidPrice
+            )
+        );
+        new Auction(mParams.token, mParams.totalSupply, mParams.parameters);
+    }
+
+    function test_WhenTickSpacingGTMaxBidPriceDiv2_Uint256MaxDivTotalSupplyGEUniV4MaxTick(
+        AuctionFuzzConstructorParams memory _params,
+        uint256 _tickSpacing,
+        uint256 _floorPrice,
+        uint128 _totalSupply
+    ) external whenUint256MaxDivTotalSupplyGEUniV4MaxTick {
+        // it reverts with {TickSpacingTooLarge}
+
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        // Set total supply such that the computed max bid price is greater than the ConstantsLib.MAX_BID_PRICE
+        mParams.totalSupply = uint128(bound(_totalSupply, 1, type(uint256).max / ConstantsLib.MAX_BID_PRICE + 1));
+        // So the max bid price is equal to ConstantsLib.MAX_BID_PRICE
+        mParams.parameters.floorPrice = bound(_floorPrice, 1, ConstantsLib.MAX_BID_PRICE);
+        // Set tick spacing to be any multiple of floor price that is greater than the max bid price / 2
+        mParams.parameters.tickSpacing =
+            bound(_tickSpacing, (ConstantsLib.MAX_BID_PRICE / 2) + 1, ConstantsLib.MAX_BID_PRICE);
+        mParams.parameters.floorPrice = mParams.parameters.tickSpacing;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAuction.TickSpacingTooLarge.selector, mParams.parameters.tickSpacing, ConstantsLib.MAX_BID_PRICE / 2
+            )
+        );
+        new Auction(mParams.token, mParams.totalSupply, mParams.parameters);
+    }
+
+    function test_WhenTickSpacingGTMaxBidPriceDiv2_Uint256MaxDivTotalSupplyLEUniV4MaxTick(
+        AuctionFuzzConstructorParams memory _params,
+        uint256 _tickSpacing,
+        uint256 _floorPrice,
+        uint128 _totalSupply
+    ) external whenUint256MaxDivTotalSupplyLEUniV4MaxTick {
+        // it reverts with {TickSpacingTooLarge}
+
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        // Set total supply such that the computed max bid price is less than the ConstantsLib.MAX_BID_PRICE
+        mParams.totalSupply =
+            uint128(bound(_totalSupply, type(uint256).max / ConstantsLib.MAX_BID_PRICE + 1, type(uint128).max));
+        uint256 computedMaxBidPrice = type(uint256).max / mParams.totalSupply;
+        // So the max bid price is equal to ConstantsLib.MAX_BID_PRICE
+        mParams.parameters.floorPrice = bound(_floorPrice, 1, computedMaxBidPrice);
+        // Set tick spacing to be any multiple of floor price that is greater than the max bid price / 2
+        mParams.parameters.tickSpacing = bound(_tickSpacing, (computedMaxBidPrice / 2) + 1, computedMaxBidPrice);
+        mParams.parameters.floorPrice = mParams.parameters.tickSpacing;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAuction.TickSpacingTooLarge.selector, mParams.parameters.tickSpacing, computedMaxBidPrice / 2
             )
         );
         new Auction(mParams.token, mParams.totalSupply, mParams.parameters);

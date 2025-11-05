@@ -59,6 +59,8 @@ interface IAuction is
     error ClaimBlockIsBeforeEndBlock();
     /// @notice Error thrown when the floor price is above the computed maximum bid price
     error FloorPriceAboveMaxBidPrice(uint256 floorPrice, uint256 maxBidPrice);
+    /// @notice Error thrown when the tick spacing is too large
+    error TickSpacingTooLarge(uint256 tickSpacing, uint256 maxTickSpacing);
     /// @notice Error thrown when the bid has already been exited
     error BidAlreadyExited();
     /// @notice Error thrown when the bid is higher than the clearing price

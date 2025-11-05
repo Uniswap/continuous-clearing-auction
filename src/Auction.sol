@@ -77,6 +77,10 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         if (_parameters.floorPrice > MAX_BID_PRICE) {
             revert FloorPriceAboveMaxBidPrice(_parameters.floorPrice, MAX_BID_PRICE);
         }
+        // The tick spacing must allow for at least one tick above the floor price to be initialized
+        if (_parameters.tickSpacing > MAX_BID_PRICE / 2) {
+            revert TickSpacingTooLarge(_parameters.tickSpacing, MAX_BID_PRICE / 2);
+        }
     }
 
     /// @notice Modifier for functions which can only be called after the auction is over

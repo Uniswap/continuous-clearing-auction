@@ -1,38 +1,15 @@
 # ITickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/93c0c780ed33d07191c07fe0752db1c29bbcb8f7/src/interfaces/ITickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/interfaces/ITickStorage.sol)
 
 Interface for the TickStorage contract
 
 
 ## Functions
-### getTick
-
-Get a tick at a price
-
-*The returned tick is not guaranteed to be initialized*
-
-
-```solidity
-function getTick(uint256 price) external view returns (Tick memory);
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`price`|`uint256`|The price of the tick|
-
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`Tick`|The tick at the given price|
-
-
 ### nextActiveTickPrice
 
 The price of the next initialized tick above the clearing price
 
-*This will be equal to the clearingPrice if no ticks have been initialized yet*
+This will be equal to the clearingPrice if no ticks have been initialized yet
 
 
 ```solidity
@@ -79,10 +56,24 @@ function tickSpacing() external view returns (uint256);
 
 Get a tick at a price
 
+The returned tick is not guaranteed to be initialized
+
 
 ```solidity
 function ticks(uint256 price) external view returns (Tick memory);
 ```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`price`|`uint256`|The price of the tick, which must be at a boundary designated by the tick spacing|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`Tick`|The tick at the given price|
+
 
 ## Events
 ### TickInitialized
@@ -115,7 +106,7 @@ event NextActiveTickUpdated(uint256 price);
 
 ## Errors
 ### FloorPriceAboveMaxBidPrice
-Error thrown when the floor price is above the maximum bid price
+Error thrown when the floor price is above Uniswap v4's maximum tick price
 
 
 ```solidity

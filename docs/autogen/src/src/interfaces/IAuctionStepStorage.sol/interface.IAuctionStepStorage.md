@@ -1,5 +1,5 @@
 # IAuctionStepStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/69de3ae4ba8e1e42b571cd7d7900cef9574ede92/src/interfaces/IAuctionStepStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/interfaces/IAuctionStepStorage.sol)
 
 Interface for managing auction step storage
 
@@ -65,7 +65,7 @@ Emitted when an auction step is recorded
 
 
 ```solidity
-event AuctionStepRecorded(uint256 indexed startBlock, uint256 indexed endBlock, uint24 mps);
+event AuctionStepRecorded(uint256 startBlock, uint256 endBlock, uint24 mps);
 ```
 
 **Parameters**
@@ -114,14 +114,28 @@ Error thrown when the mps is invalid
 
 
 ```solidity
-error InvalidStepDataMps();
+error InvalidStepDataMps(uint256 actualMps, uint256 expectedMps);
 ```
 
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`actualMps`|`uint256`|The sum of the mps times the block delta|
+|`expectedMps`|`uint256`|The expected mps of the auction (ConstantsLib.MPS)|
+
 ### InvalidEndBlockGivenStepData
-Error thrown when the end block is invalid
+Error thrown when the calculated end block is invalid
 
 
 ```solidity
-error InvalidEndBlockGivenStepData();
+error InvalidEndBlockGivenStepData(uint64 actualEndBlock, uint64 expectedEndBlock);
 ```
+
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`actualEndBlock`|`uint64`|The calculated end block from the step data|
+|`expectedEndBlock`|`uint64`|The expected end block from the constructor|
 

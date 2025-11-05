@@ -1,5 +1,5 @@
 # CheckpointLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/93c0c780ed33d07191c07fe0752db1c29bbcb8f7/src/libraries/CheckpointLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/libraries/CheckpointLib.sol)
 
 
 ## Functions
@@ -28,7 +28,7 @@ function remainingMpsInAuction(Checkpoint memory _checkpoint) internal pure retu
 
 Calculate the supply to price ratio. Will return zero if `price` is zero
 
-*This function returns a value in Q96 form*
+This function returns a value in Q96 form
 
 
 ```solidity

@@ -1,5 +1,5 @@
 # BidLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/93c0c780ed33d07191c07fe0752db1c29bbcb8f7/src/libraries/BidLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/libraries/BidLib.sol)
 
 
 ## Functions
@@ -49,9 +49,9 @@ function toEffectiveAmount(Bid memory bid) internal pure returns (uint256);
 
 ## Errors
 ### MpsRemainingIsZero
-*Error thrown when a bid is submitted with no remaining percentage of the auction
+Error thrown when a bid is submitted with no remaining percentage of the auction
 This is prevented by the auction contract as bids cannot be submitted when the auction is sold out,
-but we catch it instead of reverting with division by zero.*
+but we catch it instead of reverting with division by zero.
 
 
 ```solidity

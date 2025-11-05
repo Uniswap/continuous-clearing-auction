@@ -1,12 +1,12 @@
 # AuctionStep
-[Git Source](https://github.com/Uniswap/twap-auction/blob/eddb06d9f9e6a95363d90d7326e355d98c8b0712/src/libraries/AuctionStepLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/libraries/AuctionStepLib.sol)
 
 
 ```solidity
 struct AuctionStep {
-    uint24 mps;
-    uint64 startBlock;
-    uint64 endBlock;
+uint24 mps; // Mps to sell per block in the step
+uint64 startBlock; // Start block of the step (inclusive)
+uint64 endBlock; // Ending block of the step (exclusive)
 }
 ```
 

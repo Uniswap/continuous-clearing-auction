@@ -1,8 +1,8 @@
 # BidStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/93c0c780ed33d07191c07fe0752db1c29bbcb8f7/src/BidStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/BidStorage.sol)
 
 **Inherits:**
-[IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
+[IBidStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
 
 Abstract contract for managing bid storage
 
@@ -13,7 +13,7 @@ The id of the next bid to be created
 
 
 ```solidity
-uint256 private $_nextBidId;
+uint256 private $_nextBidId
 ```
 
 
@@ -22,7 +22,7 @@ The mapping of bid ids to bids
 
 
 ```solidity
-mapping(uint256 bidId => Bid bid) private $_bids;
+mapping(uint256 bidId => Bid bid) private $_bids
 ```
 
 
@@ -81,15 +81,35 @@ Getters
 
 
 ```solidity
-function nextBidId() external view override(IBidStorage) returns (uint256);
+function nextBidId() external view returns (uint256);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The id of the next bid to be created|
+
 
 ### bids
 
 Get a bid from storage
 
+Will revert if the bid does not exist
+
 
 ```solidity
-function bids(uint256 bidId) external view override(IBidStorage) returns (Bid memory);
+function bids(uint256 bidId) external view returns (Bid memory);
 ```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`bidId`|`uint256`|The id of the bid to get|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`Bid`|The bid|
+
 

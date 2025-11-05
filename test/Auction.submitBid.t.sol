@@ -79,6 +79,7 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
         assertTrue(auction.startBlock() + 1 == auction.endBlock(), 'start block + 1 should be equal to end block');
 
         uint256 maxPrice = auction.MAX_BID_PRICE();
+        assertEq(maxPrice, ConstantsLib.MAX_BID_PRICE, 'maxPrice is not equal to ConstantsLib.MAX_BID_PRICE');
         maxPrice = helper__roundPriceDownToTickSpacing(maxPrice, params.tickSpacing);
         // Assert that we didn't fall below after rounding down to tick spacing
         assertEq(

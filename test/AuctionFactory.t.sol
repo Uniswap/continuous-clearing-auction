@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Auction, AuctionParameters} from '../src/Auction.sol';
-import {AuctionFactory} from '../src/AuctionFactory.sol';
-import {IAuction} from '../src/interfaces/IAuction.sol';
-import {IAuctionFactory} from '../src/interfaces/IAuctionFactory.sol';
+import {ContinuousClearingAuction, AuctionParameters} from '../src/ContinuousClearingAuction.sol';
+import {ContinuousClearingAuctionFactory} from '../src/ContinuousClearingAuctionFactory.sol';
+import {IContinuousClearingAuction} from '../src/interfaces/IContinuousClearingAuction.sol';
+import {IContinuousClearingAuctionFactory} from '../src/interfaces/IContinuousClearingAuctionFactory.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {IDistributionContract} from '../src/interfaces/external/IDistributionContract.sol';
@@ -21,12 +21,12 @@ contract AuctionFactoryTest is AuctionBaseTest {
     using AuctionStepsBuilder for bytes;
     using ValueX7Lib for *;
 
-    AuctionFactory factory;
+    ContinuousClearingAuctionFactory factory;
 
     function setUp() public {
         // Setup non fuzz auction
         setUpAuction();
-        factory = new AuctionFactory();
+        factory = new ContinuousClearingAuctionFactory();
     }
 
     function test_initializeDistribution_createsAuction() public {
@@ -34,13 +34,13 @@ contract AuctionFactoryTest is AuctionBaseTest {
 
         // Expect the AuctionCreated event (don't check the auction address since it's deterministic)
         vm.expectEmit(false, true, true, true);
-        emit IAuctionFactory.AuctionCreated(address(0), address(token), TOTAL_SUPPLY, configData);
+        emit IContinuousClearingAuctionFactory.AuctionCreated(address(0), address(token), TOTAL_SUPPLY, configData);
 
         IDistributionContract distributionContract =
             factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
 
         // Verify the auction was created correctly
-        Auction _auction = Auction(payable(address(distributionContract)));
+        ContinuousClearingAuction _auction = ContinuousClearingAuction(payable(address(distributionContract)));
         assertEq(address(_auction.token()), address(token));
         assertEq(_auction.totalSupply(), TOTAL_SUPPLY);
         assertEq(_auction.floorPrice(), FLOOR_PRICE);
@@ -55,7 +55,7 @@ contract AuctionFactoryTest is AuctionBaseTest {
     function test_initializeDistribution_revertsWithInvalidClaimBlock() public {
         uint256 endBlock = block.number + AUCTION_DURATION;
         bytes memory configData = abi.encode(params.withClaimBlock(endBlock - 1));
-        vm.expectRevert(IAuction.ClaimBlockIsBeforeEndBlock.selector);
+        vm.expectRevert(IContinuousClearingAuction.ClaimBlockIsBeforeEndBlock.selector);
         factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
     }
 
@@ -68,14 +68,14 @@ contract AuctionFactoryTest is AuctionBaseTest {
 
         // Expect the AuctionCreated event (don't check the auction address since it's deterministic)
         vm.expectEmit(false, true, true, true);
-        emit IAuctionFactory.AuctionCreated(address(0), address(token), TOTAL_SUPPLY, expectedConfigData);
+        emit IContinuousClearingAuctionFactory.AuctionCreated(address(0), address(token), TOTAL_SUPPLY, expectedConfigData);
 
         vm.prank(sender);
         IDistributionContract distributionContract =
             factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
 
         // Verify the auction was created correctly
-        Auction _auction = Auction(payable(address(distributionContract)));
+        ContinuousClearingAuction _auction = ContinuousClearingAuction(payable(address(distributionContract)));
         assertEq(_auction.fundsRecipient(), address(sender));
     }
 
@@ -162,7 +162,7 @@ contract AuctionFactoryTest is AuctionBaseTest {
         IDistributionContract distributionContract =
             factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
 
-        Auction _auction = Auction(payable(address(distributionContract)));
+        ContinuousClearingAuction _auction = ContinuousClearingAuction(payable(address(distributionContract)));
 
         // Test that the auction can receive tokens (implements IDistributionContract)
         token.mint(address(_auction), TOTAL_SUPPLY);

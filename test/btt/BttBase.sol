@@ -3,11 +3,11 @@ pragma solidity 0.8.26;
 
 import {VmSafe} from 'forge-std/Vm.sol';
 import {Bid} from 'twap-auction/BidStorage.sol';
-import {AuctionParameters} from 'twap-auction/interfaces/IAuction.sol';
+import {AuctionParameters} from 'twap-auction/interfaces/IContinuousClearingAuction.sol';
 // Chore: move to a shared place
 import {CompactStep, CompactStepLib, Step} from 'test/btt/libraries/auctionStepLib/StepUtils.sol';
 import {AuctionBaseTest} from 'test/utils/AuctionBaseTest.sol';
-import {AuctionStep} from 'twap-auction/libraries/AuctionStepLib.sol';
+import {AuctionStep} from 'twap-auction/libraries/StepLib.sol';
 import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
 
 struct AuctionFuzzConstructorParams {

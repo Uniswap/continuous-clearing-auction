@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Auction} from '../../src/Auction.sol';
+import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
 import {Tick} from '../../src/TickStorage.sol';
-import {AuctionParameters, IAuction} from '../../src/interfaces/IAuction.sol';
+import {AuctionParameters, IContinuousClearingAuction} from '../../src/interfaces/IContinuousClearingAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../../src/interfaces/ITokenCurrencyStorage.sol';
 import {BidLib} from '../../src/libraries/BidLib.sol';
@@ -35,7 +35,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     TickBitmap private tickBitmap;
 
-    Auction public auction;
+    ContinuousClearingAuction public auction;
 
     // Auction configuration constants
     uint256 public constant AUCTION_DURATION = 100;
@@ -342,7 +342,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         bytes4 errorSelector = bytes4(revertData);
 
         // Ok if the bid price is invalid IF it just moved this block
-        if (errorSelector == bytes4(abi.encodeWithSelector(IAuction.BidMustBeAboveClearingPrice.selector))) {
+        if (errorSelector == bytes4(abi.encodeWithSelector(IContinuousClearingAuction.BidMustBeAboveClearingPrice.selector))) {
             Checkpoint memory checkpoint = auction.checkpoint();
             // the bid price is invalid as it is less than or equal to the clearing price
             // skip the test by returning false and 0
@@ -401,7 +401,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(_deploymentParams.auctionParams.floorPrice);
-        auction = new Auction(address(token), _deploymentParams.totalSupply, params);
+        auction = new ContinuousClearingAuction(address(token), _deploymentParams.totalSupply, params);
 
         token.mint(address(auction), _deploymentParams.totalSupply);
         auction.onTokensReceived();
@@ -427,7 +427,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(tickNumberToPriceX96(1));
-        auction = new Auction(address(token), TOTAL_SUPPLY, params);
+        auction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
 
         token.mint(address(auction), TOTAL_SUPPLY);
         // Expect the tokens to be received
@@ -438,7 +438,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     // Special Auction Configurations
     // ============================================
 
-    function helper__deployAuctionWithFailingToken() internal returns (Auction) {
+    function helper__deployAuctionWithFailingToken() internal returns (ContinuousClearingAuction) {
         MockToken failingToken = new MockToken();
 
         bytes memory failingAuctionStepsData = AuctionStepsBuilder.init().addStep(STANDARD_MPS_1_PERCENT, 100);
@@ -449,7 +449,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
             .withClaimBlock(block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET)
             .withAuctionStepsData(failingAuctionStepsData);
 
-        Auction failingAuction = new Auction(address(failingToken), TOTAL_SUPPLY, failingParams);
+        ContinuousClearingAuction failingAuction = new ContinuousClearingAuction(address(failingToken), TOTAL_SUPPLY, failingParams);
         failingToken.mint(address(failingAuction), TOTAL_SUPPLY);
         failingAuction.onTokensReceived();
 
@@ -551,7 +551,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         assertFalse(auction.isGraduated());
     }
 
-    function helper__submitBid(Auction _auction, address _owner, uint128 _amount, uint256 _maxPrice)
+    function helper__submitBid(ContinuousClearingAuction _auction, address _owner, uint128 _amount, uint256 _maxPrice)
         internal
         returns (uint256)
     {
@@ -560,7 +560,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     /// @notice Helper to submit N number of bids at the same amount and max price
     function helper__submitNBids(
-        Auction _auction,
+        ContinuousClearingAuction _auction,
         address _owner,
         uint128 _amount,
         uint128 _numberOfBids,

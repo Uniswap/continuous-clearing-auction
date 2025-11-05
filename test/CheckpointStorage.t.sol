@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {ICheckpointStorage} from '../src/interfaces/ICheckpointStorage.sol';
-import {AuctionStepLib} from '../src/libraries/AuctionStepLib.sol';
+import {StepLib} from '../src/libraries/StepLib.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {CheckpointAccountingLib} from '../src/libraries/CheckpointAccountingLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
@@ -20,7 +20,7 @@ contract CheckpointStorageTest is Assertions, Test {
 
     using BidLib for Bid;
     using FixedPointMathLib for *;
-    using AuctionStepLib for uint256;
+    using StepLib for uint256;
     using ConstantsLib for *;
 
     uint256 public constant TICK_SPACING = 100;

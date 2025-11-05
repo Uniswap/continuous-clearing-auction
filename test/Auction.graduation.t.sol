@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {IAuction} from '../src/interfaces/IAuction.sol';
+import {IContinuousClearingAuction} from '../src/interfaces/IContinuousClearingAuction.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
@@ -109,7 +109,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         vm.assume(checkpoint.clearingPrice > lowPrice);
         assertFalse(auction.isGraduated());
         // Exit the first bid which is now outbid
-        vm.expectRevert(IAuction.CannotPartiallyExitBidBeforeGraduation.selector);
+        vm.expectRevert(IContinuousClearingAuction.CannotPartiallyExitBidBeforeGraduation.selector);
         auction.exitPartiallyFilledBid(bidId1, startBlock, startBlock + 1);
 
         Bid memory bid1 = auction.bids(bidId1);
@@ -118,7 +118,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         vm.roll(auction.endBlock());
         // Bid 1 can be exited as the auction is over
         vm.expectEmit(true, true, true, true);
-        emit IAuction.BidExited(bidId1, alice, 0, 1);
+        emit IContinuousClearingAuction.BidExited(bidId1, alice, 0, 1);
         auction.exitPartiallyFilledBid(bidId1, startBlock, startBlock + 1);
     }
 
@@ -152,7 +152,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         vm.roll(auction.claimBlock() - 1);
 
         // Try to claim tokens before the claim block
-        vm.expectRevert(IAuction.NotClaimable.selector);
+        vm.expectRevert(IContinuousClearingAuction.NotClaimable.selector);
         auction.claimTokensBatch(alice, bids);
     }
 
@@ -281,7 +281,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
 
         if (bid.tokensFilled > 0) {
             vm.expectEmit(true, true, true, true);
-            emit IAuction.TokensClaimed(bidId, alice, bid.tokensFilled);
+            emit IContinuousClearingAuction.TokensClaimed(bidId, alice, bid.tokensFilled);
             auction.claimTokens(bidId);
             assertEq(token.balanceOf(alice), bid.tokensFilled);
         }

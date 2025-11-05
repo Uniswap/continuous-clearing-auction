@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {IAuction} from '../src/interfaces/IAuction.sol';
-import {AuctionParameters} from '../src/interfaces/IAuction.sol';
+import {IContinuousClearingAuction} from '../src/interfaces/IContinuousClearingAuction.sol';
+import {AuctionParameters} from '../src/interfaces/IContinuousClearingAuction.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
@@ -45,7 +45,7 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
             type(uint256).max
         );
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, params.tickSpacing);
-        vm.expectRevert(IAuction.InvalidBidPriceTooHigh.selector);
+        vm.expectRevert(IContinuousClearingAuction.InvalidBidPriceTooHigh.selector);
         auction.submitBid{value: 1}(_maxPrice, 1, alice, params.floorPrice, bytes(''));
     }
 
@@ -106,7 +106,7 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
         // The amount is 1, the smallest amount of tokens that can be bid for.
         // The maxPrice is still valid because maxPrice > clearing price.
         bidAmount = FixedPointMathLib.fullMulDivUp(1, maxPrice, FixedPoint96.Q96);
-        vm.expectRevert(IAuction.InvalidBidUnableToClear.selector);
+        vm.expectRevert(IContinuousClearingAuction.InvalidBidUnableToClear.selector);
         auction.submitBid{value: bidAmount}(maxPrice, uint128(bidAmount), alice, params.floorPrice, bytes(''));
 
         // Ensure that the auction can finish and checkpoint exactly at the max bid price
@@ -160,7 +160,7 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
         }
 
         // Show that another bid would revert and be blocked
-        vm.expectRevert(IAuction.InvalidBidUnableToClear.selector);
+        vm.expectRevert(IContinuousClearingAuction.InvalidBidUnableToClear.selector);
         auction.submitBid{value: maxBidCurrencyAmount}(
             maxPrice, uint128(maxBidCurrencyAmount), alice, params.floorPrice, bytes('')
         );
@@ -171,7 +171,7 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
         auction.checkpoint();
 
         // And that it is still not possible to submit another bid
-        vm.expectRevert(IAuction.InvalidBidUnableToClear.selector);
+        vm.expectRevert(IContinuousClearingAuction.InvalidBidUnableToClear.selector);
         auction.submitBid{value: maxBidCurrencyAmount}(
             maxPrice, uint128(maxBidCurrencyAmount), alice, params.floorPrice, bytes('')
         );
@@ -186,7 +186,7 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
         givenAuctionHasStarted
         givenFullyFundedAccount
     {
-        vm.expectRevert(IAuction.BidOwnerCannotBeZeroAddress.selector);
+        vm.expectRevert(IContinuousClearingAuction.BidOwnerCannotBeZeroAddress.selector);
         auction.submitBid{value: 1}(1, 1, address(0), params.floorPrice, bytes(''));
     }
 }

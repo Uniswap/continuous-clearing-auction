@@ -4,8 +4,8 @@ pragma solidity ^0.8.26;
 import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
 
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
-import {Auction} from 'src/Auction.sol';
-import {IAuction} from 'src/interfaces/IAuction.sol';
+import {ContinuousClearingAuction} from 'src/ContinuousClearingAuction.sol';
+import {IContinuousClearingAuction} from 'twap-auction/interfaces/IContinuousClearingAuction.sol';
 
 contract OnTokensReceivedTest is BttBase {
     function test_Given_tokensReceivedEQTrue(AuctionFuzzConstructorParams memory _params)
@@ -17,7 +17,7 @@ contract OnTokensReceivedTest is BttBase {
         // Use the mock ERC20 contract for the token
         _params.token = address(new ERC20Mock());
 
-        Auction auction = new Auction(_params.token, _params.totalSupply, _params.parameters);
+        ContinuousClearingAuction auction = new ContinuousClearingAuction(_params.token, _params.totalSupply, _params.parameters);
 
         ERC20Mock(_params.token).mint(address(auction), _params.totalSupply);
         auction.onTokensReceived();
@@ -46,12 +46,12 @@ contract OnTokensReceivedTest is BttBase {
         // it reverts with {InvalidTokenAmountReceived}
 
         _params.token = address(new ERC20Mock());
-        Auction auction = new Auction(_params.token, _params.totalSupply, _params.parameters);
+        ContinuousClearingAuction auction = new ContinuousClearingAuction(_params.token, _params.totalSupply, _params.parameters);
 
         uint256 amountToSend = bound(_amountToSend, 0, _params.totalSupply - 1);
 
         ERC20Mock(_params.token).mint(address(auction), amountToSend);
-        vm.expectRevert(IAuction.InvalidTokenAmountReceived.selector);
+        vm.expectRevert(IContinuousClearingAuction.InvalidTokenAmountReceived.selector);
         auction.onTokensReceived();
     }
 
@@ -64,14 +64,14 @@ contract OnTokensReceivedTest is BttBase {
         // it emits {TokensReceived}
 
         _params.token = address(new ERC20Mock());
-        Auction auction = new Auction(_params.token, _params.totalSupply, _params.parameters);
+        ContinuousClearingAuction auction = new ContinuousClearingAuction(_params.token, _params.totalSupply, _params.parameters);
 
         uint256 amountToSend = bound(_amountToSend, _params.totalSupply, type(uint256).max);
 
         ERC20Mock(_params.token).mint(address(auction), amountToSend);
 
         vm.expectEmit(true, true, true, true, address(auction));
-        emit IAuction.TokensReceived(_params.totalSupply);
+        emit IContinuousClearingAuction.TokensReceived(_params.totalSupply);
         vm.record();
         auction.onTokensReceived();
         (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(auction));

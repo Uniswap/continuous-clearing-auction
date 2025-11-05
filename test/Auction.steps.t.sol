@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Auction} from '../src/Auction.sol';
-import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
+import {ContinuousClearingAuction} from '../src/ContinuousClearingAuction.sol';
+import {AuctionParameters, IContinuousClearingAuction} from '../src/interfaces/IContinuousClearingAuction.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
@@ -76,10 +76,10 @@ contract AuctionStepDiffTest is AuctionBaseTest {
             .withEndBlock(block.number + cumulativeBlockDelta2)
             .withClaimBlock(block.number + cumulativeBlockDelta2 + 10);
 
-        Auction firstAuction = new Auction(address(token), TOTAL_SUPPLY, params1);
+        ContinuousClearingAuction firstAuction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params1);
         token.mint(address(firstAuction), TOTAL_SUPPLY);
         firstAuction.onTokensReceived();
-        Auction secondAuction = new Auction(address(token), TOTAL_SUPPLY, params2);
+        ContinuousClearingAuction secondAuction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params2);
         token.mint(address(secondAuction), TOTAL_SUPPLY);
         secondAuction.onTokensReceived();
 
@@ -121,7 +121,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
                 AuctionStepsBuilder.init().addStep(1, 1e7).addStep(0, 1e7)
             ).withStartBlock(startBlock).withEndBlock(endBlock).withClaimBlock(claimBlock);
 
-        Auction newAuction = new Auction(address(token), _totalSupply, params);
+        ContinuousClearingAuction newAuction = new ContinuousClearingAuction(address(token), _totalSupply, params);
         token.mint(address(newAuction), _totalSupply);
         newAuction.onTokensReceived();
 
@@ -136,7 +136,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         assertEq(checkpoint.cumulativeMps, 1e7);
 
         // The auction has fully sold out 1e7 mps worth of tokens, so all future bids will revert
-        vm.expectRevert(IAuction.AuctionSoldOut.selector);
+        vm.expectRevert(IContinuousClearingAuction.AuctionSoldOut.selector);
         newAuction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, tickNumberToPriceX96(1), bytes(''));
 
         vm.roll(endBlock);

@@ -2,15 +2,15 @@
 pragma solidity 0.8.26;
 
 // Place holder for BTT testing as that is not merged yet
-import {Auction} from '../../src/Auction.sol';
-import {AuctionParameters} from '../../src/Auction.sol';
+import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol';
+import {AuctionParameters} from '../../src/ContinuousClearingAuction.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
 
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 import {FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
-import {MockAuction} from '../utils/MockAuction.sol';
+import {MockContinuousClearingAuction} from '../utils/MockAuction.sol';
 import {AuctionUnitTest} from './AuctionUnitTest.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 

@@ -3,8 +3,8 @@ pragma solidity 0.8.26;
 
 import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
 
-import {Auction} from 'src/Auction.sol';
-import {IAuction} from 'src/interfaces/IAuction.sol';
+import {ContinuousClearingAuction} from 'src/ContinuousClearingAuction.sol';
+import {IContinuousClearingAuction} from 'src/interfaces/IContinuousClearingAuction.sol';
 import {ConstantsLib} from 'src/libraries/ConstantsLib.sol';
 
 contract ConstructorTest is BttBase {
@@ -14,8 +14,8 @@ contract ConstructorTest is BttBase {
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
         mParams.parameters.claimBlock = uint64(bound(mParams.parameters.claimBlock, 0, mParams.parameters.endBlock - 1));
 
-        vm.expectRevert(IAuction.ClaimBlockIsBeforeEndBlock.selector);
-        new Auction(mParams.token, mParams.totalSupply, mParams.parameters);
+        vm.expectRevert(IContinuousClearingAuction.ClaimBlockIsBeforeEndBlock.selector);
+        new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
     }
 
     modifier whenClaimBlockGEEndBlock() {
@@ -35,7 +35,7 @@ contract ConstructorTest is BttBase {
         mParams.parameters.claimBlock = uint64(bound(_claimBlock, mParams.parameters.endBlock, type(uint64).max));
         mParams.totalSupply = uint128(bound(_totalSupply, 1, type(uint256).max / ConstantsLib.MAX_BID_PRICE));
 
-        Auction auction = new Auction(mParams.token, mParams.totalSupply, mParams.parameters);
+        ContinuousClearingAuction auction = new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         assertEq(auction.MAX_BID_PRICE(), ConstantsLib.MAX_BID_PRICE);
         assertEq(auction.claimBlock(), mParams.parameters.claimBlock);
@@ -56,7 +56,7 @@ contract ConstructorTest is BttBase {
         mParams.totalSupply =
             uint128(bound(_totalSupply, type(uint256).max / ConstantsLib.MAX_BID_PRICE + 1, type(uint128).max));
 
-        Auction auction = new Auction(mParams.token, mParams.totalSupply, mParams.parameters);
+        ContinuousClearingAuction auction = new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         assertEq(auction.MAX_BID_PRICE(), type(uint256).max / mParams.totalSupply);
         assertEq(auction.claimBlock(), mParams.parameters.claimBlock);

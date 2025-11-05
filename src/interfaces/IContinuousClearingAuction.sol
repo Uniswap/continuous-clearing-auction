@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
 import {ValueX7} from '../libraries/ValueX7Lib.sol';
-import {IAuctionStepStorage} from './IAuctionStepStorage.sol';
+import {IStepStorage} from './IStepStorage.sol';
 import {IBidStorage} from './IBidStorage.sol';
 import {ICheckpointStorage} from './ICheckpointStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
@@ -27,12 +27,12 @@ struct AuctionParameters {
     bytes auctionStepsData; // Packed bytes describing token issuance schedule
 }
 
-/// @notice Interface for the Auction contract
-interface IAuction is
+/// @notice Interface for the ContinuousClearingAuction contract
+interface IContinuousClearingAuction is
     IDistributionContract,
     ICheckpointStorage,
     ITickStorage,
-    IAuctionStepStorage,
+    IStepStorage,
     ITokenCurrencyStorage,
     IBidStorage
 {

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {AuctionStepStorage} from './AuctionStepStorage.sol';
+import {StepStorage} from './StepStorage.sol';
 import {BidStorage} from './BidStorage.sol';
 import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
 import {TokenCurrencyStorage} from './TokenCurrencyStorage.sol';
-import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
+import {AuctionParameters, IContinuousClearingAuction} from './interfaces/IContinuousClearingAuction.sol';
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
-import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
+import {AuctionStep, StepLib} from './libraries/StepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
@@ -21,16 +21,16 @@ import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
-/// @title Auction
+/// @title ContinuousClearingAuction
 /// @custom:security-contact security@uniswap.org
 /// @notice Implements a time weighted uniform clearing price auction
-/// @dev Can be constructed directly or through the AuctionFactory. In either case, users must validate
+/// @dev Can be constructed directly or through the ContinuousClearingAuctionFactory. In either case, users must validate
 ///      that the auction parameters are correct and not incorrectly set.
-contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStorage, TokenCurrencyStorage, IAuction {
+contract ContinuousClearingAuction is BidStorage, CheckpointStorage, StepStorage, TickStorage, TokenCurrencyStorage, IContinuousClearingAuction {
     using FixedPointMathLib for *;
     using CurrencyLibrary for Currency;
     using BidLib for *;
-    using AuctionStepLib for *;
+    using StepLib for *;
     using CheckpointLib for Checkpoint;
     using ValidationHookLib for IValidationHook;
     using ValueX7Lib for *;
@@ -54,7 +54,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
     bool private $_tokensReceived;
 
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
-        AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
+        StepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
         TokenCurrencyStorage(
             _token,
             _parameters.currency,
@@ -120,7 +120,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         emit TokensReceived(TOTAL_SUPPLY);
     }
 
-    /// @inheritdoc IAuction
+    /// @inheritdoc IContinuousClearingAuction
     function isGraduated() external view returns (bool) {
         return _isGraduated();
     }
@@ -131,7 +131,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         return $currencyRaisedQ96_X7.gte(REQUIRED_CURRENCY_RAISED_Q96_X7);
     }
 
-    /// @inheritdoc IAuction
+    /// @inheritdoc IContinuousClearingAuction
     function currencyRaised() external view returns (uint256) {
         return _currencyRaised();
     }
@@ -445,7 +445,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         emit BidExited(bidId, _owner, tokensFilled, refund);
     }
 
-    /// @inheritdoc IAuction
+    /// @inheritdoc IContinuousClearingAuction
     function checkpoint() public onlyActiveAuction returns (Checkpoint memory) {
         if (block.number > END_BLOCK) {
             return _getFinalCheckpoint();
@@ -454,7 +454,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         }
     }
 
-    /// @inheritdoc IAuction
+    /// @inheritdoc IContinuousClearingAuction
     /// @dev Bids can be submitted anytime between the startBlock and the endBlock.
     function submitBid(uint256 maxPrice, uint128 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
         public
@@ -474,7 +474,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         return _submitBid(maxPrice, amount, owner, prevTickPrice, hookData);
     }
 
-    /// @inheritdoc IAuction
+    /// @inheritdoc IContinuousClearingAuction
     /// @dev The call to `submitBid` checks `onlyActiveAuction` so it's not required on this function
     function submitBid(uint256 maxPrice, uint128 amount, address owner, bytes calldata hookData)
         external
@@ -484,7 +484,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         return submitBid(maxPrice, amount, owner, FLOOR_PRICE, hookData);
     }
 
-    /// @inheritdoc IAuction
+    /// @inheritdoc IContinuousClearingAuction
     function exitBid(uint256 bidId) external onlyAfterAuctionIsOver {
         Bid memory bid = _getBid(bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
@@ -504,7 +504,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         _processExit(bidId, tokensFilled, currencySpentQ96);
     }
 
-    /// @inheritdoc IAuction
+    /// @inheritdoc IContinuousClearingAuction
     function exitPartiallyFilledBid(uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock) external {
         // Checkpoint before checking any of the hints because they could depend on the latest checkpoint
         Checkpoint memory currentBlockCheckpoint = checkpoint();
@@ -600,7 +600,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         _processExit(bidId, tokensFilled, currencySpentQ96);
     }
 
-    /// @inheritdoc IAuction
+    /// @inheritdoc IContinuousClearingAuction
     function claimTokens(uint256 _bidId) external onlyAfterClaimBlock ensureEndBlockIsCheckpointed {
         // Tokens cannot be claimed if the auction did not graduate
         if (!_isGraduated()) revert NotGraduated();
@@ -613,7 +613,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         }
     }
 
-    /// @inheritdoc IAuction
+    /// @inheritdoc IContinuousClearingAuction
     function claimTokensBatch(address _owner, uint256[] calldata _bidIds)
         external
         onlyAfterClaimBlock
@@ -658,7 +658,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         $bid.tokensFilled = 0;
     }
 
-    /// @inheritdoc IAuction
+    /// @inheritdoc IContinuousClearingAuction
     function sweepCurrency() external onlyAfterAuctionIsOver ensureEndBlockIsCheckpointed {
         // Cannot sweep if already swept
         if (sweepCurrencyBlock != 0) revert CannotSweepCurrency();
@@ -667,7 +667,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         _sweepCurrency(_currencyRaised());
     }
 
-    /// @inheritdoc IAuction
+    /// @inheritdoc IContinuousClearingAuction
     function sweepUnsoldTokens() external onlyAfterAuctionIsOver ensureEndBlockIsCheckpointed {
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
         uint256 unsoldTokens;
@@ -681,32 +681,32 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
     }
 
     // Getters
-    /// @inheritdoc IAuction
+    /// @inheritdoc IContinuousClearingAuction
     function claimBlock() external view returns (uint64) {
         return CLAIM_BLOCK;
     }
 
-    /// @inheritdoc IAuction
+    /// @inheritdoc IContinuousClearingAuction
     function validationHook() external view returns (IValidationHook) {
         return VALIDATION_HOOK;
     }
 
-    /// @inheritdoc IAuction
+    /// @inheritdoc IContinuousClearingAuction
     function currencyRaisedQ96_X7() external view returns (ValueX7) {
         return $currencyRaisedQ96_X7;
     }
 
-    /// @inheritdoc IAuction
+    /// @inheritdoc IContinuousClearingAuction
     function sumCurrencyDemandAboveClearingQ96() external view returns (uint256) {
         return $sumCurrencyDemandAboveClearingQ96;
     }
 
-    /// @inheritdoc IAuction
+    /// @inheritdoc IContinuousClearingAuction
     function totalClearedQ96_X7() external view returns (ValueX7) {
         return $totalClearedQ96_X7;
     }
 
-    /// @inheritdoc IAuction
+    /// @inheritdoc IContinuousClearingAuction
     function totalCleared() external view returns (uint256) {
         return $totalClearedQ96_X7.divUint256(FixedPoint96.Q96).scaleDownToUint256();
     }

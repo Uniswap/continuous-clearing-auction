@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Auction} from '../../src/Auction.sol';
-import {AuctionParameters} from '../../src/Auction.sol';
+import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol';
+import {AuctionParameters} from '../../src/ContinuousClearingAuction.sol';
 import {Bid} from '../../src/BidStorage.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
 
@@ -10,11 +10,11 @@ import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 import {ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 
-contract MockAuction is Auction {
+contract MockContinuousClearingAuction is ContinuousClearingAuction {
     using ValueX7Lib for *;
 
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
-        Auction(_token, _totalSupply, _parameters)
+        ContinuousClearingAuction(_token, _totalSupply, _parameters)
     {}
 
     /// @notice The number of tokens that can be swept from the auction

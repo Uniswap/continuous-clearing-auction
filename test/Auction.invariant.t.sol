@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {IAuction} from '../src/interfaces/IAuction.sol';
-import {IAuctionStepStorage} from '../src/interfaces/IAuctionStepStorage.sol';
+import {IContinuousClearingAuction} from '../src/interfaces/IContinuousClearingAuction.sol';
+import {IStepStorage} from '../src/interfaces/IStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
@@ -14,7 +14,7 @@ import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionUnitTest} from './unit/AuctionUnitTest.sol';
 import {Assertions} from './utils/Assertions.sol';
-import {MockAuction} from './utils/MockAuction.sol';
+import {MockContinuousClearingAuction} from './utils/MockAuction.sol';
 import {Test} from 'forge-std/Test.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -25,7 +25,7 @@ contract AuctionInvariantHandler is Test, Assertions {
     using FixedPointMathLib for *;
     using ValueX7Lib for *;
 
-    MockAuction public mockAuction;
+    MockContinuousClearingAuction public mockAuction;
     IPermit2 public permit2;
 
     address[] public actors;
@@ -61,7 +61,7 @@ contract AuctionInvariantHandler is Test, Assertions {
 
     Metrics public metrics;
 
-    constructor(MockAuction _auction, address[] memory _actors) {
+    constructor(MockContinuousClearingAuction _auction, address[] memory _actors) {
         mockAuction = _auction;
         permit2 = IPermit2(0x000000000022D473030F116dDEE9F6B43aC78BA3);
         currency = mockAuction.currency();
@@ -205,7 +205,7 @@ contract AuctionInvariantHandler is Test, Assertions {
     }
 
     function handleCheckpoint() public validateCheckpoint {
-        if (block.number < mockAuction.startBlock()) vm.expectRevert(IAuction.AuctionNotStarted.selector);
+        if (block.number < mockAuction.startBlock()) vm.expectRevert(IContinuousClearingAuction.AuctionNotStarted.selector);
         mockAuction.checkpoint();
     }
 
@@ -241,10 +241,10 @@ contract AuctionInvariantHandler is Test, Assertions {
             bidCount++;
         } catch (bytes memory revertData) {
             if (block.number >= mockAuction.endBlock()) {
-                assertEq(revertData, abi.encodeWithSelector(IAuctionStepStorage.AuctionIsOver.selector));
+                assertEq(revertData, abi.encodeWithSelector(IStepStorage.AuctionIsOver.selector));
                 metrics.cnt_AuctionIsOverError++;
             } else if (
-                bytes4(revertData) == bytes4(abi.encodeWithSelector(IAuction.BidMustBeAboveClearingPrice.selector))
+                bytes4(revertData) == bytes4(abi.encodeWithSelector(IContinuousClearingAuction.BidMustBeAboveClearingPrice.selector))
             ) {
                 // See if we checkpoint, that the bid maxPrice would be at an invalid price
                 mockAuction.checkpoint();
@@ -256,19 +256,19 @@ contract AuctionInvariantHandler is Test, Assertions {
                 // This is handled in the else condition - so we exclude it here
                 prevTickPrice == 0
                     && bytes4(revertData)
-                        != bytes4(abi.encodeWithSelector(IAuction.BidMustBeAboveClearingPrice.selector))
+                        != bytes4(abi.encodeWithSelector(IContinuousClearingAuction.BidMustBeAboveClearingPrice.selector))
             ) {
                 assertEq(revertData, abi.encodeWithSelector(ITickStorage.TickPriceNotIncreasing.selector));
                 metrics.cnt_TickPriceNotIncreasingError++;
             } else if (inputAmount == 0) {
-                assertEq(revertData, abi.encodeWithSelector(IAuction.BidAmountTooSmall.selector));
+                assertEq(revertData, abi.encodeWithSelector(IContinuousClearingAuction.BidAmountTooSmall.selector));
                 metrics.cnt_BidAmountTooSmallError++;
             } else if (
                 mockAuction.sumCurrencyDemandAboveClearingQ96()
                     >= ConstantsLib.X7_UPPER_BOUND - (inputAmount * FixedPoint96.Q96 * ConstantsLib.MPS)
                         / (ConstantsLib.MPS - _checkpoint.cumulativeMps)
             ) {
-                assertEq(revertData, abi.encodeWithSelector(IAuction.InvalidBidUnableToClear.selector));
+                assertEq(revertData, abi.encodeWithSelector(IContinuousClearingAuction.InvalidBidUnableToClear.selector));
                 metrics.cnt_InvalidBidUnableToClearError++;
             } else {
                 // For race conditions or any errors that require additional calls to be made
@@ -505,7 +505,7 @@ contract AuctionInvariantTest is AuctionUnitTest {
 
             uint256 ownerBalanceBefore = token.balanceOf(bid.owner);
             vm.expectEmit(true, true, false, false);
-            emit IAuction.TokensClaimed(bidId, bid.owner, bid.tokensFilled);
+            emit IContinuousClearingAuction.TokensClaimed(bidId, bid.owner, bid.tokensFilled);
             mockAuction.claimTokens(bidId);
             // Assert that the owner received the tokens
             assertEq(token.balanceOf(bid.owner), ownerBalanceBefore + bid.tokensFilled);

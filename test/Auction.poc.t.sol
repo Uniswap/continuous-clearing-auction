@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {AuctionParameters} from '../src/Auction.sol';
+import {AuctionParameters} from '../src/ContinuousClearingAuction.sol';
 import {Checkpoint} from '../src/CheckpointStorage.sol';
-import {AuctionStep} from '../src/libraries/AuctionStepLib.sol';
+import {AuctionStep} from '../src/libraries/StepLib.sol';
 import {Bid} from '../src/libraries/BidLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
-import {MockAuction} from './utils/MockAuction.sol';
+import {MockContinuousClearingAuction} from './utils/MockAuction.sol';
 
 contract Leftovers is AuctionBaseTest {
     using AuctionParamsBuilder for AuctionParameters;
@@ -24,7 +24,7 @@ contract Leftovers is AuctionBaseTest {
     uint256 private tick10;
     uint256 private tick20;
     uint256 private tick30;
-    MockAuction private mockAuction;
+    MockContinuousClearingAuction private mockAuction;
 
     uint256 private bidId1;
     uint256 private bidId2;
@@ -268,7 +268,7 @@ contract Leftovers is AuctionBaseTest {
         testParams.tickSpacing = largeTickSpacing;
         testParams.floorPrice = tick10;
 
-        mockAuction = new MockAuction(address(token), TOTAL_SUPPLY, testParams);
+        mockAuction = new MockContinuousClearingAuction(address(token), TOTAL_SUPPLY, testParams);
         token.mint(address(mockAuction), TOTAL_SUPPLY);
         mockAuction.onTokensReceived();
     }

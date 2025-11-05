@@ -2,9 +2,9 @@
 pragma solidity 0.8.26;
 
 import {AuctionFuzzConstructorParams, BttBase} from 'btt/BttBase.sol';
-import {MockAuction} from 'btt/mocks/MockAuction.sol';
+import {MockContinuousClearingAuction} from 'btt/mocks/MockContinuousClearingAuction.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
-import {IAuction} from 'twap-auction/interfaces/IAuction.sol';
+import {IContinuousClearingAuction} from 'twap-auction/interfaces/IContinuousClearingAuction.sol';
 import {ITokenCurrencyStorage} from 'twap-auction/interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from 'twap-auction/interfaces/external/IERC20Minimal.sol';
 import {Checkpoint} from 'twap-auction/libraries/CheckpointLib.sol';
@@ -15,12 +15,12 @@ contract SweepUnsoldTokensTest is BttBase {
         // it reverts with {AuctionIsNotOver}
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
-        MockAuction auction = new MockAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction = new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         uint256 blockNumber = bound(_blockNumber, 0, mParams.parameters.endBlock - 1);
 
         vm.roll(blockNumber);
-        vm.expectRevert(IAuction.AuctionIsNotOver.selector);
+        vm.expectRevert(IContinuousClearingAuction.AuctionIsNotOver.selector);
         auction.sweepUnsoldTokens();
     }
 
@@ -38,7 +38,7 @@ contract SweepUnsoldTokensTest is BttBase {
         mParams.parameters.requiredCurrencyRaised = 1;
         mParams.token = address(new ERC20Mock());
 
-        MockAuction auction = new MockAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction = new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         uint256 blockNumber = bound(_blockNumber, mParams.parameters.endBlock, type(uint256).max);
 
@@ -85,7 +85,7 @@ contract SweepUnsoldTokensTest is BttBase {
             )
         );
 
-        MockAuction auction = new MockAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction = new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
         auction.onTokensReceived();
@@ -171,7 +171,7 @@ contract SweepUnsoldTokensTest is BttBase {
             )
         );
 
-        MockAuction auction = new MockAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction = new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
         auction.onTokensReceived();

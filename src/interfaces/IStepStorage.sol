@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {AuctionStep} from '../libraries/AuctionStepLib.sol';
+import {AuctionStep} from '../libraries/StepLib.sol';
 
 /// @notice Interface for managing auction step storage
-interface IAuctionStepStorage {
+interface IStepStorage {
     /// @notice Error thrown when the end block is equal to or before the start block
     error InvalidEndBlock();
     /// @notice Error thrown when the auction is over

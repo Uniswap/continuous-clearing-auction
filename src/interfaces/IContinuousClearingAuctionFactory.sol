@@ -3,8 +3,8 @@ pragma solidity ^0.8.0;
 
 import {IDistributionStrategy} from './external/IDistributionStrategy.sol';
 
-/// @title IAuctionFactory
-interface IAuctionFactory is IDistributionStrategy {
+/// @title IContinuousClearingAuctionFactory
+interface IContinuousClearingAuctionFactory is IDistributionStrategy {
     /// @notice Error thrown when the amount is invalid
     error InvalidTokenAmount(uint256 amount);
 

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import {Auction} from 'src/Auction.sol';
-import {AuctionParameters} from 'src/interfaces/IAuction.sol';
-import {AuctionStep} from 'src/libraries/AuctionStepLib.sol';
+import {ContinuousClearingAuction} from 'src/ContinuousClearingAuction.sol';
+import {AuctionParameters} from 'src/interfaces/IContinuousClearingAuction.sol';
+import {AuctionStep} from 'src/libraries/StepLib.sol';
 
-contract MockAuction is Auction {
+contract MockContinuousClearingAuction is ContinuousClearingAuction {
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
-        Auction(_token, _totalSupply, _parameters)
+        ContinuousClearingAuction(_token, _totalSupply, _parameters)
     {}
 
     /// @notice Mock wrapper around internal function for testing

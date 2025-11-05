@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {AuctionStepStorage} from 'twap-auction/AuctionStepStorage.sol';
-import {AuctionStep} from 'twap-auction/libraries/AuctionStepLib.sol';
+import {StepStorage} from 'twap-auction/StepStorage.sol';
+import {AuctionStep} from 'twap-auction/libraries/StepLib.sol';
 
-contract MockAuctionStepStorage is AuctionStepStorage {
+contract MockStepStorage is StepStorage {
     constructor(bytes memory _auctionStepsData, uint64 _startBlock, uint64 _endBlock)
-        AuctionStepStorage(_auctionStepsData, _startBlock, _endBlock)
+        StepStorage(_auctionStepsData, _startBlock, _endBlock)
     {}
 
     function advanceStep() public returns (AuctionStep memory) {

@@ -1,0 +1,3 @@
+AdvanceToCurrentStep
+├── when step start block GT last checkpointed block
+└── when step start block LT last checkpointed block

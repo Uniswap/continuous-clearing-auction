@@ -129,6 +129,8 @@ contract ClaimTokensTest is BttBase {
         // it does not emit {TokensClaimed}
         // it does not transfer tokens
 
+        alice = makeAddr('alice');
+
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
         mParams.token = address(new ERC20Mock());
         mParams.parameters.currency = address(0);

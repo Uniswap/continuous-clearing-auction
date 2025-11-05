@@ -1,27 +1,21 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.4;
 
 import {ConstantsLib} from './ConstantsLib.sol';
-import {FixedPoint128} from './FixedPoint128.sol';
-import {FixedPoint96} from './FixedPoint96.sol';
-import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 struct Bid {
     uint64 startBlock; // Block number when the bid was first made in
     uint24 startCumulativeMps; // Cumulative mps at the start of the bid
     uint64 exitedBlock; // Block number when the bid was exited
     uint256 maxPrice; // The max price of the bid
-    address owner; // Who is allowed to exit the bid
-    uint256 amountQ96; // User's demand
+    address owner; // Who will receive the tokens filled and currency refunded
+    uint256 amountQ96; // User's currency amount in Q96 form
     uint256 tokensFilled; // Amount of tokens filled
 }
 
 /// @title BidLib
 library BidLib {
-    using ValueX7Lib for *;
     using BidLib for *;
-    using FixedPointMathLib for *;
 
     /// @dev Error thrown when a bid is submitted with no remaining percentage of the auction
     ///      This is prevented by the auction contract as bids cannot be submitted when the auction is sold out,

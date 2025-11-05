@@ -6,11 +6,12 @@ import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
-import {ValueX7} from './libraries/ValueX7Lib.sol';
+import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @title TokenCurrencyStorage
 abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
+    using ValueX7Lib for *;
     using CurrencyLibrary for Currency;
 
     /// @notice The currency being raised in the auction
@@ -25,8 +26,9 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     address internal immutable TOKENS_RECIPIENT;
     /// @notice The recipient of the raised Currency from the auction
     address internal immutable FUNDS_RECIPIENT;
-    /// @notice The amount of currency required to be raised for the auction to graduate in 160.96 form
-    uint256 internal immutable REQUIRED_CURRENCY_RAISED_Q96;
+    /// @notice The amount of currency required to be raised for the auction
+    ///         to graduate in Q96 form, scaled up by X7
+    ValueX7 internal immutable REQUIRED_CURRENCY_RAISED_Q96_X7;
 
     /// @notice The block at which the currency was swept
     uint256 public sweepCurrencyBlock;
@@ -53,7 +55,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         TOTAL_SUPPLY_Q96 = uint256(_totalSupply) << FixedPoint96.RESOLUTION;
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;
-        REQUIRED_CURRENCY_RAISED_Q96 = _requiredCurrencyRaised * FixedPoint96.Q96;
+        REQUIRED_CURRENCY_RAISED_Q96_X7 = (_requiredCurrencyRaised * FixedPoint96.Q96).scaleUpToX7();
     }
 
     function _sweepCurrency(uint256 amount) internal {

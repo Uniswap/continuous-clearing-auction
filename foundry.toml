@@ -58,3 +58,6 @@ tab_width = 4
 quote_style = "single"
 sort_imports = true
 number_underscore = "thousands"
+
+[lint]
+exclude_lints = ["mixed-case-variable"]

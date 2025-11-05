@@ -194,7 +194,7 @@ library ConstantsLib {
 
 #### ValueX7
 
-A custom uint256 type that represents values which have either been implicitly or explicitly multiplied by 1e7 (ConstantsLib.MPS). These values will be suffixed in the code with `_X7` for clarity. 
+A custom uint256 type that represents values which have either been implicitly or explicitly multiplied by 1e7 (ConstantsLib.MPS). These values will be suffixed in the code with `_X7` for clarity.
 
 ```solidity
 /// @notice A ValueX7 is a uint256 value that has been multiplied by MPS
@@ -333,8 +333,9 @@ Users can submit bids specifying the currency amount they want to spend. The bid
 The `maxPrice` is the maximum price the user is willing to pay. The `amount` is the amount of currency the user is bidding, and `owner` is the address of the user who will receive any purchased tokens or refunded currency.
 
 The Auction enforces the following rules on bid prices:
+
 - Bids must be above the current clearing price
-- Maximum bid price is capped at `type(uint256).max / TOTAL_SUPPLY` 
+- Maximum bid price is capped at `type(uint256).max / TOTAL_SUPPLY`
 
 ```solidity
 interface IAuction {
@@ -394,6 +395,7 @@ Exiting partially filled bids is more complex than fully filled ones. The `exitP
 - `outbidBlock`: First checkpoint where clearing price is strictly > bid.maxPrice, or 0 if the bid was not outbid at the end of the auction.
 
 Diagram showing the checkpoints:
+
 ```solidity
         /**
          * Account for partially filled checkpoints
@@ -431,7 +433,7 @@ interface IAuction {
 }
 ```
 
-### sweepCurrency() and sweepUnsoldTokens()   
+### sweepCurrency() and sweepUnsoldTokens()
 
 After an auction ends, raised currency and unsold tokens can be withdrawn to the designated recipients in the auction deployment parameters.
 
@@ -449,10 +451,12 @@ event TokensSwept(address indexed tokensRecipient, uint256 tokensAmount);
 ```
 
 Note:
+
 - `sweepCurrency()` is only callable after the auction ends, and only for graduated auctions
 - `sweepUnsoldTokens()` is callable by anyone after the auction ends and will sweep different amounts depending on graduation.
 - For graduated auctions: sweeps no tokens (all were sold)
 - For non-graduated auctions: sweeps all `totalSupply` tokens
+
 ### claimTokens()
 
 Users can claim their purchased tokens after the auction's claim block. The bid must be exited before claiming tokens, and the auction must have graduated.

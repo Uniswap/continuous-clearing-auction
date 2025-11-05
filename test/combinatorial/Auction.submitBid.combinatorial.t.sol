@@ -32,6 +32,28 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
     using Combinatorium for Combinatorium.Context;
     using ValueX7Lib for ValueX7;
 
+    // Struct to avoid stack too deep in _computePhase1Metrics
+    struct Phase1Metrics {
+        uint256 fillRatioPercent;
+        string partialFillReason;
+        uint256 bidLifetimeBlocks;
+        uint256 blocksFromStart;
+        uint256 timeToOutbid;
+        bool wasOutbid;
+        bool neverFullyFilled;
+        bool nearGraduationBoundary;
+        uint256 clearingPriceStart;
+        uint256 clearingPriceEnd;
+        uint256 tokensReceived;
+        uint256 pricePerTokenETH;
+        bool didGraduate;
+        uint64 auctionStartBlock;
+        uint64 auctionDurationBlocks;
+        uint256 floorPrice;
+        uint256 tickSpacing;
+        uint256 totalSupply;
+    }
+
     Combinatorium.Context internal ctx;
 
     // Space indices
@@ -279,177 +301,167 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
         console.log('Verifying with scenarios - Pre:', uint256(preBidScenario), 'Post:', uint256(postBidScenario));
 
         // ============ Phase 1: Immediate Post-Bid Verification ============
-        console.log('=== Phase 1: Immediate Post-Bid Verification ===');
+        {
+            console.log('=== Phase 1: Immediate Post-Bid Verification ===');
 
-        // Extract original bid parameters from selections
-        uint256 bidSeed = selections[uint256(SpaceIndices.bidSeed)];
-        (uint128 bidAmount, uint256 maxPriceQ96,,) = helper__seedBasedBid(bidSeed);
+            // Extract original bid parameters from selections
+            uint256 bidSeed = selections[uint256(SpaceIndices.bidSeed)];
+            (uint128 bidAmount, uint256 maxPriceQ96,,) = helper__seedBasedBid(bidSeed);
 
-        // Verify bid struct properties
-        helper__verifyBidStruct(
-            usersBidId,
-            alice, // owner
-            maxPriceQ96, // maxPrice
-            uint256(bidAmount) << FixedPoint96.RESOLUTION, // amountQ96
-            usersBidStartBlock // startBlock (stored at submission time)
-        );
+            // Verify bid struct properties
+            helper__verifyBidStruct(
+                usersBidId,
+                alice, // owner
+                maxPriceQ96, // maxPrice
+                uint256(bidAmount) << FixedPoint96.RESOLUTION, // amountQ96
+                usersBidStartBlock // startBlock (stored at submission time)
+            );
 
-        // Verify bid is in tick's linked list (if above clearing)
-        Checkpoint memory currentCP = auction.checkpoint();
-        if (maxPriceQ96 > currentCP.clearingPrice) {
-            uint256 tickDemand = auction.ticks(maxPriceQ96).currencyDemandQ96;
-            assertGt(tickDemand, 0, 'Tick should have demand after bid submission');
-            console.log('  Tick demand updated successfully');
+            // Verify bid is in tick's linked list (if above clearing)
+            Checkpoint memory currentCP = auction.checkpoint();
+            if (maxPriceQ96 > currentCP.clearingPrice) {
+                uint256 tickDemand = auction.ticks(maxPriceQ96).currencyDemandQ96;
+                assertGt(tickDemand, 0, 'Tick should have demand after bid submission');
+                console.log('  Tick demand updated successfully');
+            }
+
+            console.log('Phase 1 verification complete');
         }
-
-        console.log('Phase 1 verification complete');
 
         // ============ Phase 2: Auction-End Settlement Verification ============
-        console.log('=== Phase 2: Auction-End Settlement Verification ===');
+        Phase1Metrics memory metricsData;
+        {
+            console.log('=== Phase 2: Auction-End Settlement Verification ===');
 
-        // Save current state for snapshot revert
-        uint256 preSettlementSnapshot = vm.snapshot();
+            // Save current state for snapshot revert
+            uint256 preSettlementSnapshot = vm.snapshot();
 
-        // Jump to auction end and checkpoint
-        vm.roll(auction.endBlock());
-        Checkpoint memory finalCheckpoint = auction.checkpoint();
-        bool graduated = auction.isGraduated();
+            // Jump to auction end and checkpoint
+            vm.roll(auction.endBlock());
+            Checkpoint memory finalCheckpoint = auction.checkpoint();
+            bool graduated = auction.isGraduated();
 
-        console.log('Auction end state:');
-        console.log('  endBlock:', auction.endBlock());
-        console.log('  finalClearing:', finalCheckpoint.clearingPrice);
-        console.log('  graduated:', graduated);
+            console.log('Auction end state:');
+            console.log('  endBlock:', auction.endBlock());
+            console.log('  finalClearing:', finalCheckpoint.clearingPrice);
+            console.log('  graduated:', graduated);
 
-        // Get the bid at auction end
-        Bid memory finalBid = auction.bids(usersBidId);
+            // Get the bid at auction end
+            Bid memory finalBid = auction.bids(usersBidId);
 
-        // SCENARIO VALIDATION: Check if actual state matches intended scenario
-        helper__validateScenarioMatchesReality(postBidScenario, usersBidId, finalCheckpoint);
+            // SCENARIO VALIDATION: Check if actual state matches intended scenario
+            helper__validateScenarioMatchesReality(postBidScenario, usersBidId, finalCheckpoint);
 
-        // Classify exit path based on actual final state
-        ExitPath exitPath = helper__classifyExitPath(finalBid, finalCheckpoint, graduated);
-        console.log('Exit path:', uint256(exitPath));
+            // Classify exit path based on actual final state
+            ExitPath exitPath = helper__classifyExitPath(finalBid, finalCheckpoint, graduated);
+            console.log('Exit path:', uint256(exitPath));
 
-        // Get owner balance before exit
-        address bidOwner = finalBid.owner;
-        uint256 balanceBefore = address(bidOwner).balance;
+            // Track currency spent for accurate fill ratio calculation
+            uint256 currencySpentQ96;
+            uint256 tokensFilled;
+            {
+                // Get owner balance before exit
+                address bidOwner = finalBid.owner;
+                uint256 balanceBefore = address(bidOwner).balance;
 
-        // Track currency spent for accurate fill ratio calculation
-        uint256 currencySpentQ96 = 0;
+                // Verify exit based on path
+                if (exitPath == ExitPath.NonGraduated) {
+                    console.log('Verifying NonGraduated exit path');
+                    uint256 expectedRefund = finalBid.amountQ96 >> FixedPoint96.RESOLUTION;
+                    helper__verifyNonGraduatedExit(usersBidId, balanceBefore, expectedRefund);
+                    currencySpentQ96 = 0; // No currency spent for non-graduated
+                } else if (exitPath == ExitPath.FullExit) {
+                    console.log('Verifying FullExit path');
+                    currencySpentQ96 = helper__verifyFullExit(usersBidId, balanceBefore);
+                } else if (exitPath == ExitPath.PartialExit) {
+                    console.log('Verifying PartialExit path');
+                    currencySpentQ96 = helper__verifyPartialExit(usersBidId);
+                }
 
-        // Verify exit based on path
-        if (exitPath == ExitPath.NonGraduated) {
-            console.log('Verifying NonGraduated exit path');
-            uint256 expectedRefund = finalBid.amountQ96 >> FixedPoint96.RESOLUTION;
-            helper__verifyNonGraduatedExit(usersBidId, balanceBefore, expectedRefund);
-            currencySpentQ96 = 0; // No currency spent for non-graduated
-        } else if (exitPath == ExitPath.FullExit) {
-            console.log('Verifying FullExit path');
-            currencySpentQ96 = helper__verifyFullExit(usersBidId, balanceBefore);
-        } else if (exitPath == ExitPath.PartialExit) {
-            console.log('Verifying PartialExit path');
-            currencySpentQ96 = helper__verifyPartialExit(usersBidId);
+                console.log('Phase 2 verification complete');
+
+                // Capture tokens filled from bid struct after exit (bid was exited by verification helpers)
+                Bid memory exitedBid = auction.bids(usersBidId);
+                tokensFilled = exitedBid.tokensFilled;
+
+                vm.roll(auction.claimBlock());
+                helper_verifyTokensFilled(bidOwner, usersBidId, tokensFilled);
+            }
+
+            // ============ Phase 1 Metrics Collection (BEFORE snapshot revert) ============
+            // Collect metrics from Phase 2 state BEFORE reverting
+            // Store in memory to survive the revert
+            metricsData = _computePhase1Metrics(finalBid, finalCheckpoint, exitPath, graduated, tokensFilled, currencySpentQ96);
+
+            // Revert to pre-settlement state to avoid polluting future iterations
+            vm.revertToState(preSettlementSnapshot);
         }
-
-        console.log('Phase 2 verification complete');
-
-        // Capture tokens filled from bid struct after exit (bid was exited by verification helpers)
-        Bid memory exitedBid = auction.bids(usersBidId);
-        uint256 tokensFilled = exitedBid.tokensFilled;
-
-        vm.roll(auction.claimBlock());
-        helper_verifyTokensFilled(bidOwner, usersBidId, tokensFilled);
-
-        // ============ Phase 1 Metrics Collection (BEFORE snapshot revert) ============
-        // Collect metrics from Phase 2 state BEFORE reverting
-        // Store in memory to survive the revert
-        (
-            uint256 fillRatioPercent,
-            string memory partialFillReason,
-            uint256 bidLifetimeBlocks,
-            uint256 blocksFromStart,
-            uint256 timeToOutbid,
-            bool wasOutbid,
-            bool neverFullyFilled,
-            bool nearGraduationBoundary,
-            uint256 clearingPriceStart,
-            uint256 clearingPriceEnd,
-            uint256 tokensReceived,
-            uint256 pricePerTokenETH,
-            bool didGraduate,
-            uint64 auctionStartBlock,
-            uint64 auctionDurationBlocks,
-            uint256 floorPrice,
-            uint256 tickSpacing,
-            uint256 totalSupply_
-        ) = _computePhase1Metrics(finalBid, finalCheckpoint, exitPath, graduated, tokensFilled, currencySpentQ96);
-
-        // Revert to pre-settlement state to avoid polluting future iterations
-        vm.revertToState(preSettlementSnapshot);
 
         // Store metrics in storage AFTER revert so they persist for documentState()
-        metrics_fillRatioPercent = fillRatioPercent;
-        metrics_partialFillReason = partialFillReason;
-        metrics_bidLifetimeBlocks = bidLifetimeBlocks;
-        metrics_blocksFromStart = blocksFromStart;
-        metrics_timeToOutbid = timeToOutbid;
-        metrics_wasOutbid = wasOutbid;
-        metrics_neverFullyFilled = neverFullyFilled;
-        metrics_nearGraduationBoundary = nearGraduationBoundary;
-        metrics_clearingPriceStart = clearingPriceStart;
-        metrics_clearingPriceEnd = clearingPriceEnd;
-        metrics_tokensReceived = tokensReceived;
-        metrics_pricePerTokenETH = pricePerTokenETH;
-        metrics_didGraduate = didGraduate;
-        metrics_auctionStartBlock = auctionStartBlock;
-        metrics_auctionDurationBlocks = auctionDurationBlocks;
-        metrics_floorPrice = floorPrice;
-        metrics_tickSpacing = tickSpacing;
-        metrics_totalSupply = totalSupply_;
+        metrics_fillRatioPercent = metricsData.fillRatioPercent;
+        metrics_partialFillReason = metricsData.partialFillReason;
+        metrics_bidLifetimeBlocks = metricsData.bidLifetimeBlocks;
+        metrics_blocksFromStart = metricsData.blocksFromStart;
+        metrics_timeToOutbid = metricsData.timeToOutbid;
+        metrics_wasOutbid = metricsData.wasOutbid;
+        metrics_neverFullyFilled = metricsData.neverFullyFilled;
+        metrics_nearGraduationBoundary = metricsData.nearGraduationBoundary;
+        metrics_clearingPriceStart = metricsData.clearingPriceStart;
+        metrics_clearingPriceEnd = metricsData.clearingPriceEnd;
+        metrics_tokensReceived = metricsData.tokensReceived;
+        metrics_pricePerTokenETH = metricsData.pricePerTokenETH;
+        metrics_didGraduate = metricsData.didGraduate;
+        metrics_auctionStartBlock = metricsData.auctionStartBlock;
+        metrics_auctionDurationBlocks = metricsData.auctionDurationBlocks;
+        metrics_floorPrice = metricsData.floorPrice;
+        metrics_tickSpacing = metricsData.tickSpacing;
+        metrics_totalSupply = metricsData.totalSupply;
 
         // ============ Phase 3: Auction Invariants Verification ============
-        console.log('=== Phase 3: Auction Invariants Verification ===');
+        {
+            console.log('=== Phase 3: Auction Invariants Verification ===');
 
-        // Invariant 1: Bid struct consistency
-        Bid memory currentBid = auction.bids(usersBidId);
-        assertEq(currentBid.exitedBlock, 0, 'Bid should not be exited in current timeline');
-        assertTrue(currentBid.startBlock >= auction.startBlock(), 'Bid startBlock before auction start');
-        assertTrue(currentBid.startBlock < auction.endBlock(), 'Bid startBlock after auction end');
+            // Invariant 1: Bid struct consistency
+            Bid memory currentBid = auction.bids(usersBidId);
+            assertEq(currentBid.exitedBlock, 0, 'Bid should not be exited in current timeline');
+            assertTrue(currentBid.startBlock >= auction.startBlock(), 'Bid startBlock before auction start');
+            assertTrue(currentBid.startBlock < auction.endBlock(), 'Bid startBlock after auction end');
 
-        // Invariant 2: Checkpoint linked list integrity
-        Checkpoint memory latestCP = auction.latestCheckpoint();
-        uint64 checkpointBlock = auction.lastCheckpointedBlock();
+            // Invariant 2: Checkpoint linked list integrity
+            Checkpoint memory latestCP = auction.latestCheckpoint();
+            uint64 checkpointBlock = auction.lastCheckpointedBlock();
 
-        // Traverse backwards to verify prev pointers
-        uint64 traverseBlock = checkpointBlock;
-        uint256 traverseCount = 0;
-        while (traverseBlock != 0 && traverseCount < CHECKPOINT_TRAVERSAL_LIMIT) {
-            Checkpoint memory cp = auction.checkpoints(traverseBlock);
-            if (cp.prev != 0) {
-                Checkpoint memory prevCP = auction.checkpoints(cp.prev);
-                assertEq(prevCP.next, traverseBlock, 'Checkpoint linked list broken');
+            // Traverse backwards to verify prev pointers
+            uint64 traverseBlock = checkpointBlock;
+            uint256 traverseCount = 0;
+            while (traverseBlock != 0 && traverseCount < CHECKPOINT_TRAVERSAL_LIMIT) {
+                Checkpoint memory cp = auction.checkpoints(traverseBlock);
+                if (cp.prev != 0) {
+                    Checkpoint memory prevCP = auction.checkpoints(cp.prev);
+                    assertEq(prevCP.next, traverseBlock, 'Checkpoint linked list broken');
+                }
+                traverseBlock = cp.prev;
+                traverseCount++;
             }
-            traverseBlock = cp.prev;
-            traverseCount++;
+            assertTrue(traverseCount < CHECKPOINT_TRAVERSAL_LIMIT, 'Checkpoint list too long');
+
+            // Invariant 3: Clearing price monotonicity
+            // Clearing price should never decrease
+            Checkpoint memory currentBidStartCP = auction.checkpoints(currentBid.startBlock);
+            assertTrue(
+                latestCP.clearingPrice >= currentBidStartCP.clearingPrice, 'Clearing price decreased (should be monotonic)'
+            );
+
+            // Invariant 4: CumulativeMps monotonicity
+            assertTrue(latestCP.cumulativeMps >= currentBidStartCP.cumulativeMps, 'CumulativeMps should never decrease');
+
+            // Invariant 5: Bid owner is valid address
+            assertTrue(currentBid.owner != address(0), 'Bid owner should not be zero address');
+            assertEq(currentBid.owner, alice, 'Bid owner should be alice');
+
+            console.log('Phase 3 invariants verified');
+            console.log('=== Verification Complete for bidId:', usersBidId, '===');
         }
-        assertTrue(traverseCount < CHECKPOINT_TRAVERSAL_LIMIT, 'Checkpoint list too long');
-
-        // Invariant 3: Clearing price monotonicity
-        // Clearing price should never decrease
-        Checkpoint memory currentBidStartCP = auction.checkpoints(currentBid.startBlock);
-        assertTrue(
-            latestCP.clearingPrice >= currentBidStartCP.clearingPrice, 'Clearing price decreased (should be monotonic)'
-        );
-
-        // Invariant 4: CumulativeMps monotonicity
-        assertTrue(latestCP.cumulativeMps >= currentBidStartCP.cumulativeMps, 'CumulativeMps should never decrease');
-
-        // Invariant 5: Bid owner is valid address
-        assertTrue(currentBid.owner != address(0), 'Bid owner should not be zero address');
-        assertEq(currentBid.owner, alice, 'Bid owner should be alice');
-
-        console.log('Phase 3 invariants verified');
-        console.log('=== Verification Complete for bidId:', usersBidId, '===');
     }
 
     /**
@@ -473,94 +485,75 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
     )
         private
         view
-        returns (
-            uint256 fillRatioPercent,
-            string memory partialFillReason,
-            uint256 bidLifetimeBlocks,
-            uint256 blocksFromStart,
-            uint256 timeToOutbid,
-            bool wasOutbid,
-            bool neverFullyFilled,
-            bool nearGraduationBoundary,
-            uint256 clearingPriceStart,
-            uint256 clearingPriceEnd,
-            uint256 tokensReceived,
-            uint256 pricePerTokenETH,
-            bool didGraduate,
-            uint64 auctionStartBlock,
-            uint64 auctionDurationBlocks,
-            uint256 floorPrice,
-            uint256 tickSpacing,
-            uint256 totalSupply
-        )
+        returns (Phase1Metrics memory metrics)
     {
         // Step 1: Fill Ratio Metrics (ACCURATE CALCULATION)
         // fillRatio = (currencySpentQ96 / originalBidAmountQ96) * MPS
         // Uses MPS precision (1e7) for 5 decimal places: 100.00000%
         if (exitPath == ExitPath.FullExit) {
-            fillRatioPercent = ConstantsLib.MPS; // 10,000,000 = 100%
-            partialFillReason = 'full';
+            metrics.fillRatioPercent = ConstantsLib.MPS; // 10,000,000 = 100%
+            metrics.partialFillReason = 'full';
         } else if (exitPath == ExitPath.NonGraduated) {
-            fillRatioPercent = 0;
-            partialFillReason = 'non_graduated';
+            metrics.fillRatioPercent = 0;
+            metrics.partialFillReason = 'non_graduated';
         } else {
             // PartialExit - Calculate actual fill ratio with MPS precision
             if (finalBid.amountQ96 > 0) {
                 // Calculate fill ratio using MPS precision (0 to 10,000,000)
-                fillRatioPercent = (currencySpentQ96 * ConstantsLib.MPS) / finalBid.amountQ96;
+                metrics.fillRatioPercent = (currencySpentQ96 * ConstantsLib.MPS) / finalBid.amountQ96;
             } else {
-                fillRatioPercent = 0;
+                metrics.fillRatioPercent = 0;
             }
-            partialFillReason = graduated ? 'partial_graduated' : 'partial_outbid';
+            metrics.partialFillReason = graduated ? 'partial_graduated' : 'partial_outbid';
         }
 
         // Step 2: Timing Metrics - USE POSTBIDSCENARIO AS SOURCE OF TRUTH
         // The PostBidScenario enum accurately represents what actually happened
-        bidLifetimeBlocks = finalBid.exitedBlock > 0
+        metrics.bidLifetimeBlocks = finalBid.exitedBlock > 0
             ? finalBid.exitedBlock - finalBid.startBlock
             : auction.endBlock() - finalBid.startBlock;
-        blocksFromStart = finalBid.startBlock - auction.startBlock();
+        metrics.blocksFromStart = finalBid.startBlock - auction.startBlock();
 
         // Find the block where the bid was outbid
         (uint64 outbidBlock, bool wasOutbid_) = helper__findOutbidBlock(finalBid);
-        wasOutbid = wasOutbid_;
-        timeToOutbid = wasOutbid_ ? outbidBlock - finalBid.startBlock : 0;
-        if (wasOutbid) {
+        metrics.wasOutbid = wasOutbid_;
+        metrics.timeToOutbid = wasOutbid_ ? outbidBlock - finalBid.startBlock : 0;
+        if (metrics.wasOutbid) {
             // reduce timeToOutbid by one block, since 1 block between start and outbid is the minimum, since checkpoints summarize previous blocks
-            timeToOutbid--;
+            metrics.timeToOutbid--;
         }
 
         // Step 3: Edge Case Flags
-        neverFullyFilled = (fillRatioPercent < ConstantsLib.MPS);
-        nearGraduationBoundary =
+        metrics.neverFullyFilled = (metrics.fillRatioPercent < ConstantsLib.MPS);
+        metrics.nearGraduationBoundary =
             !graduated && (block.number - auction.startBlock() > (auction.endBlock() - auction.startBlock()) * 90 / 100);
 
         // Step 4: Price Analysis Metrics
-        clearingPriceStart = auction.checkpoints(finalBid.startBlock).clearingPrice;
-        clearingPriceEnd = finalCheckpoint.clearingPrice;
+        metrics.clearingPriceStart = auction.checkpoints(finalBid.startBlock).clearingPrice;
+        metrics.clearingPriceEnd = finalCheckpoint.clearingPrice;
 
         // Step 5: Token Output Metrics
         // Tokens received from the bid struct (set by exitBid)
-        tokensReceived = tokensFilled;
+        metrics.tokensReceived = tokensFilled;
 
         // Calculate price per token in ETH (wei)
         // pricePerToken = actualCurrencySpent / tokensReceived
         uint256 currencySpent = currencySpentQ96 >> FixedPoint96.RESOLUTION;
-        if (tokensReceived > 0) {
-            pricePerTokenETH = (currencySpent * 1e18) / tokensReceived;
+        if (metrics.tokensReceived > 0) {
+            metrics.pricePerTokenETH = (currencySpent * 1e18) / metrics.tokensReceived;
         } else {
-            pricePerTokenETH = 0;
+            metrics.pricePerTokenETH = 0;
         }
 
         // Step 6: Graduation Tracking
-        didGraduate = graduated;
+        metrics.didGraduate = graduated;
 
         // Step 7: Auction Context Info
-        auctionStartBlock = auction.startBlock();
-        auctionDurationBlocks = auction.endBlock() - auction.startBlock();
-        floorPrice = auction.floorPrice();
-        tickSpacing = auction.tickSpacing();
-        totalSupply = auction.totalSupply();
+        metrics.auctionStartBlock = auction.startBlock();
+        metrics.auctionDurationBlocks = auction.endBlock() - auction.startBlock();
+        metrics.floorPrice = auction.floorPrice();
+        metrics.tickSpacing = auction.tickSpacing();
+        metrics.totalSupply = auction.totalSupply();
     }
 
     /**
@@ -581,62 +574,50 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
         emit CoverageData(uint8(preBid), uint8(postBid), bidAmount, maxPrice);
 
         // Write to file for aggregation across all fuzz runs (new format with auction context)
-        string memory coverageLine = string(
+        // Split into chunks to avoid stack too deep
+        string memory part1 = string(
             abi.encodePacked(
-                // Original 4 columns
-                vm.toString(uint256(preBid)),
-                ',',
-                vm.toString(uint256(postBid)),
-                ',',
-                vm.toString(uint256(bidAmount)),
-                ',',
-                vm.toString(maxPrice),
-                ',',
-                // Fill ratio metrics
-                vm.toString(metrics_fillRatioPercent),
-                ',',
-                metrics_partialFillReason,
-                ',',
-                // Timing metrics
-                vm.toString(metrics_bidLifetimeBlocks),
-                ',',
-                vm.toString(metrics_blocksFromStart),
-                ',',
-                vm.toString(metrics_timeToOutbid),
-                ',',
-                // Outbid status flags
-                metrics_wasOutbid ? 'true' : 'false',
-                ',',
-                metrics_neverFullyFilled ? 'true' : 'false',
-                ',',
-                metrics_nearGraduationBoundary ? 'true' : 'false',
-                ',',
-                // Price analysis
-                vm.toString(metrics_clearingPriceStart),
-                ',',
-                vm.toString(metrics_clearingPriceEnd),
-                ',',
-                // Token output metrics
-                vm.toString(metrics_tokensReceived),
-                ',',
-                vm.toString(metrics_pricePerTokenETH),
-                ',',
-                // Graduation tracking
-                metrics_didGraduate ? 'true' : 'false',
-                ',',
-                // Auction context
-                vm.toString(uint256(metrics_auctionStartBlock)),
-                ',',
-                vm.toString(uint256(metrics_auctionDurationBlocks)),
-                ',',
-                vm.toString(metrics_floorPrice),
-                ',',
-                vm.toString(metrics_tickSpacing),
-                ',',
-                vm.toString(metrics_totalSupply),
-                '\n'
+                vm.toString(uint256(preBid)), ',',
+                vm.toString(uint256(postBid)), ',',
+                vm.toString(uint256(bidAmount)), ',',
+                vm.toString(maxPrice), ',',
+                vm.toString(metrics_fillRatioPercent), ',',
+                metrics_partialFillReason, ','
             )
         );
+
+        string memory part2 = string(
+            abi.encodePacked(
+                vm.toString(metrics_bidLifetimeBlocks), ',',
+                vm.toString(metrics_blocksFromStart), ',',
+                vm.toString(metrics_timeToOutbid), ',',
+                metrics_wasOutbid ? 'true' : 'false', ',',
+                metrics_neverFullyFilled ? 'true' : 'false', ',',
+                metrics_nearGraduationBoundary ? 'true' : 'false', ','
+            )
+        );
+
+        string memory part3 = string(
+            abi.encodePacked(
+                vm.toString(metrics_clearingPriceStart), ',',
+                vm.toString(metrics_clearingPriceEnd), ',',
+                vm.toString(metrics_tokensReceived), ',',
+                vm.toString(metrics_pricePerTokenETH), ',',
+                metrics_didGraduate ? 'true' : 'false', ','
+            )
+        );
+
+        string memory part4 = string(
+            abi.encodePacked(
+                vm.toString(uint256(metrics_auctionStartBlock)), ',',
+                vm.toString(uint256(metrics_auctionDurationBlocks)), ',',
+                vm.toString(metrics_floorPrice), ',',
+                vm.toString(metrics_tickSpacing), ',',
+                vm.toString(metrics_totalSupply), '\n'
+            )
+        );
+
+        string memory coverageLine = string(abi.encodePacked(part1, part2, part3, part4));
         vm.writeLine('./coverage_data.csv', coverageLine);
     }
 

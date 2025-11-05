@@ -353,20 +353,29 @@ contract CombinatorialHelpers is AuctionBaseTest {
         address bidOwner = bid.owner;
         uint256 balanceBefore = address(bidOwner).balance;
 
-        // Get checkpoints
-        Checkpoint memory startCP = auction.checkpoints(bid.startBlock);
+        uint64 lastFullyFilledBlock;
+        uint64 outbidBlock;
+        uint256 expectedTokens;
+        uint256 expectedCurrencyQ96;
 
-        // Find hints using robust checkpoint inspection
-        (uint64 lastFullyFilledBlock,, bool notFullyFilled) = helper__findLastFullyFilledCheckpoint(bid);
-        (uint64 outbidBlock, bool wasOutbid) = helper__findOutbidBlock(bid);
+        {
+            // Get checkpoints
+            Checkpoint memory startCP = auction.checkpoints(bid.startBlock);
 
-        if (!notFullyFilled && !wasOutbid) {
-            revert('Bid was fully filled and not outbid');
+            // Find hints using robust checkpoint inspection
+            bool notFullyFilled;
+            bool wasOutbid;
+            (lastFullyFilledBlock,, notFullyFilled) = helper__findLastFullyFilledCheckpoint(bid);
+            (outbidBlock, wasOutbid) = helper__findOutbidBlock(bid);
+
+            if (!notFullyFilled && !wasOutbid) {
+                revert('Bid was fully filled and not outbid');
+            }
+
+            // Calculate expected outcome using two-phase approach
+            (expectedTokens, expectedCurrencyQ96) =
+                helper__calculatePartiallyFilledOutcome(bid, startCP, lastFullyFilledBlock, outbidBlock);
         }
-
-        // Calculate expected outcome using two-phase approach
-        (uint256 expectedTokens, uint256 expectedCurrencyQ96) =
-            helper__calculatePartiallyFilledOutcome(bid, startCP, lastFullyFilledBlock, outbidBlock);
 
         // Exit the bid
         try auction.exitPartiallyFilledBid(bidId, lastFullyFilledBlock, outbidBlock) {
@@ -375,21 +384,22 @@ contract CombinatorialHelpers is AuctionBaseTest {
             assertEq(bidAfter.exitedBlock, uint64(block.number), 'Exit block not set');
 
             // Verify tokens filled with tolerance
-            uint256 tolerance = 0; // 0% tolerance
-            assertApproxEqAbs(bidAfter.tokensFilled, expectedTokens, tolerance, 'Partial exit tokens mismatch');
+            assertApproxEqAbs(bidAfter.tokensFilled, expectedTokens, 0, 'Partial exit tokens mismatch');
 
             // Verify refund
-            uint256 balanceAfter = address(bidOwner).balance;
-            uint256 actualRefund = balanceAfter - balanceBefore;
-            uint256 expectedRefund = (bid.amountQ96 - expectedCurrencyQ96) >> FixedPoint96.RESOLUTION;
+            {
+                uint256 balanceAfter = address(bidOwner).balance;
+                uint256 actualRefund = balanceAfter - balanceBefore;
+                uint256 expectedRefund = (bid.amountQ96 - expectedCurrencyQ96) >> FixedPoint96.RESOLUTION;
 
-            // Allow tolerance for Q96 + pro-rata rounding
-            uint256 refundTolerance = 0; // 0 tolerance
-            assertApproxEqAbs(actualRefund, expectedRefund, refundTolerance, 'Partial exit refund mismatch');
+                // Allow tolerance for Q96 + pro-rata rounding
+                assertApproxEqAbs(actualRefund, expectedRefund, 0, 'Partial exit refund mismatch');
 
-            console.log('  Tokens filled:', bidAfter.tokensFilled);
-            console.log('  Expected tokens:', expectedTokens);
-            console.log('  Refund:', actualRefund);
+                console.log('  Tokens filled:', bidAfter.tokensFilled);
+                console.log('  Expected tokens:', expectedTokens);
+                console.log('  Refund:', actualRefund);
+            }
+
             console.log('  Partial exit verified successfully');
 
             // Return the actual currency spent for metrics

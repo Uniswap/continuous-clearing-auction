@@ -1,3 +1,3 @@
 AdvanceToCurrentStep
-# when start block LT last checkpoint
-# when start block GE last checkpoint
+├── when step start block GT last checkpointed block
+└── when step start block LT last checkpointed block

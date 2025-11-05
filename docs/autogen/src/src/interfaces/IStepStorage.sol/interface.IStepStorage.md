@@ -1,5 +1,5 @@
-# IAuctionStepStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/interfaces/IAuctionStepStorage.sol)
+# IStepStorage
+[Git Source](https://github.com/Uniswap/twap-auction/blob/b4d0a06daced32c81e0487f3201e863948da89b2/src/interfaces/IStepStorage.sol)
 
 Interface for managing auction step storage
 

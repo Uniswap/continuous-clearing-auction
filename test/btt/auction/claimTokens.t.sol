@@ -19,7 +19,8 @@ contract ClaimTokensTest is BttBase {
         // it reverts with {NotClaimable}
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
-        MockContinuousClearingAuction auction = new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
         uint256 blockNumber = bound(_blockNumber, 0, mParams.parameters.claimBlock - 1);
 
         vm.roll(blockNumber);
@@ -42,7 +43,8 @@ contract ClaimTokensTest is BttBase {
         mParams.parameters.currency = address(0);
         mParams.parameters.validationHook = address(0);
         mParams.parameters.requiredCurrencyRaised = 1;
-        MockContinuousClearingAuction auction = new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
         auction.onTokensReceived();
@@ -75,7 +77,8 @@ contract ClaimTokensTest is BttBase {
         mParams.parameters.tokensRecipient = makeAddr('tokensRecipient');
         mParams.parameters.tickSpacing = bound(mParams.parameters.tickSpacing, 2, type(uint24).max) * FixedPoint96.Q96;
         mParams.parameters.floorPrice = bound(mParams.parameters.floorPrice, 1, 100) * mParams.parameters.tickSpacing;
-        MockContinuousClearingAuction auction = new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
         auction.onTokensReceived();
@@ -141,7 +144,8 @@ contract ClaimTokensTest is BttBase {
         mParams.parameters.tokensRecipient = makeAddr('tokensRecipient');
         mParams.parameters.tickSpacing = bound(mParams.parameters.tickSpacing, 2, type(uint24).max) * FixedPoint96.Q96;
         mParams.parameters.floorPrice = bound(mParams.parameters.floorPrice, 1, 100) * mParams.parameters.tickSpacing;
-        MockContinuousClearingAuction auction = new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
         auction.onTokensReceived();

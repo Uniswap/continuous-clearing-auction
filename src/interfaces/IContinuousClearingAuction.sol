@@ -3,9 +3,9 @@ pragma solidity ^0.8.0;
 
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
 import {ValueX7} from '../libraries/ValueX7Lib.sol';
-import {IStepStorage} from './IStepStorage.sol';
 import {IBidStorage} from './IBidStorage.sol';
 import {ICheckpointStorage} from './ICheckpointStorage.sol';
+import {IStepStorage} from './IStepStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
 import {ITokenCurrencyStorage} from './ITokenCurrencyStorage.sol';
 import {IValidationHook} from './IValidationHook.sol';

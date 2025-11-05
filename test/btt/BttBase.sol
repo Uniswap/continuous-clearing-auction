@@ -7,8 +7,8 @@ import {AuctionParameters} from 'twap-auction/interfaces/IContinuousClearingAuct
 // Chore: move to a shared place
 import {CompactStep, CompactStepLib, Step} from 'test/btt/libraries/auctionStepLib/StepUtils.sol';
 import {AuctionBaseTest} from 'test/utils/AuctionBaseTest.sol';
-import {AuctionStep} from 'twap-auction/libraries/StepLib.sol';
 import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
+import {AuctionStep} from 'twap-auction/libraries/StepLib.sol';
 
 struct AuctionFuzzConstructorParams {
     address token;

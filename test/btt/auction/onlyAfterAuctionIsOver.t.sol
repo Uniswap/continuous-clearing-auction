@@ -13,7 +13,8 @@ contract OnlyAfterAuctionIsOverTest is BttBase {
         // it reverts with {AuctionIsNotOver}
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
 
-        MockContinuousClearingAuction auction = new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         uint256 blockNumber = bound(_blockNumber, 0, mParams.parameters.endBlock - 1);
 
@@ -29,7 +30,8 @@ contract OnlyAfterAuctionIsOverTest is BttBase {
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
 
-        MockContinuousClearingAuction auction = new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         uint256 blockNumber = bound(_blockNumber, mParams.parameters.endBlock, type(uint256).max);
 

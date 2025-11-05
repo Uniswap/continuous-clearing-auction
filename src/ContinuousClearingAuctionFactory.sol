@@ -26,7 +26,11 @@ contract ContinuousClearingAuctionFactory is IContinuousClearingAuctionFactory {
         if (parameters.fundsRecipient == ActionConstants.MSG_SENDER) parameters.fundsRecipient = msg.sender;
 
         distributionContract = IDistributionContract(
-            address(new ContinuousClearingAuction{salt: keccak256(abi.encode(msg.sender, salt))}(token, uint128(amount), parameters))
+            address(
+                new ContinuousClearingAuction{salt: keccak256(abi.encode(msg.sender, salt))}(
+                    token, uint128(amount), parameters
+                )
+            )
         );
 
         emit AuctionCreated(address(distributionContract), token, uint128(amount), abi.encode(parameters));
@@ -45,8 +49,11 @@ contract ContinuousClearingAuctionFactory is IContinuousClearingAuctionFactory {
         // If the fundsRecipient is address(1), set it to the msg.sender
         if (parameters.fundsRecipient == ActionConstants.MSG_SENDER) parameters.fundsRecipient = sender;
 
-        bytes32 initCodeHash =
-            keccak256(abi.encodePacked(type(ContinuousClearingAuction).creationCode, abi.encode(token, uint128(amount), parameters)));
+        bytes32 initCodeHash = keccak256(
+            abi.encodePacked(
+                type(ContinuousClearingAuction).creationCode, abi.encode(token, uint128(amount), parameters)
+            )
+        );
         salt = keccak256(abi.encode(sender, salt));
         return Create2.computeAddress(salt, initCodeHash, address(this));
     }

@@ -2,9 +2,9 @@
 pragma solidity 0.8.26;
 
 import {IStepStorage} from '../src/interfaces/IStepStorage.sol';
+import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {StepLib} from '../src/libraries/StepLib.sol';
 import {AuctionStep} from '../src/libraries/StepLib.sol';
-import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {MockStepStorage} from './utils/MockStepStorage.sol';
 import {Test} from 'forge-std/Test.sol';
@@ -91,8 +91,7 @@ contract AuctionStepStorageTest is Test {
 
     function test_advanceStep_initializesFirstStep() public {
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(1, 1e7);
-        MockStepStorage auctionStepStorage =
-            _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7);
+        MockStepStorage auctionStepStorage = _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7);
 
         AuctionStep memory step = auctionStepStorage.step();
 
@@ -107,8 +106,7 @@ contract AuctionStepStorageTest is Test {
         // Advance many blocks in the future
         vm.roll(auctionStartBlock + 100);
 
-        MockStepStorage auctionStepStorage =
-            _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7);
+        MockStepStorage auctionStepStorage = _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7);
 
         // Expect startBlock to be auction.startBlock
         AuctionStep memory step = auctionStepStorage.step();
@@ -167,9 +165,7 @@ contract AuctionStepStorageTest is Test {
         // The sum is 1e7 + 1, but must be 1e7
         uint40 blockDelta = 1e7 + 1;
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(1, blockDelta);
-        vm.expectRevert(
-            abi.encodeWithSelector(IStepStorage.InvalidStepDataMps.selector, 1e7 + 1, ConstantsLib.MPS)
-        );
+        vm.expectRevert(abi.encodeWithSelector(IStepStorage.InvalidStepDataMps.selector, 1e7 + 1, ConstantsLib.MPS));
         _create(auctionStepsData, auctionStartBlock, auctionStartBlock + blockDelta);
     }
 
@@ -177,9 +173,7 @@ contract AuctionStepStorageTest is Test {
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(1, 1e7);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IStepStorage.InvalidEndBlockGivenStepData.selector,
-                auctionStartBlock + 1e7,
-                auctionStartBlock + 1e7 - 1
+                IStepStorage.InvalidEndBlockGivenStepData.selector, auctionStartBlock + 1e7, auctionStartBlock + 1e7 - 1
             )
         );
         // The end block should be block.number + 1e7, but is 1e7 - 1
@@ -189,8 +183,7 @@ contract AuctionStepStorageTest is Test {
     function test_advanceStep_exceedsLength_reverts_withAuctionIsOver() public {
         // Create auction with only one step (will perform first advanceStep)
         bytes memory auctionStepsData = AuctionStepsBuilder.init().addStep(1, 1e7);
-        MockStepStorage auctionStepStorage =
-            _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7);
+        MockStepStorage auctionStepStorage = _create(auctionStepsData, auctionStartBlock, auctionStartBlock + 1e7);
 
         // Second call to advanceStep - offset already at length, should revert
         vm.expectRevert(IStepStorage.AuctionIsOver.selector);

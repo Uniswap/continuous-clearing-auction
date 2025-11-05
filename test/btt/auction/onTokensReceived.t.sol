@@ -17,7 +17,8 @@ contract OnTokensReceivedTest is BttBase {
         // Use the mock ERC20 contract for the token
         _params.token = address(new ERC20Mock());
 
-        ContinuousClearingAuction auction = new ContinuousClearingAuction(_params.token, _params.totalSupply, _params.parameters);
+        ContinuousClearingAuction auction =
+            new ContinuousClearingAuction(_params.token, _params.totalSupply, _params.parameters);
 
         ERC20Mock(_params.token).mint(address(auction), _params.totalSupply);
         auction.onTokensReceived();
@@ -46,7 +47,8 @@ contract OnTokensReceivedTest is BttBase {
         // it reverts with {InvalidTokenAmountReceived}
 
         _params.token = address(new ERC20Mock());
-        ContinuousClearingAuction auction = new ContinuousClearingAuction(_params.token, _params.totalSupply, _params.parameters);
+        ContinuousClearingAuction auction =
+            new ContinuousClearingAuction(_params.token, _params.totalSupply, _params.parameters);
 
         uint256 amountToSend = bound(_amountToSend, 0, _params.totalSupply - 1);
 
@@ -64,7 +66,8 @@ contract OnTokensReceivedTest is BttBase {
         // it emits {TokensReceived}
 
         _params.token = address(new ERC20Mock());
-        ContinuousClearingAuction auction = new ContinuousClearingAuction(_params.token, _params.totalSupply, _params.parameters);
+        ContinuousClearingAuction auction =
+            new ContinuousClearingAuction(_params.token, _params.totalSupply, _params.parameters);
 
         uint256 amountToSend = bound(_amountToSend, _params.totalSupply, type(uint256).max);
 

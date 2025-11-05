@@ -15,7 +15,8 @@ contract OnlyAfterClaimBlockTest is BttBase {
         // it reverts with {AuctionIsNotOver}
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
 
-        MockContinuousClearingAuction auction = new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         uint256 blockNumber = bound(_blockNumber, 0, mParams.parameters.claimBlock - 1);
 
@@ -30,7 +31,8 @@ contract OnlyAfterClaimBlockTest is BttBase {
         // it does not revert
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
 
-        MockContinuousClearingAuction auction = new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         uint256 blockNumber = bound(_blockNumber, mParams.parameters.claimBlock, type(uint256).max);
 

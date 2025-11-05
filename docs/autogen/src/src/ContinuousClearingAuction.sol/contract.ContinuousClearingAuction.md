@@ -1,12 +1,12 @@
-# Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/Auction.sol)
+# ContinuousClearingAuction
+[Git Source](https://github.com/Uniswap/twap-auction/blob/b4d0a06daced32c81e0487f3201e863948da89b2/src/ContinuousClearingAuction.sol)
 
 **Inherits:**
-[BidStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/TickStorage.sol/abstract.TickStorage.md), [TokenCurrencyStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/IAuction.sol/interface.IAuction.md)
+[BidStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [StepStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/StepStorage.sol/abstract.StepStorage.md), [TickStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/TickStorage.sol/abstract.TickStorage.md), [TokenCurrencyStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IContinuousClearingAuction](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/IContinuousClearingAuction.sol/interface.IContinuousClearingAuction.md)
 
 Implements a time weighted uniform clearing price auction
 
-Can be constructed directly or through the AuctionFactory. In either case, users must validate
+Can be constructed directly or through the ContinuousClearingAuctionFactory. In either case, users must validate
 that the auction parameters are correct and not incorrectly set.
 
 **Note:**
@@ -87,7 +87,7 @@ bool private $_tokensReceived
 
 ```solidity
 constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
-    AuctionStepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
+    StepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
     TokenCurrencyStorage(
         _token,
         _parameters.currency,

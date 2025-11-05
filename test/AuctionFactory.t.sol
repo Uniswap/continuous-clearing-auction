@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {ContinuousClearingAuction, AuctionParameters} from '../src/ContinuousClearingAuction.sol';
+import {AuctionParameters, ContinuousClearingAuction} from '../src/ContinuousClearingAuction.sol';
 import {ContinuousClearingAuctionFactory} from '../src/ContinuousClearingAuctionFactory.sol';
 import {IContinuousClearingAuction} from '../src/interfaces/IContinuousClearingAuction.sol';
 import {IContinuousClearingAuctionFactory} from '../src/interfaces/IContinuousClearingAuctionFactory.sol';
@@ -68,7 +68,9 @@ contract AuctionFactoryTest is AuctionBaseTest {
 
         // Expect the AuctionCreated event (don't check the auction address since it's deterministic)
         vm.expectEmit(false, true, true, true);
-        emit IContinuousClearingAuctionFactory.AuctionCreated(address(0), address(token), TOTAL_SUPPLY, expectedConfigData);
+        emit IContinuousClearingAuctionFactory.AuctionCreated(
+            address(0), address(token), TOTAL_SUPPLY, expectedConfigData
+        );
 
         vm.prank(sender);
         IDistributionContract distributionContract =

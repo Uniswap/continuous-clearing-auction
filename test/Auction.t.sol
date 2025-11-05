@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {ContinuousClearingAuction, AuctionParameters} from '../src/ContinuousClearingAuction.sol';
 import {Bid} from '../src/BidStorage.sol';
 import {Checkpoint} from '../src/CheckpointStorage.sol';
+import {AuctionParameters, ContinuousClearingAuction} from '../src/ContinuousClearingAuction.sol';
+import {ICheckpointStorage} from '../src/interfaces/ICheckpointStorage.sol';
 import {IContinuousClearingAuction} from '../src/interfaces/IContinuousClearingAuction.sol';
 import {IStepStorage} from '../src/interfaces/IStepStorage.sol';
-import {ICheckpointStorage} from '../src/interfaces/ICheckpointStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
-import {AuctionStep} from '../src/libraries/StepLib.sol';
-import {StepLib} from '../src/libraries/StepLib.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {CheckpointLib} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
+import {AuctionStep} from '../src/libraries/StepLib.sol';
+import {StepLib} from '../src/libraries/StepLib.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
@@ -1043,7 +1043,8 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_onTokensReceived_withWrongBalance_reverts() public {
         // Use salt to get a new address
-        ContinuousClearingAuction newAuction = new ContinuousClearingAuction{salt: bytes32(uint256(1))}(address(token), TOTAL_SUPPLY, params);
+        ContinuousClearingAuction newAuction =
+            new ContinuousClearingAuction{salt: bytes32(uint256(1))}(address(token), TOTAL_SUPPLY, params);
 
         token.mint(address(newAuction), TOTAL_SUPPLY - 1);
 
@@ -1256,7 +1257,8 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_exitPartiallyFilledBid_lowerHintIsValidated() public {
-        MockContinuousClearingAuction mockAuction = new MockContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        MockContinuousClearingAuction mockAuction =
+            new MockContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(mockAuction), TOTAL_SUPPLY);
         mockAuction.onTokensReceived();
 
@@ -1338,7 +1340,8 @@ contract AuctionTest is AuctionBaseTest {
         uint64 endBlock = startBlock + 110;
         params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(0, 10).addStep(100e3, 100))
             .withEndBlock(block.number + 110);
-        MockContinuousClearingAuction mockAuction = new MockContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        MockContinuousClearingAuction mockAuction =
+            new MockContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(mockAuction), TOTAL_SUPPLY);
         mockAuction.onTokensReceived();
 
@@ -1424,7 +1427,8 @@ contract AuctionTest is AuctionBaseTest {
         uint64 endBlock = startBlock + 40;
         params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(100e3, 10).addStep(300e3, 30))
             .withEndBlock(block.number + 40);
-        MockContinuousClearingAuction mockAuction = new MockContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        MockContinuousClearingAuction mockAuction =
+            new MockContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(mockAuction), TOTAL_SUPPLY);
         mockAuction.onTokensReceived();
 
@@ -1664,7 +1668,8 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_insertCheckpoint_nonIncreasing_reverts_viaMockAuction() public {
-        MockContinuousClearingAuction mockAuction = new MockContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        MockContinuousClearingAuction mockAuction =
+            new MockContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(mockAuction), TOTAL_SUPPLY);
         mockAuction.onTokensReceived();
 
@@ -1885,7 +1890,9 @@ contract AuctionTest is AuctionBaseTest {
         bids[1] = bidId1;
 
         vm.roll(auction.claimBlock());
-        vm.expectRevert(abi.encodeWithSelector(IContinuousClearingAuction.BatchClaimDifferentOwner.selector, alice, bob));
+        vm.expectRevert(
+            abi.encodeWithSelector(IContinuousClearingAuction.BatchClaimDifferentOwner.selector, alice, bob)
+        );
         auction.claimTokensBatch(alice, bids);
     }
 

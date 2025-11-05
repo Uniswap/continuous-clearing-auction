@@ -2,13 +2,13 @@
 pragma solidity 0.8.26;
 
 import {ICheckpointStorage} from '../src/interfaces/ICheckpointStorage.sol';
-import {StepLib} from '../src/libraries/StepLib.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {CheckpointAccountingLib} from '../src/libraries/CheckpointAccountingLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {CheckpointLib} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
+import {StepLib} from '../src/libraries/StepLib.sol';
 import {ValueX7} from '../src/libraries/ValueX7Lib.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {MockCheckpointStorage} from './utils/MockCheckpointStorage.sol';

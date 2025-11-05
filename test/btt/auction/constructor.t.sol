@@ -35,7 +35,8 @@ contract ConstructorTest is BttBase {
         mParams.parameters.claimBlock = uint64(bound(_claimBlock, mParams.parameters.endBlock, type(uint64).max));
         mParams.totalSupply = uint128(bound(_totalSupply, 1, type(uint256).max / ConstantsLib.MAX_BID_PRICE));
 
-        ContinuousClearingAuction auction = new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        ContinuousClearingAuction auction =
+            new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         assertEq(auction.MAX_BID_PRICE(), ConstantsLib.MAX_BID_PRICE);
         assertEq(auction.claimBlock(), mParams.parameters.claimBlock);
@@ -56,7 +57,8 @@ contract ConstructorTest is BttBase {
         mParams.totalSupply =
             uint128(bound(_totalSupply, type(uint256).max / ConstantsLib.MAX_BID_PRICE + 1, type(uint128).max));
 
-        ContinuousClearingAuction auction = new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        ContinuousClearingAuction auction =
+            new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         assertEq(auction.MAX_BID_PRICE(), type(uint256).max / mParams.totalSupply);
         assertEq(auction.claimBlock(), mParams.parameters.claimBlock);

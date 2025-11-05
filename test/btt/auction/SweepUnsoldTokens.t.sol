@@ -15,7 +15,8 @@ contract SweepUnsoldTokensTest is BttBase {
         // it reverts with {AuctionIsNotOver}
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
-        MockContinuousClearingAuction auction = new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         uint256 blockNumber = bound(_blockNumber, 0, mParams.parameters.endBlock - 1);
 
@@ -38,7 +39,8 @@ contract SweepUnsoldTokensTest is BttBase {
         mParams.parameters.requiredCurrencyRaised = 1;
         mParams.token = address(new ERC20Mock());
 
-        MockContinuousClearingAuction auction = new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         uint256 blockNumber = bound(_blockNumber, mParams.parameters.endBlock, type(uint256).max);
 
@@ -85,7 +87,8 @@ contract SweepUnsoldTokensTest is BttBase {
             )
         );
 
-        MockContinuousClearingAuction auction = new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
         auction.onTokensReceived();
@@ -171,7 +174,8 @@ contract SweepUnsoldTokensTest is BttBase {
             )
         );
 
-        MockContinuousClearingAuction auction = new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
         auction.onTokensReceived();

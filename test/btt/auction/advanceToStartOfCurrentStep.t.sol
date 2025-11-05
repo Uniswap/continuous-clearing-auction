@@ -5,14 +5,15 @@ import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
 import {MockContinuousClearingAuction} from 'btt/mocks/MockContinuousClearingAuction.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {ContinuousClearingAuction} from 'src/ContinuousClearingAuction.sol';
-import {IContinuousClearingAuction} from 'twap-auction/interfaces/IContinuousClearingAuction.sol';
-import {AuctionStep} from 'src/libraries/StepLib.sol';
 import {ConstantsLib} from 'src/libraries/ConstantsLib.sol';
+import {AuctionStep} from 'src/libraries/StepLib.sol';
+import {IContinuousClearingAuction} from 'twap-auction/interfaces/IContinuousClearingAuction.sol';
 
 contract AdvanceToStartOfCurrentStepTest is BttBase {
     function test_WhenStepStartBlockGTLastCheckpointedBlock(AuctionFuzzConstructorParams memory _params) external {
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
-        MockContinuousClearingAuction auction = new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         assertEq(auction.lastCheckpointedBlock(), 0);
 
@@ -37,7 +38,8 @@ contract AdvanceToStartOfCurrentStepTest is BttBase {
     function test_WhenStepStartBlockLTLastCheckpointedBlock(AuctionFuzzConstructorParams memory _params) external {
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
         mParams.token = address(new ERC20Mock());
-        MockContinuousClearingAuction auction = new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
         deal(mParams.token, address(auction), mParams.totalSupply);
         auction.onTokensReceived();
 

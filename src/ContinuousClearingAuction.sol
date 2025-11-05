@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {StepStorage} from './StepStorage.sol';
 import {BidStorage} from './BidStorage.sol';
 import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
+import {StepStorage} from './StepStorage.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
 import {TokenCurrencyStorage} from './TokenCurrencyStorage.sol';
 import {AuctionParameters, IContinuousClearingAuction} from './interfaces/IContinuousClearingAuction.sol';
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
-import {AuctionStep, StepLib} from './libraries/StepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
+import {AuctionStep, StepLib} from './libraries/StepLib.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -26,7 +26,14 @@ import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 /// @notice Implements a time weighted uniform clearing price auction
 /// @dev Can be constructed directly or through the ContinuousClearingAuctionFactory. In either case, users must validate
 ///      that the auction parameters are correct and not incorrectly set.
-contract ContinuousClearingAuction is BidStorage, CheckpointStorage, StepStorage, TickStorage, TokenCurrencyStorage, IContinuousClearingAuction {
+contract ContinuousClearingAuction is
+    BidStorage,
+    CheckpointStorage,
+    StepStorage,
+    TickStorage,
+    TokenCurrencyStorage,
+    IContinuousClearingAuction
+{
     using FixedPointMathLib for *;
     using CurrencyLibrary for Currency;
     using BidLib for *;

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
+import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol';
 import {Tick} from '../../src/TickStorage.sol';
 import {AuctionParameters, IContinuousClearingAuction} from '../../src/interfaces/IContinuousClearingAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
@@ -342,7 +342,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         bytes4 errorSelector = bytes4(revertData);
 
         // Ok if the bid price is invalid IF it just moved this block
-        if (errorSelector == bytes4(abi.encodeWithSelector(IContinuousClearingAuction.BidMustBeAboveClearingPrice.selector))) {
+        if (
+            errorSelector
+                == bytes4(abi.encodeWithSelector(IContinuousClearingAuction.BidMustBeAboveClearingPrice.selector))
+        ) {
             Checkpoint memory checkpoint = auction.checkpoint();
             // the bid price is invalid as it is less than or equal to the clearing price
             // skip the test by returning false and 0
@@ -449,7 +452,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
             .withClaimBlock(block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET)
             .withAuctionStepsData(failingAuctionStepsData);
 
-        ContinuousClearingAuction failingAuction = new ContinuousClearingAuction(address(failingToken), TOTAL_SUPPLY, failingParams);
+        ContinuousClearingAuction failingAuction =
+            new ContinuousClearingAuction(address(failingToken), TOTAL_SUPPLY, failingParams);
         failingToken.mint(address(failingAuction), TOTAL_SUPPLY);
         failingAuction.onTokensReceived();
 

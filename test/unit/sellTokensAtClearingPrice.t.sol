@@ -2,9 +2,9 @@
 pragma solidity 0.8.26;
 
 // Place holder for BTT testing as that is not merged yet
+import {Checkpoint} from '../../src/CheckpointStorage.sol';
 import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol';
 import {AuctionParameters} from '../../src/ContinuousClearingAuction.sol';
-import {Checkpoint} from '../../src/CheckpointStorage.sol';
 
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';

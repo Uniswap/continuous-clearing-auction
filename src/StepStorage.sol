@@ -2,8 +2,8 @@
 pragma solidity 0.8.26;
 
 import {IStepStorage} from './interfaces/IStepStorage.sol';
-import {AuctionStep, StepLib} from './libraries/StepLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
+import {AuctionStep, StepLib} from './libraries/StepLib.sol';
 import {SSTORE2} from 'solady/utils/SSTORE2.sol';
 
 /// @title StepStorage

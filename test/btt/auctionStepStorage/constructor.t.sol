@@ -34,8 +34,7 @@ contract ConstructorTest is BttBase {
         vm.expectEmit(true, true, true, true);
         emit IStepStorage.AuctionStepRecorded(startBlock, startBlock + uint64(steps[0].blockDelta), steps[0].mps);
         vm.record();
-        auctionStepStorage =
-            new MockStepStorage(auctionStepsData, startBlock, startBlock + uint64(numberOfBlocks));
+        auctionStepStorage = new MockStepStorage(auctionStepsData, startBlock, startBlock + uint64(numberOfBlocks));
 
         (, bytes32[] memory writes) = vm.accesses(address(auctionStepStorage));
 

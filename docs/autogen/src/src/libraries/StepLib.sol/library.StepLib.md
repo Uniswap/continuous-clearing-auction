@@ -1,5 +1,5 @@
-# AuctionStepLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/libraries/AuctionStepLib.sol)
+# StepLib
+[Git Source](https://github.com/Uniswap/twap-auction/blob/b4d0a06daced32c81e0487f3201e863948da89b2/src/libraries/StepLib.sol)
 
 Library for auction step calculations and parsing
 
@@ -34,19 +34,19 @@ function get(bytes memory data, uint256 offset) internal pure returns (uint24 mp
 ```
 
 ## Errors
-### AuctionStepLib__InvalidOffsetTooLarge
+### StepLib__InvalidOffsetTooLarge
 Error thrown when the offset is too large for the data length
 
 
 ```solidity
-error AuctionStepLib__InvalidOffsetTooLarge();
+error StepLib__InvalidOffsetTooLarge();
 ```
 
-### AuctionStepLib__InvalidOffsetNotAtStepBoundary
+### StepLib__InvalidOffsetNotAtStepBoundary
 Error thrown when the offset is not at a step boundary - a uint64 aligned offset
 
 
 ```solidity
-error AuctionStepLib__InvalidOffsetNotAtStepBoundary();
+error StepLib__InvalidOffsetNotAtStepBoundary();
 ```
 

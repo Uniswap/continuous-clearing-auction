@@ -338,7 +338,7 @@ The Auction enforces the following rules on bid prices:
 - Maximum bid price is capped at `type(uint256).max / TOTAL_SUPPLY`
 
 ```solidity
-interface IAuction {
+interface IContinuousClearingAuction {
     function submitBid(
         uint256 maxPrice,
         uint128 amount,
@@ -365,7 +365,7 @@ event TickInitialized(uint256 price);
 The auction is checkpointed once every block with a new bid. The checkpoint is a snapshot of the auction state up to (NOT including) that block. Checkpoints determine token allocation for each bid.
 
 ```solidity
-interface IAuction {
+interface IContinuousClearingAuction {
     function checkpoint() external returns (Checkpoint memory _checkpoint);
 }
 
@@ -379,7 +379,7 @@ Users can use `exitBid` to withdraw their bid after the auction has ended, or if
 The bid will be fully refunded if the auction has not graduated.
 
 ```solidity
-interface IAuction {
+interface IContinuousClearingAuction {
     /// @notice Exit a bid where max price is above final clearing price
     function exitBid(uint256 bidId) external;
 }
@@ -427,7 +427,7 @@ Auctions are "graduated" if the currency raised meets or exceeds the required th
 A core invariant of the auction is that no bids can be withdrawn before the auction has graduated.
 
 ```solidity
-interface IAuction {
+interface IContinuousClearingAuction {
     /// @notice Whether the auction has graduated (currency raised >= required)
     function isGraduated() external view returns (bool);
 }
@@ -438,7 +438,7 @@ interface IAuction {
 After an auction ends, raised currency and unsold tokens can be withdrawn to the designated recipients in the auction deployment parameters.
 
 ```solidity
-interface IAuction {
+interface IContinuousClearingAuction {
     /// @notice Withdraw all raised currency (only for graduated auctions)
     function sweepCurrency() external;
 
@@ -462,7 +462,7 @@ Note:
 Users can claim their purchased tokens after the auction's claim block. The bid must be exited before claiming tokens, and the auction must have graduated.
 
 ```solidity
-interface IAuction {
+interface IContinuousClearingAuction {
     function claimTokens(uint256 bidId) external;
 }
 

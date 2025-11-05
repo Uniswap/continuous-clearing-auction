@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol';
-import {AuctionParameters} from '../../src/ContinuousClearingAuction.sol';
 import {Bid} from '../../src/BidStorage.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
+import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol';
+import {AuctionParameters} from '../../src/ContinuousClearingAuction.sol';
 
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';

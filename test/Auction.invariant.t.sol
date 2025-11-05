@@ -205,7 +205,9 @@ contract AuctionInvariantHandler is Test, Assertions {
     }
 
     function handleCheckpoint() public validateCheckpoint {
-        if (block.number < mockAuction.startBlock()) vm.expectRevert(IContinuousClearingAuction.AuctionNotStarted.selector);
+        if (block.number < mockAuction.startBlock()) {
+            vm.expectRevert(IContinuousClearingAuction.AuctionNotStarted.selector);
+        }
         mockAuction.checkpoint();
     }
 
@@ -244,7 +246,8 @@ contract AuctionInvariantHandler is Test, Assertions {
                 assertEq(revertData, abi.encodeWithSelector(IStepStorage.AuctionIsOver.selector));
                 metrics.cnt_AuctionIsOverError++;
             } else if (
-                bytes4(revertData) == bytes4(abi.encodeWithSelector(IContinuousClearingAuction.BidMustBeAboveClearingPrice.selector))
+                bytes4(revertData)
+                    == bytes4(abi.encodeWithSelector(IContinuousClearingAuction.BidMustBeAboveClearingPrice.selector))
             ) {
                 // See if we checkpoint, that the bid maxPrice would be at an invalid price
                 mockAuction.checkpoint();
@@ -256,7 +259,9 @@ contract AuctionInvariantHandler is Test, Assertions {
                 // This is handled in the else condition - so we exclude it here
                 prevTickPrice == 0
                     && bytes4(revertData)
-                        != bytes4(abi.encodeWithSelector(IContinuousClearingAuction.BidMustBeAboveClearingPrice.selector))
+                        != bytes4(
+                            abi.encodeWithSelector(IContinuousClearingAuction.BidMustBeAboveClearingPrice.selector)
+                        )
             ) {
                 assertEq(revertData, abi.encodeWithSelector(ITickStorage.TickPriceNotIncreasing.selector));
                 metrics.cnt_TickPriceNotIncreasingError++;
@@ -268,7 +273,9 @@ contract AuctionInvariantHandler is Test, Assertions {
                     >= ConstantsLib.X7_UPPER_BOUND - (inputAmount * FixedPoint96.Q96 * ConstantsLib.MPS)
                         / (ConstantsLib.MPS - _checkpoint.cumulativeMps)
             ) {
-                assertEq(revertData, abi.encodeWithSelector(IContinuousClearingAuction.InvalidBidUnableToClear.selector));
+                assertEq(
+                    revertData, abi.encodeWithSelector(IContinuousClearingAuction.InvalidBidUnableToClear.selector)
+                );
                 metrics.cnt_InvalidBidUnableToClearError++;
             } else {
                 // For race conditions or any errors that require additional calls to be made

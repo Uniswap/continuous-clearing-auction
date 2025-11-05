@@ -6,8 +6,8 @@ import {CompactStep, CompactStepLib} from 'btt/libraries/auctionStepLib/StepUtil
 import {MockStepStorage} from 'btt/mocks/MockStepStorage.sol';
 import {SSTORE2} from 'solady/utils/SSTORE2.sol';
 import {IStepStorage} from 'twap-auction/interfaces/IStepStorage.sol';
-import {AuctionStep} from 'twap-auction/libraries/StepLib.sol';
 import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
+import {AuctionStep} from 'twap-auction/libraries/StepLib.sol';
 
 contract ValidateTest is BttBase {
     using SSTORE2 for *;
@@ -92,9 +92,7 @@ contract ValidateTest is BttBase {
         steps[0] = CompactStepLib.create(1e7 - 1, 1);
         bytes memory auctionStepsData = CompactStepLib.pack(steps);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(IStepStorage.InvalidStepDataMps.selector, 1e7 - 1, ConstantsLib.MPS)
-        );
+        vm.expectRevert(abi.encodeWithSelector(IStepStorage.InvalidStepDataMps.selector, 1e7 - 1, ConstantsLib.MPS));
         auctionStepStorage = new MockStepStorage(auctionStepsData, 1, 2);
     }
 
@@ -131,8 +129,7 @@ contract ValidateTest is BttBase {
 
         (bytes memory auctionStepsData, uint256 numberOfBlocks,) = generateAuctionSteps(_steps);
         uint64 startBlock = uint64(bound(_startBlock, 1, type(uint64).max - numberOfBlocks));
-        auctionStepStorage =
-            new MockStepStorage(auctionStepsData, startBlock, startBlock + uint64(numberOfBlocks));
+        auctionStepStorage = new MockStepStorage(auctionStepsData, startBlock, startBlock + uint64(numberOfBlocks));
 
         address pointer = auctionStepStorage.pointer();
         vm.record();

@@ -174,9 +174,11 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         private
         pure
     {
+        // Re-implementation of the max bid price calculation in auction constructor
+        uint256 maxBidPrice = FixedPointMathLib.min(type(uint256).max / _deploymentParams.totalSupply, ConstantsLib.MAX_BID_PRICE);
         // Bound tick spacing and floor price to reasonable values
         _deploymentParams.auctionParams.floorPrice =
-            _bound(_deploymentParams.auctionParams.floorPrice, 2, type(uint128).max);
+            _bound(_deploymentParams.auctionParams.floorPrice, 2, maxBidPrice / 2);
 
         if (_assumeTickSpacingIsFloorPrice) {
             _deploymentParams.auctionParams.tickSpacing = _deploymentParams.auctionParams.floorPrice;

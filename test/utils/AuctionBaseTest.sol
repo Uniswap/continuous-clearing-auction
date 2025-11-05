@@ -264,7 +264,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         uint256 tickAboveFloorPrice = ((floorPrice / tickSpacing) + 1) * tickSpacing;
 
         maxPrice = _bound(maxPrice, tickAboveFloorPrice, type(uint256).max);
-        maxPriceQ96 = maxPrice << FixedPoint96.RESOLUTION;
     }
 
     function helper__assumeValidMaxPrice(

@@ -1,6 +1,6 @@
-# TWAP Auction
+# Continuous Clearing Auction
 
-This repository contains the smart contracts for a TWAP (Time-Weighted Average Price) auction mechanism.
+This repository contains the smart contracts for a Continuous Clearing Auction mechanism.
 
 ## Installation
 
@@ -619,7 +619,7 @@ sequenceDiagram
 
 #### Price Discovery Visualization
 
-![TWAP Auction Animation](visualizations/auction_simple.gif)
+![Continuous Clearing Auction Animation](visualizations/auction_simple.gif)
 
 - **Fixed Supply**: 1,000 tokens
 - **Currency Requirements**: Constant at each price level

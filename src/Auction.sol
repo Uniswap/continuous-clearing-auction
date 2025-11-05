@@ -128,7 +128,7 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
     /// @notice Whether the auction has graduated as of the given checkpoint
     /// @dev The auction is considered `graudated` if the currency raised is greater than or equal to the required currency raised
     function _isGraduated() internal view returns (bool) {
-        return $currencyRaisedQ96_X7.gte(REQUIRED_CURRENCY_RAISED_Q96_X7);
+        return ValueX7.unwrap($currencyRaisedQ96_X7) >= ValueX7.unwrap(REQUIRED_CURRENCY_RAISED_Q96_X7);
     }
 
     /// @inheritdoc IAuction

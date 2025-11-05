@@ -74,6 +74,8 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
         _deploymentParams.auctionParams.tickSpacing = 3;
         _deploymentParams.numberOfSteps = 1;
         setUpAuction(_deploymentParams);
+        // Sometimes tickSpacing gets bounded to 2
+        vm.assume(auction.tickSpacing() == 3);
 
         // Assert that the auction was setup correctly
         assertTrue(auction.startBlock() + 1 == auction.endBlock(), 'start block + 1 should be equal to end block');
@@ -177,7 +179,7 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
         // Thus, there is no way to submit more than 429 bids into the auction which would
         // cause the operation TOTAL_SUPPLY * MAX_PRICE * MPS to overflow a uint256.
     }
-    
+
     function test_submitBid_revertsWithBidOwnerCannotBeZeroAddress(FuzzDeploymentParams memory _deploymentParams)
         public
         setUpAuctionFuzz(_deploymentParams)

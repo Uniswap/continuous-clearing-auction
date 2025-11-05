@@ -251,19 +251,14 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     function helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(uint256 _tickNumber)
         internal
         view
-        returns (uint256 maxPriceQ96)
+        returns (uint256 maxPrice)
     {
         uint256 tickSpacing = params.tickSpacing;
         uint256 floorPrice = params.floorPrice;
 
         if (_tickNumber == 0) return floorPrice;
 
-        uint256 maxPrice = ((floorPrice + (_tickNumber * tickSpacing)) / tickSpacing) * tickSpacing;
-
-        // Find the first value above floorPrice that is a multiple of tickSpacing
-        uint256 tickAboveFloorPrice = ((floorPrice / tickSpacing) + 1) * tickSpacing;
-
-        maxPrice = _bound(maxPrice, tickAboveFloorPrice, type(uint256).max);
+        maxPrice = _bound(floorPrice + (_tickNumber * tickSpacing), floorPrice, type(uint256).max);
     }
 
     function helper__assumeValidMaxPrice(
@@ -316,6 +311,9 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Get the correct last tick price for the bid
         uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
         uint256 lastTickPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(lowerTickNumber);
+        if(lastTickPrice > maxPrice) {
+            lastTickPrice = auction.floorPrice();
+        }
 
         try auction.submitBid{value: ethInputAmount}(
             maxPrice, ethInputAmount, _owner, lastTickPrice, bytes('')

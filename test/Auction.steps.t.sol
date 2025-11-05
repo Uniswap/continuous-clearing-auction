@@ -3,16 +3,13 @@ pragma solidity 0.8.26;
 
 import {Auction} from '../src/Auction.sol';
 import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
-import {BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
-import {Assertions} from './utils/Assertions.sol';
+import {ValueX7} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
-import {Test} from 'forge-std/Test.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @title AuctionStepDiffTest
@@ -29,9 +26,9 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         fundsRecipient = makeAddr('fundsRecipient');
 
         // Missing start block, end block, claim block, and auction steps data
-        params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE).withTickSpacing(
-            TICK_SPACING
-        ).withValidationHook(address(0)).withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient);
+        params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE)
+            .withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient);
     }
 
     function fuzzAuctionStepsData(uint8 steps) public pure returns (bytes memory, uint24, uint40) {
@@ -72,12 +69,12 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         (bytes memory data1,, uint40 cumulativeBlockDelta1) = fuzzAuctionStepsData(steps1);
         (bytes memory data2,, uint40 cumulativeBlockDelta2) = fuzzAuctionStepsData(steps2);
 
-        AuctionParameters memory params1 = params.withAuctionStepsData(data1).withStartBlock(block.number).withEndBlock(
-            block.number + cumulativeBlockDelta1
-        ).withClaimBlock(block.number + cumulativeBlockDelta1 + 10);
-        AuctionParameters memory params2 = params.withAuctionStepsData(data2).withStartBlock(block.number).withEndBlock(
-            block.number + cumulativeBlockDelta2
-        ).withClaimBlock(block.number + cumulativeBlockDelta2 + 10);
+        AuctionParameters memory params1 = params.withAuctionStepsData(data1).withStartBlock(block.number)
+            .withEndBlock(block.number + cumulativeBlockDelta1)
+            .withClaimBlock(block.number + cumulativeBlockDelta1 + 10);
+        AuctionParameters memory params2 = params.withAuctionStepsData(data2).withStartBlock(block.number)
+            .withEndBlock(block.number + cumulativeBlockDelta2)
+            .withClaimBlock(block.number + cumulativeBlockDelta2 + 10);
 
         Auction firstAuction = new Auction(address(token), TOTAL_SUPPLY, params1);
         token.mint(address(firstAuction), TOTAL_SUPPLY);
@@ -121,8 +118,8 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         uint256 endBlock = startBlock + 2e7;
         uint256 claimBlock = endBlock + 10;
         AuctionParameters memory params = params.withAuctionStepsData(
-            AuctionStepsBuilder.init().addStep(1, 1e7).addStep(0, 1e7)
-        ).withStartBlock(startBlock).withEndBlock(endBlock).withClaimBlock(claimBlock);
+                AuctionStepsBuilder.init().addStep(1, 1e7).addStep(0, 1e7)
+            ).withStartBlock(startBlock).withEndBlock(endBlock).withClaimBlock(claimBlock);
 
         Auction newAuction = new Auction(address(token), _totalSupply, params);
         token.mint(address(newAuction), _totalSupply);

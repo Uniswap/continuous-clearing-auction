@@ -1,0 +1,27 @@
+InitializeTickIfNeededTest
+├── when price is not perfectly divisible by tick spacing
+│   └── it reverts with {TickPriceNotAtBoundary}
+└── when price is perfectly divisible by tick spacing
+    ├── when price EQ MAX_TICK_PTR
+    │   └── it reverts with {InvalidTickPrice}
+    └── when price LT MAX_TICK_PTR
+        ├── given tick is already initialized
+        │   └── it returns early
+        └── given tick is not initialized
+            ├── when price LE prevPrice
+            │   └── it reverts with {TickPreviousPriceInvalid}
+            └── when price GT prevPrice
+                ├── given prevPrice is not initialized
+                │   └── it reverts with {TickPreviousPriceInvalid}
+                └── given prevPrice is initialized
+                    ├── given we do not insert right before the nextActiveTickPrice
+                    │   ├── it loops forward until the parent is found
+                    │   ├── it writes next pointer of new tick
+                    │   ├── it writes next pointer of previous tick
+                    │   └── it emits {TickInitialized}
+                    └── given we insert right before the nextActiveTickPrice
+                        ├── it loops forward until the parent is found
+                        ├── it writes next pointer of new tick
+                        ├── it writes next pointer of previous tick
+                        ├── it writes nextActiveTickPrice
+                        └── it emits {TickInitialized}

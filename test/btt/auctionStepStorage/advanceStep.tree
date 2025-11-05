@@ -1,0 +1,19 @@
+AdvanceStepTest
+├── given offset GT _LENGTH
+│   └── it reverts with {AuctionIsOver}
+└── given offset LE _LENGTH
+    ├── when prev block end EQ 0
+    │   ├── it sets start to START_BLOCK
+    │   ├── it sets end to start + blockDelta
+    │   ├── it writes $step
+    │   ├── it writes $_offset
+    │   ├── it emits {AuctionStepRecorded}
+    │   └── it returns $step
+    └── when start NEQ 0
+        ├── it sets start to endBlock of previous step
+        ├── it sets end to start + delta
+        ├── it writes $step
+        ├── it reads from _pointer
+        ├── it writes $_offset
+        ├── it emits {AuctionStepRecorded}
+        └── it returns $step

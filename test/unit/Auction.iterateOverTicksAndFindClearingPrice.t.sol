@@ -2,13 +2,9 @@
 pragma solidity 0.8.26;
 
 // Place holder for BTT testing as that is not merged yet
-import {Auction} from '../../src/Auction.sol';
-import {AuctionParameters} from '../../src/Auction.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
 import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
-
 import {FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
-import {MockAuction} from '../utils/MockAuction.sol';
 import {AuctionUnitTest} from './AuctionUnitTest.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
@@ -31,7 +27,7 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
         uint256 nextTickPrice = tickPrice + params.tickSpacing;
 
         // We need demand that makes the clearing price round up to nextTickPrice
-        // The clearing price is calculated as: sumCurrencyDemandAboveClearingQ96_.fullMulDivUp(1, TOTAL_SUPPLY)
+        // The clearing price is calculated as: sumCurrencyDemandAboveClearingQ96_.divUp(TOTAL_SUPPLY)
         // We want this to equal nextTickPrice, so we need demand = totalSupply * nextTickPrice
         // But we also need to ensure the iteration stops, which happens when:
         // 1. sumCurrencyDemandAboveClearingQ96_ < TOTAL_SUPPLY * nextActiveTickPrice_ AND
@@ -197,15 +193,16 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
         assertEq(clearingPriceRoundedDown, clearingPrice, 'clearing price rounded down should be the clearing price');
 
         // In this case, the clearing price rounded up should be the next tick price
-        uint256 clearingPriceRoundedUp = sumDemandAboveClearing.fullMulDivUp(1, totalSupply);
+        uint256 clearingPriceRoundedUp = sumDemandAboveClearing.divUp(totalSupply);
         assertEq(clearingPriceRoundedUp, clearingPrice, 'clearing price rounded up should be the clearing price');
 
         // Sum demand above clearing should be 0 as all demand is at the correct tick
         assertEq(mockAuction.sumCurrencyDemandAboveClearingQ96(), 0, 'sum demand above clearing should be 0');
     }
 
-    function test_WhenThereIsEnoughDemandAtTheTickAndTicksAboveButNotEnoughDemandAtTicksAboveToFindAClearingPriceInbetween(
-    ) external {
+    function test_WhenThereIsEnoughDemandAtTheTickAndTicksAboveButNotEnoughDemandAtTicksAboveToFindAClearingPriceInbetween()
+        external
+    {
         // it should set clearing price to a tick boundary
         // it should set sumDemandAboveClearing to be sum of ticks above clearing price
 
@@ -252,7 +249,7 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
         );
 
         // In this case, the clearing price rounded up should be below the next tick price
-        uint256 clearingPriceRoundedUp = sumDemandAboveClearingFromAuction.fullMulDivUp(1, totalSupply);
+        uint256 clearingPriceRoundedUp = sumDemandAboveClearingFromAuction.divUp(totalSupply);
         assertLt(clearingPriceRoundedUp, nextTickPrice, 'clearing price rounded up should be below the next tick price');
 
         // Sum demand above clearing should be the demand at the second tick price
@@ -308,7 +305,7 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
         assertLt(clearingPriceRoundedDown, secondTickPrice);
 
         // In this case, the clearing price rounded up should be inbetween the next tick price and the second tick price
-        uint256 clearingPriceRoundedUp = demandAtSecondTick.fullMulDivUp(1, totalSupply);
+        uint256 clearingPriceRoundedUp = demandAtSecondTick.divUp(totalSupply);
         assertGt(clearingPriceRoundedUp, nextTickPrice);
         assertLt(clearingPriceRoundedUp, secondTickPrice);
 
@@ -359,7 +356,7 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
         assertLt(clearingPriceRoundedDown, nextTickPrice);
 
         // In this case, the clearing price rounded up should be the next tick price
-        uint256 clearingPriceRoundedUp = sumDemandAboveClearing.fullMulDivUp(1, totalSupply);
+        uint256 clearingPriceRoundedUp = sumDemandAboveClearing.divUp(totalSupply);
         assertEq(clearingPriceRoundedUp, nextTickPrice);
 
         // assert approx rounded up and down

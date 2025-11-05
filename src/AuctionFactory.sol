@@ -17,7 +17,7 @@ contract AuctionFactory is IAuctionFactory {
         external
         returns (IDistributionContract distributionContract)
     {
-        if (amount > type(uint128).max) revert InvalidAmount(amount);
+        if (amount > type(uint128).max) revert InvalidTokenAmount(amount);
 
         AuctionParameters memory parameters = abi.decode(configData, (AuctionParameters));
         // If the tokensRecipient is address(1), set it to the msg.sender
@@ -34,16 +34,16 @@ contract AuctionFactory is IAuctionFactory {
 
     /// @inheritdoc IAuctionFactory
     function getAuctionAddress(address token, uint256 amount, bytes calldata configData, bytes32 salt, address sender)
-        public
+        external
         view
         returns (address)
     {
-        if (amount > type(uint128).max) revert InvalidAmount(amount);
+        if (amount > type(uint128).max) revert InvalidTokenAmount(amount);
         AuctionParameters memory parameters = abi.decode(configData, (AuctionParameters));
         // If the tokensRecipient is address(1), set it to the msg.sender
-        if (parameters.tokensRecipient == ActionConstants.MSG_SENDER) parameters.tokensRecipient = msg.sender;
+        if (parameters.tokensRecipient == ActionConstants.MSG_SENDER) parameters.tokensRecipient = sender;
         // If the fundsRecipient is address(1), set it to the msg.sender
-        if (parameters.fundsRecipient == ActionConstants.MSG_SENDER) parameters.fundsRecipient = msg.sender;
+        if (parameters.fundsRecipient == ActionConstants.MSG_SENDER) parameters.fundsRecipient = sender;
 
         bytes32 initCodeHash =
             keccak256(abi.encodePacked(type(Auction).creationCode, abi.encode(token, uint128(amount), parameters)));

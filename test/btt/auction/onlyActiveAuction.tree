@@ -1,0 +1,8 @@
+OnlyActiveAuctionTest
+├── when block number LT start block
+│   └── it reverts with {AuctionNotStarted}
+└── when block number GE start block
+    ├── given no tokens have been received
+    │   └── it reverts with {TokensNotReceived}
+    └── given tokens have been received
+        └── it does not revert

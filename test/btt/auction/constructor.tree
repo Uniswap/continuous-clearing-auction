@@ -1,0 +1,12 @@
+ConstructorTest
+├── when claimBlock LT endBlock
+│   └── it reverts with {ClaimBlockIsBeforeEndBlock}
+└── when claimBlock GE endBlock
+    ├── when uint256 max div totalSupply GE uni v4 max tick
+    │   ├── it writes CLAIM_BLOCK
+    │   ├── it writes VALIDATION_HOOK
+    │   └── it writes BID_MAX_PRICE as v4 max tick
+    └── when uint256 max div totalSupply LE uni v4 max tick
+        ├── it writes CLAIM_BLOCK
+        ├── it writes VALIDATION_HOOK
+        └── it writes BID_MAX_PRICE as type(uint256).max / totalSupply

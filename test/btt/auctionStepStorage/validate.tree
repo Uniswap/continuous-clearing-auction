@@ -1,0 +1,20 @@
+ValidateTest
+├── when auction steps data length EQ 0
+│   └── it reverts with {InvalidAuctionDataLength}
+└── when auction steps data length NEQ 0
+    ├── when auction steps data length is not a multiple of UINT64_SIZE
+    │   └── it reverts with {InvalidAuctionDataLength}
+    └── when auction steps data length is multiple of UINT64_SIZE
+        ├── when auction steps data length NEQ _LENGTH
+        │   └── it reverts with {InvalidAuctionDataLength}
+        └── when auction steps data length EQ _LENGTH
+            ├── when auction step with delta EQ 0
+            │   └── it reverts with {StepBlockDeltaCannotBeZero}
+            └── when no auction step with delta EQ 0
+                ├── when sum of mps times delta NEQ MPS
+                │   └── it reverts with {InvalidStepDataMps}
+                └── when sum of mps times delta EQ MPS
+                    ├── when sum of block delta and start block NEQ end block
+                    │   └── it reverts with {InvalidEndBlockGivenStepData}
+                    └── when sum of block delta and start block EQ end block
+                        └── it does nothing

@@ -12,8 +12,6 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
     using AuctionStepLib for *;
     using SSTORE2 for *;
 
-    /// @notice The size of a uint64 in bytes
-    uint256 public constant UINT64_SIZE = 8;
     /// @notice The block at which the auction starts
     uint64 internal immutable START_BLOCK;
     /// @notice The block at which the auction ends
@@ -43,33 +41,34 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
 
     /// @notice Validate the data provided in the constructor
     /// @dev Checks that the contract was correctly deployed by SSTORE2 and that the total mps and blocks are valid
-    function _validate(address _pointer) private view {
+    function _validate(address _pointer) internal view {
         bytes memory _auctionStepsData = _pointer.read();
         if (
-            _auctionStepsData.length == 0 || _auctionStepsData.length % UINT64_SIZE != 0
+            _auctionStepsData.length == 0 || _auctionStepsData.length % AuctionStepLib.UINT64_SIZE != 0
                 || _auctionStepsData.length != _LENGTH
         ) revert InvalidAuctionDataLength();
 
         // Loop through the auction steps data and check if the mps is valid
         uint256 sumMps = 0;
         uint64 sumBlockDelta = 0;
-        for (uint256 i = 0; i < _LENGTH; i += UINT64_SIZE) {
+        for (uint256 i = 0; i < _LENGTH; i += AuctionStepLib.UINT64_SIZE) {
             (uint24 mps, uint40 blockDelta) = _auctionStepsData.get(i);
             // Prevent the block delta from being set to zero
             if (blockDelta == 0) revert StepBlockDeltaCannotBeZero();
             sumMps += mps * blockDelta;
             sumBlockDelta += blockDelta;
         }
-        if (sumMps != ConstantsLib.MPS) revert InvalidStepDataMps();
-        if (sumBlockDelta + START_BLOCK != END_BLOCK) revert InvalidEndBlockGivenStepData();
+        if (sumMps != ConstantsLib.MPS) revert InvalidStepDataMps(sumMps, ConstantsLib.MPS);
+        uint64 calculatedEndBlock = START_BLOCK + sumBlockDelta;
+        if (calculatedEndBlock != END_BLOCK) revert InvalidEndBlockGivenStepData(calculatedEndBlock, END_BLOCK);
     }
 
     /// @notice Advance the current auction step
     /// @dev This function is called on every new bid if the current step is complete
     function _advanceStep() internal returns (AuctionStep memory) {
-        if ($_offset > _LENGTH) revert AuctionIsOver();
+        if ($_offset >= _LENGTH) revert AuctionIsOver();
 
-        bytes8 _auctionStep = bytes8($_pointer.read($_offset, $_offset + UINT64_SIZE));
+        bytes8 _auctionStep = bytes8($_pointer.read($_offset, $_offset + AuctionStepLib.UINT64_SIZE));
         (uint24 mps, uint40 blockDelta) = _auctionStep.parse();
 
         uint64 _startBlock = $step.endBlock;
@@ -78,30 +77,30 @@ abstract contract AuctionStepStorage is IAuctionStepStorage {
 
         $step = AuctionStep({startBlock: _startBlock, endBlock: _endBlock, mps: mps});
 
-        $_offset += UINT64_SIZE;
+        $_offset += AuctionStepLib.UINT64_SIZE;
 
         emit AuctionStepRecorded(_startBlock, _endBlock, mps);
         return $step;
     }
 
     /// @inheritdoc IAuctionStepStorage
-    function step() external view override(IAuctionStepStorage) returns (AuctionStep memory) {
+    function step() external view returns (AuctionStep memory) {
         return $step;
     }
 
     // Getters
     /// @inheritdoc IAuctionStepStorage
-    function startBlock() external view override(IAuctionStepStorage) returns (uint64) {
+    function startBlock() external view returns (uint64) {
         return START_BLOCK;
     }
 
     /// @inheritdoc IAuctionStepStorage
-    function endBlock() external view override(IAuctionStepStorage) returns (uint64) {
+    function endBlock() external view returns (uint64) {
         return END_BLOCK;
     }
 
     /// @inheritdoc IAuctionStepStorage
-    function pointer() external view override(IAuctionStepStorage) returns (address) {
+    function pointer() external view returns (address) {
         return $_pointer;
     }
 }

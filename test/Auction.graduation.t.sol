@@ -1,26 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Auction} from '../src/Auction.sol';
-import {AuctionParameters, IAuction} from '../src/interfaces/IAuction.sol';
+import {IAuction} from '../src/interfaces/IAuction.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
-
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
+import {ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
-import {FuzzBid, FuzzDeploymentParams} from './utils/FuzzStructs.sol';
-import {console2} from 'forge-std/console2.sol';
+import {FuzzDeploymentParams} from './utils/FuzzStructs.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
 /// @dev These tests fuzz over the full range of inputs for both the auction parameters and the bids submitted
 ///      so we limit the number of fuzz runs.
-/// forge-config: default.fuzz.runs = 888
-/// forge-config: ci.fuzz.runs = 888
+/// forge-config: default.fuzz.runs = 1000
 contract AuctionGraduationTest is AuctionBaseTest {
     using ValueX7Lib for *;
     using BidLib for *;
+    using FixedPointMathLib for *;
 
     function test_exitBid_graduated_succeeds(
         FuzzDeploymentParams memory _deploymentParams,
@@ -41,11 +39,22 @@ contract AuctionGraduationTest is AuctionBaseTest {
 
         vm.roll(auction.endBlock());
         Checkpoint memory finalCheckpoint = auction.checkpoint();
+
         if ($maxPrice > finalCheckpoint.clearingPrice) {
             auction.exitBid(bidId);
         } else {
             auction.exitPartiallyFilledBid(bidId, auction.startBlock(), 0);
         }
+
+        vm.roll(auction.claimBlock());
+        uint256 aliceTokensBefore = token.balanceOf(alice);
+        auction.claimTokens(bidId);
+        assertApproxEqAbs(
+            auction.totalCleared(),
+            token.balanceOf(alice) - aliceTokensBefore,
+            MAX_ALLOWABLE_DUST_WEI,
+            'Total cleared must be within 1e18 wei of the tokens filled by alice'
+        );
     }
 
     function test_exitBid_notGraduated_succeeds(
@@ -61,6 +70,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenAuctionHasStarted
         givenFullyFundedAccount
         checkAuctionIsNotGraduated
+        checkAuctionIsSolvent
     {
         uint256 bidId = auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
@@ -197,13 +207,14 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenGraduatedAuction
         givenAuctionHasStarted
         givenFullyFundedAccount
+        checkAuctionIsGraduated
+        checkAuctionIsSolvent
     {
         uint64 bidIdBlock = uint64(block.number);
         uint256 bidId = auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
         vm.roll(auction.endBlock());
         Checkpoint memory finalCheckpoint = auction.checkpoint();
-        uint256 expectedCurrencyRaised = auction.currencyRaised();
 
         uint256 aliceBalanceBefore = address(alice).balance;
         if ($maxPrice > finalCheckpoint.clearingPrice) {
@@ -214,20 +225,15 @@ contract AuctionGraduationTest is AuctionBaseTest {
             auction.exitPartiallyFilledBid(bidId, bidIdBlock, 0);
         }
 
-        emit log_string('==================== SWEEP CURRENCY ====================');
-        emit log_named_uint('auction balance', address(auction).balance);
-        emit log_named_uint('bid amount', $bidAmount);
-        emit log_named_uint('max price', $maxPrice);
-        emit log_named_uint('final clearing price', finalCheckpoint.clearingPrice);
-        emit log_named_uint('expectedCurrencyRaised', expectedCurrencyRaised);
-
-        vm.prank(fundsRecipient);
-        vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.CurrencySwept(fundsRecipient, expectedCurrencyRaised);
-        auction.sweepCurrency();
-
-        // Verify funds were transferred
-        assertEq(fundsRecipient.balance, expectedCurrencyRaised);
+        vm.roll(auction.claimBlock());
+        uint256 aliceTokensBefore = token.balanceOf(alice);
+        auction.claimTokens(bidId);
+        assertApproxEqAbs(
+            token.balanceOf(alice),
+            aliceTokensBefore + auction.totalCleared(),
+            MAX_ALLOWABLE_DUST_WEI,
+            'Total cleared must be within 1e18 wei of the tokens filled by alice'
+        );
     }
 
     function test_concrete_expectedCurrencyRaisedGreaterThanBalance() public {
@@ -237,7 +243,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         require(success, string(result));
     }
 
-    function test_sweepUnsoldTokens_graduated(
+    function test_sweepUnsoldTokens_graduated_sweepsLeftoverTokens(
         FuzzDeploymentParams memory _deploymentParams,
         uint128 _bidAmount,
         uint128 _maxPrice
@@ -250,16 +256,42 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenAuctionHasStarted
         givenFullyFundedAccount
         checkAuctionIsGraduated
+        checkAuctionIsSolvent
     {
-        auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
+        uint64 bidBlock = uint64(_bound(block.number, auction.startBlock(), auction.endBlock() - 1));
+        vm.roll(bidBlock);
+        uint256 bidId = auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
         vm.roll(auction.endBlock());
-        // Should sweep no tokens since graduated
-        vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, 0);
-        auction.sweepUnsoldTokens();
+        Checkpoint memory finalCheckpoint = auction.checkpoint();
 
-        assertEq(token.balanceOf(tokensRecipient), 0);
+        vm.assume(auction.isGraduated());
+
+        if ($maxPrice > finalCheckpoint.clearingPrice) {
+            auction.exitBid(bidId);
+        } else {
+            auction.exitPartiallyFilledBid(bidId, bidBlock, 0);
+        }
+
+        Bid memory bid = auction.bids(bidId);
+        assertLe(bid.tokensFilled, auction.totalCleared());
+
+        vm.roll(auction.claimBlock());
+        uint256 aliceTokensBefore = token.balanceOf(alice);
+
+        if (bid.tokensFilled > 0) {
+            vm.expectEmit(true, true, true, true);
+            emit IAuction.TokensClaimed(bidId, alice, bid.tokensFilled);
+            auction.claimTokens(bidId);
+            assertEq(token.balanceOf(alice), bid.tokensFilled);
+        }
+
+        assertApproxEqAbs(
+            auction.totalCleared(),
+            token.balanceOf(alice) - aliceTokensBefore,
+            MAX_ALLOWABLE_DUST_WEI,
+            'Total cleared must be within 1e18 wei of the tokens filled by alice'
+        );
     }
 
     function test_sweepUnsoldTokens_notGraduated(
@@ -276,11 +308,13 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenFullyFundedAccount
         checkAuctionIsNotGraduated
     {
+        uint64 bidBlock = uint64(_bound(block.number, auction.startBlock(), auction.endBlock() - 1));
+        vm.roll(bidBlock);
         uint256 bidId = auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
         vm.roll(auction.endBlock());
         // Update the lastCheckpoint
-        auction.checkpoint();
+        Checkpoint memory checkpoint = auction.checkpoint();
 
         // Should sweep ALL tokens since auction didn't graduate
         vm.expectEmit(true, true, true, true);
@@ -301,7 +335,11 @@ contract AuctionGraduationTest is AuctionBaseTest {
         // Expected currency raised MUST always be less than or equal to the balance since it did not graduate
         assertLe(expectedCurrencyRaised, address(auction).balance);
         // Process refunds
-        auction.exitBid(bidId);
+        if ($maxPrice > checkpoint.clearingPrice) {
+            auction.exitBid(bidId);
+        } else {
+            auction.exitPartiallyFilledBid(bidId, bidBlock, 0);
+        }
         emit log_named_uint('balance after refunds', address(auction).balance);
         // Assert that the balance is zero since it did not graduate
         assertEq(address(auction).balance, 0);
@@ -317,6 +355,13 @@ contract AuctionGraduationTest is AuctionBaseTest {
     function test_concrete_2() public {
         bytes memory data =
             hex'34d9075d0000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000002b9740e8f776d98cd7e1e51af00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000002000000000000000000000000d99eb98ebf2c31da1eb90704e12c7c617773261e000000000000000000000000192cb32e296602a504b481a685ee8f524b039d87000000000000000000000000bf6e9acdc3941d8add5b458cccaafc40cd4998ad000000000000000000000000000000000000000000000000000000000000019d000000000000000000000000000000000000000000000000fffffffffffffffe00000000000000000000000000000000000000000000000000000000000563160000000000000000000000000000000000000ac51ff0c51387d18feae2a2cd7900000000000000000000000072c61997f7d335a1fbbec447b5b492157e9d17e30000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020b0000000000000000000000000000000000000000000000000000000000000160000000000000000000000000000000000000000000000000000000000000003ba32bbbc6536960e638037a17292eb87f4d46c426b158d06a52f5cf8831898cbf78deb9443147b1c1f13c66f72e34de564271d67d85dff6d18c85970000000000';
+        (bool success, bytes memory result) = address(this).call(data);
+        require(success, string(result));
+    }
+
+    function test_concrete_3() public {
+        bytes memory data =
+            hex'a1100c05000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000ffffffffffffffffffffffffffffffff000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000fffffffffffffffffffffffffffffffd000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000080000000000000000000000007ba565603123244825e72ae643a8199175607f1900000000000000000000000055fadd1cf3fcfebb63d435229fafe4c7dfa52984000000000000000000000000a1810659071d9d3983d9ca4f1c2c7f9b358f4fc500000000000000000000000000000000000000000000000000000000000000bb00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000766f72000000068c3f2359a64686060ef2c0caedf83a36260fecd69e79aa9520641e4f0000000000000000000000000fba12ae53ad3242e721fa712ef94ec176e1a97d000000000000000000000032bf97ce06dcd1a6f8ae30cad8e3e628e71c03e4a30000000000000000000000000000000000000e872ebab52e639185131e010cc20000000000000000000000000000000000000000000000000000000000000160000000000000000000000000000000000000000000000000000000000000004100c2aa6455ea7191e77d3e993e2cf3135b48756ec4c11c20ca2893f689874ebc8eb6575c78634d31467ed5352f164f676ecee7d2835654cf6e16a61812e1d2c2b500000000000000000000000000000000000000000000000000000000000000';
         (bool success, bytes memory result) = address(this).call(data);
         require(success, string(result));
     }

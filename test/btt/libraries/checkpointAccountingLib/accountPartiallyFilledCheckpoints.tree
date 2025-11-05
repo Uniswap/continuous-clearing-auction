@@ -1,0 +1,8 @@
+AccountPartiallyFilledCheckpointsTest
+├── when tick demand eq 0
+│   └── it returns (0, 0)
+└── when tick demand gt 0
+    ├── when currency spent rounds down to zero
+    │   └── it returns 1 currency spent
+    └── when tokens filled rounds down to zero
+        └── it returns 0 tokens filled

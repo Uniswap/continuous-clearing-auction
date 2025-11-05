@@ -1,0 +1,17 @@
+ConstructorTest
+├── when tick spacing EQ 0
+│   └── it reverts with {TickSpacingIsZero}
+└── when tick spacing GT 0
+    ├── when floor price EQ 0
+    │   └── it reverts with {FloorPriceIsZero}
+    └── when floor price GT 0
+        ├── when floor price GT max bid price
+        │   └── it reverts with {FloorPriceAboveMaxBidPrice}
+        ├── when floor price not perfectly divisible by tick spacing
+        │   └── it reverts with {TickPriceNotAtBoundary}
+        └── when floor price is perfectly divisible by tick spacing
+            ├── it writes FLOOR_PRICE
+            ├── it writes next tick to be MAX_TICK_PTR
+            ├── it writes nextActiveTickPrice to be MAX_TICK_PTR
+            ├── it emits {TickInitialized}
+            └── it emits {NextActiveTickUpdated}

@@ -1,0 +1,9 @@
+InsertCheckpointTest
+├── given block number LTE lastCheckpointedBlock
+│   └── it reverts with {CheckpointBlockNotIncreasing}
+└── given lastCheckpointedBlock
+    ├── it updates checkpoint.prev = lastCheckpointedBlock
+    ├── it updates checkpoint.next = blockNumber
+    ├── it writes _checkpoints[lastCheckpointedBlock].next = blockNumber
+    ├── it writes _checkpoints[blockNumber] = checkpoint
+    └── it writes lastCheckpointedBlock = blockNumber

@@ -1,0 +1,3 @@
+RemainingMpsInAuctionTest
+└── when called with checkpoint
+    └── it returns mps - checkpoint.cumulativeMps

@@ -1,0 +1,8 @@
+HandleValidateTest
+├── when hook is address zero
+│   └── it returns early
+└── when hook is not address zero
+    ├── when the hook call fails
+    │   └── it reverts with {ValidationHookCallFailed}
+    └── when the hook call succeeds
+        └── it returns

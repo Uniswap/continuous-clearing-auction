@@ -10,7 +10,7 @@ import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 import {AuctionBaseTest} from '../utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from '../utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from '../utils/AuctionStepsBuilder.sol';
-import {FuzzBid, FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
+import {FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
 import {MockAuction} from '../utils/MockAuction.sol';
 
 contract AuctionUnitTest is AuctionBaseTest {
@@ -67,12 +67,11 @@ contract AuctionUnitTest is AuctionBaseTest {
 
         auctionStepsData =
             AuctionStepsBuilder.init().addStep(STANDARD_MPS_1_PERCENT, 50).addStep(STANDARD_MPS_1_PERCENT, 50);
-        params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE).withTickSpacing(
-            TICK_SPACING
-        ).withValidationHook(address(0)).withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient)
-            .withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION).withClaimBlock(
-            block.number + AUCTION_DURATION + 10
-        ).withAuctionStepsData(auctionStepsData);
+        params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE)
+            .withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number)
+            .withEndBlock(block.number + AUCTION_DURATION).withClaimBlock(block.number + AUCTION_DURATION + 10)
+            .withAuctionStepsData(auctionStepsData);
 
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);

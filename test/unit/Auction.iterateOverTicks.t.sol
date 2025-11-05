@@ -8,8 +8,6 @@ import {Checkpoint} from '../../src/CheckpointStorage.sol';
 import {BidLib} from '../../src/libraries/BidLib.sol';
 import {CheckpointLib} from '../../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
-
-import {FixedPoint128} from '../../src/libraries/FixedPoint128.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 import {FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
@@ -45,7 +43,6 @@ contract AuctionIterateOverTicksTest is AuctionUnitTest {
 
     // Less fuzz runs because this is a pretty intensive test
     /// forge-config: default.fuzz.runs = 888
-    /// forge-config: ci.fuzz.runs = 888
     function test_iterateOverTicks(
         FuzzDeploymentParams memory _deploymentParams,
         FuzzBid[] memory _bids,

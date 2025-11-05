@@ -9,7 +9,6 @@ import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../../src/interfaces/ITokenCurrencyStorage.sol';
 import {BidLib} from '../../src/libraries/BidLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
-import {FixedPoint128} from '../../src/libraries/FixedPoint128.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 import {Assertions} from './Assertions.sol';
@@ -48,6 +47,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     // Common test values
     uint24 public constant STANDARD_MPS_1_PERCENT = 100_000; // 100e3 - represents 1% of MPS
+
+    uint256 public constant MAX_ALLOWABLE_DUST_WEI = 1e18; // Or 1 unit of token assuming 18 decimals
 
     // Test accounts
     address public alice;
@@ -111,8 +112,9 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         deploymentParams.numberOfSteps = _getRandomDivisorOfMPS();
 
         // TODO: these values are wrong - tick spacing too large
-        deploymentParams.auctionParams.floorPrice = uint128(_bound(uint256(vm.randomUint()), 2, type(uint128).max));
-        deploymentParams.auctionParams.tickSpacing = uint256(_bound(uint256(vm.randomUint()), 2, type(uint256).max));
+        deploymentParams.auctionParams.floorPrice = uint128(_bound(uint256(vm.randomUint()), 2, type(uint64).max));
+        deploymentParams.auctionParams.tickSpacing =
+            uint256(_bound(uint256(vm.randomUint()), 2, deploymentParams.auctionParams.floorPrice));
         _boundPriceParams(deploymentParams, false);
 
         // Set up the block numbers
@@ -224,11 +226,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     // Price Calculation Helpers
     // ============================================
 
-    function helper__roundPriceDownToTickSpacing(uint256 _price, uint256 _tickSpacing)
-        internal
-        pure
-        returns (uint256)
-    {
+    function helper__roundPriceDownToTickSpacing(uint256 _price, uint256 _tickSpacing) internal pure returns (uint256) {
         return _price - (_price % _tickSpacing);
     }
 
@@ -260,7 +258,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Find the first value above floorPrice that is a multiple of tickSpacing
         uint256 tickAboveFloorPrice = ((floorPrice / tickSpacing) + 1) * tickSpacing;
 
-        maxPrice = _bound(maxPrice, tickAboveFloorPrice, uint256(type(uint256).max));
+        maxPrice = _bound(maxPrice, tickAboveFloorPrice, type(uint256).max);
         maxPriceQ96 = maxPrice << FixedPoint96.RESOLUTION;
     }
 
@@ -272,7 +270,9 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     ) internal pure returns (uint256) {
         vm.assume(_totalSupply != 0 && _tickSpacing != 0 && _floorPrice != 0 && _maxPrice != 0);
         _maxPrice = _bound(_maxPrice, _floorPrice + _tickSpacing, type(uint256).max);
-        vm.assume(_maxPrice <= type(uint256).max / _totalSupply);
+
+        // TODO(md): better to be a bound?
+        vm.assume(_maxPrice <= FixedPointMathLib.min(type(uint256).max / _totalSupply, ConstantsLib.MAX_BID_PRICE));
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, _tickSpacing);
         vm.assume(_maxPrice > _floorPrice && _maxPrice < type(uint256).max);
         return _maxPrice;
@@ -284,7 +284,12 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     /// @dev Submit a bid for a given tick number, amount, and owner
     /// @dev if the bid was not successfully placed - i.e. it would not have succeeded at clearing - bidPlaced is false and bidId is 0
-    function helper__trySubmitBid(uint256, /* _i */ FuzzBid memory _bid, address _owner)
+    function helper__trySubmitBid(
+        uint256,
+        /* _i */
+        FuzzBid memory _bid,
+        address _owner
+    )
         internal
         returns (bool bidPlaced, uint256 bidId)
     {
@@ -302,17 +307,19 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
         vm.assume(
             auction.sumCurrencyDemandAboveClearingQ96()
-                < ConstantsLib.X7_UPPER_BOUND
-                    - (ethInputAmount * FixedPoint96.Q96 * ConstantsLib.MPS)
-                        / (ConstantsLib.MPS - latestCheckpoint.cumulativeMps)
+                < ConstantsLib.X7_UPPER_BOUND - (ethInputAmount * FixedPoint96.Q96 * ConstantsLib.MPS)
+                    / (ConstantsLib.MPS - latestCheckpoint.cumulativeMps)
         );
 
         // Get the correct last tick price for the bid
         uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
         uint256 lastTickPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(lowerTickNumber);
 
-        try auction.submitBid{value: ethInputAmount}(maxPrice, ethInputAmount, _owner, lastTickPrice, bytes(''))
-        returns (uint256 _bidId) {
+        try auction.submitBid{value: ethInputAmount}(
+            maxPrice, ethInputAmount, _owner, lastTickPrice, bytes('')
+        ) returns (
+            uint256 _bidId
+        ) {
             bidId = _bidId;
         } catch (bytes memory revertData) {
             if (_shouldSkipBidError(revertData, maxPrice)) {
@@ -385,6 +392,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         setUpTokens();
 
         alice = makeAddr('alice');
+        bob = makeAddr('bob');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 
@@ -404,17 +412,17 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         setUpTokens();
 
         alice = makeAddr('alice');
+        bob = makeAddr('bob');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 
         auctionStepsData =
             AuctionStepsBuilder.init().addStep(STANDARD_MPS_1_PERCENT, 50).addStep(STANDARD_MPS_1_PERCENT, 50);
-        params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE).withTickSpacing(
-            TICK_SPACING
-        ).withValidationHook(address(0)).withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient)
-            .withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION).withClaimBlock(
-            block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET
-        ).withAuctionStepsData(auctionStepsData);
+        params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE)
+            .withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number)
+            .withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET).withAuctionStepsData(auctionStepsData);
 
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
@@ -434,13 +442,12 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         MockToken failingToken = new MockToken();
 
         bytes memory failingAuctionStepsData = AuctionStepsBuilder.init().addStep(STANDARD_MPS_1_PERCENT, 100);
-        AuctionParameters memory failingParams = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
-            FLOOR_PRICE
-        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET).withAuctionStepsData(
-            failingAuctionStepsData
-        );
+        AuctionParameters memory failingParams = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL)
+            .withFloorPrice(FLOOR_PRICE).withTickSpacing(TICK_SPACING).withValidationHook(address(0))
+            .withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient).withStartBlock(block.number)
+            .withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET)
+            .withAuctionStepsData(failingAuctionStepsData);
 
         Auction failingAuction = new Auction(address(failingToken), TOTAL_SUPPLY, failingParams);
         failingToken.mint(address(failingAuction), TOTAL_SUPPLY);
@@ -494,8 +501,32 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         require(block.number >= auction.endBlock(), 'checkAuctionIsSolvent: Auction is not over');
         auction.checkpoint();
         if (auction.isGraduated()) {
+            emit log_string('==================== INFO ====================');
+            emit log_named_decimal_uint('auction.totalSupply()', auction.totalSupply(), 18);
+            emit log_named_decimal_uint('auction.totalCleared()', auction.totalCleared(), 18);
+
+            assertLe(auction.totalCleared(), auction.totalSupply(), 'total cleared must be <= total supply');
+
             auction.sweepCurrency();
             auction.sweepUnsoldTokens();
+            // Validate that the tokens and currency dust left in the auction is within a reasonable amount
+            assertApproxEqAbs(
+                token.balanceOf(address(auction)),
+                0,
+                MAX_ALLOWABLE_DUST_WEI,
+                'Auction should have less than MAX_ALLOWABLE_DUST_WEI tokens left'
+            );
+            assertApproxEqAbs(
+                address(auction).balance,
+                0,
+                MAX_ALLOWABLE_DUST_WEI,
+                'Auction should have less than MAX_ALLOWABLE_DUST_WEI wei left of currency'
+            );
+
+            emit log_named_decimal_uint(
+                'after sweeping token.balanceOf(address(auction))', token.balanceOf(address(auction)), 18
+            );
+            emit log_named_decimal_uint('after sweeping currency balance', address(auction).balance, 18);
         } else {
             auction.sweepUnsoldTokens();
             // Assert that all tokens were swept
@@ -555,15 +586,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         uint256 temp = tokens.fullMulDivUp(maxPrice, FixedPoint96.Q96);
         temp = _bound(temp, 1, type(uint128).max);
         return SafeCastLib.toUint128(temp);
-    }
-
-    // ============================================
-    // Auction State Query Helpers
-    // ============================================
-
-    /// @notice Helper function to return the tick at the given price
-    function getTick(uint256 price) public view returns (Tick memory) {
-        return auction.ticks(price);
     }
 
     // ============================================

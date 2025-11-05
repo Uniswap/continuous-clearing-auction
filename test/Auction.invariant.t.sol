@@ -463,6 +463,29 @@ contract AuctionInvariantTest is AuctionUnitTest {
             // Bid might be deleted if tokensFilled = 0
             bid = mockAuction.bids(bidId);
             if (bid.tokensFilled == 0) continue;
+
+            // UNIVERSAL INVARIANT: Average purchase price must never exceed maxPrice
+            // This ensures bidders never pay more per token than their bid price
+            // Works for both fully-filled and partially-filled bids
+
+            // Mathematical form: avgPrice = currencySpent / tokensFilled ≤ maxPrice
+            // Rearranged: currencySpent ≤ tokensFilled × maxPrice
+
+            uint256 currencySpent = (bid.amountQ96 / FixedPoint96.Q96) - refundAmount;
+            uint256 maxValueAtBidPrice = FixedPointMathLib.fullMulDiv(bid.tokensFilled, bid.maxPrice, FixedPoint96.Q96);
+
+            // Allow small rounding tolerance (up to 1 wei) for edge cases with tiny fills
+            // where tokensFilled × maxPrice / Q96 might round to zero
+            assertLe(
+                currencySpent,
+                maxValueAtBidPrice + 1,
+                string.concat(
+                    'ROUNDING INVARIANT VIOLATED: Bid ',
+                    vm.toString(bidId),
+                    ' - average purchase price exceeds maxPrice'
+                )
+            );
+
             assertEq(bid.exitedBlock, block.number);
 
             uint256 maximumTokensFilled = FixedPointMathLib.min(

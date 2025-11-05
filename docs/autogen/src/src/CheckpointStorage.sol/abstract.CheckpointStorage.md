@@ -1,8 +1,8 @@
 # CheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/63f4bfef19ba51e32937745adfe3603976e5bb51/src/CheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/CheckpointStorage.sol)
 
 **Inherits:**
-[ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
+[ICheckpointStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md)
 
 Abstract contract for managing auction checkpoints and bid fill calculations
 
@@ -13,7 +13,7 @@ Maximum block number value used as sentinel for last checkpoint
 
 
 ```solidity
-uint64 public constant MAX_BLOCK_NUMBER = type(uint64).max;
+uint64 public constant MAX_BLOCK_NUMBER = type(uint64).max
 ```
 
 
@@ -22,7 +22,7 @@ Storage of checkpoints
 
 
 ```solidity
-mapping(uint64 blockNumber => Checkpoint) private $_checkpoints;
+mapping(uint64 blockNumber => Checkpoint) private $_checkpoints
 ```
 
 
@@ -31,7 +31,7 @@ The block number of the last checkpointed block
 
 
 ```solidity
-uint64 internal $lastCheckpointedBlock;
+uint64 internal $lastCheckpointedBlock
 ```
 
 
@@ -39,6 +39,9 @@ uint64 internal $lastCheckpointedBlock;
 ### latestCheckpoint
 
 Get the latest checkpoint at the last checkpointed block
+
+Be aware that the latest checkpoint may not be up to date, it is recommended
+to always call `checkpoint()` before using getter functions
 
 
 ```solidity
@@ -55,27 +58,19 @@ function latestCheckpoint() public view returns (Checkpoint memory);
 
 Get the clearing price at the last checkpointed block
 
+Be aware that the latest checkpoint may not be up to date, it is recommended
+to always call `checkpoint()` before using getter functions
+
 
 ```solidity
-function clearingPrice() public view returns (uint256);
+function clearingPrice() external view returns (uint256);
 ```
 **Returns**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`<none>`|`uint256`|The current clearing price|
+|`<none>`|`uint256`|The current clearing price in Q96 form|
 
-
-### currencyRaised
-
-Get the currency raised at the last checkpointed block
-
-*This may be less than the balance of this contract as tokens are sold at different prices*
-
-
-```solidity
-function currencyRaised() public view returns (uint256);
-```
 
 ### _getCheckpoint
 
@@ -90,7 +85,7 @@ function _getCheckpoint(uint64 blockNumber) internal view returns (Checkpoint me
 
 Insert a checkpoint into storage
 
-*This function updates the prev and next pointers of the latest checkpoint and the new checkpoint*
+This function updates the prev and next pointers of the latest checkpoint and the new checkpoint
 
 
 ```solidity
@@ -101,15 +96,15 @@ function _insertCheckpoint(Checkpoint memory checkpoint, uint64 blockNumber) int
 
 Calculate the tokens sold and proportion of input used for a fully filled bid between two checkpoints
 
-*This function MUST only be used for checkpoints where the bid's max price is strictly greater than the clearing price
-because it uses lazy accounting to calculate the tokens filled*
+This function MUST only be used for checkpoints where the bid's max price is strictly greater than the clearing price
+because it uses lazy accounting to calculate the tokens filled
 
 
 ```solidity
 function _accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memory startCheckpoint, Bid memory bid)
     internal
     pure
-    returns (uint256 tokensFilled, uint256 currencySpent);
+    returns (uint256 tokensFilled, uint256 currencySpentQ96);
 ```
 **Parameters**
 
@@ -124,7 +119,7 @@ function _accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memo
 |Name|Type|Description|
 |----|----|-----------|
 |`tokensFilled`|`uint256`|The tokens sold|
-|`currencySpent`|`uint256`|The amount of currency spent|
+|`currencySpentQ96`|`uint256`|The amount of currency spent in Q96 form|
 
 
 ### _accountPartiallyFilledCheckpoints
@@ -135,63 +130,36 @@ Calculate the tokens sold and currency spent for a partially filled bid
 ```solidity
 function _accountPartiallyFilledCheckpoints(
     Bid memory bid,
-    ValueX7 tickDemandX7,
-    ValueX7X7 cumulativeCurrencyRaisedAtClearingPriceX7X7
-) internal pure returns (uint256 tokensFilled, uint256 currencySpent);
+    uint256 tickDemandQ96,
+    ValueX7 currencyRaisedAtClearingPriceQ96_X7
+) internal pure returns (uint256 tokensFilled, uint256 currencySpentQ96);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`bid`|`Bid`|The bid|
-|`tickDemandX7`|`ValueX7`|The total demand at the tick|
-|`cumulativeCurrencyRaisedAtClearingPriceX7X7`|`ValueX7X7`|The cumulative supply sold to the clearing price|
+|`tickDemandQ96`|`uint256`|The total demand at the tick|
+|`currencyRaisedAtClearingPriceQ96_X7`|`ValueX7`|The cumulative supply sold to the clearing price|
 
 **Returns**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`tokensFilled`|`uint256`|The tokens sold|
-|`currencySpent`|`uint256`|The amount of currency spent|
-
-
-### _calculateFill
-
-Calculate the tokens filled and currency spent for a bid
-
-*This function uses lazy accounting to efficiently calculate fills across time periods without iterating through individual blocks.
-It MUST only be used when the bid's max price is strictly greater than the clearing price throughout the entire period being calculated.*
-
-
-```solidity
-function _calculateFill(Bid memory bid, uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
-    internal
-    pure
-    returns (uint256 tokensFilled, uint256 currencySpent);
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`bid`|`Bid`|the bid to evaluate|
-|`cumulativeMpsPerPriceDelta`|`uint256`|the cumulative sum of supply to price ratio|
-|`cumulativeMpsDelta`|`uint24`|the cumulative sum of mps values across the block range|
-
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`tokensFilled`|`uint256`|the amount of tokens filled for this bid|
-|`currencySpent`|`uint256`|the amount of currency spent by this bid|
+|`currencySpentQ96`|`uint256`|The amount of currency spent in Q96 form|
 
 
 ### lastCheckpointedBlock
 
 Get the number of the last checkpointed block
 
+Be aware that the last checkpointed block may not be up to date, it is recommended
+to always call `checkpoint()` before using getter functions
+
 
 ```solidity
-function lastCheckpointedBlock() external view override(ICheckpointStorage) returns (uint64);
+function lastCheckpointedBlock() external view returns (uint64);
 ```
 **Returns**
 
@@ -206,6 +174,12 @@ Get a checkpoint at a block number
 
 
 ```solidity
-function checkpoints(uint64 blockNumber) external view override(ICheckpointStorage) returns (Checkpoint memory);
+function checkpoints(uint64 blockNumber) external view returns (Checkpoint memory);
 ```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`blockNumber`|`uint64`|The block number to get the checkpoint for|
+
 

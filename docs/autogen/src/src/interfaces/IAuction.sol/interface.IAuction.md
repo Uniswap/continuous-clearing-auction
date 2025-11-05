@@ -1,8 +1,8 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/572329a7aabc6c93930b434d7bbc37f669a19160/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/interfaces/IAuction.sol)
 
 **Inherits:**
-[IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
+[IDistributionContract](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
 
 Interface for the Auction contract
 
@@ -14,7 +14,7 @@ Submit a new bid
 
 
 ```solidity
-function submitBid(uint256 maxPrice, uint256 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
+function submitBid(uint256 maxPrice, uint128 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
     external
     payable
     returns (uint256 bidId);
@@ -24,7 +24,7 @@ function submitBid(uint256 maxPrice, uint256 amount, address owner, uint256 prev
 |Name|Type|Description|
 |----|----|-----------|
 |`maxPrice`|`uint256`|The maximum price the bidder is willing to pay|
-|`amount`|`uint256`|The amount of the bid|
+|`amount`|`uint128`|The amount of the bid|
 |`owner`|`address`|The owner of the bid|
 |`prevTickPrice`|`uint256`|The price of the previous tick|
 |`hookData`|`bytes`|Additional data to pass to the hook required for validation|
@@ -40,12 +40,12 @@ function submitBid(uint256 maxPrice, uint256 amount, address owner, uint256 prev
 
 Submit a new bid without specifying the previous tick price
 
-*It is NOT recommended to use this function unless you are sure that `maxPrice` is already initialized
-as this function will iterate through every tick starting from the floor price if it is not.*
+It is NOT recommended to use this function unless you are sure that `maxPrice` is already initialized
+as this function will iterate through every tick starting from the floor price if it is not.
 
 
 ```solidity
-function submitBid(uint256 maxPrice, uint256 amount, address owner, bytes calldata hookData)
+function submitBid(uint256 maxPrice, uint128 amount, address owner, bytes calldata hookData)
     external
     payable
     returns (uint256 bidId);
@@ -55,7 +55,7 @@ function submitBid(uint256 maxPrice, uint256 amount, address owner, bytes callda
 |Name|Type|Description|
 |----|----|-----------|
 |`maxPrice`|`uint256`|The maximum price the bidder is willing to pay|
-|`amount`|`uint256`|The amount of the bid|
+|`amount`|`uint128`|The amount of the bid|
 |`owner`|`address`|The owner of the bid|
 |`hookData`|`bytes`|Additional data to pass to the hook required for validation|
 
@@ -70,9 +70,9 @@ function submitBid(uint256 maxPrice, uint256 amount, address owner, bytes callda
 
 Register a new checkpoint
 
-*This function is called every time a new bid is submitted above the current clearing price*
+This function is called every time a new bid is submitted above the current clearing price
 
-*If the auction is over, it returns the final checkpoint*
+If the auction is over, it returns the final checkpoint
 
 
 ```solidity
@@ -89,10 +89,9 @@ function checkpoint() external returns (Checkpoint memory _checkpoint);
 
 Whether the auction has graduated as of the given checkpoint
 
-*The auction is considered `graudated` if the clearing price is greater than the floor price
-since that means it has sold all of the total supply of tokens.*
+The auction is considered `graudated` if the total currency raised exceeds the required currency raised
 
-*Be aware that the latest checkpoint may be out of date*
+Be aware that the latest checkpoint may be out of date
 
 
 ```solidity
@@ -105,11 +104,30 @@ function isGraduated() external view returns (bool);
 |`<none>`|`bool`|bool True if the auction has graduated, false otherwise|
 
 
+### currencyRaised
+
+Get the currency raised at the last checkpointed block
+
+This may be less than the balance of this contract if there are outstanding refunds for bidders
+
+Be aware that the latest checkpoint may be out of date
+
+
+```solidity
+function currencyRaised() external view returns (uint256);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The currency raised|
+
+
 ### exitBid
 
 Exit a bid
 
-*This function can only be used for bids where the max price is above the final clearing price after the auction has ended*
+This function can only be used for bids where the max price is above the final clearing price after the auction has ended
 
 
 ```solidity
@@ -126,18 +144,18 @@ function exitBid(uint256 bidId) external;
 
 Exit a bid which has been partially filled
 
-*This function can be used for fully filled or partially filled bids. For fully filled bids, `exitBid` is more efficient*
+This function can be used only for partially filled bids. For fully filled bids, `exitBid` must be used
 
 
 ```solidity
-function exitPartiallyFilledBid(uint256 bidId, uint64 lower, uint64 outbidBlock) external;
+function exitPartiallyFilledBid(uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock) external;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`bidId`|`uint256`|The id of the bid|
-|`lower`|`uint64`|The last checkpointed block where the clearing price is strictly < bid.maxPrice|
+|`lastFullyFilledCheckpointBlock`|`uint64`|The last checkpointed block where the clearing price is strictly < bid.maxPrice|
 |`outbidBlock`|`uint64`|The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction|
 
 
@@ -147,7 +165,7 @@ Claim tokens after the auction's claim block
 
 The bid must be exited before claiming tokens
 
-*Anyone can claim tokens for any bid, the tokens are transferred to the bid owner*
+Anyone can claim tokens for any bid, the tokens are transferred to the bid owner
 
 
 ```solidity
@@ -164,9 +182,9 @@ function claimTokens(uint256 bidId) external;
 
 Claim tokens for multiple bids
 
-*Anyone can claim tokens for bids of the same owner, the tokens are transferred to the owner*
+Anyone can claim tokens for bids of the same owner, the tokens are transferred to the owner
 
-*All tokens are transferred in a single transfer*
+A TokensClaimed event is emitted for each bid but only one token transfer will be made
 
 
 ```solidity
@@ -184,7 +202,7 @@ function claimTokensBatch(address owner, uint256[] calldata bidIds) external;
 
 Withdraw all of the currency raised
 
-*Can be called by anyone after the auction has ended*
+Can be called by anyone after the auction has ended
 
 
 ```solidity
@@ -213,20 +231,47 @@ function validationHook() external view returns (IValidationHook);
 
 Sweep any leftover tokens to the tokens recipient
 
-*This function can only be called after the auction has ended*
+This function can only be called after the auction has ended
 
 
 ```solidity
 function sweepUnsoldTokens() external;
 ```
 
-### sumCurrencyDemandAboveClearingX7
+### currencyRaisedQ96_X7
+
+The currency raised as of the last checkpoint
+
+
+```solidity
+function currencyRaisedQ96_X7() external view returns (ValueX7);
+```
+
+### sumCurrencyDemandAboveClearingQ96
 
 The sum of demand in ticks above the clearing price
 
 
 ```solidity
-function sumCurrencyDemandAboveClearingX7() external view returns (ValueX7);
+function sumCurrencyDemandAboveClearingQ96() external view returns (uint256);
+```
+
+### totalClearedQ96_X7
+
+The total currency raised as of the last checkpoint
+
+
+```solidity
+function totalClearedQ96_X7() external view returns (ValueX7);
+```
+
+### totalCleared
+
+The total tokens cleared as of the last checkpoint in uint256 representation
+
+
+```solidity
+function totalCleared() external view returns (uint256);
 ```
 
 ## Events
@@ -249,7 +294,7 @@ Emitted when a bid is submitted
 
 
 ```solidity
-event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, uint256 amount);
+event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, uint128 amount);
 ```
 
 **Parameters**
@@ -259,16 +304,14 @@ event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, uin
 |`id`|`uint256`|The id of the bid|
 |`owner`|`address`|The owner of the bid|
 |`price`|`uint256`|The price of the bid|
-|`amount`|`uint256`|The amount of the bid|
+|`amount`|`uint128`|The amount of the bid|
 
 ### CheckpointUpdated
 Emitted when a new checkpoint is created
 
 
 ```solidity
-event CheckpointUpdated(
-    uint256 indexed blockNumber, uint256 clearingPrice, ValueX7X7 totalCurrencyRaisedX7X7, uint24 cumulativeMps
-);
+event CheckpointUpdated(uint256 blockNumber, uint256 clearingPrice, uint24 cumulativeMps);
 ```
 
 **Parameters**
@@ -277,7 +320,6 @@ event CheckpointUpdated(
 |----|----|-----------|
 |`blockNumber`|`uint256`|The block number of the checkpoint|
 |`clearingPrice`|`uint256`|The clearing price of the checkpoint|
-|`totalCurrencyRaisedX7X7`|`ValueX7X7`|The total currency raised|
 |`cumulativeMps`|`uint24`|The cumulative percentage of total tokens allocated across all previous steps, represented in ten-millionths of the total supply (1e7 = 100%)|
 
 ### ClearingPriceUpdated
@@ -285,14 +327,14 @@ Emitted when the clearing price is updated
 
 
 ```solidity
-event ClearingPriceUpdated(uint256 indexed blockNumber, uint256 clearingPrice);
+event ClearingPriceUpdated(uint256 blockNumber, uint256 clearingPrice);
 ```
 
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`blockNumber`|`uint256`||
+|`blockNumber`|`uint256`|The block number when the clearing price was updated|
 |`clearingPrice`|`uint256`|The new clearing price|
 
 ### BidExited
@@ -345,20 +387,36 @@ Error thrown when not enough amount is deposited
 error InvalidAmount();
 ```
 
+### BidOwnerCannotBeZeroAddress
+Error thrown when the bid owner is the zero address
+
+
+```solidity
+error BidOwnerCannotBeZeroAddress();
+```
+
+### BidMustBeAboveClearingPrice
+Error thrown when the bid price is below the clearing price
+
+
+```solidity
+error BidMustBeAboveClearingPrice();
+```
+
+### InvalidBidPriceTooHigh
+Error thrown when the bid price is too high given the auction's total supply
+
+
+```solidity
+error InvalidBidPriceTooHigh();
+```
+
 ### BidAmountTooSmall
 Error thrown when the bid amount is too small
 
 
 ```solidity
 error BidAmountTooSmall();
-```
-
-### BidAmountTooLarge
-Error thrown when the bid amount is over ConstantsLib.X7X7_UPPER_BOUND
-
-
-```solidity
-error BidAmountTooLarge();
 ```
 
 ### CurrencyIsNotNative
@@ -457,6 +515,14 @@ Error thrown when the bid has not been exited
 error BidNotExited();
 ```
 
+### CannotPartiallyExitBidBeforeGraduation
+Error thrown when the bid cannot be partially exited before the auction has graduated
+
+
+```solidity
+error CannotPartiallyExitBidBeforeGraduation();
+```
+
 ### TokenTransferFailed
 Error thrown when the token transfer fails
 
@@ -471,14 +537,6 @@ Error thrown when the auction is not over
 
 ```solidity
 error AuctionIsNotOver();
-```
-
-### InvalidBidPrice
-Error thrown when a new bid is less than or equal to the clearing price
-
-
-```solidity
-error InvalidBidPrice();
 ```
 
 ### InvalidBidUnableToClear

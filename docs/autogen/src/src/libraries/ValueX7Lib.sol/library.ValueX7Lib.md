@@ -1,5 +1,5 @@
 # ValueX7Lib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/35473874d97222cd9ba85c79c74cfb5935603cd9/src/libraries/ValueX7Lib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/libraries/ValueX7Lib.sol)
 
 
 ## State Variables
@@ -8,7 +8,7 @@ The scaling factor for ValueX7 values (ConstantsLib.MPS)
 
 
 ```solidity
-uint256 public constant X7 = ConstantsLib.MPS;
+uint256 public constant X7 = ConstantsLib.MPS
 ```
 
 
@@ -17,7 +17,7 @@ uint256 public constant X7 = ConstantsLib.MPS;
 
 Multiply a uint256 value by MPS
 
-*This ensures that future operations (ex. scaleByMps) will not lose precision*
+This ensures that future operations will not lose precision
 
 
 ```solidity
@@ -47,9 +47,7 @@ function scaleDownToUint256(ValueX7 value) internal pure returns (uint256);
 
 ### wrapAndFullMulDiv
 
-Wrapper around free fullMulDiv function to support cases where we want to use uint256 values
-
-*Ensure that `b` and `c` should be compared against the ValueX7 value*
+Helper wrapper around fullMulDiv to support operations with uint256 values
 
 
 ```solidity
@@ -58,9 +56,7 @@ function wrapAndFullMulDiv(ValueX7 a, uint256 b, uint256 c) internal pure return
 
 ### wrapAndFullMulDivUp
 
-Wrapper around free fullMulDivUp function to support cases where we want to use uint256 values
-
-*Ensure that `b` and `c` should be compared against the ValueX7 value*
+Helper wrapper around fullMulDivUp to support operations with uint256 values
 
 
 ```solidity

@@ -1,5 +1,5 @@
 # ITokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/1a7f98b9e1cb9ed630b15a7f62d113994de8c338/src/interfaces/ITokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/interfaces/ITokenCurrencyStorage.sol)
 
 Interface for token and currency storage operations
 
@@ -29,7 +29,7 @@ The total supply of tokens to sell
 
 
 ```solidity
-function totalSupply() external view returns (uint256);
+function totalSupply() external view returns (uint128);
 ```
 
 ### tokensRecipient
@@ -82,14 +82,6 @@ event CurrencySwept(address indexed fundsRecipient, uint256 currencyAmount);
 |`currencyAmount`|`uint256`|The amount of currency swept|
 
 ## Errors
-### TotalSupplyIsTooLarge
-Error thrown when the total supply is too large
-
-
-```solidity
-error TotalSupplyIsTooLarge();
-```
-
 ### TokenIsAddressZero
 Error thrown when the token is the native currency
 
@@ -152,21 +144,5 @@ Error thrown when the auction has not graduated
 
 ```solidity
 error NotGraduated();
-```
-
-### FundsRecipientCallFailed
-Error thrown when the funds recipient data cannot be decoded
-
-
-```solidity
-error FundsRecipientCallFailed();
-```
-
-### TotalSupplyIsGreaterThanX7X7UpperBound
-Error thrown when the total supply is too large
-
-
-```solidity
-error TotalSupplyIsGreaterThanX7X7UpperBound();
 ```
 

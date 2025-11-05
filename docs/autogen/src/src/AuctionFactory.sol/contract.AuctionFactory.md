@@ -1,8 +1,8 @@
 # AuctionFactory
-[Git Source](https://github.com/Uniswap/twap-auction/blob/69de3ae4ba8e1e42b571cd7d7900cef9574ede92/src/AuctionFactory.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/AuctionFactory.sol)
 
 **Inherits:**
-[IAuctionFactory](/src/interfaces/IAuctionFactory.sol/interface.IAuctionFactory.md)
+[IAuctionFactory](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/IAuctionFactory.sol/interface.IAuctionFactory.md)
 
 
 ## Functions
@@ -10,9 +10,9 @@
 
 Initialize a distribution of tokens under this strategy.
 
-*Contracts can choose to deploy an instance with a factory-model or handle all distributions within the
+Contracts can choose to deploy an instance with a factory-model or handle all distributions within the
 implementing contract. For some strategies this function will handle the entire distribution, for others it
-could merely set up initial state and provide additional entrypoints to handle the distribution logic.*
+could merely set up initial state and provide additional entrypoints to handle the distribution logic.
 
 
 ```solidity
@@ -42,8 +42,8 @@ Get the address of an auction contract
 
 
 ```solidity
-function getAuctionAddress(address token, uint256 amount, bytes calldata configData, bytes32 salt)
-    public
+function getAuctionAddress(address token, uint256 amount, bytes calldata configData, bytes32 salt, address sender)
+    external
     view
     returns (address);
 ```
@@ -55,6 +55,7 @@ function getAuctionAddress(address token, uint256 amount, bytes calldata configD
 |`amount`|`uint256`|The amount of tokens to sell|
 |`configData`|`bytes`|The configuration data for the auction|
 |`salt`|`bytes32`|The salt to use for the deterministic deployment|
+|`sender`|`address`|The sender of the initializeDistribution transaction|
 
 **Returns**
 

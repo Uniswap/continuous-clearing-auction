@@ -369,13 +369,10 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
     ///      For gas efficiency, `prevTickPrice` should be the price of the tick immediately before `maxPrice`.
     /// @dev Does not check that the actual value `amount` was received by the contract
     /// @return bidId The id of the created bid
-    function _submitBid(
-        uint256 maxPrice,
-        uint128 amount,
-        address owner,
-        uint256 prevTickPrice,
-        bytes calldata hookData
-    ) internal returns (uint256 bidId) {
+    function _submitBid(uint256 maxPrice, uint128 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
+        internal
+        returns (uint256 bidId)
+    {
         // Reject bids which would cause TOTAL_SUPPLY * maxPrice to overflow a uint256
         if (maxPrice > MAX_BID_PRICE) revert InvalidBidPriceTooHigh();
 

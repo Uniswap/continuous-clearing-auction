@@ -73,13 +73,13 @@ contract Auction is BidStorage, CheckpointStorage, AuctionStepStorage, TickStora
         // We cannot support bids at prices which cause TOTAL_SUPPLY * maxPrice to overflow a uint256
         // However, for tokens with large total supplys and low decimals it would be possible to exceed the Uniswap v4's max tick price
         MAX_BID_PRICE = FixedPointMathLib.min(type(uint256).max / TOTAL_SUPPLY, ConstantsLib.MAX_BID_PRICE);
-        // Revert if the floor price is above the computed maximum bid price
-        if (_parameters.floorPrice > MAX_BID_PRICE) {
-            revert FloorPriceAboveMaxBidPrice(_parameters.floorPrice, MAX_BID_PRICE);
-        }
-        // The tick spacing must allow for at least one tick above the floor price to be initialized
-        if (_parameters.tickSpacing > MAX_BID_PRICE / 2) {
-            revert TickSpacingTooLarge(_parameters.tickSpacing, MAX_BID_PRICE / 2);
+        // The floor price and tick spacing must allow for at least one tick above the floor price to be initialized
+        if (_parameters.floorPrice > type(uint256).max - _parameters.tickSpacing) {
+            revert FloorPriceAndTickSpacingTooLarge();
+        } else if (_parameters.floorPrice > MAX_BID_PRICE - _parameters.tickSpacing) {
+            revert FloorPriceAndTickSpacingGreaterThanMaxBidPrice(
+                _parameters.floorPrice + _parameters.tickSpacing, MAX_BID_PRICE
+            );
         }
     }
 

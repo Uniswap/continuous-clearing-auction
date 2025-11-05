@@ -175,7 +175,7 @@ contract AuctionFactoryTest is AuctionBaseTest {
     function testFuzz_getAuctionAddress(FuzzDeploymentParams memory _deploymentParams, bytes32 _salt, address _sender)
         public
     {
-        AuctionParameters memory _params = helper__validFuzzDeploymentParams(_deploymentParams, false);
+        AuctionParameters memory _params = helper__validFuzzDeploymentParams(_deploymentParams);
         bytes memory configData = abi.encode(_params);
 
         // Predict the auction address

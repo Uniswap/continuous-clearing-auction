@@ -112,10 +112,12 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         deploymentParams.numberOfSteps = _getRandomDivisorOfMPS();
 
         // TODO: these values are wrong - tick spacing too large
-        deploymentParams.auctionParams.floorPrice = uint128(_bound(uint256(vm.randomUint()), 2, type(uint64).max));
-        deploymentParams.auctionParams.tickSpacing =
-            uint256(_bound(uint256(vm.randomUint()), 2, deploymentParams.auctionParams.floorPrice));
-        _boundPriceParams(deploymentParams, false);
+        deploymentParams.auctionParams.floorPrice =
+            uint128(_bound(uint256(vm.randomUint()), ConstantsLib.MIN_TICK_SPACING, type(uint64).max));
+        deploymentParams.auctionParams.tickSpacing = uint256(
+            _bound(uint256(vm.randomUint()), ConstantsLib.MIN_TICK_SPACING, deploymentParams.auctionParams.floorPrice)
+        );
+        _boundPriceParams(deploymentParams);
 
         // Set up the block numbers
         deploymentParams.auctionParams.startBlock = uint64(_bound(uint256(vm.randomUint()), 1, type(uint64).max));
@@ -128,15 +130,15 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return deploymentParams;
     }
 
-    function helper__validFuzzDeploymentParams(
-        FuzzDeploymentParams memory _deploymentParams,
-        bool _assumeTickSpacingIsFloorPrice
-    ) public returns (AuctionParameters memory) {
+    function helper__validFuzzDeploymentParams(FuzzDeploymentParams memory _deploymentParams)
+        public
+        returns (AuctionParameters memory)
+    {
         _setHardcodedParams(_deploymentParams);
         vm.assume(_deploymentParams.totalSupply > 0);
 
         _boundBlockNumbers(_deploymentParams);
-        _boundPriceParams(_deploymentParams, _assumeTickSpacingIsFloorPrice);
+        _boundPriceParams(_deploymentParams);
 
         vm.assume(_deploymentParams.numberOfSteps > 0);
         vm.assume(ConstantsLib.MPS % _deploymentParams.numberOfSteps == 0); // such that it is divisible
@@ -170,27 +172,28 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _deploymentParams.auctionParams.claimBlock = _deploymentParams.auctionParams.endBlock + 1;
     }
 
-    function _boundPriceParams(FuzzDeploymentParams memory _deploymentParams, bool _assumeTickSpacingIsFloorPrice)
-        private
-        pure
-    {
+    function _boundPriceParams(FuzzDeploymentParams memory _deploymentParams) private pure {
         // Re-implementation of the max bid price calculation in auction constructor
-        uint256 maxBidPrice = FixedPointMathLib.min(type(uint256).max / _deploymentParams.totalSupply, ConstantsLib.MAX_BID_PRICE);
+        uint256 maxBidPrice =
+            FixedPointMathLib.min(type(uint256).max / _deploymentParams.totalSupply, ConstantsLib.MAX_BID_PRICE);
         // Bound tick spacing and floor price to reasonable values
-        _deploymentParams.auctionParams.floorPrice =
-            _bound(_deploymentParams.auctionParams.floorPrice, 2, maxBidPrice / 2);
+        _deploymentParams.auctionParams.floorPrice = _bound(
+            _deploymentParams.auctionParams.floorPrice,
+            ConstantsLib.MIN_TICK_SPACING,
+            maxBidPrice - ConstantsLib.MIN_TICK_SPACING
+        );
 
-        if (_assumeTickSpacingIsFloorPrice) {
-            _deploymentParams.auctionParams.tickSpacing = _deploymentParams.auctionParams.floorPrice;
-        } else {
-            // Bound tick spacing to be less than or equal to floor price
-            _deploymentParams.auctionParams.tickSpacing =
-                _bound(_deploymentParams.auctionParams.tickSpacing, 2, _deploymentParams.auctionParams.floorPrice);
-            // Round down floor price to the closest multiple of tick spacing
-            _deploymentParams.auctionParams.floorPrice = helper__roundPriceDownToTickSpacing(
-                _deploymentParams.auctionParams.floorPrice, _deploymentParams.auctionParams.tickSpacing
-            );
-        }
+        // Bound tick spacing to be less than or equal to floor price
+        _deploymentParams.auctionParams.tickSpacing = _bound(
+            _deploymentParams.auctionParams.tickSpacing,
+            ConstantsLib.MIN_TICK_SPACING,
+            maxBidPrice - _deploymentParams.auctionParams.floorPrice
+        );
+        // Round down floor price to the closest multiple of tick spacing
+        _deploymentParams.auctionParams.floorPrice = helper__roundPriceDownToTickSpacing(
+            _deploymentParams.auctionParams.floorPrice, _deploymentParams.auctionParams.tickSpacing
+        );
+
         // Ensure floor price is non-zero
         vm.assume(_deploymentParams.auctionParams.floorPrice != 0);
     }
@@ -271,12 +274,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         uint256 _tickSpacing
     ) internal pure returns (uint256) {
         vm.assume(_totalSupply != 0 && _tickSpacing != 0 && _floorPrice != 0 && _maxPrice != 0);
-        _maxPrice = _bound(_maxPrice, _floorPrice + _tickSpacing, type(uint256).max);
-
-        // TODO(md): better to be a bound?
-        vm.assume(_maxPrice <= FixedPointMathLib.min(type(uint256).max / _totalSupply, ConstantsLib.MAX_BID_PRICE));
+        uint256 maxBidPrice = FixedPointMathLib.min(type(uint256).max / _totalSupply, ConstantsLib.MAX_BID_PRICE);
+        _maxPrice = _bound(_maxPrice, _floorPrice, maxBidPrice - _tickSpacing);
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, _tickSpacing);
-        vm.assume(_maxPrice > _floorPrice && _maxPrice < type(uint256).max);
+        vm.assume(_maxPrice > _floorPrice && _maxPrice <= maxBidPrice);
         return _maxPrice;
     }
 
@@ -398,7 +399,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 
-        params = helper__validFuzzDeploymentParams(_deploymentParams, false);
+        params = helper__validFuzzDeploymentParams(_deploymentParams);
 
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);

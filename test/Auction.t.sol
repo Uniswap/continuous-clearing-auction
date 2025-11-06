@@ -50,6 +50,10 @@ contract AuctionTest is AuctionBaseTest {
         vm.snapshotValue('Auction bytecode size', address(auction).code.length);
     }
 
+    function test_Auction_bytecodeHash() public {
+        vm.snapshotValue('Auction bytecode hash', uint256(keccak256(address(auction).code)));
+    }
+
     function test_submitBid_beforeTokensReceived_reverts() public {
         Auction newAuction = new Auction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(newAuction), TOTAL_SUPPLY);

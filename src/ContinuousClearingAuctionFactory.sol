@@ -11,6 +11,7 @@ import {Create2} from '@openzeppelin/contracts/utils/Create2.sol';
 import {ActionConstants} from 'v4-periphery/src/libraries/ActionConstants.sol';
 
 /// @title ContinuousClearingAuctionFactory
+/// @custom:security-contact security@uniswap.org
 contract ContinuousClearingAuctionFactory is IContinuousClearingAuctionFactory {
     /// @inheritdoc IDistributionStrategy
     function initializeDistribution(address token, uint256 amount, bytes calldata configData, bytes32 salt)

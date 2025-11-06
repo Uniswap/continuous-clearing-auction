@@ -311,7 +311,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Get the correct last tick price for the bid
         uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
         uint256 lastTickPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(lowerTickNumber);
-        if(lastTickPrice > maxPrice) {
+        if (lastTickPrice > maxPrice) {
             lastTickPrice = auction.floorPrice();
         }
 

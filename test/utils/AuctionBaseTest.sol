@@ -296,7 +296,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         deploymentParams.numberOfSteps = _getRandomDivisorOfMPS();
 
         // Use minimum of 2 for both floor price and tick spacing
-        // Use minimum of 2 for both floor price and tick spacing
         deploymentParams.auctionParams.floorPrice = uint128(_bound(uint256(vm.randomUint()), 2, type(uint128).max));
         deploymentParams.auctionParams.tickSpacing = uint256(_bound(uint256(vm.randomUint()), 2, type(uint256).max));
         _boundPriceParams(deploymentParams, false);
@@ -415,15 +414,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return stepsData;
     }
 
-    function _generateAuctionSteps(uint256 numberOfSteps, uint40 timePerStep) private pure returns (bytes memory) {
-        uint256 mpsPerStep = ConstantsLib.MPS / numberOfSteps;
-        bytes memory stepsData = new bytes(0);
-        for (uint8 i = 0; i < numberOfSteps; i++) {
-            stepsData = AuctionStepsBuilder.addStep(stepsData, uint24(mpsPerStep), timePerStep);
-        }
-        return stepsData;
-    }
-
     // ============================================
     // Block Management Helpers
     // ============================================
@@ -472,10 +462,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     {
         uint256 tickSpacing = params.tickSpacing >> FixedPoint96.RESOLUTION;
         uint256 floorPrice = params.floorPrice >> FixedPoint96.RESOLUTION;
-        uint256 tickSpacing = params.tickSpacing >> FixedPoint96.RESOLUTION;
-        uint256 floorPrice = params.floorPrice >> FixedPoint96.RESOLUTION;
 
-        if (_tickNumber == 0) return floorPrice >> FixedPoint96.RESOLUTION;
         if (_tickNumber == 0) return floorPrice >> FixedPoint96.RESOLUTION;
 
         uint256 maxPrice = ((floorPrice + (_tickNumber * tickSpacing)) / tickSpacing) * tickSpacing;
@@ -541,12 +528,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Get the correct last tick price for the bid
         // uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
         // uint256 lastTickPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(lowerTickNumber);
-        // uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
-        // uint256 lastTickPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(lowerTickNumber);
 
-        try auction.submitBid{value: ethInputAmount}(maxPrice, ethInputAmount, _owner, bytes('')) returns (
-            uint256 _bidId
-        ) {
         try auction.submitBid{value: ethInputAmount}(maxPrice, ethInputAmount, _owner, bytes('')) returns (
             uint256 _bidId
         ) {

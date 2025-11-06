@@ -3,9 +3,9 @@ pragma solidity ^0.8.26;
 
 import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
 
+import {IContinuousClearingAuction} from 'continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {ContinuousClearingAuction} from 'src/ContinuousClearingAuction.sol';
-import {IContinuousClearingAuction} from 'continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol';
 
 contract OnTokensReceivedTest is BttBase {
     function test_Given_tokensReceivedEQTrue(AuctionFuzzConstructorParams memory _params)

@@ -6,8 +6,8 @@ import {MockTokenCurrencyStorage} from 'btt/mocks/MockTokenCurrencyStorage.sol';
 import {ITokenCurrencyStorage} from 'continuous-clearing-auction/interfaces/ITokenCurrencyStorage.sol';
 
 import {MockERC20} from 'btt/mocks/MockERC20.sol';
-import {IERC20} from 'forge-std/interfaces/IERC20.sol';
 import {Currency} from 'continuous-clearing-auction/libraries/CurrencyLibrary.sol';
+import {IERC20} from 'forge-std/interfaces/IERC20.sol';
 
 contract SweepUnsoldTokensTest is BttBase {
     function test_WhenAmountEQ0(uint64 _blockNumber) external {

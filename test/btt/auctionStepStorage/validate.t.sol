@@ -4,10 +4,10 @@ pragma solidity 0.8.26;
 import {BttBase, Step} from 'btt/BttBase.sol';
 import {CompactStep, CompactStepLib} from 'btt/libraries/auctionStepLib/StepUtils.sol';
 import {MockStepStorage} from 'btt/mocks/MockStepStorage.sol';
-import {SSTORE2} from 'solady/utils/SSTORE2.sol';
 import {IStepStorage} from 'continuous-clearing-auction/interfaces/IStepStorage.sol';
 import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
 import {AuctionStep} from 'continuous-clearing-auction/libraries/StepLib.sol';
+import {SSTORE2} from 'solady/utils/SSTORE2.sol';
 
 contract ValidateTest is BttBase {
     using SSTORE2 for *;

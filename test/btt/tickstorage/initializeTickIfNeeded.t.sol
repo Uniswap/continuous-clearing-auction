@@ -6,9 +6,9 @@ import {ITickStorage} from 'continuous-clearing-auction/TickStorage.sol';
 
 import {MockTickStorage} from 'btt/mocks/MockTickStorage.sol';
 
-import {StdStorage, stdStorage} from 'forge-std/StdStorage.sol';
 import {BidLib} from 'continuous-clearing-auction/libraries/BidLib.sol';
 import {ValueX7} from 'continuous-clearing-auction/libraries/ValueX7Lib.sol';
+import {StdStorage, stdStorage} from 'forge-std/StdStorage.sol';
 
 contract InitializeTickIfNeededTest is BttBase {
     using stdStorage for StdStorage;

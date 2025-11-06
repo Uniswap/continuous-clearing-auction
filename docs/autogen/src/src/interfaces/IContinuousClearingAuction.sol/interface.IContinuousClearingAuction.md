@@ -1,5 +1,5 @@
 # IContinuousClearingAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/b4d0a06daced32c81e0487f3201e863948da89b2/src/interfaces/IContinuousClearingAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/2d1f484976971780a7d5c3026e11b7b066ca6758/src/interfaces/IContinuousClearingAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IStepStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/IStepStorage.sol/interface.IStepStorage.md), [ITokenCurrencyStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
@@ -449,6 +449,22 @@ Error thrown when the claim block is before the end block
 
 ```solidity
 error ClaimBlockIsBeforeEndBlock();
+```
+
+### FloorPriceAndTickSpacingGreaterThanMaxBidPrice
+Error thrown when the floor price plus tick spacing is greater than the maximum bid price
+
+
+```solidity
+error FloorPriceAndTickSpacingGreaterThanMaxBidPrice(uint256 nextTick, uint256 maxBidPrice);
+```
+
+### FloorPriceAndTickSpacingTooLarge
+Error thrown when the floor price plus tick spacing would overflow a uint256
+
+
+```solidity
+error FloorPriceAndTickSpacingTooLarge();
 ```
 
 ### BidAlreadyExited

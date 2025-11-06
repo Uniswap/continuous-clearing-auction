@@ -32,7 +32,7 @@ contract AuctionUnitTest is AuctionBaseTest {
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 
-        params = helper__validFuzzDeploymentParams(_deploymentParams, true);
+        params = helper__validFuzzDeploymentParams(_deploymentParams);
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(_deploymentParams.auctionParams.floorPrice);

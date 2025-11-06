@@ -9,6 +9,10 @@ library ConstantsLib {
     /// @notice The upper bound of a ValueX7 value
     uint256 constant X7_UPPER_BOUND = type(uint256).max / 1e7;
 
+    /// @notice The minimum allowable tick spacing
+    /// @dev We don't allow tick spacing of 1 to avoid edge cases where the rounding of the clearing price
+    ///      would cause the price to move between initialized ticks.
+    uint256 constant MIN_TICK_SPACING = 2;
     /// @notice The maximum allowable price for a bid, defined as the square of MAX_SQRT_PRICE from Uniswap v4's TickMath library.
     uint256 constant MAX_BID_PRICE =
         26_957_920_004_054_754_506_022_898_809_067_591_261_277_585_227_686_421_694_841_721_768_917;

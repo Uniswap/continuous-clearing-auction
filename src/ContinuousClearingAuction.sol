@@ -80,6 +80,12 @@ contract ContinuousClearingAuction is
         // We cannot support bids at prices which cause TOTAL_SUPPLY * maxPrice to overflow a uint256
         // However, for tokens with large total supplys and low decimals it would be possible to exceed the Uniswap v4's max tick price
         MAX_BID_PRICE = FixedPointMathLib.min(type(uint256).max / TOTAL_SUPPLY, ConstantsLib.MAX_BID_PRICE);
+        // The floor price and tick spacing must allow for at least one tick above the floor price to be initialized
+        if (_parameters.floorPrice > MAX_BID_PRICE - _parameters.tickSpacing) {
+            revert FloorPriceAndTickSpacingGreaterThanMaxBidPrice(
+                _parameters.floorPrice + _parameters.tickSpacing, MAX_BID_PRICE
+            );
+        }
     }
 
     /// @notice Modifier for functions which can only be called after the auction is over

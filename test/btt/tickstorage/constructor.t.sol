@@ -40,18 +40,6 @@ contract ConstructorTest is BttBase {
         assertGt(floorPrice, 0, 'floor price is 0');
     }
 
-    function test_WhenFloorPriceGTMaxBidPrice(uint256 _tickSpacing, uint256 _floorPrice)
-        external
-        whenTickSpacingValid(_tickSpacing)
-        whenFloorPriceGT0
-    {
-        // it reverts with {FloorPriceAboveMaxBidPrice}
-
-        floorPrice = bound(_floorPrice, ConstantsLib.MAX_BID_PRICE + 1, type(uint256).max);
-        vm.expectRevert(ITickStorage.FloorPriceAboveMaxBidPrice.selector);
-        new MockTickStorage(tickSpacing, floorPrice);
-    }
-
     function test_WhenFloorPriceNotPerfectlyDivisibleByTickSpacing(uint256 _tickSpacing, uint256 _floorPrice)
         external
         whenTickSpacingValid(_tickSpacing)

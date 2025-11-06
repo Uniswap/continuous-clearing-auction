@@ -57,6 +57,10 @@ interface IContinuousClearingAuction is
     error TokensNotReceived();
     /// @notice Error thrown when the claim block is before the end block
     error ClaimBlockIsBeforeEndBlock();
+    /// @notice Error thrown when the floor price plus tick spacing is greater than the maximum bid price
+    error FloorPriceAndTickSpacingGreaterThanMaxBidPrice(uint256 nextTick, uint256 maxBidPrice);
+    /// @notice Error thrown when the floor price plus tick spacing would overflow a uint256
+    error FloorPriceAndTickSpacingTooLarge();
     /// @notice Error thrown when the bid has already been exited
     error BidAlreadyExited();
     /// @notice Error thrown when the bid is higher than the clearing price

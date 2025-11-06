@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Bid, BidStorage} from 'twap-auction/BidStorage.sol';
+import {Bid, BidStorage} from 'continuous-clearing-auction/BidStorage.sol';
 
 contract MockBidStorage is BidStorage {
     function createBid(uint256 amount, address owner, uint256 maxPrice, uint24 startCumulativeMps)

@@ -2,15 +2,12 @@
 pragma solidity 0.8.26;
 
 // Place holder for BTT testing as that is not merged yet
-import {Auction} from '../../src/Auction.sol';
-import {AuctionParameters} from '../../src/Auction.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
-
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 import {FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
-import {MockAuction} from '../utils/MockAuction.sol';
+import {MockContinuousClearingAuction} from '../utils/MockAuction.sol';
 import {AuctionUnitTest} from './AuctionUnitTest.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
@@ -212,12 +209,14 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
 
             // From the previous setup in the test, we know that the clearing price == bid max price
             // Calculate the partial tokens filled
-            ValueX7 currencySpentQ96_X7 = demandAtNextTick.scaleUpToX7()
-                .fullMulDivUp(
-                    checkpoint.currencyRaisedAtClearingPriceQ96_X7,
-                    // The bid was entered in the beginning of the auction so bid.remainingMpsInAuction == ConstantsLib.MPS
-                    demandAtNextTick.scaleUpToX7()
-                );
+            ValueX7 currencySpentQ96_X7 = ValueX7.wrap(
+                ValueX7.unwrap(demandAtNextTick.scaleUpToX7())
+                    .fullMulDivUp(
+                        ValueX7.unwrap(checkpoint.currencyRaisedAtClearingPriceQ96_X7),
+                        // The bid was entered in the beginning of the auction so bid.remainingMpsInAuction == ConstantsLib.MPS
+                        ValueX7.unwrap(demandAtNextTick.scaleUpToX7())
+                    )
+            );
             // The currency spent ValueX7 is then scaled down to a uint256
             uint256 currencySpentQ96 = currencySpentQ96_X7.scaleDownToUint256();
             // The tokens filled uses the currencySpent ValueX7 value and scales down to a uint256

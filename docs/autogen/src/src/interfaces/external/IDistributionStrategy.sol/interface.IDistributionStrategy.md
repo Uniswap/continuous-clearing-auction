@@ -1,5 +1,5 @@
 # IDistributionStrategy
-[Git Source](https://github.com/Uniswap/twap-auction/blob/69de3ae4ba8e1e42b571cd7d7900cef9574ede92/src/interfaces/external/IDistributionStrategy.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/interfaces/external/IDistributionStrategy.sol)
 
 Interface for token distribution strategies.
 
@@ -9,9 +9,9 @@ Interface for token distribution strategies.
 
 Initialize a distribution of tokens under this strategy.
 
-*Contracts can choose to deploy an instance with a factory-model or handle all distributions within the
+Contracts can choose to deploy an instance with a factory-model or handle all distributions within the
 implementing contract. For some strategies this function will handle the entire distribution, for others it
-could merely set up initial state and provide additional entrypoints to handle the distribution logic.*
+could merely set up initial state and provide additional entrypoints to handle the distribution logic.
 
 
 ```solidity

@@ -4,11 +4,11 @@ pragma solidity 0.8.26;
 import {BttBase} from 'btt/BttBase.sol';
 import {MockCheckpointStorage} from 'btt/mocks/MockCheckpointStorage.sol';
 
+import {Bid} from 'continuous-clearing-auction/libraries/BidLib.sol';
+import {Checkpoint} from 'continuous-clearing-auction/libraries/CheckpointLib.sol';
+import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
+import {FixedPoint96} from 'continuous-clearing-auction/libraries/FixedPoint96.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {Bid} from 'twap-auction/libraries/BidLib.sol';
-import {Checkpoint} from 'twap-auction/libraries/CheckpointLib.sol';
-import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
-import {FixedPoint96} from 'twap-auction/libraries/FixedPoint96.sol';
 
 contract AccountFullyFilledCheckpointsTest is BttBase {
     MockCheckpointStorage public mockCheckpointStorage;

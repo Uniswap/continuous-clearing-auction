@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import {MockAuctionStepStorage} from 'btt/mocks/MockAuctionStepStorage.sol';
+import {MockStepStorage} from 'btt/mocks/MockStepStorage.sol';
 
 import {BttBase, Step} from 'btt/BttBase.sol';
-import {IAuctionStepStorage} from 'twap-auction/interfaces/IAuctionStepStorage.sol';
-import {AuctionStep} from 'twap-auction/libraries/AuctionStepLib.sol';
+import {IStepStorage} from 'continuous-clearing-auction/interfaces/IStepStorage.sol';
+import {AuctionStep} from 'continuous-clearing-auction/libraries/StepLib.sol';
 
 contract AdvanceStepTest is BttBase {
-    MockAuctionStepStorage public auctionStepStorage;
+    MockStepStorage public auctionStepStorage;
 
     function test_GivenOffsetGT_LENGTH(Step[] memory _steps, uint64 _startBlock) external {
         // it reverts with {AuctionIsOver}
@@ -17,14 +17,14 @@ contract AdvanceStepTest is BttBase {
         uint64 startBlock = uint64(bound(_startBlock, 1, type(uint64).max - numberOfBlocks));
         uint64 endBlock = startBlock + uint64(numberOfBlocks);
 
-        auctionStepStorage = new MockAuctionStepStorage(auctionStepsData, startBlock, endBlock);
+        auctionStepStorage = new MockStepStorage(auctionStepsData, startBlock, endBlock);
 
         // Then proceed through the list until we are bast the end block.
         for (uint256 i = 8; i < auctionStepsData.length; i += 8) {
             auctionStepStorage.advanceStep();
         }
 
-        vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
+        vm.expectRevert(IStepStorage.AuctionIsOver.selector);
         auctionStepStorage.advanceStep();
     }
 
@@ -48,9 +48,9 @@ contract AdvanceStepTest is BttBase {
         // This is executed as part of the constructor.
 
         vm.expectEmit(true, true, true, true);
-        emit IAuctionStepStorage.AuctionStepRecorded(startBlock, startBlock + steps[0].blockDelta, steps[0].mps);
+        emit IStepStorage.AuctionStepRecorded(startBlock, startBlock + steps[0].blockDelta, steps[0].mps);
         vm.record();
-        auctionStepStorage = new MockAuctionStepStorage(auctionStepsData, startBlock, endBlock);
+        auctionStepStorage = new MockStepStorage(auctionStepsData, startBlock, endBlock);
         (, bytes32[] memory writes) = vm.accesses(address(auctionStepStorage));
 
         if (!isCoverage()) {
@@ -84,13 +84,13 @@ contract AdvanceStepTest is BttBase {
         // For the very first step, we have not previously written any data to `step` so the `endBlock` is 0
         // This is executed as part of the constructor.
 
-        auctionStepStorage = new MockAuctionStepStorage(auctionStepsData, startBlock, endBlock);
+        auctionStepStorage = new MockStepStorage(auctionStepsData, startBlock, endBlock);
 
         AuctionStep memory prevStep = auctionStepStorage.step();
 
         for (uint256 i = 8; i < auctionStepsData.length; i += 8) {
             vm.expectEmit(true, true, true, true, address(auctionStepStorage));
-            emit IAuctionStepStorage.AuctionStepRecorded(
+            emit IStepStorage.AuctionStepRecorded(
                 prevStep.endBlock, prevStep.endBlock + steps[i / 8].blockDelta, steps[i / 8].mps
             );
             vm.record();
@@ -118,7 +118,7 @@ contract AdvanceStepTest is BttBase {
 
         emit log_named_uint('endBlock', endBlock);
 
-        vm.expectRevert(IAuctionStepStorage.AuctionIsOver.selector);
+        vm.expectRevert(IStepStorage.AuctionIsOver.selector);
         auctionStepStorage.advanceStep();
     }
 }

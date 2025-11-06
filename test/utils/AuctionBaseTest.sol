@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Auction} from '../../src/Auction.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
+import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol';
 import {Tick} from '../../src/TickStorage.sol';
-import {AuctionParameters, IAuction} from '../../src/interfaces/IAuction.sol';
+import {AuctionParameters, IContinuousClearingAuction} from '../../src/interfaces/IContinuousClearingAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../../src/interfaces/ITokenCurrencyStorage.sol';
 import {BidLib} from '../../src/libraries/BidLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
-import {FixedPoint128} from '../../src/libraries/FixedPoint128.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 import {Assertions} from './Assertions.sol';
@@ -36,7 +35,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     TickBitmap private tickBitmap;
 
-    Auction public auction;
+    ContinuousClearingAuction public auction;
 
     // Auction configuration constants
     uint256 public constant AUCTION_DURATION = 100;
@@ -117,10 +116,13 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Calculate the number of steps - ensure it's a divisor of ConstantsLib.MPS
         deploymentParams.numberOfSteps = _getRandomDivisorOfMPS();
 
-        deploymentParams.auctionParams.floorPrice = uint128(bound(_randomUint128(), 2, 1000 << FixedPoint96.RESOLUTION));
-        deploymentParams.auctionParams.tickSpacing =
-            uint256(_bound(_randomUint128(), 2, deploymentParams.auctionParams.floorPrice));
-        _boundPriceParams(deploymentParams, false);
+        // TODO: these values are wrong - tick spacing too large
+        deploymentParams.auctionParams.floorPrice =
+            uint128(_bound(uint256(vm.randomUint()), ConstantsLib.MIN_TICK_SPACING, type(uint64).max));
+        deploymentParams.auctionParams.tickSpacing = uint256(
+            _bound(uint256(vm.randomUint()), ConstantsLib.MIN_TICK_SPACING, deploymentParams.auctionParams.floorPrice)
+        );
+        _boundPriceParams(deploymentParams);
 
         // Set up the block numbers
         deploymentParams.auctionParams.startBlock = uint64(_bound(uint256(vm.randomUint()), 1, type(uint64).max));
@@ -133,15 +135,15 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return deploymentParams;
     }
 
-    function helper__validFuzzDeploymentParams(
-        FuzzDeploymentParams memory _deploymentParams,
-        bool _assumeTickSpacingIsFloorPrice
-    ) public returns (AuctionParameters memory) {
+    function helper__validFuzzDeploymentParams(FuzzDeploymentParams memory _deploymentParams)
+        public
+        returns (AuctionParameters memory)
+    {
         _setHardcodedParams(_deploymentParams);
         _deploymentParams.totalSupply = uint128(_bound(_deploymentParams.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
 
         _boundBlockNumbers(_deploymentParams);
-        _boundPriceParams(_deploymentParams, _assumeTickSpacingIsFloorPrice);
+        _boundPriceParams(_deploymentParams);
 
         vm.assume(_deploymentParams.numberOfSteps > 0);
         vm.assume(ConstantsLib.MPS % _deploymentParams.numberOfSteps == 0); // such that it is divisible
@@ -175,27 +177,28 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _deploymentParams.auctionParams.claimBlock = _deploymentParams.auctionParams.endBlock + 1;
     }
 
-    function _boundPriceParams(FuzzDeploymentParams memory _deploymentParams, bool _assumeTickSpacingIsFloorPrice)
-        private
-        pure
-    {
+    function _boundPriceParams(FuzzDeploymentParams memory _deploymentParams) private pure {
+        // Re-implementation of the max bid price calculation in auction constructor
+        uint256 maxBidPrice =
+            FixedPointMathLib.min(ConstantsLib.MAX_BID_PRICE / _deploymentParams.totalSupply, ConstantsLib.MAX_BID_PRICE);
         // Bound tick spacing and floor price to reasonable values
-        // The max possible price is MAX_BID_PRICE / totalSupply
         _deploymentParams.auctionParams.floorPrice = _bound(
-            _deploymentParams.auctionParams.floorPrice, 2, ConstantsLib.MAX_BID_PRICE / _deploymentParams.totalSupply
+            _deploymentParams.auctionParams.floorPrice,
+            ConstantsLib.MIN_TICK_SPACING,
+            maxBidPrice - ConstantsLib.MIN_TICK_SPACING
         );
 
-        if (_assumeTickSpacingIsFloorPrice) {
-            _deploymentParams.auctionParams.tickSpacing = _deploymentParams.auctionParams.floorPrice;
-        } else {
-            // Bound tick spacing to be less than or equal to floor price
-            _deploymentParams.auctionParams.tickSpacing =
-                _bound(_deploymentParams.auctionParams.tickSpacing, 2, _deploymentParams.auctionParams.floorPrice);
-            // Round down floor price to the closest multiple of tick spacing
-            _deploymentParams.auctionParams.floorPrice = helper__roundPriceDownToTickSpacing(
-                _deploymentParams.auctionParams.floorPrice, _deploymentParams.auctionParams.tickSpacing
-            );
-        }
+        // Bound tick spacing to be less than or equal to floor price
+        _deploymentParams.auctionParams.tickSpacing = _bound(
+            _deploymentParams.auctionParams.tickSpacing,
+            ConstantsLib.MIN_TICK_SPACING,
+            maxBidPrice - _deploymentParams.auctionParams.floorPrice
+        );
+        // Round down floor price to the closest multiple of tick spacing
+        _deploymentParams.auctionParams.floorPrice = helper__roundPriceDownToTickSpacing(
+            _deploymentParams.auctionParams.floorPrice, _deploymentParams.auctionParams.tickSpacing
+        );
+
         // Ensure floor price is non-zero
         vm.assume(_deploymentParams.auctionParams.floorPrice != 0);
     }
@@ -253,19 +256,14 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     function helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(uint256 _tickNumber)
         internal
         view
-        returns (uint256 maxPriceQ96)
+        returns (uint256 maxPrice)
     {
         uint256 tickSpacing = params.tickSpacing;
         uint256 floorPrice = params.floorPrice;
 
         if (_tickNumber == 0) return floorPrice;
 
-        uint256 maxPrice = ((floorPrice + (_tickNumber * tickSpacing)) / tickSpacing) * tickSpacing;
-
-        // Find the first value above floorPrice that is a multiple of tickSpacing
-        uint256 tickAboveFloorPrice = ((floorPrice / tickSpacing) + 1) * tickSpacing;
-
-        maxPrice = _bound(maxPrice, tickAboveFloorPrice, type(uint256).max);
+        maxPrice = _bound(floorPrice + (_tickNumber * tickSpacing), floorPrice, type(uint256).max);
     }
 
     function helper__assumeValidMaxPrice(
@@ -319,6 +317,9 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Get the correct last tick price for the bid
         uint256 lowerTickNumber = tickBitmap.findPrev(_bid.tickNumber);
         uint256 lastTickPrice = helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(lowerTickNumber);
+        if (lastTickPrice > maxPrice) {
+            lastTickPrice = auction.floorPrice();
+        }
 
         try auction.submitBid{value: ethInputAmount}(
             maxPrice, ethInputAmount, _owner, lastTickPrice, bytes('')
@@ -347,7 +348,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         bytes4 errorSelector = bytes4(revertData);
 
         // Ok if the bid price is invalid IF it just moved this block
-        if (errorSelector == bytes4(abi.encodeWithSelector(IAuction.BidMustBeAboveClearingPrice.selector))) {
+        if (
+            errorSelector
+                == bytes4(abi.encodeWithSelector(IContinuousClearingAuction.BidMustBeAboveClearingPrice.selector))
+        ) {
             Checkpoint memory checkpoint = auction.checkpoint();
             // the bid price is invalid as it is less than or equal to the clearing price
             // skip the test by returning false and 0
@@ -397,15 +401,16 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         setUpTokens();
 
         alice = makeAddr('alice');
+        bob = makeAddr('bob');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 
-        params = helper__validFuzzDeploymentParams(_deploymentParams, false);
+        params = helper__validFuzzDeploymentParams(_deploymentParams);
 
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(_deploymentParams.auctionParams.floorPrice);
-        auction = new Auction(address(token), _deploymentParams.totalSupply, params);
+        auction = new ContinuousClearingAuction(address(token), _deploymentParams.totalSupply, params);
 
         token.mint(address(auction), _deploymentParams.totalSupply);
         auction.onTokensReceived();
@@ -416,6 +421,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         setUpTokens();
 
         alice = makeAddr('alice');
+        bob = makeAddr('bob');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 
@@ -430,7 +436,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(tickNumberToPriceX96(1));
-        auction = new Auction(address(token), TOTAL_SUPPLY, params);
+        auction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
 
         token.mint(address(auction), TOTAL_SUPPLY);
         // Expect the tokens to be received
@@ -441,7 +447,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     // Special Auction Configurations
     // ============================================
 
-    function helper__deployAuctionWithFailingToken() internal returns (Auction) {
+    function helper__deployAuctionWithFailingToken() internal returns (ContinuousClearingAuction) {
         MockToken failingToken = new MockToken();
 
         bytes memory failingAuctionStepsData = AuctionStepsBuilder.init().addStep(STANDARD_MPS_1_PERCENT, 100);
@@ -452,7 +458,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
             .withClaimBlock(block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET)
             .withAuctionStepsData(failingAuctionStepsData);
 
-        Auction failingAuction = new Auction(address(failingToken), TOTAL_SUPPLY, failingParams);
+        ContinuousClearingAuction failingAuction =
+            new ContinuousClearingAuction(address(failingToken), TOTAL_SUPPLY, failingParams);
         failingToken.mint(address(failingAuction), TOTAL_SUPPLY);
         failingAuction.onTokensReceived();
 
@@ -554,7 +561,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         assertFalse(auction.isGraduated());
     }
 
-    function helper__submitBid(Auction _auction, address _owner, uint128 _amount, uint256 _maxPrice)
+    function helper__submitBid(ContinuousClearingAuction _auction, address _owner, uint128 _amount, uint256 _maxPrice)
         internal
         returns (uint256)
     {
@@ -563,7 +570,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     /// @notice Helper to submit N number of bids at the same amount and max price
     function helper__submitNBids(
-        Auction _auction,
+        ContinuousClearingAuction _auction,
         address _owner,
         uint128 _amount,
         uint128 _numberOfBids,

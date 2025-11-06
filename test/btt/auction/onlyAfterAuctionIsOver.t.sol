@@ -3,8 +3,8 @@ pragma solidity 0.8.26;
 
 import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
 
-import {MockAuction} from 'btt/mocks/MockAuction.sol';
-import {IAuction} from 'src/interfaces/IAuction.sol';
+import {MockContinuousClearingAuction} from 'btt/mocks/MockContinuousClearingAuction.sol';
+import {IContinuousClearingAuction} from 'continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol';
 
 contract OnlyAfterAuctionIsOverTest is BttBase {
     function test_WhenBlockNumberLTEndBlock(AuctionFuzzConstructorParams memory _params, uint256 _blockNumber)
@@ -13,12 +13,13 @@ contract OnlyAfterAuctionIsOverTest is BttBase {
         // it reverts with {AuctionIsNotOver}
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
 
-        MockAuction auction = new MockAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         uint256 blockNumber = bound(_blockNumber, 0, mParams.parameters.endBlock - 1);
 
         vm.roll(blockNumber);
-        vm.expectRevert(IAuction.AuctionIsNotOver.selector);
+        vm.expectRevert(IContinuousClearingAuction.AuctionIsNotOver.selector);
         auction.modifier_onlyAfterAuctionIsOver();
     }
 
@@ -29,7 +30,8 @@ contract OnlyAfterAuctionIsOverTest is BttBase {
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
 
-        MockAuction auction = new MockAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         uint256 blockNumber = bound(_blockNumber, mParams.parameters.endBlock, type(uint256).max);
 

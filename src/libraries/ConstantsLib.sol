@@ -38,4 +38,8 @@ library ConstantsLib {
     ///      Integrators and users should be aware that in the case where the currency is less valuable
     ///      than the token and the total supply is very large, the clearing price will be capped at a low price.
     uint256 constant MAX_BID_PRICE = 1 << 203;
+    /// @notice The minimum allowable tick spacing
+    /// @dev We don't allow tick spacing of 1 to avoid edge cases where the rounding of the clearing price
+    ///      would cause the price to move between initialized ticks.
+    uint256 constant MIN_TICK_SPACING = 2;
 }

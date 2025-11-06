@@ -3,12 +3,12 @@ pragma solidity 0.8.26;
 
 import {AuctionFuzzConstructorParams, BttBase} from 'btt/BttBase.sol';
 
-import {MockAuction} from 'btt/mocks/MockAuction.sol';
+import {MockContinuousClearingAuction} from 'btt/mocks/MockContinuousClearingAuction.sol';
+import {IContinuousClearingAuction} from 'continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol';
+import {ITokenCurrencyStorage} from 'continuous-clearing-auction/interfaces/ITokenCurrencyStorage.sol';
+import {Checkpoint} from 'continuous-clearing-auction/libraries/CheckpointLib.sol';
+import {FixedPoint96} from 'continuous-clearing-auction/libraries/FixedPoint96.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
-import {IAuction} from 'twap-auction/interfaces/IAuction.sol';
-import {ITokenCurrencyStorage} from 'twap-auction/interfaces/ITokenCurrencyStorage.sol';
-import {Checkpoint} from 'twap-auction/libraries/CheckpointLib.sol';
-import {FixedPoint96} from 'twap-auction/libraries/FixedPoint96.sol';
 
 contract IsGraduatedTest is BttBase {
     function test_GivenRaisedIsLTRequired(
@@ -34,7 +34,8 @@ contract IsGraduatedTest is BttBase {
             )
         );
 
-        MockAuction auction = new MockAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
         auction.onTokensReceived();
@@ -78,7 +79,8 @@ contract IsGraduatedTest is BttBase {
             )
         );
 
-        MockAuction auction = new MockAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
         auction.onTokensReceived();

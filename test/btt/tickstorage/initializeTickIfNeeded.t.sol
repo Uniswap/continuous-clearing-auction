@@ -2,13 +2,13 @@
 pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
-import {ITickStorage} from 'twap-auction/TickStorage.sol';
+import {ITickStorage} from 'continuous-clearing-auction/TickStorage.sol';
 
 import {MockTickStorage} from 'btt/mocks/MockTickStorage.sol';
 
+import {BidLib} from 'continuous-clearing-auction/libraries/BidLib.sol';
+import {ValueX7} from 'continuous-clearing-auction/libraries/ValueX7Lib.sol';
 import {StdStorage, stdStorage} from 'forge-std/StdStorage.sol';
-import {BidLib} from 'twap-auction/libraries/BidLib.sol';
-import {ValueX7} from 'twap-auction/libraries/ValueX7Lib.sol';
 
 contract InitializeTickIfNeededTest is BttBase {
     using stdStorage for StdStorage;

@@ -27,10 +27,9 @@ abstract contract TickStorage is ITickStorage {
     uint256 public constant MAX_TICK_PTR = type(uint256).max;
 
     constructor(uint256 _tickSpacing, uint256 _floorPrice) {
-        if (_tickSpacing <= 1) revert TickSpacingTooSmall();
+        if (_tickSpacing < ConstantsLib.MIN_TICK_SPACING) revert TickSpacingTooSmall();
         TICK_SPACING = _tickSpacing;
         if (_floorPrice == 0) revert FloorPriceIsZero();
-        if (_floorPrice > ConstantsLib.MAX_BID_PRICE) revert FloorPriceAboveMaxBidPrice();
         FLOOR_PRICE = _floorPrice;
         // Initialize the floor price as the first tick
         // _getTick will validate that it is also at a tick boundary
@@ -99,22 +98,22 @@ abstract contract TickStorage is ITickStorage {
 
     // Getters
     /// @inheritdoc ITickStorage
-    function floorPrice() external view override(ITickStorage) returns (uint256) {
+    function floorPrice() external view returns (uint256) {
         return FLOOR_PRICE;
     }
 
     /// @inheritdoc ITickStorage
-    function tickSpacing() external view override(ITickStorage) returns (uint256) {
+    function tickSpacing() external view returns (uint256) {
         return TICK_SPACING;
     }
 
     /// @inheritdoc ITickStorage
-    function nextActiveTickPrice() external view override(ITickStorage) returns (uint256) {
+    function nextActiveTickPrice() external view returns (uint256) {
         return $nextActiveTickPrice;
     }
 
     /// @inheritdoc ITickStorage
-    function ticks(uint256 price) external view override(ITickStorage) returns (Tick memory) {
+    function ticks(uint256 price) external view returns (Tick memory) {
         return _getTick(price);
     }
 }

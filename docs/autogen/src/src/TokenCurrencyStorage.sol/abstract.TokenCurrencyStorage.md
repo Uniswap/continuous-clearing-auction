@@ -1,8 +1,8 @@
 # TokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/1a7f98b9e1cb9ed630b15a7f62d113994de8c338/src/TokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/TokenCurrencyStorage.sol)
 
 **Inherits:**
-[ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
+[ITokenCurrencyStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
 
 
 ## State Variables
@@ -11,7 +11,7 @@ The currency being raised in the auction
 
 
 ```solidity
-Currency internal immutable CURRENCY;
+Currency internal immutable CURRENCY
 ```
 
 
@@ -20,7 +20,7 @@ The token being sold in the auction
 
 
 ```solidity
-IERC20Minimal internal immutable TOKEN;
+IERC20Minimal internal immutable TOKEN
 ```
 
 
@@ -29,16 +29,16 @@ The total supply of tokens to sell
 
 
 ```solidity
-uint128 internal immutable TOTAL_SUPPLY;
+uint128 internal immutable TOTAL_SUPPLY
 ```
 
 
-### TOTAL_SUPPLY_X7_X7
-The total supply of tokens to sell, scaled up to a ValueX7X7
+### TOTAL_SUPPLY_Q96
+The total supply of tokens to sell in 160.96 form
 
 
 ```solidity
-ValueX7X7 internal immutable TOTAL_SUPPLY_X7_X7;
+uint256 internal immutable TOTAL_SUPPLY_Q96
 ```
 
 
@@ -47,7 +47,7 @@ The recipient of any unsold tokens at the end of the auction
 
 
 ```solidity
-address internal immutable TOKENS_RECIPIENT;
+address internal immutable TOKENS_RECIPIENT
 ```
 
 
@@ -56,7 +56,17 @@ The recipient of the raised Currency from the auction
 
 
 ```solidity
-address internal immutable FUNDS_RECIPIENT;
+address internal immutable FUNDS_RECIPIENT
+```
+
+
+### REQUIRED_CURRENCY_RAISED_Q96_X7
+The amount of currency required to be raised for the auction
+to graduate in Q96 form, scaled up by X7
+
+
+```solidity
+ValueX7 internal immutable REQUIRED_CURRENCY_RAISED_Q96_X7
 ```
 
 
@@ -65,7 +75,7 @@ The block at which the currency was swept
 
 
 ```solidity
-uint256 public sweepCurrencyBlock;
+uint256 public sweepCurrencyBlock
 ```
 
 
@@ -74,7 +84,7 @@ The block at which the tokens were swept
 
 
 ```solidity
-uint256 public sweepUnsoldTokensBlock;
+uint256 public sweepUnsoldTokensBlock
 ```
 
 
@@ -83,7 +93,14 @@ uint256 public sweepUnsoldTokensBlock;
 
 
 ```solidity
-constructor(address _token, address _currency, uint128 _totalSupply, address _tokensRecipient, address _fundsRecipient);
+constructor(
+    address _token,
+    address _currency,
+    uint128 _totalSupply,
+    address _tokensRecipient,
+    address _fundsRecipient,
+    uint128 _requiredCurrencyRaised
+) ;
 ```
 
 ### _sweepCurrency
@@ -106,7 +123,7 @@ The currency being raised in the auction
 
 
 ```solidity
-function currency() external view override(ITokenCurrencyStorage) returns (Currency);
+function currency() external view returns (Currency);
 ```
 
 ### token
@@ -115,7 +132,7 @@ The token being sold in the auction
 
 
 ```solidity
-function token() external view override(ITokenCurrencyStorage) returns (IERC20Minimal);
+function token() external view returns (IERC20Minimal);
 ```
 
 ### totalSupply
@@ -124,7 +141,7 @@ The total supply of tokens to sell
 
 
 ```solidity
-function totalSupply() external view override(ITokenCurrencyStorage) returns (uint256);
+function totalSupply() external view returns (uint128);
 ```
 
 ### tokensRecipient
@@ -133,7 +150,7 @@ The recipient of any unsold tokens at the end of the auction
 
 
 ```solidity
-function tokensRecipient() external view override(ITokenCurrencyStorage) returns (address);
+function tokensRecipient() external view returns (address);
 ```
 
 ### fundsRecipient
@@ -142,6 +159,6 @@ The recipient of the raised Currency from the auction
 
 
 ```solidity
-function fundsRecipient() external view override(ITokenCurrencyStorage) returns (address);
+function fundsRecipient() external view returns (address);
 ```
 

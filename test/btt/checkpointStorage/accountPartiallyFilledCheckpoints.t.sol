@@ -4,12 +4,12 @@ pragma solidity 0.8.26;
 import {BttBase} from 'btt/BttBase.sol';
 import {MockCheckpointStorage} from 'btt/mocks/MockCheckpointStorage.sol';
 
+import {Bid, BidLib} from 'continuous-clearing-auction/libraries/BidLib.sol';
+import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
+import {FixedPoint96} from 'continuous-clearing-auction/libraries/FixedPoint96.sol';
+import {ValueX7} from 'continuous-clearing-auction/libraries/ValueX7Lib.sol';
+import {ValueX7Lib} from 'continuous-clearing-auction/libraries/ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {Bid, BidLib} from 'twap-auction/libraries/BidLib.sol';
-import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
-import {FixedPoint96} from 'twap-auction/libraries/FixedPoint96.sol';
-import {ValueX7} from 'twap-auction/libraries/ValueX7Lib.sol';
-import {ValueX7Lib} from 'twap-auction/libraries/ValueX7Lib.sol';
 
 contract AccountPartiallyFilledCheckpointsTest is BttBase {
     using ValueX7Lib for uint256;
@@ -81,12 +81,11 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
         assertGt(currencySpentQ96RoundedUp, 0, 'currencySpentQ96RoundedUp must be greater than 0');
         assertGt(currencySpent, 0, 'currency spent must be greater than 0');
 
-        uint256 tokensFilledRoundedDown =
-            FixedPointMathLib.fullMulDiv(
-                    _bid.amountQ96,
-                    ValueX7.unwrap(_cumulativeCurrencyRaisedAtClearingPriceX7),
-                    _tickDemandQ96 * BidLib.mpsRemainingInAuctionAfterSubmission(_bid)
-                ) / _bid.maxPrice;
+        uint256 tokensFilledRoundedDown = FixedPointMathLib.fullMulDiv(
+            _bid.amountQ96,
+            ValueX7.unwrap(_cumulativeCurrencyRaisedAtClearingPriceX7),
+            _tickDemandQ96 * BidLib.mpsRemainingInAuctionAfterSubmission(_bid)
+        ) / _bid.maxPrice;
 
         assertEq(currencySpent, currencySpentQ96RoundedUp, 'currency spent');
         assertEq(tokensFilled, tokensFilledRoundedDown, 'tokens filled');

@@ -4,8 +4,8 @@ pragma solidity 0.8.26;
 import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
 
 import {ERC20Mock} from '@openzeppelin/contracts/mocks/token/ERC20Mock.sol';
-import {MockAuction} from 'btt/mocks/MockAuction.sol';
-import {IAuction} from 'src/interfaces/IAuction.sol';
+import {MockContinuousClearingAuction} from 'btt/mocks/MockContinuousClearingAuction.sol';
+import {IContinuousClearingAuction} from 'continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol';
 
 contract OnlyActiveAuctionTest is BttBase {
     function test_WhenBlockNumberLTStartBlock(AuctionFuzzConstructorParams memory _params, uint256 _blockNumber)
@@ -15,12 +15,13 @@ contract OnlyActiveAuctionTest is BttBase {
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
 
-        MockAuction auction = new MockAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         uint256 blockNumber = bound(_blockNumber, 0, mParams.parameters.startBlock - 1);
 
         vm.roll(blockNumber);
-        vm.expectRevert(IAuction.AuctionNotStarted.selector);
+        vm.expectRevert(IContinuousClearingAuction.AuctionNotStarted.selector);
         auction.modifier_onlyActiveAuction();
     }
 
@@ -36,12 +37,13 @@ contract OnlyActiveAuctionTest is BttBase {
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
 
-        MockAuction auction = new MockAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         uint256 blockNumber = bound(_blockNumber, mParams.parameters.startBlock, type(uint256).max);
 
         vm.roll(blockNumber);
-        vm.expectRevert(IAuction.TokensNotReceived.selector);
+        vm.expectRevert(IContinuousClearingAuction.TokensNotReceived.selector);
         auction.modifier_onlyActiveAuction();
     }
 
@@ -55,7 +57,8 @@ contract OnlyActiveAuctionTest is BttBase {
 
         ERC20Mock token = new ERC20Mock();
 
-        MockAuction auction = new MockAuction(address(token), mParams.totalSupply, mParams.parameters);
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(address(token), mParams.totalSupply, mParams.parameters);
 
         uint256 blockNumber = bound(_blockNumber, mParams.parameters.startBlock, type(uint256).max);
 

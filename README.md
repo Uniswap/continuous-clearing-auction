@@ -1,6 +1,6 @@
-# TWAP Auction
+# Continuous Clearing Auction
 
-This repository contains the smart contracts for a TWAP (Time-Weighted Average Price) auction mechanism.
+This repository contains the smart contracts for a Continuous Clearing Auction mechanism.
 
 ## Installation
 
@@ -204,7 +204,7 @@ library ConstantsLib {
 
 #### ValueX7
 
-A custom uint256 type that represents values which have either been implicitly or explicitly multiplied by 1e7 (ConstantsLib.MPS). These values will be suffixed in the code with `_X7` for clarity. 
+A custom uint256 type that represents values which have either been implicitly or explicitly multiplied by 1e7 (ConstantsLib.MPS). These values will be suffixed in the code with `_X7` for clarity.
 
 ```solidity
 /// @notice A ValueX7 is a uint256 value that has been multiplied by MPS
@@ -343,11 +343,12 @@ Users can submit bids specifying the currency amount they want to spend. The bid
 The `maxPrice` is the maximum price the user is willing to pay. The `amount` is the amount of currency the user is bidding, and `owner` is the address of the user who will receive any purchased tokens or refunded currency.
 
 The Auction enforces the following rules on bid prices:
+
 - Bids must be above the current clearing price
-- Maximum bid price is capped at `type(uint256).max / TOTAL_SUPPLY` 
+- Maximum bid price is capped at `type(uint256).max / TOTAL_SUPPLY`
 
 ```solidity
-interface IAuction {
+interface IContinuousClearingAuction {
     function submitBid(
         uint256 maxPrice,
         uint128 amount,
@@ -374,7 +375,7 @@ event TickInitialized(uint256 price);
 The auction is checkpointed once every block with a new bid. The checkpoint is a snapshot of the auction state up to (NOT including) that block. Checkpoints determine token allocation for each bid.
 
 ```solidity
-interface IAuction {
+interface IContinuousClearingAuction {
     function checkpoint() external returns (Checkpoint memory _checkpoint);
 }
 
@@ -388,7 +389,7 @@ Users can use `exitBid` to withdraw their bid after the auction has ended, or if
 The bid will be fully refunded if the auction has not graduated.
 
 ```solidity
-interface IAuction {
+interface IContinuousClearingAuction {
     /// @notice Exit a bid where max price is above final clearing price
     function exitBid(uint256 bidId) external;
 }
@@ -404,6 +405,7 @@ Exiting partially filled bids is more complex than fully filled ones. The `exitP
 - `outbidBlock`: First checkpoint where clearing price is strictly > bid.maxPrice, or 0 if the bid was not outbid at the end of the auction.
 
 Diagram showing the checkpoints:
+
 ```solidity
         /**
          * Account for partially filled checkpoints
@@ -435,18 +437,18 @@ Auctions are "graduated" if the currency raised meets or exceeds the required th
 A core invariant of the auction is that no bids can be withdrawn before the auction has graduated.
 
 ```solidity
-interface IAuction {
+interface IContinuousClearingAuction {
     /// @notice Whether the auction has graduated (currency raised >= required)
     function isGraduated() external view returns (bool);
 }
 ```
 
-### sweepCurrency() and sweepUnsoldTokens()   
+### sweepCurrency() and sweepUnsoldTokens()
 
 After an auction ends, raised currency and unsold tokens can be withdrawn to the designated recipients in the auction deployment parameters.
 
 ```solidity
-interface IAuction {
+interface IContinuousClearingAuction {
     /// @notice Withdraw all raised currency (only for graduated auctions)
     function sweepCurrency() external;
 
@@ -459,16 +461,18 @@ event TokensSwept(address indexed tokensRecipient, uint256 tokensAmount);
 ```
 
 Note:
+
 - `sweepCurrency()` is only callable after the auction ends, and only for graduated auctions
 - `sweepUnsoldTokens()` is callable by anyone after the auction ends and will sweep different amounts depending on graduation.
 - For graduated auctions: sweeps no tokens (all were sold)
 - For non-graduated auctions: sweeps all `totalSupply` tokens
+
 ### claimTokens()
 
 Users can claim their purchased tokens after the auction's claim block. The bid must be exited before claiming tokens, and the auction must have graduated.
 
 ```solidity
-interface IAuction {
+interface IContinuousClearingAuction {
     function claimTokens(uint256 bidId) external;
 }
 
@@ -625,7 +629,7 @@ sequenceDiagram
 
 #### Price Discovery Visualization
 
-![TWAP Auction Animation](visualizations/auction_simple.gif)
+![Continuous Clearing Auction Animation](visualizations/auction_simple.gif)
 
 - **Fixed Supply**: 1,000 tokens
 - **Currency Requirements**: Constant at each price level

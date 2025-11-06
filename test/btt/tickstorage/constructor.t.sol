@@ -4,8 +4,8 @@ pragma solidity 0.8.26;
 import {BttBase} from 'btt/BttBase.sol';
 
 import {MockTickStorage} from 'btt/mocks/MockTickStorage.sol';
-import {ITickStorage} from 'twap-auction/TickStorage.sol';
-import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
+import {ITickStorage} from 'continuous-clearing-auction/TickStorage.sol';
+import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
 
 contract ConstructorTest is BttBase {
     uint256 tickSpacing;
@@ -38,18 +38,6 @@ contract ConstructorTest is BttBase {
     modifier whenFloorPriceGT0() {
         _;
         assertGt(floorPrice, 0, 'floor price is 0');
-    }
-
-    function test_WhenFloorPriceGTMaxBidPrice(uint256 _tickSpacing, uint256 _floorPrice)
-        external
-        whenTickSpacingValid(_tickSpacing)
-        whenFloorPriceGT0
-    {
-        // it reverts with {FloorPriceAboveMaxBidPrice}
-
-        floorPrice = bound(_floorPrice, ConstantsLib.MAX_BID_PRICE + 1, type(uint256).max);
-        vm.expectRevert(ITickStorage.FloorPriceAboveMaxBidPrice.selector);
-        new MockTickStorage(tickSpacing, floorPrice);
     }
 
     function test_WhenFloorPriceNotPerfectlyDivisibleByTickSpacing(uint256 _tickSpacing, uint256 _floorPrice)

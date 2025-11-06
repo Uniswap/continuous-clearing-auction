@@ -231,6 +231,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
         // Calculate the number of steps - ensure it's a divisor of ConstantsLib.MPS
         deploymentParams.numberOfSteps = uint8(_bound(auctionStepsR, 1, type(uint8).max));
+        deploymentParams.numberOfSteps = _findNearestDivisorOfMps(deploymentParams.numberOfSteps);
 
         // DYNAMIC BOUNDS: Calculate max safe price based on actual total supply
         // This allows high prices for small supplies and prevents overflow for large supplies
@@ -315,13 +316,14 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         bool _assumeTickSpacingIsFloorPrice
     ) public returns (AuctionParameters memory) {
         _setHardcodedParams(_deploymentParams);
-        vm.assume(_deploymentParams.totalSupply > 0);
+        _deploymentParams.totalSupply = uint128(_bound(_deploymentParams.totalSupply, 1, type(uint128).max));
+
+        // Bind number of steps first, since they are getting used in _boundBlockNumbers to calculate the endBlock
+        _deploymentParams.numberOfSteps = uint8(_bound(_deploymentParams.numberOfSteps, 1, type(uint8).max));
+        _deploymentParams.numberOfSteps = _findNearestDivisorOfMps(_deploymentParams.numberOfSteps);
 
         _boundBlockNumbers(_deploymentParams);
         _boundPriceParams(_deploymentParams, _assumeTickSpacingIsFloorPrice);
-
-        vm.assume(_deploymentParams.numberOfSteps > 0);
-        vm.assume(ConstantsLib.MPS % _deploymentParams.numberOfSteps == 0); // such that it is divisible
 
         // TODO(md): fix and have variation in the step sizes
         _deploymentParams.auctionParams.auctionStepsData = _generateAuctionSteps(_deploymentParams.numberOfSteps);
@@ -329,6 +331,24 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         $deploymentParams = _deploymentParams;
         totalSupply = _deploymentParams.totalSupply;
         return _deploymentParams.auctionParams;
+    }
+
+    /// @dev Finds the nearest divisor of `value` to `target` (searches up and down)
+    function _findNearestDivisorOfMps(uint8 target) private pure returns (uint8) {
+        if (target == 0) return 1;
+
+        // Search down for a divisor
+        for (uint256 i = 0; i < type(uint8).max; i++) {
+            if (target >= i && ConstantsLib.MPS % (target - i) == 0) {
+                return uint8(target - i);
+            }
+            if (target + i <= type(uint8).max && ConstantsLib.MPS % (target + i) == 0) {
+                return uint8(target + i);
+            }
+        }
+
+        // Should never reach here for MPS = 10^7
+        revert('No nearest divisor of MPS found');
     }
 
     function _setHardcodedParams(FuzzDeploymentParams memory _deploymentParams) private view {
@@ -372,7 +392,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
             );
         }
         // Ensure floor price is non-zero
-        vm.assume(_deploymentParams.auctionParams.floorPrice != 0);
+        _deploymentParams.auctionParams.floorPrice =
+            _bound(_deploymentParams.auctionParams.floorPrice, 1, type(uint256).max);
     }
 
     function _generateAuctionSteps(uint256 numberOfSteps) private pure returns (bytes memory) {
@@ -417,11 +438,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     // Price Calculation Helpers
     // ============================================
 
-    function helper__roundPriceDownToTickSpacing(uint256 _price, uint256 _tickSpacing)
-        internal
-        pure
-        returns (uint256)
-    {
+    function helper__roundPriceDownToTickSpacing(uint256 _price, uint256 _tickSpacing) internal pure returns (uint256) {
         return _price - (_price % _tickSpacing);
     }
 
@@ -463,11 +480,13 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         uint128 _totalSupply,
         uint256 _tickSpacing
     ) internal pure returns (uint256) {
-        vm.assume(_totalSupply != 0 && _tickSpacing != 0 && _floorPrice != 0 && _maxPrice != 0);
-        _maxPrice = _bound(_maxPrice, _floorPrice + _tickSpacing, type(uint256).max);
+        vm.assume(_totalSupply != 0 && _tickSpacing != 0 && _floorPrice != 0);
+        _maxPrice = _bound(
+            _maxPrice,
+            _floorPrice + _tickSpacing,
+            FixedPointMathLib.min(type(uint256).max / _totalSupply, ConstantsLib.MAX_BID_PRICE)
+        );
 
-        // TODO(md): better to be a bound?
-        vm.assume(_maxPrice <= FixedPointMathLib.min(type(uint256).max / _totalSupply, ConstantsLib.MAX_BID_PRICE));
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, _tickSpacing);
         vm.assume(_maxPrice > _floorPrice && _maxPrice < type(uint256).max);
         return _maxPrice;
@@ -484,7 +503,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         /* _i */
         FuzzBid memory _bid,
         address _owner
-    ) internal returns (bool bidPlaced, uint256 bidId) {
+    )
+        internal
+        returns (bool bidPlaced, uint256 bidId)
+    {
         Checkpoint memory latestCheckpoint = auction.checkpoint();
         uint256 clearingPrice = latestCheckpoint.clearingPrice;
 
@@ -499,9 +521,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
         vm.assume(
             auction.sumCurrencyDemandAboveClearingQ96()
-                < ConstantsLib.X7_UPPER_BOUND
-                    - (ethInputAmount * FixedPoint96.Q96 * ConstantsLib.MPS)
-                        / (ConstantsLib.MPS - latestCheckpoint.cumulativeMps)
+                < ConstantsLib.X7_UPPER_BOUND - (ethInputAmount * FixedPoint96.Q96 * ConstantsLib.MPS)
+                    / (ConstantsLib.MPS - latestCheckpoint.cumulativeMps)
         );
 
         // Get the correct last tick price for the bid
@@ -593,7 +614,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(_deploymentParams.auctionParams.floorPrice);
         auction = new Auction(address(token), _deploymentParams.totalSupply, params);
-
         token.mint(address(auction), _deploymentParams.totalSupply);
         auction.onTokensReceived();
     }
@@ -609,12 +629,11 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
         auctionStepsData =
             AuctionStepsBuilder.init().addStep(STANDARD_MPS_1_PERCENT, 50).addStep(STANDARD_MPS_1_PERCENT, 50);
-        params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE).withTickSpacing(
-            TICK_SPACING
-        ).withValidationHook(address(0)).withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient)
-            .withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION).withClaimBlock(
-            block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET
-        ).withAuctionStepsData(auctionStepsData);
+        params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE)
+            .withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number)
+            .withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET).withAuctionStepsData(auctionStepsData);
 
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
@@ -634,13 +653,12 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         MockToken failingToken = new MockToken();
 
         bytes memory failingAuctionStepsData = AuctionStepsBuilder.init().addStep(STANDARD_MPS_1_PERCENT, 100);
-        AuctionParameters memory failingParams = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(
-            FLOOR_PRICE
-        ).withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
-            .withFundsRecipient(fundsRecipient).withStartBlock(block.number).withEndBlock(block.number + AUCTION_DURATION)
-            .withClaimBlock(block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET).withAuctionStepsData(
-            failingAuctionStepsData
-        );
+        AuctionParameters memory failingParams = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL)
+            .withFloorPrice(FLOOR_PRICE).withTickSpacing(TICK_SPACING).withValidationHook(address(0))
+            .withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient).withStartBlock(block.number)
+            .withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET)
+            .withAuctionStepsData(failingAuctionStepsData);
 
         Auction failingAuction = new Auction(address(failingToken), TOTAL_SUPPLY, failingParams);
         failingToken.mint(address(failingAuction), TOTAL_SUPPLY);

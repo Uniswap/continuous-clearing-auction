@@ -44,6 +44,9 @@ contract CombinatorialHelpers is AuctionBaseTest {
             revert('preBidScenario: userMaxPrice not compliant with tickSpacing');
         }
 
+        address[] memory bidders = new address[](1);
+        bidders[0] = address(this);
+
         if (scenario == PreBidScenario.NoBidsBeforeUser) {
             // No action needed - auction starts with no bids
             return;
@@ -54,7 +57,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
             if (userMaxPrice > floorPrice + tickSpacing * 2) {
                 // Place clearing at least 2 ticks below userMaxPrice
                 targetClearingPrice = userMaxPrice - (2 * tickSpacing);
-                helper__setAuctionClearingPrice(targetClearingPrice, new address[](1), Q96);
+                helper__setAuctionClearingPrice(targetClearingPrice, bidders, Q96);
             } else {
                 // userMaxPrice is too close to floor, just keep at floor
                 return;
@@ -63,7 +66,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
             // Raise clearing price to exactly one tick below userMaxPrice
             if (userMaxPrice > floorPrice + tickSpacing) {
                 uint256 targetClearingPrice = userMaxPrice - tickSpacing;
-                helper__setAuctionClearingPrice(targetClearingPrice, new address[](1), Q96);
+                helper__setAuctionClearingPrice(targetClearingPrice, bidders, Q96);
                 return;
             } else {
                 // userMaxPrice is already only one tick above floor, just keep at floor
@@ -73,7 +76,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
             // First, move clearing price to one tick below userMaxPrice
             if (userMaxPrice > floorPrice + tickSpacing) {
                 uint256 targetClearingPrice = userMaxPrice - tickSpacing;
-                helper__setAuctionClearingPrice(targetClearingPrice, new address[](1), Q96);
+                helper__setAuctionClearingPrice(targetClearingPrice, bidders, Q96);
             }
 
             // Then place a small bid at exactly userMaxPrice (not large enough to move clearing)
@@ -111,6 +114,9 @@ contract CombinatorialHelpers is AuctionBaseTest {
         uint256 clearingPrice = Q96 ? auction.clearingPrice() : auction.clearingPrice() >> FixedPoint96.RESOLUTION;
         vm.revertToState(snap);
 
+        address[] memory bidders = new address[](1);
+        bidders[0] = address(this);
+
         if (scenario == PostBidScenario.NoBidsAfterUser) {
             return PostBidScenario.NoBidsAfterUser; // Scenario successfully "set up" (no action needed)
         } else if (scenario == PostBidScenario.UserAboveClearing) {
@@ -119,7 +125,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
                 return PostBidScenario.NoBidsAfterUser;
             } else {
                 // User's bid is more then one tick above clearing: Move clearing right below the user's bid
-                helper__setAuctionClearingPrice(userMaxPrice - tickSpacing, new address[](1), Q96);
+                helper__setAuctionClearingPrice(userMaxPrice - tickSpacing, bidders, Q96);
                 return PostBidScenario.UserAboveClearing;
             }
         } else if (scenario == PostBidScenario.UserAtClearing) {
@@ -133,7 +139,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
                     return PostBidScenario.NoBidsAfterUser;
                 }
                 vm.roll(block.number + bidDelay); // Outbid in the next block
-                helper__setAuctionClearingPrice(userMaxPrice, new address[](1), Q96);
+                helper__setAuctionClearingPrice(userMaxPrice, bidders, Q96);
 
                 // Limit the clearing price fill percentage to the maximum value before moving the clearing price
                 uint256 maxClearingPriceFillPercentage =
@@ -142,7 +148,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
 
                 if (clearingPriceFillPercentage > 0) {
                     helper__setAuctionClearingPrice(
-                        userMaxPrice + tickSpacing, new address[](1), Q96, clearingPriceFillPercentage
+                        userMaxPrice + tickSpacing, bidders, Q96, clearingPriceFillPercentage
                     );
                 }
                 return PostBidScenario.UserAtClearing;
@@ -158,7 +164,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
                     return PostBidScenario.NoBidsAfterUser;
                 }
                 vm.roll(block.number + bidDelay); // Outbid in the next block
-                helper__setAuctionClearingPrice(userMaxPrice + tickSpacing, new address[](1), Q96);
+                helper__setAuctionClearingPrice(userMaxPrice + tickSpacing, bidders, Q96);
                 return PostBidScenario.UserOutbidLater;
             }
         } else if (scenario == PostBidScenario.UserOutbidImmediately) {
@@ -167,7 +173,7 @@ contract CombinatorialHelpers is AuctionBaseTest {
                 return PostBidScenario.NoBidsAfterUser;
             } else {
                 // User's bid is above or equal to the clearing price: Move clearing above the user's bid immediately
-                helper__setAuctionClearingPrice(userMaxPrice + tickSpacing, new address[](1), Q96);
+                helper__setAuctionClearingPrice(userMaxPrice + tickSpacing, bidders, Q96);
                 return PostBidScenario.UserOutbidImmediately;
             }
         } else {
@@ -261,11 +267,13 @@ contract CombinatorialHelpers is AuctionBaseTest {
                 address bidOwner = bidOwners[i];
                 try auction.submitBid{value: bidAmount}(
                     targetClearingPrice << (Q96 ? 0 : FixedPoint96.RESOLUTION), uint128(bidAmount), bidOwner, bytes('')
-                ) returns (uint256) {
-                    // Bid was successfully submitted
-                } catch (bytes memory) {
-                    // TODO: test reverting for a failing bid submission
-                    return false;
+                ) returns (
+                    uint256
+                ) {
+                // Bid was successfully submitted
+                }
+                catch (bytes memory) {
+                    revert('Bid submission failed');
                 }
 
                 i++;
@@ -649,9 +657,8 @@ contract CombinatorialHelpers is AuctionBaseTest {
 
         // Tokens filled uses effective amount and harmonic mean
         // Using fullMulDiv handles large multiplications safely without overflow
-        expectedTokensFilled = bid.amountQ96.fullMulDiv(
-            cumulativeMpsPerPriceDelta, (FixedPoint96.Q96 << FixedPoint96.RESOLUTION) * mpsRemaining
-        );
+        expectedTokensFilled = bid.amountQ96
+            .fullMulDiv(cumulativeMpsPerPriceDelta, (FixedPoint96.Q96 << FixedPoint96.RESOLUTION) * mpsRemaining);
 
         console.log('Full exit calculation:');
         console.log('  cumulativeMpsDelta:', cumulativeMpsDelta);
@@ -768,9 +775,8 @@ contract CombinatorialHelpers is AuctionBaseTest {
         uint24 mpsRemaining = ConstantsLib.MPS - bid.startCumulativeMps;
 
         // Scale up bid amount and apply pro-rata
-        ValueX7 currencySpentQ96_X7 = bid.amountQ96.scaleUpToX7().fullMulDivUp(
-            currencyRaisedAtClearingQ96_X7, ValueX7.wrap(tickDemandQ96 * mpsRemaining)
-        );
+        ValueX7 currencySpentQ96_X7 = bid.amountQ96.scaleUpToX7()
+            .fullMulDivUp(currencyRaisedAtClearingQ96_X7, ValueX7.wrap(tickDemandQ96 * mpsRemaining));
 
         // Scale down to uint256
         currencySpent = currencySpentQ96_X7.scaleDownToUint256();
@@ -797,6 +803,8 @@ contract CombinatorialHelpers is AuctionBaseTest {
 
         // Determine actual scenario from final state
         // Check if any bids were placed after the user's bid
+        console.log('userBidId', userBidId);
+        console.log('auction.nextBidId()', auction.nextBidId());
         bool noBidsAfter = (auction.nextBidId() == userBidId + 1);
 
         if (noBidsAfter) {

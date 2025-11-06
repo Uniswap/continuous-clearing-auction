@@ -64,7 +64,6 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
         preBidScenario, // scenario for pre-bid setup
         postBidScenario, // scenario for post-bid setup
         mutationRandomness // randomness for the mutation
-
     }
 
     // Method enum
@@ -154,7 +153,13 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
         }
     }
 
-    function handleNormalAction(uint256[] memory /* selections */ ) external pure returns (bool) {
+    function handleNormalAction(
+        uint256[] memory /* selections */
+    )
+        external
+        pure
+        returns (bool)
+    {
         // counter.unlock();
         // counter.setNumber(42);
         return true;
@@ -212,7 +217,10 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
         return true; // THIS WILL FAIL ALL OTHER MUTATIONS
     }
 
-    function selectMutation(uint256 seed, uint256[] memory /* selections */ )
+    function selectMutation(
+        uint256 seed,
+        uint256[] memory /* selections */
+    )
         external
         pure
         returns (Combinatorium.Mutation memory)
@@ -220,11 +228,10 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
         Combinatorium.MutationType mutType = Combinatorium.MutationType.WRONG_PARAMETER;
         // counter.locked() ? Combinatorium.MutationType.WRONG_PARAMETER : Combinatorium.MutationType(seed % 3);
 
-        return Combinatorium.Mutation({
-            description: 'Test mutation',
-            mutationType: mutType,
-            mutationData: abi.encode(seed)
-        });
+        return
+            Combinatorium.Mutation({
+                description: 'Test mutation', mutationType: mutType, mutationData: abi.encode(seed)
+            });
     }
 
     function performAction(uint256[] memory selections) external {
@@ -391,7 +398,8 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
             // ============ Phase 1 Metrics Collection (BEFORE snapshot revert) ============
             // Collect metrics from Phase 2 state BEFORE reverting
             // Store in memory to survive the revert
-            metricsData = _computePhase1Metrics(finalBid, finalCheckpoint, exitPath, graduated, tokensFilled, currencySpentQ96);
+            metricsData =
+                _computePhase1Metrics(finalBid, finalCheckpoint, exitPath, graduated, tokensFilled, currencySpentQ96);
 
             // Revert to pre-settlement state to avoid polluting future iterations
             vm.revertToState(preSettlementSnapshot);
@@ -449,7 +457,8 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
             // Clearing price should never decrease
             Checkpoint memory currentBidStartCP = auction.checkpoints(currentBid.startBlock);
             assertTrue(
-                latestCP.clearingPrice >= currentBidStartCP.clearingPrice, 'Clearing price decreased (should be monotonic)'
+                latestCP.clearingPrice >= currentBidStartCP.clearingPrice,
+                'Clearing price decreased (should be monotonic)'
             );
 
             // Invariant 4: CumulativeMps monotonicity
@@ -482,11 +491,7 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
         bool graduated,
         uint256 tokensFilled,
         uint256 currencySpentQ96
-    )
-        private
-        view
-        returns (Phase1Metrics memory metrics)
-    {
+    ) private view returns (Phase1Metrics memory metrics) {
         // Step 1: Fill Ratio Metrics (ACCURATE CALCULATION)
         // fillRatio = (currencySpentQ96 / originalBidAmountQ96) * MPS
         // Uses MPS precision (1e7) for 5 decimal places: 100.00000%
@@ -525,8 +530,8 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
 
         // Step 3: Edge Case Flags
         metrics.neverFullyFilled = (metrics.fillRatioPercent < ConstantsLib.MPS);
-        metrics.nearGraduationBoundary =
-            !graduated && (block.number - auction.startBlock() > (auction.endBlock() - auction.startBlock()) * 90 / 100);
+        metrics.nearGraduationBoundary = !graduated
+            && (block.number - auction.startBlock() > (auction.endBlock() - auction.startBlock()) * 90 / 100);
 
         // Step 4: Price Analysis Metrics
         metrics.clearingPriceStart = auction.checkpoints(finalBid.startBlock).clearingPrice;
@@ -577,43 +582,65 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
         // Split into chunks to avoid stack too deep
         string memory part1 = string(
             abi.encodePacked(
-                vm.toString(uint256(preBid)), ',',
-                vm.toString(uint256(postBid)), ',',
-                vm.toString(uint256(bidAmount)), ',',
-                vm.toString(maxPrice), ',',
-                vm.toString(metrics_fillRatioPercent), ',',
-                metrics_partialFillReason, ','
+                vm.toString(uint256(preBid)),
+                ',',
+                vm.toString(uint256(postBid)),
+                ',',
+                vm.toString(uint256(bidAmount)),
+                ',',
+                vm.toString(maxPrice),
+                ',',
+                vm.toString(metrics_fillRatioPercent),
+                ',',
+                metrics_partialFillReason,
+                ','
             )
         );
 
         string memory part2 = string(
             abi.encodePacked(
-                vm.toString(metrics_bidLifetimeBlocks), ',',
-                vm.toString(metrics_blocksFromStart), ',',
-                vm.toString(metrics_timeToOutbid), ',',
-                metrics_wasOutbid ? 'true' : 'false', ',',
-                metrics_neverFullyFilled ? 'true' : 'false', ',',
-                metrics_nearGraduationBoundary ? 'true' : 'false', ','
+                vm.toString(metrics_bidLifetimeBlocks),
+                ',',
+                vm.toString(metrics_blocksFromStart),
+                ',',
+                vm.toString(metrics_timeToOutbid),
+                ',',
+                metrics_wasOutbid ? 'true' : 'false',
+                ',',
+                metrics_neverFullyFilled ? 'true' : 'false',
+                ',',
+                metrics_nearGraduationBoundary ? 'true' : 'false',
+                ','
             )
         );
 
         string memory part3 = string(
             abi.encodePacked(
-                vm.toString(metrics_clearingPriceStart), ',',
-                vm.toString(metrics_clearingPriceEnd), ',',
-                vm.toString(metrics_tokensReceived), ',',
-                vm.toString(metrics_pricePerTokenETH), ',',
-                metrics_didGraduate ? 'true' : 'false', ','
+                vm.toString(metrics_clearingPriceStart),
+                ',',
+                vm.toString(metrics_clearingPriceEnd),
+                ',',
+                vm.toString(metrics_tokensReceived),
+                ',',
+                vm.toString(metrics_pricePerTokenETH),
+                ',',
+                metrics_didGraduate ? 'true' : 'false',
+                ','
             )
         );
 
         string memory part4 = string(
             abi.encodePacked(
-                vm.toString(uint256(metrics_auctionStartBlock)), ',',
-                vm.toString(uint256(metrics_auctionDurationBlocks)), ',',
-                vm.toString(metrics_floorPrice), ',',
-                vm.toString(metrics_tickSpacing), ',',
-                vm.toString(metrics_totalSupply), '\n'
+                vm.toString(uint256(metrics_auctionStartBlock)),
+                ',',
+                vm.toString(uint256(metrics_auctionDurationBlocks)),
+                ',',
+                vm.toString(metrics_floorPrice),
+                ',',
+                vm.toString(metrics_tickSpacing),
+                ',',
+                vm.toString(metrics_totalSupply),
+                '\n'
             )
         );
 
@@ -623,6 +650,7 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
 
     // ============ Tests ============
 
+    /// forge-config: default.fuzz.max-test-rejects = 500
     function testFuzz_CombinatorialExploration(uint256 seed_) public {
         currentSeed = seed_;
         Combinatorium.Handlers memory handlers = Combinatorium.Handlers({

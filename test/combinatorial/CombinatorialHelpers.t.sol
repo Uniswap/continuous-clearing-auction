@@ -16,17 +16,17 @@ import {PostBidScenario, PreBidScenario} from './CombinatorialEnums.sol';
 import {CombinatorialHelpers} from './CombinatorialHelpers.sol';
 
 import {Test} from 'forge-std/Test.sol';
-import {console2} from 'forge-std/console2.sol';
+import {console} from 'forge-std/console.sol';
 
 contract CombinatorialHelpersTest is CombinatorialHelpers {
     function _legalizeBidMaxPrice(uint256 maxPrice, bool Q96) internal view returns (uint64 targetClearingPrice) {
         uint256 auctionTickSpacing = Q96 ? auction.tickSpacing() : auction.tickSpacing() >> FixedPoint96.RESOLUTION;
-        console2.log('auctionTickSpacing', auctionTickSpacing);
+        console.log('auctionTickSpacing', auctionTickSpacing);
 
         uint256 targetClearingPriceTemp = helper__roundPriceUpToTickSpacing(maxPrice, auctionTickSpacing);
         targetClearingPrice = uint64(bound(targetClearingPriceTemp, 1, Q96 ? type(uint256).max : 1e17));
 
-        console2.log('rounded targetClearingPrice', targetClearingPrice);
+        console.log('rounded targetClearingPrice', targetClearingPrice);
 
         return targetClearingPrice;
     }
@@ -43,14 +43,10 @@ contract CombinatorialHelpersTest is CombinatorialHelpers {
         uint256 clearingPrice = auction.clearingPrice() >> FixedPoint96.RESOLUTION;
         uint256 tickSpacing = auction.tickSpacing() >> FixedPoint96.RESOLUTION;
         uint256 floorPrice = auction.floorPrice() >> FixedPoint96.RESOLUTION;
-        console2.log('tickSpacing:', tickSpacing);
-        console2.log('floorPrice:', floorPrice);
-        console2.log('clearingPrice original:', clearingPrice);
-        // -- Tests with fixed values --
-        // bid.bidAmount = 1 ether;
-        // bid.tickNumber = 20;
-
-        console2.log('bid.tickNumber:', bid.tickNumber);
+        console.log('tickSpacing:', tickSpacing);
+        console.log('floorPrice:', floorPrice);
+        console.log('clearingPrice original:', clearingPrice);
+        console.log('bid.tickNumber:', bid.tickNumber);
 
         PostBidScenario scenario = PostBidScenario(scenarioSelection % uint256(PostBidScenario.__length));
 
@@ -58,7 +54,7 @@ contract CombinatorialHelpersTest is CombinatorialHelpers {
             helper__maxPriceMultipleOfTickSpacingAboveFloorPrice(bid.tickNumber) >> FixedPoint96.RESOLUTION;
         vm.deal(address(this), inputAmountForTokens(bid.bidAmount, maxPrice << FixedPoint96.RESOLUTION));
         (bool bidPlaced, uint256 bidId) = helper__trySubmitBid(0, bid, alice);
-        console2.log('bidPlaced:', bidPlaced);
+        console.log('bidPlaced:', bidPlaced);
         if (!bidPlaced) {
             revert('requires a bid to be placed');
         }
@@ -66,11 +62,11 @@ contract CombinatorialHelpersTest is CombinatorialHelpers {
         Bid memory bidOnChain = auction.bids(bidId);
         assertEq(bidOnChain.maxPrice >> FixedPoint96.RESOLUTION, maxPrice);
 
-        console2.log('Scenario:', uint256(scenario));
-        console2.log('User max price:', maxPrice);
-        console2.log('clearingPrice before Scenario:', auction.clearingPrice() >> FixedPoint96.RESOLUTION);
+        console.log('Scenario:', uint256(scenario));
+        console.log('User max price:', maxPrice);
+        console.log('clearingPrice before Scenario:', auction.clearingPrice() >> FixedPoint96.RESOLUTION);
         helper__postBidScenario(scenario, maxPrice, false, 1, ConstantsLib.MPS);
-        console2.log('clearingPrice after Scenario:', auction.clearingPrice() >> FixedPoint96.RESOLUTION);
+        console.log('clearingPrice after Scenario:', auction.clearingPrice() >> FixedPoint96.RESOLUTION);
 
         // Verify
         vm.roll(block.number + 1);
@@ -80,8 +76,8 @@ contract CombinatorialHelpersTest is CombinatorialHelpers {
             assertEq(auction.bids(bidId + 1).maxPrice, 0);
         } else if (scenario == PostBidScenario.UserAboveClearing) {
             if (auction.bids(bidId + 1).maxPrice != 0) {
-                console2.log('auction.clearingPrice()', auction.clearingPrice() >> FixedPoint96.RESOLUTION);
-                console2.log('bidOnChain.maxPrice', bidOnChain.maxPrice >> FixedPoint96.RESOLUTION);
+                console.log('auction.clearingPrice()', auction.clearingPrice() >> FixedPoint96.RESOLUTION);
+                console.log('bidOnChain.maxPrice', bidOnChain.maxPrice >> FixedPoint96.RESOLUTION);
                 assertTrue(
                     auction.clearingPrice() < bidOnChain.maxPrice,
                     'clearingPrice should be smaller than the users maxPrice'
@@ -119,16 +115,16 @@ contract CombinatorialHelpersTest is CombinatorialHelpers {
         uint256 clearingPriceOriginal = auction.clearingPrice() >> FixedPoint96.RESOLUTION;
         uint256 tickSpacing = auction.tickSpacing() >> FixedPoint96.RESOLUTION;
         uint256 floorPrice = auction.floorPrice() >> FixedPoint96.RESOLUTION;
-        console2.log('tickSpacing:', tickSpacing);
-        console2.log('floorPrice:', floorPrice);
-        console2.log('clearingPrice original:', clearingPriceOriginal);
+        console.log('tickSpacing:', tickSpacing);
+        console.log('floorPrice:', floorPrice);
+        console.log('clearingPrice original:', clearingPriceOriginal);
 
         // -- Tests with fixed values --
         // bid.bidAmount = 1 ether;
         // bid.tickNumber = 20;
         // scenarioSelection = 1;
 
-        console2.log('bid.tickNumber:', bid.tickNumber);
+        console.log('bid.tickNumber:', bid.tickNumber);
 
         PreBidScenario scenario = PreBidScenario(scenarioSelection % uint256(PreBidScenario.__length));
 
@@ -139,20 +135,20 @@ contract CombinatorialHelpersTest is CombinatorialHelpers {
             return;
         }
 
-        console2.log('Scenario:', uint256(scenario));
-        console2.log('User max price:', maxPrice);
-        console2.log('clearingPrice before Scenario:', auction.clearingPrice() >> FixedPoint96.RESOLUTION);
+        console.log('Scenario:', uint256(scenario));
+        console.log('User max price:', maxPrice);
+        console.log('clearingPrice before Scenario:', auction.clearingPrice() >> FixedPoint96.RESOLUTION);
 
         // Setup the pre-bid scenario
         helper__preBidScenario(scenario, maxPrice, false);
 
         uint256 clearingPriceAfterScenario = auction.clearingPrice() >> FixedPoint96.RESOLUTION;
-        console2.log('clearingPrice after Scenario:', clearingPriceAfterScenario);
+        console.log('clearingPrice after Scenario:', clearingPriceAfterScenario);
 
         // Now place the user's bid
         vm.deal(address(this), inputAmountForTokens(bid.bidAmount, maxPrice << FixedPoint96.RESOLUTION));
         (bool bidPlaced, uint256 bidId) = helper__trySubmitBid(0, bid, alice);
-        console2.log('bidPlaced:', bidPlaced);
+        console.log('bidPlaced:', bidPlaced);
 
         if (!bidPlaced) {
             revert('Bid should be placed when maxPrice is above floorPrice');
@@ -192,26 +188,26 @@ contract CombinatorialHelpersTest is CombinatorialHelpers {
 
     // function test_cumulativeMPS() public {
     //     Checkpoint memory checkpoint1 = auction.checkpoint();
-    //     console2.log("After block 1:");
-    //     console2.log("  clearingPrice:", checkpoint1.clearingPrice);
-    //     console2.log("  cumulativeMps:", checkpoint1.cumulativeMps);
-    //     console2.log("  cumulativeMpsPerPrice:", checkpoint1.cumulativeMpsPerPrice);
+    //     console.log("After block 1:");
+    //     console.log("  clearingPrice:", checkpoint1.clearingPrice);
+    //     console.log("  cumulativeMps:", checkpoint1.cumulativeMps);
+    //     console.log("  cumulativeMpsPerPrice:", checkpoint1.cumulativeMpsPerPrice);
 
     //     vm.roll(block.number + 1);
     //     Checkpoint memory checkpoint2 = auction.checkpoint();
-    //     console2.log("After block 2:");
-    //     console2.log("  clearingPrice:", checkpoint2.clearingPrice);
-    //     console2.log("  cumulativeMps:", checkpoint2.cumulativeMps);
-    //     console2.log("  cumulativeMpsPerPrice:", checkpoint2.cumulativeMpsPerPrice);
+    //     console.log("After block 2:");
+    //     console.log("  clearingPrice:", checkpoint2.clearingPrice);
+    //     console.log("  cumulativeMps:", checkpoint2.cumulativeMps);
+    //     console.log("  cumulativeMpsPerPrice:", checkpoint2.cumulativeMpsPerPrice);
 
     //     // Calculate the ratio
-    //     console2.log("Ratio (cumulativeMpsPerPrice / clearingPrice):");
+    //     console.log("Ratio (cumulativeMpsPerPrice / clearingPrice):");
     //     uint256 ratio = (checkpoint2.cumulativeMpsPerPrice * 1e18) / checkpoint2.clearingPrice;
-    //     console2.log("  ", ratio);
+    //     console.log("  ", ratio);
 
     //     // Calculate deltaMps per block
-    //     console2.log("deltaMps per block:", checkpoint2.cumulativeMps / 1);
-    //     console2.log("Total blocks in auction:", auction.endBlock() - auction.startBlock());
+    //     console.log("deltaMps per block:", checkpoint2.cumulativeMps / 1);
+    //     console.log("Total blocks in auction:", auction.endBlock() - auction.startBlock());
     // }
 
     function test_combinatorial_helpers_setAuctionClearingPrice(uint64 targetClearingPrice) public {
@@ -232,7 +228,7 @@ contract CombinatorialHelpersTest is CombinatorialHelpers {
         if (clearingPrice < floorPrice) {
             clearingPrice = floorPrice;
         }
-        console2.log('adjusted clearingPrice', clearingPrice);
+        console.log('adjusted clearingPrice', clearingPrice);
 
         if (clearingPrice > legalizedTargetClearingPrice) {
             assertFalse(success);
@@ -252,10 +248,10 @@ contract CombinatorialHelpersTest is CombinatorialHelpers {
         uint256 tickSpacing = auction.tickSpacing() >> FixedPoint96.RESOLUTION;
         uint128 priorBidMaxPrice =
             uint128((auction.floorPrice() >> FixedPoint96.RESOLUTION) + (priorBidTargetTick * tickSpacing));
-        console2.log('priorBidTargetTick', priorBidTargetTick);
-        console2.log('tickSpacing', tickSpacing);
-        console2.log('auction.floorPrice()', auction.floorPrice() >> FixedPoint96.RESOLUTION);
-        console2.log('priorBidMaxPrice', priorBidMaxPrice);
+        console.log('priorBidTargetTick', priorBidTargetTick);
+        console.log('tickSpacing', tickSpacing);
+        console.log('auction.floorPrice()', auction.floorPrice() >> FixedPoint96.RESOLUTION);
+        console.log('priorBidMaxPrice', priorBidMaxPrice);
         address[] memory bidOwners = new address[](1);
         bidOwners[0] = address(this);
         bool successPriorBid = helper__setAuctionClearingPrice(priorBidMaxPrice, bidOwners, false);
@@ -264,7 +260,7 @@ contract CombinatorialHelpersTest is CombinatorialHelpers {
 
         // --- Submit the bid setting the target clearing price ---
         uint128 legalizedTargetClearingPrice = _legalizeBidMaxPrice(targetClearingPrice, false);
-        console2.log('legalizedTargetClearingPrice', legalizedTargetClearingPrice);
+        console.log('legalizedTargetClearingPrice', legalizedTargetClearingPrice);
 
         // Move the clearing price to the target price
         bool success = helper__setAuctionClearingPrice(legalizedTargetClearingPrice, bidOwners, false);
@@ -275,7 +271,7 @@ contract CombinatorialHelpersTest is CombinatorialHelpers {
         if (clearingPrice < floorPrice) {
             clearingPrice = floorPrice;
         }
-        console2.log('adjusted clearingPrice', clearingPrice);
+        console.log('adjusted clearingPrice', clearingPrice);
 
         if (clearingPrice > legalizedTargetClearingPrice) {
             assertFalse(success);
@@ -303,7 +299,7 @@ contract CombinatorialHelpersTest is CombinatorialHelpers {
         if (clearingPrice < floorPrice) {
             clearingPrice = floorPrice;
         }
-        console2.log('adjusted clearingPrice', clearingPrice);
+        console.log('adjusted clearingPrice', clearingPrice);
 
         if (clearingPrice > legalizedTargetClearingPrice) {
             assertFalse(success);

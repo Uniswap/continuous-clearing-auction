@@ -115,12 +115,12 @@ contract ConstructorTest is BttBase {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAuction.FloorPriceAndTickSpacingGreaterThanMaxBidPrice.selector,
+                IContinuousClearingAuction.FloorPriceAndTickSpacingGreaterThanMaxBidPrice.selector,
                 mParams.parameters.floorPrice + mParams.parameters.tickSpacing,
                 ConstantsLib.MAX_BID_PRICE
             )
         );
-        new Auction(mParams.token, mParams.totalSupply, mParams.parameters);
+        new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
     }
 
     function test_WhenFloorPricePlusTickSpacingGTMaxBidPrice_Uint256MaxDivTotalSupplyLEUniV4MaxTick(AuctionFuzzConstructorParams memory _params)
@@ -142,11 +142,11 @@ contract ConstructorTest is BttBase {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAuction.FloorPriceAndTickSpacingGreaterThanMaxBidPrice.selector,
+                IContinuousClearingAuction.FloorPriceAndTickSpacingGreaterThanMaxBidPrice.selector,
                 mParams.parameters.floorPrice + mParams.parameters.tickSpacing,
                 computedMaxBidPrice
             )
         );
-        new Auction(mParams.token, mParams.totalSupply, mParams.parameters);
+        new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
     }
 }

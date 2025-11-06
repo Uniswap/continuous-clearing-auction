@@ -54,7 +54,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         TOTAL_SUPPLY_Q96 = uint256(_totalSupply) << FixedPoint96.RESOLUTION;
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;
-        REQUIRED_CURRENCY_RAISED_Q96_X7 = (_requiredCurrencyRaised << FixedPoint96.RESOLUTION).scaleUpToX7();
+        REQUIRED_CURRENCY_RAISED_Q96_X7 = (uint256(_requiredCurrencyRaised) << FixedPoint96.RESOLUTION).scaleUpToX7();
     }
 
     function _sweepCurrency(uint256 amount) internal {

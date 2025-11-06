@@ -9,7 +9,6 @@ import {TokenCurrencyStorage} from './TokenCurrencyStorage.sol';
 import {AuctionParameters, IAuction} from './interfaces/IAuction.sol';
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
-import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {AuctionStep, AuctionStepLib} from './libraries/AuctionStepLib.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';

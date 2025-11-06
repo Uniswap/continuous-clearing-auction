@@ -179,8 +179,9 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     function _boundPriceParams(FuzzDeploymentParams memory _deploymentParams) private pure {
         // Re-implementation of the max bid price calculation in auction constructor
-        uint256 maxBidPrice =
-            FixedPointMathLib.min(ConstantsLib.MAX_BID_PRICE / _deploymentParams.totalSupply, ConstantsLib.MAX_BID_PRICE);
+        uint256 maxBidPrice = FixedPointMathLib.min(
+            ConstantsLib.MAX_BID_PRICE / _deploymentParams.totalSupply, ConstantsLib.MAX_BID_PRICE
+        );
         // Bound tick spacing and floor price to reasonable values
         _deploymentParams.auctionParams.floorPrice = _bound(
             _deploymentParams.auctionParams.floorPrice,

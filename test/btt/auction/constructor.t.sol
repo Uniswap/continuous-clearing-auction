@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {ContinuousClearingAuction} from 'src/ContinuousClearingAuction.sol';
 import {IContinuousClearingAuction} from 'src/interfaces/IContinuousClearingAuction.sol';
 import {ConstantsLib} from 'src/libraries/ConstantsLib.sol';
@@ -29,7 +30,8 @@ contract ConstructorTest is BttBase {
         _params.totalSupply = uint128(_bound(_params.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
         uint256 expectedBidMaxPrice = ConstantsLib.MAX_BID_PRICE / _params.totalSupply;
 
-        Auction auction = new Auction(_params.token, _params.totalSupply, _params.parameters);
+        ContinuousClearingAuction auction =
+            new ContinuousClearingAuction(_params.token, _params.totalSupply, _params.parameters);
 
         assertEq(auction.MAX_BID_PRICE(), expectedBidMaxPrice);
         // 1 << 224 is the maximum price supported by Uniswap v4
@@ -72,7 +74,7 @@ contract ConstructorTest is BttBase {
         );
     }
 
-    function test_WhenClaimBlockGEEndBlock(AuctionFuzzConstructorParams memory _params)
+    function test_WhenClaimBlockGEEndBlock(AuctionFuzzConstructorParams memory _params, uint64 _claimBlock)
         external
         setupAuctionConstructorParams(_params)
     {
@@ -82,7 +84,7 @@ contract ConstructorTest is BttBase {
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
         mParams.parameters.claimBlock = uint64(bound(_claimBlock, mParams.parameters.endBlock, type(uint64).max));
-        mParams.totalSupply = uint128(bound(_totalSupply, 1, type(uint256).max / ConstantsLib.MAX_BID_PRICE));
+        mParams.totalSupply = uint128(bound(mParams.totalSupply, 1, type(uint256).max / ConstantsLib.MAX_BID_PRICE));
 
         ContinuousClearingAuction auction =
             new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
@@ -93,6 +95,10 @@ contract ConstructorTest is BttBase {
     }
 
     modifier whenUint256MaxDivTotalSupplyGEUniV4MaxTick() {
+        _;
+    }
+
+    modifier whenClaimBlockGEEndBlock() {
         _;
     }
 

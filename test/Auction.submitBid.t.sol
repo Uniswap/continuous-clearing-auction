@@ -46,7 +46,9 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
         );
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, params.tickSpacing);
         vm.expectRevert(
-            abi.encodeWithSelector(IAuction.InvalidBidPriceTooHigh.selector, _maxPrice, auction.MAX_BID_PRICE())
+            abi.encodeWithSelector(
+                IContinuousClearingAuction.InvalidBidPriceTooHigh.selector, _maxPrice, auction.MAX_BID_PRICE()
+            )
         );
         auction.submitBid{value: 1}(_maxPrice, 1, alice, params.floorPrice, bytes(''));
     }

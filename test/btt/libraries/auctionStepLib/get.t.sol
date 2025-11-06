@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
-import {StepLib} from 'twap-auction/libraries/StepLib.sol';
+import {StepLib} from 'continuous-clearing-auction/libraries/StepLib.sol';
 
 import {CompactStep, CompactStepLib, Step} from 'test/btt/libraries/auctionStepLib/StepUtils.sol';
 

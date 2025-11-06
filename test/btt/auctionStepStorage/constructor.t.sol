@@ -4,8 +4,8 @@ pragma solidity 0.8.26;
 import {MockStepStorage} from 'btt/mocks/MockStepStorage.sol';
 
 import {BttBase, Step} from 'btt/BttBase.sol';
-import {IStepStorage} from 'twap-auction/interfaces/IStepStorage.sol';
-import {AuctionStep, StepLib} from 'twap-auction/libraries/StepLib.sol';
+import {IStepStorage} from 'continuous-clearing-auction/interfaces/IStepStorage.sol';
+import {AuctionStep, StepLib} from 'continuous-clearing-auction/libraries/StepLib.sol';
 
 contract ConstructorTest is BttBase {
     MockStepStorage public auctionStepStorage;

@@ -5,7 +5,7 @@ import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
 
 import {ERC20Mock} from '@openzeppelin/contracts/mocks/token/ERC20Mock.sol';
 import {MockContinuousClearingAuction} from 'btt/mocks/MockContinuousClearingAuction.sol';
-import {IContinuousClearingAuction} from 'twap-auction/interfaces/IContinuousClearingAuction.sol';
+import {IContinuousClearingAuction} from 'continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol';
 
 contract OnlyActiveAuctionTest is BttBase {
     function test_WhenBlockNumberLTStartBlock(AuctionFuzzConstructorParams memory _params, uint256 _blockNumber)

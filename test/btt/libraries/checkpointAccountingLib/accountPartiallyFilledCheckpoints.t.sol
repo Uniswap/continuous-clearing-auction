@@ -2,11 +2,11 @@
 pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
-import {Bid, BidLib} from 'twap-auction/libraries/BidLib.sol';
-import {CheckpointAccountingLib} from 'twap-auction/libraries/CheckpointAccountingLib.sol';
-import {Checkpoint} from 'twap-auction/libraries/CheckpointLib.sol';
-import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
-import {ValueX7} from 'twap-auction/libraries/ValueX7Lib.sol';
+import {Bid, BidLib} from 'continuous-clearing-auction/libraries/BidLib.sol';
+import {CheckpointAccountingLib} from 'continuous-clearing-auction/libraries/CheckpointAccountingLib.sol';
+import {Checkpoint} from 'continuous-clearing-auction/libraries/CheckpointLib.sol';
+import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
+import {ValueX7} from 'continuous-clearing-auction/libraries/ValueX7Lib.sol';
 
 contract AccountPartiallyFilledCheckpointsTest is BttBase {
     // should never happen but we catch it in the code to avoid div by 0

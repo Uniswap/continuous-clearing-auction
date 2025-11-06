@@ -5,12 +5,12 @@ import {AuctionFuzzConstructorParams, BttBase} from 'btt/BttBase.sol';
 import {MockContinuousClearingAuction} from 'btt/mocks/MockContinuousClearingAuction.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {IContinuousClearingAuction} from 'twap-auction/interfaces/IContinuousClearingAuction.sol';
-import {ITokenCurrencyStorage} from 'twap-auction/interfaces/ITokenCurrencyStorage.sol';
-import {IERC20Minimal} from 'twap-auction/interfaces/external/IERC20Minimal.sol';
-import {Bid} from 'twap-auction/libraries/BidLib.sol';
-import {Checkpoint} from 'twap-auction/libraries/CheckpointLib.sol';
-import {FixedPoint96} from 'twap-auction/libraries/FixedPoint96.sol';
+import {IContinuousClearingAuction} from 'continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol';
+import {ITokenCurrencyStorage} from 'continuous-clearing-auction/interfaces/ITokenCurrencyStorage.sol';
+import {IERC20Minimal} from 'continuous-clearing-auction/interfaces/external/IERC20Minimal.sol';
+import {Bid} from 'continuous-clearing-auction/libraries/BidLib.sol';
+import {Checkpoint} from 'continuous-clearing-auction/libraries/CheckpointLib.sol';
+import {FixedPoint96} from 'continuous-clearing-auction/libraries/FixedPoint96.sol';
 
 contract ClaimTokensTest is BttBase {
     function test_WhenBlockNumberLTClaimBlock(AuctionFuzzConstructorParams memory _params, uint256 _blockNumber)

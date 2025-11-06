@@ -7,7 +7,7 @@ import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.
 import {ContinuousClearingAuction} from 'src/ContinuousClearingAuction.sol';
 import {ConstantsLib} from 'src/libraries/ConstantsLib.sol';
 import {AuctionStep} from 'src/libraries/StepLib.sol';
-import {IContinuousClearingAuction} from 'twap-auction/interfaces/IContinuousClearingAuction.sol';
+import {IContinuousClearingAuction} from 'continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol';
 
 contract AdvanceToStartOfCurrentStepTest is BttBase {
     function test_WhenStepStartBlockGTLastCheckpointedBlock(AuctionFuzzConstructorParams memory _params) external {

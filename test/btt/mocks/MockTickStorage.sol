@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {TickStorage} from 'twap-auction/TickStorage.sol';
+import {TickStorage} from 'continuous-clearing-auction/TickStorage.sol';
 
 contract MockTickStorage is TickStorage {
     constructor(uint256 _tickSpacing, uint256 _floorPrice) TickStorage(_tickSpacing, _floorPrice) {}

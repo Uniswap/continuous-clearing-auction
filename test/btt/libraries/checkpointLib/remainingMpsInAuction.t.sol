@@ -2,8 +2,8 @@
 pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
-import {Checkpoint, CheckpointLib} from 'twap-auction/libraries/CheckpointLib.sol';
-import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
+import {Checkpoint, CheckpointLib} from 'continuous-clearing-auction/libraries/CheckpointLib.sol';
+import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
 
 contract RemainingMpsInAuctionTest is BttBase {
     function test_WhenCalledWithCheckpoint(uint24 _cumulativeMps) external {

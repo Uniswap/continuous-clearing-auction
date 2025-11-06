@@ -21,7 +21,7 @@ remappings = [
   "solady=lib/solady/src",
   "permit2=lib/permit2",
   "v4-periphery=lib/v4-periphery",
-  "twap-auction=src/",
+  "continuous-clearing-auction=src/",
   "test=test/",
   "btt=test/btt/",
 ]

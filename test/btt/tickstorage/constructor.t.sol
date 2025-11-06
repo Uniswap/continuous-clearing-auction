@@ -4,8 +4,8 @@ pragma solidity 0.8.26;
 import {BttBase} from 'btt/BttBase.sol';
 
 import {MockTickStorage} from 'btt/mocks/MockTickStorage.sol';
-import {ITickStorage} from 'twap-auction/TickStorage.sol';
-import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
+import {ITickStorage} from 'continuous-clearing-auction/TickStorage.sol';
+import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
 
 contract ConstructorTest is BttBase {
     uint256 tickSpacing;

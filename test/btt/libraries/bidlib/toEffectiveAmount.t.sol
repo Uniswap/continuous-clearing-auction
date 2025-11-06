@@ -2,11 +2,11 @@
 pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
-import {Bid, BidLib} from 'twap-auction/libraries/BidLib.sol';
-import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
+import {Bid, BidLib} from 'continuous-clearing-auction/libraries/BidLib.sol';
+import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
 
 import {MockBidLib} from 'btt/mocks/MockBidLib.sol';
-import {FixedPoint96} from 'twap-auction/libraries/FixedPoint96.sol';
+import {FixedPoint96} from 'continuous-clearing-auction/libraries/FixedPoint96.sol';
 
 contract ToEffectiveAmountTest is BttBase {
     MockBidLib internal mockBidLib;

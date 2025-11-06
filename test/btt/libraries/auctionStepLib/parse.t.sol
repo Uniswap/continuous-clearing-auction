@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
-import {StepLib} from 'twap-auction/libraries/StepLib.sol';
+import {StepLib} from 'continuous-clearing-auction/libraries/StepLib.sol';
 
 contract ParseTest is BttBase {
     function test_WhenCalledWith8BytesOfData(uint24 _mps, uint40 _blockDelta) external {

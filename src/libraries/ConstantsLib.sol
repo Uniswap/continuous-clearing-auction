@@ -9,6 +9,9 @@ library ConstantsLib {
     /// @notice The upper bound of a ValueX7 value
     uint256 constant X7_UPPER_BOUND = type(uint256).max / 1e7;
     /// @notice The maximum total supply of tokens that can be sold is 1 trillion tokens assuming 18 decimals
+    /// @dev    We strongly believe that new tokens should have 18 decimals and a total supply less than one trillion.
+    ///         This upper bound is chosen to prevent the Auction from being used with an extremely large token supply,
+    ///         which would restrict the clearing price to be a very low price in the calculation below.
     uint128 constant MAX_TOTAL_SUPPLY = 1e30;
 
     /// @notice The maximum allowable price for a bid

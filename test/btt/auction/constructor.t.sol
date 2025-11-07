@@ -33,9 +33,9 @@ contract ConstructorTest is BttBase {
     ) external setupAuctionConstructorParams(_params) {
         // it sets bid max price to be ConstantsLib.MAX_BID_PRICE / totalSupply
         // and the final liquidity is within the bounds of Uniswap v4
-        _params.totalSupply = uint128(_bound(_params.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
+        _params.totalSupply = uint128(_bound(_params.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY)); // 1e30
         uint256 computedMaxBidPrice = ConstantsLib.MAX_BID_PRICE / _params.totalSupply;
-        clearingPrice = _bound(clearingPrice, 2 ** 32 + 1, computedMaxBidPrice);
+        clearingPrice = _bound(clearingPrice, 1, computedMaxBidPrice);
 
         uint256 currencyAmount = FixedPointMathLib.fullMulDiv(_params.totalSupply, clearingPrice, FixedPoint96.Q96);
 
@@ -43,12 +43,11 @@ contract ConstructorTest is BttBase {
         // If currency is currency0, we need to invert the price (price = currency1/currency0)
         uint256 temp;
         if (currencyIsToken0) {
+            vm.assume(clearingPrice > type(uint32).max);
             // Inverts the Q96 price: (2^192 * 2^96 / priceQ96) = (2^96 / actualPrice), maintaining Q96 format
             clearingPrice = FixedPointMathLib.fullMulDiv(1 << 192, 1 << 96, clearingPrice);
             temp = FixedPointMathLib.sqrt(clearingPrice);
         } else {
-            // TODO: if you don't inverse the price, you need to make sure the original
-            // price is less than type(uint160).max
             vm.assume(clearingPrice < type(uint160).max);
             temp = FixedPointMathLib.sqrt(clearingPrice << 96);
         }
@@ -121,22 +120,30 @@ contract ConstructorTest is BttBase {
         _;
     }
 
-    // super gas inefficient but whatever
-    function _findModulo(uint256 _value) internal pure returns (uint256) {
-        if (_value == 0) return 0; // Handle case when _value is 0
-        for (uint256 i = ConstantsLib.MIN_TICK_SPACING; i <= _value; i++) {
-            if (_value % i == 0) {
-                return i;
-            }
-        }
-        revert('No modulo found');
+    function test_WhenTotalSupplyIsEQMaxTotalSupply(AuctionFuzzConstructorParams memory _params) external {
+        // it sets bid max price to be 2^110
+
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        mParams.totalSupply = ConstantsLib.MAX_TOTAL_SUPPLY;
+        uint256 computedMaxBidPrice = ConstantsLib.MAX_BID_PRICE / mParams.totalSupply;
+
+        assertLt(computedMaxBidPrice, (1 << (96 + 8)));
+    }
+
+    function test_WhenTotalSupplyIsEQ1(AuctionFuzzConstructorParams memory _params) external {
+        // it sets bid max price to be 2^203
+
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        mParams.totalSupply = 1;
+        uint256 computedMaxBidPrice = ConstantsLib.MAX_BID_PRICE / mParams.totalSupply;
+
+        assertEq(computedMaxBidPrice, ConstantsLib.MAX_BID_PRICE);
     }
 
     function test_WhenFloorPricePlusTickSpacingLTMaxBidPrice(AuctionFuzzConstructorParams memory _params) external {
         // it reverts with {FloorPriceAndTickSpacingGreaterThanMaxBidPrice}
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
-        // Set total supply such that the computed max bid price is less than the ConstantsLib.MAX_BID_PRICE
         mParams.totalSupply = uint128(_bound(mParams.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
         uint256 computedMaxBidPrice = ConstantsLib.MAX_BID_PRICE / mParams.totalSupply;
 
@@ -167,7 +174,6 @@ contract ConstructorTest is BttBase {
         // it reverts with {FloorPriceAndTickSpacingGreaterThanMaxBidPrice}
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
-        // Set total supply such that the computed max bid price is greater than the ConstantsLib.MAX_BID_PRICE
         mParams.totalSupply = uint128(_bound(mParams.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
         uint256 computedMaxBidPrice = ConstantsLib.MAX_BID_PRICE / mParams.totalSupply;
 

@@ -8,39 +8,29 @@ library ConstantsLib {
     uint24 constant MPS = 1e7;
     /// @notice The upper bound of a ValueX7 value
     uint256 constant X7_UPPER_BOUND = type(uint256).max / 1e7;
-    /// @notice The maximum total supply of tokens that can be sold is 1 trillion tokens assuming 18 decimals
+
+    /// @notice The maximum total supply of tokens that can be sold is 2^100 tokens, which is just above 1e30.
     /// @dev    We strongly believe that new tokens should have 18 decimals and a total supply less than one trillion.
     ///         This upper bound is chosen to prevent the Auction from being used with an extremely large token supply,
     ///         which would restrict the clearing price to be a very low price in the calculation below.
-    uint128 constant MAX_TOTAL_SUPPLY = 1e30;
+    uint128 constant MAX_TOTAL_SUPPLY = 1 << 100;
 
     /// @notice The maximum allowable price for a bid
     /// @dev This is lower than the maximum supported price in Uniswap v4 which is just under 2^224.
     ///      Since the entire amount of currency raised could be used for a liquidity position,
     ///      we must use a lower bound based on the max liquidity per tick defined in Uniswap v4,
     ///      given the smallest possible tick spacing of 1, the max liquidity per tick (L_max) is 2^107.
-    ///
-    ///      Given that L_max = min(L_0, L_1), where L_0 is the amount0 liquidity and L_1 is the amount1 liquidity,
-    ///      we can express L in terms of amount0 and amount1, as well as some price bound `k`: [2^-k, 2^k]
-    ///         amount0 <= L_max * (sqrt(P_max) - sqrt(k)) / (sqrt(P_max) * sqrt(k))
-    ///                 <= L_max * (P_max^(-1/2) - k^(-1/2))
-    ///                 <= L_max * (k^(-1/2)) , given that P_max is extremely large and to the power of -1/2 is ~0
-    ///                 <= 2^(107 - k/2)
-    ///      and similarly,
-    ///         amount1 <= L_max * (k^(-1/2))
-    ///                 <= 2^(107 - k/2)
-    ///      Since `k` is minimized when amount0 or amount 1 are largest, so substitute the MAX_TOTAL_SUPPLY for amount to find `k`
-    ///                 <= 2^107 / 2^(k/2)
-    ///        2^(k/2)  <= 2^107 / 2^100
-    ///        k/2 <= 7
-    ///        k <= 14
-    ///      Therefore, our price range is [2^-14 to 2^14].
-    ///
-    ///      Since price is in Q96 form we need to multiply 2^107 by 2^96 before dividing by the total supply.
-    ///      If total supply is 1, the max price will be 2^203. The price will be 2^14 * 2^96 = 2^110 when total supply == MAX_TOTAL_SUPPLY.
-    ///      Integrators and users should be aware that in the case where the currency is less valuable
-    ///      than the token and the total supply is very large, the clearing price will be capped at a low price.
-    uint256 constant MAX_BID_PRICE = 1 << 203;
+    ///      In Q96 form, this is 2^107 * 2^96 = 2^203.
+    uint256 constant MAX_V4_LIQ_PER_TICK_X96 = 1 << 203;
+
+    /// @notice The maximum allowable price for a bid
+    /// @dev This is the maximum price that can be shifted left by 96 bits without overflowing a uint256
+    uint256 constant MAX_V4_PRICE = 1 << 160;
+
+    /// @notice The minimum allowable floor price is 2^32
+    /// @dev This is the minimum price that fits in a uint160 after being inversed
+    uint256 constant MIN_FLOOR_PRICE = 1 << 32;
+
     /// @notice The minimum allowable tick spacing
     /// @dev We don't allow tick spacing of 1 to avoid edge cases where the rounding of the clearing price
     ///      would cause the price to move between initialized ticks.

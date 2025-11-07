@@ -47,7 +47,7 @@ contract ConstructorTest is BttBase {
     {
         // it reverts with {TickPriceNotAtBoundary}
 
-        vm.assume(_floorPrice < ConstantsLib.MAX_BID_PRICE && _floorPrice % tickSpacing != 0);
+        vm.assume(_floorPrice < ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 && _floorPrice % tickSpacing != 0);
         floorPrice = _floorPrice;
 
         vm.expectRevert(ITickStorage.TickPriceNotAtBoundary.selector);
@@ -65,9 +65,9 @@ contract ConstructorTest is BttBase {
         // it emits {TickInitialized}
         // it emits {NextActiveTickUpdated}
 
-        tickSpacing = bound(_tickSpacing, 2, ConstantsLib.MAX_BID_PRICE - 1);
+        tickSpacing = bound(_tickSpacing, 2, ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 - 1);
 
-        uint256 tickIndex = bound(_floorPrice, 1, (ConstantsLib.MAX_BID_PRICE - 1) / tickSpacing);
+        uint256 tickIndex = bound(_floorPrice, 1, (ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 - 1) / tickSpacing);
         floorPrice = tickIndex * tickSpacing;
 
         vm.expectEmit(true, true, true, true);

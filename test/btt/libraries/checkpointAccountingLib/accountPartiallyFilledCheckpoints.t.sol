@@ -30,7 +30,7 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
 
         // assume reasonable bounds
         _bid.startCumulativeMps = uint24(bound(_bid.startCumulativeMps, 0, ConstantsLib.MPS - 1));
-        _bid.maxPrice = bound(_bid.maxPrice, 1, ConstantsLib.MAX_BID_PRICE);
+        _bid.maxPrice = bound(_bid.maxPrice, 1, ConstantsLib.MAX_V4_LIQ_PER_TICK_X96);
         // Small numerator
         _bid.amountQ96 = 1;
         ValueX7 _cumulativeCurrencyRaisedAtClearingPriceQ96_X7 = ValueX7.wrap(1);

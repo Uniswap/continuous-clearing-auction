@@ -79,8 +79,7 @@ contract ClaimTokensTest is BttBase {
         mParams.parameters.tickSpacing = bound(mParams.parameters.tickSpacing, 2, type(uint24).max) * FixedPoint96.Q96;
         mParams.parameters.floorPrice = bound(mParams.parameters.floorPrice, 1, 100) * mParams.parameters.tickSpacing;
 
-        uint256 computedMaxBidPrice = ConstantsLib.MAX_BID_PRICE / mParams.totalSupply;
-        vm.assume(mParams.parameters.floorPrice + mParams.parameters.tickSpacing <= computedMaxBidPrice);
+        vm.assume(mParams.parameters.floorPrice + mParams.parameters.tickSpacing <= _maxBidPrice(mParams.totalSupply));
 
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
@@ -150,8 +149,7 @@ contract ClaimTokensTest is BttBase {
         mParams.parameters.tickSpacing = bound(mParams.parameters.tickSpacing, 2, type(uint24).max) * FixedPoint96.Q96;
         mParams.parameters.floorPrice = bound(mParams.parameters.floorPrice, 1, 100) * mParams.parameters.tickSpacing;
 
-        uint256 computedMaxBidPrice = ConstantsLib.MAX_BID_PRICE / mParams.totalSupply;
-        vm.assume(mParams.parameters.floorPrice + mParams.parameters.tickSpacing <= computedMaxBidPrice);
+        vm.assume(mParams.parameters.floorPrice + mParams.parameters.tickSpacing <= _maxBidPrice(mParams.totalSupply));
 
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);

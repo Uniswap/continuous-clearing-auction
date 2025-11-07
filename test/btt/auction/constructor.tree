@@ -4,7 +4,7 @@ ConstructorTest
 ├── when total supply LTE MAX_TOTAL_SUPPLY
 │   └──  it calculates max bid price to be within uni v4 liquidity bounds
 ├── when type(uint256).max / totalSupply < uni v4 max tick
-│   └── it sets bid max price to be ConstantsLib.MAX_BID_PRICE / totalSupply
+│   └── it sets bid max price to be ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 / totalSupply
 └── when claimBlock GE endBlock
     ├── when uint256 max div totalSupply GE uni v4 max tick
     │   ├── it writes CLAIM_BLOCK

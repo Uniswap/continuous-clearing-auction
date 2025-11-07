@@ -37,11 +37,12 @@ contract TickStorageTest is Test, Assertions {
     MockTickStorage public tickStorage;
 
     modifier givenValidDeploymentParams(uint256 _tickSpacing, uint256 _floorPrice) {
-        $tickSpacing = bound(_tickSpacing, 2, ConstantsLib.MAX_BID_PRICE / 2);
+        $tickSpacing = bound(_tickSpacing, 2, ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 / 2);
         $floorPrice_rounded = _roundPriceDownToTickSpacing(_floorPrice, $tickSpacing);
 
         // Assume that floor price is at least one tick away from max price
-        $floorPrice_rounded = bound($floorPrice_rounded, $tickSpacing, ConstantsLib.MAX_BID_PRICE - $tickSpacing);
+        $floorPrice_rounded =
+            bound($floorPrice_rounded, $tickSpacing, ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 - $tickSpacing);
         $floorPrice_rounded = _roundPriceDownToTickSpacing($floorPrice_rounded, $tickSpacing);
         _;
     }
@@ -58,11 +59,11 @@ contract TickStorageTest is Test, Assertions {
 
     function helper__assumeValidPrice(uint256 _price) internal returns (uint256) {
         uint256 minPrice = _roundPriceUpToTickSpacing($floorPrice_rounded, $tickSpacing);
-        uint256 maxPrice = _roundPriceDownToTickSpacing(ConstantsLib.MAX_BID_PRICE, $tickSpacing);
+        uint256 maxPrice = _roundPriceDownToTickSpacing(ConstantsLib.MAX_V4_LIQ_PER_TICK_X96, $tickSpacing);
         _price = _bound(_price, minPrice, maxPrice);
         _price = _roundPriceDownToTickSpacing(_price, $tickSpacing);
         vm.assume(_price % $tickSpacing == 0);
-        vm.assume(_price > $floorPrice_rounded && _price < ConstantsLib.MAX_BID_PRICE);
+        vm.assume(_price > $floorPrice_rounded && _price < ConstantsLib.MAX_V4_LIQ_PER_TICK_X96);
         return _price;
     }
 

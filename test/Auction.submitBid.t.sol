@@ -69,7 +69,7 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
         // TOTAL_SUPPLY * MAX_BID_PRICE * MPS does not overflow a uint256
 
         _deploymentParams.totalSupply = 1;
-        uint256 maxBidPrice = ConstantsLib.MAX_BID_PRICE / _deploymentParams.totalSupply;
+        uint256 maxBidPrice = ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 / _deploymentParams.totalSupply;
 
         // Show that TOTAL_SUPPLY * MAX_BID_PRICE * MPS does not overflow a uint256
         uint256 totalSupplyTimesMaxBidPriceTimesMPS = _deploymentParams.totalSupply * maxBidPrice * ConstantsLib.MPS;
@@ -88,7 +88,7 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
         // TOTAL_SUPPLY * MAX_BID_PRICE * MPS does not overflow a uint256
 
         _deploymentParams.totalSupply = ConstantsLib.MAX_TOTAL_SUPPLY;
-        uint256 maxBidPrice = ConstantsLib.MAX_BID_PRICE / _deploymentParams.totalSupply;
+        uint256 maxBidPrice = ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 / _deploymentParams.totalSupply;
 
         // Show that TOTAL_SUPPLY * MAX_BID_PRICE * MPS does not overflow a uint256
         uint256 totalSupplyTimesMaxBidPriceTimesMPS = _deploymentParams.totalSupply * maxBidPrice * ConstantsLib.MPS;

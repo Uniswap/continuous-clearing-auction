@@ -30,7 +30,7 @@ contract BttBase is AuctionBaseTest {
 
     // Temporary clone of function within auction base test
     function _boundPriceParams(uint128 _totalSupply, AuctionParameters memory _parameters) private pure {
-        uint256 maxBidPrice = FixedPointMathLib.min(type(uint256).max / _totalSupply, ConstantsLib.MAX_BID_PRICE);
+        uint256 maxBidPrice = ConstantsLib.MAX_BID_PRICE / _totalSupply;
         // Bound tick spacing and floor price to reasonable values
         _parameters.floorPrice =
             _bound(_parameters.floorPrice, ConstantsLib.MIN_TICK_SPACING, maxBidPrice - ConstantsLib.MIN_TICK_SPACING);

@@ -80,7 +80,7 @@ contract ContinuousClearingAuction is
         // This would make it impossible to use the total amount of rased funds for a Uniswap v4 liquidity position.
         MAX_BID_PRICE = ConstantsLib.MAX_BID_PRICE / TOTAL_SUPPLY;
         // The floor price and tick spacing must allow for at least one tick above the floor price to be initialized
-        if (_parameters.floorPrice > MAX_BID_PRICE - _parameters.tickSpacing) {
+        if (_parameters.floorPrice + _parameters.tickSpacing > MAX_BID_PRICE) {
             revert FloorPriceAndTickSpacingGreaterThanMaxBidPrice(
                 _parameters.floorPrice + _parameters.tickSpacing, MAX_BID_PRICE
             );

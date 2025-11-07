@@ -116,11 +116,16 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Calculate the number of steps - ensure it's a divisor of ConstantsLib.MPS
         deploymentParams.numberOfSteps = _getRandomDivisorOfMPS();
 
-        // TODO: these values are wrong - tick spacing too large
-        deploymentParams.auctionParams.floorPrice =
-            uint128(_bound(uint256(vm.randomUint()), ConstantsLib.MIN_TICK_SPACING, type(uint64).max));
+        uint256 maxBidPrice = ConstantsLib.MAX_BID_PRICE / deploymentParams.totalSupply;
+        deploymentParams.auctionParams.floorPrice = uint128(
+            _bound(uint256(vm.randomUint()), ConstantsLib.MIN_TICK_SPACING, maxBidPrice - ConstantsLib.MIN_TICK_SPACING)
+        );
         deploymentParams.auctionParams.tickSpacing = uint256(
-            _bound(uint256(vm.randomUint()), ConstantsLib.MIN_TICK_SPACING, deploymentParams.auctionParams.floorPrice)
+            _bound(
+                uint256(vm.randomUint()),
+                ConstantsLib.MIN_TICK_SPACING,
+                maxBidPrice - deploymentParams.auctionParams.floorPrice
+            )
         );
         _boundPriceParams(deploymentParams);
 
@@ -179,9 +184,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     function _boundPriceParams(FuzzDeploymentParams memory _deploymentParams) private pure {
         // Re-implementation of the max bid price calculation in auction constructor
-        uint256 maxBidPrice = FixedPointMathLib.min(
-            ConstantsLib.MAX_BID_PRICE / _deploymentParams.totalSupply, ConstantsLib.MAX_BID_PRICE
-        );
+        uint256 maxBidPrice = ConstantsLib.MAX_BID_PRICE / _deploymentParams.totalSupply;
         // Bound tick spacing and floor price to reasonable values
         _deploymentParams.auctionParams.floorPrice = _bound(
             _deploymentParams.auctionParams.floorPrice,
@@ -189,7 +192,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
             maxBidPrice - ConstantsLib.MIN_TICK_SPACING
         );
 
-        // Bound tick spacing to be less than or equal to floor price
+        // Ensure there is at least one tick above the floor price to be initialized
         _deploymentParams.auctionParams.tickSpacing = _bound(
             _deploymentParams.auctionParams.tickSpacing,
             ConstantsLib.MIN_TICK_SPACING,
@@ -274,11 +277,11 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         uint256 _tickSpacing
     ) internal pure returns (uint256) {
         vm.assume(_totalSupply != 0 && _tickSpacing != 0 && _floorPrice != 0 && _maxPrice != 0);
-        vm.assume(_floorPrice + _tickSpacing <= ConstantsLib.MAX_BID_PRICE / _totalSupply);
-        _maxPrice = _bound(_maxPrice, _floorPrice + _tickSpacing, ConstantsLib.MAX_BID_PRICE / _totalSupply);
-
+        uint256 maxBidPrice = ConstantsLib.MAX_BID_PRICE / _totalSupply;
+        vm.assume(_floorPrice + _tickSpacing <= maxBidPrice);
+        _maxPrice = _bound(_maxPrice, _floorPrice + _tickSpacing, maxBidPrice);
         _maxPrice = helper__roundPriceDownToTickSpacing(_maxPrice, _tickSpacing);
-        vm.assume(_maxPrice > _floorPrice && _maxPrice < ConstantsLib.MAX_BID_PRICE / _totalSupply);
+        vm.assume(_maxPrice > _floorPrice && _maxPrice <= maxBidPrice);
         return _maxPrice;
     }
 

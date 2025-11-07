@@ -476,7 +476,8 @@ contract AuctionInvariantTest is AuctionUnitTest {
             // Mathematical form: avgPrice = currencySpent / tokensFilled ≤ maxPrice
             // Rearranged: currencySpent ≤ tokensFilled × maxPrice
 
-            uint256 currencySpent = (bid.amountQ96 / FixedPoint96.Q96) - refundAmount;
+            uint256 currencySpent =
+                (bid.amountQ96 - uint256(refundAmount << FixedPoint96.RESOLUTION)) >> FixedPoint96.RESOLUTION;
             uint256 maxValueAtBidPrice = FixedPointMathLib.fullMulDiv(bid.tokensFilled, bid.maxPrice, FixedPoint96.Q96);
 
             // Allow small rounding tolerance (up to 1 wei) for edge cases with tiny fills

@@ -36,14 +36,18 @@ contract ConstructorTest is BttBase {
         // Find sqrtPriceX96, have to shift left 96 to get to Q192 form first
         // If currency is currency0, we need to invert the price (price = currency1/currency0)
         if (currencyIsToken0) {
-            // Inverts the Q96 price: (2^192 / priceQ96) = (2^96 / actualPrice), maintaining Q96 format
-            clearingPrice = (1 << (FixedPoint96.RESOLUTION * 2)) / clearingPrice;
+            // Inverts the Q96 price: (2^192 * 2^96 / priceQ96) = (2^96 / actualPrice), maintaining Q96 format
+            clearingPrice = FixedPointMathLib.fullMulDiv(1 << 192, 1 << 96, clearingPrice);
         }
-        uint256 temp = FixedPointMathLib.sqrt(clearingPrice << FixedPoint96.RESOLUTION);
+        uint256 temp = FixedPointMathLib.sqrt(clearingPrice);
         if (temp > type(uint160).max) {
             revert('sqrt price overflow');
         }
         uint160 sqrtPriceX96 = uint160(temp);
+
+        emit log_named_uint('sqrtPriceX96', sqrtPriceX96);
+        emit log_named_uint('currencyAmount', currencyAmount);
+        emit log_named_uint('_params.totalSupply', _params.totalSupply);
 
         // Find the maximum liquidity that can be created with this price range
         // Should not revert

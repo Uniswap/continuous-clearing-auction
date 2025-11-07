@@ -25,11 +25,11 @@ library ConstantsLib {
 
     /// @notice The maximum allowable price for a bid
     /// @dev This is the maximum price that can be shifted left by 96 bits without overflowing a uint256
-    uint256 constant MAX_V4_PRICE = 1 << 160;
+    uint256 constant MAX_V4_PRICE = (1 << 160) - 1;
 
-    /// @notice The minimum allowable floor price is 2^32
+    /// @notice The minimum allowable floor price is 2^32 + 1
     /// @dev This is the minimum price that fits in a uint160 after being inversed
-    uint256 constant MIN_FLOOR_PRICE = 1 << 32;
+    uint256 constant MIN_FLOOR_PRICE = (1 << 32) + 1;
 
     /// @notice The minimum allowable tick spacing
     /// @dev We don't allow tick spacing of 1 to avoid edge cases where the rounding of the clearing price

@@ -34,13 +34,13 @@ contract BttBase is AuctionBaseTest {
             FixedPointMathLib.min(ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 / _totalSupply, ConstantsLib.MAX_V4_PRICE);
         // Bound tick spacing and floor price to reasonable values
         _parameters.floorPrice =
-            _bound(_parameters.floorPrice, ConstantsLib.MIN_TICK_SPACING, maxBidPrice - ConstantsLib.MIN_TICK_SPACING);
+            _bound(_parameters.floorPrice, ConstantsLib.MIN_FLOOR_PRICE, maxBidPrice - ConstantsLib.MIN_TICK_SPACING);
         // Bound tick spacing to allow for at least one tick above the floor price to be initialized
         _parameters.tickSpacing =
             _bound(_parameters.tickSpacing, ConstantsLib.MIN_TICK_SPACING, maxBidPrice - _parameters.floorPrice);
         // Round down floor price to the closest multiple of tick spacing
         _parameters.floorPrice = helper__roundPriceDownToTickSpacing(_parameters.floorPrice, _parameters.tickSpacing);
-        vm.assume(_parameters.floorPrice != 0);
+        vm.assume(_parameters.floorPrice != 0 && _parameters.floorPrice >= ConstantsLib.MIN_FLOOR_PRICE);
     }
 
     function validAuctionConstructorInputs(AuctionFuzzConstructorParams memory _params)

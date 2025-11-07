@@ -118,7 +118,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
         uint256 maxBidPrice = ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 / deploymentParams.totalSupply;
         deploymentParams.auctionParams.floorPrice = uint128(
-            _bound(uint256(vm.randomUint()), ConstantsLib.MIN_TICK_SPACING, maxBidPrice - ConstantsLib.MIN_TICK_SPACING)
+            _bound(uint256(vm.randomUint()), ConstantsLib.MIN_FLOOR_PRICE, maxBidPrice - ConstantsLib.MIN_TICK_SPACING)
         );
         deploymentParams.auctionParams.tickSpacing = uint256(
             _bound(
@@ -192,7 +192,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Bound tick spacing and floor price to reasonable values
         _deploymentParams.auctionParams.floorPrice = _bound(
             _deploymentParams.auctionParams.floorPrice,
-            ConstantsLib.MIN_TICK_SPACING,
+            ConstantsLib.MIN_FLOOR_PRICE,
             maxBidPrice - ConstantsLib.MIN_TICK_SPACING
         );
 
@@ -208,7 +208,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         );
 
         // Ensure floor price is non-zero
-        vm.assume(_deploymentParams.auctionParams.floorPrice != 0);
+        vm.assume(
+            _deploymentParams.auctionParams.floorPrice != 0
+                && _deploymentParams.auctionParams.floorPrice >= ConstantsLib.MIN_FLOOR_PRICE
+        );
     }
 
     function _generateAuctionSteps(uint256 numberOfSteps) private pure returns (bytes memory) {

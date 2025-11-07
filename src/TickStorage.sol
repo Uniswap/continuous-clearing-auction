@@ -30,6 +30,7 @@ abstract contract TickStorage is ITickStorage {
         if (_tickSpacing < ConstantsLib.MIN_TICK_SPACING) revert TickSpacingTooSmall();
         TICK_SPACING = _tickSpacing;
         if (_floorPrice == 0) revert FloorPriceIsZero();
+        if (_floorPrice < ConstantsLib.MIN_FLOOR_PRICE) revert FloorPriceTooLow();
         FLOOR_PRICE = _floorPrice;
         // Initialize the floor price as the first tick
         // _getTick will validate that it is also at a tick boundary

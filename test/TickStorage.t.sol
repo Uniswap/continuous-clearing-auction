@@ -41,9 +41,11 @@ contract TickStorageTest is Test, Assertions {
         $floorPrice_rounded = _roundPriceDownToTickSpacing(_floorPrice, $tickSpacing);
 
         // Assume that floor price is at least one tick away from max price
-        $floorPrice_rounded =
-            bound($floorPrice_rounded, $tickSpacing, ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 - $tickSpacing);
+        $floorPrice_rounded = bound(
+            $floorPrice_rounded, ConstantsLib.MIN_FLOOR_PRICE, ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 - $tickSpacing
+        );
         $floorPrice_rounded = _roundPriceDownToTickSpacing($floorPrice_rounded, $tickSpacing);
+        vm.assume($floorPrice_rounded >= ConstantsLib.MIN_FLOOR_PRICE);
         _;
     }
 
@@ -85,6 +87,9 @@ contract TickStorageTest is Test, Assertions {
             _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
         } else if (floorPrice == 0) {
             vm.expectRevert(ITickStorage.FloorPriceIsZero.selector);
+            _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
+        } else if (floorPrice < ConstantsLib.MIN_FLOOR_PRICE) {
+            vm.expectRevert(ITickStorage.FloorPriceTooLow.selector);
             _tickStorage = new MockTickStorage(tickSpacing, floorPrice);
         } else if (floorPrice % tickSpacing != 0) {
             vm.expectRevert(ITickStorage.TickPriceNotAtBoundary.selector);

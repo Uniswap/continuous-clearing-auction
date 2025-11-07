@@ -7,9 +7,14 @@ import {ContinuousClearingAuction} from 'src/ContinuousClearingAuction.sol';
 import {IContinuousClearingAuction} from 'src/interfaces/IContinuousClearingAuction.sol';
 import {ConstantsLib} from 'src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from 'src/libraries/FixedPoint96.sol';
+import {LiquidityAmountsUint256} from 'test/utils/LiquidityAmountsUint256.sol';
 import {LiquidityAmounts} from 'v4-periphery/src/libraries/LiquidityAmounts.sol';
 
 contract ConstructorTest is BttBase {
+    uint160 MIN_SQRT_PRICE = 4_295_128_739;
+    uint160 MAX_SQRT_PRICE = 1_461_446_703_485_210_103_287_273_052_203_988_822_378_723_970_342;
+    uint256 MAX_LIQUIDITY_BOUND = 1 << 107;
+
     function test_WhenClaimBlockLTEndBlock(AuctionFuzzConstructorParams memory _params) external {
         // it reverts with {ClaimBlockIsBeforeEndBlock}
 
@@ -20,6 +25,7 @@ contract ConstructorTest is BttBase {
         new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
     }
 
+    /// forge-config: default.fuzz.runs = 5000
     function test_WhenTotalSupplyIsLTEMAX_TOTAL_SUPPLYBidMaxPriceIsWithinV4LiquidityBounds(
         AuctionFuzzConstructorParams memory _params,
         uint256 clearingPrice,
@@ -27,27 +33,56 @@ contract ConstructorTest is BttBase {
     ) external setupAuctionConstructorParams(_params) {
         // it sets bid max price to be ConstantsLib.MAX_BID_PRICE / totalSupply
         // and the final liquidity is within the bounds of Uniswap v4
-
         _params.totalSupply = uint128(_bound(_params.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
         uint256 computedMaxBidPrice = ConstantsLib.MAX_BID_PRICE / _params.totalSupply;
-        clearingPrice = _bound(clearingPrice, 1, computedMaxBidPrice);
+        clearingPrice = _bound(clearingPrice, 2 ** 32 + 1, computedMaxBidPrice);
+
         uint256 currencyAmount = FixedPointMathLib.fullMulDiv(_params.totalSupply, clearingPrice, FixedPoint96.Q96);
 
         // Find sqrtPriceX96, have to shift left 96 to get to Q192 form first
         // If currency is currency0, we need to invert the price (price = currency1/currency0)
+        uint256 temp;
         if (currencyIsToken0) {
             // Inverts the Q96 price: (2^192 * 2^96 / priceQ96) = (2^96 / actualPrice), maintaining Q96 format
             clearingPrice = FixedPointMathLib.fullMulDiv(1 << 192, 1 << 96, clearingPrice);
+            temp = FixedPointMathLib.sqrt(clearingPrice);
+        } else {
+            // TODO: if you don't inverse the price, you need to make sure the original
+            // price is less than type(uint160).max
+            vm.assume(clearingPrice < type(uint160).max);
+            temp = FixedPointMathLib.sqrt(clearingPrice << 96);
         }
-        uint256 temp = FixedPointMathLib.sqrt(clearingPrice);
         if (temp > type(uint160).max) {
-            revert('sqrt price overflow');
+            revert('sqrtPriceX96 is greater than type(uint160).max');
         }
         uint160 sqrtPriceX96 = uint160(temp);
+
+        assertGt(sqrtPriceX96, MIN_SQRT_PRICE, 'sqrtPriceX96 is less than MIN_SQRT_PRICE');
+        assertLt(sqrtPriceX96, MAX_SQRT_PRICE, 'sqrtPriceX96 is greater than MAX_SQRT_PRICE');
 
         emit log_named_uint('sqrtPriceX96', sqrtPriceX96);
         emit log_named_uint('currencyAmount', currencyAmount);
         emit log_named_uint('_params.totalSupply', _params.totalSupply);
+
+        // Since sqrtPriceX96 is guaranteed to be between min and max
+        uint256 currencyL;
+        uint256 tokenL;
+        if (currencyIsToken0) {
+            currencyL =
+                LiquidityAmountsUint256.getLiquidityForAmount0_Uint256(sqrtPriceX96, MAX_SQRT_PRICE, currencyAmount);
+            tokenL = LiquidityAmountsUint256.getLiquidityForAmount1_Uint256(
+                MIN_SQRT_PRICE, sqrtPriceX96, _params.totalSupply
+            );
+        } else {
+            currencyL =
+                LiquidityAmountsUint256.getLiquidityForAmount1_Uint256(MIN_SQRT_PRICE, sqrtPriceX96, currencyAmount);
+            tokenL = LiquidityAmountsUint256.getLiquidityForAmount0_Uint256(
+                sqrtPriceX96, MAX_SQRT_PRICE, _params.totalSupply
+            );
+        }
+
+        assertLt(currencyL, MAX_LIQUIDITY_BOUND, 'currencyLiquidity is greater than MAX_LIQUIDITY_BOUND');
+        assertLt(tokenL, MAX_LIQUIDITY_BOUND, 'tokenLiquidity is greater than MAX_LIQUIDITY_BOUND');
 
         // Find the maximum liquidity that can be created with this price range
         // Should not revert

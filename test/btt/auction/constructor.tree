@@ -1,20 +1,21 @@
 ConstructorTest
 ├── when claimBlock LT endBlock
 │   └── it reverts with {ClaimBlockIsBeforeEndBlock}
-├── when total supply LTE MAX_TOTAL_SUPPLY
-│   └──  it calculates max bid price to be within uni v4 liquidity bounds
-├── when type(uint256).max / totalSupply < uni v4 max tick
-│   └── it sets bid max price to be ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 / totalSupply
 └── when claimBlock GE endBlock
-    ├── when uint256 max div totalSupply GE uni v4 max tick
-    │   ├── it writes CLAIM_BLOCK
-    │   ├── it writes VALIDATION_HOOK
-    │   ├── it writes BID_MAX_PRICE as v4 max tick
-    |   └── when floor price GT v4 max tick
-    |       └── it reverts with {FloorPriceAndTickSpacingGreaterThanMaxBidPrice}
-    └── when uint256 max div totalSupply LE uni v4 max tick
-        ├── it writes CLAIM_BLOCK
-        ├── it writes VALIDATION_HOOK
-        ├── it writes BID_MAX_PRICE as type(uint256).max / totalSupply
-        └── when floor price GT type(uint256).max / totalSupply
-            └── it reverts with {FloorPriceAndTickSpacingGreaterThanMaxBidPrice}
+    ├── it writes CLAIM_BLOCK
+    ├── it writes VALIDATION_HOOK
+    └── it writes BID_MAX_PRICE
+        ├── when total supply is EQ max total supply
+        │   └── it sets bid max price to be MaxBidPriceLib.maxBidPrice(MAX_TOTAL_SUPPLY)
+        ├── when total supply is EQ 1
+        │   └── it sets bid max price to be MAX_V4_PRICE
+        ├── when total supply is below lower total supply threshold
+        │   └── it sets bid max price to be MaxBidPriceLib.MAX_V4_PRICE
+        ├── when total supply is at or above total supply threshold
+        │   └── it sets bid max price to be MaxBidPriceLib.maxBidPrice(totalSupply)
+        └── when total supply is LTE max total supply
+            └── it calculates max bid price to be within uni v4 liquidity bounds
+                ├── when floor price plus tick spacing GT max bid price
+                │   └── it reverts with {FloorPriceAndTickSpacingGreaterThanMaxBidPrice}
+                └── when floor price plus tick spacing LT max bid price
+                    └── it succeeds

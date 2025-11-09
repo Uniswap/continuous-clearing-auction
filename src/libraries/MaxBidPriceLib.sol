@@ -8,6 +8,10 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 /// @dev The two are generally inversely correlated with certain constraints.
 library MaxBidPriceLib {
     /**
+     * @dev Given a total supply we want to find the maximum bid price such that both the
+     * token liquidity and currency liquidity at the end of the Auction are less than the
+     * maximum liquidity supported by Uniswap v4.
+     *
      * The chart below shows the shaded area of valid (max bid price, total supply) value pairs such that
      * both calculated liquidity values are less than the maximum liquidity supported by Uniswap v4.
      * (x axis represents the max bid price in log form, and y is the total supply in log form)
@@ -56,7 +60,7 @@ library MaxBidPriceLib {
      * x < 160, x > 32; (minimum price of 2^32, maximum price of 2^160)
      * y < 100; (minimum supply of 2^0 or 1, maximum supply of 2^100)
      *
-     * Equations:
+     * Equations for liquidity amounts in Uniswap v4:
      * 1) If currencyIsCurrency1, L_0 = (2^y * ((2^((x+96)/2) * 2^160) / 2^96)) / |2^((x+96)/2)-p_sqrtMax| < L_max
      * 2)                         L_1 = (2^(x+y)) / |2^((x+96)/2)-p_sqrtMin| < L_max
      * 3) if currencyIsCurrency0, L_0 = (2^y * p_sqrtMax * 2^((192-x+96)/2)) / (2^(192-x+96) * |p_sqrtMax-2^((192-x+96)/2)|) < L_max

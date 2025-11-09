@@ -6,11 +6,11 @@ import {AuctionParameters} from 'continuous-clearing-auction/interfaces/IContinu
 import {VmSafe} from 'forge-std/Vm.sol';
 // Chore: move to a shared place
 import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
+import {MaxBidPriceLib} from 'continuous-clearing-auction/libraries/MaxBidPriceLib.sol';
 import {AuctionStep} from 'continuous-clearing-auction/libraries/StepLib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {CompactStep, CompactStepLib, Step} from 'test/btt/libraries/auctionStepLib/StepUtils.sol';
 import {AuctionBaseTest} from 'test/utils/AuctionBaseTest.sol';
-import {MaxBidPriceLib} from 'continuous-clearing-auction/libraries/MaxBidPriceLib.sol';
 
 struct AuctionFuzzConstructorParams {
     address token;

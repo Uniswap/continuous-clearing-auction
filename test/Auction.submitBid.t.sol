@@ -7,12 +7,12 @@ import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
+import {MaxBidPriceLib} from '../src/libraries/MaxBidPriceLib.sol';
 import {ValueX7} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {FuzzBid, FuzzDeploymentParams} from './utils/FuzzStructs.sol';
 import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {MaxBidPriceLib} from '../src/libraries/MaxBidPriceLib.sol';
 
 contract AuctionSubmitBidTest is AuctionBaseTest {
     using BidLib for *;

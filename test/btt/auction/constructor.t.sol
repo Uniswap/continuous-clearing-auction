@@ -12,9 +12,17 @@ import {LiquidityAmountsUint256} from 'test/utils/LiquidityAmountsUint256.sol';
 import {LiquidityAmounts} from 'v4-periphery/src/libraries/LiquidityAmounts.sol';
 
 contract ConstructorTest is BttBase {
+    /// @dev min sqrt price copied from TickMath.MIN_SQRT_PRICE
     uint160 MIN_SQRT_PRICE = 4_295_128_739;
+    /// @dev max sqrt price copied from TickMath.MAX_SQRT_PRICE
     uint160 MAX_SQRT_PRICE = 1_461_446_703_485_210_103_287_273_052_203_988_822_378_723_970_342;
-    uint256 MAX_LIQUIDITY_BOUND = 1 << 107;
+
+    /**
+     * Uniswap v4 max liqudity per tick is 2^128 - 1 / number of ticks + 1
+     * Given the lowest supported tick spacing of 1, we have 2 * 887272 = 1774544 ticks
+     * Thus the bound on max liquidity per tick is (2^128 - 1) / (1774544 + 1) = 191757530477355300863043035987968
+     */
+    uint256 MAX_LIQUIDITY_BOUND = 191_757_530_477_355_300_863_043_035_987_968;
 
     function test_WhenClaimBlockLTEndBlock(AuctionFuzzConstructorParams memory _params) external {
         // it reverts with {ClaimBlockIsBeforeEndBlock}
@@ -86,14 +94,15 @@ contract ConstructorTest is BttBase {
         assertLt(tokenL, MAX_LIQUIDITY_BOUND, 'tokenLiquidity is greater than MAX_LIQUIDITY_BOUND');
 
         // Find the maximum liquidity that can be created with this price range
-        // Should not revert
-        LiquidityAmounts.getLiquidityForAmounts(
+        // Should not revert and should be under MAX_LIQUIDITY_BOUND
+        uint128 liquidity = LiquidityAmounts.getLiquidityForAmounts(
             sqrtPriceX96,
             4_295_128_739, // Minimum sqrt price
             1_461_446_703_485_210_103_287_273_052_203_988_822_378_723_970_342, // maximum sqrt price
             currencyIsToken0 ? currencyAmount : _params.totalSupply,
             currencyIsToken0 ? _params.totalSupply : currencyAmount
         );
+        assertLt(liquidity, MAX_LIQUIDITY_BOUND, 'liquidity is greater than MAX_LIQUIDITY_BOUND');
     }
 
     function test_WhenClaimBlockGEEndBlock(AuctionFuzzConstructorParams memory _params, uint64 _claimBlock)
@@ -123,13 +132,13 @@ contract ConstructorTest is BttBase {
     }
 
     function test_WhenTotalSupplyIsEQMaxTotalSupply(AuctionFuzzConstructorParams memory _params) external pure {
-        // it sets bid max price to be 2^110
+        // it sets bid max price to be 
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
         mParams.totalSupply = ConstantsLib.MAX_TOTAL_SUPPLY;
         uint256 computedMaxBidPrice = MaxBidPriceLib.maxBidPrice(mParams.totalSupply);
 
-        assertLt(computedMaxBidPrice, (1 << (96 + 8)));
+        assertEq(computedMaxBidPrice, MaxBidPriceLib.MAX_V4_PRICE);
     }
 
     function test_WhenTotalSupplyIsEQ1(AuctionFuzzConstructorParams memory _params) external pure {

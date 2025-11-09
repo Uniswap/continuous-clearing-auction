@@ -7,10 +7,10 @@ import {MockCheckpointStorage} from 'btt/mocks/MockCheckpointStorage.sol';
 import {Bid, BidLib} from 'continuous-clearing-auction/libraries/BidLib.sol';
 import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
 import {FixedPoint96} from 'continuous-clearing-auction/libraries/FixedPoint96.sol';
+import {MaxBidPriceLib} from 'continuous-clearing-auction/libraries/MaxBidPriceLib.sol';
 import {ValueX7} from 'continuous-clearing-auction/libraries/ValueX7Lib.sol';
 import {ValueX7Lib} from 'continuous-clearing-auction/libraries/ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {MaxBidPriceLib} from 'continuous-clearing-auction/libraries/MaxBidPriceLib.sol';
 
 contract AccountPartiallyFilledCheckpointsTest is BttBase {
     using ValueX7Lib for uint256;

@@ -20,13 +20,13 @@ library MaxBidPriceLib {
      *     |
      *     |
      *     |
-     *     |               ######################################### (110, 100)
+     *     |               ######################################### (x=110, y=100)
      *  96 +               #############################################
      *     |               #################################################
      *     |               #####################################################
      *     |               #########################################################
      *     |               #############################################################
-     *     |               ################################################################ (160, 75)
+     *     |               ################################################################ (x=160, y=75)
      *     |               ################################################################
      *     |               ################################################################
      *  64 +               ################################################################
@@ -48,10 +48,14 @@ library MaxBidPriceLib {
      *                    32              64              96              128             160             192             224             256
      *
      * Legend:
-     * L_max = 2^107
-     * p_sqrtMax = 1461446703485210103287273052203988822378723970342
-     * p_sqrtMin = 4295128739
-     * x < 160, x > 32; y < 100
+     * x = max bid price in log form
+     * y = total supply in log form
+     * L_max = 2^107 (the lowest max liquidity per tick supported in Uniswap v4)
+     * p_sqrtMax = 1461446703485210103287273052203988822378723970342 (max sqrt price in Uniswap v4)
+     * p_sqrtMin = 4295128739 (min sqrt price in Uniswap v4)
+     * x < 160, x > 32; (minimum price of 2^32, maximum price of 2^160)
+     * y < 100; (minimum supply of 2^0 or 1, maximum supply of 2^100)
+     *
      * Equations:
      * 1) If currencyIsCurrency1, L_0 = (2^y * ((2^((x+96)/2) * 2^160) / 2^96)) / |2^((x+96)/2)-p_sqrtMax| < L_max
      * 2)                         L_1 = (2^(x+y)) / |2^((x+96)/2)-p_sqrtMin| < L_max
@@ -70,7 +74,30 @@ library MaxBidPriceLib {
     /// @notice Calculates the maximum bid price for a given total supply
     /// @dev Total supply values under the LOWER_TOTAL_SUPPLY_THRESHOLD are capped at MAX_V4_PRICE
     function maxBidPrice(uint128 _totalSupply) internal pure returns (uint256) {
+        // Small total supply values would return a price which exceeds the max v4 price, so we cap it at MAX_V4_PRICE
         if (_totalSupply < LOWER_TOTAL_SUPPLY_THRESHOLD) return MAX_V4_PRICE;
+        /**
+         * Derivation: For a given total supply y (in log space), find the max bid price x (in log space)
+         * The equations in the chart are equivalent for both currency/token sort orders (intuitive given a full range position).
+         * Token1 liquidity is the limiting factor, so we use L_1 for simplicity:
+         *  2^(x+y) / |2^((x+96)/2)-p_sqrtMin| < L_max
+         *  2^(x+y) < L_max * |2^((x+96)/2)-p_sqrtMin|
+         * Knowing that for large values of x, |2^((x+96)/2)-p_sqrtMin| ~ 2^((x+96)/2), we can simplify to:
+         *  2^(x+y) < L_max * 2^((x+96)/2)
+         * Using 2^107 for L_max, we get:
+         *  2^(x+y) < 2^107 * 2^((x+96)/2)
+         * Taking the log2 of both sides, we get:
+         *  x + y < 107 + (x+96) / 2
+         *  x + y < 107 + x/2 + 48
+         * Since we are given total supply (y), we can solve for x:
+         *  x/2 = 107 + 48 - y
+         *  x/2 = 155 - y
+         *  x = 2 * (155 - y)
+         * We want to find 2^x, not `x` so we take both sides to the power of 2:
+         *  2^x = (2^155 / y) ** 2
+         *
+         * Because we return early if total supply is less than 2^75 the result of this will not overflow a uint256.
+         */
         return uint256((1 << 155) / _totalSupply) ** 2;
     }
 }

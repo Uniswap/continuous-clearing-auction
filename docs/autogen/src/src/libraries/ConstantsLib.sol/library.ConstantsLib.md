@@ -1,5 +1,5 @@
 # ConstantsLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/libraries/ConstantsLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/b619ad417255dd52e751fc565c8955914dbf07f4/src/libraries/ConstantsLib.sol)
 
 Library containing protocol constants
 
@@ -20,6 +20,18 @@ The upper bound of a ValueX7 value
 
 ```solidity
 uint256 constant X7_UPPER_BOUND = type(uint256).max / 1e7
+```
+
+
+### MIN_TICK_SPACING
+The minimum allowable tick spacing
+
+We don't allow tick spacing of 1 to avoid edge cases where the rounding of the clearing price
+would cause the price to move between initialized ticks.
+
+
+```solidity
+uint256 constant MIN_TICK_SPACING = 2
 ```
 
 

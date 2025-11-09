@@ -14,6 +14,13 @@ forge install
 forge test
 ```
 
+### pre-commit hooks
+
+```bash
+pre-commit install
+pre-commit run --all-files
+```
+
 ## Architecture
 
 ```mermaid
@@ -25,7 +32,6 @@ graph TD;
         BidStorage;
         CheckpointStorage;
         TickStorage;
-        PermitSingleForwarder;
         TokenCurrencyStorage;
     end
 
@@ -49,7 +55,6 @@ graph TD;
         ITickStorage;
         ICheckpointStorage;
         ITokenCurrencyStorage;
-        IPermitSingleForwarder;
         IValidationHook;
         IDistributionContract;
         IDistributionStrategy;
@@ -60,7 +65,6 @@ graph TD;
     AuctionFactory -- creates --> Auction;
     AuctionFactory -- implements --> IDistributionStrategy;
 
-    Auction -- inherits from --> PermitSingleForwarder;
     Auction -- inherits from --> BidStorage;
     Auction -- inherits from --> CheckpointStorage;
     Auction -- inherits from --> AuctionStepStorage;
@@ -98,16 +102,12 @@ graph TD;
 
     TokenCurrencyStorage -- uses --> CurrencyLibrary;
     TokenCurrencyStorage -- implements --> ITokenCurrencyStorage;
-
-    PermitSingleForwarder -- implements --> IPermitSingleForwarder;
-    PermitSingleForwarder -- interacts with --> IAllowanceTransfer;
 ```
 
 ## Contract Inheritance for Auction.sol
 
 ```mermaid
 classDiagram
-    class PermitSingleForwarder
     class BidStorage
     class CheckpointStorage
     class TickStorage
@@ -115,7 +115,6 @@ classDiagram
     class TokenCurrencyStorage
     class IAuction
 
-    Auction --|> PermitSingleForwarder
     Auction --|> BidStorage
     Auction --|> CheckpointStorage
     Auction --|> AuctionStepStorage
@@ -616,13 +615,3 @@ sequenceDiagram
         Auction->>Bidder: refund full currency amount (no tokens)
     end
 ```
-
-#### Price Discovery Visualization
-
-![Continuous Clearing Auction Animation](visualizations/auction_simple.gif)
-
-- **Fixed Supply**: 1,000 tokens
-- **Currency Requirements**: Constant at each price level
-- **Bid Restrictions**: New bids must be at or above clearing price
-- **Price Discovery**: Clearing price increases as demand exceeds supply
-- **Visual Indicators**: Green at clearing price, blue above, gray below

@@ -128,7 +128,9 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
                 maxBidPrice - deploymentParams.auctionParams.floorPrice
             )
         );
-        _boundPriceParams(deploymentParams);
+        deploymentParams.auctionParams.floorPrice = helper__roundPriceDownToTickSpacing(
+            deploymentParams.auctionParams.floorPrice, deploymentParams.auctionParams.tickSpacing
+        );
 
         // Set up the block numbers
         deploymentParams.auctionParams.startBlock = uint64(_bound(uint256(vm.randomUint()), 1, type(uint64).max));

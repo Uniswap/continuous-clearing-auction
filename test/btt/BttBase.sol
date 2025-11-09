@@ -10,6 +10,7 @@ import {AuctionStep} from 'continuous-clearing-auction/libraries/StepLib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {CompactStep, CompactStepLib, Step} from 'test/btt/libraries/auctionStepLib/StepUtils.sol';
 import {AuctionBaseTest} from 'test/utils/AuctionBaseTest.sol';
+import {MaxBidPriceLib} from 'continuous-clearing-auction/libraries/MaxBidPriceLib.sol';
 
 struct AuctionFuzzConstructorParams {
     address token;
@@ -30,8 +31,7 @@ contract BttBase is AuctionBaseTest {
 
     // Temporary clone of function within auction base test
     function _boundPriceParams(uint128 _totalSupply, AuctionParameters memory _parameters) private pure {
-        uint256 maxBidPrice =
-            FixedPointMathLib.min(ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 / _totalSupply, ConstantsLib.MAX_V4_PRICE);
+        uint256 maxBidPrice = MaxBidPriceLib.maxBidPrice(_totalSupply);
         // Bound tick spacing and floor price to reasonable values
         _parameters.floorPrice =
             _bound(_parameters.floorPrice, ConstantsLib.MIN_FLOOR_PRICE, maxBidPrice - ConstantsLib.MIN_TICK_SPACING);

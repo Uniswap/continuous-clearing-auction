@@ -9,6 +9,7 @@ import {IERC20Minimal} from 'continuous-clearing-auction/interfaces/external/IER
 import {Checkpoint} from 'continuous-clearing-auction/libraries/CheckpointLib.sol';
 import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
 import {FixedPoint96} from 'continuous-clearing-auction/libraries/FixedPoint96.sol';
+import {MaxBidPriceLib} from 'continuous-clearing-auction/libraries/MaxBidPriceLib.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 
 contract SweepUnsoldTokensTest is BttBase {
@@ -82,7 +83,7 @@ contract SweepUnsoldTokensTest is BttBase {
         mParams.parameters.tickSpacing = bound(mParams.parameters.tickSpacing, 2, type(uint24).max) * FixedPoint96.Q96;
         mParams.parameters.floorPrice = bound(mParams.parameters.floorPrice, 1, 100) * mParams.parameters.tickSpacing;
 
-        uint256 computedMaxBidPrice = _maxBidPrice(mParams.totalSupply);
+        uint256 computedMaxBidPrice = MaxBidPriceLib.maxBidPrice(mParams.totalSupply);
         vm.assume(mParams.parameters.floorPrice + mParams.parameters.tickSpacing <= computedMaxBidPrice);
 
         mParams.parameters.requiredCurrencyRaised = uint128(
@@ -172,7 +173,7 @@ contract SweepUnsoldTokensTest is BttBase {
         mParams.parameters.tickSpacing = bound(mParams.parameters.tickSpacing, 2, type(uint24).max) * FixedPoint96.Q96;
         mParams.parameters.floorPrice = bound(mParams.parameters.floorPrice, 1, 100) * mParams.parameters.tickSpacing;
 
-        uint256 computedMaxBidPrice = _maxBidPrice(mParams.totalSupply);
+        uint256 computedMaxBidPrice = MaxBidPriceLib.maxBidPrice(mParams.totalSupply);
         vm.assume(mParams.parameters.floorPrice + mParams.parameters.tickSpacing <= computedMaxBidPrice);
 
         mParams.parameters.requiredCurrencyRaised = uint128(

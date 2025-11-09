@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {Tick, TickStorage} from '../src/TickStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
-
+import {MaxBidPriceLib} from '../src/libraries/MaxBidPriceLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {Assertions} from './utils/Assertions.sol';
@@ -37,13 +37,12 @@ contract TickStorageTest is Test, Assertions {
     MockTickStorage public tickStorage;
 
     modifier givenValidDeploymentParams(uint256 _tickSpacing, uint256 _floorPrice) {
-        $tickSpacing = bound(_tickSpacing, 2, ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 / 2);
+        uint256 maxBidPrice = MaxBidPriceLib.MAX_V4_PRICE;
+        $tickSpacing = bound(_tickSpacing, 2, maxBidPrice / 2);
         $floorPrice_rounded = _roundPriceDownToTickSpacing(_floorPrice, $tickSpacing);
 
         // Assume that floor price is at least one tick away from max price
-        $floorPrice_rounded = bound(
-            $floorPrice_rounded, ConstantsLib.MIN_FLOOR_PRICE, ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 - $tickSpacing
-        );
+        $floorPrice_rounded = bound($floorPrice_rounded, ConstantsLib.MIN_FLOOR_PRICE, maxBidPrice - $tickSpacing);
         $floorPrice_rounded = _roundPriceDownToTickSpacing($floorPrice_rounded, $tickSpacing);
         vm.assume($floorPrice_rounded >= ConstantsLib.MIN_FLOOR_PRICE);
         _;
@@ -61,11 +60,11 @@ contract TickStorageTest is Test, Assertions {
 
     function helper__assumeValidPrice(uint256 _price) internal returns (uint256) {
         uint256 minPrice = _roundPriceUpToTickSpacing($floorPrice_rounded, $tickSpacing);
-        uint256 maxPrice = _roundPriceDownToTickSpacing(ConstantsLib.MAX_V4_LIQ_PER_TICK_X96, $tickSpacing);
+        uint256 maxPrice = _roundPriceDownToTickSpacing(MaxBidPriceLib.MAX_V4_PRICE, $tickSpacing);
         _price = _bound(_price, minPrice, maxPrice);
         _price = _roundPriceDownToTickSpacing(_price, $tickSpacing);
         vm.assume(_price % $tickSpacing == 0);
-        vm.assume(_price > $floorPrice_rounded && _price < ConstantsLib.MAX_V4_LIQ_PER_TICK_X96);
+        vm.assume(_price > $floorPrice_rounded && _price < MaxBidPriceLib.MAX_V4_PRICE);
         return _price;
     }
 

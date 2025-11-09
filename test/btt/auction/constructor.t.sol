@@ -7,6 +7,7 @@ import {ContinuousClearingAuction} from 'src/ContinuousClearingAuction.sol';
 import {IContinuousClearingAuction} from 'src/interfaces/IContinuousClearingAuction.sol';
 import {ConstantsLib} from 'src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from 'src/libraries/FixedPoint96.sol';
+import {MaxBidPriceLib} from 'src/libraries/MaxBidPriceLib.sol';
 import {LiquidityAmountsUint256} from 'test/utils/LiquidityAmountsUint256.sol';
 import {LiquidityAmounts} from 'v4-periphery/src/libraries/LiquidityAmounts.sol';
 
@@ -31,12 +32,14 @@ contract ConstructorTest is BttBase {
         uint256 clearingPrice,
         bool currencyIsToken0
     ) external setupAuctionConstructorParams(_params) {
-        // it sets bid max price to be ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 / totalSupply
+        // it sets bid max price to be MaxBidPriceLib.maxBidPrice(totalSupply)
         // and the final liquidity is within the bounds of Uniswap v4
-        _params.totalSupply = uint128(_bound(_params.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY)); // 1e30
-        uint256 computedMaxBidPrice = _maxBidPrice(_params.totalSupply);
+        _params.totalSupply = uint128(_bound(_params.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
+        uint256 computedMaxBidPrice = MaxBidPriceLib.maxBidPrice(_params.totalSupply);
         // The min possible clearing price is the min floor price
-        clearingPrice = _bound(clearingPrice, ConstantsLib.MIN_FLOOR_PRICE + 1, computedMaxBidPrice);
+        clearingPrice = _bound(clearingPrice, ConstantsLib.MIN_FLOOR_PRICE + 1, computedMaxBidPrice - 1);
+        assertLt(clearingPrice, MaxBidPriceLib.MAX_V4_PRICE, 'clearingPrice is greater than MAX_V4_PRICE');
+        assertLt(clearingPrice, type(uint160).max, 'clearingPrice is greater than type(uint160).max');
 
         uint256 currencyAmount = FixedPointMathLib.fullMulDiv(_params.totalSupply, clearingPrice, FixedPoint96.Q96);
 
@@ -45,12 +48,9 @@ contract ConstructorTest is BttBase {
         uint256 temp;
         if (currencyIsToken0) {
             // Inverts the Q96 price: (2^192 * 2^96 / priceQ96) = (2^96 / actualPrice), maintaining Q96 format
-            emit log_named_uint('clearingPrice', clearingPrice);
             clearingPrice = FixedPointMathLib.fullMulDiv(1 << 192, 1 << 96, clearingPrice);
             temp = FixedPointMathLib.sqrt(clearingPrice);
         } else {
-            emit log_named_uint('clearingPrice', clearingPrice);
-            emit log_named_uint('clearingPrice << 96', clearingPrice << 96);
             temp = FixedPointMathLib.sqrt(clearingPrice << 96);
         }
         if (temp > type(uint160).max) {
@@ -108,7 +108,7 @@ contract ConstructorTest is BttBase {
         mParams.parameters.claimBlock = uint64(bound(_claimBlock, mParams.parameters.endBlock, type(uint64).max));
         mParams.totalSupply = uint128(bound(mParams.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
 
-        uint256 computedMaxBidPrice = _maxBidPrice(mParams.totalSupply);
+        uint256 computedMaxBidPrice = MaxBidPriceLib.maxBidPrice(mParams.totalSupply);
 
         ContinuousClearingAuction auction =
             new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
@@ -122,24 +122,24 @@ contract ConstructorTest is BttBase {
         _;
     }
 
-    function test_WhenTotalSupplyIsEQMaxTotalSupply(AuctionFuzzConstructorParams memory _params) external {
+    function test_WhenTotalSupplyIsEQMaxTotalSupply(AuctionFuzzConstructorParams memory _params) external pure {
         // it sets bid max price to be 2^110
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
         mParams.totalSupply = ConstantsLib.MAX_TOTAL_SUPPLY;
-        uint256 computedMaxBidPrice = _maxBidPrice(mParams.totalSupply);
+        uint256 computedMaxBidPrice = MaxBidPriceLib.maxBidPrice(mParams.totalSupply);
 
         assertLt(computedMaxBidPrice, (1 << (96 + 8)));
     }
 
-    function test_WhenTotalSupplyIsEQ1(AuctionFuzzConstructorParams memory _params) external {
+    function test_WhenTotalSupplyIsEQ1(AuctionFuzzConstructorParams memory _params) external pure {
         // it sets bid max price to be MAX_V4_PRICE
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
         mParams.totalSupply = 1;
-        uint256 computedMaxBidPrice = _maxBidPrice(mParams.totalSupply);
+        uint256 computedMaxBidPrice = MaxBidPriceLib.maxBidPrice(mParams.totalSupply);
 
-        assertEq(computedMaxBidPrice, ConstantsLib.MAX_V4_PRICE);
+        assertEq(computedMaxBidPrice, MaxBidPriceLib.MAX_V4_PRICE);
     }
 
     function test_WhenFloorPricePlusTickSpacingLTMaxBidPrice(AuctionFuzzConstructorParams memory _params) external {
@@ -147,7 +147,7 @@ contract ConstructorTest is BttBase {
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
         mParams.totalSupply = uint128(_bound(mParams.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
-        uint256 computedMaxBidPrice = _maxBidPrice(mParams.totalSupply);
+        uint256 computedMaxBidPrice = MaxBidPriceLib.maxBidPrice(mParams.totalSupply);
 
         // Set the floor price to be the maximum possible floor price
         mParams.parameters.floorPrice = uint256(
@@ -177,7 +177,7 @@ contract ConstructorTest is BttBase {
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
         mParams.totalSupply = uint128(_bound(mParams.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
-        uint256 computedMaxBidPrice = _maxBidPrice(mParams.totalSupply);
+        uint256 computedMaxBidPrice = MaxBidPriceLib.maxBidPrice(mParams.totalSupply);
 
         // Set the floor price to be the maximum possible floor price
         mParams.parameters.floorPrice = computedMaxBidPrice;

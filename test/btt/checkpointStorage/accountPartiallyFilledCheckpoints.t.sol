@@ -10,6 +10,7 @@ import {FixedPoint96} from 'continuous-clearing-auction/libraries/FixedPoint96.s
 import {ValueX7} from 'continuous-clearing-auction/libraries/ValueX7Lib.sol';
 import {ValueX7Lib} from 'continuous-clearing-auction/libraries/ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {MaxBidPriceLib} from 'continuous-clearing-auction/libraries/MaxBidPriceLib.sol';
 
 contract AccountPartiallyFilledCheckpointsTest is BttBase {
     using ValueX7Lib for uint256;
@@ -47,7 +48,7 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
 
         _bid.amountQ96 =
             bound(_bid.amountQ96, 1 << FixedPoint96.RESOLUTION, type(uint128).max << FixedPoint96.RESOLUTION);
-        _bid.maxPrice = bound(_bid.maxPrice, 1, ConstantsLib.MAX_V4_LIQ_PER_TICK_X96);
+        _bid.maxPrice = bound(_bid.maxPrice, 1, MaxBidPriceLib.MAX_V4_PRICE);
         _bid.startCumulativeMps = uint24(bound(_bid.startCumulativeMps, 0, ConstantsLib.MPS - 1));
         _tickDemandQ96 = bound(_tickDemandQ96, BidLib.toEffectiveAmount(_bid), type(uint256).max / ConstantsLib.MPS);
 
@@ -100,7 +101,7 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
         // it returns (0, 0)
         _bid.amountQ96 =
             bound(_bid.amountQ96, 1 << FixedPoint96.RESOLUTION, type(uint128).max << FixedPoint96.RESOLUTION);
-        _bid.maxPrice = bound(_bid.maxPrice, 1, ConstantsLib.MAX_V4_LIQ_PER_TICK_X96);
+        _bid.maxPrice = bound(_bid.maxPrice, 1, MaxBidPriceLib.MAX_V4_PRICE);
         _bid.startCumulativeMps = uint24(bound(_bid.startCumulativeMps, 0, ConstantsLib.MPS - 1));
         _tickDemandQ96 = bound(_tickDemandQ96, BidLib.toEffectiveAmount(_bid), type(uint256).max / ConstantsLib.MPS);
 

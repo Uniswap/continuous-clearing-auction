@@ -19,6 +19,7 @@ import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
+import {MaxBidPriceLib} from './libraries/MaxBidPriceLib.sol';
 
 /// @title ContinuousClearingAuction
 /// @custom:security-contact security@uniswap.org
@@ -76,11 +77,8 @@ contract ContinuousClearingAuction is
 
         if (CLAIM_BLOCK < END_BLOCK) revert ClaimBlockIsBeforeEndBlock();
 
-        // We cannot support bids at prices which would cause the total currency raised to overflow a uint128.
-        // Very small total supply values will cause this price to exceed the maximum price allowed in Uniswap v4,
-        // so take the minimum of the two prices as the max bid price.
-        MAX_BID_PRICE =
-            FixedPointMathLib.min(ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 / TOTAL_SUPPLY, ConstantsLib.MAX_V4_PRICE);
+        // See MaxBidPriceLib library for more details on the bid price calculations.
+        MAX_BID_PRICE = MaxBidPriceLib.maxBidPrice(TOTAL_SUPPLY);
         // The floor price and tick spacing must allow for at least one tick above the floor price to be initialized
         if (_parameters.floorPrice + _parameters.tickSpacing > MAX_BID_PRICE) {
             revert FloorPriceAndTickSpacingGreaterThanMaxBidPrice(

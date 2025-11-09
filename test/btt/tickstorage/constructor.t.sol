@@ -6,6 +6,7 @@ import {BttBase} from 'btt/BttBase.sol';
 import {MockTickStorage} from 'btt/mocks/MockTickStorage.sol';
 import {ITickStorage} from 'continuous-clearing-auction/TickStorage.sol';
 import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
+import {MaxBidPriceLib} from 'continuous-clearing-auction/libraries/MaxBidPriceLib.sol';
 
 contract ConstructorTest is BttBase {
     uint256 tickSpacing;
@@ -66,7 +67,7 @@ contract ConstructorTest is BttBase {
         // it reverts with {TickPriceNotAtBoundary}
 
         vm.assume(
-            _floorPrice < ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 && _floorPrice >= ConstantsLib.MIN_FLOOR_PRICE
+            _floorPrice < MaxBidPriceLib.MAX_V4_PRICE && _floorPrice >= ConstantsLib.MIN_FLOOR_PRICE
                 && _floorPrice % tickSpacing != 0
         );
         floorPrice = _floorPrice;
@@ -87,9 +88,9 @@ contract ConstructorTest is BttBase {
         // it emits {TickInitialized}
         // it emits {NextActiveTickUpdated}
 
-        tickSpacing = bound(_tickSpacing, 2, ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 - 1);
+        tickSpacing = bound(_tickSpacing, 2, MaxBidPriceLib.MAX_V4_PRICE - 1);
 
-        uint256 tickIndex = bound(_floorPrice, 1, (ConstantsLib.MAX_V4_LIQ_PER_TICK_X96 - 1) / tickSpacing);
+        uint256 tickIndex = bound(_floorPrice, 1, (MaxBidPriceLib.MAX_V4_PRICE - 1) / tickSpacing);
         floorPrice = tickIndex * tickSpacing;
         vm.assume(floorPrice >= ConstantsLib.MIN_FLOOR_PRICE);
 

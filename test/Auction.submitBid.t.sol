@@ -26,7 +26,7 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
     {
         uint256 expectedBidId;
         for (uint256 i = 0; i < _bids.length; i++) {
-            (bool bidPlaced, uint256 bidId) = helper__trySubmitBid(expectedBidId, _bids[i], alice);
+            (bool bidPlaced,) = helper__trySubmitBid(expectedBidId, _bids[i], alice);
             if (bidPlaced) expectedBidId++;
 
             helper__maybeRollToNextBlock(i);
@@ -178,6 +178,23 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
 
         // Thus, there is no way to submit more than 429 bids into the auction which would
         // cause the operation TOTAL_SUPPLY * MAX_PRICE * MPS to overflow a uint256.
+    }
+
+    function test_submitBid_revertsWithBidAmountTooSmall(FuzzDeploymentParams memory _deploymentParams)
+        public
+        setUpAuctionFuzz(_deploymentParams)
+        givenAuctionHasStarted
+        givenFullyFundedAccount
+    {
+        vm.expectRevert(IContinuousClearingAuction.BidAmountTooSmall.selector);
+        auction.submitBid{value: 0}(
+            1,
+            0,
+            /* zero amount */
+            alice,
+            params.floorPrice,
+            bytes('')
+        );
     }
 
     function test_submitBid_revertsWithBidOwnerCannotBeZeroAddress(FuzzDeploymentParams memory _deploymentParams)

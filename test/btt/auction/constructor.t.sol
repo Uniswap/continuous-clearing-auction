@@ -97,11 +97,37 @@ contract ConstructorTest is BttBase {
         revert('No modulo found');
     }
 
+    function test_WhenTickSpacingGTMaxBidPrice_Uint256MaxDivTotalSupplyGEUniV4MaxTick(AuctionFuzzConstructorParams memory _params)
+        external
+        whenUint256MaxDivTotalSupplyGEUniV4MaxTick
+    {
+        // it reverts with {FloorPriceAndTickSpacingGreaterThanMaxBidPrice}
+
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        // Set total supply such that the computed max bid price is greater than the ConstantsLib.MAX_BID_PRICE
+        mParams.totalSupply = uint128(type(uint256).max / ConstantsLib.MAX_BID_PRICE) - 1;
+        // -> so the max bid price is equal to ConstantsLib.MAX_BID_PRICE
+
+        // Set the floor price to be the maximum possible floor price
+        mParams.parameters.floorPrice = ConstantsLib.MAX_BID_PRICE + 1;
+        // Set tick spacing to be any mod higher than MIN_TICK_SPACING
+        mParams.parameters.tickSpacing = ConstantsLib.MAX_BID_PRICE + 1;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IContinuousClearingAuction.FloorPriceAndTickSpacingGreaterThanMaxBidPrice.selector,
+                mParams.parameters.floorPrice + mParams.parameters.tickSpacing,
+                ConstantsLib.MAX_BID_PRICE
+            )
+        );
+        new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+    }
+
     function test_WhenFloorPricePlusTickSpacingGTMaxBidPrice_Uint256MaxDivTotalSupplyGEUniV4MaxTick(AuctionFuzzConstructorParams memory _params)
         external
         whenUint256MaxDivTotalSupplyGEUniV4MaxTick
     {
-        // it reverts with {TickSpacingTooLarge}
+        // it reverts with {FloorPriceAndTickSpacingGreaterThanMaxBidPrice}
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
         // Set total supply such that the computed max bid price is greater than the ConstantsLib.MAX_BID_PRICE
@@ -127,7 +153,7 @@ contract ConstructorTest is BttBase {
         external
         whenUint256MaxDivTotalSupplyLEUniV4MaxTick
     {
-        // it reverts with {TickSpacingTooLarge}
+        // it reverts with {FloorPriceAndTickSpacingGreaterThanMaxBidPrice}
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
         // Set total supply such that the computed max bid price is less than the ConstantsLib.MAX_BID_PRICE

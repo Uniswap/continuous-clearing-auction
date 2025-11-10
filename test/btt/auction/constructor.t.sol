@@ -92,7 +92,18 @@ contract ConstructorTest is BttBase {
         // it sets bid max price to be MaxBidPriceLib.MAX_V4_PRICE
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
-        mParams.totalSupply = uint128(bound(mParams.totalSupply, 1, MaxBidPriceLib.LOWER_TOTAL_SUPPLY_THRESHOLD - 1));
+        mParams.totalSupply = uint128(bound(mParams.totalSupply, 1, MaxBidPriceLib.LOWER_TOTAL_SUPPLY_THRESHOLD));
+
+        ContinuousClearingAuction auction =
+            new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        assertEq(auction.MAX_BID_PRICE(), MaxBidPriceLib.MAX_V4_PRICE);
+    }
+
+    function test_WhenTotalSupplyIsAtLowerTotalSupplyThreshold(AuctionFuzzConstructorParams memory _params) external {
+        // it sets bid max price to be MaxBidPriceLib.MAX_V4_PRICE
+
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        mParams.totalSupply = uint128(MaxBidPriceLib.LOWER_TOTAL_SUPPLY_THRESHOLD);
 
         ContinuousClearingAuction auction =
             new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);

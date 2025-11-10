@@ -79,7 +79,7 @@ library MaxBidPriceLib {
     /// @dev Total supply values under the LOWER_TOTAL_SUPPLY_THRESHOLD are capped at MAX_V4_PRICE
     function maxBidPrice(uint128 _totalSupply) internal pure returns (uint256) {
         // Small total supply values would return a price which exceeds the max v4 price, so we cap it at MAX_V4_PRICE
-        if (_totalSupply < LOWER_TOTAL_SUPPLY_THRESHOLD) return MAX_V4_PRICE;
+        if (_totalSupply <= LOWER_TOTAL_SUPPLY_THRESHOLD) return MAX_V4_PRICE;
         /**
          * Derivation: For a given total supply y (in log space), find the max bid price x (in log space)
          * The equations in the chart are equivalent for both currency/token sort orders (intuitive given a full range position).

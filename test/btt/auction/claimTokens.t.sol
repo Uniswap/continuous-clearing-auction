@@ -66,6 +66,8 @@ contract ClaimTokensTest is BttBase {
         // it claims tokens
         // it emits {TokensClaimed}
 
+        _requiredCurrencyRaised = uint128(bound(_requiredCurrencyRaised, 1, type(uint128).max));
+
         alice = makeAddr('alice');
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);

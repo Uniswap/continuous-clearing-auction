@@ -39,7 +39,7 @@ interface IContinuousClearingAuction is
     /// @notice Error thrown when the amount received is invalid
     error InvalidTokenAmountReceived();
 
-    /// @notice Error thrown when not enough amount is deposited
+    /// @notice Error thrown when an invalid value is deposited
     error InvalidAmount();
     /// @notice Error thrown when the bid owner is the zero address
     error BidOwnerCannotBeZeroAddress();

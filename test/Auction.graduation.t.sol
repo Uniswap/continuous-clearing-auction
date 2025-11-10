@@ -141,6 +141,11 @@ contract AuctionGraduationTest is AuctionBaseTest {
         // Dont do too many bids
         _numberOfBids = SafeCastLib.toUint128(_bound(_numberOfBids, 1, 10));
 
+        // Ensure an amount of at least 1 for every bid
+        $bidAmount = uint128(bound(_bidAmount, _numberOfBids, type(uint128).max));
+        // Ensure the graduation threshold is not met
+        vm.assume($bidAmount < params.requiredCurrencyRaised);
+
         uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids, $maxPrice);
 
         // Exit the bid

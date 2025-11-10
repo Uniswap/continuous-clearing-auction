@@ -155,7 +155,7 @@ interface IContinuousClearingAuction is
     function checkpoint() external returns (Checkpoint memory _checkpoint);
 
     /// @notice Whether the auction has graduated as of the given checkpoint
-    /// @dev The auction is considered `graudated` if the total currency raised exceeds the required currency raised
+    /// @dev The auction is considered graduated if the currency raised is greater than or equal to the required currency raised
     /// @dev Be aware that the latest checkpoint may be out of date
     /// @return bool True if the auction has graduated, false otherwise
     function isGraduated() external view returns (bool);

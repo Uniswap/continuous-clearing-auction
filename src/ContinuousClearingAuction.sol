@@ -80,7 +80,8 @@ contract ContinuousClearingAuction is
         // However, for tokens with large total supplys and low decimals it would be possible to exceed the Uniswap v4's max tick price
         MAX_BID_PRICE = FixedPointMathLib.min(type(uint256).max / TOTAL_SUPPLY, ConstantsLib.MAX_BID_PRICE);
         // The floor price and tick spacing must allow for at least one tick above the floor price to be initialized
-        if (_parameters.floorPrice > MAX_BID_PRICE - _parameters.tickSpacing) {
+        if (_parameters.tickSpacing > MAX_BID_PRICE || _parameters.floorPrice > MAX_BID_PRICE - _parameters.tickSpacing)
+        {
             revert FloorPriceAndTickSpacingGreaterThanMaxBidPrice(
                 _parameters.floorPrice + _parameters.tickSpacing, MAX_BID_PRICE
             );
@@ -552,7 +553,7 @@ contract ContinuousClearingAuction is
         // There is guaranteed to be a checkpoint at the bid's startBlock because we always checkpoint before bid submission
         Checkpoint memory startCheckpoint = _getCheckpoint(bidStartBlock);
 
-        // Intitialize the tokens filled and currency spent trackers
+        // Initialize the tokens filled and currency spent trackers
         uint256 tokensFilled;
         uint256 currencySpentQ96;
 

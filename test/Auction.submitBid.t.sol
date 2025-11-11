@@ -27,7 +27,7 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
     {
         uint256 expectedBidId;
         for (uint256 i = 0; i < _bids.length; i++) {
-            (bool bidPlaced, uint256 bidId) = helper__trySubmitBid(expectedBidId, _bids[i], alice);
+            (bool bidPlaced,) = helper__trySubmitBid(expectedBidId, _bids[i], alice);
             if (bidPlaced) expectedBidId++;
 
             helper__maybeRollToNextBlock(i);
@@ -95,6 +95,23 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
         uint256 totalSupplyTimesMaxBidPriceTimesMPS = _deploymentParams.totalSupply * maxBidPrice * ConstantsLib.MPS;
         assertLt(
             totalSupplyTimesMaxBidPriceTimesMPS, type(uint256).max, 'totalSupplyTimesMaxBidPriceTimesMPS would overflow'
+        );
+    }
+
+    function test_submitBid_revertsWithBidAmountTooSmall(FuzzDeploymentParams memory _deploymentParams)
+        public
+        setUpAuctionFuzz(_deploymentParams)
+        givenAuctionHasStarted
+        givenFullyFundedAccount
+    {
+        vm.expectRevert(IContinuousClearingAuction.BidAmountTooSmall.selector);
+        auction.submitBid{value: 0}(
+            1,
+            0,
+            /* zero amount */
+            alice,
+            params.floorPrice,
+            bytes('')
         );
     }
 

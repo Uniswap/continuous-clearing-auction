@@ -80,7 +80,8 @@ contract ContinuousClearingAuction is
         // See MaxBidPriceLib library for more details on the bid price calculations.
         MAX_BID_PRICE = MaxBidPriceLib.maxBidPrice(TOTAL_SUPPLY);
         // The floor price and tick spacing must allow for at least one tick above the floor price to be initialized
-        if (_parameters.floorPrice + _parameters.tickSpacing > MAX_BID_PRICE) {
+        if (_parameters.tickSpacing > MAX_BID_PRICE || _parameters.floorPrice > MAX_BID_PRICE - _parameters.tickSpacing)
+        {
             revert FloorPriceAndTickSpacingGreaterThanMaxBidPrice(
                 _parameters.floorPrice + _parameters.tickSpacing, MAX_BID_PRICE
             );
@@ -476,6 +477,7 @@ contract ContinuousClearingAuction is
     {
         // Bids cannot be submitted at the endBlock or after
         if (block.number >= END_BLOCK) revert AuctionIsOver();
+        if (amount == 0) revert BidAmountTooSmall();
         if (owner == address(0)) revert BidOwnerCannotBeZeroAddress();
         if (CURRENCY.isAddressZero()) {
             if (msg.value != amount) revert InvalidAmount();
@@ -552,7 +554,7 @@ contract ContinuousClearingAuction is
         // There is guaranteed to be a checkpoint at the bid's startBlock because we always checkpoint before bid submission
         Checkpoint memory startCheckpoint = _getCheckpoint(bidStartBlock);
 
-        // Intitialize the tokens filled and currency spent trackers
+        // Initialize the tokens filled and currency spent trackers
         uint256 tokensFilled;
         uint256 currencySpentQ96;
 

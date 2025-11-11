@@ -73,7 +73,7 @@ library MaxBidPriceLib {
     /// @notice The total supply value below which the maximum bid price is capped at MAX_V4_PRICE
     /// @dev Since the two are inversely correlated, generally lower total supply = higher max bid price
     ///      However, for very small total supply values we still can't exceed the max v4 price.
-    uint256 constant LOWER_TOTAL_SUPPLY_THRESHOLD = 1 << 75;
+    uint256 constant LOWER_TOTAL_SUPPLY_THRESHOLD = 1 << 64;
 
     /// @notice Calculates the maximum bid price for a given total supply
     /// @dev Total supply values under the LOWER_TOTAL_SUPPLY_THRESHOLD are capped at MAX_V4_PRICE
@@ -102,6 +102,15 @@ library MaxBidPriceLib {
          *
          * Because we return early if total supply is less than 2^75 the result of this will not overflow a uint256.
          */
-        return uint256((1 << 155) / _totalSupply) ** 2;
+        uint256 maxPriceKeepingLiquidityUnderMax = uint256((1 << 155) / _totalSupply) ** 2;
+
+        // Additionally, we need to ensure that the currency raised is less than uint128.max
+        // The maxmimum currencyRaised in the auction is equal to totalSupply * maxBidPrice / Q96
+        // To be conservative, we ensure that it is under 2^127, and rearranging the equation we get:
+        // maxBidPrice < (2^127 * Q96) / totalSupply = 2^223 / totalSupply
+        uint256 maxPriceKeepingCurrencyRaisedUnder128Max = uint256(1 << 223) / _totalSupply;
+
+        // Take the minimum of the two to ensure that the (max bid price, total supply) pair is within the valid range.
+        return FixedPointMathLib.min(maxPriceKeepingLiquidityUnderMax, maxPriceKeepingCurrencyRaisedUnder128Max);
     }
 }

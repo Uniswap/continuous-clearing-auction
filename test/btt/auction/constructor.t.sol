@@ -139,12 +139,13 @@ contract ConstructorTest is BttBase {
         _params.totalSupply = uint128(_bound(_params.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
         uint256 computedMaxBidPrice = MaxBidPriceLib.maxBidPrice(_params.totalSupply);
         // The min possible clearing price is the min floor price
-        clearingPrice = _bound(clearingPrice, ConstantsLib.MIN_FLOOR_PRICE + 1, computedMaxBidPrice - 1);
-        assertLt(clearingPrice, MaxBidPriceLib.MAX_V4_PRICE, 'clearingPrice is greater than MAX_V4_PRICE');
-        assertLt(clearingPrice, type(uint160).max, 'clearingPrice is greater than type(uint160).max');
+        clearingPrice = _bound(clearingPrice, ConstantsLib.MIN_FLOOR_PRICE + 1, computedMaxBidPrice);
+        assertLe(clearingPrice, MaxBidPriceLib.MAX_V4_PRICE, 'clearingPrice is greater than MAX_V4_PRICE');
+        assertLe(clearingPrice, type(uint160).max, 'clearingPrice is greater than type(uint160).max');
 
         // Calculate the currency amount if all of the supply was sold at the clearing price
         uint256 currencyAmount = FixedPointMathLib.fullMulDiv(_params.totalSupply, clearingPrice, FixedPoint96.Q96);
+        assertLe(currencyAmount, type(uint128).max, 'currencyAmount is greater than type(uint128).max');
 
         // If currency is currency0, we need to invert the price (price = currency1/currency0)
         uint256 temp;

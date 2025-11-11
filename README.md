@@ -174,7 +174,7 @@ Auction launchers should be aware of the following limitations regarding total s
 - The auction also ensures that the total currency raised does not exceed the maximum allowable liquidity for a Uniswap v4 liquidity position. The lowest bound for this is 2^107 wei (given the smallest possible tick spacing of 1).
 
 Given a total supply of:
-- 1 trillion 18 decimal tokens (1e30), the maximum bid price is 2^100. The max ratio of currency to token is 2^(100-96) = 2^4 = 16.
+- 1 trillion 18 decimal tokens (1e30), the maximum bid price is 2^110. The max ratio of currency to token is 2^(110-96) = 2^14 = 16384.
 - 1 billion 6 decimal tokens (1e15), the maximum bid price is 2^160. The max ratio of currency to token is 2^(160-96) = 2^64 = 18446744073709551616.
 
 We strongly recommend that the `currency` is chosen to be more valuable than `token`, and that the total supply is not excessively large.

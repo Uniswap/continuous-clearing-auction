@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Tick} from '../TickStorage.sol';
+/// @notice Each tick contains a pointer to the next price in the linked list
+///         and the cumulative currency demand at the tick's price level
+struct Tick {
+    uint256 next;
+    uint256 currencyDemandQ96;
+}
 
 /// @title ITickStorage
 /// @notice Interface for the TickStorage contract

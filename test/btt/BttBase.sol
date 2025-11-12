@@ -6,6 +6,7 @@ import {AuctionParameters} from 'continuous-clearing-auction/interfaces/IContinu
 import {VmSafe} from 'forge-std/Vm.sol';
 // Chore: move to a shared place
 import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
+import {MaxBidPriceLib} from 'continuous-clearing-auction/libraries/MaxBidPriceLib.sol';
 import {AuctionStep} from 'continuous-clearing-auction/libraries/StepLib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {CompactStep, CompactStepLib, Step} from 'test/btt/libraries/auctionStepLib/StepUtils.sol';
@@ -30,16 +31,16 @@ contract BttBase is AuctionBaseTest {
 
     // Temporary clone of function within auction base test
     function _boundPriceParams(uint128 _totalSupply, AuctionParameters memory _parameters) private pure {
-        uint256 maxBidPrice = FixedPointMathLib.min(type(uint256).max / _totalSupply, ConstantsLib.MAX_BID_PRICE);
+        uint256 maxBidPrice = MaxBidPriceLib.maxBidPrice(_totalSupply);
         // Bound tick spacing and floor price to reasonable values
         _parameters.floorPrice =
-            _bound(_parameters.floorPrice, ConstantsLib.MIN_TICK_SPACING, maxBidPrice - ConstantsLib.MIN_TICK_SPACING);
+            _bound(_parameters.floorPrice, ConstantsLib.MIN_FLOOR_PRICE, maxBidPrice - ConstantsLib.MIN_TICK_SPACING);
         // Bound tick spacing to allow for at least one tick above the floor price to be initialized
         _parameters.tickSpacing =
             _bound(_parameters.tickSpacing, ConstantsLib.MIN_TICK_SPACING, maxBidPrice - _parameters.floorPrice);
         // Round down floor price to the closest multiple of tick spacing
         _parameters.floorPrice = helper__roundPriceDownToTickSpacing(_parameters.floorPrice, _parameters.tickSpacing);
-        vm.assume(_parameters.floorPrice != 0);
+        vm.assume(_parameters.floorPrice != 0 && _parameters.floorPrice >= ConstantsLib.MIN_FLOOR_PRICE);
     }
 
     function validAuctionConstructorInputs(AuctionFuzzConstructorParams memory _params)
@@ -48,7 +49,7 @@ contract BttBase is AuctionBaseTest {
         returns (AuctionFuzzConstructorParams memory)
     {
         // Bound to be sensible values
-        vm.assume(_params.totalSupply > 0);
+        _params.totalSupply = uint128(_bound(_params.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
         vm.assume(_params.token != _params.parameters.currency);
         vm.assume(_params.token != address(0));
         vm.assume(_params.parameters.fundsRecipient != address(0));

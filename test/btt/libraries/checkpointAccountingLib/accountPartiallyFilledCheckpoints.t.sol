@@ -6,6 +6,7 @@ import {Bid, BidLib} from 'continuous-clearing-auction/libraries/BidLib.sol';
 import {CheckpointAccountingLib} from 'continuous-clearing-auction/libraries/CheckpointAccountingLib.sol';
 import {Checkpoint} from 'continuous-clearing-auction/libraries/CheckpointLib.sol';
 import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
+import {MaxBidPriceLib} from 'continuous-clearing-auction/libraries/MaxBidPriceLib.sol';
 import {ValueX7} from 'continuous-clearing-auction/libraries/ValueX7Lib.sol';
 
 contract AccountPartiallyFilledCheckpointsTest is BttBase {
@@ -30,7 +31,7 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
 
         // assume reasonable bounds
         _bid.startCumulativeMps = uint24(bound(_bid.startCumulativeMps, 0, ConstantsLib.MPS - 1));
-        _bid.maxPrice = bound(_bid.maxPrice, 1, ConstantsLib.MAX_BID_PRICE);
+        _bid.maxPrice = bound(_bid.maxPrice, 1, MaxBidPriceLib.MAX_V4_PRICE);
         // Small numerator
         _bid.amountQ96 = 1;
         ValueX7 _cumulativeCurrencyRaisedAtClearingPriceQ96_X7 = ValueX7.wrap(1);

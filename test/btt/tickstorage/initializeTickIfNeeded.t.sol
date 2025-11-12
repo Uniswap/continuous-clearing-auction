@@ -2,11 +2,10 @@
 pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
-import {ITickStorage} from 'continuous-clearing-auction/TickStorage.sol';
-
 import {MockTickStorage} from 'btt/mocks/MockTickStorage.sol';
-
+import {ITickStorage} from 'continuous-clearing-auction/TickStorage.sol';
 import {BidLib} from 'continuous-clearing-auction/libraries/BidLib.sol';
+import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
 import {ValueX7} from 'continuous-clearing-auction/libraries/ValueX7Lib.sol';
 import {StdStorage, stdStorage} from 'forge-std/StdStorage.sol';
 
@@ -22,6 +21,7 @@ contract InitializeTickIfNeededTest is BttBase {
     modifier deployTickStorage(uint128 _tickSpacing, uint64 _floorIndex) {
         tickSpacing = bound(_tickSpacing, 2, type(uint128).max);
         floorPrice = tickSpacing * bound(_floorIndex, 1, type(uint64).max);
+        vm.assume(floorPrice >= ConstantsLib.MIN_FLOOR_PRICE);
 
         tickStorage = new MockTickStorage(tickSpacing, floorPrice);
 
@@ -47,19 +47,6 @@ contract InitializeTickIfNeededTest is BttBase {
 
         _;
         assertTrue(price % tickSpacing == 0, 'price is not divisible by tick spacing');
-    }
-
-    function test_WhenPriceEQMAX_TICK_PTR()
-        external
-        deployTickStorage(1, 1)
-        whenPriceIsPerfectlyDivisibleByTickSpacing(type(uint256).max)
-    {
-        // it reverts with {InvalidTickPrice}
-
-        prevPrice = floorPrice;
-
-        vm.expectRevert(ITickStorage.InvalidTickPrice.selector);
-        tickStorage.initializeTickIfNeeded(prevPrice, price);
     }
 
     modifier whenPriceLTMAX_TICK_PTR() {

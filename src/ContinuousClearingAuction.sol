@@ -14,6 +14,7 @@ import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
+import {MaxBidPriceLib} from './libraries/MaxBidPriceLib.sol';
 import {AuctionStep, StepLib} from './libraries/StepLib.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
@@ -76,9 +77,8 @@ contract ContinuousClearingAuction is
 
         if (CLAIM_BLOCK < END_BLOCK) revert ClaimBlockIsBeforeEndBlock();
 
-        // We cannot support bids at prices which cause TOTAL_SUPPLY * maxPrice to overflow a uint256
-        // However, for tokens with large total supplys and low decimals it would be possible to exceed the Uniswap v4's max tick price
-        MAX_BID_PRICE = FixedPointMathLib.min(type(uint256).max / TOTAL_SUPPLY, ConstantsLib.MAX_BID_PRICE);
+        // See MaxBidPriceLib library for more details on the bid price calculations.
+        MAX_BID_PRICE = MaxBidPriceLib.maxBidPrice(TOTAL_SUPPLY);
         // The floor price and tick spacing must allow for at least one tick above the floor price to be initialized
         if (_parameters.tickSpacing > MAX_BID_PRICE || _parameters.floorPrice > MAX_BID_PRICE - _parameters.tickSpacing)
         {
@@ -399,7 +399,7 @@ contract ContinuousClearingAuction is
         returns (uint256 bidId)
     {
         // Reject bids which would cause TOTAL_SUPPLY * maxPrice to overflow a uint256
-        if (maxPrice > MAX_BID_PRICE) revert InvalidBidPriceTooHigh();
+        if (maxPrice > MAX_BID_PRICE) revert InvalidBidPriceTooHigh(maxPrice, MAX_BID_PRICE);
 
         // Get the latest checkpoint before validating the bid
         Checkpoint memory _checkpoint = checkpoint();

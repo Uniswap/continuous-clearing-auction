@@ -37,7 +37,9 @@ The files under `src/` are covered under the Uniswap Labs bug bounty program [he
 
 security@uniswap.org
 
-### [Whitepaper](https://github.com/Uniswap/continuous-clearing-auction/blob/main/docs/assets/whitepaper.pdf)
+### Whitepaper
+
+The [whitepaper](./docs/assets/whitepaper.pdf) for the Continuous Clearing Auction.
 
 ## Risks from participating in the auction
 

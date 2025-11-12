@@ -35,7 +35,7 @@ library MaxBidPriceLib {
      * |               ########################################################## :    :
      * |               +#########################################################+#  :
      * |               #############################################################+  :
-     * 64 +            +###############################################################: (x=160, y=64)
+     * 64 +            +###############################################################: (x=160, y=62)
      * |               ################################################################:  :
      * |               +###############################################################  :   :
      * |               ################################################################:    :
@@ -76,7 +76,7 @@ library MaxBidPriceLib {
     /// @notice The total supply value below which the maximum bid price is capped at MAX_V4_PRICE
     /// @dev Since the two are inversely correlated, generally lower total supply = higher max bid price
     ///      However, for very small total supply values we still can't exceed the max v4 price.
-    uint256 constant LOWER_TOTAL_SUPPLY_THRESHOLD = 1 << 64;
+    uint256 constant LOWER_TOTAL_SUPPLY_THRESHOLD = 1 << 62;
 
     /// @notice Calculates the maximum bid price for a given total supply
     /// @dev Total supply values under the LOWER_TOTAL_SUPPLY_THRESHOLD are capped at MAX_V4_PRICE
@@ -103,17 +103,18 @@ library MaxBidPriceLib {
          * We want to find 2^x, not `x` so we take both sides to the power of 2:
          *  2^x = (2^155 / y) ** 2
          *
-         * Because we return early if total supply is less than 2^64 the result of this will not overflow a uint256.
+         * Because we return early if total supply is less than 2^62 the result of this will not overflow a uint256.
          */
         uint256 maxPriceKeepingLiquidityUnderMax = uint256((1 << 155) / _totalSupply) ** 2;
 
-        // Additionally, we need to ensure that the currency raised is less than uint128.max
+        // Additionally, we need to ensure that the currency raised is less than int128.max (2^127)
+        // since PoolManager will cast it to int128 when the position is created.
         // The maxmimum currencyRaised in the auction is equal to totalSupply * maxBidPrice / Q96
-        // To be conservative, we ensure that it is under 2^127, and rearranging the equation we get:
-        // maxBidPrice < (2^127 * Q96) / totalSupply = 2^223 / totalSupply
-        uint256 maxPriceKeepingCurrencyRaisedUnder128Max = uint256(1 << 223) / _totalSupply;
+        // To be conservative, we ensure that it is under 2^126, and rearranging the equation we get:
+        // maxBidPrice < (2^126 * Q96) / totalSupply = 2^222 / totalSupply
+        uint256 maxPriceKeepingCurrencyRaisedUnderInt128Max = uint256(1 << 222) / _totalSupply;
 
         // Take the minimum of the two to ensure that the (max bid price, total supply) pair is within the valid range.
-        return FixedPointMathLib.min(maxPriceKeepingLiquidityUnderMax, maxPriceKeepingCurrencyRaisedUnder128Max);
+        return FixedPointMathLib.min(maxPriceKeepingLiquidityUnderMax, maxPriceKeepingCurrencyRaisedUnderInt128Max);
     }
 }

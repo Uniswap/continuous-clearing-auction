@@ -76,6 +76,9 @@ library MaxBidPriceLib {
     /// @notice The total supply value below which the maximum bid price is capped at MAX_V4_PRICE
     /// @dev Since the two are inversely correlated, generally lower total supply = higher max bid price
     ///      However, for very small total supply values we still can't exceed the max v4 price.
+    ///      This is the intersection of `maxPriceKeepingCurrencyRaisedUnderInt128Max` and MAX_V4_PRICE,
+    ///      meaning that because we can't support prices above uint160.max, all total supply values at or below
+    ///      this threshold are capped at MAX_V4_PRICE.
     uint256 constant LOWER_TOTAL_SUPPLY_THRESHOLD = 1 << 62;
 
     /// @notice Calculates the maximum bid price for a given total supply
@@ -107,7 +110,7 @@ library MaxBidPriceLib {
          */
         uint256 maxPriceKeepingLiquidityUnderMax = uint256((1 << 155) / _totalSupply) ** 2;
 
-        // Additionally, we need to ensure that the currency raised is less than int128.max (2^127)
+        // Additionally, we need to ensure that the currency raised is <= int128.max (2^127 - 1)
         // since PoolManager will cast it to int128 when the position is created.
         // The maxmimum currencyRaised in the auction is equal to totalSupply * maxBidPrice / Q96
         // To be conservative, we ensure that it is under 2^126, and rearranging the equation we get:

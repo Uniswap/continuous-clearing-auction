@@ -38,7 +38,7 @@ runs = 2500
 
 [profile.default.invariant]
 fail_on_revert = true
-runs = 10
+runs = 100
 depth = 1000
 
 [profile.pr.fuzz]
@@ -46,6 +46,10 @@ runs = 2500
 
 [profile.ci.fuzz]
 runs = 2500
+
+[profile.ci.invariant]
+runs = 1000
+depth = 2500
 
 [profile.debug]
 via_ir = false

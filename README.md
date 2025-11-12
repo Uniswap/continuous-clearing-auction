@@ -51,7 +51,7 @@ The [whitepaper](./docs/assets/whitepaper.pdf) for the Continuous Clearing Aucti
 
 ### Bidders must validate all parameters
 
-And Auction can be configured with:
+An Auction can be configured with:
 
 - Excessively high floor prices which would result in a loss of funds for participants.
 - Extreme start and end blocks which would prevent bidders from receiving refunds of currency or tokens.

@@ -1,5 +1,5 @@
 # ValueX7Lib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/libraries/ValueX7Lib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/b619ad417255dd52e751fc565c8955914dbf07f4/src/libraries/ValueX7Lib.sol)
 
 
 ## State Variables
@@ -44,22 +44,4 @@ function scaleDownToUint256(ValueX7 value) internal pure returns (uint256);
 |----|----|-----------|
 |`<none>`|`uint256`|The result as a uint256|
 
-
-### wrapAndFullMulDiv
-
-Helper wrapper around fullMulDiv to support operations with uint256 values
-
-
-```solidity
-function wrapAndFullMulDiv(ValueX7 a, uint256 b, uint256 c) internal pure returns (ValueX7);
-```
-
-### wrapAndFullMulDivUp
-
-Helper wrapper around fullMulDivUp to support operations with uint256 values
-
-
-```solidity
-function wrapAndFullMulDivUp(ValueX7 a, uint256 b, uint256 c) internal pure returns (ValueX7);
-```
 

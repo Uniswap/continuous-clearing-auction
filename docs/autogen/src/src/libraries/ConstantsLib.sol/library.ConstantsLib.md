@@ -1,5 +1,5 @@
 # ConstantsLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/libraries/ConstantsLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ab88be10ec09bebb9ce21e524c265366917b5a1f/src/libraries/ConstantsLib.sol)
 
 Library containing protocol constants
 
@@ -23,13 +23,39 @@ uint256 constant X7_UPPER_BOUND = type(uint256).max / 1e7
 ```
 
 
-### MAX_BID_PRICE
-The maximum allowable price for a bid, defined as the square of MAX_SQRT_PRICE from Uniswap v4's TickMath library.
+### MAX_TOTAL_SUPPLY
+The maximum total supply of tokens that can be sold in the Auction
+
+This is set to 2^100 tokens, which is just above 1e30, or one trillion units of a token with 18 decimals.
+This upper bound is chosen to prevent the Auction from being used with an extremely large token supply,
+which would restrict the clearing price to be a very low price in the calculation below.
 
 
 ```solidity
-uint256 constant MAX_BID_PRICE =
-    26_957_920_004_054_754_506_022_898_809_067_591_261_277_585_227_686_421_694_841_721_768_917
+uint128 constant MAX_TOTAL_SUPPLY = 1 << 100
+```
+
+
+### MIN_FLOOR_PRICE
+The minimum allowable floor price is type(uint32).max + 1
+
+This is the minimum price that fits in a uint160 after being inversed
+
+
+```solidity
+uint256 constant MIN_FLOOR_PRICE = uint256(type(uint32).max) + 1
+```
+
+
+### MIN_TICK_SPACING
+The minimum allowable tick spacing
+
+We don't support tick spacings of 1 to avoid edge cases where the rounding of the clearing price
+would cause the price to move between initialized ticks.
+
+
+```solidity
+uint256 constant MIN_TICK_SPACING = 2
 ```
 
 

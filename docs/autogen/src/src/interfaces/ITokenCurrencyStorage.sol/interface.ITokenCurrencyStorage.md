@@ -1,5 +1,5 @@
 # ITokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/interfaces/ITokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ab88be10ec09bebb9ce21e524c265366917b5a1f/src/interfaces/ITokenCurrencyStorage.sol)
 
 Interface for token and currency storage operations
 
@@ -104,6 +104,14 @@ Error thrown when the total supply is zero
 
 ```solidity
 error TotalSupplyIsZero();
+```
+
+### TotalSupplyIsTooLarge
+Error thrown when the total supply is too large
+
+
+```solidity
+error TotalSupplyIsTooLarge();
 ```
 
 ### FundsRecipientIsZero

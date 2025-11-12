@@ -1,5 +1,5 @@
 # ContinuousClearingAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/b4d0a06daced32c81e0487f3201e863948da89b2/src/ContinuousClearingAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ab88be10ec09bebb9ce21e524c265366917b5a1f/src/ContinuousClearingAuction.sol)
 
 **Inherits:**
 [BidStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [StepStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/StepStorage.sol/abstract.StepStorage.md), [TickStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/TickStorage.sol/abstract.TickStorage.md), [TokenCurrencyStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IContinuousClearingAuction](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/IContinuousClearingAuction.sol/interface.IContinuousClearingAuction.md)
@@ -159,7 +159,7 @@ function onTokensReceived() external;
 
 Whether the auction has graduated as of the given checkpoint
 
-The auction is considered `graudated` if the total currency raised exceeds the required currency raised
+The auction is considered graduated if the currency raised is greater than or equal to the required currency raised
 
 
 ```solidity

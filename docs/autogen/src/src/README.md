@@ -8,6 +8,5 @@
 - [ContinuousClearingAuction](ContinuousClearingAuction.sol/contract.ContinuousClearingAuction.md)
 - [ContinuousClearingAuctionFactory](ContinuousClearingAuctionFactory.sol/contract.ContinuousClearingAuctionFactory.md)
 - [StepStorage](StepStorage.sol/abstract.StepStorage.md)
-- [Tick](TickStorage.sol/struct.Tick.md)
 - [TickStorage](TickStorage.sol/abstract.TickStorage.md)
 - [TokenCurrencyStorage](TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md)

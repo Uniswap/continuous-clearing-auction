@@ -10,6 +10,7 @@
 - [Currency](CurrencyLibrary.sol/type.Currency.md)
 - [CurrencyLibrary](CurrencyLibrary.sol/library.CurrencyLibrary.md)
 - [FixedPoint96](FixedPoint96.sol/library.FixedPoint96.md)
+- [MaxBidPriceLib](MaxBidPriceLib.sol/library.MaxBidPriceLib.md)
 - [AuctionStep](StepLib.sol/struct.AuctionStep.md)
 - [StepLib](StepLib.sol/library.StepLib.md)
 - [ValidationHookLib](ValidationHookLib.sol/library.ValidationHookLib.md)

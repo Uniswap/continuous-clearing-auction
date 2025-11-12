@@ -1,5 +1,5 @@
 # IContinuousClearingAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/2d1f484976971780a7d5c3026e11b7b066ca6758/src/interfaces/IContinuousClearingAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ab88be10ec09bebb9ce21e524c265366917b5a1f/src/interfaces/IContinuousClearingAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IStepStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/IStepStorage.sol/interface.IStepStorage.md), [ITokenCurrencyStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
@@ -89,7 +89,7 @@ function checkpoint() external returns (Checkpoint memory _checkpoint);
 
 Whether the auction has graduated as of the given checkpoint
 
-The auction is considered `graudated` if the total currency raised exceeds the required currency raised
+The auction is considered graduated if the currency raised is greater than or equal to the required currency raised
 
 Be aware that the latest checkpoint may be out of date
 
@@ -380,7 +380,7 @@ error InvalidTokenAmountReceived();
 ```
 
 ### InvalidAmount
-Error thrown when not enough amount is deposited
+Error thrown when an invalid value is deposited
 
 
 ```solidity
@@ -408,8 +408,15 @@ Error thrown when the bid price is too high given the auction's total supply
 
 
 ```solidity
-error InvalidBidPriceTooHigh();
+error InvalidBidPriceTooHigh(uint256 maxPrice, uint256 maxBidPrice);
 ```
+
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`maxPrice`|`uint256`|The price of the bid|
+|`maxBidPrice`|`uint256`|The max price allowed for a bid|
 
 ### BidAmountTooSmall
 Error thrown when the bid amount is too small

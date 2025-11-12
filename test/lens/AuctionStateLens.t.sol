@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {IAuction} from '../../src/interfaces/IAuction.sol';
+import {IContinuousClearingAuction} from '../../src/interfaces/IContinuousClearingAuction.sol';
 import {AuctionState, AuctionStateLens} from '../../src/lens/AuctionStateLens.sol';
 import {Checkpoint} from '../../src/libraries/CheckpointLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
@@ -13,7 +13,7 @@ contract AuctionStateLensTest is AuctionUnitTest {
 
     function setUp() public {
         setUpMockAuction();
-        lens = new AuctionStateLens(IAuction(address(mockAuction)));
+        lens = new AuctionStateLens();
     }
 
     function test_state_succeeds() public {
@@ -27,7 +27,8 @@ contract AuctionStateLensTest is AuctionUnitTest {
         vm.revertTo(snapshotId);
         // Check that there is no checkpoint on the auction
         assertEq(mockAuction.lastCheckpointedBlock(), 0);
-        (bool success, bytes memory reason) = address(lens).call(abi.encodeCall(lens.state, ()));
+        (bool success, bytes memory reason) =
+            address(lens).call(abi.encodeCall(lens.state, (IContinuousClearingAuction(address(mockAuction)))));
 
         assertEq(success, true);
         AuctionState memory state = abi.decode(reason, (AuctionState));
@@ -57,7 +58,8 @@ contract AuctionStateLensTest is AuctionUnitTest {
         vm.revertTo(snapshotId);
         // Check that there is no checkpoint on the auction
         assertEq(mockAuction.lastCheckpointedBlock(), 0);
-        (bool success, bytes memory reason) = address(lens).call(abi.encodeCall(lens.state, ()));
+        (bool success, bytes memory reason) =
+            address(lens).call(abi.encodeCall(lens.state, (IContinuousClearingAuction(address(mockAuction)))));
         assertEq(success, true);
         AuctionState memory state = abi.decode(reason, (AuctionState));
         assertEq(state.checkpoint, checkpoint);

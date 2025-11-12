@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {IAuction} from '../interfaces/IAuction.sol';
+import {IContinuousClearingAuction} from '../interfaces/IContinuousClearingAuction.sol';
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
 
 /// @notice The state of the auction containing the latest checkpoint
@@ -16,27 +16,21 @@ struct AuctionState {
 /// @title AuctionStateLens
 /// @notice Lens contract for reading the state of the Auction contract
 contract AuctionStateLens {
-    IAuction public immutable auction;
-
     /// @notice Error thrown when the checkpoint fails
     error CheckpointFailed();
     /// @notice Error thrown when the revert reason is not the correct length
     error InvalidRevertReasonLength();
 
-    constructor(IAuction _auction) {
-        auction = _auction;
-    }
-
     /// @notice Function which can be called from offchain to get the latest state of the auction
-    function state() external returns (AuctionState memory) {
-        try this.revertWithState() {}
+    function state(IContinuousClearingAuction auction) external returns (AuctionState memory) {
+        try this.revertWithState(auction) {}
         catch (bytes memory reason) {
             return parseRevertReason(reason);
         }
     }
 
     /// @notice Function which checkpoints the auction, gets global values and encodes them into a revert string
-    function revertWithState() external {
+    function revertWithState(IContinuousClearingAuction auction) external {
         try auction.checkpoint() returns (Checkpoint memory checkpoint) {
             AuctionState memory _state = AuctionState({
                 checkpoint: checkpoint,

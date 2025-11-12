@@ -1,38 +1,15 @@
 # ITickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/1a7f98b9e1cb9ed630b15a7f62d113994de8c338/src/interfaces/ITickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/ab88be10ec09bebb9ce21e524c265366917b5a1f/src/interfaces/ITickStorage.sol)
 
 Interface for the TickStorage contract
 
 
 ## Functions
-### getTick
-
-Get a tick at a price
-
-*The returned tick is not guaranteed to be initialized*
-
-
-```solidity
-function getTick(uint256 price) external view returns (Tick memory);
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`price`|`uint256`|The price of the tick|
-
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`Tick`|The tick at the given price|
-
-
 ### nextActiveTickPrice
 
 The price of the next initialized tick above the clearing price
 
-*This will be equal to the clearingPrice if no ticks have been initialized yet*
+This will be equal to the clearingPrice if no ticks have been initialized yet
 
 
 ```solidity
@@ -79,10 +56,24 @@ function tickSpacing() external view returns (uint256);
 
 Get a tick at a price
 
+The returned tick is not guaranteed to be initialized
+
 
 ```solidity
 function ticks(uint256 price) external view returns (Tick memory);
 ```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`price`|`uint256`|The price of the tick, which must be at a boundary designated by the tick spacing|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`Tick`|The tick at the given price|
+
 
 ## Events
 ### TickInitialized
@@ -114,20 +105,12 @@ event NextActiveTickUpdated(uint256 price);
 |`price`|`uint256`|The price of the tick|
 
 ## Errors
-### FloorPriceAboveMaxBidPrice
-Error thrown when the floor price is above the maximum bid price
+### TickSpacingTooSmall
+Error thrown when the tick spacing is too small
 
 
 ```solidity
-error FloorPriceAboveMaxBidPrice();
-```
-
-### TickSpacingIsZero
-Error thrown when the tick spacing is zero
-
-
-```solidity
-error TickSpacingIsZero();
+error TickSpacingTooSmall();
 ```
 
 ### FloorPriceIsZero
@@ -136,6 +119,14 @@ Error thrown when the floor price is zero
 
 ```solidity
 error FloorPriceIsZero();
+```
+
+### FloorPriceTooLow
+Error thrown when the floor price is below the minimum floor price
+
+
+```solidity
+error FloorPriceTooLow();
 ```
 
 ### TickPreviousPriceInvalid
@@ -168,5 +159,13 @@ Error thrown when the tick price is invalid
 
 ```solidity
 error InvalidTickPrice();
+```
+
+### CannotUpdateUninitializedTick
+Error thrown when trying to update the demand of an uninitialized tick
+
+
+```solidity
+error CannotUpdateUninitializedTick();
 ```
 

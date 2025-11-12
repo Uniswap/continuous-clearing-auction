@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {AuctionParameters} from '../../src/interfaces/IAuction.sol';
+import {AuctionParameters} from '../../src/interfaces/IContinuousClearingAuction.sol';
 
 library AuctionParamsBuilder {
     function init() internal pure returns (AuctionParameters memory) {

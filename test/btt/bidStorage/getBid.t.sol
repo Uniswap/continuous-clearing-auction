@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
 import {Bid, MockBidStorage} from 'btt/mocks/MockBidStorage.sol';
-import {IBidStorage} from 'twap-auction/interfaces/IBidStorage.sol';
+import {IBidStorage} from 'continuous-clearing-auction/interfaces/IBidStorage.sol';
 
 contract GetBidTest is BttBase {
     MockBidStorage public bidStorage;
@@ -15,7 +15,7 @@ contract GetBidTest is BttBase {
     function test_WhenBidDoesNotExist(uint256 _bidId) external {
         // it reverts with {BidIdDoesNotExist}
 
-        vm.expectRevert(IBidStorage.BidIdDoesNotExist.selector);
+        vm.expectRevert(abi.encodeWithSelector(IBidStorage.BidIdDoesNotExist.selector, _bidId));
         bidStorage.getBid(_bidId);
     }
 

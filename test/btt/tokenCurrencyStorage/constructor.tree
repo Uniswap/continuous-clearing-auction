@@ -1,9 +1,9 @@
 ConstructorTest
 ├── when total supply EQ 0
 │   └── it reverts with {TotalSupplyIsZero}
-└── when total supply GT 0
-    ├── when required raise GT upper bound
-    │   └── it reverts with {RequiredCurrencyRaisedIsTooLarge}
+├── when total supply GT max
+│   └── it reverts with {TotalSupplyIsTooLarge}
+└── when total supply GT 0 and LTE max
     └── when required raise LE upper bound
         ├── when token EQ address zero
         │   └── it reverts with {TokenIsAddressZero}

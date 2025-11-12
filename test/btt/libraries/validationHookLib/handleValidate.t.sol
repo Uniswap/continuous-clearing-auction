@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
-import {IValidationHook, ValidationHookLib} from 'twap-auction/libraries/ValidationHookLib.sol';
+import {IValidationHook, ValidationHookLib} from 'continuous-clearing-auction/libraries/ValidationHookLib.sol';
 
 contract ValidationHookWrapper {
     function validate(
@@ -26,7 +26,7 @@ contract MockValidationHook is IValidationHook {
         willRevert = _willRevert;
     }
 
-    function validate(uint256 maxPrice, uint256 amount, address owner, address sender, bytes calldata hookData)
+    function validate(uint256 maxPrice, uint128 amount, address owner, address sender, bytes calldata hookData)
         external
     {
         if (willRevert) {

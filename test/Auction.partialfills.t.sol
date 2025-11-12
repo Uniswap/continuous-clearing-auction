@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Auction, AuctionParameters} from '../src/Auction.sol';
 import {Checkpoint} from '../src/CheckpointStorage.sol';
-import {AuctionStep} from '../src/libraries/AuctionStepLib.sol';
+import {AuctionParameters, ContinuousClearingAuction} from '../src/ContinuousClearingAuction.sol';
+import {AuctionStep} from '../src/libraries/StepLib.sol';
 
 import {Bid} from '../src/libraries/BidLib.sol';
 
@@ -15,7 +15,7 @@ import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
-import {MockAuction} from './utils/MockAuction.sol';
+import {MockContinuousClearingAuction} from './utils/MockAuction.sol';
 
 import {console} from 'forge-std/console.sol';
 
@@ -33,7 +33,7 @@ contract PartialFillsTest is AuctionBaseTest {
     uint256 private tick30;
     uint256 private tick40;
     uint256 private tick3000;
-    MockAuction private mockAuction;
+    MockContinuousClearingAuction private mockAuction;
 
     uint256 private bidId2;
 
@@ -267,7 +267,7 @@ contract PartialFillsTest is AuctionBaseTest {
         testParams.tickSpacing = largeTickSpacing;
         testParams.floorPrice = tick10;
 
-        mockAuction = new MockAuction(address(token), TOTAL_SUPPLY_POC, testParams);
+        mockAuction = new MockContinuousClearingAuction(address(token), TOTAL_SUPPLY_POC, testParams);
         token.mint(address(mockAuction), TOTAL_SUPPLY_POC);
         mockAuction.onTokensReceived();
     }

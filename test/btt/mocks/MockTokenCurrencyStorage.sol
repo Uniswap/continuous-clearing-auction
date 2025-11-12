@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {TokenCurrencyStorage} from 'twap-auction/TokenCurrencyStorage.sol';
+import {TokenCurrencyStorage} from 'continuous-clearing-auction/TokenCurrencyStorage.sol';
 
 contract MockTokenCurrencyStorage is TokenCurrencyStorage {
     constructor(

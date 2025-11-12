@@ -2,13 +2,12 @@
 pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
-import {ITickStorage} from 'twap-auction/TickStorage.sol';
-
 import {MockTickStorage} from 'btt/mocks/MockTickStorage.sol';
-
+import {ITickStorage} from 'continuous-clearing-auction/TickStorage.sol';
+import {BidLib} from 'continuous-clearing-auction/libraries/BidLib.sol';
+import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
+import {ValueX7} from 'continuous-clearing-auction/libraries/ValueX7Lib.sol';
 import {StdStorage, stdStorage} from 'forge-std/StdStorage.sol';
-import {BidLib} from 'twap-auction/libraries/BidLib.sol';
-import {ValueX7} from 'twap-auction/libraries/ValueX7Lib.sol';
 
 contract InitializeTickIfNeededTest is BttBase {
     using stdStorage for StdStorage;
@@ -22,6 +21,7 @@ contract InitializeTickIfNeededTest is BttBase {
     modifier deployTickStorage(uint128 _tickSpacing, uint64 _floorIndex) {
         tickSpacing = bound(_tickSpacing, 2, type(uint128).max);
         floorPrice = tickSpacing * bound(_floorIndex, 1, type(uint64).max);
+        vm.assume(floorPrice >= ConstantsLib.MIN_FLOOR_PRICE);
 
         tickStorage = new MockTickStorage(tickSpacing, floorPrice);
 
@@ -49,19 +49,6 @@ contract InitializeTickIfNeededTest is BttBase {
         assertTrue(price % tickSpacing == 0, 'price is not divisible by tick spacing');
     }
 
-    function test_WhenPriceEQMAX_TICK_PTR()
-        external
-        deployTickStorage(1, 1)
-        whenPriceIsPerfectlyDivisibleByTickSpacing(type(uint256).max)
-    {
-        // it reverts with {InvalidTickPrice}
-
-        prevPrice = floorPrice;
-
-        vm.expectRevert(ITickStorage.InvalidTickPrice.selector);
-        tickStorage.initializeTickIfNeeded(prevPrice, price);
-    }
-
     modifier whenPriceLTMAX_TICK_PTR() {
         uint256 priceIndex = bound(price, 1, type(uint256).max - 1) / tickSpacing;
         price = priceIndex * tickSpacing;
@@ -78,7 +65,7 @@ contract InitializeTickIfNeededTest is BttBase {
         // it returns early
 
         // Overwrite the storage directly to trigger early initialization.
-        stdstore.target(address(tickStorage)).sig(ITickStorage.getTick.selector).with_key(price).depth(0)
+        stdstore.target(address(tickStorage)).sig(ITickStorage.ticks.selector).with_key(price).depth(0)
             .checked_write(type(uint256).max);
 
         vm.record();
@@ -184,8 +171,8 @@ contract InitializeTickIfNeededTest is BttBase {
         (, bytes32[] memory writes) = vm.accesses(address(tickStorage));
         assertEq(writes.length, 2, 'should write 2 slots');
 
-        assertEq(tickStorage.getTick(firstPrice).next, price);
-        assertEq(tickStorage.getTick(price).next, type(uint256).max);
+        assertEq(tickStorage.ticks(firstPrice).next, price);
+        assertEq(tickStorage.ticks(price).next, type(uint256).max);
     }
 
     function test_GivenWeInsertRightBeforeTheNextActiveTickPrice(
@@ -228,8 +215,8 @@ contract InitializeTickIfNeededTest is BttBase {
         (, bytes32[] memory writes) = vm.accesses(address(tickStorage));
         assertEq(writes.length, 3, 'should write 3 slots');
 
-        assertEq(tickStorage.getTick(floorPrice).next, price);
-        assertEq(tickStorage.getTick(price).next, firstPrice);
+        assertEq(tickStorage.ticks(floorPrice).next, price);
+        assertEq(tickStorage.ticks(price).next, firstPrice);
         assertEq(tickStorage.nextActiveTickPrice(), price);
     }
 }

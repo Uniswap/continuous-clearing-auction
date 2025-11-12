@@ -1,9 +1,9 @@
 # checks that pre-commit hooks pass before allowing to merge a PR
 
 name: pre-commit
-# on:
-#   pull_request:
-#     branches: [main, master, staging, dev, feat/**, fix/**]
+on:
+  pull_request:
+    branches: [main, master, staging, dev, feat/**, fix/**]
 
 jobs:
   pre-commit:

@@ -4,8 +4,9 @@ pragma solidity 0.8.26;
 import {BttBase} from 'btt/BttBase.sol';
 
 import {MockTickStorage} from 'btt/mocks/MockTickStorage.sol';
-import {ITickStorage} from 'twap-auction/TickStorage.sol';
-import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
+import {ITickStorage} from 'continuous-clearing-auction/TickStorage.sol';
+import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
+import {MaxBidPriceLib} from 'continuous-clearing-auction/libraries/MaxBidPriceLib.sol';
 
 contract ConstructorTest is BttBase {
     uint256 tickSpacing;
@@ -40,26 +41,35 @@ contract ConstructorTest is BttBase {
         assertGt(floorPrice, 0, 'floor price is 0');
     }
 
-    function test_WhenFloorPriceGTMaxBidPrice(uint256 _tickSpacing, uint256 _floorPrice)
-        external
-        whenTickSpacingValid(_tickSpacing)
-        whenFloorPriceGT0
-    {
-        // it reverts with {FloorPriceAboveMaxBidPrice}
+    function test_WhenFloorPriceLTMinFloorPrice(uint256 _tickSpacing, uint256 _floorPrice) external {
+        // it reverts with {FloorPriceTooLow}
 
-        floorPrice = bound(_floorPrice, ConstantsLib.MAX_BID_PRICE + 1, type(uint256).max);
-        vm.expectRevert(ITickStorage.FloorPriceAboveMaxBidPrice.selector);
-        new MockTickStorage(tickSpacing, floorPrice);
+        _floorPrice = bound(_floorPrice, ConstantsLib.MIN_TICK_SPACING, ConstantsLib.MIN_FLOOR_PRICE - 1);
+        _tickSpacing = _floorPrice;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(ITickStorage.FloorPriceTooLow.selector, _floorPrice, ConstantsLib.MIN_FLOOR_PRICE)
+        );
+        new MockTickStorage(_tickSpacing, _floorPrice);
+    }
+
+    modifier whenFloorPriceGTEMinFloorPrice() {
+        _;
+        assertGe(floorPrice, ConstantsLib.MIN_FLOOR_PRICE, 'floor price is less than min floor price');
     }
 
     function test_WhenFloorPriceNotPerfectlyDivisibleByTickSpacing(uint256 _tickSpacing, uint256 _floorPrice)
         external
         whenTickSpacingValid(_tickSpacing)
         whenFloorPriceGT0
+        whenFloorPriceGTEMinFloorPrice
     {
         // it reverts with {TickPriceNotAtBoundary}
 
-        vm.assume(_floorPrice < ConstantsLib.MAX_BID_PRICE && _floorPrice % tickSpacing != 0);
+        vm.assume(
+            _floorPrice < MaxBidPriceLib.MAX_V4_PRICE && _floorPrice >= ConstantsLib.MIN_FLOOR_PRICE
+                && _floorPrice % tickSpacing != 0
+        );
         floorPrice = _floorPrice;
 
         vm.expectRevert(ITickStorage.TickPriceNotAtBoundary.selector);
@@ -70,6 +80,7 @@ contract ConstructorTest is BttBase {
         external
         whenTickSpacingValid(_tickSpacing)
         whenFloorPriceGT0
+        whenFloorPriceGTEMinFloorPrice
     {
         // it writes FLOOR_PRICE
         // it writes next tick to be MAX_TICK_PTR
@@ -77,10 +88,11 @@ contract ConstructorTest is BttBase {
         // it emits {TickInitialized}
         // it emits {NextActiveTickUpdated}
 
-        tickSpacing = bound(_tickSpacing, 2, ConstantsLib.MAX_BID_PRICE - 1);
+        tickSpacing = bound(_tickSpacing, 2, MaxBidPriceLib.MAX_V4_PRICE - 1);
 
-        uint256 tickIndex = bound(_floorPrice, 1, (ConstantsLib.MAX_BID_PRICE - 1) / tickSpacing);
+        uint256 tickIndex = bound(_floorPrice, 1, (MaxBidPriceLib.MAX_V4_PRICE - 1) / tickSpacing);
         floorPrice = tickIndex * tickSpacing;
+        vm.assume(floorPrice >= ConstantsLib.MIN_FLOOR_PRICE);
 
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.NextActiveTickUpdated(type(uint256).max);
@@ -92,7 +104,7 @@ contract ConstructorTest is BttBase {
         assertEq(tickStorage.floorPrice(), floorPrice);
         assertEq(tickStorage.tickSpacing(), tickSpacing);
         assertEq(tickStorage.nextActiveTickPrice(), type(uint256).max);
-        assertEq(tickStorage.getTick(floorPrice).next, type(uint256).max);
-        assertEq(tickStorage.getTick(floorPrice).currencyDemandQ96, 0);
+        assertEq(tickStorage.ticks(floorPrice).next, type(uint256).max);
+        assertEq(tickStorage.ticks(floorPrice).currencyDemandQ96, 0);
     }
 }

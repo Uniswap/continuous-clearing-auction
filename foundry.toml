@@ -3,8 +3,7 @@ src = "src"
 out = "out"
 libs = ["lib"]
 optimizer = true
-optimizer_runs = 1000
-via_ir = true
+optimizer_runs = 88888888
 solc = "0.8.26"
 verbosity = 2
 ffi = true
@@ -21,7 +20,7 @@ remappings = [
   "solady=lib/solady/src",
   "permit2=lib/permit2",
   "v4-periphery=lib/v4-periphery",
-  "twap-auction=src/",
+  "continuous-clearing-auction=src/",
   "test=test/",
   "btt=test/btt/",
 ]
@@ -38,14 +37,14 @@ runs = 2500
 
 [profile.default.invariant]
 fail_on_revert = true
-runs = 10
-depth = 500
+runs = 250
+depth = 2500
 
 [profile.pr.fuzz]
-runs = 2500
+runs = 5000
 
 [profile.ci.fuzz]
-runs = 2500
+runs = 5000
 
 [profile.debug]
 via_ir = false
@@ -58,3 +57,6 @@ tab_width = 4
 quote_style = "single"
 sort_imports = true
 number_underscore = "thousands"
+
+[lint]
+exclude_lints = ["mixed-case-variable"]

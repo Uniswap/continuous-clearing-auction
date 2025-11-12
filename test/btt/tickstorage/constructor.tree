@@ -5,8 +5,6 @@ ConstructorTest
     ├── when floor price EQ 0
     │   └── it reverts with {FloorPriceIsZero}
     └── when floor price GT 0
-        ├── when floor price GT max bid price
-        │   └── it reverts with {FloorPriceAboveMaxBidPrice}
         ├── when floor price not perfectly divisible by tick spacing
         │   └── it reverts with {TickPriceNotAtBoundary}
         └── when floor price is perfectly divisible by tick spacing

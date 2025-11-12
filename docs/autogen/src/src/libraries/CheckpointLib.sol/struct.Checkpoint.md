@@ -1,16 +1,15 @@
 # Checkpoint
-[Git Source](https://github.com/Uniswap/twap-auction/blob/1a7f98b9e1cb9ed630b15a7f62d113994de8c338/src/libraries/CheckpointLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/libraries/CheckpointLib.sol)
 
 
 ```solidity
 struct Checkpoint {
-    uint256 clearingPrice;
-    ValueX7X7 totalCurrencyRaisedX7X7;
-    ValueX7X7 cumulativeCurrencyRaisedAtClearingPriceX7X7;
-    uint256 cumulativeMpsPerPrice;
-    uint24 cumulativeMps;
-    uint64 prev;
-    uint64 next;
+uint256 clearingPrice; // The X96 price which the auction is currently clearing at
+ValueX7 currencyRaisedAtClearingPriceQ96_X7; // The currency raised so far to this clearing price
+uint256 cumulativeMpsPerPrice; // A running sum of the ratio between mps and price
+uint24 cumulativeMps; // The number of mps sold in the auction so far (via the original supply schedule)
+uint64 prev; // Block number of the previous checkpoint
+uint64 next; // Block number of the next checkpoint
 }
 ```
 

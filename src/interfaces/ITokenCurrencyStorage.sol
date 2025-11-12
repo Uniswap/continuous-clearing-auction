@@ -2,19 +2,18 @@
 pragma solidity ^0.8.0;
 
 import {Currency} from '../libraries/CurrencyLibrary.sol';
-import {ValueX7} from '../libraries/ValueX7Lib.sol';
 import {IERC20Minimal} from './external/IERC20Minimal.sol';
 
 /// @notice Interface for token and currency storage operations
 interface ITokenCurrencyStorage {
-    /// @notice Error thrown when the total supply is too large
-    error TotalSupplyIsTooLarge();
     /// @notice Error thrown when the token is the native currency
     error TokenIsAddressZero();
     /// @notice Error thrown when the token and currency are the same
     error TokenAndCurrencyCannotBeTheSame();
     /// @notice Error thrown when the total supply is zero
     error TotalSupplyIsZero();
+    /// @notice Error thrown when the total supply is too large
+    error TotalSupplyIsTooLarge();
     /// @notice Error thrown when the funds recipient is the zero address
     error FundsRecipientIsZero();
     /// @notice Error thrown when the tokens recipient is the zero address
@@ -25,8 +24,6 @@ interface ITokenCurrencyStorage {
     error CannotSweepTokens();
     /// @notice Error thrown when the auction has not graduated
     error NotGraduated();
-    /// @notice Error thrown when the required currency raised is too large
-    error RequiredCurrencyRaisedIsTooLarge();
 
     /// @notice Emitted when the tokens are swept
     /// @param tokensRecipient The address of the tokens recipient

@@ -1,19 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import {Test} from 'forge-std/Test.sol';
+import {Bid} from 'continuous-clearing-auction/BidStorage.sol';
+import {AuctionParameters} from 'continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol';
 import {VmSafe} from 'forge-std/Vm.sol';
-
-import {Bid} from 'twap-auction/BidStorage.sol';
-
-import {AuctionParameters} from 'twap-auction/interfaces/IAuction.sol';
-
 // Chore: move to a shared place
+import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
+import {MaxBidPriceLib} from 'continuous-clearing-auction/libraries/MaxBidPriceLib.sol';
+import {AuctionStep} from 'continuous-clearing-auction/libraries/StepLib.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {CompactStep, CompactStepLib, Step} from 'test/btt/libraries/auctionStepLib/StepUtils.sol';
-import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
-
 import {AuctionBaseTest} from 'test/utils/AuctionBaseTest.sol';
-import {AuctionStep} from 'twap-auction/libraries/AuctionStepLib.sol';
 
 struct AuctionFuzzConstructorParams {
     address token;
@@ -33,23 +30,26 @@ contract BttBase is AuctionBaseTest {
     }
 
     // Temporary clone of function within auction base test
-    function _boundPriceParams(AuctionParameters memory _parameters) private pure {
-        // Bound tick spacing to be less than or equal to floor price
-        _parameters.tickSpacing = _bound(_parameters.tickSpacing, 2, type(uint96).max);
+    function _boundPriceParams(uint128 _totalSupply, AuctionParameters memory _parameters) private pure {
+        uint256 maxBidPrice = MaxBidPriceLib.maxBidPrice(_totalSupply);
         // Bound tick spacing and floor price to reasonable values
-        _parameters.floorPrice = _bound(_parameters.floorPrice, _parameters.tickSpacing, type(uint128).max);
+        _parameters.floorPrice =
+            _bound(_parameters.floorPrice, ConstantsLib.MIN_FLOOR_PRICE, maxBidPrice - ConstantsLib.MIN_TICK_SPACING);
+        // Bound tick spacing to allow for at least one tick above the floor price to be initialized
+        _parameters.tickSpacing =
+            _bound(_parameters.tickSpacing, ConstantsLib.MIN_TICK_SPACING, maxBidPrice - _parameters.floorPrice);
         // Round down floor price to the closest multiple of tick spacing
         _parameters.floorPrice = helper__roundPriceDownToTickSpacing(_parameters.floorPrice, _parameters.tickSpacing);
-        // Ensure floor price is non-zero
-        vm.assume(_parameters.floorPrice != 0);
+        vm.assume(_parameters.floorPrice != 0 && _parameters.floorPrice >= ConstantsLib.MIN_FLOOR_PRICE);
     }
 
     function validAuctionConstructorInputs(AuctionFuzzConstructorParams memory _params)
         internal
+        pure
         returns (AuctionFuzzConstructorParams memory)
     {
         // Bound to be sensible values
-        vm.assume(_params.totalSupply > 0);
+        _params.totalSupply = uint128(_bound(_params.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
         vm.assume(_params.token != _params.parameters.currency);
         vm.assume(_params.token != address(0));
         vm.assume(_params.parameters.fundsRecipient != address(0));
@@ -63,11 +63,7 @@ contract BttBase is AuctionBaseTest {
         _params.parameters.claimBlock = _params.parameters.endBlock + 1;
         _params.parameters.auctionStepsData = auctionStepsData;
 
-        emit log('bound price');
-
-        _boundPriceParams(_params.parameters);
-
-        emit log('validAuctionConstructorInputs ending');
+        _boundPriceParams(_params.totalSupply, _params.parameters);
 
         return _params;
     }

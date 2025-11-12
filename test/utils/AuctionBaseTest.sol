@@ -128,6 +128,13 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
                 maxBidPrice - deploymentParams.auctionParams.floorPrice
             )
         );
+        // bound tick spacing to at most floor price
+        deploymentParams.auctionParams.tickSpacing = _bound(
+            deploymentParams.auctionParams.tickSpacing,
+            ConstantsLib.MIN_TICK_SPACING,
+            deploymentParams.auctionParams.floorPrice
+        );
+
         deploymentParams.auctionParams.floorPrice = helper__roundPriceDownToTickSpacing(
             deploymentParams.auctionParams.floorPrice, deploymentParams.auctionParams.tickSpacing
         );

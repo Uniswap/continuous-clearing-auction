@@ -8,7 +8,9 @@ import {ITokenCurrencyStorage} from 'continuous-clearing-auction/interfaces/ITok
 import {IERC20Minimal} from 'continuous-clearing-auction/interfaces/external/IERC20Minimal.sol';
 import {Bid} from 'continuous-clearing-auction/libraries/BidLib.sol';
 import {Checkpoint} from 'continuous-clearing-auction/libraries/CheckpointLib.sol';
+import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
 import {FixedPoint96} from 'continuous-clearing-auction/libraries/FixedPoint96.sol';
+import {MaxBidPriceLib} from 'continuous-clearing-auction/libraries/MaxBidPriceLib.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
@@ -66,6 +68,8 @@ contract ClaimTokensTest is BttBase {
         // it claims tokens
         // it emits {TokensClaimed}
 
+        _requiredCurrencyRaised = uint128(bound(_requiredCurrencyRaised, 1, type(uint128).max));
+
         alice = makeAddr('alice');
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
@@ -77,6 +81,12 @@ contract ClaimTokensTest is BttBase {
         mParams.parameters.tokensRecipient = makeAddr('tokensRecipient');
         mParams.parameters.tickSpacing = bound(mParams.parameters.tickSpacing, 2, type(uint24).max) * FixedPoint96.Q96;
         mParams.parameters.floorPrice = bound(mParams.parameters.floorPrice, 1, 100) * mParams.parameters.tickSpacing;
+
+        vm.assume(
+            mParams.parameters.floorPrice + mParams.parameters.tickSpacing
+                <= MaxBidPriceLib.maxBidPrice(mParams.totalSupply)
+        );
+
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
@@ -144,6 +154,12 @@ contract ClaimTokensTest is BttBase {
         mParams.parameters.tokensRecipient = makeAddr('tokensRecipient');
         mParams.parameters.tickSpacing = bound(mParams.parameters.tickSpacing, 2, type(uint24).max) * FixedPoint96.Q96;
         mParams.parameters.floorPrice = bound(mParams.parameters.floorPrice, 1, 100) * mParams.parameters.tickSpacing;
+
+        vm.assume(
+            mParams.parameters.floorPrice + mParams.parameters.tickSpacing
+                <= MaxBidPriceLib.maxBidPrice(mParams.totalSupply)
+        );
+
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 

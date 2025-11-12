@@ -39,14 +39,16 @@ interface IContinuousClearingAuction is
     /// @notice Error thrown when the amount received is invalid
     error InvalidTokenAmountReceived();
 
-    /// @notice Error thrown when not enough amount is deposited
+    /// @notice Error thrown when an invalid value is deposited
     error InvalidAmount();
     /// @notice Error thrown when the bid owner is the zero address
     error BidOwnerCannotBeZeroAddress();
     /// @notice Error thrown when the bid price is below the clearing price
     error BidMustBeAboveClearingPrice();
     /// @notice Error thrown when the bid price is too high given the auction's total supply
-    error InvalidBidPriceTooHigh();
+    /// @param maxPrice The price of the bid
+    /// @param maxBidPrice The max price allowed for a bid
+    error InvalidBidPriceTooHigh(uint256 maxPrice, uint256 maxBidPrice);
     /// @notice Error thrown when the bid amount is too small
     error BidAmountTooSmall();
     /// @notice Error thrown when msg.value is non zero when currency is not ETH
@@ -155,7 +157,7 @@ interface IContinuousClearingAuction is
     function checkpoint() external returns (Checkpoint memory _checkpoint);
 
     /// @notice Whether the auction has graduated as of the given checkpoint
-    /// @dev The auction is considered `graudated` if the total currency raised exceeds the required currency raised
+    /// @dev The auction is considered graduated if the currency raised is greater than or equal to the required currency raised
     /// @dev Be aware that the latest checkpoint may be out of date
     /// @return bool True if the auction has graduated, false otherwise
     function isGraduated() external view returns (bool);

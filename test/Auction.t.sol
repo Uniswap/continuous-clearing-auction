@@ -470,11 +470,15 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_submitBid_exactInZeroAmount_revertsWithInvalidAmount() public {
-        vm.expectRevert(IContinuousClearingAuction.InvalidAmount.selector);
-        auction.submitBid{value: 1000e18}(tickNumberToPriceX96(2), 0, alice, tickNumberToPriceX96(1), bytes(''));
+        uint128 amount = 1000e18;
 
         vm.expectRevert(IContinuousClearingAuction.InvalidAmount.selector);
-        auction.submitBid{value: 1000e18}(tickNumberToPriceX96(2), 0, alice, bytes(''));
+        auction.submitBid{value: amount}(
+            tickNumberToPriceX96(2), uint128(amount + 1), alice, tickNumberToPriceX96(1), bytes('')
+        );
+
+        vm.expectRevert(IContinuousClearingAuction.InvalidAmount.selector);
+        auction.submitBid{value: amount}(tickNumberToPriceX96(2), uint128(amount - 1), alice, bytes(''));
     }
 
     function test_submitBid_endBlock_reverts() public {
@@ -1916,6 +1920,9 @@ contract AuctionTest is AuctionBaseTest {
         givenFullyFundedAccount
     {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
+        // Ensure an amount of at least 1 for every bid
+        $bidAmount = uint128(bound(_bidAmount, _numberOfBids, type(uint128).max));
+
         uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids, $maxPrice);
 
         vm.roll(auction.claimBlock());

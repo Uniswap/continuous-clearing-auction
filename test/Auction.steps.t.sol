@@ -112,7 +112,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         givenValidBidAmount(_bidAmount)
         givenFullyFundedAccount
     {
-        vm.assume(_totalSupply > 0);
+        _totalSupply = uint128(_bound(_totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
         vm.assume($bidAmount >= uint256(_totalSupply).fullMulDivUp($maxPrice, FixedPoint96.Q96));
         uint256 startBlock = block.number;
         uint256 endBlock = startBlock + 2e7;

@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 import {BttBase} from 'btt/BttBase.sol';
 import {MockTokenCurrencyStorage} from 'btt/mocks/MockTokenCurrencyStorage.sol';
 import {ITokenCurrencyStorage} from 'continuous-clearing-auction/interfaces/ITokenCurrencyStorage.sol';
+import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
 import {Currency} from 'continuous-clearing-auction/libraries/CurrencyLibrary.sol';
 
 contract ConstructorTest is BttBase {
@@ -37,8 +38,21 @@ contract ConstructorTest is BttBase {
         _deployTokenCurrencyStorage();
     }
 
-    modifier whenTotalSupplyGT0(uint128 _totalSupply) {
-        $totalSupply = uint128(bound(_totalSupply, 1, type(uint128).max));
+    function test_WhenTotalSupplyGTMax(uint128 _totalSupply) external {
+        // it reverts with {TotalSupplyIsTooLarge}
+
+        // Prevent early reverts
+        $token = address(1);
+        $currency = address(2);
+
+        $totalSupply = uint128(_bound(_totalSupply, ConstantsLib.MAX_TOTAL_SUPPLY + 1, type(uint128).max));
+
+        vm.expectRevert(ITokenCurrencyStorage.TotalSupplyIsTooLarge.selector);
+        _deployTokenCurrencyStorage();
+    }
+
+    modifier whenTotalSupplyGT0AndLTEMax(uint128 _totalSupply) {
+        $totalSupply = uint128(_bound(_totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
 
         _;
     }
@@ -54,7 +68,7 @@ contract ConstructorTest is BttBase {
         address _tokensRecipient,
         address _fundsRecipient,
         uint128 _requiredCurrencyRaised
-    ) external whenTotalSupplyGT0(_totalSupply) whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised) {
+    ) external whenTotalSupplyGT0AndLTEMax(_totalSupply) whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised) {
         // it reverts with {TokenIsAddressZero}
 
         $currency = _currency;
@@ -80,7 +94,7 @@ contract ConstructorTest is BttBase {
         uint128 _requiredCurrencyRaised
     )
         external
-        whenTotalSupplyGT0(_totalSupply)
+        whenTotalSupplyGT0AndLTEMax(_totalSupply)
         whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised)
         whenTokenNEQAddressZero(_token)
     {
@@ -107,7 +121,7 @@ contract ConstructorTest is BttBase {
         uint128 _requiredCurrencyRaised
     )
         external
-        whenTotalSupplyGT0(_totalSupply)
+        whenTotalSupplyGT0AndLTEMax(_totalSupply)
         whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised)
         whenTokenNEQAddressZero(_token)
         whenTokenNEQCurrency(_currency)
@@ -133,7 +147,7 @@ contract ConstructorTest is BttBase {
         uint128 _requiredCurrencyRaised
     )
         external
-        whenTotalSupplyGT0(_totalSupply)
+        whenTotalSupplyGT0AndLTEMax(_totalSupply)
         whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised)
         whenTokenNEQAddressZero(_token)
         whenTokenNEQCurrency(_currency)
@@ -155,7 +169,7 @@ contract ConstructorTest is BttBase {
         uint128 _requiredCurrencyRaised
     )
         external
-        whenTotalSupplyGT0(_totalSupply)
+        whenTotalSupplyGT0AndLTEMax(_totalSupply)
         whenRequiredRaiseLEUpperBound(_requiredCurrencyRaised)
         whenTokenNEQAddressZero(_token)
         whenTokenNEQCurrency(_currency)

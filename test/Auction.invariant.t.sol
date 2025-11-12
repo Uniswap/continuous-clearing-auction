@@ -118,15 +118,13 @@ contract AuctionInvariantHandler is Test, Assertions {
     /// @dev Bounded by purchasing the total supply of tokens and some reasonable max price for bids to prevent overflow
     function _useAmountMaxPrice(uint128 amount, uint256 clearingPrice, uint8 tickNumber)
         internal
-        view
         returns (uint128, uint256)
     {
         tickNumber = uint8(_bound(tickNumber, 1, uint256(type(uint8).max)));
         uint256 tickNumberPrice = mockAuction.floorPrice() + tickNumber * mockAuction.tickSpacing();
-        vm.assume(clearingPrice + mockAuction.tickSpacing() < type(uint256).max / mockAuction.totalSupply());
-        uint256 maxPrice = _bound(
-            tickNumberPrice, clearingPrice + mockAuction.tickSpacing(), type(uint256).max / mockAuction.totalSupply()
-        );
+        vm.assume(clearingPrice + mockAuction.tickSpacing() < mockAuction.MAX_BID_PRICE());
+        uint256 maxPrice =
+            _bound(tickNumberPrice, clearingPrice + mockAuction.tickSpacing(), mockAuction.MAX_BID_PRICE());
         // Round down to the nearest tick boundary
         maxPrice -= (maxPrice % mockAuction.tickSpacing());
         uint128 inputAmount;
@@ -478,7 +476,8 @@ contract AuctionInvariantTest is AuctionUnitTest {
             // Mathematical form: avgPrice = currencySpent / tokensFilled ≤ maxPrice
             // Rearranged: currencySpent ≤ tokensFilled × maxPrice
 
-            uint256 currencySpent = (bid.amountQ96 / FixedPoint96.Q96) - refundAmount;
+            uint256 currencySpent =
+                (bid.amountQ96 - uint256(refundAmount << FixedPoint96.RESOLUTION)) >> FixedPoint96.RESOLUTION;
             uint256 maxValueAtBidPrice = FixedPointMathLib.fullMulDiv(bid.tokensFilled, bid.maxPrice, FixedPoint96.Q96);
 
             // Allow small rounding tolerance (up to 1 wei) for edge cases with tiny fills

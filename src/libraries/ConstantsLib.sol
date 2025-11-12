@@ -9,11 +9,18 @@ library ConstantsLib {
     /// @notice The upper bound of a ValueX7 value
     uint256 constant X7_UPPER_BOUND = type(uint256).max / 1e7;
 
+    /// @notice The maximum total supply of tokens that can be sold in the Auction
+    /// @dev    This is set to 2^100 tokens, which is just above 1e30, or one trillion units of a token with 18 decimals.
+    ///         This upper bound is chosen to prevent the Auction from being used with an extremely large token supply,
+    ///         which would restrict the clearing price to be a very low price in the calculation below.
+    uint128 constant MAX_TOTAL_SUPPLY = 1 << 100;
+
+    /// @notice The minimum allowable floor price is type(uint32).max + 1
+    /// @dev This is the minimum price that fits in a uint160 after being inversed
+    uint256 constant MIN_FLOOR_PRICE = uint256(type(uint32).max) + 1;
+
     /// @notice The minimum allowable tick spacing
-    /// @dev We don't allow tick spacing of 1 to avoid edge cases where the rounding of the clearing price
+    /// @dev We don't support tick spacings of 1 to avoid edge cases where the rounding of the clearing price
     ///      would cause the price to move between initialized ticks.
     uint256 constant MIN_TICK_SPACING = 2;
-    /// @notice The maximum allowable price for a bid, defined as the square of MAX_SQRT_PRICE from Uniswap v4's TickMath library.
-    uint256 constant MAX_BID_PRICE =
-        26_957_920_004_054_754_506_022_898_809_067_591_261_277_585_227_686_421_694_841_721_768_917;
 }

@@ -81,7 +81,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         assertEq(address(alice).balance, aliceBalanceBefore + $bidAmount);
     }
 
-    /// forge-config: default.fuzz.runs = 444
+    /// forge-config: default.fuzz.runs = 200
     function test_exitPartiallyFilledBid_outBid_notGraduated_succeeds(
         FuzzDeploymentParams memory _deploymentParams,
         uint128 _bidAmount,

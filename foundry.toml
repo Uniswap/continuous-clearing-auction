@@ -41,10 +41,10 @@ runs = 1000
 depth = 5000
 
 [profile.pr.fuzz]
-runs = 2500
+runs = 5000
 
 [profile.ci.fuzz]
-runs = 2500
+runs = 5000
 
 [profile.ci.invariant]
 runs = 1000

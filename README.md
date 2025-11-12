@@ -37,9 +37,7 @@ The files under `src/` are covered under the Uniswap Labs bug bounty program [he
 
 security@uniswap.org
 
-## Whitepaper
-
-TODO
+### [Whitepaper](https://github.com/Uniswap/continuous-clearing-auction/blob/main/docs/assets/whitepaper.pdf)
 
 ## Risks from participating in the auction
 
@@ -217,6 +215,10 @@ interface IValidationHook {
 ```
 
 Any validation hook set in the auction parameters is called during `_submitBid()`. It MUST revert to prevent a bit from being submitted in the auction.
+
+### Warning for integrators
+
+Beware that a validation hook can re-enter the Auction contract. This means that any number of actions can be preformed during bid submission, so any calling contract relying on the return value / state of the Auction contract may be reading stale/incorrect data.
 
 ## Auction Entrypoints
 

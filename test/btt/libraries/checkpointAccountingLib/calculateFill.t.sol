@@ -13,6 +13,7 @@ contract CalculateFillTest is BttBase {
 
     function test_WhenBidAmountQ96EQ0(Bid memory _bid, uint256 _cumulativeMpsPerPriceDelta, uint24 _cumulativeMpsDelta)
         external
+        pure
     {
         // it returns 0 tokens filled and 0 currency spent
 
@@ -34,6 +35,7 @@ contract CalculateFillTest is BttBase {
     // Not possible to have zero cumulativeMpsDelta and non zero cumulativeMpsPerPriceDelta, shown in `accountFullyFilledCheckpoints` test
     function test_WhenCumulativeMpsDeltaEQ0AndCumulativeMpsPerPriceDeltaEQ0(Bid memory _bid)
         external
+        pure
         whenBidAmountQ96GT0
     {
         // it returns 0 tokens filled and 0 currency spent
@@ -80,6 +82,7 @@ contract CalculateFillTest is BttBase {
 
     function test_WhenTokensFilledRoundsDownToZero(Bid memory _bid, uint24 _cumulativeMpsDelta)
         external
+        pure
         whenBidAmountQ96GT0
         whenCumulativeMpsDeltaGT0AndCumulativeMpsPerPriceDeltaGT0
     {

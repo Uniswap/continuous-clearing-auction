@@ -15,6 +15,8 @@ interface ITickStorage {
     error TickSpacingTooSmall();
     /// @notice Error thrown when the floor price is zero
     error FloorPriceIsZero();
+    /// @notice Error thrown when the floor price is below the minimum floor price
+    error FloorPriceTooLow();
     /// @notice Error thrown when the previous price hint is invalid (higher than the new price)
     error TickPreviousPriceInvalid();
     /// @notice Error thrown when the tick price is not increasing

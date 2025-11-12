@@ -45,6 +45,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         if (_token == address(0)) revert TokenIsAddressZero();
         if (_token == _currency) revert TokenAndCurrencyCannotBeTheSame();
         if (_totalSupply == 0) revert TotalSupplyIsZero();
+        if (_totalSupply > ConstantsLib.MAX_TOTAL_SUPPLY) revert TotalSupplyIsTooLarge();
         if (_tokensRecipient == address(0)) revert TokensRecipientIsZero();
         if (_fundsRecipient == address(0)) revert FundsRecipientIsZero();
 

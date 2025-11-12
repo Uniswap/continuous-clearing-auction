@@ -145,7 +145,7 @@ contract ConstructorTest is BttBase {
 
         // Calculate the currency amount if all of the supply was sold at the clearing price
         uint256 currencyAmount = FixedPointMathLib.fullMulDiv(_params.totalSupply, clearingPrice, FixedPoint96.Q96);
-        assertLe(currencyAmount, type(uint128).max, 'currencyAmount is greater than type(uint128).max');
+        assertLe(int256(currencyAmount), int256(type(int128).max), 'currencyAmount is greater than type(int128).max');
 
         // If currency is currency0, we need to invert the price (price = currency1/currency0)
         uint256 temp;

@@ -14,7 +14,7 @@ contract DeployContinuousAuctionFactorySepolia is Script {
 
         console2.logBytes32(initCodeHash);
 
-        // Deploys to: 0xC695ee292c39Be6a10119C70Ed783d067fcecfA4
+        // Deploys to: 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D
         bytes32 salt = 0xacc35572ce7ac9f43595102465563ac1fcf2dafe0af4110ebf2edb762a5b8c8c;
         factory = IContinuousClearingAuctionFactory(address(new ContinuousClearingAuctionFactory{salt: salt}()));
 

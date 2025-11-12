@@ -89,23 +89,23 @@ library MaxBidPriceLib {
          * Token1 liquidity is the limiting factor, so we use L_1 for simplicity:
          *  2^(x+y) / |2^((x+96)/2)-p_sqrtMin| < L_max
          *  2^(x+y) < L_max * |2^((x+96)/2)-p_sqrtMin|
-         * Knowing that for large values of x, |2^((x+96)/2)-p_sqrtMin| ~ 2^((x+96)/2), we can simplify to:
-         *  2^(x+y) < L_max * 2^((x+96)/2)
+         * We substitute a larger number than p_sqrtMin such that |2^((x+96)/2)-p_sqrtMin| ~ 2^((x+96)/2 - 1)
+         *  2^(x+y) < L_max * 2^((x+96)/2 - 1)
          * Using 2^107 for L_max, we get:
-         *  2^(x+y) < 2^107 * 2^((x+96)/2)
+         *  2^(x+y) < 2^107 * 2^((x+96)/2 - 1)
          * Taking the log2 of both sides, we get:
-         *  x + y < 107 + (x+96) / 2
-         *  x + y < 107 + x/2 + 48
+         *  x + y < 107 + (x+96) / 2 - 1
+         *  x + y < 107 + x/2 + 48 - 1
          * Since we are given total supply (y), we can solve for x:
-         *  x/2 = 107 + 48 - y
-         *  x/2 = 155 - y
-         *  x = 2 * (155 - y)
+         *  x/2 = 107 + 47 - y
+         *  x/2 = 154 - y
+         *  x = 2 * (154 - y)
          * We want to find 2^x, not `x` so we take both sides to the power of 2:
-         *  2^x = (2^155 / y) ** 2
+         *  2^x = (2^154 / y) ** 2
          *
-         * Because we return early if total supply is less than 2^62 the result of this will not overflow a uint256.
+         * Because we return early if total supply is less than 2^75 the result of this will not overflow a uint256.
          */
-        uint256 maxPriceKeepingLiquidityUnderMax = uint256((1 << 155) / _totalSupply) ** 2;
+        uint256 maxPriceKeepingLiquidityUnderMax = uint256((1 << 154) / _totalSupply) ** 2;
 
         // Additionally, we need to ensure that the currency raised is less than int128.max (2^127)
         // since PoolManager will cast it to int128 when the position is created.

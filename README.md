@@ -25,11 +25,11 @@ pre-commit run --all-files
 
 ### ContinuousClearingAuctionFactory
 
-| Network | Address | Commit Hash | Version |
-|---------|---------|------------|---------|
-| Mainnet | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
-| Unichain | TODO | TODO | TODO |
-| Sepolia | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
+| Network  | Address                                    | Commit Hash                              | Version          |
+| -------- | ------------------------------------------ | ---------------------------------------- | ---------------- |
+| Mainnet  | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
+| Unichain | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
+| Sepolia  | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
 
 ## Audits
 

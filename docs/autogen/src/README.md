@@ -21,9 +21,15 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-## Deployments
+## Deployment Addresses
 
-TODO
+### ContinuousClearingAuctionFactory
+
+| Network | Address | Commit Hash | Version |
+|---------|---------|------------|---------|
+| Mainnet | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
+| Unichain | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
+| Sepolia | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
 
 ## Audits
 
@@ -45,7 +51,7 @@ The [whitepaper](./docs/assets/whitepaper.pdf) for the Continuous Clearing Aucti
 
 ### Bidders must validate all parameters
 
-And Auction can be configured with:
+An Auction can be configured with:
 
 - Excessively high floor prices which would result in a loss of funds for participants.
 - Extreme start and end blocks which would prevent bidders from receiving refunds of currency or tokens.

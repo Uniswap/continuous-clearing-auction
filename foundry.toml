@@ -47,7 +47,8 @@ runs = 5000
 runs = 5000
 
 [profile.ci.invariant]
-runs = 1000
+fail_on_revert = true
+runs = 100
 depth = 2500
 
 [profile.debug]

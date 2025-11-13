@@ -40,6 +40,11 @@ fail_on_revert = true
 runs = 100
 depth = 2500
 
+[profile.pr]
+optimizer = true
+optimizer_runs = 88888888
+solc = "0.8.26"
+
 [profile.pr.fuzz]
 runs = 5000
 

@@ -7,6 +7,8 @@ optimizer_runs = 88888888
 solc = "0.8.26"
 verbosity = 2
 ffi = true
+bytecode_hash = "none"
+
 fs_permissions = [
   { access = "read-write", path = ".forge-snapshots" },
   { access = "read", path = "script/" },
@@ -25,13 +27,6 @@ remappings = [
   "btt=test/btt/",
 ]
 
-additional_compiler_profiles = [{ name = "test", via_ir = false }]
-
-compilation_restrictions = [
-  { paths = "src/AuctionFactory.sol", via_ir = false, optimizer = false, optimzer_runs = 0 },
-  { paths = "test/**", via_ir = false },
-]
-
 [profile.default.fuzz]
 runs = 2500
 
@@ -39,11 +34,6 @@ runs = 2500
 fail_on_revert = true
 runs = 100
 depth = 2500
-
-[profile.pr]
-optimizer = true
-optimizer_runs = 88888888
-solc = "0.8.26"
 
 [profile.pr.fuzz]
 runs = 5000

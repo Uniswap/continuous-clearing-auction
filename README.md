@@ -33,7 +33,8 @@ pre-commit run --all-files
 
 ## Audits
 
-TODO
+- 10/21/2025: [OpenZeppelin](./docs/audits/OpenZeppelin_v1.0.0.pdf)
+- 08/25/2025: [OpenZeppelin](./docs/audits/OpenZeppelin_v0.pdf)
 
 ### Bug bounty
 

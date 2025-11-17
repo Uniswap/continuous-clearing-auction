@@ -34,7 +34,8 @@ pre-commit run --all-files
 ## Audits
 
 - 10/21/2025: [OpenZeppelin](./docs/audits/OpenZeppelin_v1.0.0.pdf)
-- 10/20/2025: [ABDK Consulting](./docs/audits/ABDK_Uniswap_TWAPAuction_v_1_0.pdf)
+- 10/19/2025: [Spearbit](./docs/audits/Spearbit.pdf)
+- 10/19/2025: [ABDK Consulting](./docs/audits/ABDK_Uniswap_TWAPAuction_v_1_0.pdf)
 - 08/25/2025: [OpenZeppelin](./docs/audits/OpenZeppelin_v0.pdf)
 
 ### Bug bounty

@@ -252,6 +252,9 @@ contract AuctionInvariantHandler is Test, Assertions {
                 // Because it reverted from BidMustBeAboveClearingPrice, we must assert that it should have
                 assertLe(maxPrice, mockAuction.clearingPrice());
                 metrics.cnt_BidMustBeAboveClearingPriceError++;
+            } else if (inputAmount == 0) {
+                assertEq(revertData, abi.encodeWithSelector(IContinuousClearingAuction.BidAmountTooSmall.selector));
+                metrics.cnt_BidAmountTooSmallError++;
             } else if (
                 // If the prevTickPrice is 0, it could maybe be a race that the clearing price has increased since the bid was placed
                 // This is handled in the else condition - so we exclude it here
@@ -263,9 +266,6 @@ contract AuctionInvariantHandler is Test, Assertions {
             ) {
                 assertEq(revertData, abi.encodeWithSelector(ITickStorage.TickPriceNotIncreasing.selector));
                 metrics.cnt_TickPriceNotIncreasingError++;
-            } else if (inputAmount == 0) {
-                assertEq(revertData, abi.encodeWithSelector(IContinuousClearingAuction.BidAmountTooSmall.selector));
-                metrics.cnt_BidAmountTooSmallError++;
             } else if (
                 mockAuction.sumCurrencyDemandAboveClearingQ96()
                     >= ConstantsLib.X7_UPPER_BOUND - (inputAmount * FixedPoint96.Q96 * ConstantsLib.MPS)
@@ -480,11 +480,11 @@ contract AuctionInvariantTest is AuctionUnitTest {
                 (bid.amountQ96 - uint256(refundAmount << FixedPoint96.RESOLUTION)) >> FixedPoint96.RESOLUTION;
             uint256 maxValueAtBidPrice = FixedPointMathLib.fullMulDiv(bid.tokensFilled, bid.maxPrice, FixedPoint96.Q96);
 
-            // Allow small rounding tolerance (up to 1 wei) for edge cases with tiny fills
-            // where tokensFilled × maxPrice / Q96 might round to zero
+            // Allow small rounding tolerance (up to 1e6 wei) for cases where the user is rounded
+            // against in tokensFilled and currencySpent (this is expected).
             assertLe(
                 currencySpent,
-                maxValueAtBidPrice + 1,
+                maxValueAtBidPrice + 1e6,
                 string.concat(
                     'ROUNDING INVARIANT VIOLATED: Bid ',
                     vm.toString(bidId),

@@ -1,6 +1,6 @@
 # Continuous Clearing Auction
 
-This repository contains the smart contracts for a Continuous Clearing Auction mechanism.
+This repository contains the smart contracts for the Continuous Clearing Auction and its Factory. It is meant to be used in combination with the [Uniswap Liquidity Launcher](https://github.com/Uniswap/liquidity-launcher) as a strategy for raising funds.
 
 ## Installation
 
@@ -21,11 +21,73 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-## Deployments
-TODO
+## Deployment Addresses
+
+### ContinuousClearingAuctionFactory
+
+| Network | Address | Commit Hash | Version |
+|---------|---------|------------|---------|
+| Mainnet | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
+| Unichain | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
+| Sepolia | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
 
 ## Audits
+
 TODO
+
+### Bug bounty
+
+The files under `src/` are covered under the Uniswap Labs bug bounty program [here](https://cantina.xyz/code/f9df94db-c7b1-434b-bb06-d1360abdd1be/overview), subject to scope and other limitations.
+
+### Security contact
+
+security@uniswap.org
+
+### Whitepaper
+
+The [whitepaper](./docs/assets/whitepaper.pdf) for the Continuous Clearing Auction.
+
+## Risks from participating in the auction
+
+### Bidders must validate all parameters
+
+An Auction can be configured with:
+
+- Excessively high floor prices which would result in a loss of funds for participants.
+- Extreme start and end blocks which would prevent bidders from receiving refunds of currency or tokens.
+- Honeypot or malicious tokens
+- An unrealistic `requiredCurrencyRaised` which would prevent the auction from graduating.
+- A `positionRecipient` who will withdraw the liquidity position immediately after the pool is created.
+
+This list is not exhaustive. It is the responsibility of the bidder to validate all parameters before participating in an auction.
+
+### Undesireable behavior with low-decimal tokens or Fee On Transfer tokens
+
+Do NOT use the Auction with low-decimal (< 6) tokens. Bidders will lose significant amounts of token due to rounding errors in price and amount calculations.
+
+Fee On Transfer tokens are explicitly not supported as either `token` or `currency`.
+
+## Repository Structure
+
+All contracts are located in the `src/` directory. `test/btt` contains BTT unit tests for the Auction contracts and associated libraries, and the top level `test/` folder contains additional tests. The suite has unit, fuzz, and invariant tests.
+
+```markdown
+src/
+----interfaces/
+| IContinuousClearingAuction.sol
+| IContinuousClearingAuctionFactory.sol
+| ...
+----libraries/
+| ...
+----ContinuousClearingAuction.sol
+----ContinuousClearingAuctionFactory.sol
+test/
+----btt/
+| auction/
+| ...
+----Auction.t.sol
+----Auction.invariant.t.sol
+```
 
 ### Auction Configuration
 
@@ -65,11 +127,9 @@ constructor(
 
 The factory decodes `configData` into `AuctionParameters` and deploys the Auction contract via CREATE2.
 
-## Warnings
+### Warnings for Auction integrators
 
-It is imperative that bidders and users of the Auction carefully validate the parameters of the auction before participating. An auction can be configured to have an excessively high floor price which would result in a loss of funds.
-
-Auction launchers should be aware of the following limitations regarding total supply and maximum bid prices:
+Auction integrators should be aware of the following limitations regarding total supply and maximum bid prices:
 
 - The maximum total supply that can be sold in the auction is 1e30 wei of `token`. For a token with 18 decimals, this is 1 trillion tokens.
 - The auction also ensures that the total currency raised does not exceed the maximum allowable liquidity for a Uniswap v4 liquidity position. The lowest bound for this is 2^107 wei (given the smallest possible tick spacing of 1).
@@ -81,7 +141,7 @@ Given a total supply of:
 
 We strongly recommend that the `currency` is chosen to be more valuable than `token`, and that the total supply is not excessively large.
 
-## Types
+## Internal types
 
 ### Q96 Fixed-Point Math
 
@@ -164,7 +224,11 @@ interface IValidationHook {
 
 Any validation hook set in the auction parameters is called during `_submitBid()`. It MUST revert to prevent a bit from being submitted in the auction.
 
-## Contract Entrypoints
+### Warning for integrators
+
+Beware that a validation hook can re-enter the Auction contract. This means that any number of actions can be preformed during bid submission, so any calling contract relying on the return value / state of the Auction contract may be reading stale/incorrect data.
+
+## Auction Entrypoints
 
 ### submitBid()
 
@@ -242,11 +306,9 @@ Checkpoints also store a cumulative value (`currencyRaisedAtClearingPriceQ96_X7`
 
 ![Exit Bid Diagram](docs/assets/exitBidDiagram.png)
 
-## View functions / getters
-
 ### isGraduated()
 
-Auctions are graduated if the currency raised meets or exceeds the required threshold set by the auction launcher on deployment.
+Auctions are graduated if the currency raised meets or exceeds the required threshold set by the auction creator on deployment.
 
 A core invariant of the auction is that no bids can be exited before the auction has graduated.
 
@@ -298,3 +360,21 @@ event TokensClaimed(uint256 indexed bidId, address indexed owner, uint256 tokens
 ```
 
 Anyone can call this function for any valid bid id.
+
+### claimTokensBatch()
+
+Users can claim purchased tokens for multiple bids at once. This is useful to only make one `transfer` call to the owner of the bids. The `owner` parameter must be the same for all bids in the batch.
+
+```solidity
+interface IContinuousClearingAuction {
+    function claimTokensBatch(address owner, uint256[] calldata bidIds) external;
+}
+
+event TokensClaimed(uint256 indexed bidId, address indexed owner, uint256 tokensFilled);
+```
+
+Anyone can call this function for any valid bid ids.
+
+## License
+
+The contracts are covered under the MIT License (`MIT`), see [MIT_LICENSE](https://github.com/Uniswap/continuous-clearing-auction/blob/main/LICENSE).

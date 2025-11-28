@@ -7,7 +7,6 @@ optimizer_runs = 88888888
 solc = "0.8.26"
 verbosity = 2
 ffi = true
-bytecode_hash = "none"
 
 fs_permissions = [
   { access = "read-write", path = ".forge-snapshots" },

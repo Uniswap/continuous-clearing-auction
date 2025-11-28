@@ -25,15 +25,20 @@ pre-commit run --all-files
 
 ### ContinuousClearingAuctionFactory
 
-| Network | Address | Commit Hash | Version |
-|---------|---------|------------|---------|
-| Mainnet | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
-| Unichain | TODO | TODO | TODO |
-| Sepolia | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
+| Network  | Address                                    | Commit Hash                              | Version          |
+| -------- | ------------------------------------------ | ---------------------------------------- | ---------------- |
+| Mainnet  | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
+| Unichain | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
+| Base     | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
+| Sepolia  | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
 
 ## Audits
 
-TODO
+- 11/11/2025: [Spearbit](./docs/audits/Spearbit_Nov_11_2025.pdf)
+- 10/21/2025: [OpenZeppelin](./docs/audits/OpenZeppelin_v1.0.0.pdf)
+- 10/19/2025: [Spearbit](./docs/audits/Spearbit_v1.0.0.pdf.pdf)
+- 10/19/2025: [ABDK Consulting](./docs/audits/ABDK_Uniswap_TWAPAuction_v_1_0.pdf)
+- 08/25/2025: [OpenZeppelin](./docs/audits/OpenZeppelin_v0.pdf)
 
 ### Bug bounty
 

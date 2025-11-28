@@ -1,6 +1,5 @@
 {
-  "Auction bytecode hash": "88489367857996169755346656899381523589792709423375094221169240424190621704595",
-  "Auction bytecode size": "17603",
+  "Auction bytecode size": "17644",
   "checkpoint_advanceToCurrentStep": "176988",
   "checkpoint_noBids": "162960",
   "checkpoint_zeroSupply": "114047",

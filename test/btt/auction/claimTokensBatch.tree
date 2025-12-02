@@ -1,0 +1,13 @@
+ClaimTokensBatchTest
+├── when block LT claim block
+│   └── it reverts with {NotClaimable}
+└── given block GT claim block
+    ├── when last checkpointed block is not end block
+    │   ├── it checkpoints the auction
+    │   └── it claims the tokens for the bids
+    └── given end block is checkpointed
+        ├── when auction is not graduated
+        │   └── it reverts with {NotGraduated}
+        └── given auction is graduated
+            └── when batch claim different owner
+                └── it reverts with {BatchClaimDifferentOwner}

@@ -1,0 +1,9 @@
+CheckpointTest
+├── when auction is not active
+│   └── it reverts with AuctionNotActive
+├── when block number GT end block
+│   └── it returns the final checkpoint
+└── when block number LTE end block
+    └── it returns the checkpoint at the block number
+        └── when block number is same as last checkpointed block
+            └── it does not create a new checkpoint

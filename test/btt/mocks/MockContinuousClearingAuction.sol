@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
+import {Bid} from 'src/BidStorage.sol';
 import {ContinuousClearingAuction} from 'src/ContinuousClearingAuction.sol';
 import {AuctionParameters} from 'src/interfaces/IContinuousClearingAuction.sol';
 import {AuctionStep} from 'src/libraries/StepLib.sol';
@@ -16,6 +17,19 @@ contract MockContinuousClearingAuction is ContinuousClearingAuction {
         returns (AuctionStep memory step, uint24 deltaMps)
     {
         return _advanceToStartOfCurrentStep(_blockNumber, $lastCheckpointedBlock);
+    }
+
+    /// @notice Mock wrapper around internal function for testing
+    function processExit(uint256 bidId, uint256 tokensFilled, uint256 currencySpentQ96) external {
+        _processExit(bidId, tokensFilled, currencySpentQ96);
+    }
+
+    /// @notice Mock wrapper around internal function for testing
+    function createBid(uint256 amount, address owner, uint256 maxPrice, uint24 startCumulativeMps)
+        external
+        returns (Bid memory bid, uint256 bidId)
+    {
+        return _createBid(amount, owner, maxPrice, startCumulativeMps);
     }
 
     function modifier_onlyAfterAuctionIsOver() external onlyAfterAuctionIsOver {}

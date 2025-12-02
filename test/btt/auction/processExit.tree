@@ -1,0 +1,5 @@
+ProcessExitTest
+├── when refund EQ zero
+│   └── it does not transfer currency to the owner
+└── when refund GT zero
+    └── it transfers the refund to the owner

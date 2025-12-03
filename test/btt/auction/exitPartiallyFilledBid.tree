@@ -1,0 +1,19 @@
+ExitPartiallyFilledBidTest
+├── when bid already exited
+│   └── it reverts with {BidAlreadyExited}
+└── given bid not exited
+    ├── when auction is not graduated and block LT end block
+    │   └── it reverts with {CannotPartiallyExitBidBeforeGraduation}
+    └── given auction is over
+        ├── when auction is not graduated
+        │   └── it fully refunds the bid
+        └── given auction is graduated
+            ├── when last fully filled block hint is invalid
+            │   └── it reverts with {InvalidLastFullyFilledCheckpointHint}
+            └── given last fully filled hint is valid
+                ├── when outbid block is not zero and is invalid
+                │   └── it reverts with {InvalidOutbidBlockCheckpointHint}
+                ├── when outbid block is zero and auction is not over
+                │   └── it reverts with {CannotPartiallyExitBidBeforeEndBlock}
+                └── when outbid block is zero and final checkpoint is not equal to max price
+                    └── it reverts with {CannotExitBid}

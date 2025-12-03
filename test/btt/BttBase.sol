@@ -57,6 +57,8 @@ contract BttBase is AuctionBaseTest {
 
         (bytes memory auctionStepsData, uint256 numberOfBlocks,) = generateAuctionSteps(_params.steps);
 
+        vm.assume(numberOfBlocks > 0);
+
         _params.parameters.startBlock =
             uint64(bound(_params.parameters.startBlock, 1, type(uint64).max - numberOfBlocks - 2));
         _params.parameters.endBlock = _params.parameters.startBlock + uint64(numberOfBlocks);

@@ -24,7 +24,7 @@ contract ClaimTokensBatchTest is BttBase {
         ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
         auction.onTokensReceived();
 
-        _blockNumber = uint64(bound(_blockNumber, mParams.parameters.startBlock, mParams.parameters.claimBlock - 1));
+        _blockNumber = uint64(bound(_blockNumber, 0, mParams.parameters.claimBlock - 1));
         vm.roll(_blockNumber);
         vm.expectRevert(IContinuousClearingAuction.NotClaimable.selector);
         auction.claimTokensBatch(address(0), new uint256[](0));

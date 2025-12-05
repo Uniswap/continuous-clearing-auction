@@ -11,7 +11,7 @@ import {IStepStorage} from 'src/interfaces/IStepStorage.sol';
 import {ConstantsLib} from 'src/libraries/ConstantsLib.sol';
 
 contract SubmitBidTest is BttBase {
-    function test_WhenAuctionIsNotActive(AuctionFuzzConstructorParams memory _params) public {
+    function test_WhenAuctionIsNotActive(AuctionFuzzConstructorParams memory _params, uint64 _blockNumber) public {
         // it reverts with {AuctionNotStarted}
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
@@ -24,7 +24,8 @@ contract SubmitBidTest is BttBase {
         ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
         auction.onTokensReceived();
 
-        vm.roll(mParams.parameters.startBlock - 1);
+        _blockNumber = uint64(bound(_blockNumber, 0, mParams.parameters.startBlock - 1));
+        vm.roll(_blockNumber);
         vm.expectRevert(IContinuousClearingAuction.AuctionNotStarted.selector);
         auction.submitBid{value: 1}(1, 1, address(this), bytes(''));
     }

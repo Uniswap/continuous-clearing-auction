@@ -28,7 +28,7 @@ contract SweepCurrencyTest is BttBase {
         ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
         auction.onTokensReceived();
 
-        _blockNumber = uint64(bound(_blockNumber, mParams.parameters.startBlock, mParams.parameters.endBlock - 1));
+        _blockNumber = uint64(bound(_blockNumber, 0, mParams.parameters.endBlock - 1));
 
         vm.roll(_blockNumber);
 
@@ -142,6 +142,9 @@ contract SweepCurrencyTest is BttBase {
         uint256 expectedCurrencyRaised =
             checkpoint.currencyRaisedAtClearingPriceQ96_X7.divUint256(FixedPoint96.Q96).scaleDownToUint256();
         vm.assume(expectedCurrencyRaised > 0);
+
+        assertEq(auction.sweepCurrencyBlock(), 0);
+        assertEq(mParams.parameters.fundsRecipient.balance, 0);
 
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.CurrencySwept(mParams.parameters.fundsRecipient, expectedCurrencyRaised);

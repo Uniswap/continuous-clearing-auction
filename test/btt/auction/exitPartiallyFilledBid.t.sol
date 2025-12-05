@@ -125,7 +125,8 @@ contract ExitPartiallyFilledBidTest is BttBase {
 
     function test_WhenLastFullyFilledCheckpointHintIsInvalid(
         AuctionFuzzConstructorParams memory _params,
-        uint128 _bidAmount
+        uint128 _bidAmount,
+        uint64 _lastFullyFilledCheckpointBlock
     ) public givenBidIsNotExited {
         // it reverts with {InvalidLastFullyFilledCheckpointHint}
 
@@ -153,20 +154,12 @@ contract ExitPartiallyFilledBidTest is BttBase {
         // Bid a small amount to ensure that maxPrice == clearing price
         uint256 bidId = auction.submitBid{value: 1}(maxPrice, 1, owner, bytes(''));
 
-        // Last fully filled checkpoint should be startBlock
-
-        // First checkpoint
-        vm.roll(mParams.parameters.startBlock + 1);
-        auction.checkpoint();
-
-        vm.roll(mParams.parameters.endBlock - 1);
-        auction.checkpoint();
+        // Invalid as long as not == startBlock
+        vm.assume(_lastFullyFilledCheckpointBlock != mParams.parameters.startBlock);
 
         vm.roll(mParams.parameters.endBlock);
         vm.expectRevert(IContinuousClearingAuction.InvalidLastFullyFilledCheckpointHint.selector);
-        auction.exitPartiallyFilledBid(bidId, mParams.parameters.startBlock + 1, 0);
-        vm.expectRevert(IContinuousClearingAuction.InvalidLastFullyFilledCheckpointHint.selector);
-        auction.exitPartiallyFilledBid(bidId, mParams.parameters.endBlock - 1, 0);
+        auction.exitPartiallyFilledBid(bidId, _lastFullyFilledCheckpointBlock, 0);
     }
 
     modifier givenLastFullyFilledCheckpointHintIsValid() {

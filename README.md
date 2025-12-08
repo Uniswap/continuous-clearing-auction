@@ -380,6 +380,33 @@ event TokensClaimed(uint256 indexed bidId, address indexed owner, uint256 tokens
 
 Anyone can call this function for any valid bid ids.
 
+## Integration risks
+
+### Incorrect configuration of the auction parameters
+CCA auctions are highly configurable. As such, it is important to ensure that the configurations of each auction instance are not only correct but protect against known risks.
+
+Ensure that the following parameters are correctly set:
+- `token` and `currency`
+- `startBlock`, `endBlock`, and `claimBlock`
+- `tickSpacing` is not too small (see [note-on-ticks](#note-on-ticks) below)
+- `floorPrice` is correctly set
+- `requiredCurrencyRaised` is not set too high where the auction will never graduate
+- `auctionStepsData` avoids common pitfalls (see [note-on-auction-steps](#note-on-auction-steps) below)
+
+### Note on ticks
+Ticks in the auction govern where bids can be placed. They have no impact on the potential clearingPrices of the auction and merely serve to prevent users from being outbid by others by infinitesimally small amounts and for gas efficiency in finding new clearing prices.
+
+Generally integrators should choose a tick spacing of AT LEAST 1 basis point of the floor price. 1% or 10% is also reasonable.
+
+Setting too small of a tick spacing will make the auction extremely gas inefficient, and in specific cases, can result in a DoS attack where the auction cannot finish. 
+
+### Note on auction steps
+Steps in the auction create the supply issuance schedule. Generally each step should be monotonically increasing in the amount of tokens sold, and the last block of the auction MUST sell a significant amount of tokens.
+
+This is because the final clearing price of the auction is used to initialize a Uniswap v4 liquidity pool, and if only a small number of tokens are sold at the end, the final price will be easy to manipulate.
+
+See the [whitepaper](./docs/assets/whitepaper.pdf) for more details.
+
 ## License
 
 The contracts are covered under the MIT License (`MIT`), see [MIT_LICENSE](https://github.com/Uniswap/continuous-clearing-auction/blob/main/LICENSE).

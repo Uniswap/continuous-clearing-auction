@@ -1,8 +1,11 @@
 # ContinuousClearingAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/ab88be10ec09bebb9ce21e524c265366917b5a1f/src/ContinuousClearingAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/000be74c9fb6e92005b3e6aff5f612cf221eaa8e/src/ContinuousClearingAuction.sol)
 
 **Inherits:**
-[BidStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [StepStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/StepStorage.sol/abstract.StepStorage.md), [TickStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/TickStorage.sol/abstract.TickStorage.md), [TokenCurrencyStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IContinuousClearingAuction](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/IContinuousClearingAuction.sol/interface.IContinuousClearingAuction.md)
+[BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [StepStorage](/src/StepStorage.sol/abstract.StepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IContinuousClearingAuction](/src/interfaces/IContinuousClearingAuction.sol/interface.IContinuousClearingAuction.md)
+
+**Title:**
+ContinuousClearingAuction
 
 Implements a time weighted uniform clearing price auction
 
@@ -413,7 +416,7 @@ function submitBid(uint256 maxPrice, uint128 amount, address owner, uint256 prev
 
 ### submitBid
 
-Submit a new bid
+Submit a new bid without specifying the previous tick price
 
 The call to `submitBid` checks `onlyActiveAuction` so it's not required on this function
 

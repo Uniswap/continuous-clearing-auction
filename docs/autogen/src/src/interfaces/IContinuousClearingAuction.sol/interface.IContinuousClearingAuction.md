@@ -1,8 +1,8 @@
 # IContinuousClearingAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/ab88be10ec09bebb9ce21e524c265366917b5a1f/src/interfaces/IContinuousClearingAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/000be74c9fb6e92005b3e6aff5f612cf221eaa8e/src/interfaces/IContinuousClearingAuction.sol)
 
 **Inherits:**
-[IDistributionContract](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IStepStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/IStepStorage.sol/interface.IStepStorage.md), [ITokenCurrencyStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
+[IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IStepStorage](/src/interfaces/IStepStorage.sol/interface.IStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
 
 Interface for the ContinuousClearingAuction contract
 

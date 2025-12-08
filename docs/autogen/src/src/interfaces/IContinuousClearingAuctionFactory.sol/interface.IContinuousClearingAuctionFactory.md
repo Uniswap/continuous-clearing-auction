@@ -1,8 +1,11 @@
 # IContinuousClearingAuctionFactory
-[Git Source](https://github.com/Uniswap/twap-auction/blob/b4d0a06daced32c81e0487f3201e863948da89b2/src/interfaces/IContinuousClearingAuctionFactory.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/000be74c9fb6e92005b3e6aff5f612cf221eaa8e/src/interfaces/IContinuousClearingAuctionFactory.sol)
 
 **Inherits:**
-[IDistributionStrategy](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/external/IDistributionStrategy.sol/interface.IDistributionStrategy.md)
+[IDistributionStrategy](/src/interfaces/external/IDistributionStrategy.sol/interface.IDistributionStrategy.md)
+
+**Title:**
+IContinuousClearingAuctionFactory
 
 
 ## Functions

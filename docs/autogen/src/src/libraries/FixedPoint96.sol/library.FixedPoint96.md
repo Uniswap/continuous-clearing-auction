@@ -1,5 +1,8 @@
 # FixedPoint96
-[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/libraries/FixedPoint96.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/000be74c9fb6e92005b3e6aff5f612cf221eaa8e/src/libraries/FixedPoint96.sol)
+
+**Title:**
+FixedPoint96
 
 A library for handling binary fixed point numbers, see https://en.wikipedia.org/wiki/Q_(number_format)
 

@@ -1,5 +1,8 @@
 # MaxBidPriceLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/ab88be10ec09bebb9ce21e524c265366917b5a1f/src/libraries/MaxBidPriceLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/000be74c9fb6e92005b3e6aff5f612cf221eaa8e/src/libraries/MaxBidPriceLib.sol)
+
+**Title:**
+MaxBidPriceLib
 
 Library for calculating the maximum bid price for a given total supply
 

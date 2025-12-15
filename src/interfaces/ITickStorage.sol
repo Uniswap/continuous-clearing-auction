@@ -21,6 +21,8 @@ interface ITickStorage {
     error TickPreviousPriceInvalid();
     /// @notice Error thrown when the tick price is not increasing
     error TickPriceNotIncreasing();
+    /// @notice Error thrown when the tick is not initialized
+    error TickNotInitialized();
     /// @notice Error thrown when the price is not at a boundary designated by the tick spacing
     error TickPriceNotAtBoundary();
     /// @notice Error thrown when the tick price is invalid

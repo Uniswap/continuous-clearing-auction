@@ -41,6 +41,7 @@ contract ConstructorTest is BttBase {
         // it writes CLAIM_BLOCK
         // it writes VALIDATION_HOOK
         // it writes BID_MAX_PRICE
+        // it writes $clearingPrice to be FLOOR_PRICE
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
         mParams.parameters.claimBlock = uint64(bound(_claimBlock, mParams.parameters.endBlock, type(uint64).max));
@@ -54,6 +55,7 @@ contract ConstructorTest is BttBase {
         assertEq(auction.MAX_BID_PRICE(), computedMaxBidPrice);
         assertEq(auction.claimBlock(), mParams.parameters.claimBlock);
         assertEq(address(auction.validationHook()), address(mParams.parameters.validationHook));
+        assertEq(auction.clearingPrice(), mParams.parameters.floorPrice);
     }
 
     modifier whenClaimBlockGEEndBlock() {

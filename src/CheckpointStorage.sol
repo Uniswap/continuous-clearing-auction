@@ -24,11 +24,6 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         return _getCheckpoint($lastCheckpointedBlock);
     }
 
-    /// @inheritdoc ICheckpointStorage
-    function clearingPrice() external view returns (uint256) {
-        return _getCheckpoint($lastCheckpointedBlock).clearingPrice;
-    }
-
     /// @notice Get a checkpoint from storage
     function _getCheckpoint(uint64 blockNumber) internal view returns (Checkpoint memory) {
         return $_checkpoints[blockNumber];

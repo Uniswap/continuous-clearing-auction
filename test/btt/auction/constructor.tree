@@ -4,7 +4,8 @@ ConstructorTest
 └── when claimBlock GE endBlock
     ├── it writes CLAIM_BLOCK
     ├── it writes VALIDATION_HOOK
-    └── it writes BID_MAX_PRICE
+    ├── it writes BID_MAX_PRICE
+    └── it writes $clearingPrice to be FLOOR_PRICE
         ├── when total supply is EQ max total supply
         │   └── it sets bid max price to be MaxBidPriceLib.maxBidPrice(MAX_TOTAL_SUPPLY)
         ├── when total supply is EQ 1

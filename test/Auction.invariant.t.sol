@@ -16,6 +16,7 @@ import {AuctionUnitTest} from './unit/AuctionUnitTest.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {MockContinuousClearingAuction} from './utils/MockAuction.sol';
 import {Test} from 'forge-std/Test.sol';
+import {console} from 'forge-std/console.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
@@ -49,6 +50,8 @@ contract AuctionInvariantHandler is Test, Assertions {
         uint256 cnt_BidEarlyExited;
         uint256 cnt_checkpoints;
         uint256 cnt_clearingPriceUpdated;
+        uint256 cnt_untilTickPriceMAX_TICK_PTR;
+        uint256 cnt_untilTickPrice;
         // Errors
         uint256 cnt_AuctionIsOverError;
         uint256 cnt_BidAmountTooSmallError;
@@ -69,6 +72,13 @@ contract AuctionInvariantHandler is Test, Assertions {
         actors = _actors;
 
         BID_MIN_PRICE = mockAuction.floorPrice() + mockAuction.tickSpacing();
+    }
+
+    modifier givenAuctionHasStarted() {
+        if (block.number < mockAuction.startBlock()) {
+            vm.roll(mockAuction.startBlock());
+        }
+        _;
     }
 
     modifier useActor(uint256 actorIndexSeed) {
@@ -105,11 +115,16 @@ contract AuctionInvariantHandler is Test, Assertions {
         // Check that total cleared does not exceed the max tokens that can be sold in the auction so far
         assertLe(
             mockAuction.totalCleared(),
-            (uint256(mockAuction.totalSupply()) * checkpoint.cumulativeMps) / ConstantsLib.MPS
+            (uint256(mockAuction.totalSupply()) * checkpoint.cumulativeMps) / ConstantsLib.MPS,
+            'Total cleared exceeds the max tokens that can be sold in the auction so far'
         );
 
         // We can never have more sweepable tokens than the auction's balance
-        assertLe(mockAuction.sweepableTokens(), token.balanceOf(address(mockAuction)));
+        assertLe(
+            mockAuction.sweepableTokens(),
+            token.balanceOf(address(mockAuction)),
+            'Sweepable tokens exceeds the auction\'s balance'
+        );
 
         _checkpoint = checkpoint;
     }
@@ -202,11 +217,22 @@ contract AuctionInvariantHandler is Test, Assertions {
         if (seed % 10 == 0) vm.roll(block.number + 1);
     }
 
-    function handleCheckpoint() public validateCheckpoint {
-        if (block.number < mockAuction.startBlock()) {
-            vm.expectRevert(IContinuousClearingAuction.AuctionNotStarted.selector);
-        }
+    function handleCheckpoint() public validateCheckpoint givenAuctionHasStarted {
         mockAuction.checkpoint();
+    }
+
+    function handleForceIterateOverTicks(uint8 tickNumber) public givenAuctionHasStarted {
+        uint256 prevTickPrice = _getLowerTick(mockAuction.floorPrice() + tickNumber * mockAuction.tickSpacing());
+        if (prevTickPrice == 0 || prevTickPrice <= mockAuction.nextActiveTickPrice()) {
+            prevTickPrice = mockAuction.MAX_TICK_PTR();
+        }
+
+        if (prevTickPrice == mockAuction.MAX_TICK_PTR()) {
+            metrics.cnt_untilTickPriceMAX_TICK_PTR++;
+        } else {
+            metrics.cnt_untilTickPrice++;
+        }
+        mockAuction.forceIterateOverTicks(prevTickPrice);
     }
 
     /// @notice Handle a bid submission, ensuring that the actor has enough funds and the bid parameters are valid
@@ -214,13 +240,9 @@ contract AuctionInvariantHandler is Test, Assertions {
         public
         payable
         useActor(actorIndexSeed)
+        givenAuctionHasStarted
         validateCheckpoint
     {
-        // If we are not at the start of the auction - lets roll forward to it
-        if (block.number < mockAuction.startBlock()) {
-            vm.roll(mockAuction.startBlock());
-        }
-
         (uint128 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(bidAmount, _checkpoint.clearingPrice, tickNumber);
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
@@ -250,7 +272,11 @@ contract AuctionInvariantHandler is Test, Assertions {
                 // See if we checkpoint, that the bid maxPrice would be at an invalid price
                 mockAuction.checkpoint();
                 // Because it reverted from BidMustBeAboveClearingPrice, we must assert that it should have
-                assertLe(maxPrice, mockAuction.clearingPrice());
+                assertLe(
+                    maxPrice,
+                    mockAuction.clearingPrice(),
+                    'Reverted with BidMustBeAboveClearingPrice but maxPrice is not above clearing price'
+                );
                 metrics.cnt_BidMustBeAboveClearingPriceError++;
             } else if (inputAmount == 0) {
                 assertEq(revertData, abi.encodeWithSelector(IContinuousClearingAuction.BidAmountTooSmall.selector));
@@ -331,6 +357,8 @@ contract AuctionInvariantHandler is Test, Assertions {
         emit log_named_uint('BidEarlyExited count', metrics.cnt_BidEarlyExited);
         emit log_named_uint('checkpoints count', metrics.cnt_checkpoints);
         emit log_named_uint('clearingPriceUpdated count', metrics.cnt_clearingPriceUpdated);
+        emit log_named_uint('untilTickPriceMAX_TICK_PTR count', metrics.cnt_untilTickPriceMAX_TICK_PTR);
+        emit log_named_uint('untilTickPrice count', metrics.cnt_untilTickPrice);
         emit log_named_uint('AuctionIsOverError count', metrics.cnt_AuctionIsOverError);
         emit log_named_uint('BidAmountTooSmallError count', metrics.cnt_BidAmountTooSmallError);
         emit log_named_uint('TickPriceNotIncreasingError count', metrics.cnt_TickPriceNotIncreasingError);

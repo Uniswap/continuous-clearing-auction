@@ -49,7 +49,7 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
         });
 
         // Note: this is the clearing price rounded up
-        uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice(checkpoint);
+        uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice();
         checkpoint.clearingPrice = clearingPrice;
 
         // TODO: fuzz this value
@@ -138,7 +138,7 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
             prev: 0,
             next: type(uint64).max
         });
-        uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice(checkpoint);
+        uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice();
 
         // Require that the clearing price rounds up to the next tick price
         vm.assume(clearingPrice == nextTickPrice);

@@ -89,6 +89,8 @@ interface IContinuousClearingAuction is
     error InvalidBidUnableToClear();
     /// @notice Error thrown when the auction has sold the entire total supply of tokens
     error AuctionSoldOut();
+    /// @notice Error thrown when the tick price is not greater than the next active tick price
+    error TickHintMustBeGreaterThanNextActiveTickPrice(uint256 tickPrice, uint256 nextActiveTickPrice);
 
     /// @notice Emitted when the tokens are received
     /// @param totalSupply The total supply of tokens received
@@ -155,6 +157,13 @@ interface IContinuousClearingAuction is
     /// @dev If the auction is over, it returns the final checkpoint
     /// @return _checkpoint The checkpoint at the current block
     function checkpoint() external returns (Checkpoint memory _checkpoint);
+
+    /// @notice Get the most up to date clearing price
+    /// @dev This will be at least as up to date as the latest checkpoint. It can be incremented from calls to `forceIterateOverTicks`
+    /// @dev Callers MUST ensure that the latest checkpoint is up to date before using this function.
+    /// @dev Additionally, it is recommended to use this function instead of reading the clearingPrice from the latest checkpoint.
+    /// @return The current clearing price in Q96 form
+    function clearingPrice() external view returns (uint256);
 
     /// @notice Whether the auction has graduated as of the given checkpoint
     /// @dev The auction is considered graduated if the currency raised is greater than or equal to the required currency raised

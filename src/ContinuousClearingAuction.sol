@@ -57,6 +57,10 @@ contract ContinuousClearingAuction is
     /// @notice The sum of currency demand in ticks above the clearing price
     /// @dev This will increase every time a new bid is submitted, and decrease when bids are outbid.
     uint256 internal $sumCurrencyDemandAboveClearingQ96;
+    /// @notice The most up to date clearing price, set on each call to `checkpoint`
+    /// @dev This can be incremented manually by calling `forceIterateOverTicks`
+    uint256 internal $clearingPrice;
+
     /// @notice Whether the TOTAL_SUPPLY of tokens has been received
     bool private $_tokensReceived;
 
@@ -86,6 +90,9 @@ contract ContinuousClearingAuction is
                 _parameters.floorPrice + _parameters.tickSpacing, MAX_BID_PRICE
             );
         }
+
+        $clearingPrice = FLOOR_PRICE;
+        emit ClearingPriceUpdated(block.number, $clearingPrice);
     }
 
     /// @notice Modifier for functions which can only be called after the auction is over
@@ -136,6 +143,11 @@ contract ContinuousClearingAuction is
     /// @inheritdoc IContinuousClearingAuction
     function isGraduated() external view returns (bool) {
         return _isGraduated();
+    }
+
+    /// @inheritdoc IContinuousClearingAuction
+    function clearingPrice() external view returns (uint256) {
+        return $clearingPrice;
     }
 
     /// @notice Whether the auction has graduated as of the given checkpoint
@@ -278,17 +290,10 @@ contract ContinuousClearingAuction is
 
     /// @notice Iterate to find the tick where the total demand at and above it is strictly less than the remaining supply in the auction
     /// @dev If the loop reaches the highest tick in the book, `nextActiveTickPrice` will be set to MAX_TICK_PTR
-    /// @param _checkpoint The latest checkpoint
     /// @return The new clearing price
-    function _iterateOverTicksAndFindClearingPrice(Checkpoint memory _checkpoint) internal returns (uint256) {
-        // The clearing price can never be lower than the last checkpoint.
-        // If the clearing price is zero, set it to the floor price
-        uint256 minimumClearingPrice = _checkpoint.clearingPrice.coalesce(FLOOR_PRICE);
-        // If there are no more remaining mps in the auction, we don't need to iterate over ticks
-        // and we can return the minimum clearing price above
-        if (_checkpoint.remainingMpsInAuction() == 0) {
-            return minimumClearingPrice;
-        }
+    function _iterateOverTicksAndFindClearingPrice(uint256 _untilTickPrice) internal returns (uint256) {
+        // The new clearing price can never be lower than the current clearing price
+        uint256 minimumClearingPrice = $clearingPrice;
 
         // Place state variables on the stack to save gas
         bool updateStateVariables;
@@ -306,14 +311,14 @@ contract ContinuousClearingAuction is
          * If the auction was fully subscribed in the first block which it was active, then the total CURRENCY REQUIRED
          * at any given price is equal to totalSupply * p', where p' is that price.
          */
-        uint256 clearingPrice = sumCurrencyDemandAboveClearingQ96_.divUp(TOTAL_SUPPLY);
+        uint256 clearingPrice_ = sumCurrencyDemandAboveClearingQ96_.divUp(TOTAL_SUPPLY);
         while (
             // Loop while the currency amount above the clearing price is greater than the required currency at `nextActiveTickPrice_`
-            (nextActiveTickPrice_ != MAX_TICK_PTR
+            (nextActiveTickPrice_ != _untilTickPrice
                     && sumCurrencyDemandAboveClearingQ96_ >= TOTAL_SUPPLY * nextActiveTickPrice_)
                 // If the demand above clearing rounds up to the `nextActiveTickPrice`, we need to keep iterating over ticks
                 // This ensures that the `nextActiveTickPrice` is always the next initialized tick strictly above the clearing price
-                || clearingPrice == nextActiveTickPrice_
+                || clearingPrice_ == nextActiveTickPrice_
         ) {
             Tick storage $nextActiveTick = _getTick(nextActiveTickPrice_);
             // Subtract the demand at the current nextActiveTick from the total demand
@@ -322,7 +327,7 @@ contract ContinuousClearingAuction is
             minimumClearingPrice = nextActiveTickPrice_;
             // Advance to the next tick
             nextActiveTickPrice_ = $nextActiveTick.next;
-            clearingPrice = sumCurrencyDemandAboveClearingQ96_.divUp(TOTAL_SUPPLY);
+            clearingPrice_ = sumCurrencyDemandAboveClearingQ96_.divUp(TOTAL_SUPPLY);
             updateStateVariables = true;
         }
         // Set the values into storage if we found a new next active tick price
@@ -335,13 +340,11 @@ contract ContinuousClearingAuction is
         // The minimum clearing price is either the floor price or the last tick we iterated over.
         // With the exception of the first iteration, the minimum price is a lower bound on the clearing price
         // because we already verified that we had enough demand to purchase all of the remaining supply at that price.
-        if (clearingPrice < minimumClearingPrice) {
+        if (clearingPrice_ < minimumClearingPrice) {
             return minimumClearingPrice;
         }
         // Otherwise, return the calculated clearing price
-        else {
-            return clearingPrice;
-        }
+        return clearingPrice_;
     }
 
     /// @notice Internal function for checkpointing at a specific block number
@@ -355,13 +358,23 @@ contract ContinuousClearingAuction is
         if (blockNumber == lastCheckpointedBlock) return latestCheckpoint();
 
         _checkpoint = latestCheckpoint();
-        uint256 clearingPrice = _iterateOverTicksAndFindClearingPrice(_checkpoint);
-        if (clearingPrice != _checkpoint.clearingPrice) {
-            // Set the new clearing price
-            _checkpoint.clearingPrice = clearingPrice;
-            // Reset the currencyRaisedAtClearingPrice to zero since the clearing price has changed
-            _checkpoint.currencyRaisedAtClearingPriceQ96_X7 = ValueX7.wrap(0);
-            emit ClearingPriceUpdated(blockNumber, clearingPrice);
+
+        // If there are no more remaining mps in the auction, we don't need to iterate over ticks
+        // Or update the clearing price
+        if (_checkpoint.remainingMpsInAuction() > 0) {
+            // Iterate over all ticks until MAX_TICK_PTR to find the clearing price
+            // This can revert with out of gas if there are a large number of ticks
+            uint256 newClearingPrice = _iterateOverTicksAndFindClearingPrice(MAX_TICK_PTR);
+            // checkpoint has the stale clearing price
+            if (newClearingPrice != _checkpoint.clearingPrice) {
+                // Set the new clearing price
+                _checkpoint.clearingPrice = newClearingPrice;
+                // Reset the currencyRaisedAtClearingPrice to zero since the clearing price has changed
+                _checkpoint.currencyRaisedAtClearingPriceQ96_X7 = ValueX7.wrap(0);
+                // Write the new cleraing price to storage
+                $clearingPrice = newClearingPrice;
+                emit ClearingPriceUpdated(blockNumber, newClearingPrice);
+            }
         }
 
         // Calculate the percentage of the supply that has been sold since the last checkpoint and the start of the current step
@@ -406,7 +419,7 @@ contract ContinuousClearingAuction is
         // Revert if there are no more tokens to be sold
         if (_checkpoint.remainingMpsInAuction() == 0) revert AuctionSoldOut();
         // We don't allow bids to be submitted at or below the clearing price
-        if (maxPrice <= _checkpoint.clearingPrice) revert BidMustBeAboveClearingPrice();
+        if (maxPrice <= $clearingPrice) revert BidMustBeAboveClearingPrice();
 
         // Initialize the tick if needed. This will no-op if the tick is already initialized.
         _initializeTickIfNeeded(prevTickPrice, maxPrice);
@@ -465,6 +478,29 @@ contract ContinuousClearingAuction is
         } else {
             return _checkpointAtBlock(uint64(block.number));
         }
+    }
+
+    /// @notice Manually iterate over ticks to update the clearing price
+    /// @dev This is used to prevent DoS attacks which initialize a large number of ticks
+    /// @param untilTickPrice The tick price to iterate until
+    function forceIterateOverTicks(uint256 untilTickPrice) external onlyActiveAuction returns (uint256) {
+        if (untilTickPrice != MAX_TICK_PTR) {
+            // Ensure that the price is at a tick boundary
+            Tick storage $tick = _getTick(untilTickPrice);
+            // The tick must be initialized otherwise it will be an infinite loop
+            if ($tick.next == 0) revert TickNotInitialized();
+            // The untilTickPrice must be greater than the current next active tick price
+            if (untilTickPrice <= $nextActiveTickPrice) {
+                revert TickHintMustBeGreaterThanNextActiveTickPrice(untilTickPrice, $nextActiveTickPrice);
+            }
+        }
+        uint256 newClearingPrice = _iterateOverTicksAndFindClearingPrice(untilTickPrice);
+        // Update the clearing price in storage if it has changed
+        if (newClearingPrice != $clearingPrice) {
+            $clearingPrice = newClearingPrice;
+            emit ClearingPriceUpdated(block.number, newClearingPrice);
+        }
+        return newClearingPrice;
     }
 
     /// @inheritdoc IContinuousClearingAuction

@@ -76,7 +76,7 @@ contract AuctionIterateOverTicksTest is AuctionUnitTest {
         mockAuction.uncheckedSetNextActiveTickPrice(lowestTickPrice);
         vm.assume(mockAuction.floorPrice() <= lowestTickPrice);
 
-        uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice(_checkpoint);
+        uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice();
         // Assert that the clearing price is greater than or equal to the floor price
         assertGe(clearingPrice, mockAuction.floorPrice());
         // Assert that the clearing price is less than or equal to the highest tick price

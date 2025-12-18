@@ -752,6 +752,11 @@ contract ContinuousClearingAuction is
     }
 
     /// @inheritdoc IContinuousClearingAuction
+    function totalClearedQ96_X7() external view returns (ValueX7) {
+        return $totalClearedQ96_X7;
+    }
+
+    /// @inheritdoc IContinuousClearingAuction
     function totalCleared() external view returns (uint256) {
         return $totalClearedQ96_X7.divUint256(FixedPoint96.Q96).scaleDownToUint256();
     }

@@ -2,6 +2,7 @@
 
 # Contents
 - [interfaces](/src/interfaces)
+- [lens](/src/lens)
 - [libraries](/src/libraries)
 - [BidStorage](BidStorage.sol/abstract.BidStorage.md)
 - [CheckpointStorage](CheckpointStorage.sol/abstract.CheckpointStorage.md)

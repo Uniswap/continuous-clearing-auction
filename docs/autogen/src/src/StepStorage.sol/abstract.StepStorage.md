@@ -1,8 +1,11 @@
 # StepStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/b4d0a06daced32c81e0487f3201e863948da89b2/src/StepStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/64f5212a4573a22c85e9c110002cc1ad74f5e008/src/StepStorage.sol)
 
 **Inherits:**
-[IStepStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/IStepStorage.sol/interface.IStepStorage.md)
+[IStepStorage](/src/interfaces/IStepStorage.sol/interface.IStepStorage.md)
+
+**Title:**
+StepStorage
 
 Abstract contract to store and read information about the auction issuance schedule
 

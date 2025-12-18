@@ -1,5 +1,8 @@
 # ValueX7Lib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/b619ad417255dd52e751fc565c8955914dbf07f4/src/libraries/ValueX7Lib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/64f5212a4573a22c85e9c110002cc1ad74f5e008/src/libraries/ValueX7Lib.sol)
+
+**Title:**
+ValueX7Lib
 
 
 ## State Variables

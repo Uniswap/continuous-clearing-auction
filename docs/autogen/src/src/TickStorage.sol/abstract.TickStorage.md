@@ -1,8 +1,11 @@
 # TickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/TickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/64f5212a4573a22c85e9c110002cc1ad74f5e008/src/TickStorage.sol)
 
 **Inherits:**
-[ITickStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
+[ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md)
+
+**Title:**
+TickStorage
 
 Abstract contract for handling tick storage
 

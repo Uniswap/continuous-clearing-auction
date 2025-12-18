@@ -104,7 +104,7 @@ library MaxBidPriceLib {
          *  x/2 = 154 - y
          *  x = 2 * (154 - y)
          * We want to find 2^x, not `x` so we take both sides to the power of 2:
-         *  2^x = (2^154 / y) ** 2
+         *  2^x = (2^154 / 2^y) ** 2
          *
          * Because we return early if total supply is less than 2^62 the result of this will not overflow a uint256.
          */

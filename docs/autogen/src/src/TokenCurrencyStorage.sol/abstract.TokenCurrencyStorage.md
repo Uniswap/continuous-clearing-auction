@@ -1,8 +1,11 @@
 # TokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/TokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/64f5212a4573a22c85e9c110002cc1ad74f5e008/src/TokenCurrencyStorage.sol)
 
 **Inherits:**
-[ITokenCurrencyStorage](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
+[ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
+
+**Title:**
+TokenCurrencyStorage
 
 
 ## State Variables

@@ -1,5 +1,8 @@
 # ITickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/ab88be10ec09bebb9ce21e524c265366917b5a1f/src/interfaces/ITickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/64f5212a4573a22c85e9c110002cc1ad74f5e008/src/interfaces/ITickStorage.sol)
+
+**Title:**
+ITickStorage
 
 Interface for the TickStorage contract
 

@@ -216,13 +216,15 @@ interface IContinuousClearingAuction is
     /// @dev This function can only be called after the auction has ended
     function sweepUnsoldTokens() external;
 
-    /// @notice The currency raised as of the last checkpoint
+    /// @notice The currency raised as of the last checkpoint in Q96 representation, scaled up by X7
+    /// @dev Most use cases will want to use `currencyRaised()` instead
     function currencyRaisedQ96_X7() external view returns (ValueX7);
 
     /// @notice The sum of demand in ticks above the clearing price
     function sumCurrencyDemandAboveClearingQ96() external view returns (uint256);
 
-    /// @notice The total currency raised as of the last checkpoint
+    /// @notice The total currency raised as of the last checkpoint in Q96 representation, scaled up by X7
+    /// @dev Most use cases will want to use `totalCleared()` instead
     function totalClearedQ96_X7() external view returns (ValueX7);
 
     /// @notice The total tokens cleared as of the last checkpoint in uint256 representation

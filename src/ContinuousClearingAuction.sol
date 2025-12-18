@@ -171,42 +171,35 @@ contract ContinuousClearingAuction is
     ///         This function updates the cumulative values of the checkpoint, and
     ///         requires that the clearing price is up to date
     /// @param _checkpoint The checkpoint to sell tokens at its clearing price
-    /// @param deltaMps The number of mps to sell
+    /// @param _deltaMps The number of mps to sell
     /// @return The checkpoint with all cumulative values updated
-    function _sellTokensAtClearingPrice(Checkpoint memory _checkpoint, uint24 deltaMps)
+    function _sellTokensAtClearingPrice(Checkpoint memory _checkpoint, uint24 _deltaMps)
         internal
         returns (Checkpoint memory)
     {
         // Advance the auction by selling an additional `deltaMps` share of TOTAL_SUPPLY at the current clearing price.
         //
-        // Units and scaling:
-        // - Prices: Q96 (× 2^96)
-        // - Demand: Q96
-        // - deltaMps: X7 (milli-basis points, 1e7 = 100%)
-        // - Currency/Token flows in this function: Q96*X7 (demand or currency × deltaMps)
-        //
-        // Algorithm overview:
-        // 1) Assume all demand is strictly above the clearing price: contribution = sumAboveClearingQ96 × deltaMps.
+        // At a high level, the algorithm is:
+        // 1) Assume all demand is strictly above the clearing price: currencyRaised = sumAboveClearingQ96 × deltaMps.
         // 2) If the clearing price is exactly on an initialized tick that has demand, account for the partially filled
-        //    bids at the clearing tick. There are two ways to derive the at-clearing contribution when the price is
+        //    bids at the clearing tick. There are two ways to derive the at-clearing currencyRaised when the price is
         //    not rounded up:
         //       (A) total implied currency at the rounded-up price − contribution from above-clearing
         //       (B) tick demand at clearing × deltaMps
         //    If the clearing price was rounded up to the tick boundary, (A) can exceed (B); cap with min(A, B).
 
         uint256 priceQ96 = _checkpoint.clearingPrice;
-        uint256 deltaMpsU = uint256(deltaMps);
+        uint256 deltaMpsU = uint256(_deltaMps);
         uint256 sumAboveQ96 = $sumCurrencyDemandAboveClearingQ96;
 
-        // Base case: demand strictly above the clearing price only
-        // Most bids are strictly above clearing; contribution = (Q96 demand above clearing) × (X7 delta)
+        // Find the base case where all demand is strictly above the clearing price
         uint256 currencyFromAboveQ96X7;
         unchecked {
             currencyFromAboveQ96X7 = sumAboveQ96 * deltaMpsU;
         }
 
-        // Special case: clearing price equals a tick with demand (partially filled tick)
-        // Bidders at that tick can be partially filled over this increment. Split into:
+        // When the clearing price equals a tick with demand (partially filled tick)
+        // bidders at that tick can be partially filled. We split the currency raised into:
         // - (1) above-clearing contribution (already computed) and
         // - (2) at-clearing contribution.
         if (priceQ96 % TICK_SPACING == 0) {
@@ -253,9 +246,9 @@ contract ContinuousClearingAuction is
         // Update global currency raised
         $currencyRaisedQ96_X7 = ValueX7.wrap(ValueX7.unwrap($currencyRaisedQ96_X7) + currencyFromAboveQ96X7);
 
-        _checkpoint.cumulativeMps += deltaMps;
+        _checkpoint.cumulativeMps += _deltaMps;
         // Harmonic-mean accumulator: add (mps / price) using the rounded-up clearing price for this increment
-        _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(deltaMps, priceQ96);
+        _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(_deltaMps, priceQ96);
         return _checkpoint;
     }
 
@@ -290,6 +283,7 @@ contract ContinuousClearingAuction is
 
     /// @notice Iterate to find the tick where the total demand at and above it is strictly less than the remaining supply in the auction
     /// @dev If the loop reaches the highest tick in the book, `nextActiveTickPrice` will be set to MAX_TICK_PTR
+    /// @param _untilTickPrice The tick price to iterate until
     /// @return The new clearing price
     function _iterateOverTicksAndFindClearingPrice(uint256 _untilTickPrice) internal returns (uint256) {
         // The new clearing price can never be lower than the current clearing price
@@ -352,10 +346,10 @@ contract ContinuousClearingAuction is
     ///      Checkpoints are created at the top of each block with a new bid and does NOT include that bid
     ///      Because of this, we need to calculate what the new state of the Auction should be before updating
     ///      purely on the supply we will sell to the potentially updated `sumCurrencyDemandAboveClearingQ96` value
-    /// @param blockNumber The block number to checkpoint at
-    function _checkpointAtBlock(uint64 blockNumber) internal returns (Checkpoint memory _checkpoint) {
+    /// @param _blockNumber The block number to checkpoint at
+    function _checkpointAtBlock(uint64 _blockNumber) internal returns (Checkpoint memory _checkpoint) {
         uint64 lastCheckpointedBlock = $lastCheckpointedBlock;
-        if (blockNumber == lastCheckpointedBlock) return latestCheckpoint();
+        if (_blockNumber == lastCheckpointedBlock) return latestCheckpoint();
 
         _checkpoint = latestCheckpoint();
 
@@ -373,16 +367,16 @@ contract ContinuousClearingAuction is
                 _checkpoint.currencyRaisedAtClearingPriceQ96_X7 = ValueX7.wrap(0);
                 // Write the new cleraing price to storage
                 $clearingPrice = newClearingPrice;
-                emit ClearingPriceUpdated(blockNumber, newClearingPrice);
+                emit ClearingPriceUpdated(_blockNumber, newClearingPrice);
             }
         }
 
         // Calculate the percentage of the supply that has been sold since the last checkpoint and the start of the current step
-        (AuctionStep memory step, uint24 deltaMps) = _advanceToStartOfCurrentStep(blockNumber, lastCheckpointedBlock);
+        (AuctionStep memory step, uint24 deltaMps) = _advanceToStartOfCurrentStep(_blockNumber, lastCheckpointedBlock);
         // `deltaMps` above is equal to the percentage of tokens sold up until the start of the current step.
         // If the last checkpointed block is more recent than the start of the current step, account for the percentage
         // sold since the last checkpointed block. Otherwise, add the percent sold since the start of the current step.
-        uint64 blockDelta = blockNumber - uint64(FixedPointMathLib.max(step.startBlock, lastCheckpointedBlock));
+        uint64 blockDelta = _blockNumber - uint64(FixedPointMathLib.max(step.startBlock, lastCheckpointedBlock));
         unchecked {
             deltaMps += uint24(blockDelta * step.mps);
         }
@@ -390,9 +384,9 @@ contract ContinuousClearingAuction is
         // Sell the percentage of outstanding tokens since the last checkpoint at the current clearing price
         _checkpoint = _sellTokensAtClearingPrice(_checkpoint, deltaMps);
         // Insert the checkpoint into storage, updating latest pointer and the linked list
-        _insertCheckpoint(_checkpoint, blockNumber);
+        _insertCheckpoint(_checkpoint, _blockNumber);
 
-        emit CheckpointUpdated(blockNumber, _checkpoint.clearingPrice, _checkpoint.cumulativeMps);
+        emit CheckpointUpdated(_blockNumber, _checkpoint.clearingPrice, _checkpoint.cumulativeMps);
     }
 
     /// @notice Return the final checkpoint of the auction
@@ -407,35 +401,38 @@ contract ContinuousClearingAuction is
     ///      For gas efficiency, `prevTickPrice` should be the price of the tick immediately before `maxPrice`.
     /// @dev Does not check that the actual value `amount` was received by the contract
     /// @return bidId The id of the created bid
-    function _submitBid(uint256 maxPrice, uint128 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
-        internal
-        returns (uint256 bidId)
-    {
+    function _submitBid(
+        uint256 _maxPrice,
+        uint128 _amount,
+        address _owner,
+        uint256 _prevTickPrice,
+        bytes calldata _hookData
+    ) internal returns (uint256 bidId) {
         // Reject bids which would cause TOTAL_SUPPLY * maxPrice to overflow a uint256
-        if (maxPrice > MAX_BID_PRICE) revert InvalidBidPriceTooHigh(maxPrice, MAX_BID_PRICE);
+        if (_maxPrice > MAX_BID_PRICE) revert InvalidBidPriceTooHigh(_maxPrice, MAX_BID_PRICE);
 
         // Get the latest checkpoint before validating the bid
         Checkpoint memory _checkpoint = checkpoint();
         // Revert if there are no more tokens to be sold
         if (_checkpoint.remainingMpsInAuction() == 0) revert AuctionSoldOut();
         // We don't allow bids to be submitted at or below the clearing price
-        if (maxPrice <= $clearingPrice) revert BidMustBeAboveClearingPrice();
+        if (_maxPrice <= $clearingPrice) revert BidMustBeAboveClearingPrice();
 
         // Initialize the tick if needed. This will no-op if the tick is already initialized.
-        _initializeTickIfNeeded(prevTickPrice, maxPrice);
+        _initializeTickIfNeeded(_prevTickPrice, _maxPrice);
 
         // Call the validation hook and bubble up the revert reason if it reverts
-        VALIDATION_HOOK.handleValidate(maxPrice, amount, owner, msg.sender, hookData);
+        VALIDATION_HOOK.handleValidate(_maxPrice, _amount, _owner, msg.sender, _hookData);
 
         Bid memory bid;
-        uint256 amountQ96 = uint256(amount) << FixedPoint96.RESOLUTION;
-        (bid, bidId) = _createBid(amountQ96, owner, maxPrice, _checkpoint.cumulativeMps);
+        uint256 amountQ96 = uint256(_amount) << FixedPoint96.RESOLUTION;
+        (bid, bidId) = _createBid(amountQ96, _owner, _maxPrice, _checkpoint.cumulativeMps);
 
         // Scale the amount according to the rest of the supply schedule, accounting for past blocks
         // This is only used in demand related internal calculations
         uint256 bidEffectiveAmountQ96 = bid.toEffectiveAmount();
         // Update the tick demand with the bid's scaled amount
-        _updateTickDemand(maxPrice, bidEffectiveAmountQ96);
+        _updateTickDemand(_maxPrice, bidEffectiveAmountQ96);
         // Update the global sum of currency demand above the clearing price tracker
         // Per the validation checks above this bid must be above the clearing price
         $sumCurrencyDemandAboveClearingQ96 += bidEffectiveAmountQ96;
@@ -446,29 +443,29 @@ contract ContinuousClearingAuction is
             revert InvalidBidUnableToClear();
         }
 
-        emit BidSubmitted(bidId, owner, maxPrice, amount);
+        emit BidSubmitted(bidId, _owner, _maxPrice, _amount);
     }
 
     /// @notice Internal function for processing the exit of a bid
     /// @dev Given a bid, tokens filled and refund, process the transfers and refund
     ///      `exitedBlock` MUST be checked by the caller to prevent double spending
-    /// @param bidId The id of the bid to exit
-    /// @param tokensFilled The number of tokens filled
-    /// @param currencySpentQ96 The amount of currency the bid spent
-    function _processExit(uint256 bidId, uint256 tokensFilled, uint256 currencySpentQ96) internal {
-        Bid storage $bid = _getBid(bidId);
-        address _owner = $bid.owner;
+    /// @param _bidId The id of the bid to exit
+    /// @param _tokensFilled The number of tokens filled
+    /// @param _currencySpentQ96 The amount of currency the bid spent
+    function _processExit(uint256 _bidId, uint256 _tokensFilled, uint256 _currencySpentQ96) internal {
+        Bid storage $bid = _getBid(_bidId);
+        address owner = $bid.owner;
 
-        uint256 refund = ($bid.amountQ96 - currencySpentQ96) >> FixedPoint96.RESOLUTION;
+        uint256 refund = ($bid.amountQ96 - _currencySpentQ96) >> FixedPoint96.RESOLUTION;
 
-        $bid.tokensFilled = tokensFilled;
+        $bid.tokensFilled = _tokensFilled;
         $bid.exitedBlock = uint64(block.number);
 
         if (refund > 0) {
-            CURRENCY.transfer(_owner, refund);
+            CURRENCY.transfer(owner, refund);
         }
 
-        emit BidExited(bidId, _owner, tokensFilled, refund);
+        emit BidExited(_bidId, owner, _tokensFilled, refund);
     }
 
     /// @inheritdoc IContinuousClearingAuction
@@ -482,19 +479,19 @@ contract ContinuousClearingAuction is
 
     /// @notice Manually iterate over ticks to update the clearing price
     /// @dev This is used to prevent DoS attacks which initialize a large number of ticks
-    /// @param untilTickPrice The tick price to iterate until
-    function forceIterateOverTicks(uint256 untilTickPrice) external onlyActiveAuction returns (uint256) {
-        if (untilTickPrice != MAX_TICK_PTR) {
+    /// @param _untilTickPrice The tick price to iterate until
+    function forceIterateOverTicks(uint256 _untilTickPrice) external onlyActiveAuction returns (uint256) {
+        if (_untilTickPrice != MAX_TICK_PTR) {
             // Ensure that the price is at a tick boundary
-            Tick storage $tick = _getTick(untilTickPrice);
+            Tick storage $tick = _getTick(_untilTickPrice);
             // The tick must be initialized otherwise it will be an infinite loop
             if ($tick.next == 0) revert TickNotInitialized();
             // The untilTickPrice must be greater than the current next active tick price
-            if (untilTickPrice <= $nextActiveTickPrice) {
-                revert TickHintMustBeGreaterThanNextActiveTickPrice(untilTickPrice, $nextActiveTickPrice);
+            if (_untilTickPrice <= $nextActiveTickPrice) {
+                revert TickHintMustBeGreaterThanNextActiveTickPrice(_untilTickPrice, $nextActiveTickPrice);
             }
         }
-        uint256 newClearingPrice = _iterateOverTicksAndFindClearingPrice(untilTickPrice);
+        uint256 newClearingPrice = _iterateOverTicksAndFindClearingPrice(_untilTickPrice);
         // Update the clearing price in storage if it has changed
         if (newClearingPrice != $clearingPrice) {
             $clearingPrice = newClearingPrice;
@@ -505,43 +502,44 @@ contract ContinuousClearingAuction is
 
     /// @inheritdoc IContinuousClearingAuction
     /// @dev Bids can be submitted anytime between the startBlock and the endBlock.
-    function submitBid(uint256 maxPrice, uint128 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
-        public
-        payable
-        onlyActiveAuction
-        returns (uint256)
-    {
+    function submitBid(
+        uint256 _maxPrice,
+        uint128 _amount,
+        address _owner,
+        uint256 _prevTickPrice,
+        bytes calldata _hookData
+    ) public payable onlyActiveAuction returns (uint256) {
         // Bids cannot be submitted at the endBlock or after
         if (block.number >= END_BLOCK) revert AuctionIsOver();
-        if (amount == 0) revert BidAmountTooSmall();
-        if (owner == address(0)) revert BidOwnerCannotBeZeroAddress();
+        if (_amount == 0) revert BidAmountTooSmall();
+        if (_owner == address(0)) revert BidOwnerCannotBeZeroAddress();
         if (CURRENCY.isAddressZero()) {
-            if (msg.value != amount) revert InvalidAmount();
+            if (msg.value != _amount) revert InvalidAmount();
         } else {
             if (msg.value != 0) revert CurrencyIsNotNative();
-            SafeTransferLib.permit2TransferFrom(Currency.unwrap(CURRENCY), msg.sender, address(this), amount);
+            SafeTransferLib.permit2TransferFrom(Currency.unwrap(CURRENCY), msg.sender, address(this), _amount);
         }
-        return _submitBid(maxPrice, amount, owner, prevTickPrice, hookData);
+        return _submitBid(_maxPrice, _amount, _owner, _prevTickPrice, _hookData);
     }
 
     /// @inheritdoc IContinuousClearingAuction
     /// @dev The call to `submitBid` checks `onlyActiveAuction` so it's not required on this function
-    function submitBid(uint256 maxPrice, uint128 amount, address owner, bytes calldata hookData)
+    function submitBid(uint256 _maxPrice, uint128 _amount, address _owner, bytes calldata _hookData)
         external
         payable
         returns (uint256)
     {
-        return submitBid(maxPrice, amount, owner, FLOOR_PRICE, hookData);
+        return submitBid(_maxPrice, _amount, _owner, FLOOR_PRICE, _hookData);
     }
 
     /// @inheritdoc IContinuousClearingAuction
-    function exitBid(uint256 bidId) external onlyAfterAuctionIsOver {
-        Bid memory bid = _getBid(bidId);
+    function exitBid(uint256 _bidId) external onlyAfterAuctionIsOver {
+        Bid memory bid = _getBid(_bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
         Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
         if (!_isGraduated()) {
             // In the case that the auction did not graduate, fully refund the bid
-            return _processExit(bidId, 0, 0);
+            return _processExit(_bidId, 0, 0);
         }
         // Only bids with a max price strictly above the final clearing price can be exited via `exitBid`
         if (bid.maxPrice <= finalCheckpoint.clearingPrice) revert CannotExitBid();
@@ -551,22 +549,24 @@ contract ContinuousClearingAuction is
         (uint256 tokensFilled, uint256 currencySpentQ96) =
             _accountFullyFilledCheckpoints(finalCheckpoint, startCheckpoint, bid);
 
-        _processExit(bidId, tokensFilled, currencySpentQ96);
+        _processExit(_bidId, tokensFilled, currencySpentQ96);
     }
 
     /// @inheritdoc IContinuousClearingAuction
-    function exitPartiallyFilledBid(uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock) external {
+    function exitPartiallyFilledBid(uint256 _bidId, uint64 _lastFullyFilledCheckpointBlock, uint64 _outbidBlock)
+        external
+    {
         // Checkpoint before checking any of the hints because they could depend on the latest checkpoint
         Checkpoint memory currentBlockCheckpoint = checkpoint();
 
-        Bid memory bid = _getBid(bidId);
+        Bid memory bid = _getBid(_bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
 
         // Prevent bids from being exited before graduation
         if (!_isGraduated()) {
             if (block.number >= END_BLOCK) {
                 // If the auction is over, fully refund the bid
-                return _processExit(bidId, 0, 0);
+                return _processExit(_bidId, 0, 0);
             }
             revert CannotPartiallyExitBidBeforeGraduation();
         }
@@ -575,14 +575,14 @@ contract ContinuousClearingAuction is
         uint64 bidStartBlock = bid.startBlock;
 
         // Get the last fully filled checkpoint from the user's provided hint
-        Checkpoint memory lastFullyFilledCheckpoint = _getCheckpoint(lastFullyFilledCheckpointBlock);
+        Checkpoint memory lastFullyFilledCheckpoint = _getCheckpoint(_lastFullyFilledCheckpointBlock);
         // Since `lastFullyFilledCheckpointBlock` points to the last fully filled Checkpoint, it must be < bid.maxPrice
         // The next Checkpoint after `lastFullyFilledCheckpoint` must be partially or fully filled (clearingPrice >= bid.maxPrice)
         // `lastFullyFilledCheckpoint` also cannot be before the bid's startCheckpoint
         if (
             lastFullyFilledCheckpoint.clearingPrice >= bidMaxPrice
                 || _getCheckpoint(lastFullyFilledCheckpoint.next).clearingPrice < bidMaxPrice
-                || lastFullyFilledCheckpointBlock < bidStartBlock
+                || _lastFullyFilledCheckpointBlock < bidStartBlock
         ) {
             revert InvalidLastFullyFilledCheckpointHint();
         }
@@ -605,13 +605,13 @@ contract ContinuousClearingAuction is
         Checkpoint memory upperCheckpoint;
         // If outbidBlock is not zero, the bid was outbid and the bidder is requesting an early exit
         // This can be done before the auction's endBlock
-        if (outbidBlock != 0) {
+        if (_outbidBlock != 0) {
             // If the provided hint is the current block, use the checkpoint returned by `checkpoint()` instead of getting it from storage
             Checkpoint memory outbidCheckpoint;
-            if (outbidBlock == block.number) {
+            if (_outbidBlock == block.number) {
                 outbidCheckpoint = currentBlockCheckpoint;
             } else {
-                outbidCheckpoint = _getCheckpoint(outbidBlock);
+                outbidCheckpoint = _getCheckpoint(_outbidBlock);
             }
 
             upperCheckpoint = _getCheckpoint(outbidCheckpoint.prev);
@@ -647,7 +647,7 @@ contract ContinuousClearingAuction is
             currencySpentQ96 += partialCurrencySpentQ96;
         }
 
-        _processExit(bidId, tokensFilled, currencySpentQ96);
+        _processExit(_bidId, tokensFilled, currencySpentQ96);
     }
 
     /// @inheritdoc IContinuousClearingAuction
@@ -693,11 +693,11 @@ contract ContinuousClearingAuction is
     }
 
     /// @notice Internal function to claim tokens for a single bid
-    /// @param bidId The id of the bid
+    /// @param _bidId The id of the bid
     /// @return owner The owner of the bid
     /// @return tokensFilled The amount of tokens filled
-    function _internalClaimTokens(uint256 bidId) internal returns (address owner, uint256 tokensFilled) {
-        Bid storage $bid = _getBid(bidId);
+    function _internalClaimTokens(uint256 _bidId) internal returns (address owner, uint256 tokensFilled) {
+        Bid storage $bid = _getBid(_bidId);
         if ($bid.exitedBlock == 0) revert BidNotExited();
 
         // Set return values
@@ -749,11 +749,6 @@ contract ContinuousClearingAuction is
     /// @inheritdoc IContinuousClearingAuction
     function sumCurrencyDemandAboveClearingQ96() external view returns (uint256) {
         return $sumCurrencyDemandAboveClearingQ96;
-    }
-
-    /// @inheritdoc IContinuousClearingAuction
-    function totalClearedQ96_X7() external view returns (ValueX7) {
-        return $totalClearedQ96_X7;
     }
 
     /// @inheritdoc IContinuousClearingAuction

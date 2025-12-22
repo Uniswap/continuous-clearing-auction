@@ -1,5 +1,5 @@
 # ITickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/64f5212a4573a22c85e9c110002cc1ad74f5e008/src/interfaces/ITickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/5b8ed17aad591faad07c06ffc6e4d04217c2094e/src/interfaces/ITickStorage.sol)
 
 **Title:**
 ITickStorage
@@ -146,6 +146,14 @@ Error thrown when the tick price is not increasing
 
 ```solidity
 error TickPriceNotIncreasing();
+```
+
+### TickNotInitialized
+Error thrown when the tick is not initialized
+
+
+```solidity
+error TickNotInitialized();
 ```
 
 ### TickPriceNotAtBoundary

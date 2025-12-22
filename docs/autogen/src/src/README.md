@@ -4,6 +4,7 @@
 - [interfaces](/src/interfaces)
 - [lens](/src/lens)
 - [libraries](/src/libraries)
+- [periphery](/src/periphery)
 - [BidStorage](BidStorage.sol/abstract.BidStorage.md)
 - [CheckpointStorage](CheckpointStorage.sol/abstract.CheckpointStorage.md)
 - [ContinuousClearingAuction](ContinuousClearingAuction.sol/contract.ContinuousClearingAuction.md)

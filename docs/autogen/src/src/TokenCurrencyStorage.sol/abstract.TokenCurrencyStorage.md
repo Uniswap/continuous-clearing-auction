@@ -1,5 +1,5 @@
 # TokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/64f5212a4573a22c85e9c110002cc1ad74f5e008/src/TokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/5b8ed17aad591faad07c06ffc6e4d04217c2094e/src/TokenCurrencyStorage.sol)
 
 **Inherits:**
 [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -110,14 +110,14 @@ constructor(
 
 
 ```solidity
-function _sweepCurrency(uint256 amount) internal;
+function _sweepCurrency(uint256 _blockNumberIsh, uint256 _amount) internal;
 ```
 
 ### _sweepUnsoldTokens
 
 
 ```solidity
-function _sweepUnsoldTokens(uint256 amount) internal;
+function _sweepUnsoldTokens(uint256 _blockNumberIsh, uint256 _amount) internal;
 ```
 
 ### currency

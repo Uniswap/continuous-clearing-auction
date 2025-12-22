@@ -1,5 +1,5 @@
 # IContinuousClearingAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/64f5212a4573a22c85e9c110002cc1ad74f5e008/src/interfaces/IContinuousClearingAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/5b8ed17aad591faad07c06ffc6e4d04217c2094e/src/interfaces/IContinuousClearingAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IStepStorage](/src/interfaces/IStepStorage.sol/interface.IStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
@@ -83,6 +83,27 @@ function checkpoint() external returns (Checkpoint memory _checkpoint);
 |Name|Type|Description|
 |----|----|-----------|
 |`_checkpoint`|`Checkpoint`|The checkpoint at the current block|
+
+
+### clearingPrice
+
+Get the most up to date clearing price
+
+This will be at least as up to date as the latest checkpoint. It can be incremented from calls to `forceIterateOverTicks`
+
+Callers MUST ensure that the latest checkpoint is up to date before using this function.
+
+Additionally, it is recommended to use this function instead of reading the clearingPrice from the latest checkpoint.
+
+
+```solidity
+function clearingPrice() external view returns (uint256);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The current clearing price in Q96 form|
 
 
 ### isGraduated
@@ -240,7 +261,9 @@ function sweepUnsoldTokens() external;
 
 ### currencyRaisedQ96_X7
 
-The currency raised as of the last checkpoint
+The currency raised as of the last checkpoint in Q96 representation, scaled up by X7
+
+Most use cases will want to use `currencyRaised()` instead
 
 
 ```solidity
@@ -258,7 +281,9 @@ function sumCurrencyDemandAboveClearingQ96() external view returns (uint256);
 
 ### totalClearedQ96_X7
 
-The total currency raised as of the last checkpoint
+The total currency raised as of the last checkpoint in Q96 representation, scaled up by X7
+
+Most use cases will want to use `totalCleared()` instead
 
 
 ```solidity
@@ -576,5 +601,13 @@ Error thrown when the auction has sold the entire total supply of tokens
 
 ```solidity
 error AuctionSoldOut();
+```
+
+### TickHintMustBeGreaterThanNextActiveTickPrice
+Error thrown when the tick price is not greater than the next active tick price
+
+
+```solidity
+error TickHintMustBeGreaterThanNextActiveTickPrice(uint256 tickPrice, uint256 nextActiveTickPrice);
 ```
 

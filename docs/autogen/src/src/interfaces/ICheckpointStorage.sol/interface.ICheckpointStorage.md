@@ -1,5 +1,5 @@
 # ICheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/468d53629b7c1620881cec3814c348b60ec958e9/src/interfaces/ICheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/5b8ed17aad591faad07c06ffc6e4d04217c2094e/src/interfaces/ICheckpointStorage.sol)
 
 Interface for checkpoint storage operations
 
@@ -21,24 +21,6 @@ function latestCheckpoint() external view returns (Checkpoint memory);
 |Name|Type|Description|
 |----|----|-----------|
 |`<none>`|`Checkpoint`|The latest checkpoint|
-
-
-### clearingPrice
-
-Get the clearing price at the last checkpointed block
-
-Be aware that the latest checkpoint may not be up to date, it is recommended
-to always call `checkpoint()` before using getter functions
-
-
-```solidity
-function clearingPrice() external view returns (uint256);
-```
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`uint256`|The current clearing price in Q96 form|
 
 
 ### lastCheckpointedBlock

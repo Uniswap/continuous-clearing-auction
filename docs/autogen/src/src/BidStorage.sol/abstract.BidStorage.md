@@ -1,5 +1,5 @@
 # BidStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/64f5212a4573a22c85e9c110002cc1ad74f5e008/src/BidStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/5b8ed17aad591faad07c06ffc6e4d04217c2094e/src/BidStorage.sol)
 
 **Inherits:**
 [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
@@ -54,18 +54,23 @@ Create a new bid
 
 
 ```solidity
-function _createBid(uint256 amount, address owner, uint256 maxPrice, uint24 startCumulativeMps)
-    internal
-    returns (Bid memory bid, uint256 bidId);
+function _createBid(
+    uint256 _blockNumberIsh,
+    uint256 _amount,
+    address _owner,
+    uint256 _maxPrice,
+    uint24 _startCumulativeMps
+) internal returns (Bid memory bid, uint256 bidId);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`amount`|`uint256`|The amount of the bid|
-|`owner`|`address`|The owner of the bid|
-|`maxPrice`|`uint256`|The maximum price for the bid|
-|`startCumulativeMps`|`uint24`|The cumulative mps at the start of the bid|
+|`_blockNumberIsh`|`uint256`|The block number when the bid was created|
+|`_amount`|`uint256`|The amount of the bid|
+|`_owner`|`address`|The owner of the bid|
+|`_maxPrice`|`uint256`|The maximum price for the bid|
+|`_startCumulativeMps`|`uint24`|The cumulative mps at the start of the bid|
 
 **Returns**
 

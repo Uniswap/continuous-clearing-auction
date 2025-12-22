@@ -27,6 +27,12 @@ remappings = [
   "btt=test/btt/",
 ]
 
+additional_compiler_profiles = [{ name = "via_ir", optimizer_runs = 10000, via_ir = true }]
+
+compilation_restrictions = [
+  { paths = "src/ContinuousClearingAuctionFactory.sol", via_ir = true }
+]
+
 [profile.default.fuzz]
 runs = 2500
 

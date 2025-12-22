@@ -18,6 +18,7 @@ import {MaxBidPriceLib} from './libraries/MaxBidPriceLib.sol';
 import {AuctionStep, StepLib} from './libraries/StepLib.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
+import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
@@ -32,6 +33,7 @@ contract ContinuousClearingAuction is
     StepStorage,
     TickStorage,
     TokenCurrencyStorage,
+    BlockNumberish,
     IContinuousClearingAuction
 {
     using FixedPointMathLib for *;
@@ -75,6 +77,7 @@ contract ContinuousClearingAuction is
             _parameters.requiredCurrencyRaised
         )
         TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
+        BlockNumberish()
     {
         CLAIM_BLOCK = _parameters.claimBlock;
         VALIDATION_HOOK = IValidationHook(_parameters.validationHook);
@@ -92,18 +95,18 @@ contract ContinuousClearingAuction is
         }
 
         $clearingPrice = FLOOR_PRICE;
-        emit ClearingPriceUpdated(block.number, $clearingPrice);
+        emit ClearingPriceUpdated(_getBlockNumberish(), $clearingPrice);
     }
 
     /// @notice Modifier for functions which can only be called after the auction is over
     modifier onlyAfterAuctionIsOver() {
-        if (block.number < END_BLOCK) revert AuctionIsNotOver();
+        if (_getBlockNumberish() < END_BLOCK) revert AuctionIsNotOver();
         _;
     }
 
     /// @notice Modifier for claim related functions which can only be called after the claim block
     modifier onlyAfterClaimBlock() {
-        if (block.number < CLAIM_BLOCK) revert NotClaimable();
+        if (_getBlockNumberish() < CLAIM_BLOCK) revert NotClaimable();
         _;
     }
 
@@ -116,7 +119,7 @@ contract ContinuousClearingAuction is
     /// @notice Internal function to check if the auction is active
     /// @dev Submitting bids or checkpointing is not allowed unless the auction is active
     function _onlyActiveAuction() internal view {
-        if (block.number < START_BLOCK) revert AuctionNotStarted();
+        if (_getBlockNumberish() < START_BLOCK) revert AuctionNotStarted();
         if (!$_tokensReceived) revert TokensNotReceived();
     }
 
@@ -426,7 +429,7 @@ contract ContinuousClearingAuction is
 
         Bid memory bid;
         uint256 amountQ96 = uint256(_amount) << FixedPoint96.RESOLUTION;
-        (bid, bidId) = _createBid(amountQ96, _owner, _maxPrice, _checkpoint.cumulativeMps);
+        (bid, bidId) = _createBid(_getBlockNumberish(), amountQ96, _owner, _maxPrice, _checkpoint.cumulativeMps);
 
         // Scale the amount according to the rest of the supply schedule, accounting for past blocks
         // This is only used in demand related internal calculations
@@ -459,7 +462,7 @@ contract ContinuousClearingAuction is
         uint256 refund = ($bid.amountQ96 - _currencySpentQ96) >> FixedPoint96.RESOLUTION;
 
         $bid.tokensFilled = _tokensFilled;
-        $bid.exitedBlock = uint64(block.number);
+        $bid.exitedBlock = uint64(_getBlockNumberish());
 
         if (refund > 0) {
             CURRENCY.transfer(owner, refund);
@@ -470,10 +473,11 @@ contract ContinuousClearingAuction is
 
     /// @inheritdoc IContinuousClearingAuction
     function checkpoint() public onlyActiveAuction returns (Checkpoint memory) {
-        if (block.number > END_BLOCK) {
+        uint64 currentBlockNumberIsh = uint64(_getBlockNumberish());
+        if (currentBlockNumberIsh > END_BLOCK) {
             return _getFinalCheckpoint();
         } else {
-            return _checkpointAtBlock(uint64(block.number));
+            return _checkpointAtBlock(currentBlockNumberIsh);
         }
     }
 
@@ -495,7 +499,7 @@ contract ContinuousClearingAuction is
         // Update the clearing price in storage if it has changed
         if (newClearingPrice != $clearingPrice) {
             $clearingPrice = newClearingPrice;
-            emit ClearingPriceUpdated(block.number, newClearingPrice);
+            emit ClearingPriceUpdated(_getBlockNumberish(), newClearingPrice);
         }
         return newClearingPrice;
     }
@@ -510,7 +514,7 @@ contract ContinuousClearingAuction is
         bytes calldata _hookData
     ) public payable onlyActiveAuction returns (uint256) {
         // Bids cannot be submitted at the endBlock or after
-        if (block.number >= END_BLOCK) revert AuctionIsOver();
+        if (_getBlockNumberish() >= END_BLOCK) revert AuctionIsOver();
         if (_amount == 0) revert BidAmountTooSmall();
         if (_owner == address(0)) revert BidOwnerCannotBeZeroAddress();
         if (CURRENCY.isAddressZero()) {
@@ -558,13 +562,14 @@ contract ContinuousClearingAuction is
     {
         // Checkpoint before checking any of the hints because they could depend on the latest checkpoint
         Checkpoint memory currentBlockCheckpoint = checkpoint();
+        uint256 currentBlockNumberIsh = _getBlockNumberish();
 
         Bid memory bid = _getBid(_bidId);
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
 
         // Prevent bids from being exited before graduation
         if (!_isGraduated()) {
-            if (block.number >= END_BLOCK) {
+            if (currentBlockNumberIsh >= END_BLOCK) {
                 // If the auction is over, fully refund the bid
                 return _processExit(_bidId, 0, 0);
             }
@@ -608,7 +613,7 @@ contract ContinuousClearingAuction is
         if (_outbidBlock != 0) {
             // If the provided hint is the current block, use the checkpoint returned by `checkpoint()` instead of getting it from storage
             Checkpoint memory outbidCheckpoint;
-            if (_outbidBlock == block.number) {
+            if (_outbidBlock == currentBlockNumberIsh) {
                 outbidCheckpoint = currentBlockCheckpoint;
             } else {
                 outbidCheckpoint = _getCheckpoint(_outbidBlock);
@@ -622,7 +627,7 @@ contract ContinuousClearingAuction is
         } else {
             // The only other partially exitable case is if the auction ends with the clearing price equal to the bid's max price
             // These bids can only be exited after the auction ends
-            if (block.number < END_BLOCK) revert CannotPartiallyExitBidBeforeEndBlock();
+            if (currentBlockNumberIsh < END_BLOCK) revert CannotPartiallyExitBidBeforeEndBlock();
             // Set the upper checkpoint to the checkpoint returned when we initially called `checkpoint()`
             // This must be the final checkpoint because `checkpoint()` will return the final checkpoint after the auction is over
             upperCheckpoint = currentBlockCheckpoint;
@@ -714,7 +719,7 @@ contract ContinuousClearingAuction is
         if (sweepCurrencyBlock != 0) revert CannotSweepCurrency();
         // Cannot sweep currency if the auction has not graduated, as all of the Currency must be refunded
         if (!_isGraduated()) revert NotGraduated();
-        _sweepCurrency(_currencyRaised());
+        _sweepCurrency(_getBlockNumberish(), _currencyRaised());
     }
 
     /// @inheritdoc IContinuousClearingAuction
@@ -727,7 +732,7 @@ contract ContinuousClearingAuction is
         } else {
             unsoldTokens = TOTAL_SUPPLY;
         }
-        _sweepUnsoldTokens(unsoldTokens);
+        _sweepUnsoldTokens(_getBlockNumberish(), unsoldTokens);
     }
 
     // Getters

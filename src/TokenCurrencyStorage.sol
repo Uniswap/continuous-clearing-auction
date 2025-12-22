@@ -58,20 +58,20 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         REQUIRED_CURRENCY_RAISED_Q96_X7 = (uint256(_requiredCurrencyRaised) << FixedPoint96.RESOLUTION).scaleUpToX7();
     }
 
-    function _sweepCurrency(uint256 amount) internal {
-        sweepCurrencyBlock = block.number;
-        if (amount > 0) {
-            CURRENCY.transfer(FUNDS_RECIPIENT, amount);
+    function _sweepCurrency(uint256 _blockNumberIsh, uint256 _amount) internal {
+        sweepCurrencyBlock = _blockNumberIsh;
+        if (_amount > 0) {
+            CURRENCY.transfer(FUNDS_RECIPIENT, _amount);
         }
-        emit CurrencySwept(FUNDS_RECIPIENT, amount);
+        emit CurrencySwept(FUNDS_RECIPIENT, _amount);
     }
 
-    function _sweepUnsoldTokens(uint256 amount) internal {
-        sweepUnsoldTokensBlock = block.number;
-        if (amount > 0) {
-            Currency.wrap(address(TOKEN)).transfer(TOKENS_RECIPIENT, amount);
+    function _sweepUnsoldTokens(uint256 _blockNumberIsh, uint256 _amount) internal {
+        sweepUnsoldTokensBlock = _blockNumberIsh;
+        if (_amount > 0) {
+            Currency.wrap(address(TOKEN)).transfer(TOKENS_RECIPIENT, _amount);
         }
-        emit TokensSwept(TOKENS_RECIPIENT, amount);
+        emit TokensSwept(TOKENS_RECIPIENT, _amount);
     }
 
     // Getters

@@ -29,7 +29,7 @@ contract MockContinuousClearingAuction is ContinuousClearingAuction {
         external
         returns (Bid memory bid, uint256 bidId)
     {
-        return _createBid(amount, owner, maxPrice, startCumulativeMps);
+        return _createBid(_getBlockNumberish(), amount, owner, maxPrice, startCumulativeMps);
     }
 
     function modifier_onlyAfterAuctionIsOver() external onlyAfterAuctionIsOver {}

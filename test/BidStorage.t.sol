@@ -1,25 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {BidStorage} from '../src/BidStorage.sol';
-
 import {IBidStorage} from '../src/interfaces/IBidStorage.sol';
 import {Bid} from '../src/libraries/BidLib.sol';
 import {Assertions} from './utils/Assertions.sol';
+import {MockBidStorage} from 'btt/mocks/MockBidStorage.sol';
 import {Test} from 'forge-std/Test.sol';
-
-contract MockBidStorage is BidStorage {
-    function getBid(uint256 bidId) external view returns (Bid memory) {
-        return _getBid(bidId);
-    }
-
-    function createBid(uint256 amount, address owner, uint256 maxPrice, uint24 startCumulativeMps)
-        external
-        returns (Bid memory, uint256)
-    {
-        return _createBid(amount, owner, maxPrice, startCumulativeMps);
-    }
-}
 
 contract BidStorageTest is Assertions, Test {
     MockBidStorage public mockBidStorage;

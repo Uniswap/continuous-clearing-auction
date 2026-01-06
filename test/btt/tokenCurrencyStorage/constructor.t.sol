@@ -187,8 +187,8 @@ contract ConstructorTest is BttBase {
 
         MockTokenCurrencyStorage tokenCurrencyStorage = _deployTokenCurrencyStorage();
 
-        assertEq(address(tokenCurrencyStorage.token()), $token);
-        assertEq(Currency.unwrap(tokenCurrencyStorage.currency()), $currency);
+        assertEq(tokenCurrencyStorage.token(), address($token));
+        assertEq(tokenCurrencyStorage.currency(), address($currency));
         assertEq(tokenCurrencyStorage.totalSupply(), $totalSupply);
         assertEq(tokenCurrencyStorage.tokensRecipient(), $tokensRecipient);
         assertEq(tokenCurrencyStorage.fundsRecipient(), $fundsRecipient);

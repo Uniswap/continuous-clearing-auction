@@ -73,30 +73,4 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         }
         emit TokensSwept(TOKENS_RECIPIENT, _amount);
     }
-
-    // Getters
-    /// @inheritdoc ITokenCurrencyStorage
-    function currency() external view returns (Currency) {
-        return CURRENCY;
-    }
-
-    /// @inheritdoc ITokenCurrencyStorage
-    function token() external view returns (IERC20Minimal) {
-        return TOKEN;
-    }
-
-    /// @inheritdoc ITokenCurrencyStorage
-    function totalSupply() external view returns (uint128) {
-        return TOTAL_SUPPLY;
-    }
-
-    /// @inheritdoc ITokenCurrencyStorage
-    function tokensRecipient() external view returns (address) {
-        return TOKENS_RECIPIENT;
-    }
-
-    /// @inheritdoc ITokenCurrencyStorage
-    function fundsRecipient() external view returns (address) {
-        return FUNDS_RECIPIENT;
-    }
 }

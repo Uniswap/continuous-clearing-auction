@@ -1559,8 +1559,8 @@ contract AuctionTest is AuctionBaseTest {
 
         // For now, let's just verify that the currency is set correctly
         // and that we would reach line 252 if the Permit2 transfer worked
-        assertEq(Currency.unwrap(erc20Auction.currency()), address(erc20Currency));
-        assertFalse(erc20Auction.currency().isAddressZero());
+        assertEq(erc20Auction.currency(), address(erc20Currency));
+        assertFalse(Currency.wrap(erc20Auction.currency()).isAddressZero());
 
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector); // Expect revert due to Permit2 transfer failure
         erc20Auction.submitBid{value: 0}(
@@ -1583,8 +1583,8 @@ contract AuctionTest is AuctionBaseTest {
         erc20Currency.mint(alice, 1000e18);
 
         // For now, let's just verify that the currency is set correctly
-        assertEq(Currency.unwrap(erc20Auction.currency()), address(erc20Currency));
-        assertFalse(erc20Auction.currency().isAddressZero());
+        assertEq(erc20Auction.currency(), address(erc20Currency));
+        assertFalse(Currency.wrap(erc20Auction.currency()).isAddressZero());
 
         vm.expectRevert(IContinuousClearingAuction.CurrencyIsNotNative.selector);
         erc20Auction.submitBid{value: 100e18}(
@@ -2098,8 +2098,8 @@ contract AuctionTest is AuctionBaseTest {
 
     // Test that all of the state getters for constants / immutable variables are correct
     function test_constructor_immutable_getters() public {
-        assertEq(Currency.unwrap(auction.currency()), ETH_SENTINEL);
-        assertEq(address(auction.token()), address(token));
+        assertEq(auction.currency(), ETH_SENTINEL);
+        assertEq(auction.token(), address(token));
         assertEq(auction.totalSupply(), TOTAL_SUPPLY);
         assertEq(auction.tokensRecipient(), tokensRecipient);
         assertEq(auction.fundsRecipient(), fundsRecipient);

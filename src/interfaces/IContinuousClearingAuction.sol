@@ -9,7 +9,8 @@ import {IStepStorage} from './IStepStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
 import {ITokenCurrencyStorage} from './ITokenCurrencyStorage.sol';
 import {IValidationHook} from './IValidationHook.sol';
-import {IDistributionContract} from './external/IDistributionContract.sol';
+import {ILBPInitializer} from './external/ILBPInitializer.sol';
+import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 
 /// @notice Parameters for the auction
 /// @dev token and totalSupply are passed as constructor arguments
@@ -29,7 +30,7 @@ struct AuctionParameters {
 
 /// @notice Interface for the ContinuousClearingAuction contract
 interface IContinuousClearingAuction is
-    IDistributionContract,
+    ILBPInitializer,
     ICheckpointStorage,
     ITickStorage,
     IStepStorage,
@@ -205,6 +206,33 @@ interface IContinuousClearingAuction is
     /// @notice Withdraw all of the currency raised
     /// @dev Can be called by anyone after the auction has ended
     function sweepCurrency() external;
+
+    /// @notice Implements IERC165.supportsInterface to signal support for the ILBPInitializer interface
+    /// @param interfaceId The interface identifier to check
+    function supportsInterface(bytes4 interfaceId) external view override(IERC165) returns (bool);
+
+    /// @notice The currency being raised in the auction
+    function currency() external view returns (address);
+
+    /// @notice The token being sold in the auction
+    function token() external view returns (address);
+
+    /// @notice The total supply of tokens to sell
+    function totalSupply() external view returns (uint128);
+
+    /// @notice The recipient of any unsold tokens at the end of the auction
+    function tokensRecipient() external view returns (address);
+
+    /// @notice The recipient of the raised currency from the auction
+    function fundsRecipient() external view returns (address);
+
+    /// @notice The block at which the auction starts
+    /// @return The starting block number
+    function startBlock() external view override(ILBPInitializer) returns (uint64);
+
+    /// @notice The block at which the auction ends
+    /// @return The ending block number
+    function endBlock() external view override(ILBPInitializer) returns (uint64);
 
     /// @notice The block at which the auction can be claimed
     function claimBlock() external view returns (uint64);

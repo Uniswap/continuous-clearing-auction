@@ -34,19 +34,4 @@ interface ITokenCurrencyStorage {
     /// @param fundsRecipient The address of the funds recipient
     /// @param currencyAmount The amount of currency swept
     event CurrencySwept(address indexed fundsRecipient, uint256 currencyAmount);
-
-    /// @notice The currency being raised in the auction
-    function currency() external view returns (Currency);
-
-    /// @notice The token being sold in the auction
-    function token() external view returns (IERC20Minimal);
-
-    /// @notice The total supply of tokens to sell
-    function totalSupply() external view returns (uint128);
-
-    /// @notice The recipient of any unsold tokens at the end of the auction
-    function tokensRecipient() external view returns (address);
-
-    /// @notice The recipient of the raised Currency from the auction
-    function fundsRecipient() external view returns (address);
 }

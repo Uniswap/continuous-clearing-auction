@@ -90,16 +90,6 @@ abstract contract StepStorage is IStepStorage {
 
     // Getters
     /// @inheritdoc IStepStorage
-    function startBlock() external view returns (uint64) {
-        return START_BLOCK;
-    }
-
-    /// @inheritdoc IStepStorage
-    function endBlock() external view returns (uint64) {
-        return END_BLOCK;
-    }
-
-    /// @inheritdoc IStepStorage
     function pointer() external view returns (address) {
         return $_pointer;
     }

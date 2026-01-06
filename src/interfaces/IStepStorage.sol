@@ -22,13 +22,6 @@ interface IStepStorage {
     /// @param expectedEndBlock The expected end block from the constructor
     error InvalidEndBlockGivenStepData(uint64 actualEndBlock, uint64 expectedEndBlock);
 
-    /// @notice The block at which the auction starts
-    /// @return The starting block number
-    function startBlock() external view returns (uint64);
-    /// @notice The block at which the auction ends
-    /// @return The ending block number
-    function endBlock() external view returns (uint64);
-
     /// @notice The address pointer to the contract deployed by SSTORE2
     /// @return The address pointer
     function pointer() external view returns (address);

@@ -9,6 +9,9 @@ import {TokenCurrencyStorage} from './TokenCurrencyStorage.sol';
 import {AuctionParameters, IContinuousClearingAuction} from './interfaces/IContinuousClearingAuction.sol';
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
+import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
+import {ILBPInitializer, LBPInitializationParams} from './interfaces/external/ILBPInitializer.sol';
+import {ILBP_INITIALIZER_INTERFACE_ID} from './interfaces/external/ILBPInitializer.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
@@ -18,6 +21,7 @@ import {MaxBidPriceLib} from './libraries/MaxBidPriceLib.sol';
 import {AuctionStep, StepLib} from './libraries/StepLib.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
+import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
@@ -143,6 +147,21 @@ contract ContinuousClearingAuction is
         emit TokensReceived(TOTAL_SUPPLY);
     }
 
+    /// @inheritdoc ILBPInitializer
+    function lbpInitializationParams() external view returns (LBPInitializationParams memory params) {
+        // Require that the auction has been checkpointed at the end block before returning initialization params
+        if ($lastCheckpointedBlock != END_BLOCK) revert AuctionIsNotOver();
+
+        return LBPInitializationParams({
+            initialPriceX96: $clearingPrice, tokensSold: totalCleared(), currencyRaised: currencyRaised()
+        });
+    }
+
+    /// @inheritdoc IContinuousClearingAuction
+    function supportsInterface(bytes4 interfaceId) external view returns (bool) {
+        return interfaceId == ILBP_INITIALIZER_INTERFACE_ID || interfaceId == IERC165.supportsInterface.selector;
+    }
+
     /// @inheritdoc IContinuousClearingAuction
     function isGraduated() external view returns (bool) {
         return _isGraduated();
@@ -160,7 +179,7 @@ contract ContinuousClearingAuction is
     }
 
     /// @inheritdoc IContinuousClearingAuction
-    function currencyRaised() external view returns (uint256) {
+    function currencyRaised() public view returns (uint256) {
         return _currencyRaised();
     }
 
@@ -737,6 +756,41 @@ contract ContinuousClearingAuction is
 
     // Getters
     /// @inheritdoc IContinuousClearingAuction
+    function currency() external view returns (address) {
+        return Currency.unwrap(CURRENCY);
+    }
+
+    /// @inheritdoc IContinuousClearingAuction
+    function token() external view returns (address) {
+        return address(TOKEN);
+    }
+
+    /// @inheritdoc IContinuousClearingAuction
+    function totalSupply() external view returns (uint128) {
+        return TOTAL_SUPPLY;
+    }
+
+    /// @inheritdoc IContinuousClearingAuction
+    function tokensRecipient() external view returns (address) {
+        return TOKENS_RECIPIENT;
+    }
+
+    /// @inheritdoc IContinuousClearingAuction
+    function fundsRecipient() external view returns (address) {
+        return FUNDS_RECIPIENT;
+    }
+
+    /// @inheritdoc IContinuousClearingAuction
+    function startBlock() external view returns (uint64) {
+        return START_BLOCK;
+    }
+
+    /// @inheritdoc IContinuousClearingAuction
+    function endBlock() external view returns (uint64) {
+        return END_BLOCK;
+    }
+
+    /// @inheritdoc IContinuousClearingAuction
     function claimBlock() external view returns (uint64) {
         return CLAIM_BLOCK;
     }
@@ -762,7 +816,7 @@ contract ContinuousClearingAuction is
     }
 
     /// @inheritdoc IContinuousClearingAuction
-    function totalCleared() external view returns (uint256) {
+    function totalCleared() public view returns (uint256) {
         return $totalClearedQ96_X7.divUint256(FixedPoint96.Q96).scaleDownToUint256();
     }
 }

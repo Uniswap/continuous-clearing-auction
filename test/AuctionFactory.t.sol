@@ -41,7 +41,7 @@ contract AuctionFactoryTest is AuctionBaseTest {
 
         // Verify the auction was created correctly
         ContinuousClearingAuction _auction = ContinuousClearingAuction(payable(address(distributionContract)));
-        assertEq(address(_auction.token()), address(token));
+        assertEq(_auction.token(), address(token));
         assertEq(_auction.totalSupply(), TOTAL_SUPPLY);
         assertEq(_auction.floorPrice(), FLOOR_PRICE);
         assertEq(_auction.tickSpacing(), TICK_SPACING);

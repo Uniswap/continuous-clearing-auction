@@ -6,6 +6,7 @@ import {IStepStorage} from '../src/interfaces/IStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
+import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
@@ -67,8 +68,8 @@ contract AuctionInvariantHandler is Test, Assertions {
     constructor(MockContinuousClearingAuction _auction, address[] memory _actors) {
         mockAuction = _auction;
         permit2 = IPermit2(0x000000000022D473030F116dDEE9F6B43aC78BA3);
-        currency = mockAuction.currency();
-        token = mockAuction.token();
+        currency = Currency.wrap(mockAuction.currency());
+        token = IERC20Minimal(mockAuction.token());
         actors = _actors;
 
         BID_MIN_PRICE = mockAuction.floorPrice() + mockAuction.tickSpacing();

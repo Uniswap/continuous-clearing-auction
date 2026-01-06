@@ -16,4 +16,12 @@ contract MockStepStorage is StepStorage {
     function validate(address _pointer) public view {
         _validate(_pointer);
     }
+
+    function startBlock() external view returns (uint64) {
+        return START_BLOCK;
+    }
+
+    function endBlock() external view returns (uint64) {
+        return END_BLOCK;
+    }
 }

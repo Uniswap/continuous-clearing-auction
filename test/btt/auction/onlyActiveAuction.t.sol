@@ -40,7 +40,7 @@ contract OnlyActiveAuctionTest is BttBase {
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
-        uint256 blockNumber = bound(_blockNumber, mParams.parameters.startBlock, type(uint256).max);
+        uint256 blockNumber = bound(_blockNumber, mParams.parameters.startBlock, type(uint64).max);
 
         vm.roll(blockNumber);
         vm.expectRevert(IContinuousClearingAuction.TokensNotReceived.selector);
@@ -60,7 +60,7 @@ contract OnlyActiveAuctionTest is BttBase {
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(address(token), mParams.totalSupply, mParams.parameters);
 
-        uint256 blockNumber = bound(_blockNumber, mParams.parameters.startBlock, type(uint256).max);
+        uint256 blockNumber = bound(_blockNumber, mParams.parameters.startBlock, type(uint64).max);
 
         token.mint(address(auction), mParams.totalSupply);
         auction.onTokensReceived();

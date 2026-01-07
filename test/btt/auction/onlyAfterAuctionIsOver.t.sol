@@ -33,7 +33,7 @@ contract OnlyAfterAuctionIsOverTest is BttBase {
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
-        uint256 blockNumber = bound(_blockNumber, mParams.parameters.endBlock, type(uint256).max);
+        uint256 blockNumber = bound(_blockNumber, mParams.parameters.endBlock, type(uint64).max);
 
         vm.roll(blockNumber);
         auction.modifier_onlyAfterAuctionIsOver();

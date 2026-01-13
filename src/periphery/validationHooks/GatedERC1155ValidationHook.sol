@@ -3,10 +3,11 @@ pragma solidity ^0.8.0;
 
 import {IValidationHook} from '../../interfaces/IValidationHook.sol';
 import {BaseERC1155ValidationHook} from './BaseERC1155ValidationHook.sol';
+import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
 
 /// @notice Validation hook for ERC1155 tokens that requires the sender to hold a specific token until a certain block number
 /// @dev It is highly recommended to make the ERC1155 soulbound (non-transferable)
-contract GatedERC1155ValidationHook is BaseERC1155ValidationHook {
+contract GatedERC1155ValidationHook is BaseERC1155ValidationHook, BlockNumberish {
     /// @notice The block number until which the validation check is enforced
     uint256 public immutable gateUntil;
 
@@ -22,7 +23,7 @@ contract GatedERC1155ValidationHook is BaseERC1155ValidationHook {
         view
         override
     {
-        if (block.number < gateUntil) {
+        if (_getBlockNumberish() < gateUntil) {
             super.validate(maxPrice, amount, owner, sender, hookData);
         }
     }

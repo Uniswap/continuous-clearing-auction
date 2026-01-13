@@ -200,7 +200,7 @@ contract ClaimTokensBatchTest is BttBase {
 
         vm.roll(_blockNumber);
         vm.expectRevert(
-            abi.encodeWithSelector(IContinuousClearingAuction.BatchClaimDifferentOwner.selector, owner, owner2)
+            abi.encodeWithSelector(IContinuousClearingAuction.BatchClaimDifferentOwner.selector, owner2, owner)
         );
         // Try to claim the tokens for the bids for the first owner
         auction.claimTokensBatch(owner, bidIds);

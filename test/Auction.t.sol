@@ -1902,7 +1902,7 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(auction.claimBlock());
         vm.expectRevert(
-            abi.encodeWithSelector(IContinuousClearingAuction.BatchClaimDifferentOwner.selector, alice, bob)
+            abi.encodeWithSelector(IContinuousClearingAuction.BatchClaimDifferentOwner.selector, bob, alice)
         );
         auction.claimTokensBatch(alice, bids);
     }

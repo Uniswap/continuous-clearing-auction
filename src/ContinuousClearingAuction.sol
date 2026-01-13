@@ -701,7 +701,7 @@ contract ContinuousClearingAuction is
             (address bidOwner, uint256 bidTokensFilled) = _internalClaimTokens(_bidIds[i]);
 
             if (bidOwner != _owner) {
-                revert BatchClaimDifferentOwner(_owner, bidOwner);
+                revert BatchClaimDifferentOwner(bidOwner, _owner);
             }
 
             tokensFilled += bidTokensFilled;

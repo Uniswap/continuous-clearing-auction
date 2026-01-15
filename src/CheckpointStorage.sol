@@ -2,11 +2,10 @@
 pragma solidity 0.8.26;
 
 import {ICheckpointStorage} from './interfaces/ICheckpointStorage.sol';
-import {Bid, BidLib} from './libraries/BidLib.sol';
+import {Bid} from './libraries/BidLib.sol';
 import {CheckpointAccountingLib} from './libraries/CheckpointAccountingLib.sol';
-import {Checkpoint, CheckpointLib} from './libraries/CheckpointLib.sol';
-import {FixedPoint96} from './libraries/FixedPoint96.sol';
-import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
+import {Checkpoint} from './libraries/CheckpointLib.sol';
+import {ValueX7} from './libraries/ValueX7Lib.sol';
 
 /// @title CheckpointStorage
 /// @notice Abstract contract for managing auction checkpoints and bid fill calculations

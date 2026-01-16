@@ -3,6 +3,7 @@
 This repository contains the smart contracts for Continuous Clearing Auctions (CCAs). It is intended to be used in combination with the [Uniswap Liquidity Launcher](https://github.com/Uniswap/liquidity-launcher) contracts suite.
 
 ## Table of Contents
+
 - [Installation](#installation)
 - [Deployments](#deployments)
 - [Audits](#audits)
@@ -11,6 +12,7 @@ This repository contains the smart contracts for Continuous Clearing Auctions (C
 - [License](#license)
 
 ## Overview
+
 CCA is a novel auction mechanism that generalizes the uniform-price auction into continuous time. It provides fair price discovery for bootstrapping initial liquidity while eliminating timing games and encouraging early participation (see [whitepaper](./docs/assets/whitepaper.pdf)).
 
 The contracts can be used as a standalone auction or a part of a larger token distribution system. All contracts are MIT licensed.
@@ -24,25 +26,29 @@ forge test
 ```
 
 ## Deployments
+
 CCA instances are deployed via the [ContinuousClearingAuctionFactory](./src/ContinuousClearingAuctionFactory.sol).
 
 Addresses are cannonical across select EVM chains.
 
 ### ContinuousClearingAuctionFactory
+
 | Network  | Address                                    | Commit Hash                              | Version          |
 | -------- | ------------------------------------------ | ---------------------------------------- | ---------------- |
-| v1.1.0  |  |  |  |
-| v1.0.0*  | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
->*v1.0.0-candidate is the initial version of CCA and is NOT recommended for production use. For more details, see the [Changelog](./docs/CHANGELOG.md).
+| v1.1.0   |                                            |                                          |                  |
+| v1.0.0\* | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
+
+> \*v1.0.0-candidate is the initial version of CCA and is NOT recommended for production use. For more details, see the [Changelog](./docs/CHANGELOG.md).
 
 ## Audits
-| Version | Date | Report |
-| -------- | ---------------------------------------- | ---------------- |
-| v1.0.0  | 11/11/2025 | [Spearbit](./docs/audits/Spearbit_Nov_11_2025.pdf) |
-| v1.0.0  | 10/21/2025 | [OpenZeppelin](./docs/audits/OpenZeppelin_v1.0.0.pdf) |
-| v1.0.0  | 10/19/2025 | [Spearbit](./docs/audits/Spearbit_v1.0.0.pdf) |
+
+| Version | Date       | Report                                                              |
+| ------- | ---------- | ------------------------------------------------------------------- |
+| v1.0.0  | 11/11/2025 | [Spearbit](./docs/audits/Spearbit_Nov_11_2025.pdf)                  |
+| v1.0.0  | 10/21/2025 | [OpenZeppelin](./docs/audits/OpenZeppelin_v1.0.0.pdf)               |
+| v1.0.0  | 10/19/2025 | [Spearbit](./docs/audits/Spearbit_v1.0.0.pdf)                       |
 | v1.0.0  | 10/19/2025 | [ABDK Consulting](./docs/audits/ABDK_Uniswap_TWAPAuction_v_1_0.pdf) |
-| v1.0.0  | 08/25/2025 | [OpenZeppelin](./docs/audits/OpenZeppelin_v0.pdf) |
+| v1.0.0  | 08/25/2025 | [OpenZeppelin](./docs/audits/OpenZeppelin_v0.pdf)                   |
 
 ### Bug bounty
 
@@ -57,6 +63,7 @@ security@uniswap.org
 The [whitepaper](./docs/assets/whitepaper.pdf) for the Continuous Clearing Auction.
 
 ## Docs
+
 - [Technical documentation](./docs/TechnicalDocumentation.md)
 - [Changelog](./docs/CHANGELOG.md)
 - [Deployment guide](./docs/DeploymentGuide.md)

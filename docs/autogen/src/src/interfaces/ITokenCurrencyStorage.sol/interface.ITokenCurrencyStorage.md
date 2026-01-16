@@ -1,54 +1,8 @@
 # ITokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/ab88be10ec09bebb9ce21e524c265366917b5a1f/src/interfaces/ITokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/949d1892c9cdad238344a57f13bea4cf1aa50924/src/interfaces/ITokenCurrencyStorage.sol)
 
 Interface for token and currency storage operations
 
-
-## Functions
-### currency
-
-The currency being raised in the auction
-
-
-```solidity
-function currency() external view returns (Currency);
-```
-
-### token
-
-The token being sold in the auction
-
-
-```solidity
-function token() external view returns (IERC20Minimal);
-```
-
-### totalSupply
-
-The total supply of tokens to sell
-
-
-```solidity
-function totalSupply() external view returns (uint128);
-```
-
-### tokensRecipient
-
-The recipient of any unsold tokens at the end of the auction
-
-
-```solidity
-function tokensRecipient() external view returns (address);
-```
-
-### fundsRecipient
-
-The recipient of the raised Currency from the auction
-
-
-```solidity
-function fundsRecipient() external view returns (address);
-```
 
 ## Events
 ### TokensSwept

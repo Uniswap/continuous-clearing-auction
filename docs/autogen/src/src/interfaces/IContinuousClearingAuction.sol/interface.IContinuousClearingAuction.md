@@ -1,8 +1,8 @@
 # IContinuousClearingAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/5b8ed17aad591faad07c06ffc6e4d04217c2094e/src/interfaces/IContinuousClearingAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/949d1892c9cdad238344a57f13bea4cf1aa50924/src/interfaces/IContinuousClearingAuction.sol)
 
 **Inherits:**
-[IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IStepStorage](/src/interfaces/IStepStorage.sol/interface.IStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
+[ILBPInitializer](/src/interfaces/external/ILBPInitializer.sol/interface.ILBPInitializer.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IStepStorage](/src/interfaces/IStepStorage.sol/interface.IStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
 
 Interface for the ContinuousClearingAuction contract
 
@@ -229,6 +229,96 @@ Can be called by anyone after the auction has ended
 ```solidity
 function sweepCurrency() external;
 ```
+
+### supportsInterface
+
+Implements IERC165.supportsInterface to signal support for the ILBPInitializer interface
+
+
+```solidity
+function supportsInterface(bytes4 interfaceId) external view override(IERC165) returns (bool);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`interfaceId`|`bytes4`|The interface identifier to check|
+
+
+### currency
+
+The currency being raised in the auction
+
+
+```solidity
+function currency() external view returns (address);
+```
+
+### token
+
+The token being sold in the auction
+
+
+```solidity
+function token() external view returns (address);
+```
+
+### totalSupply
+
+The total supply of tokens to sell
+
+
+```solidity
+function totalSupply() external view returns (uint128);
+```
+
+### tokensRecipient
+
+The recipient of any unsold tokens at the end of the auction
+
+
+```solidity
+function tokensRecipient() external view returns (address);
+```
+
+### fundsRecipient
+
+The recipient of the raised currency from the auction
+
+
+```solidity
+function fundsRecipient() external view returns (address);
+```
+
+### startBlock
+
+The block at which the auction starts
+
+
+```solidity
+function startBlock() external view override(ILBPInitializer) returns (uint64);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint64`|The starting block number|
+
+
+### endBlock
+
+The block at which the auction ends
+
+
+```solidity
+function endBlock() external view override(ILBPInitializer) returns (uint64);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint64`|The ending block number|
+
 
 ### claimBlock
 
@@ -585,6 +675,14 @@ Error thrown when the auction is not over
 
 ```solidity
 error AuctionIsNotOver();
+```
+
+### AuctionIsNotFinalized
+Error thrown when the end block is not checkpointed
+
+
+```solidity
+error AuctionIsNotFinalized();
 ```
 
 ### InvalidBidUnableToClear

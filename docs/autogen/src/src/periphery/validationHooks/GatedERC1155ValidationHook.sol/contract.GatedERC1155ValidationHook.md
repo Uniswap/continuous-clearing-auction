@@ -1,8 +1,8 @@
 # GatedERC1155ValidationHook
-[Git Source](https://github.com/Uniswap/twap-auction/blob/5b8ed17aad591faad07c06ffc6e4d04217c2094e/src/periphery/validationHooks/GatedERC1155ValidationHook.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/949d1892c9cdad238344a57f13bea4cf1aa50924/src/periphery/validationHooks/GatedERC1155ValidationHook.sol)
 
 **Inherits:**
-[BaseERC1155ValidationHook](/src/periphery/validationHooks/BaseERC1155ValidationHook.sol/contract.BaseERC1155ValidationHook.md)
+[BaseERC1155ValidationHook](/src/periphery/validationHooks/BaseERC1155ValidationHook.sol/contract.BaseERC1155ValidationHook.md), BlockNumberish
 
 Validation hook for ERC1155 tokens that requires the sender to hold a specific token until a certain block number
 

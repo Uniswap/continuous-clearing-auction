@@ -1,40 +1,10 @@
 # IStepStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/b4d0a06daced32c81e0487f3201e863948da89b2/src/interfaces/IStepStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/949d1892c9cdad238344a57f13bea4cf1aa50924/src/interfaces/IStepStorage.sol)
 
 Interface for managing auction step storage
 
 
 ## Functions
-### startBlock
-
-The block at which the auction starts
-
-
-```solidity
-function startBlock() external view returns (uint64);
-```
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`uint64`|The starting block number|
-
-
-### endBlock
-
-The block at which the auction ends
-
-
-```solidity
-function endBlock() external view returns (uint64);
-```
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`uint64`|The ending block number|
-
-
 ### pointer
 
 The address pointer to the contract deployed by SSTORE2

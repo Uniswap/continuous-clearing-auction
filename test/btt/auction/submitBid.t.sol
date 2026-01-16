@@ -282,6 +282,7 @@ contract SubmitBidTest is BttBase {
         mParams.parameters.endBlock = 101;
         mParams.parameters.claimBlock = 102;
         mParams.parameters.currency = address(0);
+        mParams.parameters.validationHook = address(0);
         // Mock the supply schedule to be 100e3 mps for 100 blocks, then 0 mps for 1 block
         mParams.parameters.auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100).addStep(0, 1);
 

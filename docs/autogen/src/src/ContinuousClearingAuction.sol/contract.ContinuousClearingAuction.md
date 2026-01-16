@@ -1,5 +1,5 @@
 # ContinuousClearingAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/949d1892c9cdad238344a57f13bea4cf1aa50924/src/ContinuousClearingAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c9923b6612650531d4151de2f459778059410469/src/ContinuousClearingAuction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [StepStorage](/src/StepStorage.sol/abstract.StepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), BlockNumberish, ReentrancyGuardTransient, [IContinuousClearingAuction](/src/interfaces/IContinuousClearingAuction.sol/interface.IContinuousClearingAuction.md)

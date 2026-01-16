@@ -1,5 +1,5 @@
 # StepStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/64f5212a4573a22c85e9c110002cc1ad74f5e008/src/StepStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/949d1892c9cdad238344a57f13bea4cf1aa50924/src/StepStorage.sol)
 
 **Inherits:**
 [IStepStorage](/src/interfaces/IStepStorage.sol/interface.IStepStorage.md)
@@ -103,36 +103,6 @@ Get the current active auction step
 ```solidity
 function step() external view returns (AuctionStep memory);
 ```
-
-### startBlock
-
-The block at which the auction starts
-
-
-```solidity
-function startBlock() external view returns (uint64);
-```
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`uint64`|The starting block number|
-
-
-### endBlock
-
-The block at which the auction ends
-
-
-```solidity
-function endBlock() external view returns (uint64);
-```
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`uint64`|The ending block number|
-
 
 ### pointer
 

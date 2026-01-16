@@ -86,6 +86,8 @@ interface IContinuousClearingAuction is
     error TokenTransferFailed();
     /// @notice Error thrown when the auction is not over
     error AuctionIsNotOver();
+    /// @notice Error thrown when the end block is not checkpointed
+    error AuctionIsNotFinalized();
     /// @notice Error thrown when the bid is too large
     error InvalidBidUnableToClear();
     /// @notice Error thrown when the auction has sold the entire total supply of tokens

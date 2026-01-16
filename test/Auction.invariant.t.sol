@@ -6,7 +6,6 @@ import {IStepStorage} from '../src/interfaces/IStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
-import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';

@@ -149,7 +149,7 @@ contract ContinuousClearingAuction is
     /// @inheritdoc ILBPInitializer
     function lbpInitializationParams() external view returns (LBPInitializationParams memory params) {
         // Require that the auction has been checkpointed at the end block before returning initialization params
-        if ($lastCheckpointedBlock != END_BLOCK) revert AuctionIsNotOver();
+        if ($lastCheckpointedBlock != END_BLOCK) revert AuctionIsNotFinalized();
 
         return LBPInitializationParams({
             initialPriceX96: $clearingPrice, tokensSold: totalCleared(), currencyRaised: currencyRaised()

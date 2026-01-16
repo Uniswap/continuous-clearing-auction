@@ -13,5 +13,15 @@ SubmitBidTest
             └── given bid owner not eq zero address
                 ├── when currency is address(0) and msg.value not eq amount
                 │   └── it reverts with {InvalidAmount}
-                └── when currency is not address(0) and msg.value is not zero
-                    └── it reverts with {CurrencyIsNotNative}
+                ├── when currency is not address(0) and msg.value is not zero
+                │   └── it reverts with {CurrencyIsNotNative}
+                ├── when max price is greater than max bid price
+                │   └── it reverts with {InvalidBidPriceTooHigh}
+                └── given max price is LTE max bid price
+                    ├── when validation hook reverts
+                    │   └── it reverts with the revert reason of the validation hook
+                    ├── when validation hook reenters
+                    │   └── it reverts with {Reentrancy}
+                    └── given validation hook succeeds
+                        └── when auction is sold out
+                            └── it reverts with {AuctionSoldOut}

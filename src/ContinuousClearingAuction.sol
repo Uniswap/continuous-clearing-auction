@@ -24,6 +24,7 @@ import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {ReentrancyGuardTransient} from 'solady/utils/ReentrancyGuardTransient.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
 /// @title ContinuousClearingAuction
@@ -38,6 +39,7 @@ contract ContinuousClearingAuction is
     TickStorage,
     TokenCurrencyStorage,
     BlockNumberish,
+    ReentrancyGuardTransient,
     IContinuousClearingAuction
 {
     using FixedPointMathLib for *;
@@ -432,8 +434,12 @@ contract ContinuousClearingAuction is
         // Reject bids which would cause TOTAL_SUPPLY * maxPrice to overflow a uint256
         if (_maxPrice > MAX_BID_PRICE) revert InvalidBidPriceTooHigh(_maxPrice, MAX_BID_PRICE);
 
+        // Call the validation hook and bubble up the revert reason if it reverts
+        VALIDATION_HOOK.handleValidate(_maxPrice, _amount, _owner, msg.sender, _hookData);
+
         // Get the latest checkpoint before validating the bid
-        Checkpoint memory _checkpoint = checkpoint();
+        uint64 currentBlockNumberIsh = uint64(_getBlockNumberish());
+        Checkpoint memory _checkpoint = _checkpointAtBlock(currentBlockNumberIsh);
         // Revert if there are no more tokens to be sold
         if (_checkpoint.remainingMpsInAuction() == 0) revert AuctionSoldOut();
         // We don't allow bids to be submitted at or below the clearing price
@@ -442,12 +448,9 @@ contract ContinuousClearingAuction is
         // Initialize the tick if needed. This will no-op if the tick is already initialized.
         _initializeTickIfNeeded(_prevTickPrice, _maxPrice);
 
-        // Call the validation hook and bubble up the revert reason if it reverts
-        VALIDATION_HOOK.handleValidate(_maxPrice, _amount, _owner, msg.sender, _hookData);
-
         Bid memory bid;
         uint256 amountQ96 = uint256(_amount) << FixedPoint96.RESOLUTION;
-        (bid, bidId) = _createBid(_getBlockNumberish(), amountQ96, _owner, _maxPrice, _checkpoint.cumulativeMps);
+        (bid, bidId) = _createBid(currentBlockNumberIsh, amountQ96, _owner, _maxPrice, _checkpoint.cumulativeMps);
 
         // Scale the amount according to the rest of the supply schedule, accounting for past blocks
         // This is only used in demand related internal calculations
@@ -502,7 +505,7 @@ contract ContinuousClearingAuction is
     /// @notice Manually iterate over ticks to update the clearing price
     /// @dev This is used to prevent DoS attacks which initialize a large number of ticks
     /// @param _untilTickPrice The tick price to iterate until
-    function forceIterateOverTicks(uint256 _untilTickPrice) external onlyActiveAuction returns (uint256) {
+    function forceIterateOverTicks(uint256 _untilTickPrice) external onlyActiveAuction nonReentrant returns (uint256) {
         if (_untilTickPrice != MAX_TICK_PTR) {
             // Ensure that the price is at a tick boundary
             Tick storage $tick = _getTick(_untilTickPrice);
@@ -530,7 +533,7 @@ contract ContinuousClearingAuction is
         address _owner,
         uint256 _prevTickPrice,
         bytes calldata _hookData
-    ) public payable onlyActiveAuction returns (uint256) {
+    ) public payable onlyActiveAuction nonReentrant returns (uint256) {
         // Bids cannot be submitted at the endBlock or after
         if (_getBlockNumberish() >= END_BLOCK) revert AuctionIsOver();
         if (_amount == 0) revert BidAmountTooSmall();

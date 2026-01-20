@@ -24,8 +24,8 @@ contract AuctionDosTest is AuctionBaseTest {
     /// forge-config: default.gas_limit = 18446744073709551615
     /// forge-config: ci.isolate = true
     /// forge-config: ci.gas_limit = 18446744073709551615
-    /// forge-config: default.runs = 100
-    /// forge-config: ci.runs = 100
+    /// forge-config: default.fuzz.runs = 100
+    /// forge-config: ci.fuzz.runs = 100
     function test_forceIterateOverTicks_preventsDoS(FuzzDeploymentParams memory _deploymentParams)
         public
         givenFullyFundedAccount

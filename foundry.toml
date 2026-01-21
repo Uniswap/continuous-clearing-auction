@@ -3,8 +3,7 @@ src = "src"
 out = "out"
 libs = ["lib"]
 optimizer = true
-optimizer_runs = 88888
-via_ir = true
+optimizer_runs = 10000
 bytecode_hash = "none"
 solc = "0.8.26"
 verbosity = 2
@@ -29,10 +28,12 @@ remappings = [
   "btt=test/btt/",
 ]
 
-additional_compiler_profiles = [{ name = "test", via_ir = false }]
+additional_compiler_profiles = [
+  { name = "via-ir", via_ir = true }
+]
 
 compilation_restrictions = [
-  { paths = "test/**", via_ir = false }
+  { paths = "src/**", via_ir = true }
 ]
 
 [profile.default.fuzz]

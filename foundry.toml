@@ -5,6 +5,7 @@ libs = ["lib"]
 optimizer = true
 optimizer_runs = 11111
 bytecode_hash = "none"
+evm_version = "cancun"
 solc = "0.8.26"
 verbosity = 2
 ffi = true

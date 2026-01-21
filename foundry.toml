@@ -3,7 +3,7 @@ src = "src"
 out = "out"
 libs = ["lib"]
 optimizer = true
-optimizer_runs = 10000
+optimizer_runs = 11111
 bytecode_hash = "none"
 solc = "0.8.26"
 verbosity = 2
@@ -28,9 +28,7 @@ remappings = [
   "btt=test/btt/",
 ]
 
-additional_compiler_profiles = [
-  { name = "via_ir", optimizer_runs = 10000, via_ir = true }
-]
+additional_compiler_profiles = [{ name = "via_ir", optimizer_runs = 10000, via_ir = true }]
 
 compilation_restrictions = [
   { paths = "src/ContinuousClearingAuctionFactory.sol", via_ir = true }

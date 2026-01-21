@@ -1,6 +1,9 @@
 {
   "lib/blocknumberish": {
-    "rev": "9d57a9c439f3be6c1528339e206d852b6a0f78cb"
+    "tag": {
+      "name": "v1.0.0",
+      "rev": "b911c96b35aaaa45e79715e160b295d2efd56285"
+    }
   },
   "lib/forge-chronicles": {
     "rev": "c2be7a462d87b8e3a72f7e2b739cdf12807a71e4"

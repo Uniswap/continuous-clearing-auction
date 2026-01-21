@@ -1,4 +1,10 @@
 {
+  "lib/blocknumberish": {
+    "tag": {
+      "name": "v1.0.0",
+      "rev": "b911c96b35aaaa45e79715e160b295d2efd56285"
+    }
+  },
   "lib/forge-chronicles": {
     "rev": "c2be7a462d87b8e3a72f7e2b739cdf12807a71e4"
   },

@@ -76,7 +76,7 @@ contract AuctionDosTest is AuctionBaseTest {
         uint128 bidAmount = uint128(FixedPointMathLib.fullMulDivUp(auction.totalSupply(), maxPrice, FixedPoint96.Q96));
 
         // Move the auction up to the highest tick
-        auction.submitBid{value: bidAmount, gas: FUSAKA_TX_GAS_LIMIT}(maxPrice, bidAmount, alice, prevPrice, bytes(''));
+        auction.submitBid{value: bidAmount}(maxPrice, bidAmount, alice, prevPrice, bytes(''));
 
         vm.roll(block.number + 1);
         // This should revert due to OOG
@@ -88,6 +88,9 @@ contract AuctionDosTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.NextActiveTickUpdated(untilTickPrice);
         auction.forceIterateOverTicks{gas: FUSAKA_TX_GAS_LIMIT}(untilTickPrice);
+
+        emit log_named_uint('gasleft', gasleft());
+        require(gasleft() > FUSAKA_TX_GAS_LIMIT, 'Gas left is not greater than FUSAKA_TX_GAS_LIMIT');
 
         // Now you should be able to checkpoint
         auction.checkpoint{gas: FUSAKA_TX_GAS_LIMIT}();

@@ -26,6 +26,7 @@ import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {ReentrancyGuardTransient} from 'solady/utils/ReentrancyGuardTransient.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
+import {console} from 'forge-std/console.sol';
 
 /// @title ContinuousClearingAuction
 /// @custom:security-contact security@uniswap.org
@@ -329,6 +330,8 @@ contract ContinuousClearingAuction is
          * at any given price is equal to totalSupply * p', where p' is that price.
          */
         uint256 clearingPrice_ = sumCurrencyDemandAboveClearingQ96_.divUp(TOTAL_SUPPLY);
+        uint256 iterations = 0;
+        uint256 gasLeft = gasleft();
         while (
             // Loop while the currency amount above the clearing price is greater than the required currency at `nextActiveTickPrice_`
             (nextActiveTickPrice_ != _untilTickPrice
@@ -337,6 +340,7 @@ contract ContinuousClearingAuction is
                 // This ensures that the `nextActiveTickPrice` is always the next initialized tick strictly above the clearing price
                 || clearingPrice_ == nextActiveTickPrice_
         ) {
+            iterations++;
             Tick storage $nextActiveTick = _getTick(nextActiveTickPrice_);
             // Subtract the demand at the current nextActiveTick from the total demand
             sumCurrencyDemandAboveClearingQ96_ -= $nextActiveTick.currencyDemandQ96;
@@ -353,6 +357,10 @@ contract ContinuousClearingAuction is
             $nextActiveTickPrice = nextActiveTickPrice_;
             emit NextActiveTickUpdated(nextActiveTickPrice_);
         }
+        uint256 gasUsed = gasLeft - gasleft();
+
+        console.log('iterations', iterations);
+        console.log('gasUsed', gasUsed);
 
         // The minimum clearing price is either the floor price or the last tick we iterated over.
         // With the exception of the first iteration, the minimum price is a lower bound on the clearing price

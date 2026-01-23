@@ -47,7 +47,7 @@ The code has been audited by Spearbit, OpenZeppelin, and ABDK Consulting. The mo
 | Version | Date       | Report |
 | ------- | ---------- | ------ |
 | v1.1.0  | 01/20/2026 | [Spearbit](./docs/audits/Spearbit_v1.1.0.pdf) |
-| v1.1.0  | 01/20/2026 |        |
+| v1.1.0  | 01/20/2026 | [OpenZeppelin](./docs/audits/OpenZeppelin_v1.1.0.pdf) |
 
 ### Bug bounty
 

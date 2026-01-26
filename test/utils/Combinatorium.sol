@@ -210,9 +210,7 @@ library Combinatorium {
         Context memory ctx = _loadContext(self);
 
         MutationTestParams memory params = MutationTestParams({
-            normalHandler: normalHandler,
-            mutationHandler: mutationHandler,
-            mutationSelector: mutationSelector
+            normalHandler: normalHandler, mutationHandler: mutationHandler, mutationSelector: mutationSelector
         });
 
         for (uint256 i = 0; i < numMutations; i++) {

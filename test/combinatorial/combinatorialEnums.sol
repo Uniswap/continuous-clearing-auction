@@ -25,5 +25,4 @@ enum ExitPath {
     NonGraduated, // Auction didn't graduate - full refund
     FullExit, // Bid above clearing at auction end - fully filled
     PartialExit // Bid outbid mid-auction or at clearing at end - partially filled
-
 }

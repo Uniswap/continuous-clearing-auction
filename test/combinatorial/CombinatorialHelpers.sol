@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Auction} from '../../src/Auction.sol';
+import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol';
 
 import {Checkpoint} from '../../src/libraries/CheckpointLib.sol';
 
@@ -775,8 +775,10 @@ contract CombinatorialHelpers is AuctionBaseTest {
         uint24 mpsRemaining = ConstantsLib.MPS - bid.startCumulativeMps;
 
         // Scale up bid amount and apply pro-rata
-        ValueX7 currencySpentQ96_X7 = bid.amountQ96.scaleUpToX7()
-            .fullMulDivUp(currencyRaisedAtClearingQ96_X7, ValueX7.wrap(tickDemandQ96 * mpsRemaining));
+        ValueX7 currencySpentQ96_X7 = ValueX7.wrap(
+            ValueX7.unwrap(bid.amountQ96.scaleUpToX7())
+                .fullMulDivUp(ValueX7.unwrap(currencyRaisedAtClearingQ96_X7), tickDemandQ96 * mpsRemaining)
+        );
 
         // Scale down to uint256
         currencySpent = currencySpentQ96_X7.scaleDownToUint256();

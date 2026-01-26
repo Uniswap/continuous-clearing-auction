@@ -20,23 +20,27 @@ abstract contract BidStorage is IBidStorage {
     }
 
     /// @notice Create a new bid
-    /// @param amount The amount of the bid
-    /// @param owner The owner of the bid
-    /// @param maxPrice The maximum price for the bid
-    /// @param startCumulativeMps The cumulative mps at the start of the bid
+    /// @param _blockNumberIsh The block number when the bid was created
+    /// @param _amount The amount of the bid
+    /// @param _owner The owner of the bid
+    /// @param _maxPrice The maximum price for the bid
+    /// @param _startCumulativeMps The cumulative mps at the start of the bid
     /// @return bid The created bid
     /// @return bidId The id of the created bid
-    function _createBid(uint256 amount, address owner, uint256 maxPrice, uint24 startCumulativeMps)
-        internal
-        returns (Bid memory bid, uint256 bidId)
-    {
+    function _createBid(
+        uint256 _blockNumberIsh,
+        uint256 _amount,
+        address _owner,
+        uint256 _maxPrice,
+        uint24 _startCumulativeMps
+    ) internal returns (Bid memory bid, uint256 bidId) {
         bid = Bid({
-            startBlock: uint64(block.number),
-            startCumulativeMps: startCumulativeMps,
+            startBlock: uint64(_blockNumberIsh),
+            startCumulativeMps: _startCumulativeMps,
             exitedBlock: 0,
-            maxPrice: maxPrice,
-            amountQ96: amount,
-            owner: owner,
+            maxPrice: _maxPrice,
+            amountQ96: _amount,
+            owner: _owner,
             tokensFilled: 0
         });
 

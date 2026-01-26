@@ -1,0 +1,25 @@
+ForceIterateOverTicksTest
+├── when auction is not active
+│   └── it reverts with {AuctionNotStarted}
+└── given auction is active
+    ├── when tick price is equal to MAX_TICK_PTR
+    │   ├── it iterates over ticks until the MAX_TICK_PTR
+    │   ├── it sets the clearing price
+    │   ├── it emits {NextActiveTickUpdated} with the MAX_TICK_PTR
+    │   ├── it sets the nextActiveTickPrice to the MAX_TICK_PTR
+    │   └── it is idempotent
+    └── given tick price is not equal to MAX_TICK_PTR
+        ├── when until tick price is not at boundary
+        │   └── it reverts with {TickPriceNotAtBoundary}
+        └── given tick price is at boundary
+            ├── when until tick price is not initialized
+            │   └── it reverts with {TickNotInitialized}
+            └── given until tick price is initialized
+                ├── when tick price is LTE nextActiveTickPrice
+                │   └──  it reverts with {TickHintMustBeGreaterThanNextActiveTickPrice}
+                └── when tick price is GT nextActiveTickPrice
+                    ├── it sets the nextActiveTickPrice to the untilTickPrice
+                    ├── it sets the clearing price
+                    ├── it emits {NextActiveTickUpdated} with the untilTickPrice
+                    ├── it sets the nextActiveTickPrice to the MAX_TICK_PTR
+                    └── it sets the nextActiveTickPrice to the untilTickPrice

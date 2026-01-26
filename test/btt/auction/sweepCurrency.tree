@@ -1,0 +1,18 @@
+SweepCurrencyTest
+├── when block LT end block
+│   └── it reverts with {AuctionIsNotOver}
+└── given end block is checkpointed
+    ├── when already swept
+    │   └── it reverts with {CannotSweepCurrency}
+    └── given not previously swept
+        ├── when auction is not graduated
+        │   └── it reverts with {NotGraduated}
+        └── given auction is graduated
+            ├── when amount GT zero
+            │   ├── it writes sweepCurrencyBlock
+            │   ├── it transfers amount currency to funds recipient
+            │   └── it emits {CurrencySwept}
+            └── when amount EQ zero
+                ├── it writes sweepCurrencyBlock
+                ├── it does not transfer amount currency to funds recipient
+                └── it emits {CurrencySwept}

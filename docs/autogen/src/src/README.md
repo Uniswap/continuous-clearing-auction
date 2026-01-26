@@ -2,13 +2,13 @@
 
 # Contents
 - [interfaces](/src/interfaces)
+- [lens](/src/lens)
 - [libraries](/src/libraries)
-- [Auction](Auction.sol/contract.Auction.md)
-- [AuctionFactory](AuctionFactory.sol/contract.AuctionFactory.md)
-- [AuctionStepStorage](AuctionStepStorage.sol/abstract.AuctionStepStorage.md)
+- [periphery](/src/periphery)
 - [BidStorage](BidStorage.sol/abstract.BidStorage.md)
 - [CheckpointStorage](CheckpointStorage.sol/abstract.CheckpointStorage.md)
-- [PermitSingleForwarder](PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md)
-- [Tick](TickStorage.sol/struct.Tick.md)
+- [ContinuousClearingAuction](ContinuousClearingAuction.sol/contract.ContinuousClearingAuction.md)
+- [ContinuousClearingAuctionFactory](ContinuousClearingAuctionFactory.sol/contract.ContinuousClearingAuctionFactory.md)
+- [StepStorage](StepStorage.sol/abstract.StepStorage.md)
 - [TickStorage](TickStorage.sol/abstract.TickStorage.md)
 - [TokenCurrencyStorage](TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md)

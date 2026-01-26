@@ -3,11 +3,12 @@ src = "src"
 out = "out"
 libs = ["lib"]
 optimizer = true
-optimizer_runs = 1000
-via_ir = true
+optimizer_runs = 11111
+bytecode_hash = "none"
 solc = "0.8.26"
 verbosity = 2
 ffi = true
+
 fs_permissions = [
   { access = "read-write", path = ".forge-snapshots" },
   { access = "read", path = "script/" },
@@ -22,16 +23,16 @@ remappings = [
   "solady=lib/solady/src",
   "permit2=lib/permit2",
   "v4-periphery=lib/v4-periphery",
-  "twap-auction=src/",
+  "blocknumberish=lib/blocknumberish",
+  "continuous-clearing-auction=src/",
   "test=test/",
   "btt=test/btt/",
 ]
 
-additional_compiler_profiles = [{ name = "test", via_ir = false }]
+additional_compiler_profiles = [{ name = "via_ir", optimizer_runs = 11111, via_ir = true }]
 
 compilation_restrictions = [
-  { paths = "src/AuctionFactory.sol", via_ir = false, optimizer = false, optimzer_runs = 0 },
-  { paths = "test/**", via_ir = false },
+  { paths = "src/ContinuousClearingAuctionFactory.sol", via_ir = true }
 ]
 
 [profile.default.fuzz]
@@ -39,22 +40,17 @@ runs = 2500
 
 [profile.default.invariant]
 fail_on_revert = true
-runs = 10
-depth = 1000
+runs = 100
+depth = 2500
 
 [profile.quick.fuzz]
 runs = 500
 
 [profile.pr.fuzz]
-runs = 2500
+runs = 1000
 
 [profile.ci.fuzz]
-runs = 2500
-
-[profile.debug]
-via_ir = false
-optimizer_runs = 200
-fuzz.runs = 100
+runs = 1000
 
 [fmt]
 line_length = 120
@@ -62,3 +58,6 @@ tab_width = 4
 quote_style = "single"
 sort_imports = true
 number_underscore = "thousands"
+
+[lint]
+exclude_lints = ["mixed-case-variable"]

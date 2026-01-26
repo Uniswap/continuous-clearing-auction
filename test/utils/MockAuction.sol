@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Auction} from '../../src/Auction.sol';
-import {AuctionParameters} from '../../src/Auction.sol';
 import {Bid} from '../../src/BidStorage.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
+import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol';
+import {AuctionParameters} from '../../src/ContinuousClearingAuction.sol';
 
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 import {ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 
-contract MockAuction is Auction {
+contract MockContinuousClearingAuction is ContinuousClearingAuction {
     using ValueX7Lib for *;
 
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
-        Auction(_token, _totalSupply, _parameters)
+        ContinuousClearingAuction(_token, _totalSupply, _parameters)
     {}
 
     /// @notice The number of tokens that can be swept from the auction
@@ -24,8 +24,8 @@ contract MockAuction is Auction {
     }
 
     /// @notice Wrapper around internal function for testing
-    function iterateOverTicksAndFindClearingPrice(Checkpoint memory checkpoint) external returns (uint256) {
-        return _iterateOverTicksAndFindClearingPrice(checkpoint);
+    function iterateOverTicksAndFindClearingPrice() external returns (uint256) {
+        return _iterateOverTicksAndFindClearingPrice(MAX_TICK_PTR);
     }
 
     /// @notice Wrapper around internal function for testing
@@ -50,7 +50,7 @@ contract MockAuction is Auction {
         external
         returns (Bid memory, uint256)
     {
-        return _createBid(amount, owner, maxPrice, startCumulativeMps);
+        return _createBid(_getBlockNumberish(), amount, owner, maxPrice, startCumulativeMps);
     }
 
     function uncheckedInitializeTickIfNeeded(uint256 prevPrice, uint256 price) external {

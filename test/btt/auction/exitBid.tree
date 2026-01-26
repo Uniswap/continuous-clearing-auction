@@ -1,0 +1,9 @@
+ExitBidTest
+├── when block LT end block
+│   └── it reverts with {AuctionIsNotOver}
+└── given auction is over
+    ├── when auction is not graduated
+    │   └── it fully refunds the bid
+    └── given auction is graduated
+        └── when bid max price LTE clearing price
+            └── it reverts with {CannotExitBid}

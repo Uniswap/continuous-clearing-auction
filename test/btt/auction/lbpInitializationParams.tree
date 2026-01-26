@@ -1,0 +1,5 @@
+LBPInitializationParamsTest
+├── when auction is not finalized
+│   └── it reverts with {AuctionIsNotFinalized}
+└── given auction is finalized
+    └── it returns the correct initialization params

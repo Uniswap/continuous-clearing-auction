@@ -1,0 +1,27 @@
+SubmitBidTest
+├── when auction is not active
+│   └── it reverts with {AuctionNotStarted}
+└── given auction is active
+    ├── when block number GTE end block
+    │   └── it reverts with {AuctionIsOver}
+    └── given block number LT end block
+        ├── when bid amount eq 0
+        │   └── it reverts with {BidAmountTooSmall}
+        └── given bid amount GT 0
+            ├── when bid owner eq zero address
+            │   └── it reverts with {BidOwnerCannotBeZeroAddress}
+            └── given bid owner not eq zero address
+                ├── when currency is address(0) and msg.value not eq amount
+                │   └── it reverts with {InvalidAmount}
+                ├── when currency is not address(0) and msg.value is not zero
+                │   └── it reverts with {CurrencyIsNotNative}
+                ├── when max price is greater than max bid price
+                │   └── it reverts with {InvalidBidPriceTooHigh}
+                └── given max price is LTE max bid price
+                    ├── when validation hook reverts
+                    │   └── it reverts with the revert reason of the validation hook
+                    ├── when validation hook reenters
+                    │   └── it reverts with {Reentrancy}
+                    └── given validation hook succeeds
+                        └── when auction is sold out
+                            └── it reverts with {AuctionSoldOut}

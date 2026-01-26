@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {CheckpointStorage} from 'twap-auction/CheckpointStorage.sol';
+import {CheckpointStorage} from 'continuous-clearing-auction/CheckpointStorage.sol';
 
-import {Bid} from 'twap-auction/libraries/BidLib.sol';
-import {Checkpoint} from 'twap-auction/libraries/CheckpointLib.sol';
-import {ValueX7} from 'twap-auction/libraries/ValueX7Lib.sol';
+import {Bid} from 'continuous-clearing-auction/libraries/BidLib.sol';
+import {Checkpoint} from 'continuous-clearing-auction/libraries/CheckpointLib.sol';
+import {ValueX7} from 'continuous-clearing-auction/libraries/ValueX7Lib.sol';
 
 contract MockCheckpointStorage is CheckpointStorage {
     function insertCheckpoint(Checkpoint memory checkpoint, uint64 blockNumber) external {

@@ -3,17 +3,17 @@ pragma solidity ^0.8.26;
 
 import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
 
-import {Auction} from 'src/Auction.sol';
-import {AuctionFactory} from 'src/AuctionFactory.sol';
-import {IAuctionFactory} from 'src/interfaces/IAuctionFactory.sol';
+import {ContinuousClearingAuction} from 'src/ContinuousClearingAuction.sol';
+import {ContinuousClearingAuctionFactory} from 'src/ContinuousClearingAuctionFactory.sol';
+import {IContinuousClearingAuctionFactory} from 'src/interfaces/IContinuousClearingAuctionFactory.sol';
 import {IDistributionContract} from 'src/interfaces/external/IDistributionContract.sol';
 import {ActionConstants} from 'v4-periphery/src/libraries/ActionConstants.sol';
 
 contract InitializeDistributionTest is BttBase {
-    AuctionFactory internal factory;
+    ContinuousClearingAuctionFactory internal factory;
 
     function setUp() public {
-        factory = new AuctionFactory();
+        factory = new ContinuousClearingAuctionFactory();
     }
 
     function test_WhenAmountGTUint128Max(AuctionFuzzConstructorParams memory _params, uint256 _amount)
@@ -23,10 +23,10 @@ contract InitializeDistributionTest is BttBase {
         // it reverts with {InvalidTokenAmount}
         _amount = uint256(bound(_amount, uint256(type(uint128).max) + 1, type(uint256).max));
 
-        vm.expectRevert(abi.encodeWithSelector(IAuctionFactory.InvalidTokenAmount.selector, _amount));
+        vm.expectRevert(abi.encodeWithSelector(IContinuousClearingAuctionFactory.InvalidTokenAmount.selector, _amount));
         factory.initializeDistribution(address(token), _amount, abi.encode(params), bytes32(0));
 
-        vm.expectRevert(abi.encodeWithSelector(IAuctionFactory.InvalidTokenAmount.selector, _amount));
+        vm.expectRevert(abi.encodeWithSelector(IContinuousClearingAuctionFactory.InvalidTokenAmount.selector, _amount));
         factory.getAuctionAddress(address(token), _amount, abi.encode(params), bytes32(0), address(0));
     }
 
@@ -72,7 +72,7 @@ contract InitializeDistributionTest is BttBase {
         bytes memory expectedAuctionParameters = abi.encode(_params.parameters);
 
         vm.expectEmit(false, true, true, true, address(factory));
-        emit IAuctionFactory.AuctionCreated(
+        emit IContinuousClearingAuctionFactory.AuctionCreated(
             predictedAddress, address(_params.token), _params.totalSupply, expectedAuctionParameters
         );
         vm.prank(_sender);
@@ -80,7 +80,7 @@ contract InitializeDistributionTest is BttBase {
             factory.initializeDistribution(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0));
 
         assertEq(address(distributionContract), predictedAddress);
-        Auction auction = Auction(payable(address(distributionContract)));
+        ContinuousClearingAuction auction = ContinuousClearingAuction(payable(address(distributionContract)));
         assertEq(auction.tokensRecipient(), _sender);
         assertEq(auction.fundsRecipient(), _sender);
     }
@@ -114,7 +114,7 @@ contract InitializeDistributionTest is BttBase {
         bytes memory expectedAuctionParameters = abi.encode(_params.parameters);
 
         vm.expectEmit(false, true, true, true, address(factory));
-        emit IAuctionFactory.AuctionCreated(
+        emit IContinuousClearingAuctionFactory.AuctionCreated(
             predictedAddress, address(_params.token), _params.totalSupply, expectedAuctionParameters
         );
         vm.prank(_sender);
@@ -123,7 +123,7 @@ contract InitializeDistributionTest is BttBase {
 
         assertEq(address(distributionContract), predictedAddress);
 
-        Auction auction = Auction(payable(address(distributionContract)));
+        ContinuousClearingAuction auction = ContinuousClearingAuction(payable(address(distributionContract)));
         assertEq(auction.tokensRecipient(), _sender);
         assertEq(auction.fundsRecipient(), _params.parameters.fundsRecipient);
     }
@@ -163,7 +163,7 @@ contract InitializeDistributionTest is BttBase {
         bytes memory expectedAuctionParameters = abi.encode(_params.parameters);
 
         vm.expectEmit(false, true, true, true, address(factory));
-        emit IAuctionFactory.AuctionCreated(
+        emit IContinuousClearingAuctionFactory.AuctionCreated(
             predictedAddress, address(_params.token), _params.totalSupply, expectedAuctionParameters
         );
         vm.prank(_sender);
@@ -172,7 +172,7 @@ contract InitializeDistributionTest is BttBase {
 
         assertEq(address(distributionContract), predictedAddress);
 
-        Auction auction = Auction(payable(address(distributionContract)));
+        ContinuousClearingAuction auction = ContinuousClearingAuction(payable(address(distributionContract)));
         assertEq(auction.tokensRecipient(), _params.parameters.tokensRecipient);
         assertEq(auction.fundsRecipient(), _sender);
     }
@@ -204,7 +204,7 @@ contract InitializeDistributionTest is BttBase {
         bytes memory expectedAuctionParameters = abi.encode(_params.parameters);
 
         vm.expectEmit(false, true, true, true, address(factory));
-        emit IAuctionFactory.AuctionCreated(
+        emit IContinuousClearingAuctionFactory.AuctionCreated(
             predictedAddress, address(_params.token), _params.totalSupply, expectedAuctionParameters
         );
         vm.prank(_sender);
@@ -213,7 +213,7 @@ contract InitializeDistributionTest is BttBase {
 
         assertEq(address(distributionContract), predictedAddress);
 
-        Auction auction = Auction(payable(predictedAddress));
+        ContinuousClearingAuction auction = ContinuousClearingAuction(payable(predictedAddress));
         assertEq(auction.tokensRecipient(), _params.parameters.tokensRecipient);
         assertEq(auction.fundsRecipient(), _params.parameters.fundsRecipient);
     }

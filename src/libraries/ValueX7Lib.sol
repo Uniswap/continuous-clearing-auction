@@ -8,46 +8,16 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 /// @dev X7 values are used for demand values to avoid intermediate division by MPS
 type ValueX7 is uint256;
 
-using {add, sub, eq, gte, mulUint256, divUint256, fullMulDiv, fullMulDivUp} for ValueX7 global;
-
-/// @notice Add two ValueX7 values
-function add(ValueX7 a, ValueX7 b) pure returns (ValueX7) {
-    return ValueX7.wrap(ValueX7.unwrap(a) + ValueX7.unwrap(b));
-}
+using {sub, divUint256} for ValueX7 global;
 
 /// @notice Subtract two ValueX7 values
 function sub(ValueX7 a, ValueX7 b) pure returns (ValueX7) {
     return ValueX7.wrap(ValueX7.unwrap(a) - ValueX7.unwrap(b));
 }
 
-/// @notice Check if a ValueX7 value is equal to another ValueX7 value
-function eq(ValueX7 a, ValueX7 b) pure returns (bool) {
-    return ValueX7.unwrap(a) == ValueX7.unwrap(b);
-}
-
-/// @notice Check if a ValueX7 value is greater than or equal to another ValueX7 value
-function gte(ValueX7 a, ValueX7 b) pure returns (bool) {
-    return ValueX7.unwrap(a) >= ValueX7.unwrap(b);
-}
-
-/// @notice Multiply a ValueX7 value by a uint256
-function mulUint256(ValueX7 a, uint256 b) pure returns (ValueX7) {
-    return ValueX7.wrap(ValueX7.unwrap(a) * b);
-}
-
 /// @notice Divide a ValueX7 value by a uint256
 function divUint256(ValueX7 a, uint256 b) pure returns (ValueX7) {
     return ValueX7.wrap(ValueX7.unwrap(a) / b);
-}
-
-/// @notice Wrapper around FixedPointMathLib.fullMulDiv to support ValueX7 values
-function fullMulDiv(ValueX7 a, ValueX7 b, ValueX7 c) pure returns (ValueX7) {
-    return ValueX7.wrap(FixedPointMathLib.fullMulDiv(ValueX7.unwrap(a), ValueX7.unwrap(b), ValueX7.unwrap(c)));
-}
-
-/// @notice Wrapper around FixedPointMathLib.fullMulDivUp to support ValueX7 values
-function fullMulDivUp(ValueX7 a, ValueX7 b, ValueX7 c) pure returns (ValueX7) {
-    return ValueX7.wrap(FixedPointMathLib.fullMulDivUp(ValueX7.unwrap(a), ValueX7.unwrap(b), ValueX7.unwrap(c)));
 }
 
 /// @title ValueX7Lib
@@ -68,15 +38,5 @@ library ValueX7Lib {
     /// @return The result as a uint256
     function scaleDownToUint256(ValueX7 value) internal pure returns (uint256) {
         return ValueX7.unwrap(value) / X7;
-    }
-
-    /// @notice Helper wrapper around fullMulDiv to support operations with uint256 values
-    function wrapAndFullMulDiv(ValueX7 a, uint256 b, uint256 c) internal pure returns (ValueX7) {
-        return a.fullMulDiv(ValueX7.wrap(b), ValueX7.wrap(c));
-    }
-
-    /// @notice Helper wrapper around fullMulDivUp to support operations with uint256 values
-    function wrapAndFullMulDivUp(ValueX7 a, uint256 b, uint256 c) internal pure returns (ValueX7) {
-        return a.fullMulDivUp(ValueX7.wrap(b), ValueX7.wrap(c));
     }
 }

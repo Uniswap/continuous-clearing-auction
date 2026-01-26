@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {AuctionParameters} from '../../src/Auction.sol';
+import {AuctionParameters} from '../../src/ContinuousClearingAuction.sol';
 
 /// @dev Parameters for fuzzing the auction
 struct FuzzDeploymentParams {

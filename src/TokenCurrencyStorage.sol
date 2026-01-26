@@ -6,11 +6,11 @@ import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
-import {ValueX7} from './libraries/ValueX7Lib.sol';
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 
 /// @title TokenCurrencyStorage
 abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
+    using ValueX7Lib for *;
     using CurrencyLibrary for Currency;
 
     /// @notice The currency being raised in the auction
@@ -25,8 +25,9 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     address internal immutable TOKENS_RECIPIENT;
     /// @notice The recipient of the raised Currency from the auction
     address internal immutable FUNDS_RECIPIENT;
-    /// @notice The amount of currency required to be raised for the auction to graduate in 160.96 form
-    uint256 internal immutable REQUIRED_CURRENCY_RAISED_Q96;
+    /// @notice The amount of currency required to be raised for the auction
+    ///         to graduate in Q96 form, scaled up by X7
+    ValueX7 internal immutable REQUIRED_CURRENCY_RAISED_Q96_X7;
 
     /// @notice The block at which the currency was swept
     uint256 public sweepCurrencyBlock;
@@ -44,6 +45,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         if (_token == address(0)) revert TokenIsAddressZero();
         if (_token == _currency) revert TokenAndCurrencyCannotBeTheSame();
         if (_totalSupply == 0) revert TotalSupplyIsZero();
+        if (_totalSupply > ConstantsLib.MAX_TOTAL_SUPPLY) revert TotalSupplyIsTooLarge();
         if (_tokensRecipient == address(0)) revert TokensRecipientIsZero();
         if (_fundsRecipient == address(0)) revert FundsRecipientIsZero();
 
@@ -53,48 +55,22 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         TOTAL_SUPPLY_Q96 = uint256(_totalSupply) << FixedPoint96.RESOLUTION;
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;
-        REQUIRED_CURRENCY_RAISED_Q96 = _requiredCurrencyRaised * FixedPoint96.Q96;
+        REQUIRED_CURRENCY_RAISED_Q96_X7 = (uint256(_requiredCurrencyRaised) << FixedPoint96.RESOLUTION).scaleUpToX7();
     }
 
-    function _sweepCurrency(uint256 amount) internal {
-        sweepCurrencyBlock = block.number;
-        if (amount > 0) {
-            CURRENCY.transfer(FUNDS_RECIPIENT, amount);
+    function _sweepCurrency(uint256 _blockNumberIsh, uint256 _amount) internal {
+        sweepCurrencyBlock = _blockNumberIsh;
+        if (_amount > 0) {
+            CURRENCY.transfer(FUNDS_RECIPIENT, _amount);
         }
-        emit CurrencySwept(FUNDS_RECIPIENT, amount);
+        emit CurrencySwept(FUNDS_RECIPIENT, _amount);
     }
 
-    function _sweepUnsoldTokens(uint256 amount) internal {
-        sweepUnsoldTokensBlock = block.number;
-        if (amount > 0) {
-            Currency.wrap(address(TOKEN)).transfer(TOKENS_RECIPIENT, amount);
+    function _sweepUnsoldTokens(uint256 _blockNumberIsh, uint256 _amount) internal {
+        sweepUnsoldTokensBlock = _blockNumberIsh;
+        if (_amount > 0) {
+            Currency.wrap(address(TOKEN)).transfer(TOKENS_RECIPIENT, _amount);
         }
-        emit TokensSwept(TOKENS_RECIPIENT, amount);
-    }
-
-    // Getters
-    /// @inheritdoc ITokenCurrencyStorage
-    function currency() external view returns (Currency) {
-        return CURRENCY;
-    }
-
-    /// @inheritdoc ITokenCurrencyStorage
-    function token() external view returns (IERC20Minimal) {
-        return TOKEN;
-    }
-
-    /// @inheritdoc ITokenCurrencyStorage
-    function totalSupply() external view returns (uint128) {
-        return TOTAL_SUPPLY;
-    }
-
-    /// @inheritdoc ITokenCurrencyStorage
-    function tokensRecipient() external view returns (address) {
-        return TOKENS_RECIPIENT;
-    }
-
-    /// @inheritdoc ITokenCurrencyStorage
-    function fundsRecipient() external view returns (address) {
-        return FUNDS_RECIPIENT;
+        emit TokensSwept(TOKENS_RECIPIENT, _amount);
     }
 }

@@ -3,22 +3,22 @@ pragma solidity 0.8.26;
 
 import {BttBase, Step} from 'btt/BttBase.sol';
 import {CompactStep, CompactStepLib} from 'btt/libraries/auctionStepLib/StepUtils.sol';
-import {MockAuctionStepStorage} from 'btt/mocks/MockAuctionStepStorage.sol';
+import {MockStepStorage} from 'btt/mocks/MockStepStorage.sol';
+import {IStepStorage} from 'continuous-clearing-auction/interfaces/IStepStorage.sol';
+import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
+import {AuctionStep} from 'continuous-clearing-auction/libraries/StepLib.sol';
 import {SSTORE2} from 'solady/utils/SSTORE2.sol';
-import {IAuctionStepStorage} from 'twap-auction/interfaces/IAuctionStepStorage.sol';
-import {AuctionStep} from 'twap-auction/libraries/AuctionStepLib.sol';
-import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
 
 contract ValidateTest is BttBase {
     using SSTORE2 for *;
 
-    MockAuctionStepStorage public auctionStepStorage;
+    MockStepStorage public auctionStepStorage;
 
     function test_WhenAuctionStepsDataLengthEQ0() external {
         // it reverts with {InvalidAuctionDataLength}
 
-        vm.expectRevert(IAuctionStepStorage.InvalidAuctionDataLength.selector);
-        auctionStepStorage = new MockAuctionStepStorage(bytes(''), 1, 2);
+        vm.expectRevert(IStepStorage.InvalidAuctionDataLength.selector);
+        auctionStepStorage = new MockStepStorage(bytes(''), 1, 2);
     }
 
     modifier whenAuctionStepsDataLengthNEQ0() {
@@ -28,8 +28,8 @@ contract ValidateTest is BttBase {
     function test_WhenAuctionStepsDataLengthIsNotAMultipleOfUINT64_SIZE() external whenAuctionStepsDataLengthNEQ0 {
         // it reverts with {InvalidAuctionDataLength}
 
-        vm.expectRevert(IAuctionStepStorage.InvalidAuctionDataLength.selector);
-        auctionStepStorage = new MockAuctionStepStorage(new bytes(7), 1, 2);
+        vm.expectRevert(IStepStorage.InvalidAuctionDataLength.selector);
+        auctionStepStorage = new MockStepStorage(new bytes(7), 1, 2);
     }
 
     modifier whenAuctionStepsDataLengthIsMultipleOfUINT64_SIZE() {
@@ -48,11 +48,11 @@ contract ValidateTest is BttBase {
         steps[0].blockDelta = 1;
         (bytes memory auctionStepsData, uint256 numberOfBlocks,) = generateAuctionSteps(steps);
 
-        auctionStepStorage = new MockAuctionStepStorage(auctionStepsData, 1, 1 + uint64(numberOfBlocks));
+        auctionStepStorage = new MockStepStorage(auctionStepsData, 1, 1 + uint64(numberOfBlocks));
 
         address pointer = new bytes(16).write();
 
-        vm.expectRevert(IAuctionStepStorage.InvalidAuctionDataLength.selector);
+        vm.expectRevert(IStepStorage.InvalidAuctionDataLength.selector);
         auctionStepStorage.validate(pointer);
     }
 
@@ -71,8 +71,8 @@ contract ValidateTest is BttBase {
         CompactStep[] memory steps = new CompactStep[](1);
         bytes memory auctionStepsData = CompactStepLib.pack(steps);
 
-        vm.expectRevert(IAuctionStepStorage.StepBlockDeltaCannotBeZero.selector);
-        auctionStepStorage = new MockAuctionStepStorage(auctionStepsData, 1, 2);
+        vm.expectRevert(IStepStorage.StepBlockDeltaCannotBeZero.selector);
+        auctionStepStorage = new MockStepStorage(auctionStepsData, 1, 2);
     }
 
     modifier whenNoAuctionStepWithDeltaEQ0() {
@@ -92,10 +92,8 @@ contract ValidateTest is BttBase {
         steps[0] = CompactStepLib.create(1e7 - 1, 1);
         bytes memory auctionStepsData = CompactStepLib.pack(steps);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(IAuctionStepStorage.InvalidStepDataMps.selector, 1e7 - 1, ConstantsLib.MPS)
-        );
-        auctionStepStorage = new MockAuctionStepStorage(auctionStepsData, 1, 2);
+        vm.expectRevert(abi.encodeWithSelector(IStepStorage.InvalidStepDataMps.selector, 1e7 - 1, ConstantsLib.MPS));
+        auctionStepStorage = new MockStepStorage(auctionStepsData, 1, 2);
     }
 
     modifier whenSumOfMpsTimesDeltaEQMPS() {
@@ -115,8 +113,8 @@ contract ValidateTest is BttBase {
         steps[0] = CompactStepLib.create(1e7, 1);
         bytes memory auctionStepsData = CompactStepLib.pack(steps);
 
-        vm.expectRevert(abi.encodeWithSelector(IAuctionStepStorage.InvalidEndBlockGivenStepData.selector, 2, 3));
-        auctionStepStorage = new MockAuctionStepStorage(auctionStepsData, 1, 3);
+        vm.expectRevert(abi.encodeWithSelector(IStepStorage.InvalidEndBlockGivenStepData.selector, 2, 3));
+        auctionStepStorage = new MockStepStorage(auctionStepsData, 1, 3);
     }
 
     function test_WhenSumOfBlockDeltaAndStartBlockEQEndBlock(Step[] memory _steps, uint64 _startBlock)
@@ -131,8 +129,7 @@ contract ValidateTest is BttBase {
 
         (bytes memory auctionStepsData, uint256 numberOfBlocks,) = generateAuctionSteps(_steps);
         uint64 startBlock = uint64(bound(_startBlock, 1, type(uint64).max - numberOfBlocks));
-        auctionStepStorage =
-            new MockAuctionStepStorage(auctionStepsData, startBlock, startBlock + uint64(numberOfBlocks));
+        auctionStepStorage = new MockStepStorage(auctionStepsData, startBlock, startBlock + uint64(numberOfBlocks));
 
         address pointer = auctionStepStorage.pointer();
         vm.record();

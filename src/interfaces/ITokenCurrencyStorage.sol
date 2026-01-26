@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import {Currency} from '../libraries/CurrencyLibrary.sol';
-import {ValueX7} from '../libraries/ValueX7Lib.sol';
 import {IERC20Minimal} from './external/IERC20Minimal.sol';
 
 /// @notice Interface for token and currency storage operations
@@ -13,6 +12,8 @@ interface ITokenCurrencyStorage {
     error TokenAndCurrencyCannotBeTheSame();
     /// @notice Error thrown when the total supply is zero
     error TotalSupplyIsZero();
+    /// @notice Error thrown when the total supply is too large
+    error TotalSupplyIsTooLarge();
     /// @notice Error thrown when the funds recipient is the zero address
     error FundsRecipientIsZero();
     /// @notice Error thrown when the tokens recipient is the zero address
@@ -33,19 +34,4 @@ interface ITokenCurrencyStorage {
     /// @param fundsRecipient The address of the funds recipient
     /// @param currencyAmount The amount of currency swept
     event CurrencySwept(address indexed fundsRecipient, uint256 currencyAmount);
-
-    /// @notice The currency being raised in the auction
-    function currency() external view returns (Currency);
-
-    /// @notice The token being sold in the auction
-    function token() external view returns (IERC20Minimal);
-
-    /// @notice The total supply of tokens to sell
-    function totalSupply() external view returns (uint128);
-
-    /// @notice The recipient of any unsold tokens at the end of the auction
-    function tokensRecipient() external view returns (address);
-
-    /// @notice The recipient of the raised Currency from the auction
-    function fundsRecipient() external view returns (address);
 }

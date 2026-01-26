@@ -2,17 +2,18 @@
 pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
+import {Bid, BidLib} from 'continuous-clearing-auction/libraries/BidLib.sol';
+import {CheckpointAccountingLib} from 'continuous-clearing-auction/libraries/CheckpointAccountingLib.sol';
+import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
+import {FixedPoint96} from 'continuous-clearing-auction/libraries/FixedPoint96.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {Bid, BidLib} from 'twap-auction/libraries/BidLib.sol';
-import {CheckpointAccountingLib} from 'twap-auction/libraries/CheckpointAccountingLib.sol';
-import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
-import {FixedPoint96} from 'twap-auction/libraries/FixedPoint96.sol';
 
 contract CalculateFillTest is BttBase {
     using FixedPointMathLib for *;
 
     function test_WhenBidAmountQ96EQ0(Bid memory _bid, uint256 _cumulativeMpsPerPriceDelta, uint24 _cumulativeMpsDelta)
         external
+        pure
     {
         // it returns 0 tokens filled and 0 currency spent
 
@@ -34,6 +35,7 @@ contract CalculateFillTest is BttBase {
     // Not possible to have zero cumulativeMpsDelta and non zero cumulativeMpsPerPriceDelta, shown in `accountFullyFilledCheckpoints` test
     function test_WhenCumulativeMpsDeltaEQ0AndCumulativeMpsPerPriceDeltaEQ0(Bid memory _bid)
         external
+        pure
         whenBidAmountQ96GT0
     {
         // it returns 0 tokens filled and 0 currency spent
@@ -80,6 +82,7 @@ contract CalculateFillTest is BttBase {
 
     function test_WhenTokensFilledRoundsDownToZero(Bid memory _bid, uint24 _cumulativeMpsDelta)
         external
+        pure
         whenBidAmountQ96GT0
         whenCumulativeMpsDeltaGT0AndCumulativeMpsPerPriceDeltaGT0
     {

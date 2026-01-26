@@ -1,0 +1,5 @@
+MaxBidPriceLibTest
+├── when total supply is LE lower supply threshold
+│   └── it returns MaxBidPriceLib.MAX_V4_PRICE
+└── when total supply is GT lower supply threshold
+    └── it returns the calculated max bid price which is less than MaxBidPriceLib.MAX_V4_PRICE

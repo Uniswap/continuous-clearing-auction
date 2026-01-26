@@ -1,5 +1,8 @@
 # ValidationHookLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/69de3ae4ba8e1e42b571cd7d7900cef9574ede92/src/libraries/ValidationHookLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c9923b6612650531d4151de2f459778059410469/src/libraries/ValidationHookLib.sol)
+
+**Title:**
+ValidationHookLib
 
 Library for handling calls to validation hooks and bubbling up the revert reason
 
@@ -14,7 +17,7 @@ Handles calling a validation hook and bubbling up the revert reason
 function handleValidate(
     IValidationHook hook,
     uint256 maxPrice,
-    uint256 amount,
+    uint128 amount,
     address owner,
     address sender,
     bytes calldata hookData

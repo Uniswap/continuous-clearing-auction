@@ -2,9 +2,6 @@
 pragma solidity ^0.8.4;
 
 import {ConstantsLib} from './ConstantsLib.sol';
-import {FixedPoint96} from './FixedPoint96.sol';
-import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 struct Bid {
     uint64 startBlock; // Block number when the bid was first made in
@@ -18,9 +15,7 @@ struct Bid {
 
 /// @title BidLib
 library BidLib {
-    using ValueX7Lib for *;
     using BidLib for *;
-    using FixedPointMathLib for *;
 
     /// @dev Error thrown when a bid is submitted with no remaining percentage of the auction
     ///      This is prevented by the auction contract as bids cannot be submitted when the auction is sold out,

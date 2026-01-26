@@ -99,61 +99,6 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
         _;
     }
 
-    /// forge.config.isolate = true
-    // function test_WhenThereIsEnoughDemandExactlyAtAndAboveTheTick(
-    //     FuzzDeploymentParams memory _deploymentParams,
-    //     FuzzTick[] memory _fuzzTicks,
-    //     uint8 _tickNumber
-    // ) external
-    //     lowerTotalSupply(_deploymentParams)
-    //     tickSpacingIsFloorPrice(_deploymentParams)
-    //     setUpMockAuctionFuzz(_deploymentParams)
-    // {
-    //     // it should set clearing price to a tick boundary
-    //     // it should find clearing price rounded up to be the minimum price
-    //     // it should find clearing price rounded down to be the minimum price
-    //     // it should set sumDemandAboveClearing to be sum of ticks above clearing price
-
-    //     // Sum demand above clearing should be enough to purchase all tokens at given ticks
-
-    //     // How to structure this test
-    //     // - Update the sum demand above clearing
-    //     // - Update the ticks with the correct demand
-    //     // - Allow for some kind of jitter for the ticks that will be used
-
-    //     assertEq(params.tickSpacing, params.floorPrice);
-    //     uint256 totalSupply = mockAuction.totalSupply();
-
-    //     _tickNumber = uint8(bound(_tickNumber, 1, 252));
-    //     updateFuzzTicksExactlyAtAndAbove(_fuzzTicks, _tickNumber, totalSupply);
-
-    //     // Set up the checkpoint corrrectly
-    //     Checkpoint memory checkpoint = Checkpoint({
-    //         clearingPrice: params.floorPrice,
-    //         currencyRaisedAtClearingPriceQ96_X7: ValueX7.wrap(0),
-    //         cumulativeMpsPerPrice: 0,
-    //         cumulativeMps: 0,
-    //         prev: 0,
-    //         next: type(uint64).max
-    //     });
-
-    //     // Set the next active tick price to the first tick above floor price
-    //     uint256 firstTickAboveFloor = params.floorPrice + params.tickSpacing;
-    //     mockAuction.uncheckedSetNextActiveTickPrice(firstTickAboveFloor);
-
-    //     uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice(checkpoint);
-    //     uint256 expectedClearingPrice = params.floorPrice + uint256(_tickNumber + 1) * uint256(params.tickSpacing);
-
-    //     console.log("tick spacing", params.tickSpacing);
-    //     console.log("floor price", params.floorPrice);
-    //     console.log("tick number", _tickNumber);
-    //     console.log("clearing price", clearingPrice);
-    //     console.log("price at tick number", params.floorPrice + uint256(_tickNumber) * uint256(params.tickSpacing));
-    //     console.log("expected clearing price", expectedClearingPrice);
-
-    //     assertEq(clearingPrice, expectedClearingPrice);
-    // }
-
     function test_WhenThereIsEnoughDemandExactlyAtAndAboveTheTick() external {
         // it should set clearing price to a tick boundary
         // it should find clearing price rounded up to be the minimum price
@@ -184,7 +129,7 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
             prev: 0,
             next: type(uint64).max
         });
-        uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice(checkpoint);
+        uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice();
 
         assertEq(clearingPrice, nextTickPrice);
 
@@ -237,7 +182,7 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
             prev: 0,
             next: type(uint64).max
         });
-        uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice(checkpoint);
+        uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice();
 
         assertEq(clearingPrice, nextTickPrice);
 
@@ -293,7 +238,7 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
             prev: 0,
             next: type(uint64).max
         });
-        uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice(checkpoint);
+        uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice();
 
         // The clearing price should be found between the next tick price and the second tick price
         assertGt(clearingPrice, nextTickPrice);
@@ -347,7 +292,7 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
             prev: 0,
             next: type(uint64).max
         });
-        uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice(checkpoint);
+        uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice();
 
         assertEq(clearingPrice, nextTickPrice);
 

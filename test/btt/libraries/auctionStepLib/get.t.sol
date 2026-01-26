@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
-import {AuctionStepLib} from 'twap-auction/libraries/AuctionStepLib.sol';
+import {StepLib} from 'continuous-clearing-auction/libraries/StepLib.sol';
 
 import {CompactStep, CompactStepLib, Step} from 'test/btt/libraries/auctionStepLib/StepUtils.sol';
 
@@ -10,11 +10,11 @@ contract AuctionStepWrapper {
     constructor() {}
 
     function parse(bytes8 data) public pure returns (uint24 mps, uint40 blockDelta) {
-        (mps, blockDelta) = AuctionStepLib.parse(data);
+        (mps, blockDelta) = StepLib.parse(data);
     }
 
     function get(bytes memory data, uint256 offset) public pure returns (uint24 mps, uint40 blockDelta) {
-        (mps, blockDelta) = AuctionStepLib.get(data, offset);
+        (mps, blockDelta) = StepLib.get(data, offset);
     }
 }
 
@@ -60,7 +60,7 @@ contract GetTest is BttBase {
 
         uint256 dataLength = data.length;
         _offset = bound(_offset, dataLength, dataLength + 8);
-        vm.expectRevert(abi.encodeWithSelector(AuctionStepLib.AuctionStepLib__InvalidOffsetTooLarge.selector));
+        vm.expectRevert(abi.encodeWithSelector(StepLib.StepLib__InvalidOffsetTooLarge.selector));
         auctionStep.get(data, _offset);
     }
 
@@ -77,7 +77,7 @@ contract GetTest is BttBase {
 
         uint256 index = bound(_offset, 0, steps.length - 1);
         uint256 offset = index * 8 + 1;
-        vm.expectRevert(abi.encodeWithSelector(AuctionStepLib.AuctionStepLib__InvalidOffsetNotAtStepBoundary.selector));
+        vm.expectRevert(abi.encodeWithSelector(StepLib.StepLib__InvalidOffsetNotAtStepBoundary.selector));
         auctionStep.get(data, offset);
     }
 
@@ -93,7 +93,7 @@ contract GetTest is BttBase {
         uint256 index = bound(_offset, 0, steps.length - 1);
         uint256 offset = index * 8;
 
-        (uint24 mps, uint40 blockDelta) = AuctionStepLib.get(data, offset);
+        (uint24 mps, uint40 blockDelta) = StepLib.get(data, offset);
         assertEq(mps, _steps[index].mps);
         assertEq(blockDelta, _steps[index].blockDelta);
     }

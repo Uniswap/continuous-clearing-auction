@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Auction} from '../../src/Auction.sol';
-import {AuctionParameters} from '../../src/Auction.sol';
 import {Bid} from '../../src/BidStorage.sol';
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
+import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol';
+import {AuctionParameters} from '../../src/ContinuousClearingAuction.sol';
 import {BidLib} from '../../src/libraries/BidLib.sol';
 import {CheckpointLib} from '../../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
@@ -12,7 +12,7 @@ import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 import {FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
 import {FuzzBid} from '../utils/FuzzStructs.sol';
-import {MockAuction} from '../utils/MockAuction.sol';
+import {MockContinuousClearingAuction} from '../utils/MockAuction.sol';
 import {AuctionUnitTest} from './AuctionUnitTest.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
@@ -76,7 +76,7 @@ contract AuctionIterateOverTicksTest is AuctionUnitTest {
         mockAuction.uncheckedSetNextActiveTickPrice(lowestTickPrice);
         vm.assume(mockAuction.floorPrice() <= lowestTickPrice);
 
-        uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice(_checkpoint);
+        uint256 clearingPrice = mockAuction.iterateOverTicksAndFindClearingPrice();
         // Assert that the clearing price is greater than or equal to the floor price
         assertGe(clearingPrice, mockAuction.floorPrice());
         // Assert that the clearing price is less than or equal to the highest tick price

@@ -1,54 +1,8 @@
 # ITokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/1a7f98b9e1cb9ed630b15a7f62d113994de8c338/src/interfaces/ITokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/949d1892c9cdad238344a57f13bea4cf1aa50924/src/interfaces/ITokenCurrencyStorage.sol)
 
 Interface for token and currency storage operations
 
-
-## Functions
-### currency
-
-The currency being raised in the auction
-
-
-```solidity
-function currency() external view returns (Currency);
-```
-
-### token
-
-The token being sold in the auction
-
-
-```solidity
-function token() external view returns (IERC20Minimal);
-```
-
-### totalSupply
-
-The total supply of tokens to sell
-
-
-```solidity
-function totalSupply() external view returns (uint256);
-```
-
-### tokensRecipient
-
-The recipient of any unsold tokens at the end of the auction
-
-
-```solidity
-function tokensRecipient() external view returns (address);
-```
-
-### fundsRecipient
-
-The recipient of the raised Currency from the auction
-
-
-```solidity
-function fundsRecipient() external view returns (address);
-```
 
 ## Events
 ### TokensSwept
@@ -82,14 +36,6 @@ event CurrencySwept(address indexed fundsRecipient, uint256 currencyAmount);
 |`currencyAmount`|`uint256`|The amount of currency swept|
 
 ## Errors
-### TotalSupplyIsTooLarge
-Error thrown when the total supply is too large
-
-
-```solidity
-error TotalSupplyIsTooLarge();
-```
-
 ### TokenIsAddressZero
 Error thrown when the token is the native currency
 
@@ -112,6 +58,14 @@ Error thrown when the total supply is zero
 
 ```solidity
 error TotalSupplyIsZero();
+```
+
+### TotalSupplyIsTooLarge
+Error thrown when the total supply is too large
+
+
+```solidity
+error TotalSupplyIsTooLarge();
 ```
 
 ### FundsRecipientIsZero
@@ -152,21 +106,5 @@ Error thrown when the auction has not graduated
 
 ```solidity
 error NotGraduated();
-```
-
-### FundsRecipientCallFailed
-Error thrown when the funds recipient data cannot be decoded
-
-
-```solidity
-error FundsRecipientCallFailed();
-```
-
-### TotalSupplyIsGreaterThanX7X7UpperBound
-Error thrown when the total supply is too large
-
-
-```solidity
-error TotalSupplyIsGreaterThanX7X7UpperBound();
 ```
 

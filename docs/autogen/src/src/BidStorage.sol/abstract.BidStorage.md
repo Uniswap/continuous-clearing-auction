@@ -1,5 +1,5 @@
 # BidStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/69de3ae4ba8e1e42b571cd7d7900cef9574ede92/src/BidStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/c9923b6612650531d4151de2f459778059410469/src/BidStorage.sol)
 
 **Inherits:**
 [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
@@ -13,7 +13,7 @@ The id of the next bid to be created
 
 
 ```solidity
-uint256 private $_nextBidId;
+uint256 private $_nextBidId
 ```
 
 
@@ -22,7 +22,7 @@ The mapping of bid ids to bids
 
 
 ```solidity
-mapping(uint256 bidId => Bid bid) private $_bids;
+mapping(uint256 bidId => Bid bid) private $_bids
 ```
 
 
@@ -33,7 +33,7 @@ Get a bid from storage
 
 
 ```solidity
-function _getBid(uint256 bidId) internal view returns (Bid memory);
+function _getBid(uint256 bidId) internal view returns (Bid storage);
 ```
 **Parameters**
 
@@ -54,18 +54,23 @@ Create a new bid
 
 
 ```solidity
-function _createBid(uint256 amount, address owner, uint256 maxPrice, uint24 startCumulativeMps)
-    internal
-    returns (Bid memory bid, uint256 bidId);
+function _createBid(
+    uint256 _blockNumberIsh,
+    uint256 _amount,
+    address _owner,
+    uint256 _maxPrice,
+    uint24 _startCumulativeMps
+) internal returns (Bid memory bid, uint256 bidId);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`amount`|`uint256`|The amount of the bid|
-|`owner`|`address`|The owner of the bid|
-|`maxPrice`|`uint256`|The maximum price for the bid|
-|`startCumulativeMps`|`uint24`|The cumulative mps at the start of the bid|
+|`_blockNumberIsh`|`uint256`|The block number when the bid was created|
+|`_amount`|`uint256`|The amount of the bid|
+|`_owner`|`address`|The owner of the bid|
+|`_maxPrice`|`uint256`|The maximum price for the bid|
+|`_startCumulativeMps`|`uint24`|The cumulative mps at the start of the bid|
 
 **Returns**
 
@@ -75,52 +80,41 @@ function _createBid(uint256 amount, address owner, uint256 maxPrice, uint24 star
 |`bidId`|`uint256`|The id of the created bid|
 
 
-### _updateBid
-
-Update a bid in storage
-
-
-```solidity
-function _updateBid(uint256 bidId, Bid memory bid) internal;
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`bidId`|`uint256`|The id of the bid to update|
-|`bid`|`Bid`|The new bid|
-
-
-### _deleteBid
-
-Delete a bid from storage
-
-
-```solidity
-function _deleteBid(uint256 bidId) internal;
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`bidId`|`uint256`|The id of the bid to delete|
-
-
 ### nextBidId
 
 Getters
 
 
 ```solidity
-function nextBidId() external view override(IBidStorage) returns (uint256);
+function nextBidId() external view returns (uint256);
 ```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|The id of the next bid to be created|
+
 
 ### bids
 
 Get a bid from storage
 
+Will revert if the bid does not exist
+
 
 ```solidity
-function bids(uint256 bidId) external view override(IBidStorage) returns (Bid memory);
+function bids(uint256 bidId) external view returns (Bid memory);
 ```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`bidId`|`uint256`|The id of the bid to get|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`Bid`|The bid|
+
 

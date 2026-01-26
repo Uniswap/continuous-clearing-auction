@@ -21,7 +21,7 @@ contract AuctionDosTest is AuctionBaseTest {
 
     // This test is quite slow so only fuzz 100 times. We hardcode most of the params for simplicity anyways
     /// forge-config: default.isolate = true
-    /// forge-config: default.gas_limit = 9223372036854775807 
+    /// forge-config: default.gas_limit = 9223372036854775807
     /// forge-config: ci.isolate = true
     /// forge-config: ci.gas_limit = 9223372036854775807
     /// forge-config: default.fuzz.runs = 100

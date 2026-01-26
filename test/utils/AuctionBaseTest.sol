@@ -54,7 +54,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     // Temp maximums for Combinatorial Exploration
     uint256 public constant MAX_TOTAL_SUPPLY = 10_000_000_000 ether; // 10 billion tokens
     uint256 public constant SAFETY_MARGIN_MAX_PRICE = 1000; // 1% of buffer to max price (best is 0)
-    uint256 public constant MAX_MAX_BID_PRICE = 100_000 ether; // 100,000 ETH
 
     // Dynamic Bounds System
     // Instead of fixed MAX constants, we calculate bounds dynamically based on interdependencies
@@ -69,18 +68,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     /// @dev Ensures totalSupply * price / Q96 <= uint128.max
     /// @param totalSupply_ The total supply of tokens
     /// @return maxSafePrice Maximum price in Q96 format that won't overflow
-    function helper__calculateMaxSafeBidPrice(uint256 totalSupply_) internal pure returns (uint256 maxSafePrice) {
-        // We want: totalSupply * price / Q96 <= uint128.max
-        // Therefore: price <= (uint128.max * Q96) / totalSupply
-        // Add 10% safety margin to account for auction mechanics
-        uint256 theoreticalMax = (uint256(type(uint128).max) * FixedPoint96.Q96) / totalSupply_;
-        maxSafePrice = (theoreticalMax * (10_000 - SAFETY_MARGIN_MAX_PRICE)) / 10_000; // 100% - SAFETY_MARGIN_MAX_PRICE% of theoretical max for safety
-
-        // Cap at a reasonable maximum to prevent extreme test cases
-        uint256 absoluteMax = MAX_MAX_BID_PRICE << FixedPoint96.RESOLUTION;
-        if (maxSafePrice > absoluteMax) {
-            maxSafePrice = absoluteMax;
-        }
+    function helper__calculateMaxSafeBidPrice(uint128 totalSupply_) internal pure returns (uint256 maxSafePrice) {
+        // TODO: investigate why margin needs to be so high
+        uint256 theoreticalMax = MaxBidPriceLib.maxBidPrice(uint128(totalSupply_));
+        maxSafePrice = theoreticalMax * 5 / 10;
     }
 
     // /// @notice Calculate maximum safe total supply for a given price

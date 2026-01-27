@@ -2,19 +2,15 @@
 pragma solidity 0.8.26;
 
 import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol';
-
 import {Checkpoint} from '../../src/libraries/CheckpointLib.sol';
-
 import {Bid, BidLib} from '../../src/libraries/BidLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-
 import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 import {AuctionBaseTest} from '../utils/AuctionBaseTest.sol';
 import {FuzzBid} from '../utils/FuzzStructs.sol';
 import {ExitPath, PostBidScenario, PreBidScenario} from './CombinatorialEnums.sol';
-
 import {Test} from 'forge-std/Test.sol';
 import {console} from 'forge-std/console.sol';
 
@@ -237,15 +233,6 @@ contract CombinatorialHelpers is AuctionBaseTest {
                 // Scale the bid amount to the clearing price fill percentage
                 bidAmountToMoveToTargetClearingPrice =
                     bidAmountToMoveToTargetClearingPrice.fullMulDiv(clearingPriceFillPercentage, ConstantsLib.MPS);
-
-                // // Temp: Testing values
-                // if (clearingPriceFillPercentage < ConstantsLib.MPS) {
-                //     bidAmountToMoveToTargetClearingPrice = remainingSupply.fullMulDivUp(
-                //         targetClearingPrice - auction.tickSpacing(), Q96 ? FixedPoint96.Q96 : 1
-                //     );
-                //     bidAmountToMoveToTargetClearingPrice =
-                //         bidAmountToMoveToTargetClearingPrice.fullMulDiv(clearingPriceFillPercentage, ConstantsLib.MPS);
-                // }
             }
             if (bidAmountToMoveToTargetClearingPrice > uint256(type(uint128).max)) {
                 revert('Bid amount to move to target clearing price is too large');

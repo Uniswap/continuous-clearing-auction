@@ -2,25 +2,19 @@
 pragma solidity 0.8.26;
 
 import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol';
-
 import {AuctionParameters} from '../../src/interfaces/IContinuousClearingAuction.sol';
 import {Bid} from '../../src/libraries/BidLib.sol';
 import {Checkpoint} from '../../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {AuctionBaseTest} from '../utils/AuctionBaseTest.sol';
-
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
-
 import {AuctionStepsBuilder} from '../utils/AuctionStepsBuilder.sol';
 import {Combinatorium} from '../utils/Combinatorium.sol';
 import {FuzzBid, FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
-
 import {ExitPath, PostBidScenario, PreBidScenario} from './CombinatorialEnums.sol';
 import {CombinatorialHelpers} from './CombinatorialHelpers.sol';
-
 import {Test} from 'forge-std/Test.sol';
-
 import {console} from 'forge-std/console.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 
@@ -71,10 +65,6 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
         submitBid,
         __length
     }
-
-    // uint256 public constant TICK_SPACING = 100 << FixedPoint96.RESOLUTION;
-    // uint256 public constant FLOOR_PRICE = 1000 << FixedPoint96.RESOLUTION;
-    // uint128 public constant TOTAL_SUPPLY = 1000e18;
 
     uint256 public currentSeed;
     uint256 public usersBidId;
@@ -226,7 +216,6 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
         returns (Combinatorium.Mutation memory)
     {
         Combinatorium.MutationType mutType = Combinatorium.MutationType.WRONG_PARAMETER;
-        // counter.locked() ? Combinatorium.MutationType.WRONG_PARAMETER : Combinatorium.MutationType(seed % 3);
 
         return
             Combinatorium.Mutation({

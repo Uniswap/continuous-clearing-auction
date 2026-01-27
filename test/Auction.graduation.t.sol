@@ -4,7 +4,9 @@ pragma solidity 0.8.26;
 import {IContinuousClearingAuction} from '../src/interfaces/IContinuousClearingAuction.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
+import {CheckpointAccountingLib} from '../src/libraries/CheckpointAccountingLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
+import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
@@ -121,6 +123,146 @@ contract AuctionGraduationTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         emit IContinuousClearingAuction.BidExited(bidId1, alice, 0, 1);
         auction.exitPartiallyFilledBid(bidId1, startBlock, startBlock + 1);
+    }
+
+    /// @notice Fuzzy helper function to get the required amount to move the clearing price to the target price
+    /// @dev Note that depending on the total supply / mps configurations it may not be possible to hit this scenario
+    ///      so we use vm.assume to force the scenario to be hit. This will fail in higher fuzz run tests
+    function _getRequiredAmountToMoveClearingToPrice(
+        uint256 totalSupply,
+        uint256 price,
+        uint128 existingBidAmount,
+        uint24 cumulativeMps
+    ) internal pure returns (uint128 requiredAmount) {
+        uint256 existingBidAmountQ96 = uint256(existingBidAmount) << FixedPoint96.RESOLUTION;
+        // find the price just under the target price
+        uint256 targetDemandQ96 = (totalSupply * (price - 1)) + 1;
+        // find the price just above the target price
+        uint256 upperBoundDemandQ96 = (totalSupply * price) - 1;
+        uint24 remainingMps = ConstantsLib.MPS - cumulativeMps;
+        // find the required amount, considering the remaining mps in the auction
+        uint256 requiredAmountQ96 =
+            (targetDemandQ96 - existingBidAmountQ96).fullMulDivUp(remainingMps, ConstantsLib.MPS);
+        // go from Q96 to uint128
+        requiredAmount = SafeCastLib.toUint128(requiredAmountQ96 >> FixedPoint96.RESOLUTION);
+        if (requiredAmount == 0) requiredAmount = 1;
+
+        uint256 effectiveRequiredAmount =
+            (uint256(requiredAmount) << FixedPoint96.RESOLUTION) * ConstantsLib.MPS / remainingMps;
+        uint256 sumDemandQ96 = existingBidAmountQ96 + effectiveRequiredAmount;
+
+        uint256 iterations;
+        while ((sumDemandQ96 < targetDemandQ96 || sumDemandQ96 > upperBoundDemandQ96) && iterations < 10) {
+            if (sumDemandQ96 < targetDemandQ96) {
+                requiredAmount += 1;
+            } else {
+                uint256 excess = sumDemandQ96 - upperBoundDemandQ96;
+                uint256 reduceQ96 = excess.fullMulDivUp(remainingMps, ConstantsLib.MPS);
+                uint256 reduceAmount = reduceQ96 >> FixedPoint96.RESOLUTION;
+                if (reduceAmount == 0) reduceAmount = 1;
+                if (reduceAmount >= requiredAmount) {
+                    requiredAmount = 1;
+                } else {
+                    requiredAmount -= SafeCastLib.toUint128(reduceAmount);
+                }
+            }
+            effectiveRequiredAmount =
+                (uint256(requiredAmount) << FixedPoint96.RESOLUTION) * ConstantsLib.MPS / remainingMps;
+            sumDemandQ96 = existingBidAmountQ96 + effectiveRequiredAmount;
+            iterations++;
+        }
+        // It's possible that given the parameters we can't hit this scenario so we throw out those runs
+        vm.assume(targetDemandQ96 <= sumDemandQ96 && sumDemandQ96 <= upperBoundDemandQ96);
+    }
+
+    /// forge-config: default.fuzz.runs = 100
+    /// forge-config: ci.fuzz.runs = 100
+    /// @dev This test requires to be run with a low fuzz run count.
+    function test_exitPartiallyFilledBid_WhenAllCurrencyIsSpent(
+        FuzzDeploymentParams memory _deploymentParams,
+        uint128 _bidAmount,
+        uint128 _maxPrice
+    )
+        public
+        setUpAuctionFuzz(_deploymentParams)
+        givenValidMaxPriceWithParams(_maxPrice, $deploymentParams.totalSupply, params.floorPrice, params.tickSpacing)
+        givenValidBidAmount(_bidAmount)
+        givenGraduatedAuction
+        givenAuctionHasStarted
+        givenFullyFundedAccount
+        checkAuctionIsGraduated
+        checkAuctionIsSolvent
+    {
+        vm.assume($maxPrice < auction.MAX_BID_PRICE() - auction.tickSpacing()); // allow for at least 2 bids above floor
+        vm.assume(auction.endBlock() - auction.startBlock() > 3); // allow for at least 4 checkpoints
+
+        uint64 startBlock = auction.startBlock();
+        // bid amount is half of the exact amount that would be needed to fill the auction
+        uint256 totalSupply = auction.totalSupply();
+        $bidAmount = uint128(totalSupply.fullMulDivUp($maxPrice, FixedPoint96.Q96) / 2);
+        vm.assume($bidAmount > 0);
+        uint256 bidId = auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
+
+        vm.roll(block.number + 1);
+        Checkpoint memory checkpoint = auction.checkpoint();
+        assertLt(
+            checkpoint.clearingPrice,
+            $maxPrice,
+            'test setup failed: checkpoint.clearingPrice must be less than $maxPrice'
+        );
+        vm.assume(checkpoint.cumulativeMps < ConstantsLib.MPS);
+
+        uint128 requiredAmount =
+            _getRequiredAmountToMoveClearingToPrice(totalSupply, $maxPrice, $bidAmount, checkpoint.cumulativeMps);
+
+        uint256 nextBidId = auction.submitBid{value: requiredAmount}(
+            $maxPrice + auction.tickSpacing(), requiredAmount, alice, params.floorPrice, bytes('')
+        );
+
+        /**
+         * Scenario:
+         * - the auction finishes at the first bid's maxPrice
+         * - the first bid participated for the entirety of the auction
+         * - the second bid is higher, but is not enough to move the clearing price there
+         * - the second bid amount is perfectly sized to evenly split the tokens with the first bid
+         * - thus, the first bid spends 100% of its currency
+         */
+        vm.roll(auction.endBlock());
+        Checkpoint memory finalCheckpoint = auction.checkpoint();
+        // Assert that the auction finishes at the first maxPrice
+        assertEq(auction.clearingPrice(), $maxPrice);
+
+        // Locally validate that for the first bid, the sum of the individual sections would overflow the original bid amount
+        Bid memory bid = auction.bids(bidId);
+        (, uint256 fullySpentQ96) = CheckpointAccountingLib.accountFullyFilledCheckpoints(
+            auction.checkpoints(startBlock + 1), auction.checkpoints(startBlock), bid
+        );
+        (, uint256 partialSpentQ96) = CheckpointAccountingLib.accountPartiallyFilledCheckpoints(
+            bid, auction.ticks($maxPrice).currencyDemandQ96, finalCheckpoint.currencyRaisedAtClearingPriceQ96_X7
+        );
+        uint256 totalSpentQ96 = fullySpentQ96 + partialSpentQ96;
+
+        // In some cases the total spent and amount are equal (due to variable rounding), so assume that its >
+        vm.assume(totalSpentQ96 > bid.amountQ96);
+
+        // Assert that the first bid cannot be exited via exitBid
+        vm.expectRevert(IContinuousClearingAuction.CannotExitBid.selector);
+        auction.exitBid(bidId);
+
+        // Assert that the first bid can be exited via exitPartiallyFilledBid
+        uint256 balanceBefore = address(alice).balance;
+        auction.exitPartiallyFilledBid(bidId, startBlock + 1, 0);
+
+        // Assert that all of the currency was spent, so refund is 0
+        assertEq(address(alice).balance, balanceBefore + 0);
+
+        // Assert that the second bid can be exited via exitBid
+        auction.exitBid(nextBidId);
+
+        vm.roll(auction.claimBlock());
+        // Claim all tokens
+        auction.claimTokens(bidId);
+        auction.claimTokens(nextBidId);
     }
 
     function test_claimTokensBatch_notGraduated_reverts(

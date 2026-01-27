@@ -2,13 +2,25 @@
 pragma solidity ^0.8.0;
 
 import {IValidationHook} from '../../interfaces/IValidationHook.sol';
-import {IERC1155} from 'openzeppelin-contracts/contracts/token/ERC1155/IERC1155.sol';
+import {IValidationHookIntrospection, ValidationHookIntrospection} from './ValidationHookIntrospection.sol';
+import {IERC1155} from '@openzeppelin/contracts/token/ERC1155/IERC1155.sol';
+import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
+
+interface IBaseERC1155ValidationHook is IValidationHookIntrospection {
+    /// @notice The ERC1155 token contract that is checked for ownership
+    /// @dev Callers should query the returned interface's `balanceOf` method
+    function erc1155() external view returns (IERC1155);
+    /// @notice The ERC1155 tokenId that is checked for ownership
+    function tokenId() external view returns (uint256);
+}
 
 /// @notice Base validation hook for ERC1155 tokens
 /// @dev This hook validates that the sender is the owner of a specific ERC1155 tokenId
 ///      It is highly recommended to make the ERC1155 soulbound (non-transferable)
-contract BaseERC1155ValidationHook is IValidationHook {
+contract BaseERC1155ValidationHook is IBaseERC1155ValidationHook, ValidationHookIntrospection {
+    /// @inheritdoc IBaseERC1155ValidationHook
     IERC1155 public immutable erc1155;
+    /// @inheritdoc IBaseERC1155ValidationHook
     uint256 public immutable tokenId;
 
     /// @notice Error thrown when the token address is invalid
@@ -35,5 +47,16 @@ contract BaseERC1155ValidationHook is IValidationHook {
     function validate(uint256, uint128, address owner, address sender, bytes calldata) public view virtual {
         if (sender != owner) revert SenderMustBeOwner();
         if (erc1155.balanceOf(owner, tokenId) == 0) revert NotOwnerOfERC1155Token(tokenId);
+    }
+
+    /// @dev Extend the existing introspection support to signal that derived contracts inherit from BaseERC1155ValidationHook
+    function supportsInterface(bytes4 _interfaceId)
+        public
+        view
+        virtual
+        override(ValidationHookIntrospection, IERC165)
+        returns (bool)
+    {
+        return super.supportsInterface(_interfaceId) || _interfaceId == type(IBaseERC1155ValidationHook).interfaceId;
     }
 }

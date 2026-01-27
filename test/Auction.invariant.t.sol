@@ -506,10 +506,13 @@ contract AuctionInvariantTest is AuctionUnitTest {
 
             uint256 currencySpent =
                 (bid.amountQ96 - uint256(refundAmount << FixedPoint96.RESOLUTION)) >> FixedPoint96.RESOLUTION;
-            uint256 maxValueAtBidPrice = FixedPointMathLib.fullMulDiv(bid.tokensFilled, bid.maxPrice, FixedPoint96.Q96);
 
-            // Allow small rounding tolerance (up to 1e6 wei) for cases where the user is rounded
-            // against in tokensFilled and currencySpent (this is expected).
+            // Compare against the rounded up value of tokensFilled since we round against the user
+            uint256 tokensFilledRoundedUp = bid.tokensFilled > 0 ? bid.tokensFilled + 1 : bid.tokensFilled;
+            // Compare against the rounded down value of currencySpent since we round against the user
+            uint256 maxValueAtBidPrice =
+                FixedPointMathLib.fullMulDiv(tokensFilledRoundedUp, bid.maxPrice, FixedPoint96.Q96);
+
             assertLe(
                 currencySpent,
                 maxValueAtBidPrice + 1e6,

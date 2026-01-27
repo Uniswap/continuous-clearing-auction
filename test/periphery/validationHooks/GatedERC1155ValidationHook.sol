@@ -3,18 +3,26 @@ pragma solidity ^0.8.0;
 
 import {BaseERC1155ValidationHookTest} from './BaseERC1155ValidationHook.t.sol';
 import {Test} from 'forge-std/Test.sol';
-import {IValidationHook} from 'src/interfaces/IValidationHook.sol';
-import {GatedERC1155ValidationHook} from 'src/periphery/validationHooks/GatedERC1155ValidationHook.sol';
+import {
+    GatedERC1155ValidationHook,
+    IGatedERC1155ValidationHook
+} from 'src/periphery/validationHooks/GatedERC1155ValidationHook.sol';
+import {IValidationHookIntrospection} from 'src/periphery/validationHooks/ValidationHookIntrospection.sol';
 
 contract GatedERC1155ValidationHookTest is BaseERC1155ValidationHookTest {
-    function _getHook() internal override returns (IValidationHook) {
+    function _getHook() internal override returns (IValidationHookIntrospection) {
         // Default behavior for full backwards test compatibility
-        return IValidationHook(new GatedERC1155ValidationHook(address(token), TOKEN_ID, type(uint256).max));
+        return IValidationHookIntrospection(new GatedERC1155ValidationHook(address(token), TOKEN_ID, type(uint256).max));
     }
 
     // customizable getter for hook configuration
-    function _getHook(uint256 _gateUntil) internal returns (IValidationHook) {
-        return IValidationHook(new GatedERC1155ValidationHook(address(token), TOKEN_ID, _gateUntil));
+    function _getHook(uint256 _gateUntil) internal returns (IValidationHookIntrospection) {
+        return IValidationHookIntrospection(new GatedERC1155ValidationHook(address(token), TOKEN_ID, _gateUntil));
+    }
+
+    function test_supportsInterface() public view override {
+        super.test_supportsInterface();
+        assertEq(hook.supportsInterface(type(IGatedERC1155ValidationHook).interfaceId), true);
     }
 
     modifier givenGateUntilIsLessThanCurrentBlock() {

@@ -6,9 +6,9 @@ import {AuctionParameters} from '../../src/interfaces/IContinuousClearingAuction
 import {Bid} from '../../src/libraries/BidLib.sol';
 import {Checkpoint} from '../../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
-import {AuctionBaseTest} from '../utils/AuctionBaseTest.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
+import {AuctionBaseTest} from '../utils/AuctionBaseTest.sol';
 import {AuctionStepsBuilder} from '../utils/AuctionStepsBuilder.sol';
 import {Combinatorium} from '../utils/Combinatorium.sol';
 import {FuzzBid, FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
@@ -482,8 +482,6 @@ contract AuctionSubmitBidCombinatorialTest is CombinatorialHelpers {
         uint256 currencySpentQ96
     ) private view returns (Phase1Metrics memory metrics) {
         // Step 1: Fill Ratio Metrics (ACCURATE CALCULATION)
-        // fillRatio = (currencySpentQ96 / originalBidAmountQ96) * MPS
-        // Uses MPS precision (1e7) for 5 decimal places: 100.00000%
         if (exitPath == ExitPath.FullExit) {
             metrics.fillRatioPercent = ConstantsLib.MPS; // 10,000,000 = 100%
             metrics.partialFillReason = 'full';

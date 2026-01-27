@@ -2,17 +2,17 @@
 pragma solidity 0.8.26;
 
 import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol';
-import {Checkpoint} from '../../src/libraries/CheckpointLib.sol';
 import {Bid, BidLib} from '../../src/libraries/BidLib.sol';
+import {Checkpoint} from '../../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 import {AuctionBaseTest} from '../utils/AuctionBaseTest.sol';
 import {FuzzBid} from '../utils/FuzzStructs.sol';
 import {ExitPath, PostBidScenario, PreBidScenario} from './CombinatorialEnums.sol';
 import {Test} from 'forge-std/Test.sol';
 import {console} from 'forge-std/console.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract CombinatorialHelpers is AuctionBaseTest {
     using BidLib for Bid;
@@ -209,22 +209,6 @@ contract CombinatorialHelpers is AuctionBaseTest {
                 // Calculate remaining supply (amount not yet sold)
                 uint256 remainingSupply =
                     totalSupply_ - totalSupply_.fullMulDiv(checkpoint.cumulativeMps, ConstantsLib.MPS);
-
-                // // TEMP force clearingPercentage
-                // if (clearingPriceFillPercentage < ConstantsLib.MPS) {
-                //     clearingPriceFillPercentage = 9_999_999;
-
-                //     auction.bids(0); // PreBidScenario
-                //     auction.bids(1); // Users Bid
-                //     auction.bids(2); // Moved Clearing Price
-                //     auction.nextBidId();
-                //     console.log('targetClearingPrice', targetClearingPrice);
-                //     console.log('cumulativeMps', checkpoint.cumulativeMps);
-                // }
-
-                // TODO: a low clearingPriceFillPercentage indeed increases the fillRatioPercent of the user (less demand, more left over for the user),
-                // while a high clearingPriceFillPercentage decreases the fillRatioPercent of the user (more demand, less left over for the user).
-                // But why is a clearingPriceFillPercentage of 9_500_000 already moving the clearing price up???
 
                 // Use fullMulDiv to prevent overflow during multiplication
                 // bidAmount = remainingSupply * targetClearingPrice / (Q96 ? Q96 : 1)

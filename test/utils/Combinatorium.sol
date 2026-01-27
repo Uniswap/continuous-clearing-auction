@@ -122,7 +122,6 @@ library Combinatorium {
     ) internal returns (uint256 snapshotId) {
         uint256 maxSteps = self.maxSetupSteps == 0 ? 1000 : self.maxSetupSteps;
         uint256 numSteps = (seed % maxSteps) + 1;
-        // uint256 numSteps = maxSteps;
 
         delete self.setupHistory;
 

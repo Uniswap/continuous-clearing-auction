@@ -30,6 +30,7 @@ contract GatedERC1155ValidationHook is IGatedERC1155ValidationHook, BaseERC1155V
     function validate(uint256 maxPrice, uint128 amount, address owner, address sender, bytes calldata hookData)
         public
         view
+        virtual
         override(BaseERC1155ValidationHook, IValidationHook)
     {
         if (_getBlockNumberish() < expirationBlock) {
@@ -41,6 +42,7 @@ contract GatedERC1155ValidationHook is IGatedERC1155ValidationHook, BaseERC1155V
     function supportsInterface(bytes4 _interfaceId)
         public
         view
+        virtual
         override(BaseERC1155ValidationHook, IERC165)
         returns (bool)
     {

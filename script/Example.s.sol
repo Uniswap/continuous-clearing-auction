@@ -9,7 +9,7 @@ import {console2} from 'forge-std/console2.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
 /// @title ExampleScript
-/// @notice Example script to generate the parameters for a CCA auction. 
+/// @notice Example script to generate the parameters for a CCA auction.
 /// @dev For illustrative purposes only, please validate the parameters before using them in prod.
 contract ExampleScript is Script {
     using stdJson for string;

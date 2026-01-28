@@ -1,10 +1,10 @@
 {
     "1": {
-        "token": "0x0000000000000000000000000000000000000001",
-        "totalSupply": 1e30,
+        "token": "",
+        "totalSupply": 1e29,
         "currency": "0x0000000000000000000000000000000000000000",
-        "tokensRecipient": "0x1000000000000000000000000000000000000000",
-        "fundsRecipient": "0x1000000000000000000000000000000000000000",
+        "tokensRecipient": "",
+        "fundsRecipient": "",
         "startBlock": 24321000,
         "endBlock": 24327001,
         "claimBlock": 24327001,

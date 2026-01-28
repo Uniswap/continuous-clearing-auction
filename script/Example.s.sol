@@ -60,6 +60,7 @@ contract ExampleScript is Script {
 
         IContinuousClearingAuctionFactory factory = IContinuousClearingAuctionFactory(FACTORY_ADDRESS);
         bytes memory configData = abi.encode(parameters);
+        // By default no salt is used, feel free to change or use a hashed salt to simulate deploying the auction from a strategy
         address auction = address(factory.initializeDistribution(token, totalSupply, configData, bytes32(0)));
         console2.log('Auction deployed to:', auction);
     }

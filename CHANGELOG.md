@@ -26,10 +26,10 @@ Fully backwards compatible with Liquidity Launcher v1.0.0 deployments. Contains 
 **ContinuousClearingAuctionFactory**
 | Network | Address | Commit Hash | Version |
 | -------- | ------------------------------------------ | ---------------------------------------- | ---------------- |
-| Mainnet | 0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5 | 87b2546a298f691c095b06ec077ceef25ba56007 | v1.1.0 |
-| Unichain | 0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5 | 87b2546a298f691c095b06ec077ceef25ba56007 | v1.1.0 |
-| Base | 0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5 | 87b2546a298f691c095b06ec077ceef25ba56007 | v1.1.0 |
-| Sepolia | 0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5 | 87b2546a298f691c095b06ec077ceef25ba56007 | v1.1.0 |
+| Mainnet | 0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5 | 8508f332c3daf330b189290b335fd9da4e95f3f0 | v1.1.0 |
+| Unichain | 0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5 | 8508f332c3daf330b189290b335fd9da4e95f3f0 | v1.1.0 |
+| Base | 0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5 | 8508f332c3daf330b189290b335fd9da4e95f3f0 | v1.1.0 |
+| Sepolia | 0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5 | 8508f332c3daf330b189290b335fd9da4e95f3f0 | v1.1.0 |
 
 ## v1.0.0
 

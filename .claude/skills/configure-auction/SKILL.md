@@ -15,27 +15,7 @@ You will guide the user through an interactive form to fill out the auction conf
 - Ensure numeric values are non-negative
 - Price is in Q96 format, with 79228162514264337593543950336 representing a price ratio of 1:1.
 - Tick spacing is also in Q96 form, and the floor price must be a multiple of the tick spacing. You may have to round the floor price a little bit down to make it a multiple of the tick spacing. For example, if we want a tick spacing of 1% of the floor price, round the last two digits to 00.
-- A standard supply schedule follows the following structure:
-```
-Phase	Block Range	Duration
-(blocks)	Release Rate (mps)	Total Released (%)	Cum_pct
-(%)
-2. Approx 1	0 - 3000	3000	42	1.26%	1.26%
-3. Approx 2	3000 - 6000	3000	52	1.56%	2.82%
-4. Approx 3	6000 - 9400	3400	59	2.006%	4.826%
-5. Approx 4	9400 - 13800	4400	64	2.816%	7.642%
-6. Approx 5	13800 - 19000	5200	69	3.588%	11.23%
-7. Approx 6	19000 - 25000	6000	73	4.38%	15.61%
-8. Approx 7	25000 - 32000	7000	77	5.39%	21%
-9. Approx 8	32000 - 39800	7800	81	6.318%	27.318%
-10. Approx 9	39800 - 49400	9600	85	8.16%	35.478%
-11. Approx 10	49400 - 59400	10000	88	8.8%	44.278%
-12. Approx 11	59400 - 71400	12000	92	11.04%	55.318%
-13. Approx 12	71400 - 86399	14999	95	14.24905%	69.56705%
-14. Final block	86399 - 86400	1 block	3,043,295	30.43295%	100%
-TOTAL		86,400 blocks		100%	
-```
-Ignore the discrete block numbers and ranges, the schedule is monotonically increasing and follows a moderate convex curve of (exponent ~1.2) and allocates ~30% to the final block. Your job will be to fill in the mps and blockDelta for each step given the user's input for the length of the auction in blocks. The total sum of (mps * blockDelta) for all steps must equal 1e7. If there is a remainder, allocate it to the final block.
+- Use the `generate_supply_schedule.py` script to generate the supply schedule.
 
 ## Tools
 

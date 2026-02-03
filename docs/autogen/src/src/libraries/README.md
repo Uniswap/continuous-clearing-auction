@@ -16,5 +16,5 @@
 - [ValidationHookLib](ValidationHookLib.sol/library.ValidationHookLib.md)
 - [ValueX7](ValueX7Lib.sol/type.ValueX7.md)
 - [ValueX7Lib](ValueX7Lib.sol/library.ValueX7Lib.md)
-- [sub](ValueX7Lib.sol/function.sub.md)
+- [saturatingSub](ValueX7Lib.sol/function.saturatingSub.md)
 - [divUint256](ValueX7Lib.sol/function.divUint256.md)

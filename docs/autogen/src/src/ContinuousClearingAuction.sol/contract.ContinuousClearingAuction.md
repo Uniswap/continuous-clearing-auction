@@ -1,5 +1,5 @@
 # ContinuousClearingAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c9923b6612650531d4151de2f459778059410469/src/ContinuousClearingAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/37817840a05eb60581df70139cc71f280836677f/src/ContinuousClearingAuction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [StepStorage](/src/StepStorage.sol/abstract.StepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), BlockNumberish, ReentrancyGuardTransient, [IContinuousClearingAuction](/src/interfaces/IContinuousClearingAuction.sol/interface.IContinuousClearingAuction.md)
@@ -173,7 +173,8 @@ function onTokensReceived() external;
 
 Returns the LBP initialization parameters as determined by the implementing contract
 
-The implementing contract MUST ensure that these values are correct at the time of calling
+The calling contract must be aware that the values returned in this function for `currencyRaised` and `tokensSold`
+may not be reflective of the actual values if the auction did not graduate.
 
 
 ```solidity
@@ -192,30 +193,13 @@ Implements IERC165.supportsInterface to signal support for the ILBPInitializer i
 
 
 ```solidity
-function supportsInterface(bytes4 interfaceId) external view returns (bool);
+function supportsInterface(bytes4 interfaceId) external pure returns (bool);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`interfaceId`|`bytes4`|The interface identifier to check|
-
-
-### isGraduated
-
-Whether the auction has graduated as of the given checkpoint
-
-The auction is considered graduated if the currency raised is greater than or equal to the required currency raised
-
-
-```solidity
-function isGraduated() external view returns (bool);
-```
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`bool`|bool True if the auction has graduated, false otherwise|
 
 
 ### clearingPrice
@@ -233,6 +217,23 @@ function clearingPrice() external view returns (uint256);
 |Name|Type|Description|
 |----|----|-----------|
 |`<none>`|`uint256`|The current clearing price in Q96 form|
+
+
+### isGraduated
+
+Whether the auction has graduated as of the given checkpoint
+
+The auction is considered graduated if the currency raised is greater than or equal to the required currency raised
+
+
+```solidity
+function isGraduated() external view returns (bool);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`bool`|bool True if the auction has graduated, false otherwise|
 
 
 ### _isGraduated
@@ -376,8 +377,7 @@ function _checkpointAtBlock(uint64 _blockNumber) internal returns (Checkpoint me
 
 Return the final checkpoint of the auction
 
-Only called when the auction is over. Changes the current state of the `step` to the final step in the auction
-any future calls to `step.mps` will return the mps of the last step in the auction
+Only called when the auction is over
 
 
 ```solidity
@@ -391,7 +391,7 @@ Internal function for bid submission
 Validates `maxPrice`, calls the validation hook (if set) and updates global state variables
 For gas efficiency, `prevTickPrice` should be the price of the tick immediately before `maxPrice`.
 
-Does not check that the actual value `amount` was received by the contract
+Implementing functions must check that the actual value `amount` is received by the contract
 
 
 ```solidity

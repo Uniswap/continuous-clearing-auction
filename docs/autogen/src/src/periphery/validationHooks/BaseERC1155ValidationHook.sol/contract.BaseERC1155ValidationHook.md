@@ -1,8 +1,8 @@
 # BaseERC1155ValidationHook
-[Git Source](https://github.com/Uniswap/twap-auction/blob/5b8ed17aad591faad07c06ffc6e4d04217c2094e/src/periphery/validationHooks/BaseERC1155ValidationHook.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/37817840a05eb60581df70139cc71f280836677f/src/periphery/validationHooks/BaseERC1155ValidationHook.sol)
 
 **Inherits:**
-[IValidationHook](/src/interfaces/IValidationHook.sol/interface.IValidationHook.md)
+[IBaseERC1155ValidationHook](/src/periphery/validationHooks/BaseERC1155ValidationHook.sol/interface.IBaseERC1155ValidationHook.md), [ValidationHookIntrospection](/src/periphery/validationHooks/ValidationHookIntrospection.sol/abstract.ValidationHookIntrospection.md)
 
 Base validation hook for ERC1155 tokens
 
@@ -12,6 +12,10 @@ It is highly recommended to make the ERC1155 soulbound (non-transferable)
 
 ## State Variables
 ### erc1155
+The ERC1155 token contract that is checked for ownership
+
+Callers should query the returned interface's `balanceOf` method
+
 
 ```solidity
 IERC1155 public immutable erc1155
@@ -19,6 +23,8 @@ IERC1155 public immutable erc1155
 
 
 ### tokenId
+The ERC1155 tokenId that is checked for ownership
+
 
 ```solidity
 uint256 public immutable tokenId
@@ -53,6 +59,20 @@ function validate(uint256, uint128, address owner, address sender, bytes calldat
 |`sender`|`address`|The sender of the bid|
 |`<none>`|`bytes`||
 
+
+### supportsInterface
+
+Extend the existing introspection support to signal that derived contracts inherit from BaseERC1155ValidationHook
+
+
+```solidity
+function supportsInterface(bytes4 _interfaceId)
+    public
+    view
+    virtual
+    override(ValidationHookIntrospection, IERC165)
+    returns (bool);
+```
 
 ## Events
 ### ERC1155TokenIdSet

@@ -35,7 +35,7 @@ Addresses are cannonical across select EVM chains. If it is not already deployed
 
 | Network  | Address                                    | Commit Hash                              | Version          |
 | -------- | ------------------------------------------ | ---------------------------------------- | ---------------- |
-| v1.1.0   | 0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5 |  | v1.1.0           |
+| v1.1.0   | 0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5 | 8508f332c3daf330b189290b335fd9da4e95f3f0 | v1.1.0           |
 | v1.0.0\* | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
 
 > \*v1.0.0-candidate is the initial version of CCA and is NOT recommended for production use. For more details, see the [Changelog](./CHANGELOG.md).
@@ -46,8 +46,8 @@ The code has been audited by Spearbit, OpenZeppelin, and ABDK Consulting. The mo
 
 | Version | Date       | Report |
 | ------- | ---------- | ------ |
-| v1.1.0  | 01/20/2026 |        |
-| v1.1.0  | 01/20/2026 |        |
+| v1.1.0  | 01/23/2026 | [OpenZeppelin](./docs/audits/OpenZeppelin_v1.1.0.pdf)                |
+| v1.1.0  | 01/22/2026 | [Spearbit](./docs/audits/Spearbit_v1.1.0.pdf) and [additional](./docs/audits/Spearbit_v1.1.0_additional.pdf) |
 
 ### Bug bounty
 

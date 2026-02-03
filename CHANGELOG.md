@@ -11,11 +11,13 @@ Fully backwards compatible with Liquidity Launcher v1.0.0 deployments. Contains 
 - New package `blocknumberish` to handle block number retrieval on different chains (to support Arbitrum)
 - `IContinuousClearingAuction.lbpInitializationParams` to return the initialization parameters for the LBP initializer
 - `IContinuousClearingAuction.supportsInterface` to check if the contract supports the LBP initializer interface
+- Added `ValidationHookIntrospection` to existing ValidationHook contracts to support introspection via ERC165
 
 ### Changed
 
-- Some minor code quality changes
+- Fixed a bug in certain rare edge cases which would cause bids to be permanently locked in the contract
 - Fixed an issue in error parameter order
+- Some minor code quality changes
 
 ### Audits
 
@@ -24,10 +26,10 @@ Fully backwards compatible with Liquidity Launcher v1.0.0 deployments. Contains 
 **ContinuousClearingAuctionFactory**
 | Network | Address | Commit Hash | Version |
 | -------- | ------------------------------------------ | ---------------------------------------- | ---------------- |
-| Mainnet | 0xcca1101C61cF5cb44C968947985300DF945C3565 | 95d7da7a2d25cf60f14eaccd6ab5fb24d393a452 | v1.1.0 |
-| Unichain | 0xcca1101C61cF5cb44C968947985300DF945C3565 | 95d7da7a2d25cf60f14eaccd6ab5fb24d393a452 | v1.1.0 |
-| Base | 0xcca1101C61cF5cb44C968947985300DF945C3565 | 95d7da7a2d25cf60f14eaccd6ab5fb24d393a452 | v1.1.0 |
-| Sepolia | 0xcca1101C61cF5cb44C968947985300DF945C3565 | 95d7da7a2d25cf60f14eaccd6ab5fb24d393a452 | v1.1.0 |
+| Mainnet | 0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5 | 8508f332c3daf330b189290b335fd9da4e95f3f0 | v1.1.0 |
+| Unichain | 0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5 | 8508f332c3daf330b189290b335fd9da4e95f3f0 | v1.1.0 |
+| Base | 0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5 | 8508f332c3daf330b189290b335fd9da4e95f3f0 | v1.1.0 |
+| Sepolia | 0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5 | 8508f332c3daf330b189290b335fd9da4e95f3f0 | v1.1.0 |
 
 ## v1.0.0
 

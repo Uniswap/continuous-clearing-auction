@@ -34,6 +34,38 @@ contract ProcessExitTest is BttBase {
         _;
     }
 
+    function test_WhenCurrencySpentGTBidAmount(
+        AuctionFuzzConstructorParams memory _params,
+        uint256 _tokensFilled,
+        uint256 _amountQ96,
+        uint256 _currencySpentQ96
+    ) public {
+        // it clamps the currency spent to the bid amount
+
+        vm.assume(_amountQ96 > 1 && _amountQ96 < type(uint256).max);
+        _currencySpentQ96 = bound(_currencySpentQ96, _amountQ96 + 1, type(uint256).max);
+
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        mParams.token = address(new ERC20Mock());
+        mParams.parameters.currency = address(0);
+
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+
+        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        auction.onTokensReceived();
+        address owner = makeAddr('owner');
+        (, uint256 bidId) = auction.createBid(_amountQ96, owner, 1, 1);
+        vm.deal(address(auction), _amountQ96);
+
+        uint256 balanceBefore = owner.balance;
+        vm.expectEmit(true, true, true, true);
+        emit IContinuousClearingAuction.BidExited(bidId, owner, _tokensFilled, 0);
+        auction.processExit(bidId, _tokensFilled, _currencySpentQ96);
+        uint256 balanceAfter = owner.balance;
+        assertEq(balanceAfter, balanceBefore);
+    }
+
     function test_WhenRefundGTZero(
         AuctionFuzzConstructorParams memory _params,
         uint256 _tokensFilled,

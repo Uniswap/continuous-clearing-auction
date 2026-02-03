@@ -20,7 +20,9 @@ contract MockContinuousClearingAuction is ContinuousClearingAuction {
     /// @notice The number of tokens that can be swept from the auction
     /// @dev Only use this function if you know the auction is graduated
     function sweepableTokens() external view returns (uint256) {
-        return TOTAL_SUPPLY_Q96.scaleUpToX7().sub($totalClearedQ96_X7).divUint256(FixedPoint96.Q96).scaleDownToUint256();
+        uint256 totalSupplyQ96 = uint256(TOTAL_SUPPLY) << FixedPoint96.RESOLUTION;
+        return totalSupplyQ96.scaleUpToX7().saturatingSub($totalClearedQ96_X7).divUint256(FixedPoint96.Q96)
+            .scaleDownToUint256();
     }
 
     /// @notice Wrapper around internal function for testing

@@ -34,7 +34,7 @@ jobs:
         id: build
 
       - name: Run Forge tests
-        run: forge test --isolate -vvv
+        run: FOUNDRY_GAS_LIMIT=9223372036854775807 forge test --isolate -vvv
         id: test
         env:
           FORGE_SNAPSHOT_CHECK: true

@@ -3,87 +3,32 @@ CCA documentation is also available on the official [Uniswap docs site](https://
 
 ## Table of Contents
 - [Quickstart](#quickstart)
-- [Integration guidelines](#integration-guidelines)
 - [Auction Configuration](#auction-configuration)
+- [Validation Hooks](#validation-hooks)
 - [Internal types](#internal-types)
-- [Auction Entrypoints](#auction-entrypoints)
-- [`exitBid` vs `exitPartiallyFilledBid`](#decision-tree-for-determining-when-to-use-exitbid-vs-exitpartiallyfilledbid)
-- [isGraduated()](#isgraduated)
-- [sweepCurrency() and sweepUnsoldTokens()](#sweepcurrency-and-sweepunsoldtokens)
+- [Contract Entrypoints](#auction-entrypoints)
+    - [submitBid()](#submitbid)
+    - [checkpoint()](#checkpoint)
+    - [Exiting a Bid](#exiting-a-bid)
+        - [exitBid()](#exitbid)
+        - [exitPartiallyFilledBid()](#exitpartiallyfilledbid)
+    - [isGraduated()](#isgraduated)
+    - [sweepCurrency() and sweepUnsoldTokens()](#sweepcurrency-and-sweepunsoldtokens)
+    - [claimTokens()](#claimtokens)
+    - [claimTokensBatch()](#claimtokensbatch)
+- [Integration guidelines](#integration-guidelines)
+    - [Incorrect parameter configurations](#incorrect-parameter-configurations)
+    - [Extra funds sent to the auction are not recoverable](#extra-funds-sent-to-the-auction-are-not-recoverable)
+    - [Bounds on maximum bid prices](#bounds-on-maximum-bid-prices)
+    - [Tick spacing](#tick-spacing)
+    - [Auction steps](#auction-steps)
+    - [Bidder responsibilities](#bidder-responsibilities)
+    - [Limitations with low-decimal tokens or Fee On Transfer tokens](#limitations-with-low-decimal-tokens-or-fee-on-transfer-tokens)
 
 ## Quickstart
 A comprehensive quickstart guide for deploying and interacting with a local CCA deployment is hosted on the official [Uniswap docs site](https://docs.uniswap.org/contracts/liquidity-launchpad/quickstart/setup).
 
-## Integration guidelines
-
-### Incorrect configuration of the auction parameters
-
-CCA auctions are highly configurable. As such, it is important to ensure that the configurations of each auction instance are not only correct but protect against known risks.
-
-Ensure that the following parameters are correctly set:
-
-- `token` and `currency`
-- `totalSupply` is not too large (see [note on total supply and maximum bid price](#note-on-total-supply-and-maximum-bid-price) below)
-- `startBlock`, `endBlock`, and `claimBlock`
-- `tickSpacing` is not too small (see [note on ticks](#note-on-ticks) below)
-- `floorPrice` is correctly set
-- `requiredCurrencyRaised` is not set too high where the auction will never graduate
-- `auctionStepsData` avoids common pitfalls (see [note on auction steps](#note-on-auction-steps) below)
-
-### Extra funds sent to the auction are not recoverable
-Do NOT send more tokens than intended in `totalSupply` to the auction. They will not be recoverable.
-
-Likewise, any `currency` sent directly to the auction and not through `submitBid` will not be lost.
-
-### Note on total supply and maximum bid price
-
-The following limitations regarding total supply and maximum bid prices should be considered:
-
-- The maximum total supply that can be sold in the auction is 1e30 wei of `token`. For a token with 18 decimals, this is 1 trillion tokens.
-- The auction also ensures that the total currency raised does not exceed the maximum allowable liquidity for a Uniswap v4 liquidity position. The lowest bound for this is 2^107 wei (given the smallest possible tick spacing of 1).
-
-Given a total supply of:
-
-- 1 trillion 18 decimal tokens (1e30), the maximum bid price is 2^110. The max ratio of currency to token is 2^(110-96) = 2^14 = 16384.
-- 1 billion 6 decimal tokens (1e15), the maximum bid price is 2^160. The max ratio of currency to token is 2^(160-96) = 2^64 = 18446744073709551616.
-
-We strongly recommend that the `currency` is chosen to be more valuable than `token`, and that the total supply is not excessively large.
-
-### Note on ticks
-
-Ticks in the auction govern where bids can be placed. They have no impact on the potential clearingPrices of the auction and merely serve to prevent users from being outbid by others by infinitesimally small amounts and for gas efficiency in finding new clearing prices.
-
-Generally integrators should choose a tick spacing of AT LEAST 1 basis point of the floor price. 1% or 10% is also reasonable.
-
-Setting too small of a tick spacing will make the auction extremely gas inefficient, and in specific cases, can result in a DoS attack where the auction cannot finish.
-
-### Note on auction steps
-
-Steps in the auction create the supply issuance schedule. Generally each step should be monotonically increasing in the amount of tokens sold, and the last block of the auction MUST sell a significant amount of tokens.
-
-This is because the final clearing price of the auction is used to initialize a Uniswap v4 liquidity pool, and if only a small number of tokens are sold at the end, the final price will be easy to manipulate.
-
-See the [whitepaper](./assets/whitepaper.pdf) for more details.
-
-### Bidders must validate all parameters
-
-An Auction can be configured with:
-
-- Excessively high floor prices which would result in a loss of funds for participants.
-- Extreme start and end blocks which would prevent bidders from receiving refunds of currency or tokens.
-- Honeypot or malicious tokens
-- An unrealistic `requiredCurrencyRaised` which would prevent the auction from graduating.
-- A `positionRecipient` who will withdraw the liquidity position immediately after the pool is created.
-
-This list is not exhaustive. It is the responsibility of the bidder to validate all parameters before participating in an auction.
-
-### Undesireable behavior with low-decimal tokens or Fee On Transfer tokens
-
-Do NOT use the Auction with low-decimal (< 6) tokens. Bidders will lose significant amounts of token due to rounding errors in price and amount calculations.
-
-Fee On Transfer tokens are explicitly not supported as either `token` or `currency`.
-
-### Auction Configuration
+## Auction Configuration
 
 The auction and its supply curve are configured through the AuctionFactory which deploys individual Auction contracts with configurable parameters.
 
@@ -121,6 +66,44 @@ constructor(
 
 The factory decodes `configData` into `AuctionParameters` and deploys the Auction contract via CREATE2.
 
+## Validation Hooks
+
+Auction creators can set a validation hook to restrict the bids that can be submitted. Hooks MUST revert to signal that the bid is invalid.
+
+A few example hooks are provided in the [periphery](./src/periphery/validationHooks) directory.
+
+### Writing a Validation Hook
+
+Validation hooks must implement the `IValidationHook` interface.
+
+```solidity
+interface IValidationHook {
+    function validate(uint256 maxPrice, uint128 amount, address owner, address sender, bytes calldata hookData) external;
+}
+```
+
+Additionally, to increase compatability with other onchain contracts and offchain interfaces, hooks should inherit from `ValidationHookIntrospection`. This provides out of the box support for callers to query support for the `IERC165` and `IValidationHook` interfaces.
+
+To extend this functionality, integrators should override the `supportsInterface` function to signal support for their own custom interface.
+
+```solidity
+interface IExampleValidationHook is IValidationHookIntrospection {
+    function exampleFunction() external view returns (bool);
+}
+
+contract ExampleValidationHook is IExampleValidationHook, ValidationHookIntrospection {
+    function validate(uint256 maxPrice, uint128 amount, address owner, address sender, bytes calldata hookData) external {
+        // validation logic
+    }
+
+    function supportsInterface(bytes4 interfaceId) external view returns (bool) {
+        return super.supportsInterface(interfaceId) || interfaceId == type(IExampleValidationHook).interfaceId;
+    }
+}
+```
+
+If a validation hook does not have a custom interface, it MAY return the first four bytes of the hash of its contract name.
+
 ## Internal types
 
 ### Q96 Fixed-Point Math
@@ -134,7 +117,7 @@ library FixedPoint96 {
 }
 ```
 
-- **Price**: Stored as as a Q96 fixed point number to allow for fractional prices
+- **Price**: Stored as as a Q96 fixed point number to allow for fractional price ratios
 - **Demand**: Currency amounts are scaled by Q96 to prevent significant precision loss in calculations
 
 #### MPS terms (Milli-Basis Points)
@@ -186,25 +169,7 @@ bytes packed = abi.encodePacked(packed1, packed2);
 
 The data is deployed to an external SSTORE2 contract for cheaper reads over the lifetime of the auction.
 
-### Validation Hooks
-
-Optional validation hooks allow custom logic to be executed before bids are accepted, enabling features like allowlists, rate limiting, or complex validation rules.
-
-```solidity
-interface IValidationHook {
-    function validate(
-        uint256 maxPrice,
-        uint128 amount,
-        address owner,
-        address sender,
-        bytes calldata hookData
-    ) external;
-}
-```
-
-Any validation hook set in the auction parameters is called during `_submitBid()`. It MUST revert to prevent a bit from being submitted in the auction.
-
-## Auction Entrypoints
+## Contract Entrypoints
 
 ### submitBid()
 
@@ -256,9 +221,12 @@ interface IContinuousClearingAuction {
 event CheckpointUpdated(uint256 indexed blockNumber, uint256 clearingPrice, uint24 cumulativeMps);
 ```
 
-### exitBid()
+### Exiting a Bid
+Bids can be exited when they are outbid, or when the auction has ended. Exiting a bid will refund any unspent currency to the bid's owner.
 
-Users can use `exitBid` to exit their bid after the auction has ended, or to receive a refund of their currency if the auction has not graduated. This function requires that the bid has a max price above the final clearing price of the auction. This means that the bid was never outbid or partially filled.
+#### exitBid()
+
+This function can only be used to exit a bid after the auction has ended, or if the auction does not graduate. Requires that the bid has a maxPrice strictly above the final clearing price of the auction.
 
 ```solidity
 interface IContinuousClearingAuction {
@@ -269,18 +237,14 @@ interface IContinuousClearingAuction {
 event BidExited(uint256 indexed bidId, address indexed owner, uint256 tokensFilled, uint256 currencyRefunded);
 ```
 
-### exitPartiallyFilledBid()
+#### exitPartiallyFilledBid()
 
-Exiting partially filled bids is more complex than fully filled ones. The `exitPartiallyFilledBid` function requires the user to provide two checkpoint hints (`lastFullyFilledCheckpointBlock`, `outbidBlock`). These are used to determine the checkpoints immediately before and after the period of time in which the bid was partially filled (auction.clearingPrice == bid.maxPrice).
+Exiting partially filled bids is more complex than above. This function requires the user to provide two checkpoint hints (`lastFullyFilledCheckpointBlock`, `outbidBlock`). These are used to determine the checkpoints immediately before and after the period of time in which the bid was partially filled (auction.clearingPrice == bid.maxPrice).
 
 - `lastFullyFilledCheckpointBlock`: Last checkpoint where clearing price is strictly < bid.maxPrice
 - `outbidBlock`: First checkpoint where clearing price is strictly > bid.maxPrice, or 0 if the final clearing price is equal to the bid's max price at the end of the auction, since it was never outbid.
 
 Checkpoints also store a cumulative value (`currencyRaisedAtClearingPriceQ96_X7`) which tracks the amount of currency raised from bids at the clearing price. This is reset every time the clearing price changes, but this is used to determine the user's pro-rata share of the tokens sold at the clearing price.
-
-### Decision tree for determining when to use `exitBid` vs `exitPartiallyFilledBid`:
-
-![Exit Bid Diagram](./assets/exitBidDiagram.png)
 
 ### isGraduated()
 
@@ -346,3 +310,72 @@ event TokensClaimed(uint256 indexed bidId, address indexed owner, uint256 tokens
 ```
 
 Anyone can call this function for any valid bid ids.
+
+## Integration guidelines
+
+### Incorrect parameter configurations
+
+CCA auctions are highly configurable. As such, it is important to ensure that the configurations of each auction instance are not only correct but protect against known risks.
+
+Ensure that the following parameters are correctly set:
+
+- `token` and `currency`
+- `totalSupply` is not too large (see [note on total supply and maximum bid price](#note-on-total-supply-and-maximum-bid-price) below)
+- `startBlock`, `endBlock`, and `claimBlock`
+- `tickSpacing` is not too small (see [note on ticks](#note-on-ticks) below)
+- `floorPrice` is correctly set
+- `requiredCurrencyRaised` is not set too high where the auction will never graduate
+- `auctionStepsData` avoids common pitfalls (see [note on auction steps](#note-on-auction-steps) below)
+
+### Extra funds sent to the auction are not recoverable
+Do NOT send more tokens than intended in `totalSupply` to the auction. They will not be recoverable.
+
+Likewise, any `currency` sent directly to the auction and not through `submitBid` will not be lost.
+
+### Bounds on maximum bid prices
+
+The following limitations regarding total supply and maximum bid prices should be considered:
+
+- The maximum total supply that can be sold in the auction is 1e30 wei of `token`. For a token with 18 decimals, this is 1 trillion tokens.
+- The auction also ensures that the total currency raised does not exceed the maximum allowable liquidity for a Uniswap v4 liquidity position. The lowest bound for this is 2^107 wei (given the smallest possible tick spacing of 1).
+
+Given a total supply of:
+
+- 1 trillion 18 decimal tokens (1e30), the maximum bid price is 2^110. The max ratio of currency to token is 2^(110-96) = 2^14 = 16384.
+- 1 billion 6 decimal tokens (1e15), the maximum bid price is 2^160. The max ratio of currency to token is 2^(160-96) = 2^64 = 18446744073709551616.
+
+We strongly recommend that the `currency` is chosen to be more valuable than `token`, and that the total supply is not excessively large.
+
+### Tick spacing
+
+Ticks in the auction govern where bids can be placed. They have no impact on the potential clearingPrices of the auction and merely serve to prevent users from being outbid by others by infinitesimally small amounts and for gas efficiency in finding new clearing prices.
+
+Generally integrators should choose a tick spacing of AT LEAST 1 basis point of the floor price. 1% or 10% is also reasonable.
+
+Setting too small of a tick spacing will make the auction extremely gas inefficient, and in specific cases, can result in a DoS attack where the auction cannot finish.
+
+### Auction steps
+
+Steps in the auction create the supply issuance schedule. Generally each step should be monotonically increasing in the amount of tokens sold, and the last block of the auction MUST sell a significant amount of tokens.
+
+This is because the final clearing price of the auction is used to initialize a Uniswap v4 liquidity pool, and if only a small number of tokens are sold at the end, the final price will be easy to manipulate.
+
+See the [whitepaper](./assets/whitepaper.pdf) for more details.
+
+### Bidder responsibilities
+
+An Auction can be configured with:
+
+- Excessively high floor prices which would result in a loss of funds for participants.
+- Extreme start and end blocks which would prevent bidders from receiving refunds of currency or tokens.
+- Honeypot or malicious tokens
+- An unrealistic `requiredCurrencyRaised` which would prevent the auction from graduating.
+- A `positionRecipient` who will withdraw the liquidity position immediately after the pool is created.
+
+This list is not exhaustive. It is the responsibility of the bidder to validate all parameters before participating in an auction.
+
+### Limitations with low-decimal tokens or Fee On Transfer tokens
+
+Do NOT use the Auction with low-decimal (< 6) tokens. Bidders will lose significant amounts of token due to rounding errors in price and amount calculations.
+
+Fee On Transfer tokens are explicitly not supported as either `token` or `currency`.

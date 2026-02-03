@@ -8,11 +8,12 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 /// @dev X7 values are used for demand values to avoid intermediate division by MPS
 type ValueX7 is uint256;
 
-using {sub, divUint256} for ValueX7 global;
+using {saturatingSub, divUint256} for ValueX7 global;
 
-/// @notice Subtract two ValueX7 values
-function sub(ValueX7 a, ValueX7 b) pure returns (ValueX7) {
-    return ValueX7.wrap(ValueX7.unwrap(a) - ValueX7.unwrap(b));
+/// @notice Subtract two ValueX7 values, returning zero on underflow.
+/// @dev Wrapper around FixedPointMathLib.saturatingSub
+function saturatingSub(ValueX7 a, ValueX7 b) pure returns (ValueX7) {
+    return ValueX7.wrap(FixedPointMathLib.saturatingSub(ValueX7.unwrap(a), ValueX7.unwrap(b)));
 }
 
 /// @notice Divide a ValueX7 value by a uint256

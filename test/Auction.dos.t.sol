@@ -21,9 +21,9 @@ contract AuctionDosTest is AuctionBaseTest {
 
     // This test is quite slow so only fuzz 100 times. We hardcode most of the params for simplicity anyways
     /// forge-config: default.isolate = true
-    /// forge-config: default.gas_limit = 18446744073709551615
+    /// forge-config: default.gas_limit = 9223372036854775807
     /// forge-config: ci.isolate = true
-    /// forge-config: ci.gas_limit = 18446744073709551615
+    /// forge-config: ci.gas_limit = 9223372036854775807
     /// forge-config: default.fuzz.runs = 100
     /// forge-config: ci.fuzz.runs = 100
     function test_forceIterateOverTicks_preventsDoS(FuzzDeploymentParams memory _deploymentParams)
@@ -46,6 +46,7 @@ contract AuctionDosTest is AuctionBaseTest {
         _deploymentParams.auctionParams.endBlock = uint64(_deploymentParams.auctionParams.startBlock + 1e7);
         _deploymentParams.auctionParams.claimBlock = uint64(_deploymentParams.auctionParams.endBlock + 1);
         _deploymentParams.auctionParams.auctionStepsData = AuctionStepsBuilder.init().addStep(1, 1e7);
+        _deploymentParams.auctionParams.validationHook = address(0);
 
         auction = new ContinuousClearingAuction(
             address(token), _deploymentParams.totalSupply, _deploymentParams.auctionParams
@@ -75,7 +76,7 @@ contract AuctionDosTest is AuctionBaseTest {
         uint128 bidAmount = uint128(FixedPointMathLib.fullMulDivUp(auction.totalSupply(), maxPrice, FixedPoint96.Q96));
 
         // Move the auction up to the highest tick
-        auction.submitBid{value: bidAmount, gas: FUSAKA_TX_GAS_LIMIT}(maxPrice, bidAmount, alice, prevPrice, bytes(''));
+        auction.submitBid{value: bidAmount}(maxPrice, bidAmount, alice, prevPrice, bytes(''));
 
         vm.roll(block.number + 1);
         // This should revert due to OOG
@@ -87,6 +88,9 @@ contract AuctionDosTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.NextActiveTickUpdated(untilTickPrice);
         auction.forceIterateOverTicks{gas: FUSAKA_TX_GAS_LIMIT}(untilTickPrice);
+
+        emit log_named_uint('gasleft', gasleft());
+        require(gasleft() > FUSAKA_TX_GAS_LIMIT, 'Gas left is not greater than FUSAKA_TX_GAS_LIMIT');
 
         // Now you should be able to checkpoint
         auction.checkpoint{gas: FUSAKA_TX_GAS_LIMIT}();

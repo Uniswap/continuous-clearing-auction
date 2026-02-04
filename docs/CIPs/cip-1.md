@@ -1,5 +1,5 @@
 ---
-title: Validation Hook Interface standard
+title: Validation hook interface standard
 description: An interface standard for validation hooks used in the Continuous Clearing Auction (CCA) protocol.
 author: Eric Zhong (@zhongeric)
 discussions-to: <URL>

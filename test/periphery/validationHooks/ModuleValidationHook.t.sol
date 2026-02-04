@@ -324,7 +324,6 @@ contract ModuleValidationHookTest is Test {
         modules[0] = Module({hasHookData: false, allowRevert: false, hook: IValidationHook(revertingHookWithString)});
         ModuleValidationHook hook = _deploy(modules);
 
-        bytes memory reason = hook.simulate(0, 0, owner, sender, abi.encode(new bytes[](0)));
         bytes memory expected = abi.encodeWithSelector(
             CustomRevert.WrappedError.selector,
             address(revertingHookWithString),
@@ -332,6 +331,7 @@ contract ModuleValidationHookTest is Test {
             abi.encodeWithSignature('Error(string)', 'reason'),
             abi.encodeWithSelector(IModuleValidationHook.ValidateReverted.selector)
         );
-        assertEq(reason, expected);
+        vm.expectRevert(expected);
+        hook.simulate(0, 0, owner, sender, abi.encode(new bytes[](0)));
     }
 }

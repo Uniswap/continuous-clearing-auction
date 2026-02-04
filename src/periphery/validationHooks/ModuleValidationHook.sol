@@ -59,10 +59,10 @@ contract ModuleValidationHook is IModuleValidationHook {
         address sender,
         bytes memory _hookData
     ) internal {
-        (bool success, bytes memory reason) = address(module.hook)
+        (bool success,) = address(module.hook)
             .call(abi.encodeWithSelector(module.hook.validate.selector, maxPrice, amount, owner, sender, _hookData));
         if (!success && !module.allowRevert) {
-            // Bubble up custom reverts
+            // Bubble up all reverts
             CustomRevert.bubbleUpAndRevertWith(
                 address(module.hook), module.hook.validate.selector, ValidateReverted.selector
             );
@@ -82,6 +82,7 @@ contract ModuleValidationHook is IModuleValidationHook {
         if (cachedHookData.requireSenderIsOwner && sender != owner) {
             return bytes('');
         } else if (cachedHookData.validUntilBlock < block.number) {
+            delete $moduleHookData[moduleId][owner];
             return bytes('');
         } else {
             return cachedHookData.hookData;
@@ -146,11 +147,15 @@ contract ModuleValidationHook is IModuleValidationHook {
         external
         returns (bytes memory)
     {
-        try this.validate(maxPrice, amount, owner, sender, hookData) {}
-        catch (bytes memory reason) {
-            return reason;
+        try this.validate(maxPrice, amount, owner, sender, hookData) {
+            assembly {
+                revert(0, 0)
+            }
+        } catch (bytes memory reason) {
+            assembly {
+                revert(add(reason, 32), mload(reason))
+            }
         }
-        return bytes('');
     }
 
     // Getters

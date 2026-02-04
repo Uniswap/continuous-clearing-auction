@@ -82,7 +82,6 @@ contract ModuleValidationHook is IModuleValidationHook {
         if (cachedHookData.requireSenderIsOwner && sender != owner) {
             return bytes('');
         } else if (cachedHookData.validUntilBlock < block.number) {
-            delete $moduleHookData[moduleId][owner];
             return bytes('');
         } else {
             return cachedHookData.hookData;

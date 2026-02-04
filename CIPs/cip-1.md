@@ -2,7 +2,7 @@
 title: Validation hook interface standard
 description: An interface standard for validation hooks used in the Continuous Clearing Auction (CCA) protocol.
 author: Eric Zhong (@zhongeric)
-discussions-to: <URL>
+discussions-to: https://github.com/Uniswap/continuous-clearing-auction/discussions/319
 status: Draft
 type: Standards Track
 category: CCA
@@ -21,7 +21,7 @@ While there is a standard interface for validation hooks, it is underspecfied in
 ## Specification
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
-Validation hooks MUST implement the `IValidationHook` interface as defined in [IValidationHook.sol](../../src/interfaces/IValidationHook.sol).
+Validation hooks MUST implement the `IValidationHook` interface as defined in [IValidationHook.sol](../src/interfaces/IValidationHook.sol).
 
 ```solidity
 interface IValidationHook {
@@ -46,7 +46,7 @@ interface IERC165 {
 }
 ```
 
-For simplicity, hooks MAY inherit the OPTIONAL contract [ValidationHookIntrospection](../../src/periphery/validationHooks/ValidationHookIntrospection.sol). This provides out of the box support for callers to query support for the `IERC165` and `IValidationHook` interfaces.
+For simplicity, hooks MAY inherit the OPTIONAL contract [ValidationHookIntrospection](../src/periphery/validationHooks/ValidationHookIntrospection.sol). This provides out of the box support for callers to query support for the `IERC165` and `IValidationHook` interfaces.
 
 ## Rationale
 
@@ -59,8 +59,8 @@ No backward compatibility issues found.
 ## Reference Implementation
 
 See:
-- [IValidationHook.sol](../../src/interfaces/IValidationHook.sol)
-- [ValidationHookIntrospection.sol](../../src/periphery/validationHooks/ValidationHookIntrospection.sol)
+- [IValidationHook.sol](../src/interfaces/IValidationHook.sol)
+- [ValidationHookIntrospection.sol](../src/periphery/validationHooks/ValidationHookIntrospection.sol)
 
 ## Security Considerations
 
@@ -68,4 +68,4 @@ Inherits the security considerations of the [ERC165](https://github.com/ethereum
 
 ## Copyright
 
-Copyright and related rights waived via [CC0](../LICENSE.md).
+Copyright and related rights waived via [MIT](../LICENSE.md).

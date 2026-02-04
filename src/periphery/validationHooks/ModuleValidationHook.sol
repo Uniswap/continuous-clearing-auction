@@ -5,6 +5,7 @@ import {IValidationHook} from '../../interfaces/IValidationHook.sol';
 import {IModuleValidationHook, Module, ModuleHookData} from '../../interfaces/periphery/IModuleValidationHook.sol';
 import {ValidationHookIntrospection} from './ValidationHookIntrospection.sol';
 import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
+import {Initializable} from 'openzeppelin-contracts/contracts/proxy/utils/Initializable.sol';
 import {EnumerableSetLib} from 'solady/utils/EnumerableSetLib.sol';
 import {CustomRevert} from 'v4-core/libraries/CustomRevert.sol';
 
@@ -24,9 +25,10 @@ library ValidationModuleLib {
 }
 
 /// @notice Validation hook implementation allowing for multiple modules to be setup at construction
-/// @dev Modules wrap a ValidationHook with additional configuration like requiring hookData or allowing reverts
-///      this enables projects to add parallel, independent validation checks without complex inheritance
-contract ModuleValidationHook is IModuleValidationHook, ValidationHookIntrospection, BlockNumberish {
+/// @dev Modules wrap an existing ValidationHook with additional configuration like requiring hookData or allowing reverts
+///      this enables projects to add parallel, independent validation checks without complex inheritance patterns
+///      Additionally, offchain integrators can discover what modules are set and interact with them accordingly
+contract ModuleValidationHook is IModuleValidationHook, ValidationHookIntrospection, Initializable, BlockNumberish {
     using ValidationModuleLib for Module;
     using EnumerableSetLib for EnumerableSetLib.Uint256Set;
 
@@ -34,9 +36,15 @@ contract ModuleValidationHook is IModuleValidationHook, ValidationHookIntrospect
     EnumerableSetLib.Uint256Set private $moduleIds;
     mapping(uint256 => mapping(address => ModuleHookData)) private $moduleHookData;
 
+    /// @notice The address that set the modules. Optional if pre-posting hookData is not required.
     address public setter;
 
-    constructor(Module[] memory _modules, address _setter) {
+    constructor() {
+        _disableInitializers();
+    }
+
+    /// @notice Initializes the contract with the given modules and setter. Can only be called once.
+    function initialize(Module[] memory _modules, address _setter) external initializer {
         for (uint256 i = 0; i < _modules.length; i++) {
             uint256 id = _modules[i].toId();
             if (address(_modules[i].hook) == address(0)) revert InvalidModuleHook();

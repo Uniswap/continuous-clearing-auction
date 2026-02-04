@@ -1,6 +1,6 @@
 {
-  "validate_multiModule_usesCachedHookData": "50742",
-  "validate_multiModule_usesProvidedHookData": "45324",
-  "validate_singleModule_usesCachedHookData": "39155",
-  "validate_singleModule_usesProvidedHookData": "39206"
+  "validate_multiModule_usesCachedHookData": "53533",
+  "validate_multiModule_usesProvidedHookData": "48115",
+  "validate_singleModule_usesCachedHookData": "41910",
+  "validate_singleModule_usesProvidedHookData": "41997"
 }

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Test} from 'forge-std/Test.sol';
+import {Clones} from 'openzeppelin-contracts/contracts/proxy/Clones.sol';
 import {IValidationHook} from 'src/interfaces/IValidationHook.sol';
 import {IModuleValidationHook, Module, ModuleHookData} from 'src/interfaces/periphery/IModuleValidationHook.sol';
 import {ModuleValidationHook, ValidationModuleLib} from 'src/periphery/validationHooks/ModuleValidationHook.sol';
@@ -20,12 +21,17 @@ contract ModuleValidationHookTest is Test {
     address owner = makeAddr('owner');
     address sender = makeAddr('sender');
 
+    error FailedDeployment();
+
+    ModuleValidationHook impl;
+
     MockValidationHook mockHook;
     MockRevertingValidationHook revertingHook;
     MockRevertingValidationHookWithCustomError revertingHookWithCustomError;
     MockRevertingValidationHookErrorWithString revertingHookWithString;
 
     function setUp() public {
+        impl = new ModuleValidationHook();
         mockHook = new MockValidationHook();
         revertingHook = new MockRevertingValidationHook();
         revertingHookWithCustomError = new MockRevertingValidationHookWithCustomError();
@@ -33,7 +39,9 @@ contract ModuleValidationHookTest is Test {
     }
 
     function _deploy(Module[] memory _modules) internal returns (ModuleValidationHook) {
-        return new ModuleValidationHook(_modules, setter);
+        ModuleValidationHook clone = ModuleValidationHook(Clones.cloneDeterministic(address(impl), bytes32(0)));
+        clone.initialize(_modules, setter);
+        return clone;
     }
 
     function _toBytesArray(bytes memory _data) internal pure returns (bytes[] memory wrapped) {
@@ -44,16 +52,18 @@ contract ModuleValidationHookTest is Test {
     function test_constructor_revertsWhenHookIsZero() public {
         Module[] memory modules = new Module[](1);
         modules[0] = Module({hasHookData: false, allowRevert: false, hook: IValidationHook(address(0))});
-        vm.expectRevert(IModuleValidationHook.InvalidModuleHook.selector);
-        _deploy(modules);
+        ModuleValidationHook clone = ModuleValidationHook(Clones.cloneDeterministic(address(impl), bytes32(0)));
+        vm.expectRevert(abi.encodeWithSelector(IModuleValidationHook.InvalidModuleHook.selector));
+        clone.initialize(modules, setter);
     }
 
     function test_constructor_revertsWhenModuleIsAlreadySet() public {
         Module[] memory modules = new Module[](2);
         modules[0] = Module({hasHookData: true, allowRevert: true, hook: IValidationHook(mockHook)});
         modules[1] = Module({hasHookData: true, allowRevert: true, hook: IValidationHook(mockHook)});
+        ModuleValidationHook clone = ModuleValidationHook(Clones.cloneDeterministic(address(impl), bytes32(0)));
         vm.expectRevert(abi.encodeWithSelector(IModuleValidationHook.ModuleAlreadySet.selector, modules[0].toId()));
-        _deploy(modules);
+        clone.initialize(modules, setter);
     }
 
     function test_moduleIdsAndModules_areSet() public {

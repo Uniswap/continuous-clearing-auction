@@ -3,6 +3,8 @@ pragma solidity ^0.8.26;
 
 import {IValidationHook} from '../../interfaces/IValidationHook.sol';
 import {IModuleValidationHook, Module, ModuleHookData} from '../../interfaces/periphery/IModuleValidationHook.sol';
+import {ValidationHookIntrospection} from './ValidationHookIntrospection.sol';
+import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
 import {EnumerableSetLib} from 'solady/utils/EnumerableSetLib.sol';
 import {CustomRevert} from 'v4-core/libraries/CustomRevert.sol';
 
@@ -24,7 +26,7 @@ library ValidationModuleLib {
 /// @notice Validation hook implementation allowing for multiple modules to be setup at construction
 /// @dev Modules wrap a ValidationHook with additional configuration like requiring hookData or allowing reverts
 ///      this enables projects to add parallel, independent validation checks without complex inheritance
-contract ModuleValidationHook is IModuleValidationHook {
+contract ModuleValidationHook is IModuleValidationHook, ValidationHookIntrospection, BlockNumberish {
     using ValidationModuleLib for Module;
     using EnumerableSetLib for EnumerableSetLib.Uint256Set;
 
@@ -80,8 +82,8 @@ contract ModuleValidationHook is IModuleValidationHook {
         returns (bytes memory hookData)
     {
         ModuleHookData memory cached = $moduleHookData[moduleId][owner];
-        if (cached.requireSenderIsOwner && sender == owner) {
-            if (cached.validUntilBlock >= block.number) {
+        if (!cached.requireSenderIsOwner || sender == owner) {
+            if (cached.validUntilBlock >= _getBlockNumberish()) {
                 hookData = cached.hookData;
                 if (!cached.isReplayable) {
                     delete $moduleHookData[moduleId][owner];
@@ -101,6 +103,12 @@ contract ModuleValidationHook is IModuleValidationHook {
         external
         onlySetter(msg.sender)
     {
+        if (owner == address(0)) {
+            revert InvalidOwner();
+        }
+        if (_moduleHookData.validUntilBlock < _getBlockNumberish()) {
+            revert InvalidValidUntilBlock(_moduleHookData.validUntilBlock, _getBlockNumberish());
+        }
         $moduleHookData[moduleId][owner] = _moduleHookData;
         emit HookDataSet(moduleId, owner, _moduleHookData.validUntilBlock, _moduleHookData.hookData);
     }
@@ -152,7 +160,6 @@ contract ModuleValidationHook is IModuleValidationHook {
     /// @dev If successful, returns an empty bytes array
     function simulate(uint256 maxPrice, uint128 amount, address owner, address sender, bytes calldata hookData)
         external
-        returns (bytes memory)
     {
         try this.validate(maxPrice, amount, owner, sender, hookData) {
             assembly {
@@ -163,6 +170,11 @@ contract ModuleValidationHook is IModuleValidationHook {
                 revert(add(reason, 32), mload(reason))
             }
         }
+    }
+
+    // ERC-165 support
+    function supportsInterface(bytes4 _interfaceId) public view virtual override returns (bool) {
+        return super.supportsInterface(_interfaceId) || _interfaceId == type(IModuleValidationHook).interfaceId;
     }
 
     // Getters

@@ -299,21 +299,22 @@ contract ModuleValidationHookTest is Test {
         hook.validate(0, 0, owner, _notOwner, abi.encode(new bytes[](0)));
     }
 
-    function test_validate_whenCachedHookDataExpired_reverts(uint64 _currentBlock, bytes memory _expected) public {
+    function test_validate_whenCachedHookDataExpired_reverts(uint64 _validUntilBlock, bytes memory _expected) public {
         Module[] memory modules = new Module[](1);
         modules[0] = Module({hasHookData: true, allowRevert: false, hook: IValidationHook(mockHook)});
         ModuleValidationHook hook = _deploy(modules);
 
-        vm.assume(_currentBlock > 0);
-        vm.roll(_currentBlock);
+        vm.assume(_validUntilBlock > block.number && _validUntilBlock < type(uint64).max);
+
         uint256 moduleId = modules[0].toId();
-        uint64 validUntilBlock = uint64(_bound(_currentBlock - 1, 0, _currentBlock - 1));
         ModuleHookData memory moduleHookData = ModuleHookData({
-            requireSenderIsOwner: true, isReplayable: false, validUntilBlock: validUntilBlock, hookData: _expected
+            requireSenderIsOwner: true, isReplayable: false, validUntilBlock: _validUntilBlock, hookData: _expected
         });
 
         vm.prank(setter);
         hook.setHookData(moduleId, owner, moduleHookData);
+
+        vm.roll(_validUntilBlock + 1);
 
         vm.expectRevert(abi.encodeWithSelector(IModuleValidationHook.HookDataRequired.selector, mockHook));
         hook.validate(0, 0, owner, owner, abi.encode(new bytes[](0)));

@@ -25,6 +25,10 @@ interface IModuleValidationHook is IValidationHook {
     error NotSetter();
     /// @notice Error thrown when hook data is required but not provided
     error HookDataRequired(IValidationHook hook);
+    /// @notice Error thrown when an invalid owner is provided
+    error InvalidOwner();
+    /// @notice Error thrown when an invalid valid until block is provided
+    error InvalidValidUntilBlock(uint64 validUntilBlock, uint256 currentBlock);
     /// @notice Error thrown when an invalid module hook is provided
     error InvalidModuleHook();
     /// @notice Error thrown when a module validation reverts

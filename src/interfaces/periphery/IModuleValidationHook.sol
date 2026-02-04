@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import {IValidationHook} from '../IValidationHook.sol';
 
 struct Module {
-    // uint88 __reserved;
+    // __reserved;
     bool hasHookData;
     bool allowRevert;
     IValidationHook hook;

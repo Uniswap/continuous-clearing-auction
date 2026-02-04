@@ -11,7 +11,7 @@ import {CustomRevert} from 'v4-core/libraries/CustomRevert.sol';
 
 /// @notice Helper library for converting a Module to its uint256 representation
 library ValidationModuleLib {
-    uint256 private constant HOOK_MASK = ~uint256(1 << 160) & ~uint256(1 << 161);
+    uint256 private constant HOOK_MASK = type(uint160).max;
     uint256 private constant HOOK_DATA_MASK = 1 << 160;
     uint256 private constant ALLOW_REVERT_MASK = 1 << 161;
 

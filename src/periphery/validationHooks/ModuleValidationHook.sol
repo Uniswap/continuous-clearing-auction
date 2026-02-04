@@ -11,6 +11,10 @@ import {CustomRevert} from 'v4-core/libraries/CustomRevert.sol';
 
 /// @notice Helper library for converting a Module to its uint256 representation
 library ValidationModuleLib {
+    uint256 private constant HOOK_MASK = ~uint256(1 << 160) & ~uint256(1 << 161);
+    uint256 private constant HOOK_DATA_MASK = 1 << 160;
+    uint256 private constant ALLOW_REVERT_MASK = 1 << 161;
+
     /// @notice Converts a Module struct to its uint256 representation
     function toId(Module memory module) internal pure returns (uint256) {
         uint256 id = uint256(uint160(address(module.hook)));
@@ -22,6 +26,21 @@ library ValidationModuleLib {
         }
         return id;
     }
+
+    /// @notice Returns true if the module has hook data
+    function hasHookData(uint256 moduleId) internal pure returns (bool) {
+        return moduleId & HOOK_DATA_MASK != 0;
+    }
+
+    /// @notice Returns true if the module allows reverts
+    function allowRevert(uint256 moduleId) internal pure returns (bool) {
+        return moduleId & ALLOW_REVERT_MASK != 0;
+    }
+
+    /// @notice Returns the hook for a module
+    function hook(uint256 moduleId) internal pure returns (IValidationHook) {
+        return IValidationHook(address(uint160(moduleId & HOOK_MASK)));
+    }
 }
 
 /// @notice Validation hook implementation allowing for multiple modules to be setup at construction
@@ -29,7 +48,7 @@ library ValidationModuleLib {
 ///      this enables projects to add parallel, independent validation checks without complex inheritance patterns
 ///      Additionally, offchain integrators can discover what modules are set and interact with them accordingly
 contract ModuleValidationHook is IModuleValidationHook, ValidationHookIntrospection, Initializable, BlockNumberish {
-    using ValidationModuleLib for Module;
+    using ValidationModuleLib for *;
     using EnumerableSetLib for EnumerableSetLib.Uint256Set;
 
     mapping(uint256 => Module) private $modules;
@@ -64,20 +83,19 @@ contract ModuleValidationHook is IModuleValidationHook, ValidationHookIntrospect
 
     /// @notice Calls a module and bubbles up the revert reason
     function _callModule(
-        Module memory module,
+        uint256 moduleId,
         uint256 maxPrice,
         uint128 amount,
         address owner,
         address sender,
         bytes memory _hookData
     ) internal {
-        (bool success,) = address(module.hook)
-            .call(abi.encodeWithSelector(module.hook.validate.selector, maxPrice, amount, owner, sender, _hookData));
-        if (!success && !module.allowRevert) {
+        IValidationHook hook = moduleId.hook();
+        (bool success,) = address(hook)
+            .call(abi.encodeWithSelector(hook.validate.selector, maxPrice, amount, owner, sender, _hookData));
+        if (!success && !moduleId.allowRevert()) {
             // Bubble up all reverts
-            CustomRevert.bubbleUpAndRevertWith(
-                address(module.hook), module.hook.validate.selector, ValidateReverted.selector
-            );
+            CustomRevert.bubbleUpAndRevertWith(address(hook), hook.validate.selector, ValidateReverted.selector);
         }
     }
 
@@ -137,9 +155,8 @@ contract ModuleValidationHook is IModuleValidationHook, ValidationHookIntrospect
         // Iterate over all set module IDs. The number of modules requiring hookData should be limited as this is O(n*m).
         for (uint256 i = 0; i < _moduleIds.length; i++) {
             uint256 id = _moduleIds[i];
-            Module memory module = $modules[id];
             bytes memory _hookData;
-            if (module.hasHookData) {
+            if (id.hasHookData()) {
                 // Find either the provided hookData or any hookData in storage
                 uint256 _id;
                 for (uint256 j = 0; j < providedHookData.length; j++) {
@@ -156,11 +173,11 @@ contract ModuleValidationHook is IModuleValidationHook, ValidationHookIntrospect
                 }
 
                 if (_hookData.length == 0) {
-                    revert HookDataRequired(module.hook);
+                    revert HookDataRequired(id.hook());
                 }
             }
 
-            _callModule(module, maxPrice, amount, owner, sender, _hookData);
+            _callModule(id, maxPrice, amount, owner, sender, _hookData);
         }
     }
 

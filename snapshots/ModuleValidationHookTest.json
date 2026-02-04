@@ -1,0 +1,6 @@
+{
+  "validate_multiModule_usesCachedHookData": "42307",
+  "validate_multiModule_usesProvidedHookData": "40846",
+  "validate_singleModule_usesCachedHookData": "42307",
+  "validate_singleModule_usesProvidedHookData": "39178"
+}

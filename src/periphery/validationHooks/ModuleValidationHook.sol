@@ -121,7 +121,7 @@ contract ModuleValidationHook is IModuleValidationHook {
         bytes[] memory providedHookData = abi.decode(hookData, (bytes[]));
         uint256[] memory _moduleIds = $moduleIds.values();
 
-        // Iterate over all set module IDs. This is O(n*m).
+        // Iterate over all set module IDs. The number of modules requiring hookData should be limited as this is O(n*m).
         for (uint256 i = 0; i < _moduleIds.length; i++) {
             uint256 id = _moduleIds[i];
             Module memory module = $modules[id];

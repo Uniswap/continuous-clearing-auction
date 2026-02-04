@@ -5,11 +5,11 @@ import {Test} from 'forge-std/Test.sol';
 import {IValidationHook} from 'src/interfaces/IValidationHook.sol';
 import {IModuleValidationHook, Module, ModuleHookData} from 'src/interfaces/periphery/IModuleValidationHook.sol';
 import {ModuleValidationHook, ValidationModuleLib} from 'src/periphery/validationHooks/ModuleValidationHook.sol';
-import {MockValidationHook} from 'test/utils/MockValidationHook.sol';
 import {
     MockRevertingValidationHook,
     MockRevertingValidationHookErrorWithString
 } from 'test/utils/MockRevertingValidationHook.sol';
+import {MockValidationHook} from 'test/utils/MockValidationHook.sol';
 
 contract ModuleValidationHookTest is Test {
     using ValidationModuleLib for Module;
@@ -98,32 +98,119 @@ contract ModuleValidationHookTest is Test {
         hook.validate(0, 0, owner, sender, abi.encode(new bytes[](0)));
     }
 
-    function test_validate_usesProvidedHookData(uint256 _maxPrice, uint128 _amount, bytes memory _expected) public {
+    /// forge-config: default.isolate = true
+    /// forge-config: ci.isolate = true
+    function test_validate_singleModule_usesProvidedHookData_gas() public {
         Module[] memory modules = new Module[](1);
         modules[0] = Module({hasHookData: true, allowRevert: false, hook: IValidationHook(mockHook)});
         ModuleValidationHook hook = _deploy(modules);
 
-        uint256 moduleId = modules[0].toId();
-        hook.validate(_maxPrice, _amount, owner, sender, abi.encode(_toBytesArray(abi.encode(moduleId, _expected))));
+        bytes[] memory hookData = new bytes[](1);
+        hookData[0] = abi.encode(modules[0].toId(), bytes('hookData'));
+
+        hook.validate(0, 0, owner, sender, abi.encode(hookData));
+        vm.snapshotGasLastCall('validate_singleModule_usesProvidedHookData');
     }
 
-    function test_validate_usesCachedHookData(uint256 _maxPrice, uint128 _amount, bytes memory _expected) public {
+    /// forge-config: default.isolate = true
+    /// forge-config: ci.isolate = true
+    function test_validate_multiModule_usesProvidedHookData_gas() public {
+        Module[] memory modules = new Module[](2);
+        modules[0] = Module({hasHookData: true, allowRevert: false, hook: IValidationHook(mockHook)});
+        modules[1] = Module({hasHookData: true, allowRevert: false, hook: IValidationHook(mockHook)});
+        ModuleValidationHook hook = _deploy(modules);
+
+        bytes[] memory hookData = new bytes[](2);
+        hookData[0] = abi.encode(modules[0].toId(), bytes('hookData0'));
+        hookData[1] = abi.encode(modules[1].toId(), bytes('hookData1'));
+
+        hook.validate(0, 0, owner, sender, abi.encode(hookData));
+        vm.snapshotGasLastCall('validate_multiModule_usesProvidedHookData');
+    }
+
+    function test_validate_usesProvidedHookData(uint256 _maxPrice, uint128 _amount, bytes memory _hookData) public {
         Module[] memory modules = new Module[](1);
         modules[0] = Module({hasHookData: true, allowRevert: false, hook: IValidationHook(mockHook)});
         ModuleValidationHook hook = _deploy(modules);
+
+        vm.assume(_hookData.length > 0);
+
+        uint256 moduleId = modules[0].toId();
+        hook.validate(_maxPrice, _amount, owner, sender, abi.encode(_toBytesArray(abi.encode(moduleId, _hookData))));
+    }
+
+    function test_validate_usesCachedHookData(uint256 _maxPrice, uint128 _amount, bytes memory _hookData) public {
+        Module[] memory modules = new Module[](1);
+        modules[0] = Module({hasHookData: true, allowRevert: false, hook: IValidationHook(mockHook)});
+        ModuleValidationHook hook = _deploy(modules);
+
+        vm.assume(_hookData.length > 0);
 
         uint256 moduleId = modules[0].toId();
         ModuleHookData memory moduleHookData = ModuleHookData({
             requireSenderIsOwner: true,
             isReplayable: false,
             validUntilBlock: uint64(block.number + 1),
-            hookData: _expected
+            hookData: _hookData
         });
 
         vm.prank(setter);
         hook.setHookData(moduleId, owner, moduleHookData);
 
-        hook.validate(_maxPrice, _amount, owner, owner, bytes(''));
+        hook.validate(_maxPrice, _amount, owner, owner, abi.encode(new bytes[](0)));
+    }
+
+    /// forge-config: default.isolate = true
+    /// forge-config: ci.isolate = true
+    function test_validate_singleModule_usesCachedHookData_gas() public {
+        Module[] memory modules = new Module[](1);
+        modules[0] = Module({hasHookData: true, allowRevert: false, hook: IValidationHook(mockHook)});
+        ModuleValidationHook hook = _deploy(modules);
+
+        bytes[] memory hookData = new bytes[](1);
+        hookData[0] = abi.encode(modules[0].toId(), bytes('hookData'));
+        ModuleHookData memory moduleHookData = ModuleHookData({
+            requireSenderIsOwner: true,
+            isReplayable: false,
+            validUntilBlock: uint64(block.number + 1),
+            hookData: bytes('hookData')
+        });
+
+        vm.prank(setter);
+        hook.setHookData(modules[0].toId(), owner, moduleHookData);
+
+        hook.validate(0, 0, owner, owner, abi.encode(new bytes[](0)));
+        vm.snapshotGasLastCall('validate_singleModule_usesCachedHookData');
+    }
+
+    /// forge-config: default.isolate = true
+    /// forge-config: ci.isolate = true
+    function test_validate_multiModule_usesCachedHookData_gas() public {
+        Module[] memory modules = new Module[](2);
+        modules[0] = Module({hasHookData: true, allowRevert: false, hook: IValidationHook(mockHook)});
+        modules[1] = Module({hasHookData: true, allowRevert: false, hook: IValidationHook(mockHook)});
+        ModuleValidationHook hook = _deploy(modules);
+
+        bytes[] memory hookData = new bytes[](2);
+        hookData[0] = abi.encode(modules[0].toId(), bytes('hookData0'));
+        hookData[1] = abi.encode(modules[1].toId(), bytes('hookData1'));
+
+        hook.validate(0, 0, owner, owner, abi.encode(hookData));
+        vm.snapshotGasLastCall('validate_multiModule_usesCachedHookData');
+        ModuleHookData memory moduleHookData = ModuleHookData({
+            requireSenderIsOwner: true,
+            isReplayable: false,
+            validUntilBlock: uint64(block.number + 1),
+            hookData: bytes('hookData')
+        });
+
+        vm.prank(setter);
+        hook.setHookData(modules[0].toId(), owner, moduleHookData);
+        vm.prank(setter);
+        hook.setHookData(modules[1].toId(), owner, moduleHookData);
+
+        hook.validate(0, 0, owner, owner, abi.encode(new bytes[](0)));
+        vm.snapshotGasLastCall('validate_multiModule_usesCachedHookData');
     }
 
     function test_validate_whenCachedHookDataRequiresSenderIsOwner_reverts(address _notOwner) public {
@@ -157,10 +244,7 @@ contract ModuleValidationHookTest is Test {
         uint256 moduleId = modules[0].toId();
         uint64 validUntilBlock = uint64(_bound(_currentBlock - 1, 0, _currentBlock - 1));
         ModuleHookData memory moduleHookData = ModuleHookData({
-            requireSenderIsOwner: true,
-            isReplayable: false,
-            validUntilBlock: validUntilBlock,
-            hookData: _expected
+            requireSenderIsOwner: true, isReplayable: false, validUntilBlock: validUntilBlock, hookData: _expected
         });
 
         vm.prank(setter);

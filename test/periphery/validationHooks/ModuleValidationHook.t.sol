@@ -7,9 +7,11 @@ import {IModuleValidationHook, Module, ModuleHookData} from 'src/interfaces/peri
 import {ModuleValidationHook, ValidationModuleLib} from 'src/periphery/validationHooks/ModuleValidationHook.sol';
 import {
     MockRevertingValidationHook,
-    MockRevertingValidationHookErrorWithString
+    MockRevertingValidationHookErrorWithString,
+    MockRevertingValidationHookWithCustomError
 } from 'test/utils/MockRevertingValidationHook.sol';
 import {MockValidationHook} from 'test/utils/MockValidationHook.sol';
+import {CustomRevert} from 'v4-core/libraries/CustomRevert.sol';
 
 contract ModuleValidationHookTest is Test {
     using ValidationModuleLib for Module;
@@ -20,11 +22,13 @@ contract ModuleValidationHookTest is Test {
 
     MockValidationHook mockHook;
     MockRevertingValidationHook revertingHook;
+    MockRevertingValidationHookWithCustomError revertingHookWithCustomError;
     MockRevertingValidationHookErrorWithString revertingHookWithString;
 
     function setUp() public {
         mockHook = new MockValidationHook();
         revertingHook = new MockRevertingValidationHook();
+        revertingHookWithCustomError = new MockRevertingValidationHookWithCustomError();
         revertingHookWithString = new MockRevertingValidationHookErrorWithString();
     }
 
@@ -40,7 +44,7 @@ contract ModuleValidationHookTest is Test {
     function test_constructor_revertsWhenHookIsZero() public {
         Module[] memory modules = new Module[](1);
         modules[0] = Module({hasHookData: false, allowRevert: false, hook: IValidationHook(address(0))});
-        vm.expectRevert(ModuleValidationHook.InvalidModuleHook.selector);
+        vm.expectRevert(IModuleValidationHook.InvalidModuleHook.selector);
         _deploy(modules);
     }
 
@@ -85,7 +89,7 @@ contract ModuleValidationHookTest is Test {
         ModuleHookData memory moduleHookData =
             ModuleHookData({requireSenderIsOwner: true, isReplayable: false, validUntilBlock: 1, hookData: _hookData});
 
-        vm.expectRevert(ModuleValidationHook.NotSetter.selector);
+        vm.expectRevert(IModuleValidationHook.NotSetter.selector);
         hook.setHookData(moduleId, owner, moduleHookData);
     }
 
@@ -94,7 +98,7 @@ contract ModuleValidationHookTest is Test {
         modules[0] = Module({hasHookData: true, allowRevert: false, hook: IValidationHook(mockHook)});
         ModuleValidationHook hook = _deploy(modules);
 
-        vm.expectRevert(abi.encodeWithSelector(ModuleValidationHook.HookDataRequired.selector, mockHook));
+        vm.expectRevert(abi.encodeWithSelector(IModuleValidationHook.HookDataRequired.selector, mockHook));
         hook.validate(0, 0, owner, sender, abi.encode(new bytes[](0)));
     }
 
@@ -230,7 +234,7 @@ contract ModuleValidationHookTest is Test {
         hook.setHookData(moduleId, owner, moduleHookData);
 
         vm.assume(_notOwner != owner);
-        vm.expectRevert(abi.encodeWithSelector(ModuleValidationHook.HookDataRequired.selector, mockHook));
+        vm.expectRevert(abi.encodeWithSelector(IModuleValidationHook.HookDataRequired.selector, mockHook));
         hook.validate(0, 0, owner, _notOwner, abi.encode(new bytes[](0)));
     }
 
@@ -250,7 +254,7 @@ contract ModuleValidationHookTest is Test {
         vm.prank(setter);
         hook.setHookData(moduleId, owner, moduleHookData);
 
-        vm.expectRevert(abi.encodeWithSelector(ModuleValidationHook.HookDataRequired.selector, mockHook));
+        vm.expectRevert(abi.encodeWithSelector(IModuleValidationHook.HookDataRequired.selector, mockHook));
         hook.validate(0, 0, owner, owner, abi.encode(new bytes[](0)));
     }
 
@@ -285,7 +289,33 @@ contract ModuleValidationHookTest is Test {
         modules[0] = Module({hasHookData: false, allowRevert: false, hook: IValidationHook(revertingHookWithString)});
         ModuleValidationHook hook = _deploy(modules);
 
-        vm.expectRevert(bytes('reason'));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CustomRevert.WrappedError.selector,
+                address(revertingHookWithString),
+                IValidationHook.validate.selector,
+                abi.encodeWithSignature('Error(string)', 'reason'),
+                abi.encodeWithSelector(IModuleValidationHook.ValidateReverted.selector)
+            )
+        );
+        hook.validate(0, 0, owner, sender, abi.encode(new bytes[](0)));
+    }
+
+    function test_validate_revertsWithCustomError() public {
+        Module[] memory modules = new Module[](1);
+        modules[0] =
+            Module({hasHookData: false, allowRevert: false, hook: IValidationHook(revertingHookWithCustomError)});
+        ModuleValidationHook hook = _deploy(modules);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CustomRevert.WrappedError.selector,
+                address(revertingHookWithCustomError),
+                IValidationHook.validate.selector,
+                abi.encodeWithSelector(MockRevertingValidationHookWithCustomError.CustomError.selector),
+                abi.encodeWithSelector(IModuleValidationHook.ValidateReverted.selector)
+            )
+        );
         hook.validate(0, 0, owner, sender, abi.encode(new bytes[](0)));
     }
 
@@ -295,7 +325,13 @@ contract ModuleValidationHookTest is Test {
         ModuleValidationHook hook = _deploy(modules);
 
         bytes memory reason = hook.simulate(0, 0, owner, sender, abi.encode(new bytes[](0)));
-        bytes memory expected = abi.encodeWithSignature('Error(string)', 'reason');
+        bytes memory expected = abi.encodeWithSelector(
+            CustomRevert.WrappedError.selector,
+            address(revertingHookWithString),
+            IValidationHook.validate.selector,
+            abi.encodeWithSignature('Error(string)', 'reason'),
+            abi.encodeWithSelector(IModuleValidationHook.ValidateReverted.selector)
+        );
         assertEq(reason, expected);
     }
 }

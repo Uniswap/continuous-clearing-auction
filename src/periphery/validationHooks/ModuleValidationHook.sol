@@ -32,9 +32,6 @@ contract ModuleValidationHook is IModuleValidationHook {
     EnumerableSetLib.Uint256Set private $moduleIds;
     mapping(uint256 => mapping(address => ModuleHookData)) private $moduleHookData;
 
-    error NotSetter();
-    error HookDataRequired(IValidationHook hook);
-    error InvalidModuleHook();
     address public setter;
 
     constructor(Module[] memory _modules, address _setter) {
@@ -66,14 +63,9 @@ contract ModuleValidationHook is IModuleValidationHook {
             .call(abi.encodeWithSelector(module.hook.validate.selector, maxPrice, amount, owner, sender, _hookData));
         if (!success && !module.allowRevert) {
             // Bubble up custom reverts
-            if (reason.length == 4) {
-                CustomRevert.bubbleUpAndRevertWith(address(module.hook), module.hook.validate.selector, bytes4(reason));
-            } else {
-                // Otherwise, revert with the reason
-                assembly {
-                    revert(add(reason, 32), mload(reason))
-                }
-            }
+            CustomRevert.bubbleUpAndRevertWith(
+                address(module.hook), module.hook.validate.selector, ValidateReverted.selector
+            );
         }
     }
 

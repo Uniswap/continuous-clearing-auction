@@ -19,6 +19,15 @@ struct ModuleHookData {
 
 /// @notice Interface for a module validation hook
 interface IModuleValidationHook is IValidationHook {
+    /// @notice Error thrown when the caller is not the setter
+    error NotSetter();
+    /// @notice Error thrown when hook data is required but not provided
+    error HookDataRequired(IValidationHook hook);
+    /// @notice Error thrown when an invalid module hook is provided
+    error InvalidModuleHook();
+    /// @notice Error thrown when a module validation reverts
+    error ValidateReverted();
+
     /// @notice Returns the module for a given ID
     /// @param moduleId The ID of the module
     /// @return The module

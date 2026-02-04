@@ -19,6 +19,8 @@ struct ModuleHookData {
 
 /// @notice Interface for a module validation hook
 interface IModuleValidationHook is IValidationHook {
+    /// @notice Error thrown when a module is already set
+    error ModuleAlreadySet(uint256 moduleId);
     /// @notice Error thrown when the caller is not the setter
     error NotSetter();
     /// @notice Error thrown when hook data is required but not provided
@@ -28,6 +30,14 @@ interface IModuleValidationHook is IValidationHook {
     /// @notice Error thrown when a module validation reverts
     error ValidateReverted();
 
+    /// @notice Emitted when a module is set
+    event ModuleSet(uint256 indexed moduleId, IValidationHook hook, bool hasHookData, bool allowRevert);
+
+    /// @notice Emitted when hook data is set for a module
+    event HookDataSet(uint256 indexed moduleId, address indexed owner, uint64 validUntilBlock, bytes hookData);
+    /// @notice Emitted when hook data is deleted for a module
+    event HookDataDeleted(uint256 indexed moduleId, address indexed owner);
+
     /// @notice Returns the module for a given ID
     /// @param moduleId The ID of the module
     /// @return The module
@@ -36,4 +46,10 @@ interface IModuleValidationHook is IValidationHook {
     /// @notice Returns the IDs of all set modules
     /// @return The IDs of all modules
     function moduleIds() external view returns (uint256[] memory);
+
+    /// @notice Returns the hook data for a module
+    /// @param moduleId The ID of the module
+    /// @param owner The owner of the hook data
+    /// @return The hook data
+    function moduleHookData(uint256 moduleId, address owner) external view returns (ModuleHookData memory);
 }

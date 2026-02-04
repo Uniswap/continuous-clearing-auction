@@ -48,10 +48,22 @@ contract ModuleValidationHookTest is Test {
         _deploy(modules);
     }
 
+    function test_constructor_revertsWhenModuleIsAlreadySet() public {
+        Module[] memory modules = new Module[](2);
+        modules[0] = Module({hasHookData: true, allowRevert: true, hook: IValidationHook(mockHook)});
+        modules[1] = Module({hasHookData: true, allowRevert: true, hook: IValidationHook(mockHook)});
+        vm.expectRevert(abi.encodeWithSelector(IModuleValidationHook.ModuleAlreadySet.selector, modules[0].toId()));
+        _deploy(modules);
+    }
+
     function test_moduleIdsAndModules_areSet() public {
         Module[] memory modules = new Module[](2);
         modules[0] = Module({hasHookData: false, allowRevert: false, hook: IValidationHook(mockHook)});
         modules[1] = Module({hasHookData: true, allowRevert: true, hook: IValidationHook(mockHook)});
+        vm.expectEmit(true, true, true, true);
+        emit IModuleValidationHook.ModuleSet(modules[0].toId(), IValidationHook(mockHook), false, false);
+        vm.expectEmit(true, true, true, true);
+        emit IModuleValidationHook.ModuleSet(modules[1].toId(), IValidationHook(mockHook), true, true);
         ModuleValidationHook hook = _deploy(modules);
 
         uint256[] memory ids = hook.moduleIds();
@@ -93,6 +105,44 @@ contract ModuleValidationHookTest is Test {
         hook.setHookData(moduleId, owner, moduleHookData);
     }
 
+    function test_deleteHookData_onlySetter_reverts(Module memory module) public {
+        vm.assume(address(module.hook) != address(0));
+        Module[] memory modules = new Module[](1);
+        modules[0] = module;
+        ModuleValidationHook hook = _deploy(modules);
+
+        vm.expectRevert(IModuleValidationHook.NotSetter.selector);
+        hook.deleteHookData(module.toId(), owner);
+    }
+
+    function test_deleteHookData_deletesHookData() public {
+        Module[] memory modules = new Module[](1);
+        modules[0] = Module({hasHookData: true, allowRevert: false, hook: IValidationHook(mockHook)});
+        ModuleValidationHook hook = _deploy(modules);
+
+        uint256 moduleId = modules[0].toId();
+        ModuleHookData memory moduleHookData = ModuleHookData({
+            requireSenderIsOwner: true, isReplayable: false, validUntilBlock: 1, hookData: bytes('hookData')
+        });
+
+        vm.startPrank(setter);
+        vm.expectEmit(true, true, true, true);
+        emit IModuleValidationHook.HookDataSet(moduleId, owner, moduleHookData.validUntilBlock, moduleHookData.hookData);
+        hook.setHookData(moduleId, owner, moduleHookData);
+
+        vm.expectEmit(true, true, true, true);
+        emit IModuleValidationHook.HookDataDeleted(moduleId, owner);
+        hook.deleteHookData(moduleId, owner);
+
+        vm.stopPrank();
+
+        // assert all set to default values
+        assertEq(hook.moduleHookData(moduleId, owner).hookData, bytes(''));
+        assertEq(hook.moduleHookData(moduleId, owner).validUntilBlock, 0);
+        assertEq(hook.moduleHookData(moduleId, owner).requireSenderIsOwner, false);
+        assertEq(hook.moduleHookData(moduleId, owner).isReplayable, false);
+    }
+
     function test_validate_whenHookDataRequired_andNoData_reverts() public {
         Module[] memory modules = new Module[](1);
         modules[0] = Module({hasHookData: true, allowRevert: false, hook: IValidationHook(mockHook)});
@@ -121,13 +171,16 @@ contract ModuleValidationHookTest is Test {
     function test_validate_multiModule_usesProvidedHookData_gas() public {
         Module[] memory modules = new Module[](2);
         modules[0] = Module({hasHookData: true, allowRevert: false, hook: IValidationHook(mockHook)});
-        modules[1] = Module({hasHookData: true, allowRevert: false, hook: IValidationHook(mockHook)});
+        modules[1] = Module({hasHookData: false, allowRevert: false, hook: IValidationHook(mockHook)});
         ModuleValidationHook hook = _deploy(modules);
 
-        bytes[] memory hookData = new bytes[](2);
+        bytes[] memory hookData = new bytes[](1);
         hookData[0] = abi.encode(modules[0].toId(), bytes('hookData0'));
-        hookData[1] = abi.encode(modules[1].toId(), bytes('hookData1'));
 
+        vm.expectCall(
+            address(mockHook),
+            abi.encodeWithSelector(mockHook.validate.selector, 0, 0, owner, sender, bytes('hookData0'))
+        );
         hook.validate(0, 0, owner, sender, abi.encode(hookData));
         vm.snapshotGasLastCall('validate_multiModule_usesProvidedHookData');
     }
@@ -159,6 +212,8 @@ contract ModuleValidationHookTest is Test {
         });
 
         vm.prank(setter);
+        vm.expectEmit(true, true, true, true);
+        emit IModuleValidationHook.HookDataSet(moduleId, owner, moduleHookData.validUntilBlock, moduleHookData.hookData);
         hook.setHookData(moduleId, owner, moduleHookData);
 
         hook.validate(_maxPrice, _amount, owner, owner, abi.encode(new bytes[](0)));
@@ -190,22 +245,22 @@ contract ModuleValidationHookTest is Test {
     /// forge-config: default.isolate = true
     /// forge-config: ci.isolate = true
     function test_validate_multiModule_usesCachedHookData_gas() public {
+        vm.label(address(mockHook), 'mockHook');
+        MockValidationHook mockHook2 = new MockValidationHook();
+        vm.label(address(mockHook2), 'mockHook2');
         Module[] memory modules = new Module[](2);
         modules[0] = Module({hasHookData: true, allowRevert: false, hook: IValidationHook(mockHook)});
-        modules[1] = Module({hasHookData: true, allowRevert: false, hook: IValidationHook(mockHook)});
+        modules[1] = Module({hasHookData: true, allowRevert: false, hook: IValidationHook(mockHook2)});
         ModuleValidationHook hook = _deploy(modules);
 
-        bytes[] memory hookData = new bytes[](2);
-        hookData[0] = abi.encode(modules[0].toId(), bytes('hookData0'));
-        hookData[1] = abi.encode(modules[1].toId(), bytes('hookData1'));
+        bytes[] memory hookData = new bytes[](1);
+        hookData[0] = abi.encode(modules[0].toId(), bytes('provided'));
 
-        hook.validate(0, 0, owner, owner, abi.encode(hookData));
-        vm.snapshotGasLastCall('validate_multiModule_usesCachedHookData');
         ModuleHookData memory moduleHookData = ModuleHookData({
             requireSenderIsOwner: true,
             isReplayable: false,
             validUntilBlock: uint64(block.number + 1),
-            hookData: bytes('hookData')
+            hookData: bytes('cached')
         });
 
         vm.prank(setter);
@@ -213,7 +268,13 @@ contract ModuleValidationHookTest is Test {
         vm.prank(setter);
         hook.setHookData(modules[1].toId(), owner, moduleHookData);
 
-        hook.validate(0, 0, owner, owner, abi.encode(new bytes[](0)));
+        vm.expectCall(
+            address(mockHook), abi.encodeWithSelector(mockHook.validate.selector, 0, 0, owner, owner, bytes('provided'))
+        );
+        vm.expectCall(
+            address(mockHook2), abi.encodeWithSelector(mockHook2.validate.selector, 0, 0, owner, owner, bytes('cached'))
+        );
+        hook.validate(0, 0, owner, owner, abi.encode(hookData));
         vm.snapshotGasLastCall('validate_multiModule_usesCachedHookData');
     }
 

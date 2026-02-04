@@ -39,7 +39,9 @@ contract ModuleValidationHook is IModuleValidationHook {
             uint256 id = _modules[i].toId();
             if (address(_modules[i].hook) == address(0)) revert InvalidModuleHook();
             $modules[id] = _modules[i];
-            $moduleIds.add(id);
+            bool added = $moduleIds.add(id);
+            if (!added) revert ModuleAlreadySet(id);
+            emit ModuleSet(id, _modules[i].hook, _modules[i].hasHookData, _modules[i].allowRevert);
         }
         setter = _setter;
     }
@@ -73,19 +75,20 @@ contract ModuleValidationHook is IModuleValidationHook {
     /// @param moduleId The ID of the module
     /// @param owner The owner passed from the caller of validate
     /// @param sender The sender passed from the caller of validate
-    /// @return The cached hook data, if set
     function _loadCachedModuleHookData(uint256 moduleId, address owner, address sender)
         internal
-        returns (bytes memory)
+        returns (bytes memory hookData)
     {
-        ModuleHookData memory cachedHookData = $moduleHookData[moduleId][owner];
-        if (cachedHookData.requireSenderIsOwner && sender != owner) {
-            return bytes('');
-        } else if (cachedHookData.validUntilBlock < block.number) {
-            delete $moduleHookData[moduleId][owner];
-            return bytes('');
-        } else {
-            return cachedHookData.hookData;
+        ModuleHookData memory cached = $moduleHookData[moduleId][owner];
+        if (cached.requireSenderIsOwner && sender == owner) {
+            if (cached.validUntilBlock >= block.number) {
+                hookData = cached.hookData;
+                if (!cached.isReplayable) {
+                    delete $moduleHookData[moduleId][owner];
+                }
+            } else {
+                delete $moduleHookData[moduleId][owner];
+            }
         }
     }
 
@@ -99,6 +102,7 @@ contract ModuleValidationHook is IModuleValidationHook {
         onlySetter(msg.sender)
     {
         $moduleHookData[moduleId][owner] = _moduleHookData;
+        emit HookDataSet(moduleId, owner, _moduleHookData.validUntilBlock, _moduleHookData.hookData);
     }
 
     /// @notice Deletes the hook data for a module
@@ -106,6 +110,7 @@ contract ModuleValidationHook is IModuleValidationHook {
     /// @param owner The owner of the hook data
     function deleteHookData(uint256 moduleId, address owner) external onlySetter(msg.sender) {
         delete $moduleHookData[moduleId][owner];
+        emit HookDataDeleted(moduleId, owner);
     }
 
     /// @inheritdoc IValidationHook
@@ -122,8 +127,10 @@ contract ModuleValidationHook is IModuleValidationHook {
                 // Find either the provided hookData or any hookData in storage
                 uint256 _id;
                 for (uint256 j = 0; j < providedHookData.length; j++) {
-                    (_id, _hookData) = abi.decode(providedHookData[j], (uint256, bytes));
+                    bytes memory temp;
+                    (_id, temp) = abi.decode(providedHookData[j], (uint256, bytes));
                     if (_id == id) {
+                        _hookData = temp;
                         break;
                     }
                 }
@@ -159,11 +166,18 @@ contract ModuleValidationHook is IModuleValidationHook {
     }
 
     // Getters
+    /// @inheritdoc IModuleValidationHook
     function modules(uint256 moduleId) external view returns (Module memory) {
         return $modules[moduleId];
     }
 
+    /// @inheritdoc IModuleValidationHook
     function moduleIds() external view returns (uint256[] memory) {
         return $moduleIds.values();
+    }
+
+    /// @inheritdoc IModuleValidationHook
+    function moduleHookData(uint256 moduleId, address owner) external view returns (ModuleHookData memory) {
+        return $moduleHookData[moduleId][owner];
     }
 }

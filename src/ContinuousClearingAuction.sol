@@ -459,7 +459,7 @@ contract ContinuousClearingAuction is
 
         // Scale the amount according to the rest of the supply schedule, accounting for past blocks
         // This is only used in demand related internal calculations
-        uint256 bidEffectiveAmountQ96 = bid.toEffectiveAmount();
+        uint256 bidEffectiveAmountQ96 = bid.toEffectiveAmount(TOTAL_SUPPLY_Q96_X7, $totalClearedQ96_X7);
         // Update the tick demand with the bid's scaled amount
         _updateTickDemand(_maxPrice, bidEffectiveAmountQ96);
         // Update the global sum of currency demand above the clearing price tracker

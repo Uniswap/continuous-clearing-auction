@@ -38,7 +38,6 @@ contract ContinuousClearingAuction is
     StepStorage,
     TickStorage,
     TokenCurrencyStorage,
-    BlockNumberish,
     ReentrancyGuardTransient,
     IContinuousClearingAuction
 {
@@ -53,8 +52,6 @@ contract ContinuousClearingAuction is
     /// @notice The maximum price which a bid can be submitted at
     /// @dev Set during construction using MaxBidPriceLib.maxBidPrice() based on TOTAL_SUPPLY
     uint256 public immutable MAX_BID_PRICE;
-    /// @notice The block at which purchased tokens can be claimed
-    uint64 internal immutable CLAIM_BLOCK;
     /// @notice An optional hook to be called before a bid is registered
     IValidationHook internal immutable VALIDATION_HOOK;
 
@@ -73,7 +70,7 @@ contract ContinuousClearingAuction is
     bool private $_tokensReceived;
 
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
-        StepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
+        StepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock, _parameters.claimBlock)
         TokenCurrencyStorage(
             _token,
             _parameters.currency,
@@ -84,10 +81,7 @@ contract ContinuousClearingAuction is
         )
         TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
     {
-        CLAIM_BLOCK = _parameters.claimBlock;
         VALIDATION_HOOK = IValidationHook(_parameters.validationHook);
-
-        if (CLAIM_BLOCK < END_BLOCK) revert ClaimBlockIsBeforeEndBlock();
 
         // See MaxBidPriceLib library for more details on the bid price calculations.
         MAX_BID_PRICE = MaxBidPriceLib.maxBidPrice(TOTAL_SUPPLY);
@@ -101,18 +95,6 @@ contract ContinuousClearingAuction is
 
         $clearingPrice = FLOOR_PRICE;
         emit ClearingPriceUpdated(_getBlockNumberish(), $clearingPrice);
-    }
-
-    /// @notice Modifier for functions which can only be called after the auction is over
-    modifier onlyAfterAuctionIsOver() {
-        if (_getBlockNumberish() < END_BLOCK) revert AuctionIsNotOver();
-        _;
-    }
-
-    /// @notice Modifier for claim related functions which can only be called after the claim block
-    modifier onlyAfterClaimBlock() {
-        if (_getBlockNumberish() < CLAIM_BLOCK) revert NotClaimable();
-        _;
     }
 
     /// @notice Modifier for functions which can only be called after the auction is started and the tokens have been received
@@ -279,35 +261,6 @@ contract ContinuousClearingAuction is
         // Harmonic-mean accumulator: add (mps / price) using the rounded-up clearing price for this increment
         _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(_deltaMps, priceQ96);
         return _checkpoint;
-    }
-
-    /// @notice Fast forward to the start of the current step and return the number of `mps` sold since the last checkpoint
-    /// @param _blockNumber The current block number
-    /// @param _lastCheckpointedBlock The block number of the last checkpointed block
-    /// @return step The current step in the auction which contains `_blockNumber`
-    /// @return deltaMps The number of `mps` sold between the last checkpointed block and the start of the current step
-    function _advanceToStartOfCurrentStep(uint64 _blockNumber, uint64 _lastCheckpointedBlock)
-        internal
-        returns (AuctionStep memory step, uint24 deltaMps)
-    {
-        // Advance the current step until the current block is within the step
-        // Start at the larger of the last checkpointed block or the start block of the current step
-        step = $step;
-        uint64 start = uint64(FixedPointMathLib.max(step.startBlock, _lastCheckpointedBlock));
-        uint64 end = step.endBlock;
-
-        uint24 mps = step.mps;
-        while (_blockNumber > end) {
-            uint64 blockDelta = end - start;
-            unchecked {
-                deltaMps += uint24(blockDelta * mps);
-            }
-            start = end;
-            if (end == END_BLOCK) break;
-            step = _advanceStep();
-            mps = step.mps;
-            end = step.endBlock;
-        }
     }
 
     /// @notice Iterate to find the tick where the total demand at and above it is strictly less than the remaining supply in the auction

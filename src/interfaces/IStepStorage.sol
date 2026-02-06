@@ -7,8 +7,14 @@ import {AuctionStep} from '../libraries/StepLib.sol';
 interface IStepStorage {
     /// @notice Error thrown when the end block is equal to or before the start block
     error InvalidEndBlock();
+    /// @notice Error thrown when the claim block is before the end block
+    error ClaimBlockIsBeforeEndBlock();
     /// @notice Error thrown when the auction is over
     error AuctionIsOver();
+    /// @notice Error thrown when the auction is not over
+    error AuctionIsNotOver();
+    /// @notice Error thrown when the bid is not claimable
+    error NotClaimable();
     /// @notice Error thrown when the auction data length is invalid
     error InvalidAuctionDataLength();
     /// @notice Error thrown when the block delta in a step is zero

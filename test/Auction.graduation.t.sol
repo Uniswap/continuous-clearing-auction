@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import {IContinuousClearingAuction} from '../src/interfaces/IContinuousClearingAuction.sol';
+import {IStepStorage} from '../src/interfaces/IStepStorage.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {CheckpointAccountingLib} from '../src/libraries/CheckpointAccountingLib.sol';
@@ -300,7 +301,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         vm.roll(auction.claimBlock() - 1);
 
         // Try to claim tokens before the claim block
-        vm.expectRevert(IContinuousClearingAuction.NotClaimable.selector);
+        vm.expectRevert(IStepStorage.NotClaimable.selector);
         auction.claimTokensBatch(alice, bids);
     }
 

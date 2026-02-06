@@ -26,6 +26,7 @@ import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {ReentrancyGuardTransient} from 'solady/utils/ReentrancyGuardTransient.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
+import {console} from 'forge-std/console.sol';
 
 /// @title ContinuousClearingAuction
 /// @custom:security-contact security@uniswap.org
@@ -323,22 +324,18 @@ contract ContinuousClearingAuction is
         uint256 sumCurrencyDemandAboveClearingQ96_ = $sumCurrencyDemandAboveClearingQ96;
         uint256 nextActiveTickPrice_ = $nextActiveTickPrice;
 
-        /**
-         * We have the current demand above the clearing price, and we want to see if it is enough to fully purchase
-         * all of the remaining supply being sold at the nextActiveTickPrice. We only need to check `nextActiveTickPrice`
-         * because we know that there are no bids in between the current clearing price and that price.
-         *
-         * Observe that we need a certain amount of collective demand to increase the auction from the floor price.
-         * - This is equal to `totalSupply * floorPrice`
-         *
-         * If the auction was fully subscribed in the first block which it was active, then the total CURRENCY REQUIRED
-         * at any given price is equal to totalSupply * p', where p' is that price.
-         */
-        uint256 clearingPrice_ = sumCurrencyDemandAboveClearingQ96_.divUp(TOTAL_SUPPLY);
+        ValueX7 remainingSupplyQ96X7 = TOTAL_SUPPLY_Q96_X7.saturatingSub($totalClearedQ96_X7);
+
+        console.log("remainingSupplyQ96X7", ValueX7.unwrap(remainingSupplyQ96X7));
+        console.log("sumCurrencyDemandAboveClearingQ96_", sumCurrencyDemandAboveClearingQ96_);
+        console.log("nextActiveTickPrice_", nextActiveTickPrice_);
+
+        // Loop until we find the price at which the demand can purchase the total supply according to the original supply schedule.
+        uint256 clearingPrice_ = sumCurrencyDemandAboveClearingQ96_.fullMulDivUp(FixedPoint96.Q96 * ConstantsLib.MPS, ValueX7.unwrap(remainingSupplyQ96X7));
         while (
             // Loop while the currency amount above the clearing price is greater than the required currency at `nextActiveTickPrice_`
             (nextActiveTickPrice_ != _untilTickPrice
-                    && sumCurrencyDemandAboveClearingQ96_ >= TOTAL_SUPPLY * nextActiveTickPrice_)
+                    && sumCurrencyDemandAboveClearingQ96_ >= ValueX7.unwrap(remainingSupplyQ96X7).fullMulDiv(nextActiveTickPrice_, FixedPoint96.Q96 * ConstantsLib.MPS))
                 // If the demand above clearing rounds up to the `nextActiveTickPrice`, we need to keep iterating over ticks
                 // This ensures that the `nextActiveTickPrice` is always the next initialized tick strictly above the clearing price
                 || clearingPrice_ == nextActiveTickPrice_
@@ -459,7 +456,10 @@ contract ContinuousClearingAuction is
 
         // Scale the amount according to the rest of the supply schedule, accounting for past blocks
         // This is only used in demand related internal calculations
-        uint256 bidEffectiveAmountQ96 = bid.toEffectiveAmount(TOTAL_SUPPLY_Q96_X7, $totalClearedQ96_X7);
+
+        // uint256 bidEffectiveAmountQ96 = bid.toEffectiveAmount(TOTAL_SUPPLY_Q96_X7, $totalClearedQ96_X7);
+        uint256 bidEffectiveAmountQ96 = bid.toEffectiveAmount();
+
         // Update the tick demand with the bid's scaled amount
         _updateTickDemand(_maxPrice, bidEffectiveAmountQ96);
         // Update the global sum of currency demand above the clearing price tracker

@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 import {IStepStorage} from './interfaces/IStepStorage.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {AuctionStep, StepLib} from './libraries/StepLib.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SSTORE2} from 'solady/utils/SSTORE2.sol';
 
 /// @title StepStorage
@@ -37,6 +38,35 @@ abstract contract StepStorage is IStepStorage {
         $_pointer = _pointer;
 
         _advanceStep();
+    }
+
+    /// @notice Fast forward to the start of the current step and return the number of `mps` sold since the last checkpoint
+    /// @param _blockNumber The current block number
+    /// @param _lastCheckpointedBlock The block number of the last checkpointed block
+    /// @return _step The current step in the auction which contains `_blockNumber`
+    /// @return deltaMps The number of `mps` sold between the last checkpointed block and the start of the current step
+    function _advanceToStartOfCurrentStep(uint64 _blockNumber, uint64 _lastCheckpointedBlock)
+        internal
+        returns (AuctionStep memory _step, uint24 deltaMps)
+    {
+        // Advance the current step until the current block is within the step
+        // Start at the larger of the last checkpointed block or the start block of the current step
+        _step = $step;
+        uint64 start = uint64(FixedPointMathLib.max(_step.startBlock, _lastCheckpointedBlock));
+        uint64 end = _step.endBlock;
+
+        uint24 mps = _step.mps;
+        while (_blockNumber > end) {
+            uint64 blockDelta = end - start;
+            unchecked {
+                deltaMps += uint24(blockDelta * mps);
+            }
+            start = end;
+            if (end == END_BLOCK) break;
+            _step = _advanceStep();
+            mps = _step.mps;
+            end = _step.endBlock;
+        }
     }
 
     /// @notice Validate the data provided in the constructor

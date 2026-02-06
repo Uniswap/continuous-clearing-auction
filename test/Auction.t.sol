@@ -330,7 +330,7 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(token.balanceOf(address(alice)), expectedTokensFilled);
     }
 
-    function test_submitBid_noRolloverSupply(uint128 _bidAmount, uint256 _maxPrice, uint256 _seed)
+    function test_submitBid_supplyIsRolledOver(uint128 _bidAmount, uint256 _maxPrice, uint256 _seed)
         public
         givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
         givenValidBidAmount(_bidAmount)
@@ -341,19 +341,22 @@ contract AuctionTest is AuctionBaseTest {
     {
         // Advance by one such that the auction is already started
         uint256 targetBlock =
-            _bound(_seed % (auction.endBlock() - auction.startBlock()), block.number + 1, auction.endBlock());
+            _bound(_seed % (auction.endBlock() - auction.startBlock()), auction.startBlock() + 1, auction.endBlock());
+
+        Checkpoint memory checkpoint = auction.checkpoint();
+
+        // Bid for just under the total supply
+        $bidAmount = uint128((TOTAL_SUPPLY + 1).fullMulDivUp(checkpoint.clearingPrice, FixedPoint96.Q96));
 
         vm.roll(targetBlock);
         uint256 bidId =
             auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, tickNumberToPriceX96(1), bytes(''));
 
         vm.roll(auction.endBlock());
-        Checkpoint memory checkpoint = auction.checkpoint();
-        if ($maxPrice > checkpoint.clearingPrice) {
-            auction.exitBid(bidId);
-        } else {
-            auction.exitPartiallyFilledBid(bidId, uint64(targetBlock), 0);
-        }
+        checkpoint = auction.checkpoint();
+        assertGt(checkpoint.clearingPrice, auction.floorPrice(), 'Clearing price should be greater than floor price');
+
+        auction.exitBid(bidId);
 
         uint256 expectedTokensFilled = auction.bids(bidId).tokensFilled;
         vm.assume(expectedTokensFilled > 0);

@@ -18,15 +18,16 @@ import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {MaxBidPriceLib} from './libraries/MaxBidPriceLib.sol';
+import {PriceLib} from './libraries/PriceLib.sol';
 import {AuctionStep, StepLib} from './libraries/StepLib.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
+import {console} from 'forge-std/console.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {ReentrancyGuardTransient} from 'solady/utils/ReentrancyGuardTransient.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
-import {console} from 'forge-std/console.sol';
 
 /// @title ContinuousClearingAuction
 /// @custom:security-contact security@uniswap.org
@@ -50,6 +51,7 @@ contract ContinuousClearingAuction is
     using CheckpointLib for Checkpoint;
     using ValidationHookLib for IValidationHook;
     using ValueX7Lib for *;
+    using PriceLib for uint256;
 
     /// @notice The maximum price which a bid can be submitted at
     /// @dev Set during construction using MaxBidPriceLib.maxBidPrice() based on TOTAL_SUPPLY
@@ -262,19 +264,19 @@ contract ContinuousClearingAuction is
                 // Change in currency raised = currency raised at clearing + currency raised above clearing
                 currencyRaisedDeltaQ96X7 = currencyRaisedAtClearingQ96X7 + currencyRaisedAboveClearingQ96X7;
                 // Track cumulative currency raised exactly at this clearing price (used for partial exits)
-                _checkpoint.currencyRaisedAtClearingPriceQ96_X7 = ValueX7.wrap(
-                    ValueX7.unwrap(_checkpoint.currencyRaisedAtClearingPriceQ96_X7) + currencyRaisedAtClearingQ96X7
-                );
+                _checkpoint.currencyRaisedAtClearingPriceQ96_X7 =
+                    _checkpoint.currencyRaisedAtClearingPriceQ96_X7.add(ValueX7.wrap(currencyRaisedAtClearingQ96X7));
             }
         }
 
         // Convert currency to tokens at price, rounding up, and update global cleared tokens.
         // Intentional round-up leaves a small amount of dust to sweep, ensuring cleared tokens never exceed TOTAL_SUPPLY
         // even when using rounded-up clearing prices on tick boundaries.
-        uint256 tokensClearedQ96X7 = currencyRaisedDeltaQ96X7.fullMulDivUp(FixedPoint96.Q96, priceQ96);
-        $totalClearedQ96_X7 = ValueX7.wrap(ValueX7.unwrap($totalClearedQ96_X7) + tokensClearedQ96X7);
+        uint256 tokensClearedQ96X7 = currencyRaisedDeltaQ96X7.toTokensRoundingUp(priceQ96);
+
+        $totalClearedQ96_X7 = $totalClearedQ96_X7.add(ValueX7.wrap(tokensClearedQ96X7));
         // Update global currency raised
-        $currencyRaisedQ96_X7 = ValueX7.wrap(ValueX7.unwrap($currencyRaisedQ96_X7) + currencyRaisedDeltaQ96X7);
+        $currencyRaisedQ96_X7 = $currencyRaisedQ96_X7.add(ValueX7.wrap(currencyRaisedDeltaQ96X7));
 
         _checkpoint.cumulativeMps += _deltaMps;
         // Harmonic-mean accumulator: add (mps / price) using the rounded-up clearing price for this increment
@@ -282,40 +284,14 @@ contract ContinuousClearingAuction is
         return _checkpoint;
     }
 
-    /// @notice Fast forward to the start of the current step and return the number of `mps` sold since the last checkpoint
-    /// @param _blockNumber The current block number
-    /// @param _lastCheckpointedBlock The block number of the last checkpointed block
-    /// @return step The current step in the auction which contains `_blockNumber`
-    /// @return deltaMps The number of `mps` sold between the last checkpointed block and the start of the current step
-    function _advanceToStartOfCurrentStep(uint64 _blockNumber, uint64 _lastCheckpointedBlock)
-        internal
-        returns (AuctionStep memory step, uint24 deltaMps)
-    {
-        // Advance the current step until the current block is within the step
-        // Start at the larger of the last checkpointed block or the start block of the current step
-        step = $step;
-        uint64 start = uint64(FixedPointMathLib.max(step.startBlock, _lastCheckpointedBlock));
-        uint64 end = step.endBlock;
-
-        uint24 mps = step.mps;
-        while (_blockNumber > end) {
-            uint64 blockDelta = end - start;
-            unchecked {
-                deltaMps += uint24(blockDelta * mps);
-            }
-            start = end;
-            if (end == END_BLOCK) break;
-            step = _advanceStep();
-            mps = step.mps;
-            end = step.endBlock;
-        }
-    }
-
     /// @notice Iterate to find the tick where the total demand at and above it is strictly less than the remaining supply in the auction
     /// @dev If the loop reaches the highest tick in the book, `nextActiveTickPrice` will be set to MAX_TICK_PTR
     /// @param _untilTickPrice The tick price to iterate until
     /// @return The new clearing price
-    function _iterateOverTicksAndFindClearingPrice(uint256 _untilTickPrice) internal returns (uint256) {
+    function _iterateOverTicksAndFindClearingPrice(uint256 _untilTickPrice, uint24 _cumulativeMps)
+        internal
+        returns (uint256)
+    {
         // The new clearing price can never be lower than the current clearing price
         uint256 minimumClearingPrice = $clearingPrice;
 
@@ -324,18 +300,17 @@ contract ContinuousClearingAuction is
         uint256 sumCurrencyDemandAboveClearingQ96_ = $sumCurrencyDemandAboveClearingQ96;
         uint256 nextActiveTickPrice_ = $nextActiveTickPrice;
 
+        uint256 remainingMps = ConstantsLib.MPS - _cumulativeMps;
         ValueX7 remainingSupplyQ96X7 = TOTAL_SUPPLY_Q96_X7.saturatingSub($totalClearedQ96_X7);
 
-        console.log("remainingSupplyQ96X7", ValueX7.unwrap(remainingSupplyQ96X7));
-        console.log("sumCurrencyDemandAboveClearingQ96_", sumCurrencyDemandAboveClearingQ96_);
-        console.log("nextActiveTickPrice_", nextActiveTickPrice_);
-
         // Loop until we find the price at which the demand can purchase the total supply according to the original supply schedule.
-        uint256 clearingPrice_ = sumCurrencyDemandAboveClearingQ96_.fullMulDivUp(FixedPoint96.Q96 * ConstantsLib.MPS, ValueX7.unwrap(remainingSupplyQ96X7));
+        uint256 clearingPrice_ =
+            (sumCurrencyDemandAboveClearingQ96_ * remainingMps).toPriceRoundingUp(ValueX7.unwrap(remainingSupplyQ96X7));
         while (
             // Loop while the currency amount above the clearing price is greater than the required currency at `nextActiveTickPrice_`
             (nextActiveTickPrice_ != _untilTickPrice
-                    && sumCurrencyDemandAboveClearingQ96_ >= ValueX7.unwrap(remainingSupplyQ96X7).fullMulDiv(nextActiveTickPrice_, FixedPoint96.Q96 * ConstantsLib.MPS))
+                    && sumCurrencyDemandAboveClearingQ96_ * remainingMps
+                        >= ValueX7.unwrap(remainingSupplyQ96X7).toCurrencyRoundingUp(nextActiveTickPrice_))
                 // If the demand above clearing rounds up to the `nextActiveTickPrice`, we need to keep iterating over ticks
                 // This ensures that the `nextActiveTickPrice` is always the next initialized tick strictly above the clearing price
                 || clearingPrice_ == nextActiveTickPrice_
@@ -347,7 +322,9 @@ contract ContinuousClearingAuction is
             minimumClearingPrice = nextActiveTickPrice_;
             // Advance to the next tick
             nextActiveTickPrice_ = $nextActiveTick.next;
-            clearingPrice_ = sumCurrencyDemandAboveClearingQ96_.divUp(TOTAL_SUPPLY);
+            clearingPrice_ = (sumCurrencyDemandAboveClearingQ96_ * remainingMps)
+            .toPriceRoundingUp(ValueX7.unwrap(remainingSupplyQ96X7));
+
             updateStateVariables = true;
         }
         // Set the values into storage if we found a new next active tick price
@@ -384,7 +361,7 @@ contract ContinuousClearingAuction is
         if (_checkpoint.remainingMpsInAuction() > 0) {
             // Iterate over all ticks until MAX_TICK_PTR to find the clearing price
             // This can revert with out of gas if there are a large number of ticks
-            uint256 newClearingPrice = _iterateOverTicksAndFindClearingPrice(MAX_TICK_PTR);
+            uint256 newClearingPrice = _iterateOverTicksAndFindClearingPrice(MAX_TICK_PTR, _checkpoint.cumulativeMps);
             // checkpoint has the stale clearing price
             if (newClearingPrice != _checkpoint.clearingPrice) {
                 // Set the new clearing price
@@ -457,7 +434,6 @@ contract ContinuousClearingAuction is
         // Scale the amount according to the rest of the supply schedule, accounting for past blocks
         // This is only used in demand related internal calculations
 
-        // uint256 bidEffectiveAmountQ96 = bid.toEffectiveAmount(TOTAL_SUPPLY_Q96_X7, $totalClearedQ96_X7);
         uint256 bidEffectiveAmountQ96 = bid.toEffectiveAmount();
 
         // Update the tick demand with the bid's scaled amount
@@ -524,7 +500,8 @@ contract ContinuousClearingAuction is
                 revert TickHintMustBeGreaterThanNextActiveTickPrice(_untilTickPrice, $nextActiveTickPrice);
             }
         }
-        uint256 newClearingPrice = _iterateOverTicksAndFindClearingPrice(_untilTickPrice);
+        uint256 newClearingPrice =
+            _iterateOverTicksAndFindClearingPrice(_untilTickPrice, latestCheckpoint().cumulativeMps);
         // Update the clearing price in storage if it has changed
         if (newClearingPrice != $clearingPrice) {
             $clearingPrice = newClearingPrice;
@@ -745,8 +722,7 @@ contract ContinuousClearingAuction is
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
         uint256 unsoldTokens;
         if (_isGraduated()) {
-            uint256 totalSupplyQ96 = uint256(TOTAL_SUPPLY) << FixedPoint96.RESOLUTION;
-            unsoldTokens = totalSupplyQ96.scaleUpToX7().saturatingSub($totalClearedQ96_X7).divUint256(FixedPoint96.Q96)
+            unsoldTokens = TOTAL_SUPPLY_Q96_X7.saturatingSub($totalClearedQ96_X7).divUint256(FixedPoint96.Q96)
                 .scaleDownToUint256();
         } else {
             unsoldTokens = TOTAL_SUPPLY;

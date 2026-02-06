@@ -31,21 +31,14 @@ library BidLib {
         return ConstantsLib.MPS - bid.startCumulativeMps;
     }
 
-    /// legacy function
-    function toEffectiveAmount(Bid memory bid) internal pure returns (uint256) {
-        uint24 mpsRemainingInAuction = bid.mpsRemainingInAuctionAfterSubmission();
-        if (mpsRemainingInAuction == 0) revert MpsRemainingIsZero();
-        return bid.amountQ96 * ConstantsLib.MPS / mpsRemainingInAuction;
-    }
-
     /// @notice Scale a bid amount to its effective amount over the remaining percentage of the auction
     ///         This is an important normalization step to ensure that we can calculate the currencyRaised
     ///         when cumulative demand is less than supply using the original supply schedule.
     /// @param bid The bid to scale
     /// @return The scaled amount
-    function toEffectiveAmount(Bid memory bid, ValueX7 totalSupplyQ96X7, ValueX7 totalClearedQ96X7) internal pure returns (uint256) {
-        ValueX7 denominator = totalSupplyQ96X7.saturatingSub(totalClearedQ96X7);
-        if (ValueX7.unwrap(denominator) == 0) revert MpsRemainingIsZero();
-        return FixedPointMathLib.fullMulDiv(bid.amountQ96, ValueX7.unwrap(totalSupplyQ96X7), ValueX7.unwrap(denominator));
+    function toEffectiveAmount(Bid memory bid) internal pure returns (uint256) {
+        uint24 mpsRemainingInAuction = bid.mpsRemainingInAuctionAfterSubmission();
+        if (mpsRemainingInAuction == 0) revert MpsRemainingIsZero();
+        return bid.amountQ96 * ConstantsLib.MPS / mpsRemainingInAuction;
     }
 }

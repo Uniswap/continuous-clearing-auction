@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {FixedPoint96} from './FixedPoint96.sol';
+import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @title PriceLib

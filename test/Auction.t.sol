@@ -1486,6 +1486,8 @@ contract AuctionTest is AuctionBaseTest {
         uint256 sumCurrencyDemandAboveClearingQ96 = mockAuction.sumCurrencyDemandAboveClearingQ96();
         // Demand should be the same as the bid demand
         assertEq(sumCurrencyDemandAboveClearingQ96, mockAuction.getBid(bidId).toEffectiveAmount());
+        // Assert that because of supply rollover, the required demand at the next active tick is equal to the total supply * next active tick price
+        assertEq(mockAuction.requiredDemandAtNextActiveTick(), TOTAL_SUPPLY * tickNumberToPriceX96(2));
         /**
          * Roll one more block and checkpoint
          * blockNumber:     1                11   12                              111
@@ -1920,7 +1922,7 @@ contract AuctionTest is AuctionBaseTest {
     {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
         // Ensure an amount of at least 1 for every bid
-        $bidAmount = uint128(bound(_bidAmount, _numberOfBids, type(uint128).max));
+        $bidAmount = uint128(bound(_bidAmount, _numberOfBids, _maxBidAmount()));
 
         uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids, $maxPrice);
 
@@ -1943,11 +1945,7 @@ contract AuctionTest is AuctionBaseTest {
     {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
         vm.assume($maxPrice < (uint256(type(uint128).max) * FixedPoint96.Q96) / (TOTAL_SUPPLY + _numberOfBids));
-        $bidAmount = uint128(
-            _bound(
-                $bidAmount, (TOTAL_SUPPLY + _numberOfBids).fullMulDivUp($maxPrice, FixedPoint96.Q96), type(uint128).max
-            )
-        );
+        $bidAmount = uint128(_bound($bidAmount, _numberOfBids, _maxBidAmount()));
 
         uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids, $maxPrice);
 
@@ -2016,11 +2014,7 @@ contract AuctionTest is AuctionBaseTest {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
         // Because each bid will be a little less due to rounding
         vm.assume($maxPrice < (uint256(type(uint128).max) * FixedPoint96.Q96) / (TOTAL_SUPPLY + _numberOfBids));
-        $bidAmount = uint128(
-            _bound(
-                $bidAmount, (TOTAL_SUPPLY + _numberOfBids).fullMulDivUp($maxPrice, FixedPoint96.Q96), type(uint128).max
-            )
-        );
+        $bidAmount = uint128(_bound($bidAmount, _numberOfBids, _maxBidAmount()));
 
         uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids, $maxPrice);
 

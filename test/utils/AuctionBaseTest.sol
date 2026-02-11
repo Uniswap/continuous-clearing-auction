@@ -487,6 +487,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     // Bid & Price Validation Modifiers
     // ============================================
 
+    function _maxBidAmount() internal pure returns (uint256) {
+        return ConstantsLib.X7_UPPER_BOUND / (FixedPoint96.Q96 * ConstantsLib.MPS);
+    }
+
     /// @dev Uses default values for floor price and tick spacing
     modifier givenValidMaxPrice(uint256 _maxPrice, uint128 _totalSupply) {
         $maxPrice = helper__assumeValidMaxPrice(FLOOR_PRICE, _maxPrice, _totalSupply, TICK_SPACING);
@@ -504,7 +508,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     }
 
     modifier givenValidBidAmount(uint128 _bidAmount) {
-        $bidAmount = SafeCastLib.toUint128(_bound(_bidAmount, 1, type(uint128).max));
+        $bidAmount = SafeCastLib.toUint128(_bound(_bidAmount, 1, _maxBidAmount()));
         _;
     }
 

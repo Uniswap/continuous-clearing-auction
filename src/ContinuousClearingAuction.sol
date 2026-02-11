@@ -16,6 +16,7 @@ import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
+import {DemandLib} from './libraries/DemandLib.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {MaxBidPriceLib} from './libraries/MaxBidPriceLib.sol';
 import {PriceLib} from './libraries/PriceLib.sol';
@@ -52,6 +53,7 @@ contract ContinuousClearingAuction is
     using ValidationHookLib for IValidationHook;
     using ValueX7Lib for *;
     using PriceLib for uint256;
+    using DemandLib for uint256;
 
     /// @notice The maximum price which a bid can be submitted at
     /// @dev Set during construction using MaxBidPriceLib.maxBidPrice() based on TOTAL_SUPPLY
@@ -297,39 +299,39 @@ contract ContinuousClearingAuction is
 
         // Place state variables on the stack to save gas
         bool updateStateVariables;
-        uint256 sumCurrencyDemandAboveClearingQ96_ = $sumCurrencyDemandAboveClearingQ96;
+        uint256 demandAboveClearingQ96 = $sumCurrencyDemandAboveClearingQ96;
         uint256 nextActiveTickPrice_ = $nextActiveTickPrice;
 
         uint256 remainingMps = ConstantsLib.MPS - _cumulativeMps;
-        ValueX7 remainingSupplyQ96X7 = TOTAL_SUPPLY_Q96_X7.saturatingSub($totalClearedQ96_X7);
+        // Unwrap as we defer dividing by 1e7 by moving it to the LHS as multiplication
+        uint256 remainingSupplyQ96X7 = ValueX7.unwrap(TOTAL_SUPPLY_Q96_X7.saturatingSub($totalClearedQ96_X7));
 
         // Loop until we find the price at which the demand can purchase the total supply according to the original supply schedule.
         uint256 clearingPrice_ =
-            (sumCurrencyDemandAboveClearingQ96_ * remainingMps).toPriceRoundingUp(ValueX7.unwrap(remainingSupplyQ96X7));
+            (demandAboveClearingQ96 * remainingMps * ConstantsLib.MPS).toPriceRoundingUp(remainingSupplyQ96X7);
         while (
             // Loop while the currency amount above the clearing price is greater than the required currency at `nextActiveTickPrice_`
             (nextActiveTickPrice_ != _untilTickPrice
-                    && sumCurrencyDemandAboveClearingQ96_ * remainingMps
-                        >= ValueX7.unwrap(remainingSupplyQ96X7).toCurrencyRoundingUp(nextActiveTickPrice_))
+                    && (demandAboveClearingQ96 * remainingMps * ConstantsLib.MPS)
+                    .gte(remainingSupplyQ96X7, nextActiveTickPrice_))
                 // If the demand above clearing rounds up to the `nextActiveTickPrice`, we need to keep iterating over ticks
                 // This ensures that the `nextActiveTickPrice` is always the next initialized tick strictly above the clearing price
                 || clearingPrice_ == nextActiveTickPrice_
         ) {
             Tick storage $nextActiveTick = _getTick(nextActiveTickPrice_);
             // Subtract the demand at the current nextActiveTick from the total demand
-            sumCurrencyDemandAboveClearingQ96_ -= $nextActiveTick.currencyDemandQ96;
+            demandAboveClearingQ96 -= $nextActiveTick.currencyDemandQ96;
             // Save the previous next active tick price
             minimumClearingPrice = nextActiveTickPrice_;
             // Advance to the next tick
             nextActiveTickPrice_ = $nextActiveTick.next;
-            clearingPrice_ = (sumCurrencyDemandAboveClearingQ96_ * remainingMps)
-            .toPriceRoundingUp(ValueX7.unwrap(remainingSupplyQ96X7));
-
+            clearingPrice_ =
+                (demandAboveClearingQ96 * remainingMps * ConstantsLib.MPS).toPriceRoundingUp(remainingSupplyQ96X7);
             updateStateVariables = true;
         }
         // Set the values into storage if we found a new next active tick price
         if (updateStateVariables) {
-            $sumCurrencyDemandAboveClearingQ96 = sumCurrencyDemandAboveClearingQ96_;
+            $sumCurrencyDemandAboveClearingQ96 = demandAboveClearingQ96;
             $nextActiveTickPrice = nextActiveTickPrice_;
             emit NextActiveTickUpdated(nextActiveTickPrice_);
         }
@@ -433,7 +435,6 @@ contract ContinuousClearingAuction is
 
         // Scale the amount according to the rest of the supply schedule, accounting for past blocks
         // This is only used in demand related internal calculations
-
         uint256 bidEffectiveAmountQ96 = bid.toEffectiveAmount();
 
         // Update the tick demand with the bid's scaled amount
@@ -730,7 +731,22 @@ contract ContinuousClearingAuction is
         _sweepUnsoldTokens(_getBlockNumberish(), unsoldTokens);
     }
 
+    // Derived state getters
+
+    function remainingSupplyQ96X7() public view returns (uint256) {
+        return ValueX7.unwrap(TOTAL_SUPPLY_Q96_X7.saturatingSub($totalClearedQ96_X7));
+    }
+
+    function requiredDemand(uint256 _priceQ96) public view returns (uint256) {
+        return remainingSupplyQ96X7().toCurrencyRoundingUp(_priceQ96);
+    }
+
+    function requiredDemandAtNextActiveTick() public view returns (uint256) {
+        return requiredDemand($nextActiveTickPrice);
+    }
+
     // Getters
+
     /// @inheritdoc IContinuousClearingAuction
     function currency() external view returns (address) {
         return Currency.unwrap(CURRENCY);

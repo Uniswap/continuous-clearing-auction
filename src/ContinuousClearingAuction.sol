@@ -41,7 +41,6 @@ contract ContinuousClearingAuction is
     StepStorage,
     TickStorage,
     TokenCurrencyStorage,
-    BlockNumberish,
     ReentrancyGuardTransient,
     IContinuousClearingAuction
 {
@@ -58,8 +57,6 @@ contract ContinuousClearingAuction is
     /// @notice The maximum price which a bid can be submitted at
     /// @dev Set during construction using MaxBidPriceLib.maxBidPrice() based on TOTAL_SUPPLY
     uint256 public immutable MAX_BID_PRICE;
-    /// @notice The block at which purchased tokens can be claimed
-    uint64 internal immutable CLAIM_BLOCK;
     /// @notice An optional hook to be called before a bid is registered
     IValidationHook internal immutable VALIDATION_HOOK;
 
@@ -78,7 +75,7 @@ contract ContinuousClearingAuction is
     bool private $_tokensReceived;
 
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
-        StepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
+        StepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock, _parameters.claimBlock)
         TokenCurrencyStorage(
             _token,
             _parameters.currency,
@@ -89,10 +86,7 @@ contract ContinuousClearingAuction is
         )
         TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
     {
-        CLAIM_BLOCK = _parameters.claimBlock;
         VALIDATION_HOOK = IValidationHook(_parameters.validationHook);
-
-        if (CLAIM_BLOCK < END_BLOCK) revert ClaimBlockIsBeforeEndBlock();
 
         // See MaxBidPriceLib library for more details on the bid price calculations.
         MAX_BID_PRICE = MaxBidPriceLib.maxBidPrice(TOTAL_SUPPLY);
@@ -106,18 +100,6 @@ contract ContinuousClearingAuction is
 
         $clearingPrice = FLOOR_PRICE;
         emit ClearingPriceUpdated(_getBlockNumberish(), $clearingPrice);
-    }
-
-    /// @notice Modifier for functions which can only be called after the auction is over
-    modifier onlyAfterAuctionIsOver() {
-        if (_getBlockNumberish() < END_BLOCK) revert AuctionIsNotOver();
-        _;
-    }
-
-    /// @notice Modifier for claim related functions which can only be called after the claim block
-    modifier onlyAfterClaimBlock() {
-        if (_getBlockNumberish() < CLAIM_BLOCK) revert NotClaimable();
-        _;
     }
 
     /// @notice Modifier for functions which can only be called after the auction is started and the tokens have been received

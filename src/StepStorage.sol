@@ -4,12 +4,13 @@ pragma solidity 0.8.26;
 import {IStepStorage} from './interfaces/IStepStorage.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {AuctionStep, StepLib} from './libraries/StepLib.sol';
+import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SSTORE2} from 'solady/utils/SSTORE2.sol';
 
 /// @title StepStorage
 /// @notice Abstract contract to store and read information about the auction issuance schedule
-abstract contract StepStorage is IStepStorage {
+abstract contract StepStorage is BlockNumberish, IStepStorage {
     using StepLib for *;
     using SSTORE2 for *;
 
@@ -17,6 +18,8 @@ abstract contract StepStorage is IStepStorage {
     uint64 internal immutable START_BLOCK;
     /// @notice The block at which the auction ends
     uint64 internal immutable END_BLOCK;
+    /// @notice The block at which purchased tokens can be claimed
+    uint64 internal immutable CLAIM_BLOCK;
     /// @notice Cached length of the auction steps data provided in the constructor
     uint256 internal immutable _LENGTH;
 
@@ -27,10 +30,13 @@ abstract contract StepStorage is IStepStorage {
     /// @notice The current active auction step
     AuctionStep internal $step;
 
-    constructor(bytes memory _auctionStepsData, uint64 _startBlock, uint64 _endBlock) {
+    constructor(bytes memory _auctionStepsData, uint64 _startBlock, uint64 _endBlock, uint64 _claimBlock) {
         if (_startBlock >= _endBlock) revert InvalidEndBlock();
+        if (_claimBlock < _endBlock) revert ClaimBlockIsBeforeEndBlock();
+
         START_BLOCK = _startBlock;
         END_BLOCK = _endBlock;
+        CLAIM_BLOCK = _claimBlock;
         _LENGTH = _auctionStepsData.length;
 
         address _pointer = _auctionStepsData.write();
@@ -38,6 +44,18 @@ abstract contract StepStorage is IStepStorage {
         $_pointer = _pointer;
 
         _advanceStep();
+    }
+
+    /// @notice Modifier for functions which can only be called after the auction is over
+    modifier onlyAfterAuctionIsOver() {
+        if (_getBlockNumberish() < END_BLOCK) revert AuctionIsNotOver();
+        _;
+    }
+
+    /// @notice Modifier for claim related functions which can only be called after the claim block
+    modifier onlyAfterClaimBlock() {
+        if (_getBlockNumberish() < CLAIM_BLOCK) revert NotClaimable();
+        _;
     }
 
     /// @notice Fast forward to the start of the current step and return the number of `mps` sold since the last checkpoint

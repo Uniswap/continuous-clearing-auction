@@ -573,7 +573,7 @@ contract AuctionTest is AuctionBaseTest {
         // Before the auction ends, the bid should not be exitable since it is at the clearing price
         vm.roll(auction.endBlock() - 1);
         if ($maxPrice > checkpoint.clearingPrice) {
-            vm.expectRevert(IContinuousClearingAuction.AuctionIsNotOver.selector);
+            vm.expectRevert(IStepStorage.AuctionIsNotOver.selector);
             auction.exitBid(bidId);
         } else {
             vm.expectRevert(IContinuousClearingAuction.CannotPartiallyExitBidBeforeEndBlock.selector);
@@ -1634,7 +1634,7 @@ contract AuctionTest is AuctionBaseTest {
     function test_auctionConstruction_revertsWithClaimBlockBeforeEndBlock() public {
         AuctionParameters memory paramsClaimBlockBeforeEndBlock =
             params.withClaimBlock(block.number + AUCTION_DURATION - 1).withEndBlock(block.number + AUCTION_DURATION);
-        vm.expectRevert(IContinuousClearingAuction.ClaimBlockIsBeforeEndBlock.selector);
+        vm.expectRevert(IStepStorage.ClaimBlockIsBeforeEndBlock.selector);
         new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, paramsClaimBlockBeforeEndBlock);
     }
 
@@ -1854,7 +1854,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(auction.claimBlock() - 1);
 
         // Try to claim tokens before the claim block
-        vm.expectRevert(IContinuousClearingAuction.NotClaimable.selector);
+        vm.expectRevert(IStepStorage.NotClaimable.selector);
         auction.claimTokens(bidId);
     }
 
@@ -1959,7 +1959,7 @@ contract AuctionTest is AuctionBaseTest {
         }
 
         vm.roll(auction.claimBlock() - 1);
-        vm.expectRevert(IContinuousClearingAuction.NotClaimable.selector);
+        vm.expectRevert(IStepStorage.NotClaimable.selector);
         auction.claimTokensBatch(alice, bids);
     }
 
@@ -2048,14 +2048,14 @@ contract AuctionTest is AuctionBaseTest {
     function test_sweepCurrency_beforeAuctionEnds_reverts() public {
         vm.startPrank(auction.fundsRecipient());
         vm.roll(auction.endBlock() - 1);
-        vm.expectRevert(IContinuousClearingAuction.AuctionIsNotOver.selector);
+        vm.expectRevert(IStepStorage.AuctionIsNotOver.selector);
         auction.sweepCurrency();
         vm.stopPrank();
     }
 
     function test_sweepUnsoldTokens_beforeAuctionEnds_reverts() public {
         vm.roll(auction.endBlock() - 1);
-        vm.expectRevert(IContinuousClearingAuction.AuctionIsNotOver.selector);
+        vm.expectRevert(IStepStorage.AuctionIsNotOver.selector);
         auction.sweepUnsoldTokens();
     }
 

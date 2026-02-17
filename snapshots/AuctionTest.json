@@ -1,3 +1,12 @@
 {
-  "submitBid_recordStep_updateCheckpoint": "362716"
+  "Auction bytecode size": "18621",
+  "checkpoint_advanceToCurrentStep": "180163",
+  "checkpoint_noBids": "166135",
+  "checkpoint_zeroSupply": "121160",
+  "submitBidWithoutPrevTickPrice": "154118",
+  "submitBidWithoutPrevTickPrice_initializeTick_search": "202157",
+  "submitBidWithoutPrevTickPrice_initializeTick_updateCheckpoint": "362638",
+  "submitBid_recordStep_updateCheckpoint": "362750",
+  "submitBid_recordStep_updateCheckpoint_initializeTick": "362750",
+  "submitBid_withValidationHook": "366707"
 }

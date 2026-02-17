@@ -51,7 +51,7 @@ contract ContinuousClearingAuction is
     using CheckpointLib for Checkpoint;
     using ValidationHookLib for IValidationHook;
     using ValueX7Lib for *;
-    using PriceLib for uint256;
+    using PriceLib for *;
     using DemandLib for uint256;
 
     /// @notice The maximum price which a bid can be submitted at
@@ -286,16 +286,16 @@ contract ContinuousClearingAuction is
 
         uint256 remainingMps = ConstantsLib.MPS - _cumulativeMps;
         // Unwrap as we defer dividing by 1e7 by moving it to the LHS as multiplication
-        uint256 remainingSupplyQ96X7 = ValueX7.unwrap(TOTAL_SUPPLY_Q96_X7.saturatingSub($totalClearedQ96_X7));
+        uint256 remainingSupplyQ96 = ValueX7.unwrap(remainingSupplyQ96X7());
 
         // Loop until we find the price at which the demand can purchase the total supply according to the original supply schedule.
         uint256 clearingPrice_ =
-            (demandAboveClearingQ96 * remainingMps * ConstantsLib.MPS).toPriceRoundingUp(remainingSupplyQ96X7);
+            (demandAboveClearingQ96 * remainingMps * ConstantsLib.MPS).toPriceRoundingUp(remainingSupplyQ96);
         while (
             // Loop while the currency amount above the clearing price is greater than the required currency at `nextActiveTickPrice_`
             (nextActiveTickPrice_ != _untilTickPrice
                     && (demandAboveClearingQ96 * remainingMps * ConstantsLib.MPS)
-                    .gte(remainingSupplyQ96X7, nextActiveTickPrice_))
+                    .gte(remainingSupplyQ96, nextActiveTickPrice_))
                 // If the demand above clearing rounds up to the `nextActiveTickPrice`, we need to keep iterating over ticks
                 // This ensures that the `nextActiveTickPrice` is always the next initialized tick strictly above the clearing price
                 || clearingPrice_ == nextActiveTickPrice_
@@ -308,7 +308,7 @@ contract ContinuousClearingAuction is
             // Advance to the next tick
             nextActiveTickPrice_ = $nextActiveTick.next;
             clearingPrice_ =
-                (demandAboveClearingQ96 * remainingMps * ConstantsLib.MPS).toPriceRoundingUp(remainingSupplyQ96X7);
+                (demandAboveClearingQ96 * remainingMps * ConstantsLib.MPS).toPriceRoundingUp(remainingSupplyQ96);
             updateStateVariables = true;
         }
         // Set the values into storage if we found a new next active tick price
@@ -705,8 +705,7 @@ contract ContinuousClearingAuction is
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
         uint256 unsoldTokens;
         if (_isGraduated()) {
-            unsoldTokens = TOTAL_SUPPLY_Q96_X7.saturatingSub($totalClearedQ96_X7).divUint256(FixedPoint96.Q96)
-                .scaleDownToUint256();
+            unsoldTokens = remainingSupplyQ96X7().divUint256(FixedPoint96.Q96).scaleDownToUint256();
         } else {
             unsoldTokens = TOTAL_SUPPLY;
         }
@@ -715,8 +714,8 @@ contract ContinuousClearingAuction is
 
     // Derived state getters
 
-    function remainingSupplyQ96X7() public view returns (uint256) {
-        return ValueX7.unwrap(TOTAL_SUPPLY_Q96_X7.saturatingSub($totalClearedQ96_X7));
+    function remainingSupplyQ96X7() public view returns (ValueX7) {
+        return TOTAL_SUPPLY_Q96_X7.saturatingSub($totalClearedQ96_X7);
     }
 
     function requiredDemand(uint256 _priceQ96) public view returns (uint256) {

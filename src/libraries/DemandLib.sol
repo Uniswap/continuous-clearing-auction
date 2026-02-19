@@ -16,6 +16,6 @@ library DemandLib {
     function gte(uint256 _demandQ96, uint256 _supplyQ96X7, uint256 _priceQ96) internal pure returns (bool) {
         (uint256 highLhs, uint256 lowLhs) = Math.mul512(_demandQ96, FixedPoint96.Q96);
         (uint256 highRhs, uint256 lowRhs) = Math.mul512(_supplyQ96X7, _priceQ96);
-        return highLhs > highRhs || (highLhs == highRhs && lowLhs > lowRhs);
+        return highLhs > highRhs || (highLhs == highRhs && lowLhs >= lowRhs);
     }
 }

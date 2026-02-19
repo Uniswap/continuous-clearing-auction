@@ -25,10 +25,11 @@ import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
-import {console} from 'forge-std/console.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {ReentrancyGuardTransient} from 'solady/utils/ReentrancyGuardTransient.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
+
+import {console} from 'forge-std/console.sol';
 
 /// @title ContinuousClearingAuction
 /// @custom:security-contact security@uniswap.org
@@ -221,30 +222,32 @@ contract ContinuousClearingAuction is
                 uint256 currencyRaisedAboveClearingQ96X7 = currencyRaisedDeltaQ96X7;
 
                 // Total implied currencyRaised at the (potentially rounded-up) clearing price:
-                // = TOTAL_SUPPLY × priceQ96 (Q96) × deltaMps (X7) = Q96*X7
                 // Note: this will be an overestimate if the price is rounded up
                 uint256 totalCurrencyForDeltaQ96X7;
                 unchecked {
                     totalCurrencyForDeltaQ96X7 = (uint256(TOTAL_SUPPLY) * priceQ96) * deltaMpsU;
                 }
+                console.log('totalCurrencyForDeltaQ96X7', totalCurrencyForDeltaQ96X7);
 
                 // (A) Derived contribution from the clearing tick by substracting
                 //     the above-clearing contribution from the total implied currencyRaised
                 uint256 calculatedCurrencyRaisedAtClearingQ96X7 =
                     totalCurrencyForDeltaQ96X7 - currencyRaisedAboveClearingQ96X7;
+                console.log('calculatedCurrencyRaisedAtClearingQ96X7', calculatedCurrencyRaisedAtClearingQ96X7);
 
                 // (B) Maximum possible currencyRaised from bids at the clearing tick, scaling the tick demand by deltaMps
                 uint256 maximumCurrencyRaisedAtClearingQ96X7;
                 unchecked {
                     maximumCurrencyRaisedAtClearingQ96X7 = demandAtPriceQ96 * deltaMpsU;
                 }
+                console.log('maximumCurrencyRaisedAtClearingQ96X7', maximumCurrencyRaisedAtClearingQ96X7);
 
                 // If price was rounded up, (A) can exceed (B). In that case, currencyRaised from the clearing tick is bounded by actual
                 // tick demand; take min((A), (B)). If the price was not rounded up, (A) == (B).
                 uint256 currencyRaisedAtClearingQ96X7 = FixedPointMathLib.min(
                     calculatedCurrencyRaisedAtClearingQ96X7, maximumCurrencyRaisedAtClearingQ96X7
                 );
-
+                console.log('currencyRaisedAtClearingQ96X7', currencyRaisedAtClearingQ96X7);
                 // Change in currency raised = currency raised at clearing + currency raised above clearing
                 currencyRaisedDeltaQ96X7 = currencyRaisedAtClearingQ96X7 + currencyRaisedAboveClearingQ96X7;
                 // Track cumulative currency raised exactly at this clearing price (used for partial exits)
@@ -258,13 +261,18 @@ contract ContinuousClearingAuction is
         // even when using rounded-up clearing prices on tick boundaries.
         uint256 tokensClearedQ96X7 = currencyRaisedDeltaQ96X7.toTokensRoundingUp(priceQ96);
 
+        console.log('tokensClearedQ96X7', tokensClearedQ96X7);
+
         $totalClearedQ96_X7 = $totalClearedQ96_X7.add(ValueX7.wrap(tokensClearedQ96X7));
+        
         // Update global currency raised
         $currencyRaisedQ96_X7 = $currencyRaisedQ96_X7.add(ValueX7.wrap(currencyRaisedDeltaQ96X7));
 
         _checkpoint.cumulativeMps += _deltaMps;
-        // Harmonic-mean accumulator: add (mps / price) using the rounded-up clearing price for this increment
-        _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(_deltaMps, priceQ96);
+
+        _checkpoint.cumulativeMpsPerPrice += tokensClearedQ96X7.fullMulDiv(FixedPoint96.Q96, priceQ96 * ConstantsLib.MPS);
+
+        // _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(_deltaMps, priceQ96);
         return _checkpoint;
     }
 

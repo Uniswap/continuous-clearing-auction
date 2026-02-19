@@ -339,27 +339,28 @@ contract AuctionTest is AuctionBaseTest {
         checkAuctionIsGraduated
         checkAuctionIsSolvent
     {
-        // Advance by one such that the auction is already started
+        // Advance such that the auction is already started
         uint256 targetBlock =
             _bound(_seed % (auction.endBlock() - auction.startBlock()), auction.startBlock() + 1, auction.endBlock());
 
         Checkpoint memory checkpoint = auction.checkpoint();
+        uint64 lastFullyFilledCheckpointBlock = uint64(targetBlock);
 
-        // Bid for just under the total supply
-        $bidAmount = uint128((TOTAL_SUPPLY + 1).fullMulDivUp(checkpoint.clearingPrice, FixedPoint96.Q96));
+        // Bid enough to purchase the total supply at the maxPrice
+        $bidAmount = uint128((TOTAL_SUPPLY).fullMulDivUp($maxPrice, FixedPoint96.Q96));
+        vm.assume($bidAmount < _maxBidAmount());
 
         vm.roll(targetBlock);
-        uint256 bidId =
-            auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, tickNumberToPriceX96(1), bytes(''));
+        uint256 bidId = auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, bytes(''));
 
         vm.roll(auction.endBlock());
         checkpoint = auction.checkpoint();
-        assertGt(checkpoint.clearingPrice, auction.floorPrice(), 'Clearing price should be greater than floor price');
+        assertEq(checkpoint.clearingPrice, $maxPrice, 'Clearing price should be equal to max price');
 
-        auction.exitBid(bidId);
+        auction.exitPartiallyFilledBid(bidId, lastFullyFilledCheckpointBlock, 0); // never outbid
 
         uint256 expectedTokensFilled = auction.bids(bidId).tokensFilled;
-        vm.assume(expectedTokensFilled > 0);
+        assertEq(expectedTokensFilled, TOTAL_SUPPLY, 'Expected tokens filled should be equal to total supply');
 
         vm.roll(auction.claimBlock());
         vm.expectEmit(true, true, true, true);

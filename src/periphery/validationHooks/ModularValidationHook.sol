@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {IValidationHook} from '../../interfaces/IValidationHook.sol';
-import {IModuleValidationHook, Module, ModuleHookData} from '../../interfaces/periphery/IModuleValidationHook.sol';
+import {IModularValidationHook, Module, ModuleHookData} from '../../interfaces/periphery/IModularValidationHook.sol';
 import {ValidationHookIntrospection} from './ValidationHookIntrospection.sol';
 import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
 import {Initializable} from 'openzeppelin-contracts/contracts/proxy/utils/Initializable.sol';
@@ -10,7 +10,7 @@ import {EnumerableSetLib} from 'solady/utils/EnumerableSetLib.sol';
 import {CustomRevert} from 'v4-core/libraries/CustomRevert.sol';
 
 /// @notice Helper library for converting a Module to its uint256 representation
-library ValidationModuleLib {
+library ModuleLib {
     uint256 private constant HOOK_MASK = type(uint160).max;
     uint256 private constant HOOK_DATA_MASK = 1 << 160;
     uint256 private constant ALLOW_REVERT_MASK = 1 << 161;
@@ -47,8 +47,8 @@ library ValidationModuleLib {
 /// @dev Modules wrap an existing ValidationHook with additional configuration like requiring hookData or allowing reverts
 ///      this enables projects to add parallel, independent validation checks without complex inheritance patterns
 ///      Additionally, offchain integrators can discover what modules are set and interact with them accordingly
-contract ModuleValidationHook is IModuleValidationHook, ValidationHookIntrospection, Initializable, BlockNumberish {
-    using ValidationModuleLib for *;
+contract ModularValidationHook is IModularValidationHook, ValidationHookIntrospection, Initializable, BlockNumberish {
+    using ModuleLib for *;
     using EnumerableSetLib for EnumerableSetLib.Uint256Set;
 
     mapping(uint256 => Module) private $modules;
@@ -73,8 +73,9 @@ contract ModuleValidationHook is IModuleValidationHook, ValidationHookIntrospect
 
     /// @notice Modifier to only allow the hook for the given module to call the function
     modifier onlyModuleHook(uint256 moduleId) {
-        if (address($modules[moduleId].hook) == address(0)) revert InvalidModuleHook();
-        if (msg.sender != address($modules[moduleId].hook)) revert NotSetter();
+        address hook = address(moduleId.hook());
+        if (hook == address(0)) revert InvalidModuleHook();
+        if (msg.sender != hook) revert NotSetter();
         _;
     }
 
@@ -117,11 +118,7 @@ contract ModuleValidationHook is IModuleValidationHook, ValidationHookIntrospect
         }
     }
 
-    /// @notice Sets the hook data for a module
-    /// @dev Note that this will overwrite any existing cached hook data for the user of the module
-    /// @param moduleId The ID of the module
-    /// @param owner The owner of the hook data
-    /// @param _moduleHookData The hook data to set
+    /// @inheritdoc IModularValidationHook
     function setHookData(uint256 moduleId, address owner, ModuleHookData calldata _moduleHookData)
         external
         onlyModuleHook(moduleId)
@@ -136,9 +133,7 @@ contract ModuleValidationHook is IModuleValidationHook, ValidationHookIntrospect
         emit HookDataSet(moduleId, owner, _moduleHookData.validUntilBlock, _moduleHookData.hookData);
     }
 
-    /// @notice Deletes the hook data for a module
-    /// @param moduleId The ID of the module
-    /// @param owner The owner of the hook data
+    /// @inheritdoc IModularValidationHook
     function deleteHookData(uint256 moduleId, address owner) external onlyModuleHook(moduleId) {
         delete $moduleHookData[moduleId][owner];
         emit HookDataDeleted(moduleId, owner);
@@ -185,35 +180,42 @@ contract ModuleValidationHook is IModuleValidationHook, ValidationHookIntrospect
     /// @dev If successful, returns an empty bytes array
     function simulate(uint256 maxPrice, uint128 amount, address owner, address sender, bytes calldata hookData)
         external
+        returns (bytes memory)
     {
-        try this.validate(maxPrice, amount, owner, sender, hookData) {
-            assembly {
-                revert(0, 0)
-            }
+        try this.callAndRevert(
+            address(this), abi.encodeWithSelector(this.validate.selector, maxPrice, amount, owner, sender, hookData)
+        ) {
+            return bytes('');
         } catch (bytes memory reason) {
-            assembly {
-                revert(add(reason, 32), mload(reason))
-            }
+            return reason;
+        }
+    }
+
+    /// @notice Calls a function and reverts with either an empty bytes array or the reason if it fails
+    function callAndRevert(address hook, bytes memory data) external {
+        (, bytes memory reason) = hook.call(data);
+        assembly {
+            revert(add(reason, 32), mload(reason))
         }
     }
 
     // ERC-165 support
     function supportsInterface(bytes4 _interfaceId) public view virtual override returns (bool) {
-        return super.supportsInterface(_interfaceId) || _interfaceId == type(IModuleValidationHook).interfaceId;
+        return super.supportsInterface(_interfaceId) || _interfaceId == type(IModularValidationHook).interfaceId;
     }
 
     // Getters
-    /// @inheritdoc IModuleValidationHook
+    /// @inheritdoc IModularValidationHook
     function modules(uint256 moduleId) external view returns (Module memory) {
         return $modules[moduleId];
     }
 
-    /// @inheritdoc IModuleValidationHook
+    /// @inheritdoc IModularValidationHook
     function moduleIds() external view returns (uint256[] memory) {
         return $moduleIds.values();
     }
 
-    /// @inheritdoc IModuleValidationHook
+    /// @inheritdoc IModularValidationHook
     function moduleHookData(uint256 moduleId, address owner) external view returns (ModuleHookData memory) {
         return $moduleHookData[moduleId][owner];
     }

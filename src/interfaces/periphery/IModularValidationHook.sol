@@ -3,22 +3,24 @@ pragma solidity ^0.8.26;
 
 import {IValidationHook} from '../IValidationHook.sol';
 
+/// @notice A Module wraps an existing hook with additional configuration
 struct Module {
     // __reserved;
-    bool hasHookData;
-    bool allowRevert;
-    IValidationHook hook;
+    bool hasHookData; // Whether the module requires hook data
+    bool allowRevert; // Whether the module can revert
+    IValidationHook hook; // The underlying validation hook
 }
 
+/// @notice A store of hook data and additional metadata
 struct ModuleHookData {
-    bool requireSenderIsOwner;
-    bool isReplayable;
-    uint64 validUntilBlock;
-    bytes hookData;
+    bool requireSenderIsOwner; // Whether the data requires the sender to be the owner
+    bool isReplayable; // Whether the data can be used more than once
+    uint64 validUntilBlock; // The block number until which the data is valid
+    bytes hookData; // The data to forward to the underlying hook
 }
 
 /// @notice Interface for a module validation hook
-interface IModuleValidationHook is IValidationHook {
+interface IModularValidationHook is IValidationHook {
     /// @notice Error thrown when a module is already set
     error ModuleAlreadySet(uint256 moduleId);
     /// @notice Error thrown when the caller is not the setter
@@ -41,6 +43,24 @@ interface IModuleValidationHook is IValidationHook {
     event HookDataSet(uint256 indexed moduleId, address indexed owner, uint64 validUntilBlock, bytes hookData);
     /// @notice Emitted when hook data is deleted for a module
     event HookDataDeleted(uint256 indexed moduleId, address indexed owner);
+
+    /// @notice Simulates the validation hook call and returns the revert reason if it fails
+    /// @dev If successful, returns an empty bytes array
+    function simulate(uint256 maxPrice, uint128 amount, address owner, address sender, bytes calldata hookData)
+        external
+        returns (bytes memory);
+
+    /// @notice Sets the hook data for a module
+    /// @dev Note that this will overwrite any existing cached hook data for the user of the module
+    /// @param moduleId The ID of the module
+    /// @param owner The owner of the hook data
+    /// @param _moduleHookData The hook data to set
+    function setHookData(uint256 moduleId, address owner, ModuleHookData calldata _moduleHookData) external;
+
+    /// @notice Deletes the hook data for a module
+    /// @param moduleId The ID of the module
+    /// @param owner The owner of the hook data
+    function deleteHookData(uint256 moduleId, address owner) external;
 
     /// @notice Returns the module for a given ID
     /// @param moduleId The ID of the module

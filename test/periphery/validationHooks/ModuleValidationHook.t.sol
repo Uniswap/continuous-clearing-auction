@@ -17,7 +17,6 @@ import {CustomRevert} from 'v4-core/libraries/CustomRevert.sol';
 contract ModuleValidationHookTest is Test {
     using ValidationModuleLib for Module;
 
-    address setter = makeAddr('setter');
     address owner = makeAddr('owner');
     address sender = makeAddr('sender');
 
@@ -30,6 +29,12 @@ contract ModuleValidationHookTest is Test {
     MockRevertingValidationHookWithCustomError revertingHookWithCustomError;
     MockRevertingValidationHookErrorWithString revertingHookWithString;
 
+    modifier givenModuleIdIsNotZeroSentinel(Module memory module) {
+        // From solady/src/utils/EnumerableSetLib.sol
+        vm.assume(module.toId() != uint72(bytes9(keccak256(bytes('_ZERO_SENTINEL')))));
+        _;
+    }
+
     function setUp() public {
         impl = new ModuleValidationHook();
         mockHook = new MockValidationHook();
@@ -40,7 +45,7 @@ contract ModuleValidationHookTest is Test {
 
     function _deploy(Module[] memory _modules) internal returns (ModuleValidationHook) {
         ModuleValidationHook clone = ModuleValidationHook(Clones.cloneDeterministic(address(impl), bytes32(0)));
-        clone.initialize(_modules, setter);
+        clone.initialize(_modules);
         return clone;
     }
 
@@ -54,7 +59,7 @@ contract ModuleValidationHookTest is Test {
         modules[0] = Module({hasHookData: false, allowRevert: false, hook: IValidationHook(address(0))});
         ModuleValidationHook clone = ModuleValidationHook(Clones.cloneDeterministic(address(impl), bytes32(0)));
         vm.expectRevert(abi.encodeWithSelector(IModuleValidationHook.InvalidModuleHook.selector));
-        clone.initialize(modules, setter);
+        clone.initialize(modules);
     }
 
     function test_constructor_revertsWhenModuleIsAlreadySet() public {
@@ -63,7 +68,7 @@ contract ModuleValidationHookTest is Test {
         modules[1] = Module({hasHookData: true, allowRevert: true, hook: IValidationHook(mockHook)});
         ModuleValidationHook clone = ModuleValidationHook(Clones.cloneDeterministic(address(impl), bytes32(0)));
         vm.expectRevert(abi.encodeWithSelector(IModuleValidationHook.ModuleAlreadySet.selector, modules[0].toId()));
-        clone.initialize(modules, setter);
+        clone.initialize(modules);
     }
 
     function test_moduleIdsAndModules_areSet() public {
@@ -102,7 +107,7 @@ contract ModuleValidationHookTest is Test {
         assertEq(module1.allowRevert, true);
     }
 
-    function test_setHookData_onlySetter_reverts(bytes memory _hookData) public {
+    function test_setHookData_onlyModuleHook_reverts(bytes memory _hookData) public {
         Module[] memory modules = new Module[](1);
         modules[0] = Module({hasHookData: true, allowRevert: false, hook: IValidationHook(mockHook)});
         ModuleValidationHook hook = _deploy(modules);
@@ -115,7 +120,10 @@ contract ModuleValidationHookTest is Test {
         hook.setHookData(moduleId, owner, moduleHookData);
     }
 
-    function test_deleteHookData_onlySetter_reverts(Module memory module) public {
+    function test_deleteHookData_onlyModuleHook_reverts(Module memory module)
+        public
+        givenModuleIdIsNotZeroSentinel(module)
+    {
         vm.assume(address(module.hook) != address(0));
         Module[] memory modules = new Module[](1);
         modules[0] = module;
@@ -135,7 +143,7 @@ contract ModuleValidationHookTest is Test {
             requireSenderIsOwner: true, isReplayable: false, validUntilBlock: 1, hookData: bytes('hookData')
         });
 
-        vm.startPrank(setter);
+        vm.startPrank(address(mockHook));
         vm.expectEmit(true, true, true, true);
         emit IModuleValidationHook.HookDataSet(moduleId, owner, moduleHookData.validUntilBlock, moduleHookData.hookData);
         hook.setHookData(moduleId, owner, moduleHookData);
@@ -221,7 +229,7 @@ contract ModuleValidationHookTest is Test {
             hookData: _hookData
         });
 
-        vm.prank(setter);
+        vm.prank(address(mockHook));
         vm.expectEmit(true, true, true, true);
         emit IModuleValidationHook.HookDataSet(moduleId, owner, moduleHookData.validUntilBlock, moduleHookData.hookData);
         hook.setHookData(moduleId, owner, moduleHookData);
@@ -245,7 +253,7 @@ contract ModuleValidationHookTest is Test {
             hookData: bytes('hookData')
         });
 
-        vm.prank(setter);
+        vm.prank(address(mockHook));
         hook.setHookData(modules[0].toId(), owner, moduleHookData);
 
         hook.validate(0, 0, owner, owner, abi.encode(new bytes[](0)));
@@ -273,9 +281,9 @@ contract ModuleValidationHookTest is Test {
             hookData: bytes('cached')
         });
 
-        vm.prank(setter);
+        vm.prank(address(mockHook));
         hook.setHookData(modules[0].toId(), owner, moduleHookData);
-        vm.prank(setter);
+        vm.prank(address(mockHook2));
         hook.setHookData(modules[1].toId(), owner, moduleHookData);
 
         vm.expectCall(
@@ -301,7 +309,7 @@ contract ModuleValidationHookTest is Test {
             hookData: bytes('cached')
         });
 
-        vm.prank(setter);
+        vm.prank(address(mockHook));
         hook.setHookData(moduleId, owner, moduleHookData);
 
         vm.assume(_notOwner != owner);
@@ -321,7 +329,7 @@ contract ModuleValidationHookTest is Test {
             requireSenderIsOwner: true, isReplayable: false, validUntilBlock: _validUntilBlock, hookData: _expected
         });
 
-        vm.prank(setter);
+        vm.prank(address(mockHook));
         hook.setHookData(moduleId, owner, moduleHookData);
 
         vm.roll(_validUntilBlock + 1);

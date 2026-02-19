@@ -55,15 +55,12 @@ contract ModuleValidationHook is IModuleValidationHook, ValidationHookIntrospect
     EnumerableSetLib.Uint256Set private $moduleIds;
     mapping(uint256 => mapping(address => ModuleHookData)) private $moduleHookData;
 
-    /// @notice The address that set the modules. Optional if pre-posting hookData is not required.
-    address public setter;
-
     constructor() {
         _disableInitializers();
     }
 
-    /// @notice Initializes the contract with the given modules and setter. Can only be called once.
-    function initialize(Module[] memory _modules, address _setter) external initializer {
+    /// @notice Initializes the contract with the given modules. Can only be called once.
+    function initialize(Module[] memory _modules) external initializer {
         for (uint256 i = 0; i < _modules.length; i++) {
             uint256 id = _modules[i].toId();
             if (address(_modules[i].hook) == address(0)) revert InvalidModuleHook();
@@ -72,12 +69,12 @@ contract ModuleValidationHook is IModuleValidationHook, ValidationHookIntrospect
             if (!added) revert ModuleAlreadySet(id);
             emit ModuleSet(id, _modules[i].hook, _modules[i].hasHookData, _modules[i].allowRevert);
         }
-        setter = _setter;
     }
 
-    /// @notice Modifier to only allow the immutable setter to call the function
-    modifier onlySetter(address sender) {
-        if (sender != setter) revert NotSetter();
+    /// @notice Modifier to only allow the hook for the given module to call the function
+    modifier onlyModuleHook(uint256 moduleId) {
+        if (address($modules[moduleId].hook) == address(0)) revert InvalidModuleHook();
+        if (msg.sender != address($modules[moduleId].hook)) revert NotSetter();
         _;
     }
 
@@ -127,7 +124,7 @@ contract ModuleValidationHook is IModuleValidationHook, ValidationHookIntrospect
     /// @param _moduleHookData The hook data to set
     function setHookData(uint256 moduleId, address owner, ModuleHookData calldata _moduleHookData)
         external
-        onlySetter(msg.sender)
+        onlyModuleHook(moduleId)
     {
         if (owner == address(0)) {
             revert InvalidOwner();
@@ -142,7 +139,7 @@ contract ModuleValidationHook is IModuleValidationHook, ValidationHookIntrospect
     /// @notice Deletes the hook data for a module
     /// @param moduleId The ID of the module
     /// @param owner The owner of the hook data
-    function deleteHookData(uint256 moduleId, address owner) external onlySetter(msg.sender) {
+    function deleteHookData(uint256 moduleId, address owner) external onlyModuleHook(moduleId) {
         delete $moduleHookData[moduleId][owner];
         emit HookDataDeleted(moduleId, owner);
     }

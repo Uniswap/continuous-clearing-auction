@@ -6,7 +6,7 @@ import {MockContinuousClearingAuction} from '../mocks/MockContinuousClearingAuct
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {Checkpoint} from 'src/CheckpointStorage.sol';
-import {IContinuousClearingAuction} from 'src/interfaces/IContinuousClearingAuction.sol';
+import {IStepStorage} from 'src/interfaces/IStepStorage.sol';
 import {ITokenCurrencyStorage} from 'src/interfaces/ITokenCurrencyStorage.sol';
 import {ConstantsLib} from 'src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from 'src/libraries/FixedPoint96.sol';
@@ -32,7 +32,7 @@ contract SweepCurrencyTest is BttBase {
 
         vm.roll(_blockNumber);
 
-        vm.expectRevert(IContinuousClearingAuction.AuctionIsNotOver.selector);
+        vm.expectRevert(IStepStorage.AuctionIsNotOver.selector);
         auction.sweepCurrency();
     }
 

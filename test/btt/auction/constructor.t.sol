@@ -5,6 +5,7 @@ import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {ContinuousClearingAuction} from 'src/ContinuousClearingAuction.sol';
 import {IContinuousClearingAuction} from 'src/interfaces/IContinuousClearingAuction.sol';
+import {IStepStorage} from 'src/interfaces/IStepStorage.sol';
 import {ConstantsLib} from 'src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from 'src/libraries/FixedPoint96.sol';
 import {MaxBidPriceLib} from 'src/libraries/MaxBidPriceLib.sol';
@@ -23,16 +24,6 @@ contract ConstructorTest is BttBase {
      * Thus the bound on max liquidity per tick is (2^128 - 1) / (1774544 + 1) = 191757530477355300863043035987968
      */
     uint256 MAX_LIQUIDITY_BOUND = 191_757_530_477_355_300_863_043_035_987_968;
-
-    function test_WhenClaimBlockLTEndBlock(AuctionFuzzConstructorParams memory _params) external {
-        // it reverts with {ClaimBlockIsBeforeEndBlock}
-
-        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
-        mParams.parameters.claimBlock = uint64(bound(mParams.parameters.claimBlock, 0, mParams.parameters.endBlock - 1));
-
-        vm.expectRevert(IContinuousClearingAuction.ClaimBlockIsBeforeEndBlock.selector);
-        new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
-    }
 
     function test_WhenClaimBlockGEEndBlock(AuctionFuzzConstructorParams memory _params, uint64 _claimBlock)
         external

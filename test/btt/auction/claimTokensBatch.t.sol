@@ -7,6 +7,7 @@ import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {Checkpoint} from 'src/CheckpointStorage.sol';
 import {IContinuousClearingAuction} from 'src/interfaces/IContinuousClearingAuction.sol';
+import {IStepStorage} from 'src/interfaces/IStepStorage.sol';
 import {ITokenCurrencyStorage} from 'src/interfaces/ITokenCurrencyStorage.sol';
 import {ConstantsLib} from 'src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from 'src/libraries/FixedPoint96.sol';
@@ -26,7 +27,7 @@ contract ClaimTokensBatchTest is BttBase {
 
         _blockNumber = uint64(bound(_blockNumber, 0, mParams.parameters.claimBlock - 1));
         vm.roll(_blockNumber);
-        vm.expectRevert(IContinuousClearingAuction.NotClaimable.selector);
+        vm.expectRevert(IStepStorage.NotClaimable.selector);
         auction.claimTokensBatch(address(0), new uint256[](0));
     }
 

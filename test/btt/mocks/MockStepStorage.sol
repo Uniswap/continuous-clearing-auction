@@ -5,8 +5,8 @@ import {StepStorage} from 'continuous-clearing-auction/StepStorage.sol';
 import {AuctionStep} from 'continuous-clearing-auction/libraries/StepLib.sol';
 
 contract MockStepStorage is StepStorage {
-    constructor(bytes memory _auctionStepsData, uint64 _startBlock, uint64 _endBlock)
-        StepStorage(_auctionStepsData, _startBlock, _endBlock)
+    constructor(bytes memory _auctionStepsData, uint64 _startBlock, uint64 _endBlock, uint64 _claimBlock)
+        StepStorage(_auctionStepsData, _startBlock, _endBlock, _claimBlock)
     {}
 
     function advanceStep() public returns (AuctionStep memory) {
@@ -23,5 +23,9 @@ contract MockStepStorage is StepStorage {
 
     function endBlock() external view returns (uint64) {
         return END_BLOCK;
+    }
+
+    function claimBlock() external view returns (uint64) {
+        return CLAIM_BLOCK;
     }
 }

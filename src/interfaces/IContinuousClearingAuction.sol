@@ -58,8 +58,6 @@ interface IContinuousClearingAuction is
     error AuctionNotStarted();
     /// @notice Error thrown when the tokens required for the auction have not been received
     error TokensNotReceived();
-    /// @notice Error thrown when the claim block is before the end block
-    error ClaimBlockIsBeforeEndBlock();
     /// @notice Error thrown when the floor price plus tick spacing is greater than the maximum bid price
     error FloorPriceAndTickSpacingGreaterThanMaxBidPrice(uint256 nextTick, uint256 maxBidPrice);
     /// @notice Error thrown when the floor price plus tick spacing would overflow a uint256
@@ -74,8 +72,6 @@ interface IContinuousClearingAuction is
     error InvalidLastFullyFilledCheckpointHint();
     /// @notice Error thrown when the outbid block checkpoint hint is invalid
     error InvalidOutbidBlockCheckpointHint();
-    /// @notice Error thrown when the bid is not claimable
-    error NotClaimable();
     /// @notice Error thrown when the bids are not owned by the same owner
     error BatchClaimDifferentOwner(address expectedOwner, address receivedOwner);
     /// @notice Error thrown when the bid has not been exited
@@ -84,8 +80,6 @@ interface IContinuousClearingAuction is
     error CannotPartiallyExitBidBeforeGraduation();
     /// @notice Error thrown when the token transfer fails
     error TokenTransferFailed();
-    /// @notice Error thrown when the auction is not over
-    error AuctionIsNotOver();
     /// @notice Error thrown when the end block is not checkpointed
     error AuctionIsNotFinalized();
     /// @notice Error thrown when the bid is too large

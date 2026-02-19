@@ -5,6 +5,7 @@ import {AuctionParameters, ContinuousClearingAuction} from '../src/ContinuousCle
 import {ContinuousClearingAuctionFactory} from '../src/ContinuousClearingAuctionFactory.sol';
 import {IContinuousClearingAuction} from '../src/interfaces/IContinuousClearingAuction.sol';
 import {IContinuousClearingAuctionFactory} from '../src/interfaces/IContinuousClearingAuctionFactory.sol';
+import {IStepStorage} from '../src/interfaces/IStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {IDistributionContract} from '../src/interfaces/external/IDistributionContract.sol';
@@ -55,7 +56,7 @@ contract AuctionFactoryTest is AuctionBaseTest {
     function test_initializeDistribution_revertsWithInvalidClaimBlock() public {
         uint256 endBlock = block.number + AUCTION_DURATION;
         bytes memory configData = abi.encode(params.withClaimBlock(endBlock - 1));
-        vm.expectRevert(IContinuousClearingAuction.ClaimBlockIsBeforeEndBlock.selector);
+        vm.expectRevert(IStepStorage.ClaimBlockIsBeforeEndBlock.selector);
         factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
     }
 

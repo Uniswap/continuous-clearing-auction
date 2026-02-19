@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
 
 import {MockContinuousClearingAuction} from 'btt/mocks/MockContinuousClearingAuction.sol';
-import {IContinuousClearingAuction} from 'continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol';
+import {IStepStorage} from 'continuous-clearing-auction/interfaces/IStepStorage.sol';
 
 contract OnlyAfterClaimBlockTest is BttBase {
     function test_WhenBlockNumberLTClaimBlock(AuctionFuzzConstructorParams memory _params, uint256 _blockNumber)
@@ -21,7 +21,7 @@ contract OnlyAfterClaimBlockTest is BttBase {
         uint256 blockNumber = bound(_blockNumber, 0, mParams.parameters.claimBlock - 1);
 
         vm.roll(blockNumber);
-        vm.expectRevert(IContinuousClearingAuction.NotClaimable.selector);
+        vm.expectRevert(IStepStorage.NotClaimable.selector);
         auction.modifier_onlyAfterClaimBlock();
     }
 

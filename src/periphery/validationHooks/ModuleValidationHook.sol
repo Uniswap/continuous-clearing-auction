@@ -145,11 +145,15 @@ contract ModuleValidationHook is IModuleValidationHook, ValidationHookIntrospect
     }
 
     /// @inheritdoc IValidationHook
+    /// @notice `hookData` is an encoded bytes array of (moduleId, hookData) pairs
+    /// @notice Any cached data set by the module will be used over user-provided `hookData`.
+    /// @dev Do NOT encode the same moduleId multiple times in the array, only the first value will be used.
+    ///      Omit any modules without hookData from the array. For gas efficiency, encode in the same order as the moduleIds are set in storage.
     function validate(uint256 maxPrice, uint128 amount, address owner, address sender, bytes calldata hookData) public {
         bytes[] memory providedHookData = abi.decode(hookData, (bytes[]));
         uint256[] memory _moduleIds = $moduleIds.values();
 
-        // Iterate over all set module IDs. The number of modules requiring hookData should be limited as this is O(n*m).
+        // Iterate over all set module IDs. The number of modules requiring hookData should be limited as this is worst case O(n * m).
         for (uint256 i = 0; i < _moduleIds.length; i++) {
             uint256 id = _moduleIds[i];
             bytes memory _hookData;

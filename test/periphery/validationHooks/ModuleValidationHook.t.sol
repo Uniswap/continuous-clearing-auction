@@ -20,6 +20,7 @@ contract ModuleValidationHookTest is Test {
     address owner = makeAddr('owner');
     address sender = makeAddr('sender');
 
+    // From openzeppelin-contracts/contracts/proxy/Clones.sol
     error FailedDeployment();
 
     ModuleValidationHook impl;

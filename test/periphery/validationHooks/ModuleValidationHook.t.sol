@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import {Test} from 'forge-std/Test.sol';
@@ -286,8 +286,9 @@ contract ModuleValidationHookTest is Test {
         vm.prank(address(mockHook2));
         hook.setHookData(modules[1].toId(), owner, moduleHookData);
 
+        // Cached hook data is preferred over provided
         vm.expectCall(
-            address(mockHook), abi.encodeWithSelector(mockHook.validate.selector, 0, 0, owner, owner, bytes('provided'))
+            address(mockHook), abi.encodeWithSelector(mockHook.validate.selector, 0, 0, owner, owner, bytes('cached'))
         );
         vm.expectCall(
             address(mockHook2), abi.encodeWithSelector(mockHook2.validate.selector, 0, 0, owner, owner, bytes('cached'))

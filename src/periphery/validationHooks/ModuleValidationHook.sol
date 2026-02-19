@@ -154,21 +154,20 @@ contract ModuleValidationHook is IModuleValidationHook, ValidationHookIntrospect
             uint256 id = _moduleIds[i];
             bytes memory _hookData;
             if (id.hasHookData()) {
-                // Find either the provided hookData or any hookData in storage
-                uint256 _id;
-                for (uint256 j = 0; j < providedHookData.length; j++) {
-                    bytes memory temp;
-                    (_id, temp) = abi.decode(providedHookData[j], (uint256, bytes));
-                    if (_id == id) {
-                        _hookData = temp;
-                        break;
+                // Prefer cached hook data (set by the module) over user-provided hookData, which is not signed
+                // and could be tampered with by a malicious relayer.
+                _hookData = _loadCachedModuleHookData(id, owner, sender);
+                if (_hookData.length == 0) {
+                    uint256 _id;
+                    for (uint256 j = 0; j < providedHookData.length; j++) {
+                        bytes memory temp;
+                        (_id, temp) = abi.decode(providedHookData[j], (uint256, bytes));
+                        if (_id == id) {
+                            _hookData = temp;
+                            break;
+                        }
                     }
                 }
-                // If no hookData was provided, check the cache for hookData
-                if (_hookData.length == 0) {
-                    _hookData = _loadCachedModuleHookData(id, owner, sender);
-                }
-
                 if (_hookData.length == 0) {
                     revert HookDataRequired(id.hook());
                 }

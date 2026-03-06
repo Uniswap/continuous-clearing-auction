@@ -3,7 +3,6 @@ pragma solidity 0.8.26;
 
 import {IContinuousClearingAuction} from '../interfaces/IContinuousClearingAuction.sol';
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
-import {Multicallable} from 'solady/utils/Multicallable.sol';
 
 /// @notice The state of the auction containing the latest checkpoint
 /// as well as the currency raised, total cleared, and whether the auction has graduated

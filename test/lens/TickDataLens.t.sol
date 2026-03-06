@@ -174,6 +174,50 @@ contract TickDataLensTest is AuctionUnitTest {
         assertLt(ticks[0].requiredCurrencyDemandQ96, ticks[1].requiredCurrencyDemandQ96);
     }
 
+    /// forge-config: default.fuzz.runs = 1000
+    /// forge-config: ci.fuzz.runs = 1000
+    function test_getInitializedTickData_fuzz(uint256 numTicks) public {
+        numTicks = bound(numTicks, 1, lens.MAX_BUFFER_SIZE());
+
+        (uint256[] memory prices, uint256[] memory demands, uint256 totalDemand) = _initializeTicks(numTicks);
+
+        TickWithData[] memory ticks = lens.getInitializedTickData(IContinuousClearingAuction(address(mockAuction)));
+
+        assertEq(ticks.length, numTicks);
+
+        uint256 runningDemand = totalDemand;
+        for (uint256 i = 0; i < numTicks; i++) {
+            uint256 required = uint256(TOTAL_SUPPLY) * prices[i];
+            assertEq(ticks[i].priceQ96, prices[i]);
+            assertEq(ticks[i].currencyDemandQ96, demands[i]);
+            assertEq(ticks[i].requiredCurrencyDemandQ96, required);
+            assertEq(ticks[i].currencyRequiredQ96, required.saturatingSub(runningDemand));
+            runningDemand -= demands[i];
+        }
+    }
+
+    /// forge-config: default.isolate = true
+    /// forge-config: ci.isolate = true
+    function test_getInitializedTickData_MaxBufferSize_gas() public {
+        uint256 numTicks = lens.MAX_BUFFER_SIZE();
+        (uint256[] memory prices, uint256[] memory demands, uint256 totalDemand) = _initializeTicks(numTicks);
+
+        TickWithData[] memory ticks = lens.getInitializedTickData(IContinuousClearingAuction(address(mockAuction)));
+        vm.snapshotGasLastCall('getInitializedTickData max buffer size');
+
+        assertEq(ticks.length, numTicks);
+
+        uint256 runningDemand = totalDemand;
+        for (uint256 i = 0; i < numTicks; i++) {
+            uint256 required = uint256(TOTAL_SUPPLY) * prices[i];
+            assertEq(ticks[i].priceQ96, prices[i]);
+            assertEq(ticks[i].currencyDemandQ96, demands[i]);
+            assertEq(ticks[i].requiredCurrencyDemandQ96, required);
+            assertEq(ticks[i].currencyRequiredQ96, required.saturatingSub(runningDemand));
+            runningDemand -= demands[i];
+        }
+    }
+
     // ============================================
     // Helpers
     // ============================================
@@ -183,5 +227,25 @@ contract TickDataLensTest is AuctionUnitTest {
         mockAuction.uncheckedUpdateTickDemand(price, demand);
         mockAuction.uncheckedSetNextActiveTickPrice(price);
         mockAuction.uncheckedSetSumDemandAboveClearing(demand);
+    }
+
+    function _initializeTicks(uint256 numTicks)
+        internal
+        returns (uint256[] memory prices, uint256[] memory demands, uint256 totalDemand)
+    {
+        prices = new uint256[](numTicks);
+        demands = new uint256[](numTicks);
+
+        uint256 prevPrice = params.floorPrice;
+        for (uint256 i = 0; i < numTicks; i++) {
+            prices[i] = params.floorPrice + (i + 1) * params.tickSpacing;
+            demands[i] = (i + 1) * (1e18 << FixedPoint96.RESOLUTION);
+            totalDemand += demands[i];
+            mockAuction.uncheckedInitializeTickIfNeeded(prevPrice, prices[i]);
+            mockAuction.uncheckedUpdateTickDemand(prices[i], demands[i]);
+            prevPrice = prices[i];
+        }
+        mockAuction.uncheckedSetNextActiveTickPrice(prices[0]);
+        mockAuction.uncheckedSetSumDemandAboveClearing(totalDemand);
     }
 }

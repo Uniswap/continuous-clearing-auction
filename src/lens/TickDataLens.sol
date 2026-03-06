@@ -29,10 +29,11 @@ contract TickDataLens {
 
     /// @notice Function to be called from offchain to get the data of all initialized ticks above a given price
     /// @dev A maximum of `MAX_BUFFER_SIZE` ticks above the current clearing price will be returned
+    ///      Returned values may be stale if the auction has not been recently checkpointed
     function getInitializedTickData(IContinuousClearingAuction auction)
         public
         view
-        returns (TickWithData[] memory buffer)
+        returns (TickWithData[] memory ticks)
     {
         uint256 totalSupply = auction.totalSupply();
         uint24 remainingMps = ConstantsLib.MPS - auction.latestCheckpoint().cumulativeMps;
@@ -79,20 +80,17 @@ contract TickDataLens {
 
         // Assemble the Solidity memory layout for a TickWithData[] return value:
         //   [length][ptr_0..ptr_{n-1}][struct_0..struct_{n-1}]
-        // The header (length word + idx pointer slots) must precede the struct data,
-        // so we shift the struct data forward by headerSize bytes via mcopy, then
-        // write the length and a pointer for each struct into the freed gap.
         assembly {
             let headerSize := add(0x20, shl(5, idx)) // 32 + idx * 32
             let dataSize := shl(7, idx) // idx * 128
             mcopy(add(fmp, headerSize), fmp, dataSize)
-            buffer := fmp
-            mstore(buffer, idx)
-            let structBase := add(fmp, headerSize)
+            ticks := fmp
+            mstore(ticks, idx)
+            let dataOffset := add(fmp, headerSize)
             for { let i := 0 } lt(i, idx) { i := add(i, 1) } {
-                mstore(add(add(buffer, 0x20), shl(5, i)), add(structBase, mul(i, 0x80)))
+                mstore(add(add(ticks, 0x20), shl(5, i)), add(dataOffset, mul(i, 0x80)))
             }
-            mstore(0x40, add(structBase, dataSize))
+            mstore(0x40, add(dataOffset, dataSize))
         }
     }
 }

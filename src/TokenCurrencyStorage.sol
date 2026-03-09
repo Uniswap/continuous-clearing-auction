@@ -7,6 +7,7 @@ import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
+import {console} from 'forge-std/console.sol';
 
 /// @title TokenCurrencyStorage
 abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
@@ -59,6 +60,8 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     }
 
     function _sweepCurrency(uint256 _blockNumberIsh, uint256 _amount) internal {
+        console.log('currency balance', CURRENCY.balanceOf(address(this)));
+        console.log('Sweeping currency', _amount);
         sweepCurrencyBlock = _blockNumberIsh;
         if (_amount > 0) {
             CURRENCY.transfer(FUNDS_RECIPIENT, _amount);

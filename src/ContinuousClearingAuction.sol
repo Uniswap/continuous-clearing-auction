@@ -223,10 +223,15 @@ contract ContinuousClearingAuction is
 
                 // Total implied currencyRaised at the (potentially rounded-up) clearing price:
                 // Note: this will be an overestimate if the price is rounded up
-                uint256 totalCurrencyForDeltaQ96X7;
-                unchecked {
-                    totalCurrencyForDeltaQ96X7 = (uint256(TOTAL_SUPPLY) * priceQ96) * deltaMpsU;
-                }
+                // uint256 totalCurrencyForDeltaQ96X7;
+                // unchecked {
+                //     totalCurrencyForDeltaQ96X7 = (uint256(TOTAL_SUPPLY) * priceQ96) * deltaMpsU;
+                // }
+
+                // Have to multiply by ConstantsLib.MPS so we just unwrap here to use the uint256 version
+                // so we don't divide by MPS in the function later
+                uint256 totalCurrencyForDeltaQ96X7 =
+                    ValueX7.unwrap(remainingSupplyQ96X7()).toCurrencyRoundingUp(priceQ96);
                 console.log('totalCurrencyForDeltaQ96X7', totalCurrencyForDeltaQ96X7);
 
                 // (A) Derived contribution from the clearing tick by substracting
@@ -261,16 +266,15 @@ contract ContinuousClearingAuction is
         // even when using rounded-up clearing prices on tick boundaries.
         uint256 tokensClearedQ96X7 = currencyRaisedDeltaQ96X7.toTokensRoundingUp(priceQ96);
 
-        console.log('tokensClearedQ96X7', tokensClearedQ96X7);
-
         $totalClearedQ96_X7 = $totalClearedQ96_X7.add(ValueX7.wrap(tokensClearedQ96X7));
-        
+
         // Update global currency raised
         $currencyRaisedQ96_X7 = $currencyRaisedQ96_X7.add(ValueX7.wrap(currencyRaisedDeltaQ96X7));
 
         _checkpoint.cumulativeMps += _deltaMps;
 
-        _checkpoint.cumulativeMpsPerPrice += tokensClearedQ96X7.fullMulDiv(FixedPoint96.Q96, priceQ96 * ConstantsLib.MPS);
+        // WAD math
+        _checkpoint.cumulativeMpsPerPrice += tokensClearedQ96X7.fullMulDiv(1e18, priceQ96);
 
         // _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(_deltaMps, priceQ96);
         return _checkpoint;
@@ -295,6 +299,8 @@ contract ContinuousClearingAuction is
         uint256 remainingMps = ConstantsLib.MPS - _cumulativeMps;
         // Unwrap as we defer dividing by 1e7 by moving it to the LHS as multiplication
         uint256 remainingSupplyQ96 = ValueX7.unwrap(remainingSupplyQ96X7());
+        // If there are no more remaining supply, return the minimum clearing price
+        if (remainingSupplyQ96 == 0) return minimumClearingPrice;
 
         // Loop until we find the price at which the demand can purchase the total supply according to the original supply schedule.
         uint256 clearingPrice_ =

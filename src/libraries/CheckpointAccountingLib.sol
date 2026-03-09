@@ -3,8 +3,10 @@ pragma solidity 0.8.26;
 
 import {Bid, BidLib} from '../libraries/BidLib.sol';
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
+import {ConstantsLib} from '../libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../libraries/FixedPoint96.sol';
 import {ValueX7} from '../libraries/ValueX7Lib.sol';
+import {console} from 'forge-std/console.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @title CheckpointAccountingLib
@@ -72,17 +74,21 @@ library CheckpointAccountingLib {
         returns (uint256 tokensFilled, uint256 currencySpentQ96)
     {
         if (cumulativeMpsPerPriceDelta == 0) return (0, 0);
-        uint24 mpsRemainingInAuctionAfterSubmission = bid.mpsRemainingInAuctionAfterSubmission();
+        uint256 mpsRemainingInAuctionAfterSubmission = uint256(bid.mpsRemainingInAuctionAfterSubmission());
+        uint256 factor = 1e18 * mpsRemainingInAuctionAfterSubmission * 1e14;
 
         // Currency spent is original currency amount multiplied by percentage fully filled over percentage allocated
-        currencySpentQ96 = bid.amountQ96.fullMulDivUp((FixedPoint96.Q96 << FixedPoint96.RESOLUTION) * mpsRemainingInAuctionAfterSubmission, cumulativeMpsPerPriceDelta);
+        currencySpentQ96 = bid.amountQ96.fullMulDivUp(factor, cumulativeMpsPerPriceDelta);
+
+        console.log('Currency spent', currencySpentQ96 / FixedPoint96.Q96);
 
         // Tokens filled are calculated from the effective amount over the allocation
         tokensFilled = bid.amountQ96
             .fullMulDiv(
-                cumulativeMpsPerPriceDelta,
-                (FixedPoint96.Q96 << FixedPoint96.RESOLUTION) * mpsRemainingInAuctionAfterSubmission
+                cumulativeMpsPerPriceDelta, // sum(token / price)
+                factor * FixedPoint96.Q96
             );
+        console.log('tokensFilled', tokensFilled);
     }
 }
 

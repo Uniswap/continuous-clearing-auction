@@ -36,61 +36,99 @@ contract TickDataLens {
         returns (TickWithData[] memory ticks)
     {
         uint256 totalSupply = auction.totalSupply();
-        uint24 remainingMps = ConstantsLib.MPS - auction.latestCheckpoint().cumulativeMps;
-        uint256 price = auction.nextActiveTickPrice();
-
-        Tick memory t = auction.ticks(price);
-
+        uint24 mps = ConstantsLib.MPS;
+        uint24 remainingMps = mps - auction.latestCheckpoint().cumulativeMps;
+        // Retrieve the sumCurrencyDemandAboveClearingQ96 from storage
         uint256 sumCurrencyDemandAboveClearingQ96 = auction.sumCurrencyDemandAboveClearingQ96();
-        uint256 next = price;
-        uint256 idx;
+        // Get the next active tick price
+        uint256 next = auction.nextActiveTickPrice();
 
-        uint256 fmp;
-        // Save the current free memory pointer
         assembly {
-            fmp := mload(0x40)
-        }
+            let m := mload(0x40)
+            let offset := m
 
-        while (idx < MAX_BUFFER_SIZE) {
-            uint256 requiredCurrencyDemandQ96 = totalSupply * next;
-            uint256 currencyDemandQ96 = t.currencyDemandQ96;
-            uint256 nextTick = t.next;
-            uint256 currencyRequiredQ96 = requiredCurrencyDemandQ96.saturatingSub(sumCurrencyDemandAboveClearingQ96)
-                .fullMulDivUp(remainingMps, ConstantsLib.MPS);
-
-            // Write the TickWithData struct fields (4 x 32 bytes = 0x80) directly to fmp + idx * 0x80,
-            // then advance the free memory pointer to protect this data from subsequent allocations
-            assembly {
-                let offset := add(fmp, mul(idx, 0x80))
+            // Cache the ticks function selector
+            let idx := 0
+            mstore(0x00, 0x534cb30d) // ContinuousClearingAuction.ticks(uint256)
+            for {} lt(idx, MAX_BUFFER_SIZE) { idx := add(idx, 1) } {
+                // Store the next tick price as the first argument to the ticks function call
+                mstore(0x20, next)
+                // Call the ticks function - write the return value directly at the offset
+                let success := staticcall(gas(), auction, 0x1c, 0x24, offset, 0x40)
+                // If the call fails, revert
+                if iszero(success) {
+                    revert(0x00, 0x00)
+                }
+                // Load the next tick price from the return value
+                let nextTick := mload(offset)
+                // Overwrite the next tick price with the current tick price
                 mstore(offset, next)
-                mstore(add(offset, 0x20), currencyDemandQ96)
+
+                // Calculate and store the requiredCurrencyDemandQ96
+                let requiredCurrencyDemandQ96 := mul(totalSupply, next)
                 mstore(add(offset, 0x40), requiredCurrencyDemandQ96)
+
+                // Calculate and store the currencyRequiredQ96:
+                // currencyRequiredQ96 = saturatingSub(required, sum).mulDivUp(remainingMps, MPS)
+                let currencyRequiredQ96 :=
+                    mulDivUp(
+                        saturatingSub(requiredCurrencyDemandQ96, sumCurrencyDemandAboveClearingQ96),
+                        remainingMps,
+                        mps
+                    )
                 mstore(add(offset, 0x60), currencyRequiredQ96)
-                mstore(0x40, add(offset, 0x80))
+
+                // update sumCurrencyDemandAboveClearingQ96 by subtracting the currencyDemandQ96 at the current tick
+                let currencyDemandQ96 := mload(add(offset, 0x20))
+                sumCurrencyDemandAboveClearingQ96 := sub(sumCurrencyDemandAboveClearingQ96, currencyDemandQ96)
+
+                // update next to the next tick price returned by the ticks function
+                next := nextTick
+
+                // update offset to the next tick data
+                offset := add(offset, 0x80)
+
+                // If the next tick price is the maximum uint256 value or we have reached the maximum buffer size, break the loop
+                if eq(nextTick, not(0)) {
+                    // Update idx to the number of ticks returned
+                    idx := add(idx, 1)
+                    break
+                }
             }
 
-            sumCurrencyDemandAboveClearingQ96 -= currencyDemandQ96;
-            unchecked {
-                ++idx;
-            }
-            next = nextTick;
-            if (next == type(uint256).max) break;
-            t = auction.ticks(next);
-        }
-
-        // Assemble the Solidity memory layout for a TickWithData[] return value:
-        //   [length][ptr_0..ptr_{n-1}][struct_0..struct_{n-1}]
-        assembly {
-            let headerSize := add(0x20, shl(5, idx)) // 32 + idx * 32
-            let dataSize := shl(7, idx) // idx * 128
-            mcopy(add(fmp, headerSize), fmp, dataSize)
-            ticks := fmp
+            // Assign the return value to the right memory location
+            ticks := offset
+            // Assign the length of the TickWithData array to the first word of the return value
             mstore(ticks, idx)
-            let dataOffset := add(fmp, headerSize)
+            // Assign the absolute pointers after the length to the return value
             for { let i := 0 } lt(i, idx) { i := add(i, 1) } {
-                mstore(add(add(ticks, 0x20), shl(5, i)), add(dataOffset, mul(i, 0x80)))
+                offset := add(offset, 0x20)
+                let absolutePointer := add(m, mul(i, 0x80))
+                mstore(offset, absolutePointer)
             }
-            mstore(0x40, add(dataOffset, dataSize))
+            // Update the free memory pointer to the end of the data
+            mstore(0x40, add(offset, 0x20))
+
+            // ----- Inline functions -----
+            // ------------------------------------------------------------
+
+            /// @dev Equivalent to FixedPointMathLib.saturatingSub: returns max(0, x - y).
+            function saturatingSub(x, y) -> z {
+                z := mul(gt(x, y), sub(x, y))
+            }
+
+            /// @dev Equivalent to FixedPointMathLib.fullMulDivUp: returns ceil(x * y / d).
+            ///      Safe to use a plain `mul` instead of 512-bit math because `y` is
+            ///      `remainingMps` (a uint24, max 1e7 ≈ 2^23), so x * y cannot overflow
+            ///      uint256 for any realistic currency demand value.
+            function mulDivUp(x, y, d) -> result {
+                result := div(mul(x, y), d)
+                if mulmod(x, y, d) {
+                    result := add(result, 1)
+                }
+            }
+
+            // ------------------------------------------------------------
         }
     }
 }

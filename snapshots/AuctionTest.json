@@ -1,8 +1,8 @@
 {
-  "Auction bytecode size": "19689",
+  "Auction bytecode size": "19876",
   "checkpoint_advanceToCurrentStep": "160252",
   "checkpoint_noBids": "146224",
-  "checkpoint_zeroSupply": "126922",
+  "checkpoint_zeroSupply": "128231",
   "submitBidWithoutPrevTickPrice": "154118",
   "submitBidWithoutPrevTickPrice_initializeTick_search": "202157",
   "submitBidWithoutPrevTickPrice_initializeTick_updateCheckpoint": "362627",

@@ -221,25 +221,6 @@ contract ContinuousClearingAuction is
                 // Cache and rename the above-clearing contribution
                 uint256 currencyRaisedAboveClearingQ96X7 = currencyRaisedDeltaQ96X7;
 
-                // Total implied currencyRaised at the (potentially rounded-up) clearing price:
-                // Note: this will be an overestimate if the price is rounded up
-                // uint256 totalCurrencyForDeltaQ96X7;
-                // unchecked {
-                //     totalCurrencyForDeltaQ96X7 = (uint256(TOTAL_SUPPLY) * priceQ96) * deltaMpsU;
-                // }
-
-                // Have to multiply by ConstantsLib.MPS so we just unwrap here to use the uint256 version
-                // so we don't divide by MPS in the function later
-                uint256 totalCurrencyForDeltaQ96X7 =
-                    ValueX7.unwrap(remainingSupplyQ96X7()).toCurrencyRoundingUp(priceQ96);
-                console.log('totalCurrencyForDeltaQ96X7', totalCurrencyForDeltaQ96X7);
-
-                // (A) Derived contribution from the clearing tick by substracting
-                //     the above-clearing contribution from the total implied currencyRaised
-                uint256 calculatedCurrencyRaisedAtClearingQ96X7 =
-                    totalCurrencyForDeltaQ96X7 - currencyRaisedAboveClearingQ96X7;
-                console.log('calculatedCurrencyRaisedAtClearingQ96X7', calculatedCurrencyRaisedAtClearingQ96X7);
-
                 // (B) Maximum possible currencyRaised from bids at the clearing tick, scaling the tick demand by deltaMps
                 uint256 maximumCurrencyRaisedAtClearingQ96X7;
                 unchecked {
@@ -247,12 +228,30 @@ contract ContinuousClearingAuction is
                 }
                 console.log('maximumCurrencyRaisedAtClearingQ96X7', maximumCurrencyRaisedAtClearingQ96X7);
 
+
+                // Total implied currencyRaised at the (potentially rounded-up) clearing price:
+                // Note: this will be an overestimate if the price is rounded up
+                uint256 sumDemandAboveAndAtClearingQ96X7 =
+                    currencyRaisedAboveClearingQ96X7 + maximumCurrencyRaisedAtClearingQ96X7;
+                uint256 requiredDemandAtClearingQ96X7 =
+                    ValueX7.unwrap(remainingSupplyQ96X7()).toCurrencyRoundingUp(priceQ96);
+
+                console.log('sumDemandAboveAndAtClearingQ96X7', sumDemandAboveAndAtClearingQ96X7);
+                console.log('requiredDemandAtClearingQ96X7', requiredDemandAtClearingQ96X7);
+                console.log('currencyRaisedAboveClearingQ96X7', currencyRaisedAboveClearingQ96X7);
+
+                // (A) Derived contribution from the clearing tick by subtracting
+                //     the above-clearing contribution from the total implied currencyRaised
+                uint256 calculatedCurrencyRaisedAtClearingQ96X7 =
+                    requiredDemandAtClearingQ96X7 - currencyRaisedAboveClearingQ96X7;
+                console.log('calculatedCurrencyRaisedAtClearingQ96X7', calculatedCurrencyRaisedAtClearingQ96X7);
+
                 // If price was rounded up, (A) can exceed (B). In that case, currencyRaised from the clearing tick is bounded by actual
                 // tick demand; take min((A), (B)). If the price was not rounded up, (A) == (B).
                 uint256 currencyRaisedAtClearingQ96X7 = FixedPointMathLib.min(
                     calculatedCurrencyRaisedAtClearingQ96X7, maximumCurrencyRaisedAtClearingQ96X7
                 );
-                console.log('currencyRaisedAtClearingQ96X7', currencyRaisedAtClearingQ96X7);
+                console.log('final: currencyRaisedAtClearingQ96X7', currencyRaisedAtClearingQ96X7);
                 // Change in currency raised = currency raised at clearing + currency raised above clearing
                 currencyRaisedDeltaQ96X7 = currencyRaisedAtClearingQ96X7 + currencyRaisedAboveClearingQ96X7;
                 // Track cumulative currency raised exactly at this clearing price (used for partial exits)
@@ -730,6 +729,10 @@ contract ContinuousClearingAuction is
 
     function remainingSupplyQ96X7() public view returns (ValueX7) {
         return TOTAL_SUPPLY_Q96_X7.saturatingSub($totalClearedQ96_X7);
+    }
+
+    function remainingSupply() public view returns (uint256) {
+        return remainingSupplyQ96X7().divUint256(FixedPoint96.Q96).scaleDownToUint256();
     }
 
     function requiredDemand(uint256 _priceQ96) public view returns (uint256) {

@@ -223,7 +223,7 @@ contract AuctionTest is AuctionBaseTest {
     /// forge-config: default.isolate = true
     /// forge-config: ci.isolate = true
     function test_submitBid_zeroSupply_exitPartiallyFilledBid_succeeds_gas() public {
-        // 0 mps for first 50 blocks, then 200mps for the last 50 blocks
+        // 0 mps for first 100 blocks, then 100mps for the last 100 blocks
         params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(0, 100).addStep(100e3, 100))
             .withEndBlock(block.number + 200).withClaimBlock(block.number + 200);
         auction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
@@ -248,7 +248,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.checkpoint();
         vm.snapshotGasLastCall('checkpoint_zeroSupply');
 
-        // Advance to the end of the first step
+        // Advance to one block after the start of the second step
         vm.roll(auction.startBlock() + 101);
 
         uint24 expectedCumulativeMps = 100e3; // 100e3 mps * 1 block
@@ -1515,10 +1515,10 @@ contract AuctionTest is AuctionBaseTest {
 
         // Roll to end of the auction
         vm.roll(endBlock);
-        // Since there is no rollover and we skipped the first 10% of the auction, we expect to sell 90% of the total supply
         vm.expectEmit(true, true, true, true);
+        // Since there is rollover, we expect to sell 100% of the total supply
         ValueX7 expectedTotalCurrencyRaised = ValueX7.wrap(
-            TOTAL_SUPPLY_Q96.fullMulDivUp(tickNumberToPriceX96(2) * (ConstantsLib.MPS - 100e3 * 10), FixedPoint96.Q96)
+            TOTAL_SUPPLY_Q96.fullMulDivUp(tickNumberToPriceX96(2) * ConstantsLib.MPS, FixedPoint96.Q96)
         );
         emit IContinuousClearingAuction.CheckpointUpdated( // Yet the `cumulativeMps` should still be 100%
             startBlock + 40,

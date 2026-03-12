@@ -54,41 +54,44 @@ library CheckpointAccountingLib {
         uint256 denominator = tickDemandQ96 * bid.mpsRemainingInAuctionAfterSubmission();
         currencySpentQ96 = bid.amountQ96.fullMulDivUp(ValueX7.unwrap(currencyRaisedAtClearingPriceQ96_X7), denominator);
 
+        console.log('PartialFill: Currency Spent:', (currencySpentQ96 / FixedPoint96.Q96) / 1e18);
+
         // We derive tokens filled from the currency spent by dividing it by the max price.
         // If the currency spent is 0, tokens filled will be 0 as well.
         tokensFilled =
             bid.amountQ96.fullMulDiv(ValueX7.unwrap(currencyRaisedAtClearingPriceQ96_X7), denominator) / bid.maxPrice;
+
+        console.log('PartialFill: Tokens Filled:', tokensFilled / 1e18);
     }
 
     /// @notice Calculate the tokens filled and currency spent for a bid
     /// @dev Uses lazy accounting to efficiently calculate fills across time periods without iterating blocks.
     ///      MUST only be used when the bid's max price is strictly greater than the clearing price throughout.
     /// @param bid the bid to evaluate
-    /// @param cumulativeMpsPerPriceDelta the cumulative sum of supply to price ratio
+    /// @param inverseSumPriceDelta the cumulative sum of supply to price ratio in X7 form
     /// @param cumulativeMpsDelta the cumulative sum of mps values across the block range
     /// @return tokensFilled the amount of tokens filled for this bid
     /// @return currencySpentQ96 the amount of currency spent by this bid in Q96 form
-    function calculateFill(Bid memory bid, uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
+    function calculateFill(Bid memory bid, uint256 inverseSumPriceDelta, uint24 cumulativeMpsDelta)
         internal
         pure
         returns (uint256 tokensFilled, uint256 currencySpentQ96)
     {
-        if (cumulativeMpsPerPriceDelta == 0) return (0, 0);
+        if (inverseSumPriceDelta == 0) return (0, 0);
         uint256 mpsRemainingInAuctionAfterSubmission = uint256(bid.mpsRemainingInAuctionAfterSubmission());
-        uint256 factor = 1e18 * mpsRemainingInAuctionAfterSubmission * 1e14;
 
-        // Currency spent is original currency amount multiplied by percentage fully filled over percentage allocated
-        currencySpentQ96 = bid.amountQ96.fullMulDivUp(factor, cumulativeMpsPerPriceDelta);
+        // TODO: natspec
+        currencySpentQ96 = bid.amountQ96.fullMulDivUp(cumulativeMpsDelta, mpsRemainingInAuctionAfterSubmission);
 
-        console.log('Currency spent', currencySpentQ96 / FixedPoint96.Q96);
+        console.log('FullyFill: Currency Spent:', (currencySpentQ96 / FixedPoint96.Q96) / 1e18);
 
         // Tokens filled are calculated from the effective amount over the allocation
         tokensFilled = bid.amountQ96
             .fullMulDiv(
-                cumulativeMpsPerPriceDelta, // sum(token / price)
-                factor * FixedPoint96.Q96
+                inverseSumPriceDelta, // sum(1 / price)
+                uint256(1 << 192) * mpsRemainingInAuctionAfterSubmission // since we want to move back into uint256 form
             );
-        console.log('tokensFilled', tokensFilled);
+        console.log('FullyFill: Tokens Filled:', tokensFilled / 1e18);
     }
 }
 

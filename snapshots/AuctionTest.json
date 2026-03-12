@@ -1,12 +1,17 @@
 {
-  "Auction bytecode size": "19876",
-  "checkpoint_advanceToCurrentStep": "160252",
-  "checkpoint_noBids": "146224",
-  "checkpoint_zeroSupply": "128231",
+  "Auction bytecode size": "20518",
+  "checkpoint_advanceToCurrentStep": "185341",
+  "checkpoint_noBids": "171315",
+  "checkpoint_zeroSupply": "2380",
+  "claimTokens": "67200",
+  "exitBid": "88320",
+  "exitPartiallyFilledBid": "243340",
+  "submitBid": "154230",
   "submitBidWithoutPrevTickPrice": "154118",
   "submitBidWithoutPrevTickPrice_initializeTick_search": "202157",
-  "submitBidWithoutPrevTickPrice_initializeTick_updateCheckpoint": "362627",
-  "submitBid_recordStep_updateCheckpoint": "362739",
-  "submitBid_recordStep_updateCheckpoint_initializeTick": "362739",
-  "submitBid_withValidationHook": "366696"
+  "submitBidWithoutPrevTickPrice_initializeTick_updateCheckpoint": "367820",
+  "submitBid_recordStep_updateCheckpoint": "367932",
+  "submitBid_recordStep_updateCheckpoint_initializeTick": "367932",
+  "submitBid_updateCheckpoint": "291322",
+  "submitBid_withValidationHook": "371889"
 }

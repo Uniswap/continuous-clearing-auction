@@ -207,11 +207,18 @@ contract AuctionTest is AuctionBaseTest {
         auction.checkpoint();
 
         vm.roll(auction.endBlock());
+        auction.checkpoint();
+        assertEq(
+            auction.currencyRaisedQ96_X7(),
+            ValueX7.wrap(TOTAL_SUPPLY_Q96.fullMulDiv(tickNumberToPriceX96(2) * ConstantsLib.MPS, FixedPoint96.Q96)),
+            'currency raised'
+        );
+
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
         auction.exitPartiallyFilledBid(bidId, 1, 0);
-        assertEq(address(alice).balance, aliceBalanceBefore + inputAmount / 2);
+        assertEq(address(alice).balance, aliceBalanceBefore + inputAmount / 2, 'currency refunded');
 
         vm.roll(auction.claimBlock());
         vm.expectEmit(true, true, true, true);
@@ -225,13 +232,13 @@ contract AuctionTest is AuctionBaseTest {
     function test_submitBid_zeroSupply_exitPartiallyFilledBid_succeeds_gas() public {
         // 0 mps for first 100 blocks, then 100mps for the last 100 blocks
         params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(0, 100).addStep(100e3, 100))
-            .withEndBlock(block.number + 200).withClaimBlock(block.number + 200);
+            .withStartBlock(block.number).withEndBlock(block.number + 200).withClaimBlock(block.number + 200);
         auction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
         token.mint(address(auction), TOTAL_SUPPLY);
         auction.onTokensReceived();
 
         // Bid over the total supply
-        uint128 inputAmount = inputAmountForTokens(2000e18, tickNumberToPriceX96(2));
+        uint128 inputAmount = inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2));
         vm.expectEmit(true, true, true, true);
         emit IContinuousClearingAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(1), 0);
         vm.expectEmit(true, true, true, true);
@@ -246,6 +253,7 @@ contract AuctionTest is AuctionBaseTest {
         // Expect the price to increase, but no tokens to be sold
         emit IContinuousClearingAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), 0);
         auction.checkpoint();
+        assertEq(auction.currencyRaisedQ96_X7(), ValueX7.wrap(0), 'currency raised should be zero');
         vm.snapshotGasLastCall('checkpoint_zeroSupply');
 
         // Advance to one block after the start of the second step
@@ -266,7 +274,7 @@ contract AuctionTest is AuctionBaseTest {
         uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
         auction.exitPartiallyFilledBid(bidId, 1, 0);
-        assertEq(address(alice).balance, aliceBalanceBefore + inputAmount / 2);
+        assertEq(address(alice).balance, aliceBalanceBefore, 'currency refunded should be zero');
 
         vm.roll(auction.claimBlock());
         vm.expectEmit(true, true, true, true);
@@ -610,6 +618,7 @@ contract AuctionTest is AuctionBaseTest {
         givenFullyFundedAccount
         checkAuctionIsGraduated
         checkAuctionIsSolvent
+        logState
     {
         vm.roll(auction.endBlock() - 1);
         uint256 bidId1 =
@@ -619,6 +628,9 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(auction.endBlock());
         Checkpoint memory checkpoint = auction.checkpoint();
+        __logCheckpoint(checkpoint);
+        __logAuctionState(auction);
+
         if ($maxPrice > checkpoint.clearingPrice) {
             auction.exitBid(bidId1);
         } else {
@@ -1517,9 +1529,8 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(endBlock);
         vm.expectEmit(true, true, true, true);
         // Since there is rollover, we expect to sell 100% of the total supply
-        ValueX7 expectedTotalCurrencyRaised = ValueX7.wrap(
-            TOTAL_SUPPLY_Q96.fullMulDivUp(tickNumberToPriceX96(2) * ConstantsLib.MPS, FixedPoint96.Q96)
-        );
+        ValueX7 expectedTotalCurrencyRaised =
+            ValueX7.wrap(TOTAL_SUPPLY_Q96.fullMulDivUp(tickNumberToPriceX96(2) * ConstantsLib.MPS, FixedPoint96.Q96));
         emit IContinuousClearingAuction.CheckpointUpdated( // Yet the `cumulativeMps` should still be 100%
             startBlock + 40,
             tickNumberToPriceX96(2),

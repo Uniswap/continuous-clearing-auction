@@ -527,6 +527,18 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _;
     }
 
+    modifier logState() {
+        emit log_named_decimal_uint('bidAmount', $bidAmount, 18);
+        emit log_named_uint('maxPrice', $maxPrice >> FixedPoint96.RESOLUTION);
+        emit log_named_decimal_uint(
+            'purchasing tokens at floor price', $bidAmount.fullMulDiv(FixedPoint96.Q96, FLOOR_PRICE), 18
+        );
+        emit log_named_decimal_uint(
+            'purchasing tokens at max price', $bidAmount.fullMulDiv(FixedPoint96.Q96, $maxPrice), 18
+        );
+        _;
+    }
+
     modifier checkAuctionIsSolvent() {
         _;
         require(block.number >= auction.endBlock(), 'checkAuctionIsSolvent: Auction is not over');
@@ -535,6 +547,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
             emit log_string('==================== INFO ====================');
             emit log_named_decimal_uint('auction.totalSupply()', auction.totalSupply(), 18);
             emit log_named_decimal_uint('auction.totalCleared()', auction.totalCleared(), 18);
+            emit log_named_decimal_uint('auction.currencyRaised()', auction.currencyRaised(), 18);
 
             assertLe(auction.totalCleared(), auction.totalSupply(), 'total cleared must be <= total supply');
 
@@ -642,5 +655,28 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         console.log('floorPrice', _params.floorPrice);
         console.log('auctionStepsData');
         console.logBytes(_params.auctionStepsData);
+    }
+
+    function __logCheckpoint(Checkpoint memory _checkpoint) public {
+        emit log_string('---------Checkpoint--------');
+        emit log_named_uint('clearingPrice', _checkpoint.clearingPrice >> FixedPoint96.RESOLUTION);
+        emit log_named_uint('cumulativeMps', _checkpoint.cumulativeMps);
+        emit log_named_decimal_uint(
+            'required amount at clearing price',
+            TOTAL_SUPPLY.fullMulDiv(_checkpoint.clearingPrice, FixedPoint96.Q96),
+            18
+        );
+        emit log_string('--------------------------------');
+    }
+
+    function __logAuctionState(IContinuousClearingAuction _auction) public {
+        emit log_string('---------AuctionState--------');
+        emit log_named_decimal_uint('currency balance of auction', address(_auction).balance, 18);
+        emit log_named_decimal_uint('totalCleared', _auction.totalCleared(), 18);
+        emit log_named_decimal_uint('currencyRaised', _auction.currencyRaised(), 18);
+        emit log_named_decimal_uint(
+            'sumDemandAboveClearingQ96', _auction.sumCurrencyDemandAboveClearingQ96() >> FixedPoint96.RESOLUTION, 18
+        );
+        emit log_string('--------------------------------');
     }
 }

@@ -226,32 +226,49 @@ contract ContinuousClearingAuction is
                 unchecked {
                     maximumCurrencyRaisedAtClearingQ96X7 = demandAtPriceQ96 * deltaMpsU;
                 }
-                console.log('maximumCurrencyRaisedAtClearingQ96X7', maximumCurrencyRaisedAtClearingQ96X7);
-
+                console.log(
+                    'maximumCurrencyRaisedAtClearing',
+                    maximumCurrencyRaisedAtClearingQ96X7 / FixedPoint96.Q96 / ConstantsLib.MPS
+                );
 
                 // Total implied currencyRaised at the (potentially rounded-up) clearing price:
                 // Note: this will be an overestimate if the price is rounded up
-                uint256 sumDemandAboveAndAtClearingQ96X7 =
-                    currencyRaisedAboveClearingQ96X7 + maximumCurrencyRaisedAtClearingQ96X7;
-                uint256 requiredDemandAtClearingQ96X7 =
-                    ValueX7.unwrap(remainingSupplyQ96X7()).toCurrencyRoundingUp(priceQ96);
 
-                console.log('sumDemandAboveAndAtClearingQ96X7', sumDemandAboveAndAtClearingQ96X7);
-                console.log('requiredDemandAtClearingQ96X7', requiredDemandAtClearingQ96X7);
-                console.log('currencyRaisedAboveClearingQ96X7', currencyRaisedAboveClearingQ96X7);
+                // TODO: this is wrong
+                uint256 requiredDemandAtClearingQ96X7;
+                if (_checkpoint.cumulativeMps == 0) {
+                    requiredDemandAtClearingQ96X7 = TOTAL_SUPPLY * priceQ96 * deltaMpsU;
+                } else {
+                    requiredDemandAtClearingQ96X7 =
+                        ValueX7.unwrap(remainingSupplyQ96X7()).fullMulDivUp(priceQ96, FixedPoint96.Q96);
+                    console.log(
+                        'requiredDemandAtClearing', requiredDemandAtClearingQ96X7 / FixedPoint96.Q96 / ConstantsLib.MPS
+                    );
+                }
 
                 // (A) Derived contribution from the clearing tick by subtracting
                 //     the above-clearing contribution from the total implied currencyRaised
                 uint256 calculatedCurrencyRaisedAtClearingQ96X7 =
                     requiredDemandAtClearingQ96X7 - currencyRaisedAboveClearingQ96X7;
-                console.log('calculatedCurrencyRaisedAtClearingQ96X7', calculatedCurrencyRaisedAtClearingQ96X7);
+                console.log(
+                    'calculatedCurrencyRaisedAtClearing',
+                    calculatedCurrencyRaisedAtClearingQ96X7 / FixedPoint96.Q96 / ConstantsLib.MPS
+                );
+
+                console.log(
+                    'maximumCurrencyRaisedAtClearing',
+                    maximumCurrencyRaisedAtClearingQ96X7 / FixedPoint96.Q96 / ConstantsLib.MPS
+                );
 
                 // If price was rounded up, (A) can exceed (B). In that case, currencyRaised from the clearing tick is bounded by actual
                 // tick demand; take min((A), (B)). If the price was not rounded up, (A) == (B).
                 uint256 currencyRaisedAtClearingQ96X7 = FixedPointMathLib.min(
                     calculatedCurrencyRaisedAtClearingQ96X7, maximumCurrencyRaisedAtClearingQ96X7
                 );
-                console.log('final: currencyRaisedAtClearingQ96X7', currencyRaisedAtClearingQ96X7);
+                console.log(
+                    'final: currencyRaisedAtClearing',
+                    currencyRaisedAtClearingQ96X7 / FixedPoint96.Q96 / ConstantsLib.MPS
+                );
                 // Change in currency raised = currency raised at clearing + currency raised above clearing
                 currencyRaisedDeltaQ96X7 = currencyRaisedAtClearingQ96X7 + currencyRaisedAboveClearingQ96X7;
                 // Track cumulative currency raised exactly at this clearing price (used for partial exits)
@@ -265,6 +282,8 @@ contract ContinuousClearingAuction is
         // even when using rounded-up clearing prices on tick boundaries.
         uint256 tokensClearedQ96X7 = currencyRaisedDeltaQ96X7.toTokensRoundingUp(priceQ96);
 
+        console.log('tokensCleared', ((tokensClearedQ96X7 >> FixedPoint96.RESOLUTION) / ConstantsLib.MPS) / 1e18);
+
         $totalClearedQ96_X7 = $totalClearedQ96_X7.add(ValueX7.wrap(tokensClearedQ96X7));
 
         // Update global currency raised
@@ -272,8 +291,8 @@ contract ContinuousClearingAuction is
 
         _checkpoint.cumulativeMps += _deltaMps;
 
-        // WAD math
-        _checkpoint.cumulativeMpsPerPrice += tokensClearedQ96X7.fullMulDiv(1e18, priceQ96);
+        /// Inverse price sum
+        _checkpoint.cumulativeMpsPerPrice += (deltaMpsU << 192) / priceQ96;
 
         // _checkpoint.cumulativeMpsPerPrice += CheckpointLib.getMpsPerPrice(_deltaMps, priceQ96);
         return _checkpoint;
@@ -301,14 +320,12 @@ contract ContinuousClearingAuction is
         // If there are no more remaining supply, return the minimum clearing price
         if (remainingSupplyQ96 == 0) return minimumClearingPrice;
 
-        // Loop until we find the price at which the demand can purchase the total supply according to the original supply schedule.
-        uint256 clearingPrice_ =
-            (demandAboveClearingQ96 * remainingMps * ConstantsLib.MPS).toPriceRoundingUp(remainingSupplyQ96);
+        // Loop until we find the price at which the demand can purchase the total supply
+        uint256 clearingPrice_ = (demandAboveClearingQ96 * remainingMps).toPriceRoundingUp(remainingSupplyQ96);
         while (
             // Loop while the currency amount above the clearing price is greater than the required currency at `nextActiveTickPrice_`
             (nextActiveTickPrice_ != _untilTickPrice
-                    && (demandAboveClearingQ96 * remainingMps * ConstantsLib.MPS)
-                    .gte(remainingSupplyQ96, nextActiveTickPrice_))
+                    && (demandAboveClearingQ96 * remainingMps).gte(remainingSupplyQ96, nextActiveTickPrice_))
                 // If the demand above clearing rounds up to the `nextActiveTickPrice`, we need to keep iterating over ticks
                 // This ensures that the `nextActiveTickPrice` is always the next initialized tick strictly above the clearing price
                 || clearingPrice_ == nextActiveTickPrice_
@@ -320,8 +337,7 @@ contract ContinuousClearingAuction is
             minimumClearingPrice = nextActiveTickPrice_;
             // Advance to the next tick
             nextActiveTickPrice_ = $nextActiveTick.next;
-            clearingPrice_ =
-                (demandAboveClearingQ96 * remainingMps * ConstantsLib.MPS).toPriceRoundingUp(remainingSupplyQ96);
+            clearingPrice_ = (demandAboveClearingQ96 * remainingMps).toPriceRoundingUp(remainingSupplyQ96);
             updateStateVariables = true;
         }
         // Set the values into storage if we found a new next active tick price

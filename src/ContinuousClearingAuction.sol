@@ -188,16 +188,11 @@ contract ContinuousClearingAuction is
         internal
         returns (Checkpoint memory)
     {
-        // Advance the auction by selling an additional `deltaMps` share of TOTAL_SUPPLY at the current clearing price.
-        //
-        // At a high level, the algorithm is:
-        // 1) Assume all demand is strictly above the clearing price: currencyRaised = sumAboveClearingQ96 × deltaMps.
-        // 2) If the clearing price is exactly on an initialized tick that has demand, account for the partially filled
-        //    bids at the clearing tick. There are two ways to derive the at-clearing currencyRaised when the price is
-        //    not rounded up:
-        //       (A) total implied currencyRaised at the rounded-up price − contribution from above-clearing
-        //       (B) tick demand at clearing × deltaMps
-        //    If the clearing price was rounded up to the tick boundary, (A) can exceed (B); cap with min(A, B).
+        // Compute currencyRaised for selling `deltaMps` more supply at the clearing price:
+        // 1) Base case: all demand is above clearing → currencyRaised = sumAboveClearingQ96 × deltaMps.
+        // 2) If the clearing price lands on a tick with demand, add the partially-filled at-clearing contribution
+        //    via min(A, B), where (A) = total implied at rounded-up price − above-clearing, (B) = tickDemand × deltaMps.
+        //    min is needed because (A) can exceed (B) when the price was rounded up to the tick boundary.
         uint256 priceQ96 = _checkpoint.clearingPrice;
         uint256 deltaMpsU = uint256(_deltaMps);
         uint256 sumAboveQ96 = $sumCurrencyDemandAboveClearingQ96;
@@ -208,24 +203,15 @@ contract ContinuousClearingAuction is
             currencyRaisedDeltaQ96X7 = sumAboveQ96 * deltaMpsU; // Overflow prevented by _submitBid::InvalidBidUnableToClear()
         }
 
-        // When the clearing price is a tick with non zero demand
-        // bidders at that tick can be partially filled. We split the currencyRaised into:
-        // - (1) above-clearing contribution (already computed) and
-        // - (2) at-clearing contribution.
+        // Clearing price lands on a non-zero demand tick; split currencyRaised into
+        // above-clearing (already computed) and at-clearing contributions.
         if (priceQ96 % TICK_SPACING == 0) {
             uint256 demandAtPriceQ96 = _getTick(priceQ96).currencyDemandQ96;
             if (demandAtPriceQ96 > 0) {
                 // Cache and rename the above-clearing contribution
                 uint256 currencyRaisedAboveClearingQ96X7 = currencyRaisedDeltaQ96X7;
 
-                // (B) Maximum possible currencyRaised from bids at the clearing tick, scaling the tick demand by deltaMps
-                uint256 maximumCurrencyRaisedAtClearingQ96X7;
-                unchecked {
-                    maximumCurrencyRaisedAtClearingQ96X7 = demandAtPriceQ96 * deltaMpsU;
-                }
-
-                // Total implied currencyRaised at the (potentially rounded-up) clearing price:
-                // Note: this will be an overestimate if the price is rounded up
+                // Total implied currencyRaised at the (potentially rounded-up) clearing price; overestimates if price was rounded up.
                 uint256 currencyRequiredAtClearingQ97X7;
                 // If the auction is sold out, the required demand at the clearing price is zero
                 if (_checkpoint.cumulativeMps == ConstantsLib.MPS) {
@@ -238,14 +224,17 @@ contract ContinuousClearingAuction is
                         );
                 }
 
-                // (A) Derived contribution from the clearing tick by subtracting
-                //     the above-clearing contribution from the total implied currencyRaised
-                // Note: when total supply is very small, `currencyRequiredAtClearingQ97X7` may be zero. Saturating sub is used to prevent underflow.
+                // (A) = total implied − above-clearing; saturating sub guards against underflow when total supply is very small.
                 uint256 calculatedCurrencyRaisedAtClearingQ96X7 =
                     FixedPointMathLib.saturatingSub(currencyRequiredAtClearingQ97X7, currencyRaisedAboveClearingQ96X7);
 
-                // If price was rounded up, (A) can exceed (B). In that case, currencyRaised from the clearing tick is bounded by actual
-                // tick demand; take min((A), (B)). If the price was not rounded up, (A) == (B).
+                // (B) Maximum possible currencyRaised from bids at the clearing tick, scaling the tick demand by deltaMps
+                uint256 maximumCurrencyRaisedAtClearingQ96X7;
+                unchecked {
+                    maximumCurrencyRaisedAtClearingQ96X7 = demandAtPriceQ96 * deltaMpsU;
+                }
+
+                // min(A, B): caps at-clearing contribution to actual tick demand when price was rounded up (otherwise A == B).
                 uint256 currencyRaisedAtClearingQ96X7 = FixedPointMathLib.min(
                     calculatedCurrencyRaisedAtClearingQ96X7, maximumCurrencyRaisedAtClearingQ96X7
                 );
@@ -325,9 +314,7 @@ contract ContinuousClearingAuction is
             emit NextActiveTickUpdated(nextActiveTickPrice_);
         }
 
-        // The minimum clearing price is either the floor price or the last tick we iterated over.
-        // With the exception of the first iteration, the minimum price is a lower bound on the clearing price
-        // because we already verified that we had enough demand to purchase all of the remaining supply at that price.
+        // The auction had sufficient demand at the last iterated tick so the minimum clearing price is the lower bound
         if (clearingPrice_ < minimumClearingPrice) {
             return minimumClearingPrice;
         }

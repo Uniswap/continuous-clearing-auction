@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import {ConstantsLib} from './ConstantsLib.sol';
-import {FixedPoint96} from './FixedPoint96.sol';
 import {ValueX7} from './ValueX7Lib.sol';
 
 struct Checkpoint {

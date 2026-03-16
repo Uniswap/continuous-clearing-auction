@@ -3,7 +3,6 @@ pragma solidity 0.8.26;
 
 import {Bid, BidLib} from '../libraries/BidLib.sol';
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
-import {ConstantsLib} from '../libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../libraries/FixedPoint96.sol';
 import {ValueX7} from '../libraries/ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -52,7 +51,7 @@ library CheckpointAccountingLib {
         // In the case where the result would have been 0, we will return 1 wei.
         uint256 denominator = tickDemandQ96 * bid.mpsRemainingInAuctionAfterSubmission();
         currencySpentQ96 = bid.amountQ96.fullMulDivUp(ValueX7.unwrap(currencyRaisedAtClearingPriceQ96_X7), denominator);
-    
+
         // We derive tokens filled from the currency spent by dividing it by the max price.
         // If the currency spent is 0, tokens filled will be 0 as well.
         tokensFilled =
@@ -74,7 +73,7 @@ library CheckpointAccountingLib {
     {
         uint256 mpsRemainingInAuctionAfterSubmission = uint256(bid.mpsRemainingInAuctionAfterSubmission());
 
-        // TODO: natspec
+        // Currency spent is the bid amount scaled by the fraction of the auction elapsed during this period
         currencySpentQ96 = bid.amountQ96.fullMulDivUp(cumulativeMpsDelta, mpsRemainingInAuctionAfterSubmission);
 
         // Tokens filled are calculated from the effective amount over the allocation

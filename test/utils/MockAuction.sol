@@ -7,8 +7,7 @@ import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol
 import {AuctionParameters} from '../../src/ContinuousClearingAuction.sol';
 
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
-import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
-import {ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
+import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 
 contract MockContinuousClearingAuction is ContinuousClearingAuction {
     using ValueX7Lib for *;

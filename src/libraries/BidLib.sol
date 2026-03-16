@@ -2,8 +2,6 @@
 pragma solidity ^0.8.4;
 
 import {ConstantsLib} from './ConstantsLib.sol';
-import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 struct Bid {
     uint64 startBlock; // Block number when the bid was first made in

@@ -162,7 +162,7 @@ contract ContinuousClearingAuction is
     }
 
     /// @notice Whether the auction has graduated as of the given checkpoint
-    /// @dev The auction is considered `graudated` if the currency raised is greater than or equal to the required currency raised
+    /// @dev The auction is considered `graduated` if the currency raised is greater than or equal to the required currency raised
     function _isGraduated() internal view returns (bool) {
         return ValueX7.unwrap($currencyRaisedQ96_X7) >= ValueX7.unwrap(REQUIRED_CURRENCY_RAISED_Q96_X7);
     }
@@ -270,7 +270,7 @@ contract ContinuousClearingAuction is
 
         _checkpoint.cumulativeMps += _deltaMps;
 
-        /// Inverse price sum
+        // Inverse price sum
         _checkpoint.cumulativeMpsPerPrice += (deltaMpsU << 192) / priceQ96;
 
         return _checkpoint;
@@ -359,7 +359,7 @@ contract ContinuousClearingAuction is
                 _checkpoint.clearingPrice = newClearingPrice;
                 // Reset the currencyRaisedAtClearingPrice to zero since the clearing price has changed
                 _checkpoint.currencyRaisedAtClearingPriceQ96_X7 = ValueX7.wrap(0);
-                // Write the new cleraing price to storage
+                // Write the new clearing price to storage
                 $clearingPrice = newClearingPrice;
                 emit ClearingPriceUpdated(_blockNumber, newClearingPrice);
             }

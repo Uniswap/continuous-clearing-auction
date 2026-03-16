@@ -29,11 +29,9 @@ import {TickBitmap, TickBitmapLib} from './utils/TickBitmap.sol';
 import {TokenHandler} from './utils/TokenHandler.sol';
 import {Test} from 'forge-std/Test.sol';
 import {console} from 'forge-std/console.sol';
-import {console2} from 'forge-std/console2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
-import {Checkpoint} from 'src/CheckpointStorage.sol';
 
 contract AuctionTest is AuctionBaseTest {
     using FixedPointMathLib for *;
@@ -1018,7 +1016,7 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(address(newAuction).balance, 0);
     }
 
-    function test_exitPartiallyFilledBid_notGraudated_endOfAuction_revertsWithNotGraduated() public {
+    function test_exitPartiallyFilledBid_notGraduated_endOfAuction_revertsWithNotGraduated() public {
         // Never graduate
         params = params.withRequiredCurrencyRaised(type(uint128).max);
         ContinuousClearingAuction newAuction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);

@@ -29,8 +29,6 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {ReentrancyGuardTransient} from 'solady/utils/ReentrancyGuardTransient.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
 
-import {console} from 'forge-std/console.sol';
-
 /// @title ContinuousClearingAuction
 /// @custom:security-contact security@uniswap.org
 /// @notice Implements a time weighted uniform clearing price auction
@@ -225,10 +223,6 @@ contract ContinuousClearingAuction is
                 unchecked {
                     maximumCurrencyRaisedAtClearingQ96X7 = demandAtPriceQ96 * deltaMpsU;
                 }
-                console.log(
-                    'maximumCurrencyRaisedAtClearing',
-                    maximumCurrencyRaisedAtClearingQ96X7 / FixedPoint96.Q96 / ConstantsLib.MPS
-                );
 
                 // Total implied currencyRaised at the (potentially rounded-up) clearing price:
                 // Note: this will be an overestimate if the price is rounded up
@@ -249,25 +243,13 @@ contract ContinuousClearingAuction is
                 // Note: when total supply is very small, `currencyRequiredAtClearingQ97X7` may be zero. Saturating sub is used to prevent underflow.
                 uint256 calculatedCurrencyRaisedAtClearingQ96X7 =
                     FixedPointMathLib.saturatingSub(currencyRequiredAtClearingQ97X7, currencyRaisedAboveClearingQ96X7);
-                console.log(
-                    'calculatedCurrencyRaisedAtClearing',
-                    calculatedCurrencyRaisedAtClearingQ96X7 / FixedPoint96.Q96 / ConstantsLib.MPS
-                );
-
-                console.log(
-                    'maximumCurrencyRaisedAtClearing',
-                    maximumCurrencyRaisedAtClearingQ96X7 / FixedPoint96.Q96 / ConstantsLib.MPS
-                );
 
                 // If price was rounded up, (A) can exceed (B). In that case, currencyRaised from the clearing tick is bounded by actual
                 // tick demand; take min((A), (B)). If the price was not rounded up, (A) == (B).
                 uint256 currencyRaisedAtClearingQ96X7 = FixedPointMathLib.min(
                     calculatedCurrencyRaisedAtClearingQ96X7, maximumCurrencyRaisedAtClearingQ96X7
                 );
-                console.log(
-                    'final: currencyRaisedAtClearing',
-                    currencyRaisedAtClearingQ96X7 / FixedPoint96.Q96 / ConstantsLib.MPS
-                );
+
                 // Change in currency raised = currency raised at clearing + currency raised above clearing
                 currencyRaisedDeltaQ96X7 = currencyRaisedAtClearingQ96X7 + currencyRaisedAboveClearingQ96X7;
                 // Track cumulative currency raised exactly at this clearing price (used for partial exits)
@@ -280,8 +262,6 @@ contract ContinuousClearingAuction is
         // Intentional round-up leaves a small amount of dust to sweep, ensuring cleared tokens never exceed TOTAL_SUPPLY
         // even when using rounded-up clearing prices on tick boundaries.
         uint256 tokensClearedQ96X7 = currencyRaisedDeltaQ96X7.toTokensRoundingUp(priceQ96);
-
-        console.log('tokensCleared', ((tokensClearedQ96X7 >> FixedPoint96.RESOLUTION) / ConstantsLib.MPS) / 1e18);
 
         $totalClearedQ96_X7 = $totalClearedQ96_X7.add(ValueX7.wrap(tokensClearedQ96X7));
 

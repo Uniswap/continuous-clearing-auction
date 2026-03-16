@@ -6,7 +6,6 @@ import {Checkpoint} from '../libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../libraries/FixedPoint96.sol';
 import {ValueX7} from '../libraries/ValueX7Lib.sol';
-import {console} from 'forge-std/console.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @title CheckpointAccountingLib
@@ -53,15 +52,11 @@ library CheckpointAccountingLib {
         // In the case where the result would have been 0, we will return 1 wei.
         uint256 denominator = tickDemandQ96 * bid.mpsRemainingInAuctionAfterSubmission();
         currencySpentQ96 = bid.amountQ96.fullMulDivUp(ValueX7.unwrap(currencyRaisedAtClearingPriceQ96_X7), denominator);
-
-        console.log('PartialFill: Currency Spent:', (currencySpentQ96 / FixedPoint96.Q96) / 1e18);
-
+    
         // We derive tokens filled from the currency spent by dividing it by the max price.
         // If the currency spent is 0, tokens filled will be 0 as well.
         tokensFilled =
             bid.amountQ96.fullMulDiv(ValueX7.unwrap(currencyRaisedAtClearingPriceQ96_X7), denominator) / bid.maxPrice;
-
-        console.log('PartialFill: Tokens Filled:', tokensFilled / 1e18);
     }
 
     /// @notice Calculate the tokens filled and currency spent for a bid
@@ -82,15 +77,12 @@ library CheckpointAccountingLib {
         // TODO: natspec
         currencySpentQ96 = bid.amountQ96.fullMulDivUp(cumulativeMpsDelta, mpsRemainingInAuctionAfterSubmission);
 
-        console.log('FullyFill: Currency Spent:', (currencySpentQ96 / FixedPoint96.Q96) / 1e18);
-
         // Tokens filled are calculated from the effective amount over the allocation
         tokensFilled = bid.amountQ96
             .fullMulDiv(
                 inverseSumPriceDelta, // sum(1 / price)
                 uint256(1 << 192) * mpsRemainingInAuctionAfterSubmission // since we want to move back into uint256 form
             );
-        console.log('FullyFill: Tokens Filled:', tokensFilled / 1e18);
     }
 }
 

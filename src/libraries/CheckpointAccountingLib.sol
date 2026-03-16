@@ -77,7 +77,6 @@ library CheckpointAccountingLib {
         pure
         returns (uint256 tokensFilled, uint256 currencySpentQ96)
     {
-        if (inverseSumPriceDelta == 0) return (0, 0);
         uint256 mpsRemainingInAuctionAfterSubmission = uint256(bid.mpsRemainingInAuctionAfterSubmission());
 
         // TODO: natspec

@@ -1531,10 +1531,10 @@ contract AuctionTest is AuctionBaseTest {
         // Since there is rollover, we expect to sell 100% of the total supply
         ValueX7 expectedTotalCurrencyRaised =
             ValueX7.wrap(TOTAL_SUPPLY_Q96.fullMulDivUp(tickNumberToPriceX96(2) * ConstantsLib.MPS, FixedPoint96.Q96));
-        emit IContinuousClearingAuction.CheckpointUpdated( // Yet the `cumulativeMps` should still be 100%
+        emit IContinuousClearingAuction.CheckpointUpdated(
             startBlock + 40,
             tickNumberToPriceX96(2),
-            ConstantsLib.MPS
+            ConstantsLib.MPS // Cumulative mps should be 100%
         );
         mockAuction.checkpoint();
         assertEq(mockAuction.currencyRaisedQ96_X7(), expectedTotalCurrencyRaised);

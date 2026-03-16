@@ -270,7 +270,7 @@ contract ContinuousClearingAuction is
 
         _checkpoint.cumulativeMps += _deltaMps;
 
-        // Inverse price sum
+        // Add to the cumulative mps per price sum, weighted by `mps`. This is an inverse sum.
         _checkpoint.cumulativeMpsPerPrice += (deltaMpsU << 192) / priceQ96;
 
         return _checkpoint;

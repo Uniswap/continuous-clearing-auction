@@ -62,11 +62,11 @@ library CheckpointAccountingLib {
     /// @dev Uses lazy accounting to efficiently calculate fills across time periods without iterating blocks.
     ///      MUST only be used when the bid's max price is strictly greater than the clearing price throughout.
     /// @param bid the bid to evaluate
-    /// @param inverseSumPriceDelta the cumulative sum of supply to price ratio in X7 form
+    /// @param cumulativeMpsPerPriceDelta the cumulative sum of supply to price ratio in X7 form
     /// @param cumulativeMpsDelta the cumulative sum of mps values across the block range
     /// @return tokensFilled the amount of tokens filled for this bid
     /// @return currencySpentQ96 the amount of currency spent by this bid in Q96 form
-    function calculateFill(Bid memory bid, uint256 inverseSumPriceDelta, uint24 cumulativeMpsDelta)
+    function calculateFill(Bid memory bid, uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
         internal
         pure
         returns (uint256 tokensFilled, uint256 currencySpentQ96)
@@ -79,7 +79,7 @@ library CheckpointAccountingLib {
         // Tokens filled are calculated from the effective amount over the allocation
         tokensFilled = bid.amountQ96
             .fullMulDiv(
-                inverseSumPriceDelta, // sum(1 / price)
+                cumulativeMpsPerPriceDelta, // sum(mps / price)
                 uint256(1 << 192) * mpsRemainingInAuctionAfterSubmission // since we want to move back into uint256 form
             );
     }

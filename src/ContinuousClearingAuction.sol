@@ -200,7 +200,6 @@ contract ContinuousClearingAuction is
         //       (A) total implied currencyRaised at the rounded-up price − contribution from above-clearing
         //       (B) tick demand at clearing × deltaMps
         //    If the clearing price was rounded up to the tick boundary, (A) can exceed (B); cap with min(A, B).
-
         uint256 priceQ96 = _checkpoint.clearingPrice;
         uint256 deltaMpsU = uint256(_deltaMps);
         uint256 sumAboveQ96 = $sumCurrencyDemandAboveClearingQ96;
@@ -233,39 +232,23 @@ contract ContinuousClearingAuction is
 
                 // Total implied currencyRaised at the (potentially rounded-up) clearing price:
                 // Note: this will be an overestimate if the price is rounded up
-                uint256 requiredDemandAtClearingQ96X7;
+                uint256 currencyRequiredAtClearingQ97X7;
                 // If the auction is sold out, the required demand at the clearing price is zero
                 if (_checkpoint.cumulativeMps == ConstantsLib.MPS) {
-                    requiredDemandAtClearingQ96X7 = 0;
+                    currencyRequiredAtClearingQ97X7 = 0;
                 } else {
-                    // Unsold tokens from earlier blocks of the auction are implicitly rolled over to current and future blocks.
-                    // The amount of tokens to clear follows the formula: (TotalSupply * r * mps * price)
-                    //
-                    // where `r` tracks how far the actual clearing of tokens has deviated from the expected issuance schedule.
-                    // Intuitively, `r` scales the remaining schedule so that the auction still clears the full supply by the end.
-                    //
-                    // For example:
-                    //   r == 1   → the auction is clearing exactly on schedule.
-                    //   r == 2   → half the supply that should have been sold so far is still unsold, so the
-                    //              remaining blocks must clear tokens at 2x the scheduled rate.
-                    //
-                    // We show that r = (TotalSupply - TotalCleared) / (TotalSupply * (MPS - cumulativeMps)).
-                    // And when used in the original formula, the `TotalSupply` terms cancel out, leaving us with:
-                    //   (TotalSupply - TotalCleared) * mps * price / (MPS - cumulativeMps)
-                    // We don't have `(TotalSupply - TotalCleared)` exactly but we have `(TotalSupply - TotalCleared) * Q96 * MPS` in `remainingSupplyQ96X7()`
-                    // Substituting this in we get the final equation below:
-                    //   remainingSupplyQ96X7() * mps * price / Q96 * (MPS - cumulativeMps)
-                    requiredDemandAtClearingQ96X7 = ValueX7.unwrap(remainingSupplyQ96X7())
+                    // Variant of src/libraries/DemandLib.sol:requiredDemandAtPrice but with `mps` in the numerator to minimize rounding errors.
+                    currencyRequiredAtClearingQ97X7 = ValueX7.unwrap(remainingSupplyQ96X7())
                         .fullMulDivUp(
-                            deltaMpsU * priceQ96, FixedPoint96.Q96 * (ConstantsLib.MPS - _checkpoint.cumulativeMps)
+                            priceQ96 * deltaMpsU, FixedPoint96.Q96 * (ConstantsLib.MPS - _checkpoint.cumulativeMps)
                         );
                 }
 
                 // (A) Derived contribution from the clearing tick by subtracting
                 //     the above-clearing contribution from the total implied currencyRaised
-                // Note: when total supply is very small, `requiredDemandAtClearingQ96X7` may be zero. Saturating sub is used to prevent underflow.
+                // Note: when total supply is very small, `currencyRequiredAtClearingQ97X7` may be zero. Saturating sub is used to prevent underflow.
                 uint256 calculatedCurrencyRaisedAtClearingQ96X7 =
-                    FixedPointMathLib.saturatingSub(requiredDemandAtClearingQ96X7, currencyRaisedAboveClearingQ96X7);
+                    FixedPointMathLib.saturatingSub(currencyRequiredAtClearingQ97X7, currencyRaisedAboveClearingQ96X7);
                 console.log(
                     'calculatedCurrencyRaisedAtClearing',
                     calculatedCurrencyRaisedAtClearingQ96X7 / FixedPoint96.Q96 / ConstantsLib.MPS
@@ -769,12 +752,12 @@ contract ContinuousClearingAuction is
         return remainingSupplyQ96X7().divUint256(FixedPoint96.Q96).scaleDownToUint256();
     }
 
-    function requiredDemand(uint256 _priceQ96) public view returns (uint256) {
-        return remainingSupplyQ96X7().toCurrencyRoundingUp(_priceQ96);
+    function requiredDemandQ96(uint256 _priceQ96) public view returns (uint256) {
+        return DemandLib.requiredDemandAtPrice(remainingSupplyQ96X7(), _priceQ96, latestCheckpoint().cumulativeMps);
     }
 
-    function requiredDemandAtNextActiveTick() public view returns (uint256) {
-        return requiredDemand($nextActiveTickPrice);
+    function requiredDemandQ96AtNextActiveTick() public view returns (uint256) {
+        return requiredDemandQ96($nextActiveTickPrice);
     }
 
     // Getters

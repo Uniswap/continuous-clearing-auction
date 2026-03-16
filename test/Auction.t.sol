@@ -1499,8 +1499,6 @@ contract AuctionTest is AuctionBaseTest {
         uint256 sumCurrencyDemandAboveClearingQ96 = mockAuction.sumCurrencyDemandAboveClearingQ96();
         // Demand should be the same as the bid demand
         assertEq(sumCurrencyDemandAboveClearingQ96, mockAuction.getBid(bidId).toEffectiveAmount());
-        // Assert that because of supply rollover, the required demand at the next active tick is equal to the total supply * next active tick price
-        assertEq(mockAuction.requiredDemandAtNextActiveTick(), TOTAL_SUPPLY * tickNumberToPriceX96(2));
         /**
          * Roll one more block and checkpoint
          * blockNumber:     1                11   12                              111

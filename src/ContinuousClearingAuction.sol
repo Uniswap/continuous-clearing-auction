@@ -742,25 +742,49 @@ contract ContinuousClearingAuction is
         _sweepUnsoldTokens(_getBlockNumberish(), unsoldTokens);
     }
 
-    // Derived state getters
+    // State getters
 
+    /// @inheritdoc IContinuousClearingAuction
+    function currencyRaisedQ96_X7() external view returns (ValueX7) {
+        return $currencyRaisedQ96_X7;
+    }
+
+    /// @inheritdoc IContinuousClearingAuction
+    function sumCurrencyDemandAboveClearingQ96() external view returns (uint256) {
+        return $sumCurrencyDemandAboveClearingQ96;
+    }
+
+    /// @inheritdoc IContinuousClearingAuction
+    function totalClearedQ96_X7() external view returns (ValueX7) {
+        return $totalClearedQ96_X7;
+    }
+
+    /// @inheritdoc IContinuousClearingAuction
+    function totalCleared() public view returns (uint256) {
+        return $totalClearedQ96_X7.divUint256(FixedPoint96.Q96).scaleDownToUint256();
+    }
+
+    /// @inheritdoc IContinuousClearingAuction
     function remainingSupplyQ96X7() public view returns (ValueX7) {
         return TOTAL_SUPPLY_Q96_X7.saturatingSub($totalClearedQ96_X7);
     }
 
+    /// @inheritdoc IContinuousClearingAuction
     function remainingSupply() public view returns (uint256) {
         return remainingSupplyQ96X7().divUint256(FixedPoint96.Q96).scaleDownToUint256();
     }
 
+    /// @inheritdoc IContinuousClearingAuction
     function requiredDemandQ96(uint256 _priceQ96) public view returns (uint256) {
         return DemandLib.requiredDemandAtPrice(remainingSupplyQ96X7(), _priceQ96, latestCheckpoint().cumulativeMps);
     }
 
+    /// @inheritdoc IContinuousClearingAuction
     function requiredDemandQ96AtNextActiveTick() public view returns (uint256) {
         return requiredDemandQ96($nextActiveTickPrice);
     }
 
-    // Getters
+    // Immutable getters
 
     /// @inheritdoc IContinuousClearingAuction
     function currency() external view returns (address) {
@@ -805,25 +829,5 @@ contract ContinuousClearingAuction is
     /// @inheritdoc IContinuousClearingAuction
     function validationHook() external view returns (IValidationHook) {
         return VALIDATION_HOOK;
-    }
-
-    /// @inheritdoc IContinuousClearingAuction
-    function currencyRaisedQ96_X7() external view returns (ValueX7) {
-        return $currencyRaisedQ96_X7;
-    }
-
-    /// @inheritdoc IContinuousClearingAuction
-    function sumCurrencyDemandAboveClearingQ96() external view returns (uint256) {
-        return $sumCurrencyDemandAboveClearingQ96;
-    }
-
-    /// @inheritdoc IContinuousClearingAuction
-    function totalClearedQ96_X7() external view returns (ValueX7) {
-        return $totalClearedQ96_X7;
-    }
-
-    /// @inheritdoc IContinuousClearingAuction
-    function totalCleared() public view returns (uint256) {
-        return $totalClearedQ96_X7.divUint256(FixedPoint96.Q96).scaleDownToUint256();
     }
 }

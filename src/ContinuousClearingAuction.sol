@@ -234,13 +234,29 @@ contract ContinuousClearingAuction is
                 // Total implied currencyRaised at the (potentially rounded-up) clearing price:
                 // Note: this will be an overestimate if the price is rounded up
 
-                // TODO: this is wrong
+                // TODO: this may be wrong
                 uint256 requiredDemandAtClearingQ96X7;
                 if (_checkpoint.cumulativeMps == 0) {
                     requiredDemandAtClearingQ96X7 = TOTAL_SUPPLY * priceQ96 * deltaMpsU;
                 } else {
+                    // When total supply is very small, remaining supply may be zero.
                     requiredDemandAtClearingQ96X7 =
                         ValueX7.unwrap(remainingSupplyQ96X7()).fullMulDivUp(priceQ96, FixedPoint96.Q96);
+                    console.log('totalSupply', TOTAL_SUPPLY);
+                    console.log('deltaMps', deltaMpsU);
+                    console.log(
+                        'totalCleared',
+                        ValueX7.unwrap($totalClearedQ96_X7),
+                        '/ FixedPoint96.Q96 / ConstantsLib.MPS',
+                        ValueX7.unwrap($totalClearedQ96_X7) / FixedPoint96.Q96 / ConstantsLib.MPS
+                    );
+                    console.log(
+                        'remainingSupplyQ96X7',
+                        ValueX7.unwrap(remainingSupplyQ96X7()),
+                        '/ FixedPoint96.Q96 / ConstantsLib.MPS',
+                        ValueX7.unwrap(remainingSupplyQ96X7()) / FixedPoint96.Q96 / ConstantsLib.MPS
+                    );
+                    console.log('requiredDemandAtClearingQ96X7', requiredDemandAtClearingQ96X7);
                     console.log(
                         'requiredDemandAtClearing', requiredDemandAtClearingQ96X7 / FixedPoint96.Q96 / ConstantsLib.MPS
                     );
@@ -249,7 +265,7 @@ contract ContinuousClearingAuction is
                 // (A) Derived contribution from the clearing tick by subtracting
                 //     the above-clearing contribution from the total implied currencyRaised
                 uint256 calculatedCurrencyRaisedAtClearingQ96X7 =
-                    requiredDemandAtClearingQ96X7 - currencyRaisedAboveClearingQ96X7;
+                    FixedPointMathLib.saturatingSub(requiredDemandAtClearingQ96X7, currencyRaisedAboveClearingQ96X7);
                 console.log(
                     'calculatedCurrencyRaisedAtClearing',
                     calculatedCurrencyRaisedAtClearingQ96X7 / FixedPoint96.Q96 / ConstantsLib.MPS

@@ -2026,7 +2026,7 @@ contract AuctionTest is AuctionBaseTest {
         _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
         // Because each bid will be a little less due to rounding
         vm.assume($maxPrice < (uint256(type(uint128).max) * FixedPoint96.Q96) / (TOTAL_SUPPLY + _numberOfBids));
-        $bidAmount = uint128(_bound($bidAmount, _numberOfBids, _maxBidAmount()));
+        $bidAmount = uint128(bound($bidAmount, _numberOfBids, _maxBidAmount()));
 
         uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids, $maxPrice);
 
@@ -2043,6 +2043,8 @@ contract AuctionTest is AuctionBaseTest {
         // All bids should clear the same number of tokens
         Bid memory bid = auction.bids(bids[0]);
         uint256 amountClearedPerBid = bid.tokensFilled;
+        // Assume that each bid clears at least 1 token, otherwise no event emitted
+        vm.assume(amountClearedPerBid > 0);
 
         vm.roll(auction.claimBlock());
         vm.expectEmit(true, true, true, true);

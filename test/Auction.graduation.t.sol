@@ -213,8 +213,9 @@ contract AuctionGraduationTest is AuctionBaseTest {
         );
         vm.assume(checkpoint.cumulativeMps < ConstantsLib.MPS);
 
-        uint128 requiredAmount =
-            _getRequiredAmountToMoveClearingToPrice(auction.remainingSupply(), $maxPrice, $bidAmount, checkpoint.cumulativeMps);
+        uint128 requiredAmount = _getRequiredAmountToMoveClearingToPrice(
+            auction.remainingSupply(), $maxPrice, $bidAmount, checkpoint.cumulativeMps
+        );
 
         uint256 nextBidId = auction.submitBid{value: requiredAmount}(
             $maxPrice + auction.tickSpacing(), requiredAmount, alice, params.floorPrice, bytes('')
@@ -231,7 +232,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         vm.roll(auction.endBlock());
         Checkpoint memory finalCheckpoint = auction.checkpoint();
         // Assert that the auction finishes at the first maxPrice
-        assertEq(auction.clearingPrice(), $maxPrice, "clearing price");
+        assertEq(auction.clearingPrice(), $maxPrice, 'clearing price');
 
         // Locally validate that for the first bid, the sum of the individual sections would overflow the original bid amount
         Bid memory bid = auction.bids(bidId);

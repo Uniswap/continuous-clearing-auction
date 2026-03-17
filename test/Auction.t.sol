@@ -1461,22 +1461,8 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(step.startBlock, startBlock);
         assertEq(step.endBlock, startBlock + 10);
 
-        /**
-         * Current state of the auction steps
-         * blockNumber:     1                11                                    111
-         *                  |                |                                      |
-         *          stepStart          stepEnd
-         *                             stepStart                              stepEnd
-         *                  ^
-         */
-        // Roll to the end of the first step (top of block)
         vm.roll(step.endBlock);
         /**
-         * blockNumber:     1                11                                    111
-         *                  |                |                                      |
-         *          stepStart          stepEnd
-         *                             stepStart                              stepEnd
-         *                                   ^
          * We are at the END of the first step, which is the start of the second step
          * If we make a checkpoint in this block (number 11), which step is valid?
          * - It should be the second step, because Steps are inclusive of the start block and exclusive of the end block
@@ -1495,31 +1481,20 @@ contract AuctionTest is AuctionBaseTest {
             bytes('')
         );
         uint256 sumCurrencyDemandAboveClearingQ96 = mockAuction.sumCurrencyDemandAboveClearingQ96();
+
         // Demand should be the same as the bid demand
         assertEq(sumCurrencyDemandAboveClearingQ96, mockAuction.getBid(bidId).toEffectiveAmount());
-        /**
-         * Roll one more block and checkpoint
-         * blockNumber:     1                11   12                              111
-         *                  |                |     .                                |
-         *          stepStart          stepEnd
-         *                             stepStart                              stepEnd
-         *                                         ^
-         * The current block number is 12, which is > than the end of the current step (ended block 11). That means we have to advance forward
-         * Before we can advance to the next step, there could have been blocks that were not checkpointed in between the last checkpoint we made
-         * and the end of the last step. In this case both of those values are equal (block 11) so we don't transform the checkpoint.
-         * However, we do advance to the next step such that the step is up to date with the schedule.
-         *
-         * Once the step is made current, we can find the `clearingPrice` and `sumCurrencyDemandAboveClearingQ96` values which affect the Checkpointed values.
-         * It's important to remember that these values are calculated at the TOP of block 12, one block after the bid was submitted
-         * This is correct because it reflects the state of the auction UP UNTIL block 12, not including.
-         *
-         * And we show that at the end of the last step of the auction, 1e7 or 100% of all `mps` were sold in the auction
-         */
+
         vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
         // Expect the second step to be recorded
         emit IStepStorage.AuctionStepRecorded(step.endBlock, endBlock, 300e3);
         mockAuction.checkpoint();
+
+        // Assert that the auction has moved up to the bid's max price
+        assertEq(mockAuction.clearingPrice(), tickNumberToPriceX96(2));
+        // Assert that there are no other bids above the clearing price
+        assertEq(mockAuction.sumCurrencyDemandAboveClearingQ96(), 0);
 
         // Roll to end of the auction
         vm.roll(endBlock);
@@ -1533,7 +1508,10 @@ contract AuctionTest is AuctionBaseTest {
             ConstantsLib.MPS // Cumulative mps should be 100%
         );
         mockAuction.checkpoint();
-        assertEq(mockAuction.currencyRaisedQ96_X7(), expectedTotalCurrencyRaised);
+        // There are rounding errors from rollover math which could cause currencyRaised to be under the expected
+        assertApproxEqAbs(
+            ValueX7.unwrap(mockAuction.currencyRaisedQ96_X7()), ValueX7.unwrap(expectedTotalCurrencyRaised), ONE_WEI_Q96
+        );
     }
 
     /// forge-config: default.isolate = true

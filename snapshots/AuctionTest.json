@@ -1,11 +1,11 @@
 {
-  "Auction bytecode size": "18726",
+  "Auction bytecode size": "18702",
   "checkpoint_advanceToCurrentStep": "180051",
   "checkpoint_noBids": "166023",
   "checkpoint_zeroSupply": "2380",
   "claimTokens": "67178",
   "exitBid": "84393",
-  "exitPartiallyFilledBid": "232918",
+  "exitPartiallyFilledBid": "232922",
   "submitBid": "154230",
   "submitBidWithoutPrevTickPrice": "154118",
   "submitBidWithoutPrevTickPrice_initializeTick_search": "202157",

@@ -50,8 +50,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     // Common test values
     uint24 public constant STANDARD_MPS_1_PERCENT = 100_000; // 100e3 - represents 1% of MPS
 
-    uint256 public constant MAX_ALLOWABLE_DUST_WEI = 1e18; // Or 1 unit of token assuming 18 decimals
     uint256 public constant ONE_WEI_Q96 = 1 << FixedPoint96.RESOLUTION;
+    uint256 public constant MAX_ALLOWABLE_DUST_WEI = 1e7; // Or 1 unit of token assuming 18 decimals
 
     // Test accounts
     address public alice;

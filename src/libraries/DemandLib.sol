@@ -11,8 +11,6 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 /// @title DemandLib
 /// @notice Library for demand calculations
 library DemandLib {
-    using Math for uint256;
-
     /// @notice Given demand above and at a price, calculate the currency raised by all bids at the price
     /// @dev Gets the minimum of the complement based on demand above the price or the max possible
     ///      currency raised from demand at the price.

@@ -1,0 +1,7 @@
+CanClearSupplyAtPriceTest
+├── when demand * remainingMps GT remainingSupply
+│   └── it returns true
+├── when demand * remainingMps EQ remainingSupply
+│   └── it returns true
+└── when demand * remainingMps LT remainingSupply
+    └── it returns false

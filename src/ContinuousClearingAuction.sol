@@ -292,7 +292,9 @@ contract ContinuousClearingAuction is
         while (
             // Loop while the currency amount above the clearing price is greater than the required currency at `nextActiveTickPrice_`
             (nextActiveTickPrice_ != _untilTickPrice
-                    && (demandAboveClearingQ96 * remainingMps).gte(remainingSupplyQ96, nextActiveTickPrice_))
+                    && demandAboveClearingQ96.canClearSupplyAtPrice(
+                        remainingSupplyQ96, nextActiveTickPrice_, remainingMps
+                    ))
                 // If the demand above clearing rounds up to the `nextActiveTickPrice`, we need to keep iterating over ticks
                 // This ensures that the `nextActiveTickPrice` is always the next initialized tick strictly above the clearing price
                 || clearingPrice_ == nextActiveTickPrice_
@@ -743,7 +745,9 @@ contract ContinuousClearingAuction is
 
     /// @inheritdoc IContinuousClearingAuction
     function requiredDemandQ96(uint256 _priceQ96) public view returns (uint256) {
-        return DemandLib.requiredDemandAtPrice(remainingSupplyQ96X7(), _priceQ96, latestCheckpoint().cumulativeMps);
+        uint256 remainingMps = ConstantsLib.MPS - latestCheckpoint().cumulativeMps;
+        if (remainingMps == 0) return 0;
+        return DemandLib.requiredDemandAtPrice(remainingSupplyQ96X7(), _priceQ96, remainingMps);
     }
 
     /// @inheritdoc IContinuousClearingAuction

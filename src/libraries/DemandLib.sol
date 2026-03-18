@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import {ConstantsLib} from './ConstantsLib.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
+import {PriceLib} from './PriceLib.sol';
 import {ValueX7} from './ValueX7Lib.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -86,5 +87,21 @@ library DemandLib {
         (uint256 highLhs, uint256 lowLhs) = Math.mul512(_demandQ96 * _remainingMps, FixedPoint96.Q96);
         (uint256 highRhs, uint256 lowRhs) = Math.mul512(_remainingSupplyQ96X7, _priceQ96);
         return highLhs > highRhs || (highLhs == highRhs && lowLhs >= lowRhs);
+    }
+
+    /// @notice Returns the price ceiling implied by the given demand, assuming demand is continuous
+    /// @dev The actual clearing price may be lower due to demand dropping off at tick boundaries.
+    ///      Wrapper around `PriceLib.toPriceRoundingUp()` that moves the division of remainingMps
+    ///      to the LHS as multiplication to avoid intermediate division.
+    /// @param _demandQ96 The demand in Q96 representation
+    /// @param _remainingSupplyQ96X7 The remaining supply in Q96 representation, scaled up by X7
+    /// @param _remainingMps The number of mps remaining in the auction
+    /// @return The price ceiling, in Q96 representation
+    function toPriceCeiling(uint256 _demandQ96, uint256 _remainingSupplyQ96X7, uint256 _remainingMps)
+        internal
+        pure
+        returns (uint256)
+    {
+        return PriceLib.toPriceRoundingUp(_demandQ96 * _remainingMps, _remainingSupplyQ96X7);
     }
 }

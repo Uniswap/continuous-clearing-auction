@@ -287,16 +287,16 @@ contract ContinuousClearingAuction is
         // If there are no more remaining supply, return the minimum clearing price
         if (remainingSupplyQ96 == 0) return minimumClearingPrice;
 
-        // Loop until we find the price at which the demand can purchase the total supply
-        uint256 clearingPrice_ = (demandAboveClearingQ96 * remainingMps).toPriceRoundingUp(remainingSupplyQ96);
+        uint256 clearingPrice_ = demandAboveClearingQ96.toPriceCeiling(remainingSupplyQ96, remainingMps);
         while (
-            // Loop while the currency amount above the clearing price is greater than the required currency at `nextActiveTickPrice_`
+            // Loop while demand above the last clearing price >= required demand at the next active tick price
+            // See `DemandLib.canClearSupplyAtPrice()` for more details
             (nextActiveTickPrice_ != _untilTickPrice
                     && demandAboveClearingQ96.canClearSupplyAtPrice(
                         remainingSupplyQ96, nextActiveTickPrice_, remainingMps
                     ))
-                // If the demand above clearing rounds up to the `nextActiveTickPrice`, we need to keep iterating over ticks
-                // This ensures that the `nextActiveTickPrice` is always the next initialized tick strictly above the clearing price
+                // If rounding up the demand above clearing equals the `nextActiveTickPrice`, we need to keep iterating over ticks
+                // to ensure that the `nextActiveTickPrice` is always the next initialized tick strictly above the clearing price
                 || clearingPrice_ == nextActiveTickPrice_
         ) {
             Tick storage $nextActiveTick = _getTick(nextActiveTickPrice_);
@@ -306,7 +306,7 @@ contract ContinuousClearingAuction is
             minimumClearingPrice = nextActiveTickPrice_;
             // Advance to the next tick
             nextActiveTickPrice_ = $nextActiveTick.next;
-            clearingPrice_ = (demandAboveClearingQ96 * remainingMps).toPriceRoundingUp(remainingSupplyQ96);
+            clearingPrice_ = demandAboveClearingQ96.toPriceCeiling(remainingSupplyQ96, remainingMps);
             updateStateVariables = true;
         }
         // Set the values into storage if we found a new next active tick price

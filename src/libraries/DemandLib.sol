@@ -13,6 +13,45 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 library DemandLib {
     using Math for uint256;
 
+    /// @notice Given demand above and at a price, calculate the currency raised by all bids at the price
+    /// @dev Gets the minimum of the complement based on demand above the price or the max possible
+    ///      currency raised from demand at the price.
+    /// @dev Caller MUST validate that the auction is not over (_remainingMps > 0)
+    /// @param _remainingSupplyQ96X7 The remaining supply in Q96 representation, scaled up by X7
+    /// @param _demandAtPriceQ96 The demand at the price
+    /// @param _demandAbovePriceQ96 The demand above the price
+    /// @param _priceQ96 The price to calculate the currency raised at
+    /// @param _deltaMps The number of mps to sell
+    /// @param _remainingMps The number of mps remaining in the auction
+    /// @return currencyRaisedAtPriceQ96X7 The currency raised at the price
+    function currencyRaisedAtPrice(
+        ValueX7 _remainingSupplyQ96X7,
+        uint256 _demandAtPriceQ96,
+        uint256 _demandAbovePriceQ96,
+        uint256 _priceQ96,
+        uint256 _deltaMps,
+        uint256 _remainingMps
+    ) internal pure returns (ValueX7 currencyRaisedAtPriceQ96X7) {
+        // Natural definitions
+        uint256 currencyRaisedFromDemandAbovePriceQ96X7 = _demandAbovePriceQ96 * _deltaMps;
+        uint256 maxCurrencyRaisedFromDemandAtPriceQ96X7 = _demandAtPriceQ96 * _deltaMps;
+
+        // Total implied currencyRaised at the (potentially rounded-up) clearing price; overestimates if price was rounded up.
+        // Variant of src/libraries/DemandLib.sol:requiredDemandAtPrice but with `mps` in the numerator to minimize rounding errors.
+        uint256 totalCurrencyRaisedQ96X7 = FixedPointMathLib.fullMulDivUp(
+            ValueX7.unwrap(_remainingSupplyQ96X7), _priceQ96 * _deltaMps, FixedPoint96.Q96 * _remainingMps
+        );
+
+        // Find the currency raised at price via complement (A = total - above)
+        uint256 complementToDemandAbovePriceQ96X7 =
+            FixedPointMathLib.saturatingSub(totalCurrencyRaisedQ96X7, currencyRaisedFromDemandAbovePriceQ96X7);
+
+        // Cap at the maximum possible currency raised from demand at price
+        currencyRaisedAtPriceQ96X7 = ValueX7.wrap(
+            FixedPointMathLib.min(complementToDemandAbovePriceQ96X7, maxCurrencyRaisedFromDemandAtPriceQ96X7)
+        );
+    }
+
     /// @notice Returns the demand required to move the auction to a given price
     /// @dev Accounts for supply rollover by comparing remaining supply to the expected schedule
     /// @dev Caller MUST validate that the auction is not over (cumulativeMps < MPS)

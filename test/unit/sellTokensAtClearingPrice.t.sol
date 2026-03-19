@@ -40,7 +40,7 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
 
         Checkpoint memory checkpoint = Checkpoint({
             clearingPrice: floorPrice,
-            currencyRaisedAtClearingPriceQ96_X7: ValueX7.wrap(0),
+            currencyRaisedAtClearingPriceQ96X7: ValueX7.wrap(0),
             cumulativeMpsPerPrice: 0,
             cumulativeMps: 0,
             prev: 0,
@@ -68,14 +68,14 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
                 expectedCurrencyRaised,
                 expectedCurrencyAtClearingPrice - expectedCurrencyRaisedFromSumDemandAboveClearing
             );
-            assertEq(mockAuction.currencyRaisedQ96_X7(), ValueX7.wrap(expectedCurrencyAtClearingPrice));
+            assertEq(mockAuction.currencyRaisedQ96X7(), ValueX7.wrap(expectedCurrencyAtClearingPrice));
 
             // Value of demand at the tick should be equal to the value of currency raised when multiplying total supply by clearing price
             uint256 currencyRaisedAtTick = mockAuction.ticks(clearingPrice).currencyDemandQ96 * _deltaMps;
             assertEq(currencyRaisedAtTick, expectedCurrencyAtClearingPrice);
 
             // Currency raised at clearing price should be equal to the sum of demand above clearing and the demand at the tick
-            assertEq(newCheckpoint.currencyRaisedAtClearingPriceQ96_X7, ValueX7.wrap(expectedCurrencyAtClearingPrice));
+            assertEq(newCheckpoint.currencyRaisedAtClearingPriceQ96X7, ValueX7.wrap(expectedCurrencyAtClearingPrice));
 
             uint256 expectedCumulativeMpsPerPrice =
                 (_deltaMps * (FixedPoint96.Q96 << FixedPoint96.RESOLUTION)) / clearingPrice;
@@ -131,7 +131,7 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
 
         Checkpoint memory checkpoint = Checkpoint({
             clearingPrice: floorPrice,
-            currencyRaisedAtClearingPriceQ96_X7: ValueX7.wrap(0),
+            currencyRaisedAtClearingPriceQ96X7: ValueX7.wrap(0),
             cumulativeMpsPerPrice: 0,
             cumulativeMps: 0,
             prev: 0,
@@ -182,10 +182,10 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
             assertEq(expectedCurrencyRaised, currencyRaisedAtTick - expectedCurrencyRaisedFromSumDemandAboveClearing);
 
             // This line will fail if we use the rounded up clearing price to determine the currency raised
-            assertEq(mockAuction.currencyRaisedQ96_X7(), ValueX7.wrap(currencyRaisedAtTick));
+            assertEq(mockAuction.currencyRaisedQ96X7(), ValueX7.wrap(currencyRaisedAtTick));
 
             // Currency raised at clearing price should be equal to the sum of demand above clearing and the demand at the tick
-            assertEq(checkpoint.currencyRaisedAtClearingPriceQ96_X7, ValueX7.wrap(currencyRaisedAtTick));
+            assertEq(checkpoint.currencyRaisedAtClearingPriceQ96X7, ValueX7.wrap(currencyRaisedAtTick));
 
             uint256 expectedCumulativeMpsPerPrice =
                 (_deltaMps * (FixedPoint96.Q96 << FixedPoint96.RESOLUTION)) / clearingPrice;
@@ -208,18 +208,18 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
 
             // From the previous setup in the test, we know that the clearing price == bid max price
             // Calculate the partial tokens filled
-            ValueX7 currencySpentQ96_X7 = ValueX7.wrap(
+            ValueX7 currencySpentQ96X7 = ValueX7.wrap(
                 (demandAtNextTick * ConstantsLib.MPS)
                 .fullMulDivUp(
-                    ValueX7.unwrap(checkpoint.currencyRaisedAtClearingPriceQ96_X7),
+                    ValueX7.unwrap(checkpoint.currencyRaisedAtClearingPriceQ96X7),
                     // The bid was entered in the beginning of the auction so bid.remainingMpsInAuction == ConstantsLib.MPS
                     demandAtNextTick * ConstantsLib.MPS
                 )
             );
             // The currency spent ValueX7 is then scaled down to a uint256
-            uint256 currencySpentQ96 = ValueX7.unwrap(currencySpentQ96_X7) / ConstantsLib.MPS;
+            uint256 currencySpentQ96 = ValueX7.unwrap(currencySpentQ96X7) / ConstantsLib.MPS;
             // The tokens filled uses the currencySpent ValueX7 value and scales down to a uint256
-            uint256 tokensFilled = (ValueX7.unwrap(currencySpentQ96_X7) / clearingPrice) / ConstantsLib.MPS;
+            uint256 tokensFilled = (ValueX7.unwrap(currencySpentQ96X7) / clearingPrice) / ConstantsLib.MPS;
 
             // If the totalCleared is less than the tokens filled then the auction would be insolvent if
             // the bid exited and the unsold tokens were swept

@@ -19,14 +19,14 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     /// @notice The total supply of tokens to sell
     uint128 internal immutable TOTAL_SUPPLY;
     /// @notice The total supply of tokens to sell in Q96 representation, scaled up by X7
-    ValueX7 internal immutable TOTAL_SUPPLY_Q96_X7;
+    ValueX7 internal immutable TOTAL_SUPPLY_Q96X7;
     /// @notice The recipient of any unsold tokens at the end of the auction
     address internal immutable TOKENS_RECIPIENT;
     /// @notice The recipient of the raised Currency from the auction
     address internal immutable FUNDS_RECIPIENT;
     /// @notice The amount of currency required to be raised for the auction
     ///         to graduate in Q96 form, scaled up by X7
-    ValueX7 internal immutable REQUIRED_CURRENCY_RAISED_Q96_X7;
+    ValueX7 internal immutable REQUIRED_CURRENCY_RAISED_Q96X7;
 
     /// @notice The block at which the currency was swept
     uint256 public sweepCurrencyBlock;
@@ -51,10 +51,10 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         TOKEN = IERC20Minimal(_token);
         CURRENCY = Currency.wrap(_currency);
         TOTAL_SUPPLY = _totalSupply;
-        TOTAL_SUPPLY_Q96_X7 = ValueX7.wrap((uint256(_totalSupply) << FixedPoint96.RESOLUTION) * ConstantsLib.MPS);
+        TOTAL_SUPPLY_Q96X7 = ValueX7.wrap((uint256(_totalSupply) << FixedPoint96.RESOLUTION) * ConstantsLib.MPS);
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;
-        REQUIRED_CURRENCY_RAISED_Q96_X7 =
+        REQUIRED_CURRENCY_RAISED_Q96X7 =
             ValueX7.wrap((uint256(_requiredCurrencyRaised) << FixedPoint96.RESOLUTION) * ConstantsLib.MPS);
     }
 

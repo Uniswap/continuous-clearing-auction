@@ -14,7 +14,7 @@ abstract contract Assertions is StdAssertions {
                 _checkpoint.prev,
                 _checkpoint.next,
                 _checkpoint.cumulativeMpsPerPrice,
-                _checkpoint.currencyRaisedAtClearingPriceQ96_X7
+                _checkpoint.currencyRaisedAtClearingPriceQ96X7
             )
         );
     }

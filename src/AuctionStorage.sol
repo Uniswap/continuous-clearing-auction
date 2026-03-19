@@ -11,9 +11,9 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 /// @notice Abstract contract for managing auction storage
 abstract contract AuctionStorage is IAuctionStorage {
     /// @notice The total currency raised in the auction in Q96 representation, scaled up by X7
-    ValueX7 internal $currencyRaisedQ96_X7;
+    ValueX7 internal $currencyRaisedQ96X7;
     /// @notice The total tokens sold in the auction so far, in Q96 representation, scaled up by X7
-    ValueX7 internal $totalClearedQ96_X7;
+    ValueX7 internal $totalClearedQ96X7;
     /// @notice The sum of currency demand in ticks above the clearing price
     /// @dev This will increase every time a new bid is submitted, and decrease when bids are outbid.
     uint256 internal $sumCurrencyDemandAboveClearingQ96;
@@ -24,34 +24,28 @@ abstract contract AuctionStorage is IAuctionStorage {
     /// @notice Whether the TOTAL_SUPPLY of tokens has been received
     bool internal $_tokensReceived;
 
-    /// @notice Return the currency raised in uint256 representation
-    /// @return The currency raised
-    function _currencyRaised() internal view returns (uint256) {
-        return (ValueX7.unwrap($currencyRaisedQ96_X7) / FixedPoint96.Q96) / ConstantsLib.MPS;
-    }
-
     /// @inheritdoc IAuctionStorage
     function currencyRaised() public view returns (uint256) {
-        return _currencyRaised();
+        return (ValueX7.unwrap($currencyRaisedQ96X7) / FixedPoint96.Q96) / ConstantsLib.MPS;
     }
 
     /// @inheritdoc IAuctionStorage
-    function currencyRaisedQ96_X7() external view returns (ValueX7) {
-        return $currencyRaisedQ96_X7;
+    function currencyRaisedQ96X7() public view returns (ValueX7) {
+        return $currencyRaisedQ96X7;
     }
 
     /// @inheritdoc IAuctionStorage
-    function sumCurrencyDemandAboveClearingQ96() external view returns (uint256) {
+    function sumCurrencyDemandAboveClearingQ96() public view returns (uint256) {
         return $sumCurrencyDemandAboveClearingQ96;
     }
 
     /// @inheritdoc IAuctionStorage
-    function totalClearedQ96_X7() external view returns (ValueX7) {
-        return $totalClearedQ96_X7;
+    function totalClearedQ96X7() public view returns (ValueX7) {
+        return $totalClearedQ96X7;
     }
 
     /// @inheritdoc IAuctionStorage
     function totalCleared() public view returns (uint256) {
-        return (ValueX7.unwrap($totalClearedQ96_X7) / FixedPoint96.Q96) / ConstantsLib.MPS;
+        return (ValueX7.unwrap($totalClearedQ96X7) / FixedPoint96.Q96) / ConstantsLib.MPS;
     }
 }

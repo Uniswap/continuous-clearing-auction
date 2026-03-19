@@ -123,7 +123,7 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
 
         Checkpoint memory checkpoint = Checkpoint({
             clearingPrice: floorPrice,
-            currencyRaisedAtClearingPriceQ96_X7: ValueX7.wrap(0),
+            currencyRaisedAtClearingPriceQ96X7: ValueX7.wrap(0),
             cumulativeMpsPerPrice: 0,
             cumulativeMps: 0,
             prev: 0,
@@ -176,7 +176,7 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
 
         Checkpoint memory checkpoint = Checkpoint({
             clearingPrice: floorPrice,
-            currencyRaisedAtClearingPriceQ96_X7: ValueX7.wrap(0),
+            currencyRaisedAtClearingPriceQ96X7: ValueX7.wrap(0),
             cumulativeMpsPerPrice: 0,
             cumulativeMps: 0,
             prev: 0,
@@ -232,7 +232,7 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
 
         Checkpoint memory checkpoint = Checkpoint({
             clearingPrice: floorPrice,
-            currencyRaisedAtClearingPriceQ96_X7: ValueX7.wrap(0),
+            currencyRaisedAtClearingPriceQ96X7: ValueX7.wrap(0),
             cumulativeMpsPerPrice: 0,
             cumulativeMps: 0,
             prev: 0,
@@ -286,7 +286,7 @@ contract AuctionIterateOverTicksAndFindClearingPriceTest is AuctionUnitTest {
 
         Checkpoint memory checkpoint = Checkpoint({
             clearingPrice: floorPrice,
-            currencyRaisedAtClearingPriceQ96_X7: ValueX7.wrap(0),
+            currencyRaisedAtClearingPriceQ96X7: ValueX7.wrap(0),
             cumulativeMpsPerPrice: 0,
             cumulativeMps: 0,
             prev: 0,

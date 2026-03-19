@@ -235,7 +235,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
             auction.checkpoints(startBlock + 1), auction.checkpoints(startBlock), bid
         );
         (, uint256 partialSpentQ96) = CheckpointAccountingLib.accountPartiallyFilledCheckpoints(
-            bid, auction.ticks($maxPrice).currencyDemandQ96, finalCheckpoint.currencyRaisedAtClearingPriceQ96_X7
+            bid, auction.ticks($maxPrice).currencyDemandQ96, finalCheckpoint.currencyRaisedAtClearingPriceQ96X7
         );
         uint256 totalSpentQ96 = fullySpentQ96 + partialSpentQ96;
 

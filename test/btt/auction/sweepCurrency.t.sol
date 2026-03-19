@@ -138,7 +138,7 @@ contract SweepCurrencyTest is BttBase {
         vm.roll(mParams.parameters.endBlock);
         Checkpoint memory checkpoint = auction.checkpoint();
         uint256 expectedCurrencyRaised =
-            (ValueX7.unwrap(checkpoint.currencyRaisedAtClearingPriceQ96_X7) / FixedPoint96.Q96) / ConstantsLib.MPS;
+            (ValueX7.unwrap(checkpoint.currencyRaisedAtClearingPriceQ96X7) / FixedPoint96.Q96) / ConstantsLib.MPS;
         vm.assume(expectedCurrencyRaised > 0);
 
         assertEq(auction.sweepCurrencyBlock(), 0);

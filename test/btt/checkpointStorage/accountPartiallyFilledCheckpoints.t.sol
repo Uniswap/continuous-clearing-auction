@@ -18,11 +18,11 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
         mockCheckpointStorage = new MockCheckpointStorage();
     }
 
-    function test_WhenDemandEQ0(Bid memory _bid, ValueX7 _cumulativeCurrencyRaisedAtClearingPriceQ96_X7) external view {
+    function test_WhenDemandEQ0(Bid memory _bid, ValueX7 _cumulativeCurrencyRaisedAtClearingPriceQ96X7) external view {
         // it returns (0, 0)
 
         (uint256 tokensFilled, uint256 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
-            _bid, 0, _cumulativeCurrencyRaisedAtClearingPriceQ96_X7
+            _bid, 0, _cumulativeCurrencyRaisedAtClearingPriceQ96X7
         );
 
         assertEq(tokensFilled, 0);

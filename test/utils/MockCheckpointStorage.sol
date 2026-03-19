@@ -26,8 +26,8 @@ contract MockCheckpointStorage is CheckpointStorage {
     function accountPartiallyFilledCheckpoints(
         Bid memory bid,
         uint256 tickDemandQ96,
-        ValueX7 currencyRaisedAtClearingPriceQ96_X7
+        ValueX7 currencyRaisedAtClearingPriceQ96X7
     ) public pure returns (uint256 tokensFilled, uint256 currencySpent) {
-        return _accountPartiallyFilledCheckpoints(bid, tickDemandQ96, currencyRaisedAtClearingPriceQ96_X7);
+        return _accountPartiallyFilledCheckpoints(bid, tickDemandQ96, currencyRaisedAtClearingPriceQ96X7);
     }
 }

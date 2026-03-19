@@ -151,7 +151,7 @@ contract ContinuousClearingAuction is
     /// @notice Whether the auction has graduated as of the given checkpoint
     /// @dev The auction is considered `graduated` if the currency raised is greater than or equal to the required currency raised
     function _isGraduated() internal view returns (bool) {
-        return ValueX7.unwrap($currencyRaisedQ96_X7) >= ValueX7.unwrap(REQUIRED_CURRENCY_RAISED_Q96_X7);
+        return ValueX7.unwrap($currencyRaisedQ96X7) >= ValueX7.unwrap(REQUIRED_CURRENCY_RAISED_Q96X7);
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
@@ -192,8 +192,8 @@ contract ContinuousClearingAuction is
                 // Change in currency raised = currency raised at clearing + currency raised above clearing
                 currencyRaisedDeltaQ96X7 = currencyRaisedDeltaQ96X7.add(currencyRaisedAtClearingQ96X7);
                 // Track cumulative currency raised exactly at this clearing price (used for partial exits)
-                _checkpoint.currencyRaisedAtClearingPriceQ96_X7 =
-                    _checkpoint.currencyRaisedAtClearingPriceQ96_X7.add(currencyRaisedAtClearingQ96X7);
+                _checkpoint.currencyRaisedAtClearingPriceQ96X7 =
+                    _checkpoint.currencyRaisedAtClearingPriceQ96X7.add(currencyRaisedAtClearingQ96X7);
             }
         }
 
@@ -201,10 +201,10 @@ contract ContinuousClearingAuction is
         // Intentional round-up leaves a small amount of dust to sweep, ensuring cleared tokens never exceed TOTAL_SUPPLY
         // even when using rounded-up clearing prices on tick boundaries.
         uint256 tokensClearedQ96X7 = ValueX7.unwrap(currencyRaisedDeltaQ96X7).toTokensRoundingUp(priceQ96);
-        $totalClearedQ96_X7 = $totalClearedQ96_X7.add(ValueX7.wrap(tokensClearedQ96X7));
+        $totalClearedQ96X7 = $totalClearedQ96X7.add(ValueX7.wrap(tokensClearedQ96X7));
 
         // Update global currency raised
-        $currencyRaisedQ96_X7 = $currencyRaisedQ96_X7.add(currencyRaisedDeltaQ96X7);
+        $currencyRaisedQ96X7 = $currencyRaisedQ96X7.add(currencyRaisedDeltaQ96X7);
 
         // Increase cumulativeMps after all state variables have been updated
         _checkpoint.cumulativeMps += _deltaMps;
@@ -296,7 +296,7 @@ contract ContinuousClearingAuction is
                 // Set the new clearing price
                 _checkpoint.clearingPrice = newClearingPrice;
                 // Reset the currencyRaisedAtClearingPrice to zero since the clearing price has changed
-                _checkpoint.currencyRaisedAtClearingPriceQ96_X7 = ValueX7.wrap(0);
+                _checkpoint.currencyRaisedAtClearingPriceQ96X7 = ValueX7.wrap(0);
                 // Write the new clearing price to storage
                 $clearingPrice = newClearingPrice;
                 emit ClearingPriceUpdated(_blockNumber, newClearingPrice);
@@ -571,7 +571,7 @@ contract ContinuousClearingAuction is
         if (upperCheckpoint.clearingPrice == bidMaxPrice) {
             uint256 tickDemandQ96 = _getTick(bidMaxPrice).currencyDemandQ96;
             (uint256 partialTokensFilled, uint256 partialCurrencySpentQ96) = _accountPartiallyFilledCheckpoints(
-                bid, tickDemandQ96, upperCheckpoint.currencyRaisedAtClearingPriceQ96_X7
+                bid, tickDemandQ96, upperCheckpoint.currencyRaisedAtClearingPriceQ96X7
             );
             // Add the tokensFilled and currencySpentQ96 from the partially filled checkpoints to the total
             tokensFilled += partialTokensFilled;
@@ -645,7 +645,7 @@ contract ContinuousClearingAuction is
         if (sweepCurrencyBlock != 0) revert CannotSweepCurrency();
         // Cannot sweep currency if the auction has not graduated, as all of the Currency must be refunded
         if (!_isGraduated()) revert NotGraduated();
-        _sweepCurrency(_getBlockNumberish(), _currencyRaised());
+        _sweepCurrency(_getBlockNumberish(), currencyRaised());
     }
 
     /// @inheritdoc IContinuousClearingAuction
@@ -664,7 +664,7 @@ contract ContinuousClearingAuction is
 
     /// @inheritdoc IContinuousClearingAuction
     function remainingSupplyQ96X7() public view returns (ValueX7) {
-        return TOTAL_SUPPLY_Q96_X7.saturatingSub($totalClearedQ96_X7);
+        return TOTAL_SUPPLY_Q96X7.saturatingSub($totalClearedQ96X7);
     }
 
     /// @inheritdoc IContinuousClearingAuction

@@ -36,26 +36,26 @@ library CheckpointAccountingLib {
     /// @notice Calculate the tokens sold and currency spent for a partially filled bid
     /// @param bid The bid
     /// @param tickDemandQ96 The total demand at the tick
-    /// @param currencyRaisedAtClearingPriceQ96_X7 The cumulative supply sold to the clearing price
+    /// @param currencyRaisedAtClearingPriceQ96X7 The cumulative supply sold to the clearing price
     /// @return tokensFilled The tokens filled, rounded down
     /// @return currencySpentQ96 The amount of currency spent in Q96 form, rounded up
     function accountPartiallyFilledCheckpoints(
         Bid memory bid,
         uint256 tickDemandQ96,
-        ValueX7 currencyRaisedAtClearingPriceQ96_X7
+        ValueX7 currencyRaisedAtClearingPriceQ96X7
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpentQ96) {
         if (tickDemandQ96 == 0) return (0, 0);
 
-        // Apply the ratio between bid demand and tick demand to the currencyRaisedAtClearingPriceQ96_X7 value
+        // Apply the ratio between bid demand and tick demand to the currencyRaisedAtClearingPriceQ96X7 value
         // If currency spent is calculated to have a remainder, we round up.
         // In the case where the result would have been 0, we will return 1 wei.
         uint256 denominator = tickDemandQ96 * bid.mpsRemainingInAuctionAfterSubmission();
-        currencySpentQ96 = bid.amountQ96.fullMulDivUp(ValueX7.unwrap(currencyRaisedAtClearingPriceQ96_X7), denominator);
+        currencySpentQ96 = bid.amountQ96.fullMulDivUp(ValueX7.unwrap(currencyRaisedAtClearingPriceQ96X7), denominator);
 
         // We derive tokens filled from the currency spent by dividing it by the max price.
         // If the currency spent is 0, tokens filled will be 0 as well.
         tokensFilled =
-            bid.amountQ96.fullMulDiv(ValueX7.unwrap(currencyRaisedAtClearingPriceQ96_X7), denominator) / bid.maxPrice;
+            bid.amountQ96.fullMulDiv(ValueX7.unwrap(currencyRaisedAtClearingPriceQ96X7), denominator) / bid.maxPrice;
     }
 
     /// @notice Calculate the tokens filled and currency spent for a bid

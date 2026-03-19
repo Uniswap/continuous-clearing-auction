@@ -128,7 +128,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         emit IContinuousClearingAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), expectedCumulativeMps);
         auction.checkpoint();
-        assertEq(auction.currencyRaisedQ96_X7(), expectedTotalCurrencyRaised);
+        assertEq(auction.currencyRaisedQ96X7(), expectedTotalCurrencyRaised);
 
         assertEq(auction.clearingPrice(), tickNumberToPriceX96(2));
     }
@@ -151,7 +151,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         emit IContinuousClearingAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), expectedCumulativeMps);
         auction.checkpoint();
-        assertEq(auction.currencyRaisedQ96_X7(), expectedCurrencyRaised);
+        assertEq(auction.currencyRaisedQ96X7(), expectedCurrencyRaised);
     }
 
     function test_submitBid_multipleTicks_succeeds() public {
@@ -191,7 +191,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         emit IContinuousClearingAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), expectedCumulativeMps);
         auction.checkpoint();
-        assertEq(auction.currencyRaisedQ96_X7(), expectedCurrencyRaised);
+        assertEq(auction.currencyRaisedQ96X7(), expectedCurrencyRaised);
     }
 
     function test_submitBid_exactIn_overTotalSupply_isPartiallyFilled() public {
@@ -206,7 +206,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(auction.endBlock());
         auction.checkpoint();
         assertEq(
-            auction.currencyRaisedQ96_X7(),
+            auction.currencyRaisedQ96X7(),
             ValueX7.wrap(TOTAL_SUPPLY_Q96.fullMulDiv(tickNumberToPriceX96(2) * ConstantsLib.MPS, FixedPoint96.Q96)),
             'currency raised'
         );
@@ -250,7 +250,7 @@ contract AuctionTest is AuctionBaseTest {
         // Expect the price to increase, but no tokens to be sold
         emit IContinuousClearingAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), 0);
         auction.checkpoint();
-        assertEq(auction.currencyRaisedQ96_X7(), ValueX7.wrap(0), 'currency raised should be zero');
+        assertEq(auction.currencyRaisedQ96X7(), ValueX7.wrap(0), 'currency raised should be zero');
         vm.snapshotGasLastCall('checkpoint_zeroSupply');
 
         // Advance to one block after the start of the second step
@@ -264,7 +264,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         emit IContinuousClearingAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), expectedCumulativeMps);
         auction.checkpoint();
-        assertEq(auction.currencyRaisedQ96_X7(), expectedTotalCurrencyRaised);
+        assertEq(auction.currencyRaisedQ96X7(), expectedTotalCurrencyRaised);
 
         vm.roll(auction.endBlock());
         uint256 aliceBalanceBefore = address(alice).balance;
@@ -305,7 +305,7 @@ contract AuctionTest is AuctionBaseTest {
         // Advance to the next block to get the next checkpoint
         vm.roll(block.number + 1);
         auction.checkpoint();
-        assertEq(auction.currencyRaisedQ96_X7(), ValueX7.wrap(0));
+        assertEq(auction.currencyRaisedQ96X7(), ValueX7.wrap(0));
 
         // Advance to the end of the first step
         vm.roll(auction.startBlock() + 101);
@@ -535,7 +535,7 @@ contract AuctionTest is AuctionBaseTest {
         vm.expectEmit(true, true, true, true);
         emit IContinuousClearingAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(3), expectedCumulativeMps);
         auction.checkpoint();
-        assertEq(auction.currencyRaisedQ96_X7(), expectedTotalCurrencyRaised);
+        assertEq(auction.currencyRaisedQ96X7(), expectedTotalCurrencyRaised);
         uint256 aliceBalanceBefore = address(alice).balance;
         // Expect that the first bid can be exited, since the clearing price is now above its max price
         vm.startPrank(alice);
@@ -1276,7 +1276,7 @@ contract AuctionTest is AuctionBaseTest {
         // - lower: 1 (last fully filled checkpoint)
         // - upper: 0 because the bid was never outbid
         auction.exitPartiallyFilledBid(bidId, 1, 0);
-        assertEq(auction.currencyRaisedQ96_X7(), expectedTotalCurrencyRaised);
+        assertEq(auction.currencyRaisedQ96X7(), expectedTotalCurrencyRaised);
     }
 
     function test_exitPartiallyFilledBid_lowerHintIsValidated() public {
@@ -1442,7 +1442,7 @@ contract AuctionTest is AuctionBaseTest {
         // Expect that we sold the total supply at price of 2
         emit IContinuousClearingAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), ConstantsLib.MPS);
         mockAuction.checkpoint();
-        assertEq(mockAuction.currencyRaisedQ96_X7(), ValueX7.wrap(expectedTotalCurrencyRaised));
+        assertEq(mockAuction.currencyRaisedQ96X7(), ValueX7.wrap(expectedTotalCurrencyRaised));
     }
 
     function test_advanceToCurrentStep_blockNumberIsEndOfStep() public {
@@ -1509,7 +1509,7 @@ contract AuctionTest is AuctionBaseTest {
         mockAuction.checkpoint();
         // There are rounding errors from rollover math which could cause currencyRaised to be under the expected
         assertApproxEqAbs(
-            ValueX7.unwrap(mockAuction.currencyRaisedQ96_X7()), ValueX7.unwrap(expectedTotalCurrencyRaised), ONE_WEI_Q96
+            ValueX7.unwrap(mockAuction.currencyRaisedQ96X7()), ValueX7.unwrap(expectedTotalCurrencyRaised), ONE_WEI_Q96
         );
     }
 

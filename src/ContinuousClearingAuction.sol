@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {AuctionStorage} from './AuctionStorage.sol';
 import {BidStorage} from './BidStorage.sol';
 import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
 import {StepStorage} from './StepStorage.sol';
@@ -22,7 +23,7 @@ import {MaxBidPriceLib} from './libraries/MaxBidPriceLib.sol';
 import {PriceLib} from './libraries/PriceLib.sol';
 import {AuctionStep, StepLib} from './libraries/StepLib.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
-import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
+import {ValueX7} from './libraries/ValueX7Lib.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -40,6 +41,7 @@ contract ContinuousClearingAuction is
     StepStorage,
     TickStorage,
     TokenCurrencyStorage,
+    AuctionStorage,
     ReentrancyGuardTransient,
     IContinuousClearingAuction
 {
@@ -49,7 +51,6 @@ contract ContinuousClearingAuction is
     using StepLib for *;
     using CheckpointLib for Checkpoint;
     using ValidationHookLib for IValidationHook;
-    using ValueX7Lib for *;
     using PriceLib for *;
     using DemandLib for uint256;
 
@@ -58,20 +59,6 @@ contract ContinuousClearingAuction is
     uint256 public immutable MAX_BID_PRICE;
     /// @notice An optional hook to be called before a bid is registered
     IValidationHook internal immutable VALIDATION_HOOK;
-
-    /// @notice The total currency raised in the auction in Q96 representation, scaled up by X7
-    ValueX7 internal $currencyRaisedQ96_X7;
-    /// @notice The total tokens sold in the auction so far, in Q96 representation, scaled up by X7
-    ValueX7 internal $totalClearedQ96_X7;
-    /// @notice The sum of currency demand in ticks above the clearing price
-    /// @dev This will increase every time a new bid is submitted, and decrease when bids are outbid.
-    uint256 internal $sumCurrencyDemandAboveClearingQ96;
-    /// @notice The most up to date clearing price, set on each call to `checkpoint`
-    /// @dev This can be incremented manually by calling `forceIterateOverTicks`
-    uint256 internal $clearingPrice;
-
-    /// @notice Whether the TOTAL_SUPPLY of tokens has been received
-    bool private $_tokensReceived;
 
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
         StepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock, _parameters.claimBlock)
@@ -165,17 +152,6 @@ contract ContinuousClearingAuction is
     /// @dev The auction is considered `graduated` if the currency raised is greater than or equal to the required currency raised
     function _isGraduated() internal view returns (bool) {
         return ValueX7.unwrap($currencyRaisedQ96_X7) >= ValueX7.unwrap(REQUIRED_CURRENCY_RAISED_Q96_X7);
-    }
-
-    /// @inheritdoc IContinuousClearingAuction
-    function currencyRaised() public view returns (uint256) {
-        return _currencyRaised();
-    }
-
-    /// @notice Return the currency raised in uint256 representation
-    /// @return The currency raised
-    function _currencyRaised() internal view returns (uint256) {
-        return $currencyRaisedQ96_X7.divUint256(FixedPoint96.Q96).scaleDownToUint256();
     }
 
     /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
@@ -677,7 +653,7 @@ contract ContinuousClearingAuction is
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
         uint256 unsoldTokens;
         if (_isGraduated()) {
-            unsoldTokens = remainingSupplyQ96X7().divUint256(FixedPoint96.Q96).scaleDownToUint256();
+            unsoldTokens = remainingSupply();
         } else {
             unsoldTokens = TOTAL_SUPPLY;
         }
@@ -687,33 +663,13 @@ contract ContinuousClearingAuction is
     // State getters
 
     /// @inheritdoc IContinuousClearingAuction
-    function currencyRaisedQ96_X7() external view returns (ValueX7) {
-        return $currencyRaisedQ96_X7;
-    }
-
-    /// @inheritdoc IContinuousClearingAuction
-    function sumCurrencyDemandAboveClearingQ96() external view returns (uint256) {
-        return $sumCurrencyDemandAboveClearingQ96;
-    }
-
-    /// @inheritdoc IContinuousClearingAuction
-    function totalClearedQ96_X7() external view returns (ValueX7) {
-        return $totalClearedQ96_X7;
-    }
-
-    /// @inheritdoc IContinuousClearingAuction
-    function totalCleared() public view returns (uint256) {
-        return $totalClearedQ96_X7.divUint256(FixedPoint96.Q96).scaleDownToUint256();
-    }
-
-    /// @inheritdoc IContinuousClearingAuction
     function remainingSupplyQ96X7() public view returns (ValueX7) {
         return TOTAL_SUPPLY_Q96_X7.saturatingSub($totalClearedQ96_X7);
     }
 
     /// @inheritdoc IContinuousClearingAuction
     function remainingSupply() public view returns (uint256) {
-        return remainingSupplyQ96X7().divUint256(FixedPoint96.Q96).scaleDownToUint256();
+        return (ValueX7.unwrap(remainingSupplyQ96X7()) / FixedPoint96.Q96) / ConstantsLib.MPS;
     }
 
     /// @inheritdoc IContinuousClearingAuction

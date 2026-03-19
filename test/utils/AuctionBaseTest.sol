@@ -11,7 +11,7 @@ import {BidLib} from '../../src/libraries/BidLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {MaxBidPriceLib} from '../../src/libraries/MaxBidPriceLib.sol';
-import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
+import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 import {Assertions} from './Assertions.sol';
 import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
@@ -31,7 +31,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
     using TickBitmapLib for TickBitmap;
-    using ValueX7Lib for *;
     using BidLib for *;
 
     TickBitmap private tickBitmap;

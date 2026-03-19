@@ -7,22 +7,12 @@ import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol
 import {AuctionParameters} from '../../src/ContinuousClearingAuction.sol';
 
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
-import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
+import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 
 contract MockContinuousClearingAuction is ContinuousClearingAuction {
-    using ValueX7Lib for *;
-
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
         ContinuousClearingAuction(_token, _totalSupply, _parameters)
     {}
-
-    /// @notice The number of tokens that can be swept from the auction
-    /// @dev Only use this function if you know the auction is graduated
-    function sweepableTokens() external view returns (uint256) {
-        uint256 totalSupplyQ96 = uint256(TOTAL_SUPPLY) << FixedPoint96.RESOLUTION;
-        return totalSupplyQ96.scaleUpToX7().saturatingSub($totalClearedQ96_X7).divUint256(FixedPoint96.Q96)
-            .scaleDownToUint256();
-    }
 
     /// @notice Wrapper around internal function for testing
     function iterateOverTicksAndFindClearingPrice() external returns (uint256) {

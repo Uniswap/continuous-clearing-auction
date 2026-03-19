@@ -9,12 +9,9 @@ import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.s
 import {FixedPoint96} from 'continuous-clearing-auction/libraries/FixedPoint96.sol';
 import {MaxBidPriceLib} from 'continuous-clearing-auction/libraries/MaxBidPriceLib.sol';
 import {ValueX7} from 'continuous-clearing-auction/libraries/ValueX7Lib.sol';
-import {ValueX7Lib} from 'continuous-clearing-auction/libraries/ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract AccountPartiallyFilledCheckpointsTest is BttBase {
-    using ValueX7Lib for uint256;
-
     MockCheckpointStorage public mockCheckpointStorage;
 
     function setUp() external {
@@ -56,7 +53,8 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
         _cumulativeCurrencyRaisedAtClearingPrice =
             bound(_cumulativeCurrencyRaisedAtClearingPrice, 1, type(uint256).max / 1e14);
 
-        ValueX7 _cumulativeCurrencyRaisedAtClearingPriceX7 = _cumulativeCurrencyRaisedAtClearingPrice.scaleUpToX7();
+        ValueX7 _cumulativeCurrencyRaisedAtClearingPriceX7 =
+            ValueX7.wrap(_cumulativeCurrencyRaisedAtClearingPrice * ConstantsLib.MPS);
 
         (uint256 tokensFilled, uint256 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
             _bid, _tickDemandQ96, _cumulativeCurrencyRaisedAtClearingPriceX7

@@ -9,7 +9,6 @@ import {CheckpointAccountingLib} from '../src/libraries/CheckpointAccountingLib.
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {FuzzDeploymentParams} from './utils/FuzzStructs.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -19,7 +18,6 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 ///      so we limit the number of fuzz runs.
 /// forge-config: default.fuzz.runs = 1000
 contract AuctionGraduationTest is AuctionBaseTest {
-    using ValueX7Lib for *;
     using BidLib for *;
     using FixedPointMathLib for *;
 
@@ -322,8 +320,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         vm.roll(auction.endBlock());
         auction.checkpoint();
         uint256 expectedCurrencyRaised = auction.currencyRaised();
-        uint256 expectedCurrencyRaisedFromCheckpoint =
-            auction.currencyRaisedQ96_X7().scaleDownToUint256() >> FixedPoint96.RESOLUTION;
+        uint256 expectedCurrencyRaisedFromCheckpoint = auction.currencyRaised();
 
         vm.prank(fundsRecipient);
         vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
@@ -465,8 +462,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         assertEq(token.balanceOf(tokensRecipient), $deploymentParams.totalSupply);
 
         uint256 expectedCurrencyRaised = auction.currencyRaised();
-        uint256 expectedCurrencyRaisedFromCheckpoint =
-            auction.currencyRaisedQ96_X7().scaleDownToUint256() >> FixedPoint96.RESOLUTION;
+        uint256 expectedCurrencyRaisedFromCheckpoint = auction.currencyRaised();
 
         emit log_string('===== Auction is NOT graduated =====');
         emit log_named_uint('currencyRaised in final checkpoint', expectedCurrencyRaisedFromCheckpoint);

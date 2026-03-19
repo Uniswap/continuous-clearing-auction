@@ -5,7 +5,7 @@ pragma solidity 0.8.26;
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
-import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
+import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 import {FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
 import {MockContinuousClearingAuction} from '../utils/MockAuction.sol';
 import {AuctionUnitTest} from './AuctionUnitTest.sol';
@@ -15,7 +15,6 @@ import {console} from 'forge-std/console.sol';
 
 contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
     using FixedPointMathLib for *;
-    using ValueX7Lib for *;
 
     function test_WhenThereIsEnoughDemandExactlyAtAndAboveTheTick(uint24 _deltaMps) external {
         // it should not sell more tokens than there is available supply at the current tick - parital fill
@@ -210,17 +209,17 @@ contract AuctionSellTokensAtClearingPriceTest is AuctionUnitTest {
             // From the previous setup in the test, we know that the clearing price == bid max price
             // Calculate the partial tokens filled
             ValueX7 currencySpentQ96_X7 = ValueX7.wrap(
-                ValueX7.unwrap(demandAtNextTick.scaleUpToX7())
-                    .fullMulDivUp(
-                        ValueX7.unwrap(checkpoint.currencyRaisedAtClearingPriceQ96_X7),
-                        // The bid was entered in the beginning of the auction so bid.remainingMpsInAuction == ConstantsLib.MPS
-                        ValueX7.unwrap(demandAtNextTick.scaleUpToX7())
-                    )
+                (demandAtNextTick * ConstantsLib.MPS)
+                .fullMulDivUp(
+                    ValueX7.unwrap(checkpoint.currencyRaisedAtClearingPriceQ96_X7),
+                    // The bid was entered in the beginning of the auction so bid.remainingMpsInAuction == ConstantsLib.MPS
+                    demandAtNextTick * ConstantsLib.MPS
+                )
             );
             // The currency spent ValueX7 is then scaled down to a uint256
-            uint256 currencySpentQ96 = currencySpentQ96_X7.scaleDownToUint256();
+            uint256 currencySpentQ96 = ValueX7.unwrap(currencySpentQ96_X7) / ConstantsLib.MPS;
             // The tokens filled uses the currencySpent ValueX7 value and scales down to a uint256
-            uint256 tokensFilled = currencySpentQ96_X7.divUint256(clearingPrice).scaleDownToUint256();
+            uint256 tokensFilled = (ValueX7.unwrap(currencySpentQ96_X7) / clearingPrice) / ConstantsLib.MPS;
 
             // If the totalCleared is less than the tokens filled then the auction would be insolvent if
             // the bid exited and the unsold tokens were swept

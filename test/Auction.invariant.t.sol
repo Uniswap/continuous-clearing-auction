@@ -11,7 +11,6 @@ import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionUnitTest} from './unit/AuctionUnitTest.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {MockContinuousClearingAuction} from './utils/MockAuction.sol';
@@ -24,7 +23,6 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 contract AuctionInvariantHandler is Test, Assertions {
     using CurrencyLibrary for Currency;
     using FixedPointMathLib for *;
-    using ValueX7Lib for *;
 
     MockContinuousClearingAuction public mockAuction;
     IPermit2 public permit2;
@@ -121,7 +119,7 @@ contract AuctionInvariantHandler is Test, Assertions {
 
         // We can never have more sweepable tokens than the auction's balance
         assertLe(
-            mockAuction.sweepableTokens(),
+            mockAuction.remainingSupply(),
             token.balanceOf(address(mockAuction)),
             'Sweepable tokens exceeds the auction\'s balance'
         );

@@ -6,7 +6,6 @@ import {BidStorage} from './BidStorage.sol';
 import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
 import {StepStorage} from './StepStorage.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
-import {TokenCurrencyStorage} from './TokenCurrencyStorage.sol';
 import {AuctionParameters, IContinuousClearingAuction} from './interfaces/IContinuousClearingAuction.sol';
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
@@ -40,7 +39,6 @@ contract ContinuousClearingAuction is
     CheckpointStorage,
     StepStorage,
     TickStorage,
-    TokenCurrencyStorage,
     AuctionStorage,
     ReentrancyGuardTransient,
     IContinuousClearingAuction
@@ -62,7 +60,7 @@ contract ContinuousClearingAuction is
 
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
         StepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock, _parameters.claimBlock)
-        TokenCurrencyStorage(
+        AuctionStorage(
             _token,
             _parameters.currency,
             _totalSupply,
@@ -661,16 +659,6 @@ contract ContinuousClearingAuction is
     }
 
     // State getters
-
-    /// @inheritdoc IContinuousClearingAuction
-    function remainingSupplyQ96X7() public view returns (ValueX7) {
-        return TOTAL_SUPPLY_Q96X7.saturatingSub($totalClearedQ96X7);
-    }
-
-    /// @inheritdoc IContinuousClearingAuction
-    function remainingSupply() public view returns (uint256) {
-        return (ValueX7.unwrap(remainingSupplyQ96X7()) / FixedPoint96.Q96) / ConstantsLib.MPS;
-    }
 
     /// @inheritdoc IContinuousClearingAuction
     function requiredDemandQ96(uint256 _priceQ96) public view returns (uint256) {

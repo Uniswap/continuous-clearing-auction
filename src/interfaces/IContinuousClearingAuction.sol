@@ -2,13 +2,11 @@
 pragma solidity ^0.8.0;
 
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
-import {ValueX7} from '../libraries/ValueX7Lib.sol';
 import {IAuctionStorage} from './IAuctionStorage.sol';
 import {IBidStorage} from './IBidStorage.sol';
 import {ICheckpointStorage} from './ICheckpointStorage.sol';
 import {IStepStorage} from './IStepStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
-import {ITokenCurrencyStorage} from './ITokenCurrencyStorage.sol';
 import {IValidationHook} from './IValidationHook.sol';
 import {ILBPInitializer} from './external/ILBPInitializer.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
@@ -35,7 +33,6 @@ interface IContinuousClearingAuction is
     ICheckpointStorage,
     ITickStorage,
     IStepStorage,
-    ITokenCurrencyStorage,
     IBidStorage,
     IAuctionStorage
 {
@@ -235,15 +232,6 @@ interface IContinuousClearingAuction is
     /// @notice Sweep any leftover tokens to the tokens recipient
     /// @dev This function can only be called after the auction has ended
     function sweepUnsoldTokens() external;
-
-    /// @notice The remaining supply of tokens in Q96 representation, scaled up by X7
-    /// @dev Relies on the latest checkpoint which may be out of date
-    function remainingSupplyQ96X7() external view returns (ValueX7);
-
-    /// @notice The remaining supply of tokens in uint256 representation
-    /// @dev Loses precision from dividing into uint256 form
-    /// @dev Relies on the latest checkpoint which may be out of date
-    function remainingSupply() external view returns (uint256);
 
     /// @notice The required demand to move the auction to a given price, in Q96 representation
     /// @dev Relies on the latest checkpoint which may be out of date

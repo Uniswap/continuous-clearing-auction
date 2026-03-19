@@ -4,9 +4,9 @@ pragma solidity ^0.8.0;
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
 import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol';
 import {Tick} from '../../src/TickStorage.sol';
+import {IAuctionStorage} from '../../src/interfaces/IAuctionStorage.sol';
 import {AuctionParameters, IContinuousClearingAuction} from '../../src/interfaces/IContinuousClearingAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
-import {ITokenCurrencyStorage} from '../../src/interfaces/ITokenCurrencyStorage.sol';
 import {BidLib} from '../../src/libraries/BidLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
@@ -576,7 +576,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
             // Assert that all tokens were swept
             assertEq(token.balanceOf(auction.tokensRecipient()), auction.totalSupply());
             // Expect to revert when sweeping currency
-            vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+            vm.expectRevert(IAuctionStorage.NotGraduated.selector);
             auction.sweepCurrency();
         }
     }

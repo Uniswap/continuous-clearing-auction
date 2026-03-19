@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
 import {MockTokenCurrencyStorage} from 'btt/mocks/MockTokenCurrencyStorage.sol';
-import {ITokenCurrencyStorage} from 'continuous-clearing-auction/interfaces/ITokenCurrencyStorage.sol';
+import {IAuctionStorage} from 'continuous-clearing-auction/interfaces/IAuctionStorage.sol';
 import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
 import {Currency} from 'continuous-clearing-auction/libraries/CurrencyLibrary.sol';
 
@@ -34,7 +34,7 @@ contract ConstructorTest is BttBase {
         $totalSupply = 0;
         $requiredCurrencyRaised = _requiredCurrencyRaised;
 
-        vm.expectRevert(ITokenCurrencyStorage.TotalSupplyIsZero.selector);
+        vm.expectRevert(IAuctionStorage.TotalSupplyIsZero.selector);
         _deployTokenCurrencyStorage();
     }
 
@@ -47,7 +47,7 @@ contract ConstructorTest is BttBase {
 
         $totalSupply = uint128(_bound(_totalSupply, ConstantsLib.MAX_TOTAL_SUPPLY + 1, type(uint128).max));
 
-        vm.expectRevert(ITokenCurrencyStorage.TotalSupplyIsTooLarge.selector);
+        vm.expectRevert(IAuctionStorage.TotalSupplyIsTooLarge.selector);
         _deployTokenCurrencyStorage();
     }
 
@@ -76,7 +76,7 @@ contract ConstructorTest is BttBase {
         $fundsRecipient = _fundsRecipient;
         $token = address(0);
 
-        vm.expectRevert(ITokenCurrencyStorage.TokenIsAddressZero.selector);
+        vm.expectRevert(IAuctionStorage.TokenIsAddressZero.selector);
         _deployTokenCurrencyStorage();
     }
 
@@ -104,7 +104,7 @@ contract ConstructorTest is BttBase {
         $tokensRecipient = _tokensRecipient;
         $fundsRecipient = _fundsRecipient;
 
-        vm.expectRevert(ITokenCurrencyStorage.TokenAndCurrencyCannotBeTheSame.selector);
+        vm.expectRevert(IAuctionStorage.TokenAndCurrencyCannotBeTheSame.selector);
         _deployTokenCurrencyStorage();
     }
 
@@ -129,7 +129,7 @@ contract ConstructorTest is BttBase {
         // it reverts with {TokensRecipientIsZero}
 
         $tokensRecipient = address(0);
-        vm.expectRevert(ITokenCurrencyStorage.TokensRecipientIsZero.selector);
+        vm.expectRevert(IAuctionStorage.TokensRecipientIsZero.selector);
         _deployTokenCurrencyStorage();
     }
 
@@ -156,7 +156,7 @@ contract ConstructorTest is BttBase {
         // it reverts with {FundsRecipientIsZero}
 
         $fundsRecipient = address(0);
-        vm.expectRevert(ITokenCurrencyStorage.FundsRecipientIsZero.selector);
+        vm.expectRevert(IAuctionStorage.FundsRecipientIsZero.selector);
         _deployTokenCurrencyStorage();
     }
 

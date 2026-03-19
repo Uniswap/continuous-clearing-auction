@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {IAuctionStorage} from '../src/interfaces/IAuctionStorage.sol';
 import {IContinuousClearingAuction} from '../src/interfaces/IContinuousClearingAuction.sol';
 import {IStepStorage} from '../src/interfaces/IStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
-import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
@@ -588,7 +588,7 @@ contract AuctionInvariantTest is AuctionUnitTest {
             );
             // Sweep the currency
             vm.expectEmit(true, true, true, true);
-            emit ITokenCurrencyStorage.CurrencySwept(mockAuction.fundsRecipient(), expectedCurrencyRaised);
+            emit IAuctionStorage.CurrencySwept(mockAuction.fundsRecipient(), expectedCurrencyRaised);
             mockAuction.sweepCurrency();
             // Assert that the funds recipient received the currency
             assertEq(
@@ -598,7 +598,7 @@ contract AuctionInvariantTest is AuctionUnitTest {
             );
         } else {
             emit log_string('==================== NOT GRADUATED AUCTION ====================');
-            vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+            vm.expectRevert(IAuctionStorage.NotGraduated.selector);
             mockAuction.sweepCurrency();
             // At this point we know all bids have been exited so auction balance should be zero
             assertEq(address(mockAuction).balance, 0, 'Auction balance is not zero at end of auction');

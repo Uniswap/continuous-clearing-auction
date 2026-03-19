@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
 import {MockTokenCurrencyStorage} from 'btt/mocks/MockTokenCurrencyStorage.sol';
-import {ITokenCurrencyStorage} from 'continuous-clearing-auction/interfaces/ITokenCurrencyStorage.sol';
+import {IAuctionStorage} from 'continuous-clearing-auction/interfaces/IAuctionStorage.sol';
 
 import {MockERC20} from 'btt/mocks/MockERC20.sol';
 
@@ -91,7 +91,7 @@ contract SweepCurrencyTest is BttBase {
         }
 
         vm.expectEmit(true, true, true, true, address(tokenCurrencyStorage));
-        emit ITokenCurrencyStorage.CurrencySwept(fundsRecipient, amount);
+        emit IAuctionStorage.CurrencySwept(fundsRecipient, amount);
 
         if (_isNativeCurrency) {
             vm.startStateDiffRecording();

@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
 import {MockTokenCurrencyStorage} from 'btt/mocks/MockTokenCurrencyStorage.sol';
-import {ITokenCurrencyStorage} from 'continuous-clearing-auction/interfaces/ITokenCurrencyStorage.sol';
+import {IAuctionStorage} from 'continuous-clearing-auction/interfaces/IAuctionStorage.sol';
 
 import {MockERC20} from 'btt/mocks/MockERC20.sol';
 import {Currency} from 'continuous-clearing-auction/libraries/CurrencyLibrary.sol';
@@ -28,7 +28,7 @@ contract SweepUnsoldTokensTest is BttBase {
         assertEq(token.balanceOf(address(tokensRecipient)), 0);
 
         vm.expectEmit(true, true, true, true, address(tokenCurrencyStorage));
-        emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, 0);
+        emit IAuctionStorage.TokensSwept(tokensRecipient, 0);
 
         vm.recordLogs();
         tokenCurrencyStorage.sweepUnsoldTokens(0);
@@ -63,7 +63,7 @@ contract SweepUnsoldTokensTest is BttBase {
         emit IERC20.Transfer(address(tokenCurrencyStorage), tokensRecipient, amount);
 
         vm.expectEmit(true, true, true, true, address(tokenCurrencyStorage));
-        emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, amount);
+        emit IAuctionStorage.TokensSwept(tokensRecipient, amount);
 
         vm.recordLogs();
         tokenCurrencyStorage.sweepUnsoldTokens(amount);

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {IAuctionStorage} from '../src/interfaces/IAuctionStorage.sol';
 import {IContinuousClearingAuction} from '../src/interfaces/IContinuousClearingAuction.sol';
 import {IStepStorage} from '../src/interfaces/IStepStorage.sol';
-import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {CheckpointAccountingLib} from '../src/libraries/CheckpointAccountingLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
@@ -323,7 +323,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         uint256 expectedCurrencyRaisedFromCheckpoint = auction.currencyRaised();
 
         vm.prank(fundsRecipient);
-        vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+        vm.expectRevert(IAuctionStorage.NotGraduated.selector);
         auction.sweepCurrency();
 
         emit log_string('===== Auction is NOT graduated =====');
@@ -455,7 +455,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
 
         // Should sweep ALL tokens since auction didn't graduate
         vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, $deploymentParams.totalSupply);
+        emit IAuctionStorage.TokensSwept(tokensRecipient, $deploymentParams.totalSupply);
         auction.sweepUnsoldTokens();
 
         // Verify all tokens were transferred

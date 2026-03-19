@@ -3,11 +3,11 @@ pragma solidity 0.8.26;
 
 import {AuctionParameters, ContinuousClearingAuction} from '../src/ContinuousClearingAuction.sol';
 import {ContinuousClearingAuctionFactory} from '../src/ContinuousClearingAuctionFactory.sol';
+import {IAuctionStorage} from '../src/interfaces/IAuctionStorage.sol';
 import {IContinuousClearingAuction} from '../src/interfaces/IContinuousClearingAuction.sol';
 import {IContinuousClearingAuctionFactory} from '../src/interfaces/IContinuousClearingAuctionFactory.sol';
 import {IStepStorage} from '../src/interfaces/IStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
-import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {IDistributionContract} from '../src/interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
@@ -194,7 +194,7 @@ contract AuctionFactoryTest is AuctionBaseTest {
     function test_initializeDistribution_withZeroTotalSupply_reverts() public {
         bytes memory configData = abi.encode(params);
 
-        vm.expectRevert(ITokenCurrencyStorage.TotalSupplyIsZero.selector);
+        vm.expectRevert(IAuctionStorage.TotalSupplyIsZero.selector);
         factory.initializeDistribution(address(token), 0, configData, bytes32(0));
     }
 
@@ -218,7 +218,7 @@ contract AuctionFactoryTest is AuctionBaseTest {
     function test_initializeDistribution_withTokenIsAddressZero_reverts() public {
         bytes memory configData = abi.encode(params);
 
-        vm.expectRevert(ITokenCurrencyStorage.TokenIsAddressZero.selector);
+        vm.expectRevert(IAuctionStorage.TokenIsAddressZero.selector);
         factory.initializeDistribution(address(0), TOTAL_SUPPLY, configData, bytes32(0));
     }
 
@@ -226,7 +226,7 @@ contract AuctionFactoryTest is AuctionBaseTest {
         params = params.withCurrency(address(token));
         bytes memory configData = abi.encode(params);
 
-        vm.expectRevert(ITokenCurrencyStorage.TokenAndCurrencyCannotBeTheSame.selector);
+        vm.expectRevert(IAuctionStorage.TokenAndCurrencyCannotBeTheSame.selector);
         factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
     }
 }

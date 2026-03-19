@@ -4,11 +4,11 @@ pragma solidity 0.8.26;
 import {Bid} from '../src/BidStorage.sol';
 import {Checkpoint} from '../src/CheckpointStorage.sol';
 import {AuctionParameters, ContinuousClearingAuction} from '../src/ContinuousClearingAuction.sol';
+import {IAuctionStorage} from '../src/interfaces/IAuctionStorage.sol';
 import {ICheckpointStorage} from '../src/interfaces/ICheckpointStorage.sol';
 import {IContinuousClearingAuction} from '../src/interfaces/IContinuousClearingAuction.sol';
 import {IStepStorage} from '../src/interfaces/IStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
-import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {CheckpointLib} from '../src/libraries/CheckpointLib.sol';
@@ -554,13 +554,13 @@ contract AuctionTest is AuctionBaseTest {
         uint256 expectedCurrencyRaised = inputAmountForTokens(largeAmount, tickNumberToPriceX96(3));
         vm.startPrank(auction.fundsRecipient());
         vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.CurrencySwept(auction.fundsRecipient(), expectedCurrencyRaised);
+        emit IAuctionStorage.CurrencySwept(auction.fundsRecipient(), expectedCurrencyRaised);
         auction.sweepCurrency();
         vm.stopPrank();
 
         // Auction fully subscribed so no tokens are left
         vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.TokensSwept(auction.tokensRecipient(), 0);
+        emit IAuctionStorage.TokensSwept(auction.tokensRecipient(), 0);
         auction.sweepUnsoldTokens();
     }
 
@@ -833,7 +833,7 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.startPrank(auction.fundsRecipient());
         vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.CurrencySwept(auction.fundsRecipient(), expectedCurrencyRaised);
+        emit IAuctionStorage.CurrencySwept(auction.fundsRecipient(), expectedCurrencyRaised);
         auction.sweepCurrency();
         vm.stopPrank();
 
@@ -875,7 +875,7 @@ contract AuctionTest is AuctionBaseTest {
 
         // All tokens were sold
         vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.TokensSwept(auction.tokensRecipient(), 0);
+        emit IAuctionStorage.TokensSwept(auction.tokensRecipient(), 0);
         auction.sweepUnsoldTokens();
     }
 
@@ -998,19 +998,19 @@ contract AuctionTest is AuctionBaseTest {
         newAuction.exitPartiallyFilledBid(bidId2, 3, 0);
 
         vm.roll(newAuction.claimBlock());
-        vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+        vm.expectRevert(IAuctionStorage.NotGraduated.selector);
         newAuction.claimTokens(bidId1);
-        vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+        vm.expectRevert(IAuctionStorage.NotGraduated.selector);
         newAuction.claimTokens(bidId2);
 
         // Expect all tokens were swept
         vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.TokensSwept(newAuction.tokensRecipient(), TOTAL_SUPPLY);
+        emit IAuctionStorage.TokensSwept(newAuction.tokensRecipient(), TOTAL_SUPPLY);
         newAuction.sweepUnsoldTokens();
         assertEq(token.balanceOf(newAuction.tokensRecipient()), TOTAL_SUPPLY);
 
         // Expect no currency was swept
-        vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+        vm.expectRevert(IAuctionStorage.NotGraduated.selector);
         newAuction.sweepCurrency();
         assertEq(address(newAuction).balance, 0);
     }
@@ -1604,7 +1604,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_auctionConstruction_revertsWithTotalSupplyZero() public {
-        vm.expectRevert(ITokenCurrencyStorage.TotalSupplyIsZero.selector);
+        vm.expectRevert(IAuctionStorage.TotalSupplyIsZero.selector);
         new ContinuousClearingAuction(address(token), 0, params);
     }
 
@@ -1630,13 +1630,13 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_auctionConstruction_revertsWithFundsRecipientZero() public {
         AuctionParameters memory paramsFundsRecipientZero = params.withFundsRecipient(address(0));
-        vm.expectRevert(ITokenCurrencyStorage.FundsRecipientIsZero.selector);
+        vm.expectRevert(IAuctionStorage.FundsRecipientIsZero.selector);
         new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, paramsFundsRecipientZero);
     }
 
     function test_auctionConstruction_revertsWithTokensRecipientZero() public {
         AuctionParameters memory paramsTokensRecipientZero = params.withTokensRecipient(address(0));
-        vm.expectRevert(ITokenCurrencyStorage.TokensRecipientIsZero.selector);
+        vm.expectRevert(IAuctionStorage.TokensRecipientIsZero.selector);
         new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, paramsTokensRecipientZero);
     }
 
@@ -2063,7 +2063,7 @@ contract AuctionTest is AuctionBaseTest {
 
         // Second sweep should fail
         vm.prank(auction.fundsRecipient());
-        vm.expectRevert(ITokenCurrencyStorage.CannotSweepCurrency.selector);
+        vm.expectRevert(IAuctionStorage.CannotSweepCurrency.selector);
         auction.sweepCurrency();
     }
 
@@ -2076,7 +2076,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepUnsoldTokens();
 
         // Second sweep should fail
-        vm.expectRevert(ITokenCurrencyStorage.CannotSweepTokens.selector);
+        vm.expectRevert(IAuctionStorage.CannotSweepTokens.selector);
         auction.sweepUnsoldTokens();
     }
 

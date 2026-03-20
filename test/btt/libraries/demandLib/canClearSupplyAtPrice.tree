@@ -1,7 +1,17 @@
 CanClearSupplyAtPriceTest
-├── when demand * remainingMps GT remainingSupply
+├── when highLhs GT highRhs
 │   └── it returns true
-├── when demand * remainingMps EQ remainingSupply
+├── when highLhs EQ highRhs and lowLhs GT lowRhs
 │   └── it returns true
-└── when demand * remainingMps LT remainingSupply
+├── when highLhs EQ highRhs and lowLhs EQ lowRhs
+│   └── it returns true
+├── when highLhs LT highRhs
+│   └── it returns false
+├── when highLhs EQ highRhs and lowLhs LT lowRhs
+│   └── it returns false
+├── when demand * remainingMps GT remainingSupply (fuzz)
+│   └── it returns true
+├── when demand * remainingMps EQ remainingSupply (fuzz)
+│   └── it returns true
+└── when demand * remainingMps LT remainingSupply (fuzz)
     └── it returns false

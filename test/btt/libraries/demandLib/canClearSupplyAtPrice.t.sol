@@ -8,6 +8,96 @@ import {DemandLib} from 'continuous-clearing-auction/libraries/DemandLib.sol';
 import {FixedPoint96} from 'continuous-clearing-auction/libraries/FixedPoint96.sol';
 
 contract CanClearSupplyAtPriceTest is BttBase {
+    // --- Explicit 512-bit comparison branch coverage ---
+
+    function test_WhenHighLhs_GT_HighRhs() external pure {
+        // it returns true
+
+        // demand * remainingMps * Q96 must overflow 2^256 → need demand * remainingMps > 2^160
+        uint256 demandQ96 = 1 << 200;
+        uint256 remainingMps = ConstantsLib.MPS;
+        // Small supply * price keeps highRhs == 0
+        uint256 remainingSupplyQ96X7 = 1;
+        uint256 priceQ96 = 1;
+
+        (uint256 highLhs,) = Math.mul512(demandQ96 * remainingMps, FixedPoint96.Q96);
+        (uint256 highRhs,) = Math.mul512(remainingSupplyQ96X7, priceQ96);
+        assertGt(highLhs, highRhs);
+
+        assertTrue(DemandLib.canClearSupplyAtPrice(demandQ96, remainingSupplyQ96X7, priceQ96, remainingMps));
+    }
+
+    function test_WhenHighLhsEQHighRhs_And_LowLhs_GT_LowRhs() external pure {
+        // it returns true
+
+        // demand * remainingMps == supply, price == Q96 → high words match (both 0)
+        // Then add 1 to demand so lowLhs > lowRhs while high words stay equal.
+        uint256 remainingSupplyQ96X7 = 1000;
+        uint256 priceQ96 = FixedPoint96.Q96;
+        uint256 remainingMps = 1;
+        uint256 demandQ96 = remainingSupplyQ96X7 + 1;
+
+        (uint256 highLhs, uint256 lowLhs) = Math.mul512(demandQ96 * remainingMps, FixedPoint96.Q96);
+        (uint256 highRhs, uint256 lowRhs) = Math.mul512(remainingSupplyQ96X7, priceQ96);
+        assertEq(highLhs, highRhs);
+        assertGt(lowLhs, lowRhs);
+
+        assertTrue(DemandLib.canClearSupplyAtPrice(demandQ96, remainingSupplyQ96X7, priceQ96, remainingMps));
+    }
+
+    function test_WhenHighLhsEQHighRhs_And_LowLhsEQLowRhs() external pure {
+        // it returns true
+
+        // Exact equality: demand * remainingMps == supply, price == Q96
+        uint256 remainingSupplyQ96X7 = 1000;
+        uint256 priceQ96 = FixedPoint96.Q96;
+        uint256 remainingMps = 1;
+        uint256 demandQ96 = remainingSupplyQ96X7;
+
+        (uint256 highLhs, uint256 lowLhs) = Math.mul512(demandQ96 * remainingMps, FixedPoint96.Q96);
+        (uint256 highRhs, uint256 lowRhs) = Math.mul512(remainingSupplyQ96X7, priceQ96);
+        assertEq(highLhs, highRhs);
+        assertEq(lowLhs, lowRhs);
+
+        assertTrue(DemandLib.canClearSupplyAtPrice(demandQ96, remainingSupplyQ96X7, priceQ96, remainingMps));
+    }
+
+    function test_WhenHighLhs_LT_HighRhs() external pure {
+        // it returns false
+
+        // Small demand * remainingMps * Q96 stays below 2^256 → highLhs == 0
+        uint256 demandQ96 = 1;
+        uint256 remainingMps = 1;
+        // supply * price must overflow 2^256 → need both > 2^128
+        uint256 remainingSupplyQ96X7 = 1 << 160;
+        uint256 priceQ96 = 1 << 160;
+
+        (uint256 highLhs,) = Math.mul512(demandQ96 * remainingMps, FixedPoint96.Q96);
+        (uint256 highRhs,) = Math.mul512(remainingSupplyQ96X7, priceQ96);
+        assertLt(highLhs, highRhs);
+
+        assertFalse(DemandLib.canClearSupplyAtPrice(demandQ96, remainingSupplyQ96X7, priceQ96, remainingMps));
+    }
+
+    function test_WhenHighLhsEQHighRhs_And_LowLhs_LT_LowRhs() external pure {
+        // it returns false
+
+        // demand * remainingMps == supply - 1, price == Q96 → high words match (both 0), lowLhs < lowRhs
+        uint256 remainingSupplyQ96X7 = 1000;
+        uint256 priceQ96 = FixedPoint96.Q96;
+        uint256 remainingMps = 1;
+        uint256 demandQ96 = remainingSupplyQ96X7 - 1;
+
+        (uint256 highLhs, uint256 lowLhs) = Math.mul512(demandQ96 * remainingMps, FixedPoint96.Q96);
+        (uint256 highRhs, uint256 lowRhs) = Math.mul512(remainingSupplyQ96X7, priceQ96);
+        assertEq(highLhs, highRhs);
+        assertLt(lowLhs, lowRhs);
+
+        assertFalse(DemandLib.canClearSupplyAtPrice(demandQ96, remainingSupplyQ96X7, priceQ96, remainingMps));
+    }
+
+    // --- Fuzz tests ---
+
     function test_WhenDemandTimesRemainingMps_GT_RemainingSupply(
         uint256 _demandQ96,
         uint256 _remainingSupplyQ96X7,

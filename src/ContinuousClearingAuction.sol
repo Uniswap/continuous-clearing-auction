@@ -194,7 +194,7 @@ contract ContinuousClearingAuction is
         //    via min(A, B), where (A) = total implied at rounded-up price − above-clearing, (B) = tickDemand × deltaMps.
         //    min is needed because (A) can exceed (B) when the price was rounded up to the tick boundary.
         uint256 priceQ96 = _checkpoint.clearingPrice;
-        uint256 deltaMpsU = uint256(_deltaMps);
+        uint256 deltaMpsU = uint256(_deltaMps); // uint256 representation of `_deltaMps` to prevent overflow
         uint256 sumAboveQ96 = $sumCurrencyDemandAboveClearingQ96;
 
         // The base case is where all demand sits strictly above the clearing price
@@ -337,9 +337,48 @@ contract ContinuousClearingAuction is
             deltaMps += uint24(blockDelta * step.mps);
         }
 
+        // Update currencyRaised and totalCleared values
         if (deltaMps > 0) {
-            // Sell the percentage of outstanding tokens since the last checkpoint at the current clearing price
-            _checkpoint = _sellTokensAtClearingPrice(_checkpoint, deltaMps);
+            // Put variables on the stack to save gas
+            uint256 sumAboveQ96 = $sumCurrencyDemandAboveClearingQ96;
+            uint256 priceQ96 = _checkpoint.clearingPrice;
+
+            // The base case is where all demand sits strictly above the clearing price
+            ValueX7 currencyRaisedDeltaQ96X7 = ValueX7.wrap(sumAboveQ96 * deltaMps);
+
+            // However, we need to find currency raised at clearing price if there are bids there
+            if (priceQ96 % TICK_SPACING == 0) {
+                uint256 demandAtPriceQ96 = _getTick(priceQ96).currencyDemandQ96;
+                if (demandAtPriceQ96 > 0) {
+                    ValueX7 currencyRaisedAtClearingQ96X7 = DemandLib.currencyRaisedAtPrice(
+                        remainingSupplyQ96X7(),
+                        demandAtPriceQ96,
+                        sumAboveQ96,
+                        priceQ96,
+                        deltaMps,
+                        ConstantsLib.MPS - _checkpoint.cumulativeMps // guaranteed to be > 0 because deltaMps > 0
+                    );
+                    // Total change in currencyRaised = currency raised above clearing + currency raised at clearing
+                    currencyRaisedDeltaQ96X7 = currencyRaisedDeltaQ96X7.add(currencyRaisedAtClearingQ96X7);
+                    // Track cumulative currency raised exactly at this clearing price (used for partial exits)
+                    _checkpoint.currencyRaisedAtClearingPriceQ96_X7 =
+                        _checkpoint.currencyRaisedAtClearingPriceQ96_X7.add(currencyRaisedAtClearingQ96X7);
+                }
+            }
+
+            // Convert currency to tokens at price, rounding up, and update global cleared tokens.
+            // Intentional round-up leaves a small amount of dust to sweep, ensuring cleared tokens never exceed TOTAL_SUPPLY
+            // even when using rounded-up clearing prices on tick boundaries.
+            uint256 tokensClearedQ96X7 = ValueX7.unwrap(currencyRaisedDeltaQ96X7).toTokensRoundingUp(priceQ96);
+            $totalClearedQ96_X7 = $totalClearedQ96_X7.add(ValueX7.wrap(tokensClearedQ96X7));
+
+            // Update global currency raised
+            $currencyRaisedQ96_X7 = $currencyRaisedQ96_X7.add(currencyRaisedDeltaQ96X7);
+
+            // Increase cumulativeMps after all state variables have been updated
+            _checkpoint.cumulativeMps += deltaMps;
+            // Add to the cumulative mps per price sum, weighted by `mps`. This is an inverse sum.
+            _checkpoint.cumulativeMpsPerPrice += (uint256(deltaMps) << 192) / priceQ96;
         }
 
         // Insert the checkpoint into storage, updating latest pointer and the linked list

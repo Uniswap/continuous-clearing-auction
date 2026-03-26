@@ -251,8 +251,8 @@ contract AuctionTest is AuctionBaseTest {
         // Expect the price to increase, but no tokens to be sold
         emit IContinuousClearingAuction.CheckpointUpdated(block.number, tickNumberToPriceX96(2), 0);
         auction.checkpoint();
-        assertEq(auction.currencyRaisedQ96_X7(), ValueX7.wrap(0), 'currency raised should be zero');
         vm.snapshotGasLastCall('checkpoint_zeroSupply');
+        assertEq(auction.currencyRaisedQ96_X7(), ValueX7.wrap(0), 'currency raised should be zero');
 
         // Advance to one block after the start of the second step
         vm.roll(auction.startBlock() + 101);

@@ -34,8 +34,9 @@ library DemandLib {
         uint256 currencyRaisedFromDemandAbovePriceQ96X7 = _demandAbovePriceQ96 * _deltaMps;
         uint256 maxCurrencyRaisedFromDemandAtPriceQ96X7 = _demandAtPriceQ96 * _deltaMps;
 
-        // Total implied currencyRaised at the (potentially rounded-up) clearing price; overestimates if price was rounded up.
-        // Variant of src/libraries/DemandLib.sol:requiredDemandAtPrice but with `mps` in the numerator to minimize rounding errors.
+        // Clearing prices are always rounded up to prevent overallocating tokens to those who would have been outbid
+        // Thus the total implied currencyRaised at the clearing price can be an overestimate if the price was rounded up.
+        // This is a variant of src/libraries/DemandLib.sol:requiredDemandAtPrice but with `mps` in the numerator to minimize rounding errors.
         uint256 totalCurrencyRaisedQ96X7 = FixedPointMathLib.fullMulDivUp(
             ValueX7.unwrap(_remainingSupplyQ96X7), _priceQ96 * _deltaMps, FixedPoint96.Q96 * _remainingMps
         );
@@ -67,9 +68,9 @@ library DemandLib {
         //
         //     requiredDemand = TotalSupply * r * price
         //
-        // where `r` measures how far the auction has deviated from the expected issuance schedule.
-        // Intuitively, `r` scales the *remaining schedule* so that the full supply is still cleared
-        // by the end of the auction.
+        // where `r` measures how far the auction has deviated from the expected issuance schedule, and
+        // `totalSupply` is the initial total supply of tokens being sold. Intuitively, `r` scales the
+        // *remaining schedule* so that the full supply is still cleared by the end of the auction.
         //
         // Examples:
         //   r == 1 → the auction is clearing exactly on schedule.
@@ -78,16 +79,16 @@ library DemandLib {
         //
         // From the schedule definition:
         //
-        //     r = (TotalSupply - TotalCleared) / (TotalSupply * (MPS - cumulativeMps))
+        //     r = (TotalSupply - TotalCleared) * MPS / (TotalSupply * (MPS - cumulativeMps))
         //
         // Substituting `r` into the demand formula cancels `TotalSupply`:
         //
-        //     requiredDemand = (TotalSupply - TotalCleared) * price / (MPS - cumulativeMps)
+        //     requiredDemand = (TotalSupply - TotalCleared) * price * MPS / (MPS - cumulativeMps)
         //
         // We do not track `(TotalSupply - TotalCleared)` directly, but instead store
         // `(TotalSupply - TotalCleared) * Q96 * MPS` via `remainingSupplyQ96X7()`.
         //
-        // Substituting this value yields:
+        // Multiplying by Q96/Q96 and substituting this value yields:
         //
         //     requiredDemand = remainingSupplyQ96X7() * price
         //                      / (Q96 * (MPS - cumulativeMps))

@@ -686,10 +686,10 @@ contract ContinuousClearingAuction is
 
     /// @inheritdoc IContinuousClearingAuction
     function sweepCurrency() external onlyAfterAuctionIsOver ensureEndBlockIsCheckpointed {
-        // Cannot sweep if already swept
-        if (sweepCurrencyBlock != 0) revert CannotSweepCurrency();
         // Only recipient can sweep
         if (msg.sender != FUNDS_RECIPIENT) revert NotAuthorized(FUNDS_RECIPIENT, msg.sender);
+        // Cannot sweep if already swept
+        if (sweepCurrencyBlock != 0) revert CannotSweepCurrency();
         // Cannot sweep currency if the auction has not graduated, as all of the Currency must be refunded
         if (!_isGraduated()) revert NotGraduated();
         _sweepCurrency(_getBlockNumberish(), _currencyRaised());
@@ -697,9 +697,10 @@ contract ContinuousClearingAuction is
 
     /// @inheritdoc IContinuousClearingAuction
     function sweepUnsoldTokens() external onlyAfterAuctionIsOver ensureEndBlockIsCheckpointed {
-        if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
         // Only recipient can sweep
         if (msg.sender != TOKENS_RECIPIENT) revert NotAuthorized(TOKENS_RECIPIENT, msg.sender);
+        // Cannot sweep if already swept
+        if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
         uint256 unsoldTokens;
         if (_isGraduated()) {
             uint256 totalSupplyQ96 = uint256(TOTAL_SUPPLY) << FixedPoint96.RESOLUTION;

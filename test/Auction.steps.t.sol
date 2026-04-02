@@ -164,7 +164,9 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         newAuction.claimTokens(bidId);
         assertEq(token.balanceOf(address(alice)), _totalSupply);
 
+        vm.prank(newAuction.fundsRecipient());
         newAuction.sweepCurrency();
+        vm.prank(newAuction.tokensRecipient());
         newAuction.sweepUnsoldTokens();
     }
 }

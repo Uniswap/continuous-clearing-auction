@@ -32,6 +32,7 @@ contract SweepCurrencyTest is BttBase {
 
         vm.roll(_blockNumber);
 
+        vm.prank(mParams.parameters.fundsRecipient);
         vm.expectRevert(IStepStorage.AuctionIsNotOver.selector);
         auction.sweepCurrency();
     }
@@ -55,8 +56,10 @@ contract SweepCurrencyTest is BttBase {
         auction.onTokensReceived();
 
         vm.roll(mParams.parameters.endBlock);
+        vm.prank(mParams.parameters.fundsRecipient);
         auction.sweepCurrency();
 
+        vm.prank(mParams.parameters.fundsRecipient);
         vm.expectRevert(ITokenCurrencyStorage.CannotSweepCurrency.selector);
         auction.sweepCurrency();
     }
@@ -100,6 +103,7 @@ contract SweepCurrencyTest is BttBase {
         vm.roll(mParams.parameters.endBlock);
         auction.exitPartiallyFilledBid(bidId, mParams.parameters.startBlock, 0);
 
+        vm.prank(mParams.parameters.fundsRecipient);
         vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
         auction.sweepCurrency();
     }
@@ -148,6 +152,7 @@ contract SweepCurrencyTest is BttBase {
 
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.CurrencySwept(mParams.parameters.fundsRecipient, expectedCurrencyRaised);
+        vm.prank(mParams.parameters.fundsRecipient);
         auction.sweepCurrency();
 
         assertEq(auction.sweepCurrencyBlock(), block.number);
@@ -177,6 +182,7 @@ contract SweepCurrencyTest is BttBase {
         // No bids
 
         vm.roll(mParams.parameters.endBlock);
+        vm.prank(mParams.parameters.fundsRecipient);
         auction.sweepCurrency();
 
         assertEq(auction.sweepCurrencyBlock(), block.number);

@@ -39,7 +39,8 @@ interface IContinuousClearingAuction is
 {
     /// @notice Error thrown when the amount received is invalid
     error InvalidTokenAmountReceived();
-
+    /// @notice Error thrown when an unauthorized caller tries to access restricted functions
+    error NotAuthorized(address authorized, address caller);
     /// @notice Error thrown when an invalid value is deposited
     error InvalidAmount();
     /// @notice Error thrown when the bid owner is the zero address
@@ -97,7 +98,8 @@ interface IContinuousClearingAuction is
 
     /// @notice Emitted when the tokens are received
     /// @param totalSupply The total supply of tokens received
-    event TokensReceived(uint256 totalSupply);
+    /// @param custodyTokens The amount of tokens that are being held in custody during the auction
+    event TokensReceived(uint128 totalSupply, uint128 custodyTokens);
 
     /// @notice Emitted when a bid is submitted
     /// @param id The id of the bid
@@ -206,7 +208,8 @@ interface IContinuousClearingAuction is
     function claimTokensBatch(address owner, uint256[] calldata bidIds) external;
 
     /// @notice Withdraw all of the currency raised
-    /// @dev Can be called by anyone after the auction has ended
+    /// @dev This function can only be called after the auction has ended
+    /// @dev Can only be called by the funds recipient
     function sweepCurrency() external;
 
     /// @notice Implements IERC165.supportsInterface to signal support for the ILBPInitializer interface
@@ -221,6 +224,9 @@ interface IContinuousClearingAuction is
 
     /// @notice The total supply of tokens to sell
     function totalSupply() external view returns (uint128);
+
+    /// @notice The amount of tokens that are being held in custody during the auction
+    function custodyTokens() external view returns (uint128);
 
     /// @notice The recipient of any unsold tokens at the end of the auction
     function tokensRecipient() external view returns (address);
@@ -242,9 +248,10 @@ interface IContinuousClearingAuction is
     /// @notice The address of the validation hook for the auction
     function validationHook() external view returns (IValidationHook);
 
-    /// @notice Sweep any leftover tokens to the tokens recipient
+    /// @notice Sweep any leftover tokens and custody tokens to the tokens recipient
     /// @dev This function can only be called after the auction has ended
-    function sweepUnsoldTokens() external;
+    /// @dev Can only be called by the tokens recipient
+    function sweepUnsoldAndCustodyTokens() external;
 
     /// @notice The currency raised as of the last checkpoint in Q96 representation, scaled up by X7
     /// @dev Most use cases will want to use `currencyRaised()` instead

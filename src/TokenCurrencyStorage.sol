@@ -17,8 +17,10 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     Currency internal immutable CURRENCY;
     /// @notice The token being sold in the auction
     IERC20Minimal internal immutable TOKEN;
-    /// @notice The total supply of tokens to sell
+    /// @notice The total supply of tokens to sell in the auction
     uint128 internal immutable TOTAL_SUPPLY;
+    /// @notice The amount of tokens that are being held in custody during the auction
+    uint128 internal immutable CUSTODY_TOKENS;
     /// @notice The recipient of any unsold tokens at the end of the auction
     address internal immutable TOKENS_RECIPIENT;
     /// @notice The recipient of the raised Currency from the auction
@@ -36,6 +38,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         address _token,
         address _currency,
         uint128 _totalSupply,
+        uint128 _custodyTokens,
         address _tokensRecipient,
         address _fundsRecipient,
         uint128 _requiredCurrencyRaised
@@ -50,6 +53,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         TOKEN = IERC20Minimal(_token);
         CURRENCY = Currency.wrap(_currency);
         TOTAL_SUPPLY = _totalSupply;
+        CUSTODY_TOKENS = _custodyTokens;
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;
         REQUIRED_CURRENCY_RAISED_Q96_X7 = (uint256(_requiredCurrencyRaised) << FixedPoint96.RESOLUTION).scaleUpToX7();

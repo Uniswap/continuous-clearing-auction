@@ -69,15 +69,16 @@ contract ContinuousClearingAuction is
     /// @dev This can be incremented manually by calling `forceIterateOverTicks`
     uint256 internal $clearingPrice;
 
-    /// @notice Whether the TOTAL_SUPPLY of tokens has been received
+    /// @notice Whether TOTAL_SUPPLY and CUSTODY_TOKENS amount of tokens has been received
     bool private $_tokensReceived;
 
-    constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
+    constructor(address _token, uint128 _totalSupply, uint128 _custodyTokens, AuctionParameters memory _parameters)
         StepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
         TokenCurrencyStorage(
             _token,
             _parameters.currency,
             _totalSupply,
+            _custodyTokens,
             _parameters.tokensRecipient,
             _parameters.fundsRecipient,
             _parameters.requiredCurrencyRaised
@@ -141,11 +142,11 @@ contract ContinuousClearingAuction is
         // Don't check balance or emit the TokensReceived event if the tokens have already been received
         if ($_tokensReceived) return;
         // Use the normal totalSupply value instead of the Q96 value
-        if (TOKEN.balanceOf(address(this)) < TOTAL_SUPPLY) {
+        if (TOKEN.balanceOf(address(this)) < TOTAL_SUPPLY + CUSTODY_TOKENS) {
             revert InvalidTokenAmountReceived();
         }
         $_tokensReceived = true;
-        emit TokensReceived(TOTAL_SUPPLY);
+        emit TokensReceived(TOTAL_SUPPLY, CUSTODY_TOKENS);
     }
 
     /// @inheritdoc ILBPInitializer
@@ -741,7 +742,7 @@ contract ContinuousClearingAuction is
     }
 
     /// @inheritdoc IContinuousClearingAuction
-    function sweepUnsoldTokens() external onlyAfterAuctionIsOver ensureEndBlockIsCheckpointed {
+    function sweepUnsoldAndCustodyTokens() external onlyAfterAuctionIsOver ensureEndBlockIsCheckpointed {
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
         uint256 unsoldTokens;
         if (_isGraduated()) {
@@ -751,6 +752,7 @@ contract ContinuousClearingAuction is
         } else {
             unsoldTokens = TOTAL_SUPPLY;
         }
+        unsoldTokens += CUSTODY_TOKENS; // two uint128 additions cannot overflow a uint256
         _sweepUnsoldTokens(_getBlockNumberish(), unsoldTokens);
     }
 
@@ -768,6 +770,11 @@ contract ContinuousClearingAuction is
     /// @inheritdoc IContinuousClearingAuction
     function totalSupply() external view returns (uint128) {
         return TOTAL_SUPPLY;
+    }
+
+    /// @inheritdoc IContinuousClearingAuction
+    function custodyTokens() external view returns (uint128) {
+        return CUSTODY_TOKENS;
     }
 
     /// @inheritdoc IContinuousClearingAuction

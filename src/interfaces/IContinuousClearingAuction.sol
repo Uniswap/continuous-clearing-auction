@@ -39,8 +39,6 @@ interface IContinuousClearingAuction is
 {
     /// @notice Error thrown when the amount received is invalid
     error InvalidTokenAmountReceived();
-    /// @notice Error thrown when an unauthorized caller tries to access restricted functions
-    error NotAuthorized(address authorized, address caller);
     /// @notice Error thrown when an invalid value is deposited
     error InvalidAmount();
     /// @notice Error thrown when the bid owner is the zero address

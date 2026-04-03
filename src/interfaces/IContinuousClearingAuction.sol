@@ -16,6 +16,7 @@ import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 /// @dev token and totalSupply are passed as constructor arguments
 struct AuctionParameters {
     address currency; // token to raise funds in. Use address(0) for ETH
+    uint128 custodyTokens; // amount of tokens to be held in custody during the auction
     address tokensRecipient; // address to receive leftover tokens
     address fundsRecipient; // address to receive all raised funds
     uint64 startBlock; // Block which the first step starts
@@ -249,7 +250,7 @@ interface IContinuousClearingAuction is
     /// @notice Sweep any leftover tokens and custody tokens to the tokens recipient
     /// @dev This function can only be called after the auction has ended
     /// @dev Can only be called by the tokens recipient
-    function sweepUnsoldAndCustodyTokens() external;
+    function sweepUnsoldTokens() external;
 
     /// @notice The currency raised as of the last checkpoint in Q96 representation, scaled up by X7
     /// @dev Most use cases will want to use `currencyRaised()` instead

@@ -174,6 +174,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     function _setHardcodedParams(FuzzDeploymentParams memory _deploymentParams) private view {
         _deploymentParams.auctionParams.currency = ETH_SENTINEL;
+        _deploymentParams.auctionParams.custodyTokens = 0;
         _deploymentParams.auctionParams.tokensRecipient = tokensRecipient;
         _deploymentParams.auctionParams.fundsRecipient = fundsRecipient;
         _deploymentParams.auctionParams.validationHook = address(0);

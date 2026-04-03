@@ -7,6 +7,7 @@ library AuctionParamsBuilder {
     function init() internal pure returns (AuctionParameters memory) {
         return AuctionParameters({
             currency: address(0),
+            custodyTokens: 0,
             floorPrice: 0,
             tickSpacing: 0,
             validationHook: address(0),

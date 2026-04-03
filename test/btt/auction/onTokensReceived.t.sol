@@ -74,7 +74,7 @@ contract OnTokensReceivedTest is BttBase {
         ERC20Mock(_params.token).mint(address(auction), amountToSend);
 
         vm.expectEmit(true, true, true, true, address(auction));
-        emit IContinuousClearingAuction.TokensReceived(_params.totalSupply);
+        emit IContinuousClearingAuction.TokensReceived(_params.totalSupply, _params.parameters.custodyTokens);
         vm.record();
         auction.onTokensReceived();
         (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(auction));

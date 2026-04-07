@@ -16,7 +16,7 @@ import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 /// @dev token and totalSupply are passed as constructor arguments
 struct AuctionParameters {
     address currency; // token to raise funds in. Use address(0) for ETH
-    uint128 custodyTokens; // amount of tokens to be held in custody during the auction
+    uint128 custodyTokens; // amount of the sold token to be held in custody and returned to tokensRecipient at the end
     address tokensRecipient; // address to receive leftover tokens
     address fundsRecipient; // address to receive all raised funds
     uint64 startBlock; // Block which the first step starts

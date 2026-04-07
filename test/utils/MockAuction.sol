@@ -29,14 +29,6 @@ contract MockContinuousClearingAuction is ContinuousClearingAuction {
         return _iterateOverTicksAndFindClearingPrice(MAX_TICK_PTR, latestCheckpoint().cumulativeMps);
     }
 
-    /// @notice Wrapper around internal function for testing
-    function sellTokensAtClearingPrice(Checkpoint memory checkpoint, uint24 deltaMps)
-        external
-        returns (Checkpoint memory)
-    {
-        return _sellTokensAtClearingPrice(checkpoint, deltaMps);
-    }
-
     /// @notice Helper function to insert a checkpoint
     function insertCheckpoint(Checkpoint memory _checkpoint, uint64 blockNumber) external {
         _insertCheckpoint(_checkpoint, blockNumber);

@@ -9,9 +9,7 @@ CanClearSupplyAtPriceTest
 │   └── it returns false
 ├── when highLhs EQ highRhs and lowLhs LT lowRhs
 │   └── it returns false
-├── when demand * remainingMps GT remainingSupply (fuzz)
+├── when demand GTE requiredDemandAtPrice (fuzz)
 │   └── it returns true
-├── when demand * remainingMps EQ remainingSupply (fuzz)
-│   └── it returns true
-└── when demand * remainingMps LT remainingSupply (fuzz)
-    └── it returns false
+└── equivalence with requiredDemandAtPrice (fuzz)
+    └── it agrees up to ceiling rounding

@@ -178,66 +178,6 @@ contract ContinuousClearingAuction is
         return $currencyRaisedQ96_X7.divUint256(FixedPoint96.Q96).scaleDownToUint256();
     }
 
-    /// @notice Return a new checkpoint after advancing the current checkpoint by some `mps`
-    ///         This function updates the cumulative values of the checkpoint, and
-    ///         requires that the clearing price is up to date
-    /// @param _checkpoint The checkpoint to sell tokens at its clearing price
-    /// @param _deltaMps The number of mps to sell
-    /// @return The checkpoint with all cumulative values updated
-    function _sellTokensAtClearingPrice(Checkpoint memory _checkpoint, uint24 _deltaMps)
-        internal
-        returns (Checkpoint memory)
-    {
-        // Compute currencyRaised for selling `deltaMps` more supply at the clearing price:
-        // 1) Base case: all demand is above clearing → currencyRaised = sumAboveClearingQ96 × deltaMps.
-        // 2) If the clearing price lands on a tick with demand, add the partially-filled at-clearing contribution
-        //    via min(A, B), where (A) = total implied at rounded-up price − above-clearing, (B) = tickDemand × deltaMps.
-        //    min is needed because (A) can exceed (B) when the price was rounded up to the tick boundary.
-        uint256 priceQ96 = _checkpoint.clearingPrice;
-        uint256 deltaMpsU = uint256(_deltaMps); // uint256 representation of `_deltaMps` to prevent overflow
-        uint256 sumAboveQ96 = $sumCurrencyDemandAboveClearingQ96;
-
-        // The base case is where all demand sits strictly above the clearing price
-        ValueX7 currencyRaisedDeltaQ96X7 = ValueX7.wrap(sumAboveQ96 * deltaMpsU);
-
-        // Only compute currency raised at clearing if there are bids at that price tick
-        if (priceQ96 % TICK_SPACING == 0) {
-            uint256 demandAtPriceQ96 = _getTick(priceQ96).currencyDemandQ96;
-            if (demandAtPriceQ96 > 0) {
-                // Calculate the currency raised at the clearing price
-                ValueX7 currencyRaisedAtClearingQ96X7 = DemandLib.currencyRaisedAtPrice(
-                    remainingSupplyQ96X7(),
-                    demandAtPriceQ96,
-                    sumAboveQ96,
-                    priceQ96,
-                    deltaMpsU,
-                    ConstantsLib.MPS - _checkpoint.cumulativeMps // guaranteed to be > 0 because deltaMpsU > 0
-                );
-                // Change in currency raised = currency raised at clearing + currency raised above clearing
-                currencyRaisedDeltaQ96X7 = currencyRaisedDeltaQ96X7.add(currencyRaisedAtClearingQ96X7);
-                // Track cumulative currency raised exactly at this clearing price (used for partial exits)
-                _checkpoint.currencyRaisedAtClearingPriceQ96_X7 =
-                    _checkpoint.currencyRaisedAtClearingPriceQ96_X7.add(currencyRaisedAtClearingQ96X7);
-            }
-        }
-
-        // Convert currency to tokens at price, rounding up, and update global cleared tokens.
-        // Intentional round-up leaves a small amount of dust to sweep, ensuring cleared tokens never exceed TOTAL_SUPPLY
-        // even when using rounded-up clearing prices on tick boundaries.
-        uint256 tokensClearedQ96X7 = ValueX7.unwrap(currencyRaisedDeltaQ96X7).toTokensRoundingUp(priceQ96);
-        $totalClearedQ96_X7 = $totalClearedQ96_X7.add(ValueX7.wrap(tokensClearedQ96X7));
-
-        // Update global currency raised
-        $currencyRaisedQ96_X7 = $currencyRaisedQ96_X7.add(currencyRaisedDeltaQ96X7);
-
-        // Increase cumulativeMps after all state variables have been updated
-        _checkpoint.cumulativeMps += _deltaMps;
-        // Add to the cumulative mps per price sum, weighted by `mps`. This is an inverse sum.
-        _checkpoint.cumulativeMpsPerPrice += (deltaMpsU << 192) / priceQ96;
-
-        return _checkpoint;
-    }
-
     /// @notice Iterate to find the tick where the total demand at and above it is strictly less than the remaining supply in the auction
     /// @dev If the loop reaches the highest tick in the book, `nextActiveTickPrice` will be set to MAX_TICK_PTR
     /// @param _untilTickPrice The tick price to iterate until

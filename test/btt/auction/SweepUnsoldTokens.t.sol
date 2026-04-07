@@ -46,7 +46,7 @@ contract SweepUnsoldTokensTest is BttBase {
 
         uint256 blockNumber = bound(_blockNumber, mParams.parameters.endBlock, type(uint64).max);
 
-        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         vm.roll(blockNumber);
@@ -95,7 +95,7 @@ contract SweepUnsoldTokensTest is BttBase {
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
-        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         vm.roll(auction.startBlock());
@@ -185,7 +185,7 @@ contract SweepUnsoldTokensTest is BttBase {
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
-        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         vm.roll(auction.startBlock());
@@ -210,8 +210,9 @@ contract SweepUnsoldTokensTest is BttBase {
             revert('the clearing price rounded downwards to smaller than bids');
         }
 
+        uint256 expectedSweep = requiredTokenDeposit(mParams);
         vm.expectEmit(true, true, true, true, address(auction));
-        emit ITokenCurrencyStorage.TokensSwept(mParams.parameters.tokensRecipient, mParams.totalSupply);
+        emit ITokenCurrencyStorage.TokensSwept(mParams.parameters.tokensRecipient, expectedSweep);
         vm.record();
         auction.sweepUnsoldTokens();
 
@@ -220,7 +221,7 @@ contract SweepUnsoldTokensTest is BttBase {
                 (, bytes32[] memory writes) = vm.accesses(address(auction));
                 assertEq(writes.length, 1);
             }
-            {
+            if (expectedSweep > 0) {
                 (, bytes32[] memory writes) = vm.accesses(address(mParams.token));
                 assertEq(writes.length, 2);
             }
@@ -231,7 +232,7 @@ contract SweepUnsoldTokensTest is BttBase {
         assertEq(ERC20Mock(mParams.token).balanceOf(address(auction)), 0, 'tokens left in contract');
         assertEq(
             ERC20Mock(mParams.token).balanceOf(address(mParams.parameters.tokensRecipient)),
-            mParams.totalSupply,
+            expectedSweep,
             'tokens not transferred to recipient'
         );
     }

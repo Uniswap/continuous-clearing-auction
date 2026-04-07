@@ -50,7 +50,7 @@ contract BttBase is AuctionBaseTest {
     {
         // Bound to be sensible values
         _params.totalSupply = uint128(_bound(_params.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
-        _params.parameters.custodyTokens = 0;
+        _params.parameters.custodyTokens = uint128(_bound(_params.parameters.custodyTokens, 0, type(uint128).max));
         vm.assume(_params.token != _params.parameters.currency);
         vm.assume(_params.token != address(0));
         vm.assume(_params.parameters.fundsRecipient != address(0));
@@ -111,6 +111,11 @@ contract BttBase is AuctionBaseTest {
         bytes memory auctionStepsData = CompactStepLib.pack(steps);
 
         return (auctionStepsData, numberOfBlocks, _steps);
+    }
+
+    /// @notice Returns the total token deposit required for onTokensReceived (totalSupply + custodyTokens)
+    function requiredTokenDeposit(AuctionFuzzConstructorParams memory _params) internal pure returns (uint256) {
+        return uint256(_params.totalSupply) + uint256(_params.parameters.custodyTokens);
     }
 
     function assertEq(Bid memory _bid, Bid memory _bid2) internal pure {

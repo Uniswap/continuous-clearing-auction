@@ -108,7 +108,7 @@ library DemandLib {
         uint256 _priceQ96,
         uint256 _remainingMps
     ) internal pure returns (bool) {
-        // Equivalent to: demandQ96 >= requiredDemandAtPrice()
+        // Mathematically equivalent to: demandQ96 >= requiredDemandAtPrice()
         // Fully expanded:
         //     demandQ96 >= remainingSupplyQ96X7 * priceQ96 / (Q96 * remainingMps)
         //

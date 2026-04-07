@@ -6,6 +6,7 @@ import {BttBase} from 'btt/BttBase.sol';
 import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
 import {DemandLib} from 'continuous-clearing-auction/libraries/DemandLib.sol';
 import {FixedPoint96} from 'continuous-clearing-auction/libraries/FixedPoint96.sol';
+import {ValueX7} from 'continuous-clearing-auction/libraries/ValueX7Lib.sol';
 
 contract CanClearSupplyAtPriceTest is BttBase {
     // --- Explicit 512-bit comparison branch coverage ---
@@ -96,62 +97,48 @@ contract CanClearSupplyAtPriceTest is BttBase {
         assertFalse(DemandLib.canClearSupplyAtPrice(demandQ96, remainingSupplyQ96X7, priceQ96, remainingMps));
     }
 
-    // --- Fuzz tests ---
+    // --- Fuzz tests: equivalence with requiredDemandAtPrice ---
 
-    function test_WhenDemandTimesRemainingMps_GT_RemainingSupply(
-        uint256 _demandQ96,
-        uint256 _remainingSupplyQ96X7,
-        uint256 _priceQ96,
+    function test_WhenDemandGteRequiredDemandAtPrice(
+        uint128 _remainingSupplyQ96X7,
+        uint128 _priceQ96,
         uint24 _remainingMps
     ) external pure {
         // it returns true
 
-        uint256 demandQ96 = bound(_demandQ96, 1, ConstantsLib.X7_UPPER_BOUND);
-        uint256 remainingSupplyQ96X7 = bound(_remainingSupplyQ96X7, 1, ConstantsLib.X7_UPPER_BOUND);
-        uint256 priceQ96 = bound(_priceQ96, 1, ConstantsLib.X7_UPPER_BOUND);
+        uint256 remainingSupplyQ96X7 = bound(_remainingSupplyQ96X7, 1, type(uint128).max);
+        uint256 priceQ96 = bound(_priceQ96, 1, type(uint128).max);
         uint256 remainingMps = bound(_remainingMps, 1, ConstantsLib.MPS);
 
-        (uint256 highLhs, uint256 lowLhs) = Math.mul512(demandQ96 * remainingMps, FixedPoint96.Q96);
-        (uint256 highRhs, uint256 lowRhs) = Math.mul512(remainingSupplyQ96X7, priceQ96);
+        uint256 required = DemandLib.requiredDemandAtPrice(ValueX7.wrap(remainingSupplyQ96X7), priceQ96, remainingMps);
 
-        vm.assume(highLhs > highRhs || (highLhs == highRhs && lowLhs > lowRhs));
-
-        assertTrue(DemandLib.canClearSupplyAtPrice(demandQ96, remainingSupplyQ96X7, priceQ96, remainingMps));
+        assertTrue(DemandLib.canClearSupplyAtPrice(required, remainingSupplyQ96X7, priceQ96, remainingMps));
     }
 
-    function test_WhenDemandTimesRemainingMps_EQ_RemainingSupply(uint256 _remainingSupplyQ96X7) external pure {
-        // it returns true
-
-        uint256 remainingSupplyQ96X7 = bound(_remainingSupplyQ96X7, 0, ConstantsLib.X7_UPPER_BOUND);
-
-        // For simplicitly, assume price is Q96
-        uint256 priceQ96 = FixedPoint96.Q96;
-        // And that demand == supply
-        uint256 demandQ96 = remainingSupplyQ96X7;
-        // And that there is 1 mps remaining
-        uint256 remainingMps = 1;
-
-        assertTrue(DemandLib.canClearSupplyAtPrice(demandQ96, remainingSupplyQ96X7, priceQ96, remainingMps));
-    }
-
-    function test_WhenDemandTimesRemainingMps_LT_RemainingSupply(
-        uint256 _demandQ96,
-        uint256 _remainingSupplyQ96X7,
-        uint256 _priceQ96,
+    function test_EquivalenceWithRequiredDemandAtPrice(
+        uint128 _demandQ96,
+        uint128 _remainingSupplyQ96X7,
+        uint128 _priceQ96,
         uint24 _remainingMps
     ) external pure {
-        // it returns false
+        // it agrees with requiredDemandAtPrice up to ceiling rounding
 
-        uint256 demandQ96 = bound(_demandQ96, 1, ConstantsLib.X7_UPPER_BOUND);
-        uint256 remainingSupplyQ96X7 = bound(_remainingSupplyQ96X7, 1, ConstantsLib.X7_UPPER_BOUND);
-        uint256 priceQ96 = bound(_priceQ96, 1, ConstantsLib.X7_UPPER_BOUND);
+        uint256 demandQ96 = bound(_demandQ96, 1, type(uint128).max);
+        uint256 remainingSupplyQ96X7 = bound(_remainingSupplyQ96X7, 1, type(uint128).max);
+        uint256 priceQ96 = bound(_priceQ96, 1, type(uint128).max);
         uint256 remainingMps = bound(_remainingMps, 1, ConstantsLib.MPS);
 
-        (uint256 highLhs, uint256 lowLhs) = Math.mul512(demandQ96 * remainingMps, FixedPoint96.Q96);
-        (uint256 highRhs, uint256 lowRhs) = Math.mul512(remainingSupplyQ96X7, priceQ96);
+        uint256 required = DemandLib.requiredDemandAtPrice(ValueX7.wrap(remainingSupplyQ96X7), priceQ96, remainingMps);
+        bool canClear = DemandLib.canClearSupplyAtPrice(demandQ96, remainingSupplyQ96X7, priceQ96, remainingMps);
 
-        vm.assume(highLhs < highRhs || (highLhs == highRhs && lowLhs < lowRhs));
-
-        assertFalse(DemandLib.canClearSupplyAtPrice(demandQ96, remainingSupplyQ96X7, priceQ96, remainingMps));
+        if (demandQ96 >= required) {
+            assertTrue(canClear);
+        }
+        if (canClear && demandQ96 < required) {
+            assertEq(required - demandQ96, 1);
+        }
+        if (!canClear) {
+            assertLt(demandQ96, required);
+        }
     }
 }

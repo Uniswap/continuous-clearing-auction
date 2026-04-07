@@ -43,6 +43,10 @@ contract MockTokenCurrencyStorage is TokenCurrencyStorage, BlockNumberish {
         return TOTAL_SUPPLY;
     }
 
+    function custodyTokens() external view returns (uint128) {
+        return CUSTODY_TOKENS;
+    }
+
     function tokensRecipient() external view returns (address) {
         return TOKENS_RECIPIENT;
     }

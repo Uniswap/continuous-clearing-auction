@@ -430,7 +430,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         emit ITickStorage.TickInitialized(_deploymentParams.auctionParams.floorPrice);
         auction = new ContinuousClearingAuction(address(token), _deploymentParams.totalSupply, params);
 
-        token.mint(address(auction), _deploymentParams.totalSupply);
+        token.mint(address(auction), uint256(_deploymentParams.totalSupply) + uint256(params.custodyTokens));
         auction.onTokensReceived();
     }
 

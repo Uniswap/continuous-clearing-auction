@@ -4,17 +4,19 @@ pragma solidity 0.8.26;
 import {AuctionParameters, ContinuousClearingAuction} from '../src/ContinuousClearingAuction.sol';
 import {IContinuousClearingAuction} from '../src/interfaces/IContinuousClearingAuction.sol';
 import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
+import {LBPInitializationParams} from '../src/interfaces/external/ILBPInitializer.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
-import {LBPInitializationParams} from '../src/interfaces/external/ILBPInitializer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @title CustodyTokensTest
 /// @notice Tests for the custody tokens feature
+/// @dev Concrete tests use a fixed CUSTODY_AMOUNT for precise assertions.
+///      Fuzzed tests vary custodyTokens across the full uint128 range.
 contract CustodyTokensTest is AuctionBaseTest {
     using FixedPointMathLib for *;
     using AuctionParamsBuilder for AuctionParameters;
@@ -22,6 +24,26 @@ contract CustodyTokensTest is AuctionBaseTest {
     using ValueX7Lib for *;
 
     uint128 constant CUSTODY_AMOUNT = 50e18;
+
+    // ============================================
+    // Helpers for fuzzed custody auctions
+    // ============================================
+
+    function _deployCustodyAuction(uint128 _custodyTokens)
+        internal
+        returns (ContinuousClearingAuction _auction, AuctionParameters memory _params)
+    {
+        _params = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL).withFloorPrice(FLOOR_PRICE)
+            .withTickSpacing(TICK_SPACING).withValidationHook(address(0)).withTokensRecipient(tokensRecipient)
+            .withFundsRecipient(fundsRecipient).withStartBlock(block.number)
+            .withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET).withAuctionStepsData(auctionStepsData);
+        _params.custodyTokens = _custodyTokens;
+
+        _auction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, _params);
+        token.mint(address(_auction), uint256(TOTAL_SUPPLY) + uint256(_custodyTokens));
+        _auction.onTokensReceived();
+    }
 
     ContinuousClearingAuction custodyAuction;
     AuctionParameters custodyParams;
@@ -400,6 +422,104 @@ contract CustodyTokensTest is AuctionBaseTest {
         vm.roll(gradAuction.endBlock());
         gradAuction.checkpoint();
         assertTrue(gradAuction.isGraduated());
+    }
+
+    // ============================================
+    // Fuzzed custody tokens tests
+    // ============================================
+
+    function test_fuzz_getter(uint128 _custodyTokens) public {
+        (ContinuousClearingAuction fuzzAuction,) = _deployCustodyAuction(_custodyTokens);
+        assertEq(fuzzAuction.custodyTokens(), _custodyTokens);
+    }
+
+    function test_fuzz_onTokensReceived_insufficientBalance_reverts(uint128 _custodyTokens) public {
+        _custodyTokens = uint128(bound(_custodyTokens, 1, type(uint128).max));
+
+        AuctionParameters memory fuzzParams = AuctionParamsBuilder.init().withCurrency(ETH_SENTINEL)
+            .withFloorPrice(FLOOR_PRICE).withTickSpacing(TICK_SPACING).withValidationHook(address(0))
+            .withTokensRecipient(tokensRecipient).withFundsRecipient(fundsRecipient).withStartBlock(block.number)
+            .withEndBlock(block.number + AUCTION_DURATION)
+            .withClaimBlock(block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET).withAuctionStepsData(auctionStepsData);
+        fuzzParams.custodyTokens = _custodyTokens;
+
+        ContinuousClearingAuction fuzzAuction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, fuzzParams);
+
+        // Mint only totalSupply, missing custodyTokens
+        token.mint(address(fuzzAuction), TOTAL_SUPPLY);
+        vm.expectRevert(IContinuousClearingAuction.InvalidTokenAmountReceived.selector);
+        fuzzAuction.onTokensReceived();
+
+        // Additionally mint the custodyTokens - 1, still too little
+        token.mint(address(fuzzAuction), _custodyTokens - 1);
+        vm.expectRevert(IContinuousClearingAuction.InvalidTokenAmountReceived.selector);
+        fuzzAuction.onTokensReceived();
+    }
+
+    function test_fuzz_sweepUnsoldTokens_notGraduated(uint128 _custodyTokens) public {
+        (ContinuousClearingAuction fuzzAuction,) = _deployCustodyAuction(_custodyTokens);
+
+        vm.roll(fuzzAuction.endBlock());
+
+        vm.prank(tokensRecipient);
+        fuzzAuction.sweepUnsoldTokens();
+
+        assertEq(token.balanceOf(tokensRecipient), uint256(TOTAL_SUPPLY) + uint256(_custodyTokens));
+    }
+
+    function test_fuzz_sweepUnsoldTokens_graduated(uint128 _custodyTokens) public {
+        (ContinuousClearingAuction fuzzAuction,) = _deployCustodyAuction(_custodyTokens);
+
+        vm.roll(fuzzAuction.startBlock());
+        uint256 maxPrice = tickNumberToPriceX96(2);
+        uint128 bidAmount = uint128(inputAmountForTokens(TOTAL_SUPPLY, maxPrice));
+        vm.deal(alice, bidAmount);
+        vm.prank(alice);
+        fuzzAuction.submitBid{value: bidAmount}(maxPrice, bidAmount, alice, bytes(''));
+
+        vm.roll(fuzzAuction.endBlock());
+        fuzzAuction.checkpoint();
+        assertTrue(fuzzAuction.isGraduated());
+
+        uint256 recipientBalanceBefore = token.balanceOf(tokensRecipient);
+        vm.prank(tokensRecipient);
+        fuzzAuction.sweepUnsoldTokens();
+
+        uint256 swept = token.balanceOf(tokensRecipient) - recipientBalanceBefore;
+        assertGe(swept, _custodyTokens, 'swept less than custodyTokens');
+        assertApproxEqAbs(swept, _custodyTokens, MAX_ALLOWABLE_DUST_WEI, 'swept too far from custodyTokens');
+    }
+
+    function test_fuzz_solvency_fullLifecycle(uint128 _custodyTokens) public {
+        (ContinuousClearingAuction fuzzAuction,) = _deployCustodyAuction(_custodyTokens);
+
+        vm.roll(fuzzAuction.startBlock());
+        uint256 maxPrice = tickNumberToPriceX96(2);
+        uint128 bidAmount = uint128(inputAmountForTokens(TOTAL_SUPPLY, maxPrice));
+        vm.deal(alice, bidAmount);
+        vm.prank(alice);
+        uint256 bidId = fuzzAuction.submitBid{value: bidAmount}(maxPrice, bidAmount, alice, bytes(''));
+
+        vm.roll(fuzzAuction.endBlock());
+        Checkpoint memory finalCp = fuzzAuction.checkpoint();
+        assertTrue(fuzzAuction.isGraduated());
+
+        if (maxPrice > finalCp.clearingPrice) {
+            fuzzAuction.exitBid(bidId);
+        } else {
+            fuzzAuction.exitPartiallyFilledBid(bidId, fuzzAuction.startBlock(), 0);
+        }
+
+        vm.prank(fundsRecipient);
+        fuzzAuction.sweepCurrency();
+        vm.prank(tokensRecipient);
+        fuzzAuction.sweepUnsoldTokens();
+
+        vm.roll(fuzzAuction.claimBlock());
+        fuzzAuction.claimTokens(bidId);
+
+        assertApproxEqAbs(token.balanceOf(address(fuzzAuction)), 0, MAX_ALLOWABLE_DUST_WEI, 'token dust');
+        assertApproxEqAbs(address(fuzzAuction).balance, 0, MAX_ALLOWABLE_DUST_WEI, 'currency dust');
     }
 
     // ============================================

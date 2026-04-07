@@ -242,4 +242,39 @@ contract SweepUnsoldTokensTest is BttBase {
             'tokens not transferred to recipient'
         );
     }
+
+    function test_WhenCallerIsNotTokensRecipient(
+        AuctionFuzzConstructorParams memory _params,
+        uint256 _blockNumber,
+        address _unauthorizedCaller
+    ) external whenAuctionIsOver {
+        // it reverts with {NotAuthorized}
+
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        mParams.parameters.requiredCurrencyRaised = 1;
+        mParams.token = address(new ERC20Mock());
+
+        vm.assume(_unauthorizedCaller != mParams.parameters.tokensRecipient);
+
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+
+        uint256 blockNumber = bound(_blockNumber, mParams.parameters.endBlock, type(uint64).max);
+
+        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        auction.onTokensReceived();
+
+        vm.roll(blockNumber);
+
+        address unauthorizedCaller = makeAddr('unauthorizedCaller');
+        vm.prank(unauthorizedCaller);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IContinuousClearingAuction.NotAuthorized.selector,
+                mParams.parameters.tokensRecipient,
+                unauthorizedCaller
+            )
+        );
+        auction.sweepUnsoldTokens();
+    }
 }

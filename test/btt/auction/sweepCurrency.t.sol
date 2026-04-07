@@ -6,6 +6,7 @@ import {MockContinuousClearingAuction} from '../mocks/MockContinuousClearingAuct
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {Checkpoint} from 'src/CheckpointStorage.sol';
+import {IContinuousClearingAuction} from 'src/interfaces/IContinuousClearingAuction.sol';
 import {IStepStorage} from 'src/interfaces/IStepStorage.sol';
 import {ITokenCurrencyStorage} from 'src/interfaces/ITokenCurrencyStorage.sol';
 import {ConstantsLib} from 'src/libraries/ConstantsLib.sol';
@@ -187,5 +188,37 @@ contract SweepCurrencyTest is BttBase {
 
         assertEq(auction.sweepCurrencyBlock(), block.number);
         assertEq(mParams.parameters.fundsRecipient.balance, 0);
+    }
+
+    function test_WhenCallerIsNotFundsRecipient(
+        AuctionFuzzConstructorParams memory _params,
+        address _unauthorizedCaller
+    ) public givenAuctionIsGraduated givenNotPreviouslySwept {
+        // it reverts with {NotAuthorized}
+
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+
+        vm.assume(_unauthorizedCaller != mParams.parameters.fundsRecipient);
+
+        mParams.token = address(new ERC20Mock());
+        mParams.parameters.currency = address(0);
+        mParams.parameters.requiredCurrencyRaised = 0;
+        mParams.parameters.fundsRecipient = makeAddr('fundsRecipient');
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+
+        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        auction.onTokensReceived();
+
+        vm.roll(mParams.parameters.endBlock);
+
+        address unauthorizedCaller = makeAddr('unauthorizedCaller');
+        vm.prank(unauthorizedCaller);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IContinuousClearingAuction.NotAuthorized.selector, mParams.parameters.fundsRecipient, unauthorizedCaller
+            )
+        );
+        auction.sweepCurrency();
     }
 }

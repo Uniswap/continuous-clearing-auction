@@ -2103,41 +2103,6 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepUnsoldTokens();
     }
 
-    // Access control tests for sweep functions
-
-    function test_sweepCurrency_notRecipient_reverts() public {
-        // Submit a bid to ensure auction graduates
-        auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
-            tickNumberToPriceX96(2),
-            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
-            alice,
-            tickNumberToPriceX96(1),
-            bytes('')
-        );
-
-        vm.roll(auction.endBlock());
-
-        // Non-recipient cannot sweep (address(this) is the caller)
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IContinuousClearingAuction.NotAuthorized.selector, auction.fundsRecipient(), address(this)
-            )
-        );
-        auction.sweepCurrency();
-    }
-
-    function test_sweepUnsoldTokens_notRecipient_reverts() public {
-        vm.roll(auction.endBlock());
-
-        // Non-recipient cannot sweep (address(this) is the caller)
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IContinuousClearingAuction.NotAuthorized.selector, auction.tokensRecipient(), address(this)
-            )
-        );
-        auction.sweepUnsoldTokens();
-    }
-
     // Test that all of the state getters for constants / immutable variables are correct
     function test_constructor_immutable_getters() public {
         assertEq(auction.currency(), ETH_SENTINEL);

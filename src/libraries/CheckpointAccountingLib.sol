@@ -63,7 +63,7 @@ library CheckpointAccountingLib {
     ///      MUST only be used when the bid's max price is strictly greater than the clearing price throughout.
     /// @param bid the bid to evaluate
     /// @param cumulativeMpsPerPriceDelta the change in cumulativeMpsPerPrice over which the bid was fully filled
-    /// @param cumulativeMpsDelta the percentage of the auction where the bid was fully filled
+    /// @param cumulativeMpsDelta the period of the auction schedule where the bid was fully filled
     /// @return tokensFilled The tokens filled, rounded down
     /// @return currencySpentQ96 The amount of currency spent in Q96 form, rounded up
     function calculateFill(Bid memory bid, uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)

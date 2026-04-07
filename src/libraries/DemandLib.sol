@@ -68,14 +68,8 @@ library DemandLib {
         //
         //     requiredDemand = TotalSupply * r * price
         //
-        // where `r` measures how far the auction has deviated from the expected issuance schedule, and
-        // `totalSupply` is the initial total supply of tokens being sold. Intuitively, `r` scales the
-        // *remaining schedule* so that the full supply is still cleared by the end of the auction.
-        //
-        // Examples:
-        //   r == 1 → the auction is clearing exactly on schedule.
-        //   r == 2 → half of the tokens that should have been sold so far remain unsold, so the
-        //            remaining blocks must clear tokens at 2× the scheduled rate.
+        // where `r` is the ratio between the actual remaining supply and the expected remaining supply.
+        // The auction will never allocate tokens faster than the preset schedule, so `r` can only be >= 1.
         //
         // From the schedule definition:
         //

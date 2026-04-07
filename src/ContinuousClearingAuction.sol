@@ -256,17 +256,17 @@ contract ContinuousClearingAuction is
 
         uint256 remainingMps = ConstantsLib.MPS - _cumulativeMps;
         // Unwrap as we defer dividing by 1e7 by moving it to the LHS as multiplication
-        uint256 remainingSupplyQ96 = ValueX7.unwrap(remainingSupplyQ96X7());
+        uint256 remainingSupplyQ96X7_ = ValueX7.unwrap(remainingSupplyQ96X7());
         // If there are no more remaining supply or schedule, return the minimum clearing price
-        if (remainingSupplyQ96 == 0 || remainingMps == 0) return minimumClearingPrice;
+        if (remainingSupplyQ96X7_ == 0 || remainingMps == 0) return minimumClearingPrice;
 
-        uint256 clearingPrice_ = demandAboveClearingQ96.toPriceCeiling(remainingSupplyQ96, remainingMps);
+        uint256 clearingPrice_ = demandAboveClearingQ96.toPriceCeiling(remainingSupplyQ96X7_, remainingMps);
         while (
             // Loop while demand above the last clearing price >= required demand at the next active tick price
             // See `DemandLib.canClearSupplyAtPrice()` for more details
             (nextActiveTickPrice_ != _untilTickPrice
                     && demandAboveClearingQ96.canClearSupplyAtPrice(
-                        remainingSupplyQ96, nextActiveTickPrice_, remainingMps
+                        remainingSupplyQ96X7_, nextActiveTickPrice_, remainingMps
                     ))
                 // If rounding up the demand above clearing equals the `nextActiveTickPrice`, we need to keep iterating over ticks
                 // to ensure that the `nextActiveTickPrice` is always the next initialized tick strictly above the clearing price
@@ -279,7 +279,7 @@ contract ContinuousClearingAuction is
             minimumClearingPrice = nextActiveTickPrice_;
             // Advance to the next tick
             nextActiveTickPrice_ = $nextActiveTick.next;
-            clearingPrice_ = demandAboveClearingQ96.toPriceCeiling(remainingSupplyQ96, remainingMps);
+            clearingPrice_ = demandAboveClearingQ96.toPriceCeiling(remainingSupplyQ96X7_, remainingMps);
             updateStateVariables = true;
         }
         // Set the values into storage if we found a new next active tick price
@@ -340,21 +340,21 @@ contract ContinuousClearingAuction is
         // Update currencyRaised and totalCleared values
         if (deltaMps > 0) {
             // Put variables on the stack to save gas
-            uint256 sumAboveQ96 = $sumCurrencyDemandAboveClearingQ96;
-            uint256 priceQ96 = _checkpoint.clearingPrice;
+            uint256 sumAboveClearingPriceQ96 = $sumCurrencyDemandAboveClearingQ96;
+            uint256 clearingPriceQ96 = _checkpoint.clearingPrice;
 
             // The base case is where all demand sits strictly above the clearing price
-            ValueX7 currencyRaisedDeltaQ96X7 = ValueX7.wrap(sumAboveQ96 * deltaMps);
+            ValueX7 currencyRaisedDeltaQ96X7 = ValueX7.wrap(sumAboveClearingPriceQ96 * deltaMps);
 
             // However, we need to find currency raised at clearing price if there are bids there
-            if (priceQ96 % TICK_SPACING == 0) {
-                uint256 demandAtPriceQ96 = _getTick(priceQ96).currencyDemandQ96;
-                if (demandAtPriceQ96 > 0) {
+            if (clearingPriceQ96 % TICK_SPACING == 0) {
+                uint256 demandAtClearingPriceQ96 = _getTick(clearingPriceQ96).currencyDemandQ96;
+                if (demandAtClearingPriceQ96 > 0) {
                     ValueX7 currencyRaisedAtClearingQ96X7 = DemandLib.currencyRaisedAtPrice(
                         remainingSupplyQ96X7(),
-                        demandAtPriceQ96,
-                        sumAboveQ96,
-                        priceQ96,
+                        demandAtClearingPriceQ96,
+                        sumAboveClearingPriceQ96,
+                        clearingPriceQ96,
                         deltaMps,
                         ConstantsLib.MPS - _checkpoint.cumulativeMps // guaranteed to be > 0 because deltaMps > 0
                     );
@@ -369,7 +369,7 @@ contract ContinuousClearingAuction is
             // Convert currency to tokens at price, rounding up, and update global cleared tokens.
             // Intentional round-up leaves a small amount of dust to sweep, ensuring cleared tokens never exceed TOTAL_SUPPLY
             // even when using rounded-up clearing prices on tick boundaries.
-            uint256 tokensClearedQ96X7 = ValueX7.unwrap(currencyRaisedDeltaQ96X7).toTokensRoundingUp(priceQ96);
+            uint256 tokensClearedQ96X7 = ValueX7.unwrap(currencyRaisedDeltaQ96X7).toTokensRoundingUp(clearingPriceQ96);
             $totalClearedQ96_X7 = $totalClearedQ96_X7.add(ValueX7.wrap(tokensClearedQ96X7));
 
             // Update global currency raised
@@ -378,7 +378,7 @@ contract ContinuousClearingAuction is
             // Increase cumulativeMps after all state variables have been updated
             _checkpoint.cumulativeMps += deltaMps;
             // Add to the cumulative mps per price sum, weighted by `mps`. This is an inverse sum.
-            _checkpoint.cumulativeMpsPerPrice += (uint256(deltaMps) << 192) / priceQ96;
+            _checkpoint.cumulativeMpsPerPrice += (uint256(deltaMps) << 192) / clearingPriceQ96;
         }
 
         // Insert the checkpoint into storage, updating latest pointer and the linked list

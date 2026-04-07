@@ -7,11 +7,11 @@ import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @title PriceLib
-/// @notice Library for converting between currency, tokens, and prices in Q96 representation
+/// @notice Prices are denominated in currency per token (currency/token), in Q96 fixed-point form.
 library PriceLib {
     using FixedPointMathLib for uint256;
 
-    /// @notice Convert currency to tokens over a given price, rounding up
+    /// @notice Divide currency by a price into tokens, rounding up
     /// @param _currencyQ96 The currency to convert, in Q96 representation
     /// @param _priceQ96 The price to convert over, in Q96 representation
     /// @return The tokens, in Q96 representation
@@ -19,7 +19,7 @@ library PriceLib {
         return _currencyQ96.fullMulDivUp(FixedPoint96.Q96, _priceQ96);
     }
 
-    /// @notice Convert currency to price over a given number of tokens, rounding up
+    /// @notice Divide currency by tokens into a price, rounding up
     /// @param _currencyQ96 The currency to convert, in Q96 representation
     /// @param _tokensQ96 The number of tokens to convert over, in Q96 representation
     /// @return The price, in Q96 representation

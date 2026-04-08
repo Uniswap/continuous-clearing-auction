@@ -24,6 +24,8 @@ contract SweepUnsoldTokensTest is BttBase {
         uint256 blockNumber = bound(_blockNumber, 0, mParams.parameters.endBlock - 1);
 
         vm.roll(blockNumber);
+
+        vm.prank(mParams.parameters.tokensRecipient);
         vm.expectRevert(IStepStorage.AuctionIsNotOver.selector);
         auction.sweepUnsoldTokens();
     }
@@ -51,8 +53,10 @@ contract SweepUnsoldTokensTest is BttBase {
         auction.onTokensReceived();
 
         vm.roll(blockNumber);
+        vm.prank(mParams.parameters.tokensRecipient);
         auction.sweepUnsoldTokens();
 
+        vm.prank(mParams.parameters.tokensRecipient);
         vm.expectRevert(ITokenCurrencyStorage.CannotSweepTokens.selector);
         auction.sweepUnsoldTokens();
     }
@@ -129,6 +133,7 @@ contract SweepUnsoldTokensTest is BttBase {
             0
         );
         vm.record();
+        vm.prank(mParams.parameters.tokensRecipient);
         auction.sweepUnsoldTokens();
 
         (, bytes32[] memory writes) = vm.accesses(address(auction));
@@ -214,6 +219,7 @@ contract SweepUnsoldTokensTest is BttBase {
         vm.expectEmit(true, true, true, true, address(auction));
         emit ITokenCurrencyStorage.TokensSwept(mParams.parameters.tokensRecipient, mParams.totalSupply);
         vm.record();
+        vm.prank(mParams.parameters.tokensRecipient);
         auction.sweepUnsoldTokens();
 
         if (!isCoverage()) {
@@ -235,5 +241,40 @@ contract SweepUnsoldTokensTest is BttBase {
             mParams.totalSupply,
             'tokens not transferred to recipient'
         );
+    }
+
+    function test_WhenCallerIsNotTokensRecipient(
+        AuctionFuzzConstructorParams memory _params,
+        uint256 _blockNumber,
+        address _unauthorizedCaller
+    ) external whenAuctionIsOver {
+        // it reverts with {NotAuthorized}
+
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        mParams.parameters.requiredCurrencyRaised = 1;
+        mParams.token = address(new ERC20Mock());
+
+        vm.assume(_unauthorizedCaller != mParams.parameters.tokensRecipient);
+
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+
+        uint256 blockNumber = bound(_blockNumber, mParams.parameters.endBlock, type(uint64).max);
+
+        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        auction.onTokensReceived();
+
+        vm.roll(blockNumber);
+
+        address unauthorizedCaller = makeAddr('unauthorizedCaller');
+        vm.prank(unauthorizedCaller);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IContinuousClearingAuction.NotAuthorized.selector,
+                mParams.parameters.tokensRecipient,
+                unauthorizedCaller
+            )
+        );
+        auction.sweepUnsoldTokens();
     }
 }

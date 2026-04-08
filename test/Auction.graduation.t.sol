@@ -461,6 +461,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         // Should sweep ALL tokens since auction didn't graduate
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, $deploymentParams.totalSupply);
+        vm.prank(tokensRecipient);
         auction.sweepUnsoldTokens();
 
         // Verify all tokens were transferred

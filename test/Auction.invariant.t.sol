@@ -579,6 +579,7 @@ contract AuctionInvariantTest is AuctionUnitTest {
         uint256 expectedCurrencyRaised = mockAuction.currencyRaised();
 
         // We can always sweep unsold tokens regardless of graduation status
+        vm.prank(mockAuction.tokensRecipient());
         mockAuction.sweepUnsoldTokens();
 
         if (mockAuction.isGraduated()) {
@@ -591,6 +592,7 @@ contract AuctionInvariantTest is AuctionUnitTest {
             // Sweep the currency
             vm.expectEmit(true, true, true, true);
             emit ITokenCurrencyStorage.CurrencySwept(mockAuction.fundsRecipient(), expectedCurrencyRaised);
+            vm.prank(mockAuction.fundsRecipient());
             mockAuction.sweepCurrency();
             // Assert that the funds recipient received the currency
             assertEq(
@@ -600,6 +602,7 @@ contract AuctionInvariantTest is AuctionUnitTest {
             );
         } else {
             emit log_string('==================== NOT GRADUATED AUCTION ====================');
+            vm.prank(mockAuction.fundsRecipient());
             vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
             mockAuction.sweepCurrency();
             // At this point we know all bids have been exited so auction balance should be zero

@@ -270,14 +270,17 @@ contract ContinuousClearingAuction is
             }
         }
 
-        // Calculate the percentage of the supply that has been sold since the last checkpoint and the start of the current step
-        (AuctionStep memory step, uint24 deltaMps) = _advanceToStartOfCurrentStep(_blockNumber, lastCheckpointedBlock);
-        // `deltaMps` above is equal to the percentage of tokens sold up until the start of the current step.
-        // If the last checkpointed block is more recent than the start of the current step, account for the percentage
-        // sold since the last checkpointed block. Otherwise, add the percent sold since the start of the current step.
-        uint64 blockDelta = _blockNumber - uint64(FixedPointMathLib.max(step.startBlock, lastCheckpointedBlock));
-        unchecked {
-            deltaMps += uint24(blockDelta * step.mps);
+        uint24 deltaMps;
+        {
+            AuctionStep memory step;
+            // Calculate the percentage of the supply that has been sold since the last checkpoint and the start of the current step
+            (step, deltaMps) = _advanceToStartOfCurrentStep(_blockNumber, lastCheckpointedBlock);
+            // `deltaMps` above is equal to the percentage of tokens sold up until the start of the current step.
+            // If the last checkpointed block is more recent than the start of the current step, account for the percentage
+            // sold since the last checkpointed block. Otherwise, add the percent sold since the start of the current step.
+            deltaMps += uint24(
+                (_blockNumber - uint64(FixedPointMathLib.max(step.startBlock, lastCheckpointedBlock))) * step.mps
+            );
         }
 
         // Save gas for zero mps checkpoints

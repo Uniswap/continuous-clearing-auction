@@ -322,13 +322,12 @@ contract ContinuousClearingAuction is
                 // Update global currency raised
                 $currencyRaisedQ96_X7 = $currencyRaisedQ96_X7.add(currencyRaisedDeltaQ96X7);
 
-                // Increase cumulativeMps after all state variables have been updated
-                // TODO(eric): should we move this into the outer if statement? Need to think about
-                // rounding directions and edge cases
-                _checkpoint.cumulativeMps += deltaMps;
                 // Add to the cumulative mps per price sum, weighted by `mps`. This is an inverse sum.
                 _checkpoint.cumulativeMpsPerPrice += (uint256(deltaMps) << 192) / clearingPriceQ96;
             }
+
+            // Increment cumulativeMps even if remainingSupply is zero. This ensures that the auction schedule concludes as expected.
+            _checkpoint.cumulativeMps += deltaMps;
         }
 
         // Insert the checkpoint into storage, updating latest pointer and the linked list

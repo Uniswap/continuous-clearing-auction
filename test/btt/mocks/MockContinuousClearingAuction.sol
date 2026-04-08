@@ -5,6 +5,7 @@ import {Bid} from 'src/BidStorage.sol';
 import {ContinuousClearingAuction} from 'src/ContinuousClearingAuction.sol';
 import {AuctionParameters} from 'src/interfaces/IContinuousClearingAuction.sol';
 import {AuctionStep} from 'src/libraries/StepLib.sol';
+import {ValueX7} from 'src/libraries/ValueX7Lib.sol';
 
 contract MockContinuousClearingAuction is ContinuousClearingAuction {
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
@@ -30,6 +31,10 @@ contract MockContinuousClearingAuction is ContinuousClearingAuction {
         returns (Bid memory bid, uint256 bidId)
     {
         return _createBid(_getBlockNumberish(), amount, owner, maxPrice, startCumulativeMps);
+    }
+
+    function uncheckedSetTotalCleared(ValueX7 _value) external {
+        $totalClearedQ96_X7 = _value;
     }
 
     function modifier_onlyAfterAuctionIsOver() external onlyAfterAuctionIsOver {}

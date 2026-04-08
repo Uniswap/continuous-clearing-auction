@@ -3,7 +3,13 @@ CheckpointTest
 │   └── it reverts with AuctionNotActive
 ├── when block number GT end block
 │   └── it returns the final checkpoint
-└── when block number LTE end block
-    └── it returns the checkpoint at the block number
-        └── when block number is same as last checkpointed block
-            └── it does not create a new checkpoint
+├── when block number LTE end block
+│   └── it returns the checkpoint at the block number
+│       └── when block number is same as last checkpointed block
+│           └── it does not create a new checkpoint
+└── when remainingSupplyQ96X7 is zero
+    ├── it does not update totalClearedQ96_X7 or currencyRaisedQ96_X7
+    ├── it still advances cumulativeMps
+    └── when supply is exhausted during a live auction with bids
+        ├── it does not award additional tokens after supply runs out
+        └── it increases currency spent because the auction schedule still advances

@@ -17,7 +17,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     Currency internal immutable CURRENCY;
     /// @notice The token being sold in the auction
     IERC20Minimal internal immutable TOKEN;
-    /// @notice The total supply of tokens to sell in the auction
+    /// @notice The amount of tokens to sell in the auction
     uint128 internal immutable TOTAL_SUPPLY;
     /// @notice The amount of tokens that are being held in custody during the auction
     uint128 internal immutable CUSTODY_TOKENS;

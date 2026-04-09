@@ -69,7 +69,7 @@ contract ContinuousClearingAuction is
     /// @dev This can be incremented manually by calling `forceIterateOverTicks`
     uint256 internal $clearingPrice;
 
-    /// @notice Whether TOTAL_SUPPLY and CUSTODY_TOKENS amount of tokens has been received
+    /// @notice Whether TOTAL_SUPPLY and CUSTODY_TOKENS have been received
     bool private $_tokensReceived;
 
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)

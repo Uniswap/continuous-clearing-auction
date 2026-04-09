@@ -247,7 +247,7 @@ interface IContinuousClearingAuction is
     /// @notice The address of the validation hook for the auction
     function validationHook() external view returns (IValidationHook);
 
-    /// @notice Sweep any leftover tokens and custody tokens to the tokens recipient
+    /// @notice Sweep any unsold tokens and custody tokens to the tokens recipient
     /// @dev This function can only be called after the auction has ended
     /// @dev Can only be called by the tokens recipient
     function sweepUnsoldTokens() external;

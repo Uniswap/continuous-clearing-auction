@@ -200,7 +200,10 @@ contract AuctionGraduationTest is AuctionBaseTest {
         uint64 startBlock = auction.startBlock();
         // bid amount is half of the exact amount that would be needed to fill the auction
         uint256 totalSupply = auction.totalSupply();
-        $bidAmount = uint128(totalSupply.fullMulDivUp($maxPrice, FixedPoint96.Q96) / 2);
+        // assume that total supply is large enough such that more than 1 token is being auctioned
+        vm.assume(totalSupply.fullMulDivUp($maxPrice, FixedPoint96.Q96) > 1);
+        // solve for the bid amount required to fill half of the total supply
+        $bidAmount = uint128((totalSupply / 2).fullMulDivUp($maxPrice, FixedPoint96.Q96));
         vm.assume($bidAmount > 0);
         uint256 bidId = auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 

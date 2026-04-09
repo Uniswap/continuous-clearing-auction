@@ -6,6 +6,7 @@ import {MockContinuousClearingAuction} from '../mocks/MockContinuousClearingAuct
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {Checkpoint} from 'src/CheckpointStorage.sol';
+import {IContinuousClearingAuction} from 'src/interfaces/IContinuousClearingAuction.sol';
 import {IStepStorage} from 'src/interfaces/IStepStorage.sol';
 import {ITokenCurrencyStorage} from 'src/interfaces/ITokenCurrencyStorage.sol';
 import {ConstantsLib} from 'src/libraries/ConstantsLib.sol';
@@ -32,6 +33,7 @@ contract SweepCurrencyTest is BttBase {
 
         vm.roll(_blockNumber);
 
+        vm.prank(mParams.parameters.fundsRecipient);
         vm.expectRevert(IStepStorage.AuctionIsNotOver.selector);
         auction.sweepCurrency();
     }
@@ -55,8 +57,10 @@ contract SweepCurrencyTest is BttBase {
         auction.onTokensReceived();
 
         vm.roll(mParams.parameters.endBlock);
+        vm.prank(mParams.parameters.fundsRecipient);
         auction.sweepCurrency();
 
+        vm.prank(mParams.parameters.fundsRecipient);
         vm.expectRevert(ITokenCurrencyStorage.CannotSweepCurrency.selector);
         auction.sweepCurrency();
     }
@@ -100,6 +104,7 @@ contract SweepCurrencyTest is BttBase {
         vm.roll(mParams.parameters.endBlock);
         auction.exitPartiallyFilledBid(bidId, mParams.parameters.startBlock, 0);
 
+        vm.prank(mParams.parameters.fundsRecipient);
         vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
         auction.sweepCurrency();
     }
@@ -148,6 +153,7 @@ contract SweepCurrencyTest is BttBase {
 
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.CurrencySwept(mParams.parameters.fundsRecipient, expectedCurrencyRaised);
+        vm.prank(mParams.parameters.fundsRecipient);
         auction.sweepCurrency();
 
         assertEq(auction.sweepCurrencyBlock(), block.number);
@@ -177,9 +183,42 @@ contract SweepCurrencyTest is BttBase {
         // No bids
 
         vm.roll(mParams.parameters.endBlock);
+        vm.prank(mParams.parameters.fundsRecipient);
         auction.sweepCurrency();
 
         assertEq(auction.sweepCurrencyBlock(), block.number);
         assertEq(mParams.parameters.fundsRecipient.balance, 0);
+    }
+
+    function test_WhenCallerIsNotFundsRecipient(
+        AuctionFuzzConstructorParams memory _params,
+        address _unauthorizedCaller
+    ) public givenAuctionIsGraduated givenNotPreviouslySwept {
+        // it reverts with {NotAuthorized}
+
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+
+        vm.assume(_unauthorizedCaller != mParams.parameters.fundsRecipient);
+
+        mParams.token = address(new ERC20Mock());
+        mParams.parameters.currency = address(0);
+        mParams.parameters.requiredCurrencyRaised = 0;
+        mParams.parameters.fundsRecipient = makeAddr('fundsRecipient');
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+
+        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        auction.onTokensReceived();
+
+        vm.roll(mParams.parameters.endBlock);
+
+        address unauthorizedCaller = makeAddr('unauthorizedCaller');
+        vm.prank(unauthorizedCaller);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IContinuousClearingAuction.NotAuthorized.selector, mParams.parameters.fundsRecipient, unauthorizedCaller
+            )
+        );
+        auction.sweepCurrency();
     }
 }

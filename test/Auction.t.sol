@@ -552,6 +552,7 @@ contract AuctionTest is AuctionBaseTest {
         // Auction fully subscribed so no tokens are left
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(auction.tokensRecipient(), 0);
+        vm.prank(auction.tokensRecipient());
         auction.sweepUnsoldTokens();
     }
 
@@ -863,6 +864,7 @@ contract AuctionTest is AuctionBaseTest {
         // All tokens were sold
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(auction.tokensRecipient(), 0);
+        vm.prank(auction.tokensRecipient());
         auction.sweepUnsoldTokens();
     }
 
@@ -993,10 +995,12 @@ contract AuctionTest is AuctionBaseTest {
         // Expect all tokens were swept
         vm.expectEmit(true, true, true, true);
         emit ITokenCurrencyStorage.TokensSwept(newAuction.tokensRecipient(), TOTAL_SUPPLY);
+        vm.prank(newAuction.tokensRecipient());
         newAuction.sweepUnsoldTokens();
         assertEq(token.balanceOf(newAuction.tokensRecipient()), TOTAL_SUPPLY);
 
         // Expect no currency was swept
+        vm.prank(newAuction.fundsRecipient());
         vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
         newAuction.sweepCurrency();
         assertEq(address(newAuction).balance, 0);
@@ -2055,6 +2059,7 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_sweepUnsoldTokens_beforeAuctionEnds_reverts() public {
         vm.roll(auction.endBlock() - 1);
+        vm.prank(auction.tokensRecipient());
         vm.expectRevert(IStepStorage.AuctionIsNotOver.selector);
         auction.sweepUnsoldTokens();
     }
@@ -2089,9 +2094,11 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(auction.endBlock());
 
         // First sweep should succeed
+        vm.prank(auction.tokensRecipient());
         auction.sweepUnsoldTokens();
 
         // Second sweep should fail
+        vm.prank(auction.tokensRecipient());
         vm.expectRevert(ITokenCurrencyStorage.CannotSweepTokens.selector);
         auction.sweepUnsoldTokens();
     }

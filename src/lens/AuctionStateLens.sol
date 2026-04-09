@@ -22,7 +22,7 @@ contract AuctionStateLens {
     error InvalidRevertReasonLength();
 
     /// @notice Function which can be called from offchain to get the latest state of the auction
-    function state(IContinuousClearingAuction auction) external returns (AuctionState memory) {
+    function state(IContinuousClearingAuction auction) public returns (AuctionState memory) {
         try this.revertWithState(auction) {}
         catch (bytes memory reason) {
             return parseRevertReason(reason);
@@ -30,7 +30,7 @@ contract AuctionStateLens {
     }
 
     /// @notice Function which checkpoints the auction, gets global values and encodes them into a revert string
-    function revertWithState(IContinuousClearingAuction auction) external {
+    function revertWithState(IContinuousClearingAuction auction) public {
         try auction.checkpoint() returns (Checkpoint memory checkpoint) {
             AuctionState memory _state = AuctionState({
                 checkpoint: checkpoint,

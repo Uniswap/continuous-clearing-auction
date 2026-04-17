@@ -552,7 +552,9 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
             assertLe(auction.totalCleared(), auction.totalSupply(), 'total cleared must be <= total supply');
 
+            vm.prank(auction.fundsRecipient());
             auction.sweepCurrency();
+            vm.prank(auction.tokensRecipient());
             auction.sweepUnsoldTokens();
             // Validate that the tokens and currency dust left in the auction is within a reasonable amount
             assertApproxEqAbs(
@@ -573,10 +575,12 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
             );
             emit log_named_decimal_uint('after sweeping currency balance', address(auction).balance, 18);
         } else {
+            vm.prank(auction.tokensRecipient());
             auction.sweepUnsoldTokens();
             // Assert that all tokens were swept
             assertEq(token.balanceOf(auction.tokensRecipient()), auction.totalSupply());
             // Expect to revert when sweeping currency
+            vm.prank(auction.fundsRecipient());
             vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
             auction.sweepCurrency();
         }

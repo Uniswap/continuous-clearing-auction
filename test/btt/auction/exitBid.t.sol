@@ -5,6 +5,7 @@ import {AuctionFuzzConstructorParams, BttBase} from 'btt/BttBase.sol';
 import {MockContinuousClearingAuction} from 'btt/mocks/MockContinuousClearingAuction.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {IContinuousClearingAuction} from 'src/interfaces/IContinuousClearingAuction.sol';
+import {IStepStorage} from 'src/interfaces/IStepStorage.sol';
 import {FixedPoint96} from 'src/libraries/FixedPoint96.sol';
 
 contract ExitBidTest is BttBase {
@@ -24,7 +25,7 @@ contract ExitBidTest is BttBase {
 
         vm.roll(_blockNumber);
 
-        vm.expectRevert(IContinuousClearingAuction.AuctionIsNotOver.selector);
+        vm.expectRevert(IStepStorage.AuctionIsNotOver.selector);
         auction.exitBid(0);
     }
 

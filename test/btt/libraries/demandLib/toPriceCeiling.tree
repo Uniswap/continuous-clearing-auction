@@ -1,0 +1,5 @@
+ToPriceCeilingTest
+├── when demand is 0
+│   └── it returns 0
+└── when demand GT 0 and supply GT 0
+    └── it returns demand * remainingMps * Q96 divUp supply

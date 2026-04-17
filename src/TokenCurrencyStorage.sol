@@ -21,6 +21,8 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     uint128 internal immutable TOTAL_SUPPLY;
     /// @notice The amount of tokens that are being held in custody during the auction
     uint128 internal immutable CUSTODY_TOKENS;
+    /// @notice The total supply of tokens to sell in Q96 representation, scaled up by X7
+    ValueX7 internal immutable TOTAL_SUPPLY_Q96_X7;
     /// @notice The recipient of any unsold tokens at the end of the auction
     address internal immutable TOKENS_RECIPIENT;
     /// @notice The recipient of the raised Currency from the auction
@@ -54,6 +56,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         CURRENCY = Currency.wrap(_currency);
         TOTAL_SUPPLY = _totalSupply;
         CUSTODY_TOKENS = _custodyTokens;
+        TOTAL_SUPPLY_Q96_X7 = (uint256(_totalSupply) << FixedPoint96.RESOLUTION).scaleUpToX7();
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;
         REQUIRED_CURRENCY_RAISED_Q96_X7 = (uint256(_requiredCurrencyRaised) << FixedPoint96.RESOLUTION).scaleUpToX7();

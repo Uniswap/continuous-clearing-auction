@@ -40,6 +40,8 @@ interface IContinuousClearingAuction is
 {
     /// @notice Error thrown when the amount received is invalid
     error InvalidTokenAmountReceived();
+    /// @notice Error thrown when an unauthorized caller tries to access restricted functions
+    error NotAuthorized(address authorized, address caller);
     /// @notice Error thrown when an invalid value is deposited
     error InvalidAmount();
     /// @notice Error thrown when the bid owner is the zero address
@@ -58,8 +60,6 @@ interface IContinuousClearingAuction is
     error AuctionNotStarted();
     /// @notice Error thrown when the tokens required for the auction have not been received
     error TokensNotReceived();
-    /// @notice Error thrown when the claim block is before the end block
-    error ClaimBlockIsBeforeEndBlock();
     /// @notice Error thrown when the floor price plus tick spacing is greater than the maximum bid price
     error FloorPriceAndTickSpacingGreaterThanMaxBidPrice(uint256 nextTick, uint256 maxBidPrice);
     /// @notice Error thrown when the floor price plus tick spacing would overflow a uint256
@@ -74,8 +74,6 @@ interface IContinuousClearingAuction is
     error InvalidLastFullyFilledCheckpointHint();
     /// @notice Error thrown when the outbid block checkpoint hint is invalid
     error InvalidOutbidBlockCheckpointHint();
-    /// @notice Error thrown when the bid is not claimable
-    error NotClaimable();
     /// @notice Error thrown when the bids are not owned by the same owner
     error BatchClaimDifferentOwner(address expectedOwner, address receivedOwner);
     /// @notice Error thrown when the bid has not been exited
@@ -84,8 +82,6 @@ interface IContinuousClearingAuction is
     error CannotPartiallyExitBidBeforeGraduation();
     /// @notice Error thrown when the token transfer fails
     error TokenTransferFailed();
-    /// @notice Error thrown when the auction is not over
-    error AuctionIsNotOver();
     /// @notice Error thrown when the end block is not checkpointed
     error AuctionIsNotFinalized();
     /// @notice Error thrown when the bid is too large
@@ -171,13 +167,13 @@ interface IContinuousClearingAuction is
 
     /// @notice Whether the auction has graduated as of the given checkpoint
     /// @dev The auction is considered graduated if the currency raised is greater than or equal to the required currency raised
-    /// @dev Be aware that the latest checkpoint may be out of date
+    /// @dev Relies on the latest checkpoint which may be out of date
     /// @return bool True if the auction has graduated, false otherwise
     function isGraduated() external view returns (bool);
 
     /// @notice Get the currency raised at the last checkpointed block
     /// @dev This may be less than the balance of this contract if there are outstanding refunds for bidders
-    /// @dev Be aware that the latest checkpoint may be out of date
+    /// @dev Relies on the latest checkpoint which may be out of date
     /// @return The currency raised
     function currencyRaised() external view returns (uint256);
 
@@ -260,9 +256,26 @@ interface IContinuousClearingAuction is
     function sumCurrencyDemandAboveClearingQ96() external view returns (uint256);
 
     /// @notice The total currency raised as of the last checkpoint in Q96 representation, scaled up by X7
-    /// @dev Most use cases will want to use `totalCleared()` instead
     function totalClearedQ96_X7() external view returns (ValueX7);
 
     /// @notice The total tokens cleared as of the last checkpoint in uint256 representation
+    /// @dev Loses precision from dividing into uint256 form
     function totalCleared() external view returns (uint256);
+
+    /// @notice The remaining supply of tokens in Q96 representation, scaled up by X7
+    /// @dev Relies on the latest checkpoint which may be out of date
+    function remainingSupplyQ96X7() external view returns (ValueX7);
+
+    /// @notice The remaining supply of tokens in uint256 representation
+    /// @dev Loses precision from dividing into uint256 form
+    /// @dev Relies on the latest checkpoint which may be out of date
+    function remainingSupply() external view returns (uint256);
+
+    /// @notice The required demand to move the auction to a given price, in Q96 representation
+    /// @dev Relies on the latest checkpoint which may be out of date
+    function requiredDemandQ96(uint256 _priceQ96) external view returns (uint256);
+
+    /// @notice The required demand to move the auction to the next active tick, in Q96 representation
+    /// @dev Relies on the latest checkpoint which may be out of date
+    function requiredDemandQ96AtNextActiveTick() external view returns (uint256);
 }

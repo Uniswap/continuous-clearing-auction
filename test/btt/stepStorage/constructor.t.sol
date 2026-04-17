@@ -16,7 +16,7 @@ contract ConstructorTest is BttBase {
         // it reverts with {InvalidEndBlock}
 
         vm.expectRevert(IStepStorage.InvalidEndBlock.selector);
-        auctionStepStorage = new MockStepStorage(new bytes(0), 1, 0);
+        auctionStepStorage = new MockStepStorage(new bytes(0), 1, 0, 0);
     }
 
     function test_WhenStartBlockLEEndBlock(Step[] memory _steps, uint64 _startBlock) external {
@@ -34,7 +34,9 @@ contract ConstructorTest is BttBase {
         vm.expectEmit(true, true, true, true);
         emit IStepStorage.AuctionStepRecorded(startBlock, startBlock + uint64(steps[0].blockDelta), steps[0].mps);
         vm.record();
-        auctionStepStorage = new MockStepStorage(auctionStepsData, startBlock, startBlock + uint64(numberOfBlocks));
+        auctionStepStorage = new MockStepStorage(
+            auctionStepsData, startBlock, startBlock + uint64(numberOfBlocks), startBlock + uint64(numberOfBlocks)
+        );
 
         (, bytes32[] memory writes) = vm.accesses(address(auctionStepStorage));
 
@@ -53,5 +55,39 @@ contract ConstructorTest is BttBase {
 
         bytes memory expectedCode = bytes.concat(bytes1(0x00), auctionStepsData);
         assertEq(auctionStepStorage.pointer().code, expectedCode);
+    }
+
+    modifier givenStartBlockLEEndBlock() {
+        _;
+    }
+
+    function test_WhenClaimBlockLTEndBlock(Step[] memory _steps, uint64 _startBlock, uint64 _claimBlock)
+        external
+        givenStartBlockLEEndBlock
+    {
+        // it reverts with {ClaimBlockIsBeforeEndBlock}
+
+        (bytes memory auctionStepsData, uint256 numberOfBlocks,) = generateAuctionSteps(_steps);
+        uint64 startBlock = uint64(bound(_startBlock, 1, type(uint64).max - numberOfBlocks));
+        uint64 claimBlock = uint64(bound(_claimBlock, 0, startBlock + uint64(numberOfBlocks) - 1));
+
+        vm.expectRevert(IStepStorage.ClaimBlockIsBeforeEndBlock.selector);
+        new MockStepStorage(auctionStepsData, startBlock, startBlock + uint64(numberOfBlocks), claimBlock);
+    }
+
+    function test_WhenClaimBlockGTEEndBlock(Step[] memory _steps, uint64 _startBlock, uint64 _claimBlock)
+        external
+        givenStartBlockLEEndBlock
+    {
+        // it writes claim block
+        (bytes memory auctionStepsData, uint256 numberOfBlocks, Step[] memory steps) = generateAuctionSteps(_steps);
+        uint64 startBlock = uint64(bound(_startBlock, 1, type(uint64).max - numberOfBlocks));
+        uint64 claimBlock = uint64(bound(_claimBlock, startBlock + uint64(numberOfBlocks), type(uint64).max));
+
+        vm.expectEmit(true, true, true, true);
+        emit IStepStorage.AuctionStepRecorded(startBlock, startBlock + uint64(steps[0].blockDelta), steps[0].mps);
+        auctionStepStorage =
+            new MockStepStorage(auctionStepsData, startBlock, startBlock + uint64(numberOfBlocks), claimBlock);
+        assertEq(auctionStepStorage.claimBlock(), claimBlock);
     }
 }

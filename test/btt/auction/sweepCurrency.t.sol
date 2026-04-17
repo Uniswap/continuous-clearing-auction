@@ -203,6 +203,7 @@ contract SweepCurrencyTest is BttBase {
         mParams.parameters.requiredCurrencyRaised = 0;
         mParams.parameters.custodyTokens = 0;
         mParams.parameters.fundsRecipient = makeAddr('fundsRecipient');
+        mParams.parameters.custodyTokens = 0;
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 

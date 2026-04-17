@@ -12,6 +12,7 @@ import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.s
 import {FixedPoint96} from 'continuous-clearing-auction/libraries/FixedPoint96.sol';
 import {MaxBidPriceLib} from 'continuous-clearing-auction/libraries/MaxBidPriceLib.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract SweepUnsoldTokensTest is BttBase {
     function test_WhenAuctionNotOver(AuctionFuzzConstructorParams memory _params, uint256 _blockNumber) external {
@@ -106,7 +107,13 @@ contract SweepUnsoldTokensTest is BttBase {
         vm.roll(auction.startBlock());
 
         uint256 maxPrice = mParams.parameters.floorPrice + mParams.parameters.tickSpacing;
-        uint128 bidAmount = uint128(bound(_bidAmount, mParams.parameters.requiredCurrencyRaised, type(uint128).max));
+        uint128 bidAmount = uint128(
+            bound(
+                _bidAmount,
+                (mParams.totalSupply + 1) * mParams.parameters.floorPrice / FixedPoint96.Q96,
+                type(uint128).max
+            )
+        );
 
         vm.deal(address(this), bidAmount);
         uint256 bidId = auction.submitBid{value: bidAmount}(maxPrice, bidAmount, alice, bytes(''));
@@ -242,12 +249,50 @@ contract SweepUnsoldTokensTest is BttBase {
         );
     }
 
+    function test_WhenCallerIsNotAuthorized(AuctionFuzzConstructorParams memory _params)
+        external
+        whenAuctionIsOver
+        givenNotPreviouslySwept
+    {
+        // it reverts with {NotAuthorized}
+
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        mParams.token = address(new ERC20Mock());
+        mParams.parameters.currency = address(0);
+        mParams.parameters.validationHook = address(0);
+        mParams.parameters.custodyTokens = 0;
+        mParams.totalSupply = uint128(bound(mParams.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
+        mParams.parameters.requiredCurrencyRaised = type(uint128).max;
+        mParams.parameters.tokensRecipient = makeAddr('tokensRecipient');
+
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+
+        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        auction.onTokensReceived();
+
+        vm.roll(auction.endBlock());
+        auction.checkpoint();
+
+        address unauthorizedCaller = makeAddr('unauthorizedCaller');
+        vm.prank(unauthorizedCaller);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IContinuousClearingAuction.NotAuthorized.selector,
+                mParams.parameters.tokensRecipient,
+                unauthorizedCaller
+            )
+        );
+        auction.sweepUnsoldTokens();
+    }
+
     function test_GivenNotGraduated_WhenCustodyTokensEQZero(AuctionFuzzConstructorParams memory _params)
         external
         whenAuctionIsOver
         givenNotPreviouslySwept
     {
         // it sweeps only totalSupply when custodyTokens is zero
+        alice = makeAddr('alice');
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
         mParams.token = address(new ERC20Mock());
@@ -264,7 +309,9 @@ contract SweepUnsoldTokensTest is BttBase {
         auction.onTokensReceived();
 
         vm.roll(auction.endBlock());
+        auction.checkpoint();
 
+        vm.prank(mParams.parameters.tokensRecipient);
         vm.expectEmit(true, true, true, true, address(auction));
         emit IAuctionStorage.TokensSwept(mParams.parameters.tokensRecipient, mParams.totalSupply);
         auction.sweepUnsoldTokens();
@@ -300,7 +347,9 @@ contract SweepUnsoldTokensTest is BttBase {
         auction.onTokensReceived();
 
         vm.roll(auction.endBlock());
+        auction.checkpoint();
 
+        vm.prank(mParams.parameters.tokensRecipient);
         vm.expectEmit(true, true, true, true, address(auction));
         emit IAuctionStorage.TokensSwept(mParams.parameters.tokensRecipient, depositAmount);
         auction.sweepUnsoldTokens();

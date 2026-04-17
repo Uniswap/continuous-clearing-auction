@@ -12,6 +12,7 @@ import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.s
 import {FixedPoint96} from 'continuous-clearing-auction/libraries/FixedPoint96.sol';
 import {MaxBidPriceLib} from 'continuous-clearing-auction/libraries/MaxBidPriceLib.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract SweepUnsoldTokensTest is BttBase {
     function test_WhenAuctionNotOver(AuctionFuzzConstructorParams memory _params, uint256 _blockNumber) external {
@@ -106,7 +107,13 @@ contract SweepUnsoldTokensTest is BttBase {
         vm.roll(auction.startBlock());
 
         uint256 maxPrice = mParams.parameters.floorPrice + mParams.parameters.tickSpacing;
-        uint128 bidAmount = uint128(bound(_bidAmount, mParams.parameters.requiredCurrencyRaised, type(uint128).max));
+        uint128 bidAmount = uint128(
+            bound(
+                _bidAmount,
+                (mParams.totalSupply + 1) * mParams.parameters.floorPrice / FixedPoint96.Q96,
+                type(uint128).max
+            )
+        );
 
         vm.deal(address(this), bidAmount);
         uint256 bidId = auction.submitBid{value: bidAmount}(maxPrice, bidAmount, alice, bytes(''));

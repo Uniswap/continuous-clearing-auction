@@ -1,0 +1,10 @@
+CurrencyRaisedAtPriceTest
+├── when demandAtPrice is 0
+│   └── it returns 0
+├── when demandAbovePrice covers totalCurrencyRaised
+│   └── it returns 0
+├── when bids at clearing are partially filled
+│   └── it returns only what remains after bids above clearing are accounted for
+├── when bids at clearing are capped by rounded up price
+│   └── it returns demandAtPrice * deltaMps
+└── it never exceeds demandAtPrice * deltaMps (fuzz)

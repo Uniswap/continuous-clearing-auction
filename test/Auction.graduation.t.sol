@@ -130,17 +130,15 @@ contract AuctionGraduationTest is AuctionBaseTest {
     /// @dev Note that depending on the total supply / mps configurations it may not be possible to hit this scenario
     ///      so we use vm.assume to force the scenario to be hit. This will fail in higher fuzz run tests
     function _getRequiredAmountToMoveClearingToPrice(
-        uint256 totalSupply,
+        IContinuousClearingAuction auction,
         uint256 price,
         uint128 existingBidAmount,
         uint24 cumulativeMps
-    ) internal pure returns (uint128 requiredAmount) {
+    ) internal view returns (uint128 requiredAmount) {
         uint256 existingBidAmountQ96 = uint256(existingBidAmount) << FixedPoint96.RESOLUTION;
-        // find the price just under the target price
-        uint256 targetDemandQ96 = (totalSupply * (price - 1)) + 1;
-        // find the price just above the target price
-        uint256 upperBoundDemandQ96 = (totalSupply * price) - 1;
         uint24 remainingMps = ConstantsLib.MPS - cumulativeMps;
+        uint256 targetDemandQ96 = auction.requiredDemandQ96(price - 1) + 1;
+        uint256 upperBoundDemandQ96 = auction.requiredDemandQ96(price) - 1;
         // find the required amount, considering the remaining mps in the auction
         uint256 requiredAmountQ96 =
             (targetDemandQ96 - existingBidAmountQ96).fullMulDivUp(remainingMps, ConstantsLib.MPS);
@@ -217,7 +215,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         vm.assume(checkpoint.cumulativeMps < ConstantsLib.MPS);
 
         uint128 requiredAmount =
-            _getRequiredAmountToMoveClearingToPrice(totalSupply, $maxPrice, $bidAmount, checkpoint.cumulativeMps);
+            _getRequiredAmountToMoveClearingToPrice(auction, $maxPrice, $bidAmount, checkpoint.cumulativeMps);
 
         uint256 nextBidId = auction.submitBid{value: requiredAmount}(
             $maxPrice + auction.tickSpacing(), requiredAmount, alice, params.floorPrice, bytes('')
@@ -234,7 +232,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         vm.roll(auction.endBlock());
         Checkpoint memory finalCheckpoint = auction.checkpoint();
         // Assert that the auction finishes at the first maxPrice
-        assertEq(auction.clearingPrice(), $maxPrice);
+        assertEq(auction.clearingPrice(), $maxPrice, 'clearing price');
 
         // Locally validate that for the first bid, the sum of the individual sections would overflow the original bid amount
         Bid memory bid = auction.bids(bidId);

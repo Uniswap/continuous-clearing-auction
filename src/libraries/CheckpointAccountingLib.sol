@@ -37,8 +37,8 @@ library CheckpointAccountingLib {
     /// @param bid The bid
     /// @param tickDemandQ96 The total demand at the tick
     /// @param currencyRaisedAtClearingPriceQ96_X7 The cumulative supply sold to the clearing price
-    /// @return tokensFilled The tokens sold
-    /// @return currencySpentQ96 The amount of currency spent in Q96 form
+    /// @return tokensFilled The tokens filled, rounded down
+    /// @return currencySpentQ96 The amount of currency spent in Q96 form, rounded up
     function accountPartiallyFilledCheckpoints(
         Bid memory bid,
         uint256 tickDemandQ96,
@@ -62,26 +62,25 @@ library CheckpointAccountingLib {
     /// @dev Uses lazy accounting to efficiently calculate fills across time periods without iterating blocks.
     ///      MUST only be used when the bid's max price is strictly greater than the clearing price throughout.
     /// @param bid the bid to evaluate
-    /// @param cumulativeMpsPerPriceDelta the cumulative sum of supply to price ratio
-    /// @param cumulativeMpsDelta the cumulative sum of mps values across the block range
-    /// @return tokensFilled the amount of tokens filled for this bid
-    /// @return currencySpentQ96 the amount of currency spent by this bid in Q96 form
+    /// @param cumulativeMpsPerPriceDelta the change in cumulativeMpsPerPrice over which the bid was fully filled
+    /// @param cumulativeMpsDelta the period of the auction schedule where the bid was fully filled
+    /// @return tokensFilled The tokens filled, rounded down
+    /// @return currencySpentQ96 The amount of currency spent in Q96 form, rounded up
     function calculateFill(Bid memory bid, uint256 cumulativeMpsPerPriceDelta, uint24 cumulativeMpsDelta)
         internal
         pure
         returns (uint256 tokensFilled, uint256 currencySpentQ96)
     {
-        uint24 mpsRemainingInAuctionAfterSubmission = bid.mpsRemainingInAuctionAfterSubmission();
+        uint256 mpsRemainingInAuctionAfterSubmission = uint256(bid.mpsRemainingInAuctionAfterSubmission());
 
-        // Currency spent is original currency amount multiplied by percentage fully filled over percentage allocated
+        // Currency spent is the bid amount scaled by the percentage of the auction elapsed during this period
         currencySpentQ96 = bid.amountQ96.fullMulDivUp(cumulativeMpsDelta, mpsRemainingInAuctionAfterSubmission);
 
-        // Tokens filled are calculated from the effective amount over the allocation
+        // Tokens filled are calculated by multiplying the original bid amount by cumulativeMpsPerPriceDelta,
+        // which is an inverse price sum, weighted by the mps of each block in the period. The result
+        // is then divided by the remaining percentage of the auction after submission to undo the initial normalization.
         tokensFilled = bid.amountQ96
-            .fullMulDiv(
-                cumulativeMpsPerPriceDelta,
-                (FixedPoint96.Q96 << FixedPoint96.RESOLUTION) * mpsRemainingInAuctionAfterSubmission
-            );
+            .fullMulDiv(cumulativeMpsPerPriceDelta, uint256(1 << 192) * mpsRemainingInAuctionAfterSubmission);
     }
 }
 

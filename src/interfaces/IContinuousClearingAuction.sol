@@ -165,13 +165,13 @@ interface IContinuousClearingAuction is
 
     /// @notice Whether the auction has graduated as of the given checkpoint
     /// @dev The auction is considered graduated if the currency raised is greater than or equal to the required currency raised
-    /// @dev Be aware that the latest checkpoint may be out of date
+    /// @dev Relies on the latest checkpoint which may be out of date
     /// @return bool True if the auction has graduated, false otherwise
     function isGraduated() external view returns (bool);
 
     /// @notice Get the currency raised at the last checkpointed block
     /// @dev This may be less than the balance of this contract if there are outstanding refunds for bidders
-    /// @dev Be aware that the latest checkpoint may be out of date
+    /// @dev Relies on the latest checkpoint which may be out of date
     /// @return The currency raised
     function currencyRaised() external view returns (uint256);
 
@@ -249,9 +249,26 @@ interface IContinuousClearingAuction is
     function sumCurrencyDemandAboveClearingQ96() external view returns (uint256);
 
     /// @notice The total currency raised as of the last checkpoint in Q96 representation, scaled up by X7
-    /// @dev Most use cases will want to use `totalCleared()` instead
     function totalClearedQ96_X7() external view returns (ValueX7);
 
     /// @notice The total tokens cleared as of the last checkpoint in uint256 representation
+    /// @dev Loses precision from dividing into uint256 form
     function totalCleared() external view returns (uint256);
+
+    /// @notice The remaining supply of tokens in Q96 representation, scaled up by X7
+    /// @dev Relies on the latest checkpoint which may be out of date
+    function remainingSupplyQ96X7() external view returns (ValueX7);
+
+    /// @notice The remaining supply of tokens in uint256 representation
+    /// @dev Loses precision from dividing into uint256 form
+    /// @dev Relies on the latest checkpoint which may be out of date
+    function remainingSupply() external view returns (uint256);
+
+    /// @notice The required demand to move the auction to a given price, in Q96 representation
+    /// @dev Relies on the latest checkpoint which may be out of date
+    function requiredDemandQ96(uint256 _priceQ96) external view returns (uint256);
+
+    /// @notice The required demand to move the auction to the next active tick, in Q96 representation
+    /// @dev Relies on the latest checkpoint which may be out of date
+    function requiredDemandQ96AtNextActiveTick() external view returns (uint256);
 }

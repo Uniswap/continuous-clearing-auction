@@ -7,8 +7,7 @@ import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol
 import {AuctionParameters} from '../../src/ContinuousClearingAuction.sol';
 
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
-import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
-import {ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
+import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 
 contract MockContinuousClearingAuction is ContinuousClearingAuction {
     using ValueX7Lib for *;
@@ -27,15 +26,7 @@ contract MockContinuousClearingAuction is ContinuousClearingAuction {
 
     /// @notice Wrapper around internal function for testing
     function iterateOverTicksAndFindClearingPrice() external returns (uint256) {
-        return _iterateOverTicksAndFindClearingPrice(MAX_TICK_PTR);
-    }
-
-    /// @notice Wrapper around internal function for testing
-    function sellTokensAtClearingPrice(Checkpoint memory checkpoint, uint24 deltaMps)
-        external
-        returns (Checkpoint memory)
-    {
-        return _sellTokensAtClearingPrice(checkpoint, deltaMps);
+        return _iterateOverTicksAndFindClearingPrice(MAX_TICK_PTR, latestCheckpoint().cumulativeMps);
     }
 
     /// @notice Helper function to insert a checkpoint

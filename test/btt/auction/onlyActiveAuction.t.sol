@@ -62,7 +62,7 @@ contract OnlyActiveAuctionTest is BttBase {
 
         uint256 blockNumber = bound(_blockNumber, mParams.parameters.startBlock, type(uint64).max);
 
-        token.mint(address(auction), mParams.totalSupply);
+        token.mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         vm.roll(blockNumber);

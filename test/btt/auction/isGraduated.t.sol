@@ -41,7 +41,7 @@ contract IsGraduatedTest is BttBase {
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
-        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         vm.roll(auction.startBlock());
@@ -89,7 +89,7 @@ contract IsGraduatedTest is BttBase {
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
-        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         vm.roll(auction.startBlock());

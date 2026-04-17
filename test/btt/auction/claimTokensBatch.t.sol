@@ -22,7 +22,7 @@ contract ClaimTokensBatchTest is BttBase {
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
-        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         _blockNumber = uint64(bound(_blockNumber, 0, mParams.parameters.claimBlock - 1));
@@ -60,7 +60,7 @@ contract ClaimTokensBatchTest is BttBase {
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
-        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         vm.roll(mParams.parameters.startBlock);
@@ -121,7 +121,7 @@ contract ClaimTokensBatchTest is BttBase {
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
-        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         vm.roll(mParams.parameters.startBlock);
@@ -170,7 +170,7 @@ contract ClaimTokensBatchTest is BttBase {
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
-        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         vm.roll(mParams.parameters.startBlock);

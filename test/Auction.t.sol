@@ -2109,6 +2109,7 @@ contract AuctionTest is AuctionBaseTest {
 
         AuctionParameters memory params = AuctionParameters({
             currency: address(0),
+            custodyTokens: 0,
             floorPrice: FLOOR_PRICE,
             tickSpacing: TICK_SPACING,
             validationHook: address(0),

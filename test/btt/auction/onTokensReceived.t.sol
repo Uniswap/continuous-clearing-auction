@@ -20,7 +20,7 @@ contract OnTokensReceivedTest is BttBase {
         ContinuousClearingAuction auction =
             new ContinuousClearingAuction(_params.token, _params.totalSupply, _params.parameters);
 
-        ERC20Mock(_params.token).mint(address(auction), _params.totalSupply);
+        ERC20Mock(_params.token).mint(address(auction), requiredTokenDeposit(_params));
         auction.onTokensReceived();
 
         vm.record();
@@ -50,7 +50,9 @@ contract OnTokensReceivedTest is BttBase {
         ContinuousClearingAuction auction =
             new ContinuousClearingAuction(_params.token, _params.totalSupply, _params.parameters);
 
-        uint256 amountToSend = bound(_amountToSend, 0, _params.totalSupply - 1);
+        uint256 required = requiredTokenDeposit(_params);
+        vm.assume(required > 0);
+        uint256 amountToSend = bound(_amountToSend, 0, required - 1);
 
         ERC20Mock(_params.token).mint(address(auction), amountToSend);
         vm.expectRevert(IContinuousClearingAuction.InvalidTokenAmountReceived.selector);
@@ -69,12 +71,12 @@ contract OnTokensReceivedTest is BttBase {
         ContinuousClearingAuction auction =
             new ContinuousClearingAuction(_params.token, _params.totalSupply, _params.parameters);
 
-        uint256 amountToSend = bound(_amountToSend, _params.totalSupply, type(uint256).max);
+        uint256 amountToSend = bound(_amountToSend, requiredTokenDeposit(_params), type(uint256).max);
 
         ERC20Mock(_params.token).mint(address(auction), amountToSend);
 
         vm.expectEmit(true, true, true, true, address(auction));
-        emit IContinuousClearingAuction.TokensReceived(_params.totalSupply);
+        emit IContinuousClearingAuction.TokensReceived(_params.totalSupply, _params.parameters.custodyTokens);
         vm.record();
         auction.onTokensReceived();
         (bytes32[] memory reads, bytes32[] memory writes) = vm.accesses(address(auction));

@@ -10,12 +10,13 @@ contract MockTokenCurrencyStorage is TokenCurrencyStorage, BlockNumberish {
         address _token,
         address _currency,
         uint128 _totalSupply,
+        uint128 _custodyTokens,
         address _tokensRecipient,
         address _fundsRecipient,
         uint128 _requiredCurrencyRaised
     )
         TokenCurrencyStorage(
-            _token, _currency, _totalSupply, _tokensRecipient, _fundsRecipient, _requiredCurrencyRaised
+            _token, _currency, _totalSupply, _custodyTokens, _tokensRecipient, _fundsRecipient, _requiredCurrencyRaised
         )
         BlockNumberish()
     {}
@@ -40,6 +41,10 @@ contract MockTokenCurrencyStorage is TokenCurrencyStorage, BlockNumberish {
 
     function totalSupply() external view returns (uint128) {
         return TOTAL_SUPPLY;
+    }
+
+    function custodyTokens() external view returns (uint128) {
+        return CUSTODY_TOKENS;
     }
 
     function tokensRecipient() external view returns (address) {

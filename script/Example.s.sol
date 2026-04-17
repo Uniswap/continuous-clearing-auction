@@ -33,6 +33,7 @@ contract ExampleScript is Script {
         {
             parameters = AuctionParameters({
                 currency: input.readAddress(string.concat(chainIdSlug, '.currency')),
+                custodyTokens: 0,
                 tokensRecipient: input.readAddress(string.concat(chainIdSlug, '.tokensRecipient')),
                 fundsRecipient: input.readAddress(string.concat(chainIdSlug, '.fundsRecipient')),
                 startBlock: input.readUint(string.concat(chainIdSlug, '.startBlock')).toUint64(),

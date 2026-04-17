@@ -49,7 +49,7 @@ contract SweepUnsoldTokensTest is BttBase {
 
         uint256 blockNumber = bound(_blockNumber, mParams.parameters.endBlock, type(uint64).max);
 
-        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         vm.roll(blockNumber);
@@ -100,7 +100,7 @@ contract SweepUnsoldTokensTest is BttBase {
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
-        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         vm.roll(auction.startBlock());
@@ -126,23 +126,21 @@ contract SweepUnsoldTokensTest is BttBase {
             revert('the clearing price rounded downwards to smaller than bids');
         }
 
-        // Expect 0 calls to transfer
-        vm.expectCall(
-            mParams.token,
-            abi.encodeWithSelector(IERC20Minimal.transfer.selector, address(mParams.parameters.tokensRecipient), 0),
-            0
-        );
+        uint256 recipientBalanceBefore = ERC20Mock(mParams.token).balanceOf(mParams.parameters.tokensRecipient);
+
         vm.record();
         vm.prank(mParams.parameters.tokensRecipient);
         auction.sweepUnsoldTokens();
 
-        (, bytes32[] memory writes) = vm.accesses(address(auction));
-
-        if (!isCoverage()) {
-            assertEq(writes.length, 1);
-        }
-
         assertEq(auction.sweepUnsoldTokensBlock(), block.number);
+
+        uint256 swept = ERC20Mock(mParams.token).balanceOf(mParams.parameters.tokensRecipient) - recipientBalanceBefore;
+        // Swept amount should be at least custodyTokens (unsold portion is dust ≈ 0)
+        assertGe(swept, mParams.parameters.custodyTokens, 'swept less than custodyTokens');
+        // Swept amount should be approximately custodyTokens (unsold is just dust)
+        assertApproxEqAbs(
+            swept, mParams.parameters.custodyTokens, MAX_ALLOWABLE_DUST_WEI, 'swept too far from custodyTokens'
+        );
 
         vm.roll(auction.claimBlock());
         auction.claimTokens(bidId);
@@ -191,7 +189,7 @@ contract SweepUnsoldTokensTest is BttBase {
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
-        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         vm.roll(auction.startBlock());
@@ -216,8 +214,9 @@ contract SweepUnsoldTokensTest is BttBase {
             revert('the clearing price rounded downwards to smaller than bids');
         }
 
+        uint256 expectedSweep = requiredTokenDeposit(mParams);
         vm.expectEmit(true, true, true, true, address(auction));
-        emit ITokenCurrencyStorage.TokensSwept(mParams.parameters.tokensRecipient, mParams.totalSupply);
+        emit ITokenCurrencyStorage.TokensSwept(mParams.parameters.tokensRecipient, expectedSweep);
         vm.record();
         vm.prank(mParams.parameters.tokensRecipient);
         auction.sweepUnsoldTokens();
@@ -227,7 +226,7 @@ contract SweepUnsoldTokensTest is BttBase {
                 (, bytes32[] memory writes) = vm.accesses(address(auction));
                 assertEq(writes.length, 1);
             }
-            {
+            if (expectedSweep > 0) {
                 (, bytes32[] memory writes) = vm.accesses(address(mParams.token));
                 assertEq(writes.length, 2);
             }
@@ -238,43 +237,79 @@ contract SweepUnsoldTokensTest is BttBase {
         assertEq(ERC20Mock(mParams.token).balanceOf(address(auction)), 0, 'tokens left in contract');
         assertEq(
             ERC20Mock(mParams.token).balanceOf(address(mParams.parameters.tokensRecipient)),
-            mParams.totalSupply,
+            expectedSweep,
             'tokens not transferred to recipient'
         );
     }
 
-    function test_WhenCallerIsNotTokensRecipient(
-        AuctionFuzzConstructorParams memory _params,
-        uint256 _blockNumber,
-        address _unauthorizedCaller
-    ) external whenAuctionIsOver {
-        // it reverts with {NotAuthorized}
+    function test_GivenNotGraduated_WhenCustodyTokensEQZero(AuctionFuzzConstructorParams memory _params)
+        external
+        whenAuctionIsOver
+        givenNotPreviouslySwept
+    {
+        // it sweeps only totalSupply when custodyTokens is zero
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
-        mParams.parameters.requiredCurrencyRaised = 1;
         mParams.token = address(new ERC20Mock());
-
-        vm.assume(_unauthorizedCaller != mParams.parameters.tokensRecipient);
+        mParams.parameters.currency = address(0);
+        mParams.parameters.validationHook = address(0);
+        mParams.parameters.custodyTokens = 0;
+        mParams.totalSupply = uint128(bound(mParams.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
+        mParams.parameters.requiredCurrencyRaised = type(uint128).max;
 
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
-        uint256 blockNumber = bound(_blockNumber, mParams.parameters.endBlock, type(uint64).max);
-
         ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
         auction.onTokensReceived();
 
-        vm.roll(blockNumber);
+        vm.roll(auction.endBlock());
 
-        address unauthorizedCaller = makeAddr('unauthorizedCaller');
-        vm.prank(unauthorizedCaller);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IContinuousClearingAuction.NotAuthorized.selector,
-                mParams.parameters.tokensRecipient,
-                unauthorizedCaller
-            )
-        );
+        vm.expectEmit(true, true, true, true, address(auction));
+        emit ITokenCurrencyStorage.TokensSwept(mParams.parameters.tokensRecipient, mParams.totalSupply);
         auction.sweepUnsoldTokens();
+
+        assertEq(
+            ERC20Mock(mParams.token).balanceOf(mParams.parameters.tokensRecipient),
+            mParams.totalSupply,
+            'swept amount != totalSupply'
+        );
+        assertEq(ERC20Mock(mParams.token).balanceOf(address(auction)), 0, 'tokens left in contract');
+    }
+
+    function test_GivenNotGraduated_WhenCustodyTokensGTZero(AuctionFuzzConstructorParams memory _params)
+        external
+        whenAuctionIsOver
+        givenNotPreviouslySwept
+    {
+        // it sweeps totalSupply + custodyTokens when custodyTokens is greater than zero
+
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        mParams.token = address(new ERC20Mock());
+        mParams.parameters.currency = address(0);
+        mParams.parameters.validationHook = address(0);
+        mParams.parameters.custodyTokens = uint128(bound(mParams.parameters.custodyTokens, 1, type(uint128).max));
+        mParams.totalSupply = uint128(bound(mParams.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
+        mParams.parameters.requiredCurrencyRaised = type(uint128).max;
+
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+
+        uint256 depositAmount = requiredTokenDeposit(mParams);
+        ERC20Mock(mParams.token).mint(address(auction), depositAmount);
+        auction.onTokensReceived();
+
+        vm.roll(auction.endBlock());
+
+        vm.expectEmit(true, true, true, true, address(auction));
+        emit ITokenCurrencyStorage.TokensSwept(mParams.parameters.tokensRecipient, depositAmount);
+        auction.sweepUnsoldTokens();
+
+        assertEq(
+            ERC20Mock(mParams.token).balanceOf(mParams.parameters.tokensRecipient),
+            depositAmount,
+            'swept amount != totalSupply + custodyTokens'
+        );
+        assertEq(ERC20Mock(mParams.token).balanceOf(address(auction)), 0, 'tokens left in contract');
     }
 }

@@ -49,7 +49,7 @@ contract ClaimTokensTest is BttBase {
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
-        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         // Pass the claimBlock check
@@ -91,7 +91,7 @@ contract ClaimTokensTest is BttBase {
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
-        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         uint256 maxPrice = mParams.parameters.floorPrice + mParams.parameters.tickSpacing;
@@ -164,7 +164,7 @@ contract ClaimTokensTest is BttBase {
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
-        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         uint256 maxPrice = mParams.parameters.floorPrice + mParams.parameters.tickSpacing;

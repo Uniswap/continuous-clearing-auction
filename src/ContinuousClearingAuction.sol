@@ -10,7 +10,11 @@ import {AuctionParameters, IContinuousClearingAuction} from './interfaces/IConti
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
-import {ILBPInitializer, LBPInitializationParams, ILBP_INITIALIZER_INTERFACE_ID} from './interfaces/external/ILBPInitializer.sol';
+import {
+    ILBPInitializer,
+    ILBP_INITIALIZER_INTERFACE_ID,
+    LBPInitializationParams
+} from './interfaces/external/ILBPInitializer.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';

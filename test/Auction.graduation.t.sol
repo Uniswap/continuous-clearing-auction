@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {IAuctionStorage} from '../src/interfaces/IAuctionStorage.sol';
 import {IContinuousClearingAuction} from '../src/interfaces/IContinuousClearingAuction.sol';
 import {IStepStorage} from '../src/interfaces/IStepStorage.sol';
-import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {CheckpointAccountingLib} from '../src/libraries/CheckpointAccountingLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
+import {ValueX7} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {FuzzDeploymentParams} from './utils/FuzzStructs.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -19,7 +19,6 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 ///      so we limit the number of fuzz runs.
 /// forge-config: default.fuzz.runs = 1000
 contract AuctionGraduationTest is AuctionBaseTest {
-    using ValueX7Lib for *;
     using BidLib for *;
     using FixedPointMathLib for *;
 
@@ -240,7 +239,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
             auction.checkpoints(startBlock + 1), auction.checkpoints(startBlock), bid
         );
         (, uint256 partialSpentQ96) = CheckpointAccountingLib.accountPartiallyFilledCheckpoints(
-            bid, auction.ticks($maxPrice).currencyDemandQ96, finalCheckpoint.currencyRaisedAtClearingPriceQ96_X7
+            bid, auction.ticks($maxPrice).currencyDemandQ96, finalCheckpoint.currencyRaisedAtClearingPriceQ96X7
         );
         uint256 totalSpentQ96 = fullySpentQ96 + partialSpentQ96;
 
@@ -326,10 +325,10 @@ contract AuctionGraduationTest is AuctionBaseTest {
         auction.checkpoint();
         uint256 expectedCurrencyRaised = auction.currencyRaised();
         uint256 expectedCurrencyRaisedFromCheckpoint =
-            auction.currencyRaisedQ96_X7().scaleDownToUint256() >> FixedPoint96.RESOLUTION;
+            (ValueX7.unwrap(auction.currencyRaisedQ96X7()) / ConstantsLib.MPS) >> FixedPoint96.RESOLUTION;
 
         vm.prank(fundsRecipient);
-        vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+        vm.expectRevert(IAuctionStorage.NotGraduated.selector);
         auction.sweepCurrency();
 
         emit log_string('===== Auction is NOT graduated =====');
@@ -461,7 +460,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
 
         // Should sweep ALL tokens since auction didn't graduate
         vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, $deploymentParams.totalSupply);
+        emit IAuctionStorage.TokensSwept(tokensRecipient, $deploymentParams.totalSupply);
         vm.prank(tokensRecipient);
         auction.sweepUnsoldTokens();
 
@@ -470,7 +469,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
 
         uint256 expectedCurrencyRaised = auction.currencyRaised();
         uint256 expectedCurrencyRaisedFromCheckpoint =
-            auction.currencyRaisedQ96_X7().scaleDownToUint256() >> FixedPoint96.RESOLUTION;
+            (ValueX7.unwrap(auction.currencyRaisedQ96X7()) / ConstantsLib.MPS) >> FixedPoint96.RESOLUTION;
 
         emit log_string('===== Auction is NOT graduated =====');
         emit log_named_uint('currencyRaised in final checkpoint', expectedCurrencyRaisedFromCheckpoint);

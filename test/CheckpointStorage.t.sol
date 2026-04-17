@@ -254,7 +254,7 @@ contract CheckpointStorageTest is Assertions, Test {
 
         Checkpoint memory _checkpoint = mockCheckpointStorage.latestCheckpoint();
         (uint256 tokensFilled, uint256 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
-            bid, 1e18, _checkpoint.currencyRaisedAtClearingPriceQ96_X7
+            bid, 1e18, _checkpoint.currencyRaisedAtClearingPriceQ96X7
         );
         assertEq(tokensFilled, 0);
         assertEq(currencySpent, 0);
@@ -267,12 +267,12 @@ contract CheckpointStorageTest is Assertions, Test {
         vm.assume(bid.maxPrice > 0);
 
         Checkpoint memory _checkpoint = mockCheckpointStorage.latestCheckpoint();
-        _checkpoint.currencyRaisedAtClearingPriceQ96_X7 = ValueX7.wrap(1e18);
+        _checkpoint.currencyRaisedAtClearingPriceQ96X7 = ValueX7.wrap(1e18);
 
         (uint256 tokensFilled, uint256 currencySpent) = mockCheckpointStorage.accountPartiallyFilledCheckpoints(
             bid,
             0, // tick demand
-            _checkpoint.currencyRaisedAtClearingPriceQ96_X7
+            _checkpoint.currencyRaisedAtClearingPriceQ96X7
         );
         assertEq(tokensFilled, 0);
         assertEq(currencySpent, 0);

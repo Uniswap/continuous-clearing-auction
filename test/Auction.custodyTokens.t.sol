@@ -2,12 +2,13 @@
 pragma solidity 0.8.26;
 
 import {AuctionParameters, ContinuousClearingAuction} from '../src/ContinuousClearingAuction.sol';
+import {IAuctionStorage} from '../src/interfaces/IAuctionStorage.sol';
 import {IContinuousClearingAuction} from '../src/interfaces/IContinuousClearingAuction.sol';
-import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {LBPInitializationParams} from '../src/interfaces/external/ILBPInitializer.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
+import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
+import {ValueX7} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
@@ -21,7 +22,6 @@ contract CustodyTokensTest is AuctionBaseTest {
     using FixedPointMathLib for *;
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
-    using ValueX7Lib for *;
 
     uint128 constant CUSTODY_AMOUNT = 50e18;
 
@@ -136,9 +136,9 @@ contract CustodyTokensTest is AuctionBaseTest {
         // unsoldTokens = TOTAL_SUPPLY - totalCleared + CUSTODY_AMOUNT
         uint256 expectedSweep;
         {
-            uint256 totalSupplyQ96 = uint256(TOTAL_SUPPLY) << FixedPoint96.RESOLUTION;
-            uint256 unsold = totalSupplyQ96.scaleUpToX7().saturatingSub(custodyAuction.totalClearedQ96_X7())
-                .divUint256(FixedPoint96.Q96).scaleDownToUint256();
+            uint256 totalSupplyQ96X7 = (uint256(TOTAL_SUPPLY) << FixedPoint96.RESOLUTION) * ConstantsLib.MPS;
+            ValueX7 remaining = ValueX7.wrap(totalSupplyQ96X7).saturatingSub(custodyAuction.totalClearedQ96X7());
+            uint256 unsold = (ValueX7.unwrap(remaining) / FixedPoint96.Q96) / ConstantsLib.MPS;
             expectedSweep = unsold + CUSTODY_AMOUNT;
         }
 

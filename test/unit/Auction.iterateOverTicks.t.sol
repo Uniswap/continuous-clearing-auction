@@ -9,7 +9,7 @@ import {BidLib} from '../../src/libraries/BidLib.sol';
 import {CheckpointLib} from '../../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
-import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
+import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 import {FuzzDeploymentParams} from '../utils/FuzzStructs.sol';
 import {FuzzBid} from '../utils/FuzzStructs.sol';
 import {MockContinuousClearingAuction} from '../utils/MockAuction.sol';
@@ -17,7 +17,6 @@ import {AuctionUnitTest} from './AuctionUnitTest.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract AuctionIterateOverTicksTest is AuctionUnitTest {
-    using ValueX7Lib for *;
     using BidLib for Bid;
     using FixedPointMathLib for *;
     using CheckpointLib for Checkpoint;

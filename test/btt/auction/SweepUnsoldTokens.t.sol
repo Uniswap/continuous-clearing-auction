@@ -3,9 +3,9 @@ pragma solidity 0.8.26;
 
 import {AuctionFuzzConstructorParams, BttBase} from 'btt/BttBase.sol';
 import {MockContinuousClearingAuction} from 'btt/mocks/MockContinuousClearingAuction.sol';
+import {IAuctionStorage} from 'continuous-clearing-auction/interfaces/IAuctionStorage.sol';
 import {IContinuousClearingAuction} from 'continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol';
 import {IStepStorage} from 'continuous-clearing-auction/interfaces/IStepStorage.sol';
-import {ITokenCurrencyStorage} from 'continuous-clearing-auction/interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from 'continuous-clearing-auction/interfaces/external/IERC20Minimal.sol';
 import {Checkpoint} from 'continuous-clearing-auction/libraries/CheckpointLib.sol';
 import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
@@ -57,7 +57,7 @@ contract SweepUnsoldTokensTest is BttBase {
         auction.sweepUnsoldTokens();
 
         vm.prank(mParams.parameters.tokensRecipient);
-        vm.expectRevert(ITokenCurrencyStorage.CannotSweepTokens.selector);
+        vm.expectRevert(IAuctionStorage.CannotSweepTokens.selector);
         auction.sweepUnsoldTokens();
     }
 
@@ -216,7 +216,7 @@ contract SweepUnsoldTokensTest is BttBase {
 
         uint256 expectedSweep = requiredTokenDeposit(mParams);
         vm.expectEmit(true, true, true, true, address(auction));
-        emit ITokenCurrencyStorage.TokensSwept(mParams.parameters.tokensRecipient, expectedSweep);
+        emit IAuctionStorage.TokensSwept(mParams.parameters.tokensRecipient, expectedSweep);
         vm.record();
         vm.prank(mParams.parameters.tokensRecipient);
         auction.sweepUnsoldTokens();
@@ -266,7 +266,7 @@ contract SweepUnsoldTokensTest is BttBase {
         vm.roll(auction.endBlock());
 
         vm.expectEmit(true, true, true, true, address(auction));
-        emit ITokenCurrencyStorage.TokensSwept(mParams.parameters.tokensRecipient, mParams.totalSupply);
+        emit IAuctionStorage.TokensSwept(mParams.parameters.tokensRecipient, mParams.totalSupply);
         auction.sweepUnsoldTokens();
 
         assertEq(
@@ -302,7 +302,7 @@ contract SweepUnsoldTokensTest is BttBase {
         vm.roll(auction.endBlock());
 
         vm.expectEmit(true, true, true, true, address(auction));
-        emit ITokenCurrencyStorage.TokensSwept(mParams.parameters.tokensRecipient, depositAmount);
+        emit IAuctionStorage.TokensSwept(mParams.parameters.tokensRecipient, depositAmount);
         auction.sweepUnsoldTokens();
 
         assertEq(

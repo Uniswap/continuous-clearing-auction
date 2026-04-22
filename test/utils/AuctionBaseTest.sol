@@ -4,14 +4,14 @@ pragma solidity ^0.8.0;
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
 import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol';
 import {Tick} from '../../src/TickStorage.sol';
+import {IAuctionStorage} from '../../src/interfaces/IAuctionStorage.sol';
 import {AuctionParameters, IContinuousClearingAuction} from '../../src/interfaces/IContinuousClearingAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
-import {ITokenCurrencyStorage} from '../../src/interfaces/ITokenCurrencyStorage.sol';
 import {BidLib} from '../../src/libraries/BidLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {MaxBidPriceLib} from '../../src/libraries/MaxBidPriceLib.sol';
-import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
+import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 import {Assertions} from './Assertions.sol';
 import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
@@ -31,7 +31,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
     using TickBitmapLib for TickBitmap;
-    using ValueX7Lib for *;
     using BidLib for *;
 
     TickBitmap private tickBitmap;
@@ -582,7 +581,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
             assertEq(token.balanceOf(auction.tokensRecipient()), auction.totalSupply());
             // Expect to revert when sweeping currency
             vm.prank(auction.fundsRecipient());
-            vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+            vm.expectRevert(IAuctionStorage.NotGraduated.selector);
             auction.sweepCurrency();
         }
     }

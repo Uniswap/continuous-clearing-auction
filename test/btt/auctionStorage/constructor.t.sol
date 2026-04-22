@@ -2,8 +2,8 @@
 pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
-import {MockTokenCurrencyStorage} from 'btt/mocks/MockTokenCurrencyStorage.sol';
-import {ITokenCurrencyStorage} from 'continuous-clearing-auction/interfaces/ITokenCurrencyStorage.sol';
+import {MockAuctionStorage} from 'btt/mocks/MockAuctionStorage.sol';
+import {IAuctionStorage} from 'continuous-clearing-auction/interfaces/IAuctionStorage.sol';
 import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
 import {Currency} from 'continuous-clearing-auction/libraries/CurrencyLibrary.sol';
 
@@ -37,8 +37,8 @@ contract ConstructorTest is BttBase {
         $totalSupply = 0;
         $requiredCurrencyRaised = _requiredCurrencyRaised;
 
-        vm.expectRevert(ITokenCurrencyStorage.TotalSupplyIsZero.selector);
-        _deployTokenCurrencyStorage();
+        vm.expectRevert(IAuctionStorage.TotalSupplyIsZero.selector);
+        _deployAuctionStorage();
     }
 
     function test_WhenTotalSupplyGTMax(uint128 _totalSupply, uint128 _custodyTokens) external {
@@ -51,8 +51,8 @@ contract ConstructorTest is BttBase {
 
         $totalSupply = uint128(_bound(_totalSupply, ConstantsLib.MAX_TOTAL_SUPPLY + 1, type(uint128).max));
 
-        vm.expectRevert(ITokenCurrencyStorage.TotalSupplyIsTooLarge.selector);
-        _deployTokenCurrencyStorage();
+        vm.expectRevert(IAuctionStorage.TotalSupplyIsTooLarge.selector);
+        _deployAuctionStorage();
     }
 
     modifier whenTotalSupplyGT0AndLTEMax(uint128 _totalSupply) {
@@ -82,8 +82,8 @@ contract ConstructorTest is BttBase {
         $fundsRecipient = _fundsRecipient;
         $token = address(0);
 
-        vm.expectRevert(ITokenCurrencyStorage.TokenIsAddressZero.selector);
-        _deployTokenCurrencyStorage();
+        vm.expectRevert(IAuctionStorage.TokenIsAddressZero.selector);
+        _deployAuctionStorage();
     }
 
     modifier whenTokenNEQAddressZero(address _token) {
@@ -112,8 +112,8 @@ contract ConstructorTest is BttBase {
         $tokensRecipient = _tokensRecipient;
         $fundsRecipient = _fundsRecipient;
 
-        vm.expectRevert(ITokenCurrencyStorage.TokenAndCurrencyCannotBeTheSame.selector);
-        _deployTokenCurrencyStorage();
+        vm.expectRevert(IAuctionStorage.TokenAndCurrencyCannotBeTheSame.selector);
+        _deployAuctionStorage();
     }
 
     modifier whenTokenNEQCurrency(address _currency) {
@@ -139,8 +139,8 @@ contract ConstructorTest is BttBase {
 
         $custodyTokens = _custodyTokens;
         $tokensRecipient = address(0);
-        vm.expectRevert(ITokenCurrencyStorage.TokensRecipientIsZero.selector);
-        _deployTokenCurrencyStorage();
+        vm.expectRevert(IAuctionStorage.TokensRecipientIsZero.selector);
+        _deployAuctionStorage();
     }
 
     modifier whenTokensRecipientNEQAddressZero(address _tokensRecipient) {
@@ -168,8 +168,8 @@ contract ConstructorTest is BttBase {
 
         $custodyTokens = _custodyTokens;
         $fundsRecipient = address(0);
-        vm.expectRevert(ITokenCurrencyStorage.FundsRecipientIsZero.selector);
-        _deployTokenCurrencyStorage();
+        vm.expectRevert(IAuctionStorage.FundsRecipientIsZero.selector);
+        _deployAuctionStorage();
     }
 
     function test_WhenFundsRecipientNEQAddressZero(
@@ -200,18 +200,18 @@ contract ConstructorTest is BttBase {
         $custodyTokens = _custodyTokens;
         $fundsRecipient = _fundsRecipient;
 
-        MockTokenCurrencyStorage tokenCurrencyStorage = _deployTokenCurrencyStorage();
+        MockAuctionStorage auctionStorage = _deployAuctionStorage();
 
-        assertEq(tokenCurrencyStorage.token(), address($token));
-        assertEq(tokenCurrencyStorage.currency(), address($currency));
-        assertEq(tokenCurrencyStorage.totalSupply(), $totalSupply);
-        assertEq(tokenCurrencyStorage.custodyTokens(), $custodyTokens);
-        assertEq(tokenCurrencyStorage.tokensRecipient(), $tokensRecipient);
-        assertEq(tokenCurrencyStorage.fundsRecipient(), $fundsRecipient);
+        assertEq(auctionStorage.token(), address($token));
+        assertEq(auctionStorage.currency(), address($currency));
+        assertEq(auctionStorage.totalSupply(), $totalSupply);
+        assertEq(auctionStorage.custodyTokens(), $custodyTokens);
+        assertEq(auctionStorage.tokensRecipient(), $tokensRecipient);
+        assertEq(auctionStorage.fundsRecipient(), $fundsRecipient);
     }
 
-    function _deployTokenCurrencyStorage() internal returns (MockTokenCurrencyStorage) {
-        return new MockTokenCurrencyStorage(
+    function _deployAuctionStorage() internal returns (MockAuctionStorage) {
+        return new MockAuctionStorage(
             $token, $currency, $totalSupply, $custodyTokens, $tokensRecipient, $fundsRecipient, $requiredCurrencyRaised
         );
     }

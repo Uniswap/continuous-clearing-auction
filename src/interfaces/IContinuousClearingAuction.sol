@@ -2,12 +2,11 @@
 pragma solidity ^0.8.0;
 
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
-import {ValueX7} from '../libraries/ValueX7Lib.sol';
+import {IAuctionStorage} from './IAuctionStorage.sol';
 import {IBidStorage} from './IBidStorage.sol';
 import {ICheckpointStorage} from './ICheckpointStorage.sol';
 import {IStepStorage} from './IStepStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
-import {ITokenCurrencyStorage} from './ITokenCurrencyStorage.sol';
 import {IValidationHook} from './IValidationHook.sol';
 import {ILBPInitializer} from './external/ILBPInitializer.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
@@ -35,7 +34,7 @@ interface IContinuousClearingAuction is
     ICheckpointStorage,
     ITickStorage,
     IStepStorage,
-    ITokenCurrencyStorage,
+    IAuctionStorage,
     IBidStorage
 {
     /// @notice Error thrown when the amount received is invalid
@@ -171,12 +170,6 @@ interface IContinuousClearingAuction is
     /// @return bool True if the auction has graduated, false otherwise
     function isGraduated() external view returns (bool);
 
-    /// @notice Get the currency raised at the last checkpointed block
-    /// @dev This may be less than the balance of this contract if there are outstanding refunds for bidders
-    /// @dev Relies on the latest checkpoint which may be out of date
-    /// @return The currency raised
-    function currencyRaised() external view returns (uint256);
-
     /// @notice Exit a bid
     /// @dev This function can only be used for bids where the max price is above the final clearing price after the auction has ended
     /// @param bidId The id of the bid
@@ -247,29 +240,6 @@ interface IContinuousClearingAuction is
     /// @dev This function can only be called after the auction has ended
     /// @dev Can only be called by the tokens recipient
     function sweepUnsoldTokens() external;
-
-    /// @notice The currency raised as of the last checkpoint in Q96 representation, scaled up by X7
-    /// @dev Most use cases will want to use `currencyRaised()` instead
-    function currencyRaisedQ96_X7() external view returns (ValueX7);
-
-    /// @notice The sum of demand in ticks above the clearing price
-    function sumCurrencyDemandAboveClearingQ96() external view returns (uint256);
-
-    /// @notice The total currency raised as of the last checkpoint in Q96 representation, scaled up by X7
-    function totalClearedQ96_X7() external view returns (ValueX7);
-
-    /// @notice The total tokens cleared as of the last checkpoint in uint256 representation
-    /// @dev Loses precision from dividing into uint256 form
-    function totalCleared() external view returns (uint256);
-
-    /// @notice The remaining supply of tokens in Q96 representation, scaled up by X7
-    /// @dev Relies on the latest checkpoint which may be out of date
-    function remainingSupplyQ96X7() external view returns (ValueX7);
-
-    /// @notice The remaining supply of tokens in uint256 representation
-    /// @dev Loses precision from dividing into uint256 form
-    /// @dev Relies on the latest checkpoint which may be out of date
-    function remainingSupply() external view returns (uint256);
 
     /// @notice The required demand to move the auction to a given price, in Q96 representation
     /// @dev Relies on the latest checkpoint which may be out of date

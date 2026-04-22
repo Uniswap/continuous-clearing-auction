@@ -1,17 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {AuctionStorage} from './AuctionStorage.sol';
 import {BidStorage} from './BidStorage.sol';
 import {Checkpoint, CheckpointStorage} from './CheckpointStorage.sol';
 import {StepStorage} from './StepStorage.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
-import {TokenCurrencyStorage} from './TokenCurrencyStorage.sol';
 import {AuctionParameters, IContinuousClearingAuction} from './interfaces/IContinuousClearingAuction.sol';
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
-import {ILBPInitializer, LBPInitializationParams} from './interfaces/external/ILBPInitializer.sol';
-import {ILBP_INITIALIZER_INTERFACE_ID} from './interfaces/external/ILBPInitializer.sol';
+import {
+    ILBPInitializer,
+    ILBP_INITIALIZER_INTERFACE_ID,
+    LBPInitializationParams
+} from './interfaces/external/ILBPInitializer.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
@@ -22,7 +25,7 @@ import {MaxBidPriceLib} from './libraries/MaxBidPriceLib.sol';
 import {PriceLib} from './libraries/PriceLib.sol';
 import {AuctionStep, StepLib} from './libraries/StepLib.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
-import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
+import {ValueX7} from './libraries/ValueX7Lib.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -39,7 +42,7 @@ contract ContinuousClearingAuction is
     CheckpointStorage,
     StepStorage,
     TickStorage,
-    TokenCurrencyStorage,
+    AuctionStorage,
     ReentrancyGuardTransient,
     IContinuousClearingAuction
 {
@@ -49,7 +52,6 @@ contract ContinuousClearingAuction is
     using StepLib for *;
     using CheckpointLib for Checkpoint;
     using ValidationHookLib for IValidationHook;
-    using ValueX7Lib for *;
     using PriceLib for *;
     using DemandLib for uint256;
 
@@ -59,23 +61,9 @@ contract ContinuousClearingAuction is
     /// @notice An optional hook to be called before a bid is registered
     IValidationHook internal immutable VALIDATION_HOOK;
 
-    /// @notice The total currency raised in the auction in Q96 representation, scaled up by X7
-    ValueX7 internal $currencyRaisedQ96_X7;
-    /// @notice The total tokens sold in the auction so far, in Q96 representation, scaled up by X7
-    ValueX7 internal $totalClearedQ96_X7;
-    /// @notice The sum of currency demand in ticks above the clearing price
-    /// @dev This will increase every time a new bid is submitted, and decrease when bids are outbid.
-    uint256 internal $sumCurrencyDemandAboveClearingQ96;
-    /// @notice The most up to date clearing price, set on each call to `checkpoint`
-    /// @dev This can be incremented manually by calling `forceIterateOverTicks`
-    uint256 internal $clearingPrice;
-
-    /// @notice Whether TOTAL_SUPPLY and CUSTODY_TOKENS have been received
-    bool private $_tokensReceived;
-
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
         StepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock, _parameters.claimBlock)
-        TokenCurrencyStorage(
+        AuctionStorage(
             _token,
             _parameters.currency,
             _totalSupply,
@@ -165,18 +153,7 @@ contract ContinuousClearingAuction is
     /// @notice Whether the auction has graduated as of the given checkpoint
     /// @dev The auction is considered `graduated` if the currency raised is greater than or equal to the required currency raised
     function _isGraduated() internal view returns (bool) {
-        return ValueX7.unwrap($currencyRaisedQ96_X7) >= ValueX7.unwrap(REQUIRED_CURRENCY_RAISED_Q96_X7);
-    }
-
-    /// @inheritdoc IContinuousClearingAuction
-    function currencyRaised() public view returns (uint256) {
-        return _currencyRaised();
-    }
-
-    /// @notice Return the currency raised in uint256 representation
-    /// @return The currency raised
-    function _currencyRaised() internal view returns (uint256) {
-        return $currencyRaisedQ96_X7.divUint256(FixedPoint96.Q96).scaleDownToUint256();
+        return ValueX7.unwrap($currencyRaisedQ96X7) >= ValueX7.unwrap(REQUIRED_CURRENCY_RAISED_Q96X7);
     }
 
     /// @notice Iterate to find the tick where the total demand at and above it is strictly less than the remaining supply in the auction
@@ -261,7 +238,7 @@ contract ContinuousClearingAuction is
                 // Set the new clearing price
                 _checkpoint.clearingPrice = newClearingPrice;
                 // Reset the currencyRaisedAtClearingPrice to zero since the clearing price has changed
-                _checkpoint.currencyRaisedAtClearingPriceQ96_X7 = ValueX7.wrap(0);
+                _checkpoint.currencyRaisedAtClearingPriceQ96X7 = ValueX7.wrap(0);
                 // Write the new clearing price to storage
                 $clearingPrice = newClearingPrice;
                 emit ClearingPriceUpdated(_blockNumber, newClearingPrice);
@@ -305,8 +282,8 @@ contract ContinuousClearingAuction is
                     // Total change in currencyRaised = currency raised above clearing + currency raised at clearing
                     currencyRaisedDeltaQ96X7 = currencyRaisedDeltaQ96X7.add(currencyRaisedAtClearingQ96X7);
                     // Track cumulative currency raised exactly at this clearing price (used for partial exits)
-                    _checkpoint.currencyRaisedAtClearingPriceQ96_X7 =
-                        _checkpoint.currencyRaisedAtClearingPriceQ96_X7.add(currencyRaisedAtClearingQ96X7);
+                    _checkpoint.currencyRaisedAtClearingPriceQ96X7 =
+                        _checkpoint.currencyRaisedAtClearingPriceQ96X7.add(currencyRaisedAtClearingQ96X7);
                 }
             }
 
@@ -314,10 +291,10 @@ contract ContinuousClearingAuction is
             // Intentional round-up leaves a small amount of dust to sweep, ensuring cleared tokens never exceed TOTAL_SUPPLY
             // even when using rounded-up clearing prices on tick boundaries.
             uint256 tokensClearedQ96X7 = ValueX7.unwrap(currencyRaisedDeltaQ96X7).toTokensRoundingUp(clearingPriceQ96);
-            $totalClearedQ96_X7 = $totalClearedQ96_X7.add(ValueX7.wrap(tokensClearedQ96X7));
+            $totalClearedQ96X7 = $totalClearedQ96X7.add(ValueX7.wrap(tokensClearedQ96X7));
 
             // Update global currency raised
-            $currencyRaisedQ96_X7 = $currencyRaisedQ96_X7.add(currencyRaisedDeltaQ96X7);
+            $currencyRaisedQ96X7 = $currencyRaisedQ96X7.add(currencyRaisedDeltaQ96X7);
 
             // Increase cumulativeMps after all state variables have been updated
             _checkpoint.cumulativeMps += deltaMps;
@@ -578,7 +555,7 @@ contract ContinuousClearingAuction is
         if (upperCheckpoint.clearingPrice == bidMaxPrice) {
             uint256 tickDemandQ96 = _getTick(bidMaxPrice).currencyDemandQ96;
             (uint256 partialTokensFilled, uint256 partialCurrencySpentQ96) = _accountPartiallyFilledCheckpoints(
-                bid, tickDemandQ96, upperCheckpoint.currencyRaisedAtClearingPriceQ96_X7
+                bid, tickDemandQ96, upperCheckpoint.currencyRaisedAtClearingPriceQ96X7
             );
             // Add the tokensFilled and currencySpentQ96 from the partially filled checkpoints to the total
             tokensFilled += partialTokensFilled;
@@ -654,7 +631,7 @@ contract ContinuousClearingAuction is
         if (sweepCurrencyBlock != 0) revert CannotSweepCurrency();
         // Cannot sweep currency if the auction has not graduated, as all of the Currency must be refunded
         if (!_isGraduated()) revert NotGraduated();
-        _sweepCurrency(_getBlockNumberish(), _currencyRaised());
+        _sweepCurrency(_getBlockNumberish(), currencyRaised());
     }
 
     /// @inheritdoc IContinuousClearingAuction
@@ -665,7 +642,7 @@ contract ContinuousClearingAuction is
         if (sweepUnsoldTokensBlock != 0) revert CannotSweepTokens();
         uint256 unsoldTokens;
         if (_isGraduated()) {
-            unsoldTokens = remainingSupplyQ96X7().divUint256(FixedPoint96.Q96).scaleDownToUint256();
+            unsoldTokens = remainingSupply();
         } else {
             unsoldTokens = TOTAL_SUPPLY;
         }
@@ -674,36 +651,6 @@ contract ContinuousClearingAuction is
     }
 
     // State getters
-
-    /// @inheritdoc IContinuousClearingAuction
-    function currencyRaisedQ96_X7() external view returns (ValueX7) {
-        return $currencyRaisedQ96_X7;
-    }
-
-    /// @inheritdoc IContinuousClearingAuction
-    function sumCurrencyDemandAboveClearingQ96() external view returns (uint256) {
-        return $sumCurrencyDemandAboveClearingQ96;
-    }
-
-    /// @inheritdoc IContinuousClearingAuction
-    function totalClearedQ96_X7() external view returns (ValueX7) {
-        return $totalClearedQ96_X7;
-    }
-
-    /// @inheritdoc IContinuousClearingAuction
-    function totalCleared() public view returns (uint256) {
-        return $totalClearedQ96_X7.divUint256(FixedPoint96.Q96).scaleDownToUint256();
-    }
-
-    /// @inheritdoc IContinuousClearingAuction
-    function remainingSupplyQ96X7() public view returns (ValueX7) {
-        return TOTAL_SUPPLY_Q96_X7.saturatingSub($totalClearedQ96_X7);
-    }
-
-    /// @inheritdoc IContinuousClearingAuction
-    function remainingSupply() public view returns (uint256) {
-        return remainingSupplyQ96X7().divUint256(FixedPoint96.Q96).scaleDownToUint256();
-    }
 
     /// @inheritdoc IContinuousClearingAuction
     function requiredDemandQ96(uint256 _priceQ96) public view returns (uint256) {

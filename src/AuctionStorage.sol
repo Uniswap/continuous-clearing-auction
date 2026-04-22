@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {ITokenCurrencyStorage} from './interfaces/ITokenCurrencyStorage.sol';
+import {IAuctionStorage} from './interfaces/IAuctionStorage.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
-import {ValueX7, ValueX7Lib} from './libraries/ValueX7Lib.sol';
+import {ValueX7} from './libraries/ValueX7Lib.sol';
 
-/// @title TokenCurrencyStorage
-abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
-    using ValueX7Lib for *;
+/// @title AuctionStorage
+/// @notice Abstract contract for managing auction storage including token/currency config and auction state
+abstract contract AuctionStorage is IAuctionStorage {
     using CurrencyLibrary for Currency;
+
+    // Immutable token/currency config
 
     /// @notice The currency being raised in the auction
     Currency internal immutable CURRENCY;
@@ -22,14 +24,29 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
     /// @notice The amount of tokens that are being held in custody during the auction
     uint128 internal immutable CUSTODY_TOKENS;
     /// @notice The total supply of tokens to sell in Q96 representation, scaled up by X7
-    ValueX7 internal immutable TOTAL_SUPPLY_Q96_X7;
+    ValueX7 internal immutable TOTAL_SUPPLY_Q96X7;
     /// @notice The recipient of any unsold tokens at the end of the auction
     address internal immutable TOKENS_RECIPIENT;
     /// @notice The recipient of the raised Currency from the auction
     address internal immutable FUNDS_RECIPIENT;
     /// @notice The amount of currency required to be raised for the auction
     ///         to graduate in Q96 form, scaled up by X7
-    ValueX7 internal immutable REQUIRED_CURRENCY_RAISED_Q96_X7;
+    ValueX7 internal immutable REQUIRED_CURRENCY_RAISED_Q96X7;
+
+    // Mutable auction state
+
+    /// @notice The total currency raised in the auction in Q96 representation, scaled up by X7
+    ValueX7 internal $currencyRaisedQ96X7;
+    /// @notice The total tokens sold in the auction so far, in Q96 representation, scaled up by X7
+    ValueX7 internal $totalClearedQ96X7;
+    /// @notice The sum of currency demand in ticks above the clearing price
+    /// @dev This will increase every time a new bid is submitted, and decrease when bids are outbid.
+    uint256 internal $sumCurrencyDemandAboveClearingQ96;
+    /// @notice The most up to date clearing price, set on each call to `checkpoint`
+    /// @dev This can be incremented manually by calling `forceIterateOverTicks`
+    uint256 internal $clearingPrice;
+    /// @notice Whether TOTAL_SUPPLY and CUSTODY_TOKENS have been received
+    bool internal $_tokensReceived;
 
     /// @notice The block at which the currency was swept
     uint256 public sweepCurrencyBlock;
@@ -56,11 +73,14 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         CURRENCY = Currency.wrap(_currency);
         TOTAL_SUPPLY = _totalSupply;
         CUSTODY_TOKENS = _custodyTokens;
-        TOTAL_SUPPLY_Q96_X7 = (uint256(_totalSupply) << FixedPoint96.RESOLUTION).scaleUpToX7();
+        TOTAL_SUPPLY_Q96X7 = ValueX7.wrap((uint256(_totalSupply) << FixedPoint96.RESOLUTION) * ConstantsLib.MPS);
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;
-        REQUIRED_CURRENCY_RAISED_Q96_X7 = (uint256(_requiredCurrencyRaised) << FixedPoint96.RESOLUTION).scaleUpToX7();
+        REQUIRED_CURRENCY_RAISED_Q96X7 =
+            ValueX7.wrap((uint256(_requiredCurrencyRaised) << FixedPoint96.RESOLUTION) * ConstantsLib.MPS);
     }
+
+    // Internal sweep functions
 
     function _sweepCurrency(uint256 _blockNumberIsh, uint256 _amount) internal {
         sweepCurrencyBlock = _blockNumberIsh;
@@ -76,5 +96,42 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
             Currency.wrap(address(TOKEN)).transfer(TOKENS_RECIPIENT, _amount);
         }
         emit TokensSwept(TOKENS_RECIPIENT, _amount);
+    }
+
+    // View functions
+
+    /// @inheritdoc IAuctionStorage
+    function currencyRaised() public view returns (uint256) {
+        return (ValueX7.unwrap($currencyRaisedQ96X7) / FixedPoint96.Q96) / ConstantsLib.MPS;
+    }
+
+    /// @inheritdoc IAuctionStorage
+    function currencyRaisedQ96X7() public view returns (ValueX7) {
+        return $currencyRaisedQ96X7;
+    }
+
+    /// @inheritdoc IAuctionStorage
+    function sumCurrencyDemandAboveClearingQ96() public view returns (uint256) {
+        return $sumCurrencyDemandAboveClearingQ96;
+    }
+
+    /// @inheritdoc IAuctionStorage
+    function totalClearedQ96X7() public view returns (ValueX7) {
+        return $totalClearedQ96X7;
+    }
+
+    /// @inheritdoc IAuctionStorage
+    function totalCleared() public view returns (uint256) {
+        return (ValueX7.unwrap($totalClearedQ96X7) / FixedPoint96.Q96) / ConstantsLib.MPS;
+    }
+
+    /// @inheritdoc IAuctionStorage
+    function remainingSupplyQ96X7() public view returns (ValueX7) {
+        return TOTAL_SUPPLY_Q96X7.saturatingSub($totalClearedQ96X7);
+    }
+
+    /// @inheritdoc IAuctionStorage
+    function remainingSupply() public view returns (uint256) {
+        return (ValueX7.unwrap(remainingSupplyQ96X7()) / FixedPoint96.Q96) / ConstantsLib.MPS;
     }
 }

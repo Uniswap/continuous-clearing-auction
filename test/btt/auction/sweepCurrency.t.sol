@@ -6,17 +6,15 @@ import {MockContinuousClearingAuction} from '../mocks/MockContinuousClearingAuct
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {Checkpoint} from 'src/CheckpointStorage.sol';
+import {IAuctionStorage} from 'src/interfaces/IAuctionStorage.sol';
 import {IContinuousClearingAuction} from 'src/interfaces/IContinuousClearingAuction.sol';
 import {IStepStorage} from 'src/interfaces/IStepStorage.sol';
-import {ITokenCurrencyStorage} from 'src/interfaces/ITokenCurrencyStorage.sol';
 import {ConstantsLib} from 'src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from 'src/libraries/FixedPoint96.sol';
 import {MaxBidPriceLib} from 'src/libraries/MaxBidPriceLib.sol';
-import {ValueX7, ValueX7Lib} from 'src/libraries/ValueX7Lib.sol';
+import {ValueX7} from 'src/libraries/ValueX7Lib.sol';
 
 contract SweepCurrencyTest is BttBase {
-    using ValueX7Lib for *;
-
     function test_WhenBlockLTEndBlock(AuctionFuzzConstructorParams memory _params, uint64 _blockNumber) public {
         // it reverts with {AuctionIsNotOver}
 
@@ -61,7 +59,7 @@ contract SweepCurrencyTest is BttBase {
         auction.sweepCurrency();
 
         vm.prank(mParams.parameters.fundsRecipient);
-        vm.expectRevert(ITokenCurrencyStorage.CannotSweepCurrency.selector);
+        vm.expectRevert(IAuctionStorage.CannotSweepCurrency.selector);
         auction.sweepCurrency();
     }
 
@@ -105,7 +103,7 @@ contract SweepCurrencyTest is BttBase {
         auction.exitPartiallyFilledBid(bidId, mParams.parameters.startBlock, 0);
 
         vm.prank(mParams.parameters.fundsRecipient);
-        vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+        vm.expectRevert(IAuctionStorage.NotGraduated.selector);
         auction.sweepCurrency();
     }
 
@@ -145,14 +143,14 @@ contract SweepCurrencyTest is BttBase {
         vm.roll(mParams.parameters.endBlock);
         Checkpoint memory checkpoint = auction.checkpoint();
         uint256 expectedCurrencyRaised =
-            checkpoint.currencyRaisedAtClearingPriceQ96_X7.divUint256(FixedPoint96.Q96).scaleDownToUint256();
+            (ValueX7.unwrap(checkpoint.currencyRaisedAtClearingPriceQ96X7) / FixedPoint96.Q96) / ConstantsLib.MPS;
         vm.assume(expectedCurrencyRaised > 0);
 
         assertEq(auction.sweepCurrencyBlock(), 0);
         assertEq(mParams.parameters.fundsRecipient.balance, 0);
 
         vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.CurrencySwept(mParams.parameters.fundsRecipient, expectedCurrencyRaised);
+        emit IAuctionStorage.CurrencySwept(mParams.parameters.fundsRecipient, expectedCurrencyRaised);
         vm.prank(mParams.parameters.fundsRecipient);
         auction.sweepCurrency();
 
@@ -203,6 +201,7 @@ contract SweepCurrencyTest is BttBase {
         mParams.token = address(new ERC20Mock());
         mParams.parameters.currency = address(0);
         mParams.parameters.requiredCurrencyRaised = 0;
+        mParams.parameters.custodyTokens = 0;
         mParams.parameters.fundsRecipient = makeAddr('fundsRecipient');
         mParams.parameters.custodyTokens = 0;
         MockContinuousClearingAuction auction =

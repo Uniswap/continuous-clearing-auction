@@ -11,11 +11,11 @@ import {ValueX7} from 'continuous-clearing-auction/libraries/ValueX7Lib.sol';
 
 contract AccountPartiallyFilledCheckpointsTest is BttBase {
     // should never happen but we catch it in the code to avoid div by 0
-    function test_WhenTickDemandEQ0(Bid memory _bid, ValueX7 _cumulativeCurrencyRaisedAtClearingPriceQ96_X7) external {
+    function test_WhenTickDemandEQ0(Bid memory _bid, ValueX7 _cumulativeCurrencyRaisedAtClearingPriceQ96X7) external {
         // it returns (0, 0)
 
         (uint256 tokensFilled, uint256 currencySpent) = CheckpointAccountingLib.accountPartiallyFilledCheckpoints(
-            _bid, 0, _cumulativeCurrencyRaisedAtClearingPriceQ96_X7
+            _bid, 0, _cumulativeCurrencyRaisedAtClearingPriceQ96X7
         );
 
         assertEq(tokensFilled, 0);
@@ -34,14 +34,14 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
         _bid.maxPrice = bound(_bid.maxPrice, 1, MaxBidPriceLib.MAX_V4_PRICE);
         // Small numerator
         _bid.amountQ96 = 1;
-        ValueX7 _cumulativeCurrencyRaisedAtClearingPriceQ96_X7 = ValueX7.wrap(1);
+        ValueX7 _cumulativeCurrencyRaisedAtClearingPriceQ96X7 = ValueX7.wrap(1);
         // Larger denominator, and we know that mpsAfterSubmission must always be >= 1
         _tickDemand = 2;
 
         // so at the very least we have 1 * 1 / (2 * mpsAfterSubmission) , which rounds down to 0.
 
         (, uint256 currencySpent) = CheckpointAccountingLib.accountPartiallyFilledCheckpoints(
-            _bid, _tickDemand, _cumulativeCurrencyRaisedAtClearingPriceQ96_X7
+            _bid, _tickDemand, _cumulativeCurrencyRaisedAtClearingPriceQ96X7
         );
 
         // Currency spent should be rounded down to 0 but its rounded up to 1
@@ -57,14 +57,14 @@ contract AccountPartiallyFilledCheckpointsTest is BttBase {
         _bid.maxPrice = 1;
         // Small numerator
         _bid.amountQ96 = 1;
-        ValueX7 _cumulativeCurrencyRaisedAtClearingPriceQ96_X7 = ValueX7.wrap(1);
+        ValueX7 _cumulativeCurrencyRaisedAtClearingPriceQ96X7 = ValueX7.wrap(1);
         // Larger denominator, and we know that mpsAfterSubmission must always be >= 1
         _tickDemand = 2;
 
         // so at the very least we have 1 * 1 / (2 * mpsAfterSubmission) , which rounds down to 0.
 
         (uint256 tokensFilled,) = CheckpointAccountingLib.accountPartiallyFilledCheckpoints(
-            _bid, _tickDemand, _cumulativeCurrencyRaisedAtClearingPriceQ96_X7
+            _bid, _tickDemand, _cumulativeCurrencyRaisedAtClearingPriceQ96X7
         );
 
         // Tokens filled should be rounded down

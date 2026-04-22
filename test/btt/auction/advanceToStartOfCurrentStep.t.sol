@@ -40,7 +40,7 @@ contract AdvanceToStartOfCurrentStepTest is BttBase {
         mParams.token = address(new ERC20Mock());
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
-        deal(mParams.token, address(auction), mParams.totalSupply);
+        deal(mParams.token, address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         // first step startBlock must be at startBlock

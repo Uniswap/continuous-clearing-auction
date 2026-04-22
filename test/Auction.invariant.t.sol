@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {IAuctionStorage} from '../src/interfaces/IAuctionStorage.sol';
 import {IContinuousClearingAuction} from '../src/interfaces/IContinuousClearingAuction.sol';
 import {IStepStorage} from '../src/interfaces/IStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
-import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
 import {IERC20Minimal} from '../src/interfaces/external/IERC20Minimal.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
+
 import {AuctionUnitTest} from './unit/AuctionUnitTest.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {MockContinuousClearingAuction} from './utils/MockAuction.sol';
@@ -24,7 +24,6 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 contract AuctionInvariantHandler is Test, Assertions {
     using CurrencyLibrary for Currency;
     using FixedPointMathLib for *;
-    using ValueX7Lib for *;
 
     MockContinuousClearingAuction public mockAuction;
     IPermit2 public permit2;
@@ -591,7 +590,7 @@ contract AuctionInvariantTest is AuctionUnitTest {
             );
             // Sweep the currency
             vm.expectEmit(true, true, true, true);
-            emit ITokenCurrencyStorage.CurrencySwept(mockAuction.fundsRecipient(), expectedCurrencyRaised);
+            emit IAuctionStorage.CurrencySwept(mockAuction.fundsRecipient(), expectedCurrencyRaised);
             vm.prank(mockAuction.fundsRecipient());
             mockAuction.sweepCurrency();
             // Assert that the funds recipient received the currency
@@ -603,7 +602,7 @@ contract AuctionInvariantTest is AuctionUnitTest {
         } else {
             emit log_string('==================== NOT GRADUATED AUCTION ====================');
             vm.prank(mockAuction.fundsRecipient());
-            vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+            vm.expectRevert(IAuctionStorage.NotGraduated.selector);
             mockAuction.sweepCurrency();
             // At this point we know all bids have been exited so auction balance should be zero
             assertEq(address(mockAuction).balance, 0, 'Auction balance is not zero at end of auction');

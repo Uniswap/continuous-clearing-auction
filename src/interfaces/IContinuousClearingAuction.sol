@@ -2,12 +2,11 @@
 pragma solidity ^0.8.0;
 
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
-import {ValueX7} from '../libraries/ValueX7Lib.sol';
+import {IAuctionStorage} from './IAuctionStorage.sol';
 import {IBidStorage} from './IBidStorage.sol';
 import {ICheckpointStorage} from './ICheckpointStorage.sol';
 import {IStepStorage} from './IStepStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
-import {ITokenCurrencyStorage} from './ITokenCurrencyStorage.sol';
 import {IValidationHook} from './IValidationHook.sol';
 import {ILBPInitializer} from './external/ILBPInitializer.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
@@ -16,6 +15,7 @@ import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 /// @dev token and totalSupply are passed as constructor arguments
 struct AuctionParameters {
     address currency; // token to raise funds in. Use address(0) for ETH
+    uint128 custodyTokens; // amount of the sold token to be held in custody and returned to tokensRecipient at the end
     address tokensRecipient; // address to receive leftover tokens
     address fundsRecipient; // address to receive all raised funds
     uint64 startBlock; // Block which the first step starts
@@ -34,7 +34,7 @@ interface IContinuousClearingAuction is
     ICheckpointStorage,
     ITickStorage,
     IStepStorage,
-    ITokenCurrencyStorage,
+    IAuctionStorage,
     IBidStorage
 {
     /// @notice Error thrown when the amount received is invalid
@@ -92,7 +92,8 @@ interface IContinuousClearingAuction is
 
     /// @notice Emitted when the tokens are received
     /// @param totalSupply The total supply of tokens received
-    event TokensReceived(uint256 totalSupply);
+    /// @param custodyTokens The amount of tokens that are being held in custody during the auction
+    event TokensReceived(uint128 totalSupply, uint128 custodyTokens);
 
     /// @notice Emitted when a bid is submitted
     /// @param id The id of the bid
@@ -169,12 +170,6 @@ interface IContinuousClearingAuction is
     /// @return bool True if the auction has graduated, false otherwise
     function isGraduated() external view returns (bool);
 
-    /// @notice Get the currency raised at the last checkpointed block
-    /// @dev This may be less than the balance of this contract if there are outstanding refunds for bidders
-    /// @dev Relies on the latest checkpoint which may be out of date
-    /// @return The currency raised
-    function currencyRaised() external view returns (uint256);
-
     /// @notice Exit a bid
     /// @dev This function can only be used for bids where the max price is above the final clearing price after the auction has ended
     /// @param bidId The id of the bid
@@ -201,7 +196,8 @@ interface IContinuousClearingAuction is
     function claimTokensBatch(address owner, uint256[] calldata bidIds) external;
 
     /// @notice Withdraw all of the currency raised
-    /// @dev Can be called by anyone after the auction has ended
+    /// @dev This function can only be called after the auction has ended
+    /// @dev Can only be called by the funds recipient
     function sweepCurrency() external;
 
     /// @notice Implements IERC165.supportsInterface to signal support for the ILBPInitializer interface
@@ -216,6 +212,9 @@ interface IContinuousClearingAuction is
 
     /// @notice The total supply of tokens to sell
     function totalSupply() external view returns (uint128);
+
+    /// @notice The amount of tokens that are being held in custody during the auction
+    function custodyTokens() external view returns (uint128);
 
     /// @notice The recipient of any unsold tokens at the end of the auction
     function tokensRecipient() external view returns (address);
@@ -237,32 +236,10 @@ interface IContinuousClearingAuction is
     /// @notice The address of the validation hook for the auction
     function validationHook() external view returns (IValidationHook);
 
-    /// @notice Sweep any leftover tokens to the tokens recipient
+    /// @notice Sweep any unsold tokens and custody tokens to the tokens recipient
     /// @dev This function can only be called after the auction has ended
+    /// @dev Can only be called by the tokens recipient
     function sweepUnsoldTokens() external;
-
-    /// @notice The currency raised as of the last checkpoint in Q96 representation, scaled up by X7
-    /// @dev Most use cases will want to use `currencyRaised()` instead
-    function currencyRaisedQ96_X7() external view returns (ValueX7);
-
-    /// @notice The sum of demand in ticks above the clearing price
-    function sumCurrencyDemandAboveClearingQ96() external view returns (uint256);
-
-    /// @notice The total currency raised as of the last checkpoint in Q96 representation, scaled up by X7
-    function totalClearedQ96_X7() external view returns (ValueX7);
-
-    /// @notice The total tokens cleared as of the last checkpoint in uint256 representation
-    /// @dev Loses precision from dividing into uint256 form
-    function totalCleared() external view returns (uint256);
-
-    /// @notice The remaining supply of tokens in Q96 representation, scaled up by X7
-    /// @dev Relies on the latest checkpoint which may be out of date
-    function remainingSupplyQ96X7() external view returns (ValueX7);
-
-    /// @notice The remaining supply of tokens in uint256 representation
-    /// @dev Loses precision from dividing into uint256 form
-    /// @dev Relies on the latest checkpoint which may be out of date
-    function remainingSupply() external view returns (uint256);
 
     /// @notice The required demand to move the auction to a given price, in Q96 representation
     /// @dev Relies on the latest checkpoint which may be out of date

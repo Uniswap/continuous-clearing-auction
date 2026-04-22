@@ -64,16 +64,16 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     /// @notice Calculate the tokens sold and currency spent for a partially filled bid
     /// @param bid The bid
     /// @param tickDemandQ96 The total demand at the tick
-    /// @param currencyRaisedAtClearingPriceQ96_X7 The cumulative supply sold to the clearing price
+    /// @param currencyRaisedAtClearingPriceQ96X7 The cumulative supply sold to the clearing price
     /// @return tokensFilled The tokens sold
     /// @return currencySpentQ96 The amount of currency spent in Q96 form
     function _accountPartiallyFilledCheckpoints(
         Bid memory bid,
         uint256 tickDemandQ96,
-        ValueX7 currencyRaisedAtClearingPriceQ96_X7
+        ValueX7 currencyRaisedAtClearingPriceQ96X7
     ) internal pure returns (uint256 tokensFilled, uint256 currencySpentQ96) {
         return CheckpointAccountingLib.accountPartiallyFilledCheckpoints(
-            bid, tickDemandQ96, currencyRaisedAtClearingPriceQ96_X7
+            bid, tickDemandQ96, currencyRaisedAtClearingPriceQ96X7
         );
     }
 

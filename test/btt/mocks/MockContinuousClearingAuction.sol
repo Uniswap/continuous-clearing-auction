@@ -34,7 +34,7 @@ contract MockContinuousClearingAuction is ContinuousClearingAuction {
     }
 
     function uncheckedSetTotalCleared(ValueX7 _value) external {
-        $totalClearedQ96_X7 = _value;
+        $totalClearedQ96X7 = _value;
     }
 
     function modifier_onlyAfterAuctionIsOver() external onlyAfterAuctionIsOver {}

@@ -114,7 +114,7 @@ contract CheckpointTest is BttBase {
         public
         givenAuctionIsActive
     {
-        // it does not update totalClearedQ96_X7 or currencyRaisedQ96_X7
+        // it does not update totalClearedQ96X7 or currencyRaisedQ96X7
         // it still advances cumulativeMps
 
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
@@ -144,16 +144,16 @@ contract CheckpointTest is BttBase {
         auction.uncheckedSetTotalCleared(_totalSupplyQ96X7(auction));
         assertEq(ValueX7.unwrap(auction.remainingSupplyQ96X7()), 0);
 
-        ValueX7 totalClearedBefore = auction.totalClearedQ96_X7();
-        ValueX7 currencyRaisedBefore = auction.currencyRaisedQ96_X7();
+        ValueX7 totalClearedBefore = auction.totalClearedQ96X7();
+        ValueX7 currencyRaisedBefore = auction.currencyRaisedQ96X7();
 
         // Roll to end block to guarantee deltaMps > 0 (remaining schedule must be consumed)
         vm.roll(mParams.parameters.endBlock + 1);
         Checkpoint memory cpAfter = auction.checkpoint();
 
         // Accounting should not change
-        assertEq(ValueX7.unwrap(auction.totalClearedQ96_X7()), ValueX7.unwrap(totalClearedBefore));
-        assertEq(ValueX7.unwrap(auction.currencyRaisedQ96_X7()), ValueX7.unwrap(currencyRaisedBefore));
+        assertEq(ValueX7.unwrap(auction.totalClearedQ96X7()), ValueX7.unwrap(totalClearedBefore));
+        assertEq(ValueX7.unwrap(auction.currencyRaisedQ96X7()), ValueX7.unwrap(currencyRaisedBefore));
         assertEq(cpAfter.cumulativeMpsPerPrice, cpBefore.cumulativeMpsPerPrice);
 
         // cumulativeMps must reach MPS

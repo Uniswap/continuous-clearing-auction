@@ -294,10 +294,10 @@ contract ContinuousClearingAuction is
                 }
 
                 // Convert currency to tokens at price, rounding up, and update global cleared tokens.
-                // Intentional round-up leaves a small amount of dust to sweep, ensuring cleared tokens never exceed TOTAL_SUPPLY
-                // even when using rounded-up clearing prices on tick boundaries.
+                // Intentional rounding up of totalCleared may leave dust in the contract which cannot be swept.
                 uint256 tokensClearedQ96X7 =
                     ValueX7.unwrap(currencyRaisedDeltaQ96X7).toTokensRoundingUp(clearingPriceQ96);
+                // Ensure that totalCleared is never greater than total supply.
                 $totalClearedQ96X7 = $totalClearedQ96X7.add(ValueX7.wrap(tokensClearedQ96X7)).min(TOTAL_SUPPLY_Q96X7);
 
                 // Update global currency raised

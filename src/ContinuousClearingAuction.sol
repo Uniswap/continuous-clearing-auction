@@ -174,7 +174,7 @@ contract ContinuousClearingAuction is
 
         uint256 remainingMps = ConstantsLib.MPS - _cumulativeMps;
         // Unwrap as we defer dividing by 1e7 by moving it to the LHS as multiplication
-        uint256 remainingSupplyQ96X7_ = ValueX7.unwrap(remainingSupplyQ96X7());
+        uint256 remainingSupplyQ96X7_ = ValueX7.unwrap(_remainingSupplyQ96X7());
         // If there are no more remaining supply or schedule, return the minimum clearing price
         // Note: it is possible that because of rounding, remainingSupply can be zero even though
         // the auction schedule is not fully completed (remainingMps > 0). The correct treatment
@@ -263,7 +263,7 @@ contract ContinuousClearingAuction is
 
         // Save gas for zero mps checkpoints
         if (deltaMps > 0) {
-            ValueX7 remainingSupplyQ96X7_ = remainingSupplyQ96X7();
+            ValueX7 remainingSupplyQ96X7_ = _remainingSupplyQ96X7();
             // Only need to update currencyRaised and totalCleared if there is remaining supply
             if (ValueX7.unwrap(remainingSupplyQ96X7_) > 0) {
                 // Put variables on the stack to save gas
@@ -345,7 +345,9 @@ contract ContinuousClearingAuction is
         uint64 currentBlockNumberIsh = uint64(_getBlockNumberish());
         Checkpoint memory _checkpoint = _checkpointAtBlock(currentBlockNumberIsh);
         // Revert if there are no more tokens to be sold
-        if (_checkpoint.remainingMpsInAuction() == 0) revert AuctionSoldOut();
+        if (_checkpoint.remainingMpsInAuction() == 0 || ValueX7.unwrap(_remainingSupplyQ96X7()) == 0) {
+            revert AuctionSoldOut();
+        }
         // We don't allow bids to be submitted at or below the clearing price
         if (_maxPrice <= $clearingPrice) revert BidMustBeAboveClearingPrice();
 
@@ -665,7 +667,7 @@ contract ContinuousClearingAuction is
     function requiredDemandQ96(uint256 _priceQ96) public view returns (uint256) {
         uint256 remainingMps = ConstantsLib.MPS - latestCheckpoint().cumulativeMps;
         if (remainingMps == 0) return 0;
-        return DemandLib.requiredDemandAtPrice(remainingSupplyQ96X7(), _priceQ96, remainingMps);
+        return DemandLib.requiredDemandAtPrice(_remainingSupplyQ96X7(), _priceQ96, remainingMps);
     }
 
     /// @inheritdoc IContinuousClearingAuction

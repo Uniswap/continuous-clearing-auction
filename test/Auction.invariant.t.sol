@@ -11,7 +11,7 @@ import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-
+import {ValueX7} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionUnitTest} from './unit/AuctionUnitTest.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {MockContinuousClearingAuction} from './utils/MockAuction.sol';
@@ -613,6 +613,14 @@ contract AuctionInvariantTest is AuctionUnitTest {
         if (block.number >= mockAuction.startBlock() && block.number < mockAuction.claimBlock()) {
             mockAuction.checkpoint();
         }
+    }
+
+    function invariant_totalClearedNeverExceedsTotalSupply() public printMetrics {
+        assertLe(
+            ValueX7.unwrap(mockAuction.totalClearedQ96X7()),
+            ValueX7.unwrap(mockAuction.totalSupplyQ96X7()),
+            'Total cleared exceeds total supply'
+        );
     }
 
     function invariant_canSweep_thenExitAndClaimAllBids()

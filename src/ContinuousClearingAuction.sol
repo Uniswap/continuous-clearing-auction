@@ -298,7 +298,7 @@ contract ContinuousClearingAuction is
                 // even when using rounded-up clearing prices on tick boundaries.
                 uint256 tokensClearedQ96X7 =
                     ValueX7.unwrap(currencyRaisedDeltaQ96X7).toTokensRoundingUp(clearingPriceQ96);
-                $totalClearedQ96X7 = $totalClearedQ96X7.add(ValueX7.wrap(tokensClearedQ96X7));
+                $totalClearedQ96X7 = $totalClearedQ96X7.add(ValueX7.wrap(tokensClearedQ96X7)).min(TOTAL_SUPPLY_Q96X7);
 
                 // Update global currency raised
                 $currencyRaisedQ96X7 = $currencyRaisedQ96X7.add(currencyRaisedDeltaQ96X7);

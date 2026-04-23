@@ -108,8 +108,6 @@ contract CheckpointTest is BttBase {
         assertEq(checkpoint, checkpoint2);
     }
 
-    // --- remainingSupplyQ96X7 == 0 guard ---
-
     function test_WhenRemainingSupplyIsZero_DoesNotUpdateAccounting(AuctionFuzzConstructorParams memory _params)
         public
         givenAuctionIsActive

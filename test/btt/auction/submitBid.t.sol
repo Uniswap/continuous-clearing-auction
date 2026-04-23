@@ -11,7 +11,9 @@ import {IContinuousClearingAuction} from 'src/interfaces/IContinuousClearingAuct
 import {IStepStorage} from 'src/interfaces/IStepStorage.sol';
 import {IValidationHook} from 'src/interfaces/IValidationHook.sol';
 import {ConstantsLib} from 'src/libraries/ConstantsLib.sol';
+import {FixedPoint96} from 'src/libraries/FixedPoint96.sol';
 import {ValidationHookLib} from 'src/libraries/ValidationHookLib.sol';
+import {ValueX7} from 'src/libraries/ValueX7Lib.sol';
 import {AuctionStepsBuilder} from 'test/utils/AuctionStepsBuilder.sol';
 import {MockReenteringValidationHook} from 'test/utils/MockReenteringValidationHook.sol';
 
@@ -297,6 +299,37 @@ contract SubmitBidTest is BttBase {
         vm.mockCall(
             mParams.parameters.validationHook, abi.encodeWithSelector(IValidationHook.validate.selector), bytes('')
         );
+
+        vm.roll(mParams.parameters.endBlock - 1);
+        vm.expectRevert(IContinuousClearingAuction.AuctionSoldOut.selector);
+        auction.submitBid{value: 1}(_maxPrice, 1, address(this), bytes(''));
+    }
+
+    function test_WhenRemainingSupplyIsZero(AuctionFuzzConstructorParams memory _params, uint256 _maxPrice)
+        public
+        givenBlockNumberIsBeforeEndBlock
+        givenBidOwnerIsNotZeroAddress
+        givenBidAmountGTZero
+        givenMaxPriceIsLTEMaxBidPrice
+        givenValidationHookSucceeds
+    {
+        // it reverts with {AuctionSoldOut}
+
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        mParams.token = address(new ERC20Mock());
+        mParams.parameters.currency = address(0);
+        mParams.parameters.validationHook = address(0);
+
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
+        auction.onTokensReceived();
+
+        _maxPrice = _bound(_maxPrice, 1, auction.MAX_BID_PRICE());
+
+        // Set total cleared to total supply such that remaining supply is zero
+        auction.uncheckedSetTotalCleared(ValueX7.wrap(auction.totalSupply() * FixedPoint96.Q96 * ConstantsLib.MPS));
 
         vm.roll(mParams.parameters.endBlock - 1);
         vm.expectRevert(IContinuousClearingAuction.AuctionSoldOut.selector);

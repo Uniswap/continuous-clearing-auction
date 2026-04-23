@@ -23,5 +23,7 @@ SubmitBidTest
                     ├── when validation hook reenters
                     │   └── it reverts with {Reentrancy}
                     └── given validation hook succeeds
-                        └── when auction is sold out
+                        ├── when auction is sold out
+                        │   └── it reverts with {AuctionSoldOut}
+                        └── when remaining tokens is zero
                             └── it reverts with {AuctionSoldOut}

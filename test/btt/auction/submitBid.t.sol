@@ -331,7 +331,8 @@ contract SubmitBidTest is BttBase {
         // Set total cleared to total supply such that remaining supply is zero
         auction.uncheckedSetTotalCleared(ValueX7.wrap(auction.totalSupply() * FixedPoint96.Q96 * ConstantsLib.MPS));
 
-        vm.roll(mParams.parameters.endBlock - 1);
+        // Roll to start block to guarantee that there is remaining schedule
+        vm.roll(mParams.parameters.startBlock);
         vm.expectRevert(IContinuousClearingAuction.AuctionSoldOut.selector);
         auction.submitBid{value: 1}(_maxPrice, 1, address(this), bytes(''));
     }

@@ -179,7 +179,7 @@ contract CheckpointTest is BttBase {
 
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
-        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         vm.roll(mParams.parameters.startBlock);
@@ -225,7 +225,7 @@ contract CheckpointTest is BttBase {
         });
 
         // Fill at exhaustion checkpoint vs. at the start
-        (uint256 tokensAtExhaustion,) = CheckpointAccountingLib.calculateFill(
+        (uint256 tokensAtExhaustion, uint256 currencyAtExhaustion) = CheckpointAccountingLib.calculateFill(
             bid, cpAtExhaustion.cumulativeMpsPerPrice, cpAtExhaustion.cumulativeMps
         );
 
@@ -238,6 +238,6 @@ contract CheckpointTest is BttBase {
 
         // Currency spent must increase because the auction schedule continued
         // (cumulativeMps advanced while cumulativeMpsPerPrice stayed flat)
-        assertGt(currencyAtEnd, 0, 'currency spent should be positive');
+        assertGt(currencyAtEnd, currencyAtExhaustion, 'currency spent should increase');
     }
 }

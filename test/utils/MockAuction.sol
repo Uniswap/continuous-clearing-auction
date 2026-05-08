@@ -15,13 +15,6 @@ contract MockContinuousClearingAuction is ContinuousClearingAuction {
         ContinuousClearingAuction(_token, _totalSupply, _parameters)
     {}
 
-    /// @notice The number of tokens that can be swept from the auction
-    /// @dev Only use this function if you know the auction is graduated
-    function sweepableTokens() external view returns (uint256) {
-        ValueX7 remaining = TOTAL_SUPPLY_Q96X7.saturatingSub($totalClearedQ96X7);
-        return (ValueX7.unwrap(remaining) / FixedPoint96.Q96) / ConstantsLib.MPS;
-    }
-
     /// @notice Wrapper around internal function for testing
     function iterateOverTicksAndFindClearingPrice() external returns (uint256) {
         return _iterateOverTicksAndFindClearingPrice(MAX_TICK_PTR, latestCheckpoint().cumulativeMps);

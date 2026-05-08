@@ -137,7 +137,7 @@ contract CustodyTokensTest is AuctionBaseTest {
         uint256 expectedSweep;
         {
             uint256 totalSupplyQ96X7 = (uint256(TOTAL_SUPPLY) << FixedPoint96.RESOLUTION) * ConstantsLib.MPS;
-            ValueX7 remaining = ValueX7.wrap(totalSupplyQ96X7).saturatingSub(custodyAuction.totalClearedQ96X7());
+            ValueX7 remaining = ValueX7.wrap(totalSupplyQ96X7).sub(custodyAuction.totalClearedQ96X7());
             uint256 unsold = (ValueX7.unwrap(remaining) / FixedPoint96.Q96) / ConstantsLib.MPS;
             expectedSweep = unsold + CUSTODY_AMOUNT;
         }

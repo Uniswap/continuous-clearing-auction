@@ -120,7 +120,7 @@ contract AuctionInvariantHandler is Test, Assertions {
 
         // We can never have more sweepable tokens than the auction's balance
         assertLe(
-            mockAuction.sweepableTokens(),
+            mockAuction.remainingSupply(),
             token.balanceOf(address(mockAuction)),
             'Sweepable tokens exceeds the auction\'s balance'
         );

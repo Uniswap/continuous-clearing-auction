@@ -15,7 +15,6 @@ import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 /// @dev token and totalSupply are passed as constructor arguments
 struct AuctionParameters {
     address currency; // token to raise funds in. Use address(0) for ETH
-    uint128 custodyTokens; // amount of the sold token to be held in custody and returned to tokensRecipient at the end
     address tokensRecipient; // address to receive leftover tokens
     address fundsRecipient; // address to receive all raised funds
     uint64 startBlock; // Block which the first step starts
@@ -92,8 +91,7 @@ interface IContinuousClearingAuction is
 
     /// @notice Emitted when the tokens are received
     /// @param totalSupply The total supply of tokens received
-    /// @param custodyTokens The amount of tokens that are being held in custody during the auction
-    event TokensReceived(uint128 totalSupply, uint128 custodyTokens);
+    event TokensReceived(uint128 totalSupply);
 
     /// @notice Emitted when a bid is submitted
     /// @param id The id of the bid
@@ -213,9 +211,6 @@ interface IContinuousClearingAuction is
     /// @notice The total supply of tokens to sell
     function totalSupply() external view returns (uint128);
 
-    /// @notice The amount of tokens that are being held in custody during the auction
-    function custodyTokens() external view returns (uint128);
-
     /// @notice The recipient of any unsold tokens at the end of the auction
     function tokensRecipient() external view returns (address);
 
@@ -236,7 +231,7 @@ interface IContinuousClearingAuction is
     /// @notice The address of the validation hook for the auction
     function validationHook() external view returns (IValidationHook);
 
-    /// @notice Sweep any unsold tokens and custody tokens to the tokens recipient
+    /// @notice Sweep any unsold tokens to the tokens recipient
     /// @dev This function can only be called after the auction has ended
     /// @dev Can only be called by the tokens recipient
     function sweepUnsoldTokens() external;

@@ -174,7 +174,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
 
     function _setHardcodedParams(FuzzDeploymentParams memory _deploymentParams) private view {
         _deploymentParams.auctionParams.currency = ETH_SENTINEL;
-        _deploymentParams.auctionParams.custodyTokens = 0;
         _deploymentParams.auctionParams.tokensRecipient = tokensRecipient;
         _deploymentParams.auctionParams.fundsRecipient = fundsRecipient;
         _deploymentParams.auctionParams.validationHook = address(0);
@@ -430,7 +429,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         emit ITickStorage.TickInitialized(_deploymentParams.auctionParams.floorPrice);
         auction = new ContinuousClearingAuction(address(token), _deploymentParams.totalSupply, params);
 
-        token.mint(address(auction), uint256(_deploymentParams.totalSupply) + uint256(params.custodyTokens));
+        token.mint(address(auction), _deploymentParams.totalSupply);
         auction.onTokensReceived();
     }
 

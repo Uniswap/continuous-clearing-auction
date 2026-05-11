@@ -201,9 +201,7 @@ contract SweepCurrencyTest is BttBase {
         mParams.token = address(new ERC20Mock());
         mParams.parameters.currency = address(0);
         mParams.parameters.requiredCurrencyRaised = 0;
-        mParams.parameters.custodyTokens = 0;
         mParams.parameters.fundsRecipient = makeAddr('fundsRecipient');
-        mParams.parameters.custodyTokens = 0;
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 

@@ -24,7 +24,7 @@ struct TickWithData {
 /// @title TickDataLens
 /// @notice Contract for reading data from initialized ticks of an auction
 contract TickDataLens {
-    using FixedPointMathLib for *;
+    using FixedPointMathLib for uint256;
 
     /// @notice The maximum number of initialized ticks which can be returned
     uint256 public constant MAX_BUFFER_SIZE = 1000;
@@ -66,28 +66,6 @@ contract TickDataLens {
                 // Overwrite the next tick price with the current tick price
                 mstore(offset, next)
 
-                // Calculate and store the requiredCurrencyDemandQ96 using the auction's rollover-aware formula:
-                // fullMulDivUp(remainingSupplyQ96X7, priceQ96, Q96 * remainingMps)
-                let requiredCurrencyDemandQ96 := 0
-                if remainingMps {
-                    requiredCurrencyDemandQ96 := fullMulDivUp(remainingSupplyQ96X7, next, requiredDemandDenominator)
-                }
-                mstore(add(offset, 0x40), requiredCurrencyDemandQ96)
-
-                // Calculate and store the currencyRequiredQ96:
-                // currencyRequiredQ96 = saturatingSub(required, sum).mulDivUp(remainingMps, MPS)
-                let currencyRequiredQ96 :=
-                    mulDivUp(
-                        saturatingSub(requiredCurrencyDemandQ96, sumCurrencyDemandAboveClearingQ96),
-                        remainingMps,
-                        mps
-                    )
-                mstore(add(offset, 0x60), currencyRequiredQ96)
-
-                // update sumCurrencyDemandAboveClearingQ96 by subtracting the currencyDemandQ96 at the current tick
-                let currencyDemandQ96 := mload(add(offset, 0x20))
-                sumCurrencyDemandAboveClearingQ96 := sub(sumCurrencyDemandAboveClearingQ96, currencyDemandQ96)
-
                 // update next to the next tick price returned by the ticks function
                 next := nextTick
 
@@ -114,66 +92,19 @@ contract TickDataLens {
             }
             // Update the free memory pointer to the end of the data
             mstore(0x40, add(offset, 0x20))
+        }
 
-            // ----- Inline functions -----
-            // ------------------------------------------------------------
-
-            /// @dev Equivalent to FixedPointMathLib.saturatingSub: returns max(0, x - y).
-            function saturatingSub(x, y) -> z {
-                z := mul(gt(x, y), sub(x, y))
+        uint256 runningDemand = sumCurrencyDemandAboveClearingQ96;
+        for (uint256 i = 0; i < ticks.length; i++) {
+            uint256 requiredCurrencyDemandQ96;
+            if (remainingMps > 0) {
+                requiredCurrencyDemandQ96 =
+                    remainingSupplyQ96X7.fullMulDivUp(ticks[i].priceQ96, requiredDemandDenominator);
             }
-
-            /// @dev Equivalent to FixedPointMathLib.fullMulDivUp: returns ceil(x * y / d).
-            ///      Safe to use a plain `mul` instead of 512-bit math because `y` is
-            ///      `remainingMps` (a uint24, max 1e7 ≈ 2^23), so x * y cannot overflow
-            ///      uint256 for any realistic currency demand value.
-            function mulDivUp(x, y, d) -> result {
-                result := div(mul(x, y), d)
-                if mulmod(x, y, d) {
-                    result := add(result, 1)
-                }
-            }
-
-            /// @dev Equivalent to FixedPointMathLib.fullMulDivUp: returns ceil(x * y / d).
-            function fullMulDivUp(x, y, d) -> result {
-                let denominator := d
-                result := mul(x, y)
-                for {} 1 {} {
-                    if iszero(mul(or(iszero(x), eq(div(result, x), y)), d)) {
-                        let mm := mulmod(x, y, not(0))
-                        let p1 := sub(mm, add(result, lt(mm, result)))
-                        let r := mulmod(x, y, d)
-                        let t := and(d, sub(0, d))
-                        if iszero(gt(d, p1)) {
-                            mstore(0x00, 0xae47f702) // FullMulDivFailed()
-                            revert(0x1c, 0x04)
-                        }
-                        d := div(d, t)
-                        let inv := xor(2, mul(3, d))
-                        inv := mul(inv, sub(2, mul(d, inv)))
-                        inv := mul(inv, sub(2, mul(d, inv)))
-                        inv := mul(inv, sub(2, mul(d, inv)))
-                        inv := mul(inv, sub(2, mul(d, inv)))
-                        inv := mul(inv, sub(2, mul(d, inv)))
-                        result := mul(
-                            or(mul(sub(p1, gt(r, result)), add(div(sub(0, t), t), 1)), div(sub(result, r), t)),
-                            mul(sub(2, mul(d, inv)), inv)
-                        )
-                        break
-                    }
-                    result := div(result, d)
-                    break
-                }
-                if mulmod(x, y, denominator) {
-                    result := add(result, 1)
-                    if iszero(result) {
-                        mstore(0x00, 0xae47f702) // FullMulDivFailed()
-                        revert(0x1c, 0x04)
-                    }
-                }
-            }
-
-            // ------------------------------------------------------------
+            ticks[i].requiredCurrencyDemandQ96 = requiredCurrencyDemandQ96;
+            ticks[i].currencyRequiredQ96 =
+                requiredCurrencyDemandQ96.saturatingSub(runningDemand).fullMulDivUp(remainingMps, mps);
+            runningDemand -= ticks[i].currencyDemandQ96;
         }
     }
 }

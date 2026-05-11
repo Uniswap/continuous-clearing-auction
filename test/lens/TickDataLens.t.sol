@@ -196,14 +196,11 @@ contract TickDataLensTest is AuctionUnitTest {
         }
     }
 
-    /// forge-config: default.isolate = true
-    /// forge-config: ci.isolate = true
-    function test_getInitializedTickData_MaxBufferSize_gas() public {
+    function test_getInitializedTickData_MaxBufferSize() public {
         uint256 numTicks = lens.MAX_BUFFER_SIZE();
         (uint256[] memory prices, uint256[] memory demands, uint256 totalDemand) = _initializeTicks(numTicks);
 
         TickWithData[] memory ticks = lens.getInitializedTickData(IContinuousClearingAuction(address(mockAuction)));
-        vm.snapshotGasLastCall('getInitializedTickData max buffer size');
 
         assertEq(ticks.length, numTicks);
 

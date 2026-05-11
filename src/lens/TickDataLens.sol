@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {TickStorage} from '../TickStorage.sol';
 import {IContinuousClearingAuction} from '../interfaces/IContinuousClearingAuction.sol';
 import {Tick} from '../interfaces/ITickStorage.sol';
 import {ConstantsLib} from '../libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../libraries/FixedPoint96.sol';
 import {ValueX7} from '../libraries/ValueX7Lib.sol';
-import {AuctionState} from './AuctionStateLens.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 /// @notice Tick data with additional computed values
@@ -46,65 +44,39 @@ contract TickDataLens {
         // Get the next active tick price
         uint256 next = auction.nextActiveTickPrice();
 
-        assembly {
-            let m := mload(0x40)
-            let offset := m
-
-            let idx := 0
-            for {} lt(idx, MAX_BUFFER_SIZE) { idx := add(idx, 1) } {
-                // Store the next tick price as the first argument to the ticks function call
-                mstore(0x00, 0x534cb30d) // ContinuousClearingAuction.ticks(uint256)
-                mstore(0x20, next)
-                // Call the ticks function - write the return value directly at the offset
-                let success := staticcall(gas(), auction, 0x1c, 0x24, offset, 0x40)
-                // If the call fails, revert
-                if iszero(success) {
-                    revert(0x00, 0x00)
-                }
-                // Load the next tick price from the return value
-                let nextTick := mload(offset)
-                // Overwrite the next tick price with the current tick price
-                mstore(offset, next)
-
-                // update next to the next tick price returned by the ticks function
-                next := nextTick
-
-                // update offset to the next tick data
-                offset := add(offset, 0x80)
-
-                // If the next tick price is the maximum uint256 value or we have reached the maximum buffer size, break the loop
-                if eq(nextTick, not(0)) {
-                    // Update idx to the number of ticks returned
-                    idx := add(idx, 1)
-                    break
-                }
-            }
-
-            // Assign the return value to the right memory location
-            ticks := offset
-            // Assign the length of the TickWithData array to the first word of the return value
-            mstore(ticks, idx)
-            // Assign the absolute pointers after the length to the return value
-            for { let i := 0 } lt(i, idx) { i := add(i, 1) } {
-                offset := add(offset, 0x20)
-                let absolutePointer := add(m, mul(i, 0x80))
-                mstore(offset, absolutePointer)
-            }
-            // Update the free memory pointer to the end of the data
-            mstore(0x40, add(offset, 0x20))
+        if (next == type(uint256).max) {
+            revert();
         }
 
+        uint256 count;
+        uint256 tickPrice = next;
+        while (count < MAX_BUFFER_SIZE) {
+            Tick memory tick = auction.ticks(tickPrice);
+            count++;
+            tickPrice = tick.next;
+            if (tickPrice == type(uint256).max) {
+                break;
+            }
+        }
+
+        ticks = new TickWithData[](count);
+        tickPrice = next;
         uint256 runningDemand = sumCurrencyDemandAboveClearingQ96;
-        for (uint256 i = 0; i < ticks.length; i++) {
+        for (uint256 i = 0; i < count; i++) {
+            Tick memory tick = auction.ticks(tickPrice);
             uint256 requiredCurrencyDemandQ96;
             if (remainingMps > 0) {
-                requiredCurrencyDemandQ96 =
-                    remainingSupplyQ96X7.fullMulDivUp(ticks[i].priceQ96, requiredDemandDenominator);
+                requiredCurrencyDemandQ96 = remainingSupplyQ96X7.fullMulDivUp(tickPrice, requiredDemandDenominator);
             }
-            ticks[i].requiredCurrencyDemandQ96 = requiredCurrencyDemandQ96;
-            ticks[i].currencyRequiredQ96 =
-                requiredCurrencyDemandQ96.saturatingSub(runningDemand).fullMulDivUp(remainingMps, mps);
-            runningDemand -= ticks[i].currencyDemandQ96;
+            ticks[i] = TickWithData({
+                priceQ96: tickPrice,
+                currencyDemandQ96: tick.currencyDemandQ96,
+                requiredCurrencyDemandQ96: requiredCurrencyDemandQ96,
+                currencyRequiredQ96: requiredCurrencyDemandQ96.saturatingSub(runningDemand)
+                    .fullMulDivUp(remainingMps, mps)
+            });
+            runningDemand -= tick.currencyDemandQ96;
+            tickPrice = tick.next;
         }
     }
 }

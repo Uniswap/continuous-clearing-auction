@@ -36,10 +36,10 @@ contract TickDataLensTest is AuctionUnitTest {
         assertEq(ticks[0].priceQ96, price);
         assertEq(ticks[0].currencyDemandQ96, demand);
 
-        uint256 expectedRequired = uint256(TOTAL_SUPPLY) * price;
+        uint256 expectedRequired = _expectedRequiredDemand(price);
         assertEq(ticks[0].requiredCurrencyDemandQ96, expectedRequired);
 
-        uint256 expectedCurrencyRequired = expectedRequired.saturatingSub(demand);
+        uint256 expectedCurrencyRequired = _expectedCurrencyRequired(expectedRequired, demand);
         assertEq(ticks[0].currencyRequiredQ96, expectedCurrencyRequired);
     }
 
@@ -64,21 +64,21 @@ contract TickDataLensTest is AuctionUnitTest {
         // First tick: sumDemand includes demand at both ticks
         assertEq(ticks[0].priceQ96, price1);
         assertEq(ticks[0].currencyDemandQ96, demand1);
-        uint256 required1 = uint256(TOTAL_SUPPLY) * price1;
+        uint256 required1 = _expectedRequiredDemand(price1);
         assertEq(ticks[0].requiredCurrencyDemandQ96, required1);
-        assertEq(ticks[0].currencyRequiredQ96, required1.saturatingSub(totalDemand));
+        assertEq(ticks[0].currencyRequiredQ96, _expectedCurrencyRequired(required1, totalDemand));
 
         // Second tick: sumDemand has been reduced by demand1
         assertEq(ticks[1].priceQ96, price2);
         assertEq(ticks[1].currencyDemandQ96, demand2);
-        uint256 required2 = uint256(TOTAL_SUPPLY) * price2;
+        uint256 required2 = _expectedRequiredDemand(price2);
         assertEq(ticks[1].requiredCurrencyDemandQ96, required2);
-        assertEq(ticks[1].currencyRequiredQ96, required2.saturatingSub(demand2));
+        assertEq(ticks[1].currencyRequiredQ96, _expectedCurrencyRequired(required2, demand2));
     }
 
     function test_getInitializedTickData_currencyRequiredIsZeroWhenDemandExceedsRequired() public {
         uint256 price = params.floorPrice + params.tickSpacing;
-        uint256 requiredDemand = uint256(TOTAL_SUPPLY) * price;
+        uint256 requiredDemand = _expectedRequiredDemand(price);
         uint256 demand = requiredDemand * 2;
 
         _initializeTick(price, demand);
@@ -105,8 +105,12 @@ contract TickDataLensTest is AuctionUnitTest {
 
         // After 1 block at STANDARD_MPS_1_PERCENT, cumulativeMps = STANDARD_MPS_1_PERCENT
         uint24 expectedRemainingMps = ConstantsLib.MPS - STANDARD_MPS_1_PERCENT;
-        uint256 shortfall = (uint256(TOTAL_SUPPLY) * price).saturatingSub(demand);
+        uint256 expectedRequiredDemand = _expectedRequiredDemand(price);
+        assertGt(expectedRequiredDemand, uint256(TOTAL_SUPPLY) * price);
+
+        uint256 shortfall = expectedRequiredDemand.saturatingSub(demand);
         uint256 expectedCurrencyRequired = shortfall.fullMulDivUp(expectedRemainingMps, ConstantsLib.MPS);
+        assertEq(ticks[0].requiredCurrencyDemandQ96, expectedRequiredDemand);
         assertEq(ticks[0].currencyRequiredQ96, expectedCurrencyRequired);
     }
 
@@ -125,7 +129,7 @@ contract TickDataLensTest is AuctionUnitTest {
         assertEq(ticks.length, 1);
         assertEq(ticks[0].priceQ96, price);
         assertEq(ticks[0].currencyDemandQ96, demand);
-        assertEq(ticks[0].requiredCurrencyDemandQ96, uint256(TOTAL_SUPPLY) * price);
+        assertEq(ticks[0].requiredCurrencyDemandQ96, 0);
         // With remainingMps == 0, currencyRequired scales to 0
         assertEq(ticks[0].currencyRequiredQ96, 0);
     }
@@ -187,11 +191,11 @@ contract TickDataLensTest is AuctionUnitTest {
 
         uint256 runningDemand = totalDemand;
         for (uint256 i = 0; i < numTicks; i++) {
-            uint256 required = uint256(TOTAL_SUPPLY) * prices[i];
+            uint256 required = _expectedRequiredDemand(prices[i]);
             assertEq(ticks[i].priceQ96, prices[i]);
             assertEq(ticks[i].currencyDemandQ96, demands[i]);
             assertEq(ticks[i].requiredCurrencyDemandQ96, required);
-            assertEq(ticks[i].currencyRequiredQ96, required.saturatingSub(runningDemand));
+            assertEq(ticks[i].currencyRequiredQ96, _expectedCurrencyRequired(required, runningDemand));
             runningDemand -= demands[i];
         }
     }
@@ -206,11 +210,11 @@ contract TickDataLensTest is AuctionUnitTest {
 
         uint256 runningDemand = totalDemand;
         for (uint256 i = 0; i < numTicks; i++) {
-            uint256 required = uint256(TOTAL_SUPPLY) * prices[i];
+            uint256 required = _expectedRequiredDemand(prices[i]);
             assertEq(ticks[i].priceQ96, prices[i]);
             assertEq(ticks[i].currencyDemandQ96, demands[i]);
             assertEq(ticks[i].requiredCurrencyDemandQ96, required);
-            assertEq(ticks[i].currencyRequiredQ96, required.saturatingSub(runningDemand));
+            assertEq(ticks[i].currencyRequiredQ96, _expectedCurrencyRequired(required, runningDemand));
             runningDemand -= demands[i];
         }
     }
@@ -244,5 +248,14 @@ contract TickDataLensTest is AuctionUnitTest {
         }
         mockAuction.uncheckedSetNextActiveTickPrice(prices[0]);
         mockAuction.uncheckedSetSumDemandAboveClearing(totalDemand);
+    }
+
+    function _expectedRequiredDemand(uint256 price) internal view returns (uint256) {
+        return mockAuction.requiredDemandQ96(price);
+    }
+
+    function _expectedCurrencyRequired(uint256 requiredDemand, uint256 runningDemand) internal view returns (uint256) {
+        uint24 remainingMps = ConstantsLib.MPS - mockAuction.latestCheckpoint().cumulativeMps;
+        return requiredDemand.saturatingSub(runningDemand).fullMulDivUp(remainingMps, ConstantsLib.MPS);
     }
 }

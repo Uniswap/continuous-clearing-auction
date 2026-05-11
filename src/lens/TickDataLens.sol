@@ -35,7 +35,6 @@ contract TickDataLens {
         view
         returns (TickWithData[] memory ticks)
     {
-        uint256 totalSupply = auction.totalSupply();
         uint24 mps = ConstantsLib.MPS;
         uint24 remainingMps = mps - auction.latestCheckpoint().cumulativeMps;
         // Retrieve the sumCurrencyDemandAboveClearingQ96 from storage
@@ -47,11 +46,10 @@ contract TickDataLens {
             let m := mload(0x40)
             let offset := m
 
-            // Cache the ticks function selector
             let idx := 0
-            mstore(0x00, 0x534cb30d) // ContinuousClearingAuction.ticks(uint256)
             for {} lt(idx, MAX_BUFFER_SIZE) { idx := add(idx, 1) } {
                 // Store the next tick price as the first argument to the ticks function call
+                mstore(0x00, 0x534cb30d) // ContinuousClearingAuction.ticks(uint256)
                 mstore(0x20, next)
                 // Call the ticks function - write the return value directly at the offset
                 let success := staticcall(gas(), auction, 0x1c, 0x24, offset, 0x40)
@@ -64,9 +62,14 @@ contract TickDataLens {
                 // Overwrite the next tick price with the current tick price
                 mstore(offset, next)
 
-                // Calculate and store the requiredCurrencyDemandQ96
-                let requiredCurrencyDemandQ96 := mul(totalSupply, next)
-                mstore(add(offset, 0x40), requiredCurrencyDemandQ96)
+                // Calculate and store the requiredCurrencyDemandQ96 using the auction's rollover-aware formula
+                mstore(0x00, 0x5ba38798) // ContinuousClearingAuction.requiredDemandQ96(uint256)
+                mstore(0x20, next)
+                success := staticcall(gas(), auction, 0x1c, 0x24, add(offset, 0x40), 0x20)
+                if iszero(success) {
+                    revert(0x00, 0x00)
+                }
+                let requiredCurrencyDemandQ96 := mload(add(offset, 0x40))
 
                 // Calculate and store the currencyRequiredQ96:
                 // currencyRequiredQ96 = saturatingSub(required, sum).mulDivUp(remainingMps, MPS)

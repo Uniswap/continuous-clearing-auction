@@ -47,6 +47,8 @@ contract TickDataLens {
             revert();
         }
 
+        // Dynamically build the array of ticks to the length of the number of initialized ticks
+        // done in assembly to prevent large memory expansion costs
         assembly {
             let dataStart := mload(0x40)
             let dataOffset := dataStart
@@ -86,6 +88,7 @@ contract TickDataLens {
             mstore(0x40, add(pointerOffset, 0x20))
         }
 
+        // Compute values over the initialized ticks
         uint256 runningDemand = sumCurrencyDemandAboveClearingQ96;
         for (uint256 i = 0; i < ticks.length; i++) {
             uint256 requiredCurrencyDemandQ96;

@@ -2,7 +2,6 @@
 pragma solidity 0.8.26;
 
 import {IContinuousClearingAuction} from '../interfaces/IContinuousClearingAuction.sol';
-import {Tick} from '../interfaces/ITickStorage.sol';
 import {ConstantsLib} from '../libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../libraries/FixedPoint96.sol';
 import {ValueX7} from '../libraries/ValueX7Lib.sol';
@@ -48,33 +47,56 @@ contract TickDataLens {
             revert();
         }
 
-        ticks = new TickWithData[](MAX_BUFFER_SIZE);
-        uint256 tickPrice = next;
-        uint256 runningDemand = sumCurrencyDemandAboveClearingQ96;
-        uint256 count;
-        while (count < ticks.length) {
-            Tick memory tick = auction.ticks(tickPrice);
-            uint256 requiredCurrencyDemandQ96;
-            if (remainingMps > 0) {
-                requiredCurrencyDemandQ96 = remainingSupplyQ96X7.fullMulDivUp(tickPrice, requiredDemandDenominator);
+        assembly {
+            let dataStart := mload(0x40)
+            let dataOffset := dataStart
+
+            let idx := 0
+            for {} lt(idx, MAX_BUFFER_SIZE) { idx := add(idx, 1) } {
+                mstore(0x00, 0x534cb30d) // ContinuousClearingAuction.ticks(uint256)
+                mstore(0x20, next)
+
+                let success := staticcall(gas(), auction, 0x1c, 0x24, dataOffset, 0x40)
+                if iszero(success) {
+                    revert(0x00, 0x00)
+                }
+
+                let nextTick := mload(dataOffset)
+                mstore(dataOffset, next)
+                mstore(add(dataOffset, 0x40), 0)
+                mstore(add(dataOffset, 0x60), 0)
+
+                next := nextTick
+                dataOffset := add(dataOffset, 0x80)
+
+                if eq(nextTick, not(0)) {
+                    idx := add(idx, 1)
+                    break
+                }
             }
-            ticks[count] = TickWithData({
-                priceQ96: tickPrice,
-                currencyDemandQ96: tick.currencyDemandQ96,
-                requiredCurrencyDemandQ96: requiredCurrencyDemandQ96,
-                currencyRequiredQ96: requiredCurrencyDemandQ96.saturatingSub(runningDemand)
-                    .fullMulDivUp(remainingMps, mps)
-            });
-            runningDemand -= tick.currencyDemandQ96;
-            tickPrice = tick.next;
-            count++;
-            if (tickPrice == type(uint256).max) {
-                break;
+
+            ticks := dataOffset
+            mstore(ticks, idx)
+
+            let pointerOffset := ticks
+            for { let i := 0 } lt(i, idx) { i := add(i, 1) } {
+                pointerOffset := add(pointerOffset, 0x20)
+                mstore(pointerOffset, add(dataStart, mul(i, 0x80)))
             }
+            mstore(0x40, add(pointerOffset, 0x20))
         }
 
-        assembly {
-            mstore(ticks, count)
+        uint256 runningDemand = sumCurrencyDemandAboveClearingQ96;
+        for (uint256 i = 0; i < ticks.length; i++) {
+            uint256 requiredCurrencyDemandQ96;
+            if (remainingMps > 0) {
+                requiredCurrencyDemandQ96 =
+                    remainingSupplyQ96X7.fullMulDivUp(ticks[i].priceQ96, requiredDemandDenominator);
+            }
+            ticks[i].requiredCurrencyDemandQ96 = requiredCurrencyDemandQ96;
+            ticks[i].currencyRequiredQ96 =
+                requiredCurrencyDemandQ96.saturatingSub(runningDemand).fullMulDivUp(remainingMps, mps);
+            runningDemand -= ticks[i].currencyDemandQ96;
         }
     }
 }

@@ -48,27 +48,17 @@ contract TickDataLens {
             revert();
         }
 
-        uint256 count;
+        ticks = new TickWithData[](MAX_BUFFER_SIZE);
         uint256 tickPrice = next;
-        while (count < MAX_BUFFER_SIZE) {
-            Tick memory tick = auction.ticks(tickPrice);
-            count++;
-            tickPrice = tick.next;
-            if (tickPrice == type(uint256).max) {
-                break;
-            }
-        }
-
-        ticks = new TickWithData[](count);
-        tickPrice = next;
         uint256 runningDemand = sumCurrencyDemandAboveClearingQ96;
-        for (uint256 i = 0; i < count; i++) {
+        uint256 count;
+        while (count < ticks.length) {
             Tick memory tick = auction.ticks(tickPrice);
             uint256 requiredCurrencyDemandQ96;
             if (remainingMps > 0) {
                 requiredCurrencyDemandQ96 = remainingSupplyQ96X7.fullMulDivUp(tickPrice, requiredDemandDenominator);
             }
-            ticks[i] = TickWithData({
+            ticks[count] = TickWithData({
                 priceQ96: tickPrice,
                 currencyDemandQ96: tick.currencyDemandQ96,
                 requiredCurrencyDemandQ96: requiredCurrencyDemandQ96,
@@ -77,6 +67,14 @@ contract TickDataLens {
             });
             runningDemand -= tick.currencyDemandQ96;
             tickPrice = tick.next;
+            count++;
+            if (tickPrice == type(uint256).max) {
+                break;
+            }
+        }
+
+        assembly {
+            mstore(ticks, count)
         }
     }
 }

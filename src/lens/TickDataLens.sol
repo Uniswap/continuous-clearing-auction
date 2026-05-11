@@ -5,6 +5,8 @@ import {TickStorage} from '../TickStorage.sol';
 import {IContinuousClearingAuction} from '../interfaces/IContinuousClearingAuction.sol';
 import {Tick} from '../interfaces/ITickStorage.sol';
 import {ConstantsLib} from '../libraries/ConstantsLib.sol';
+import {FixedPoint96} from '../libraries/FixedPoint96.sol';
+import {ValueX7} from '../libraries/ValueX7Lib.sol';
 import {AuctionState} from './AuctionStateLens.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
@@ -37,6 +39,8 @@ contract TickDataLens {
     {
         uint24 mps = ConstantsLib.MPS;
         uint24 remainingMps = mps - auction.latestCheckpoint().cumulativeMps;
+        uint256 remainingSupplyQ96X7 = ValueX7.unwrap(auction.remainingSupplyQ96X7());
+        uint256 requiredDemandDenominator = FixedPoint96.Q96 * remainingMps;
         // Retrieve the sumCurrencyDemandAboveClearingQ96 from storage
         uint256 sumCurrencyDemandAboveClearingQ96 = auction.sumCurrencyDemandAboveClearingQ96();
         // Get the next active tick price
@@ -62,14 +66,13 @@ contract TickDataLens {
                 // Overwrite the next tick price with the current tick price
                 mstore(offset, next)
 
-                // Calculate and store the requiredCurrencyDemandQ96 using the auction's rollover-aware formula
-                mstore(0x00, 0x5ba38798) // ContinuousClearingAuction.requiredDemandQ96(uint256)
-                mstore(0x20, next)
-                success := staticcall(gas(), auction, 0x1c, 0x24, add(offset, 0x40), 0x20)
-                if iszero(success) {
-                    revert(0x00, 0x00)
+                // Calculate and store the requiredCurrencyDemandQ96 using the auction's rollover-aware formula:
+                // fullMulDivUp(remainingSupplyQ96X7, priceQ96, Q96 * remainingMps)
+                let requiredCurrencyDemandQ96 := 0
+                if remainingMps {
+                    requiredCurrencyDemandQ96 := fullMulDivUp(remainingSupplyQ96X7, next, requiredDemandDenominator)
                 }
-                let requiredCurrencyDemandQ96 := mload(add(offset, 0x40))
+                mstore(add(offset, 0x40), requiredCurrencyDemandQ96)
 
                 // Calculate and store the currencyRequiredQ96:
                 // currencyRequiredQ96 = saturatingSub(required, sum).mulDivUp(remainingMps, MPS)
@@ -128,6 +131,45 @@ contract TickDataLens {
                 result := div(mul(x, y), d)
                 if mulmod(x, y, d) {
                     result := add(result, 1)
+                }
+            }
+
+            /// @dev Equivalent to FixedPointMathLib.fullMulDivUp: returns ceil(x * y / d).
+            function fullMulDivUp(x, y, d) -> result {
+                let denominator := d
+                result := mul(x, y)
+                for {} 1 {} {
+                    if iszero(mul(or(iszero(x), eq(div(result, x), y)), d)) {
+                        let mm := mulmod(x, y, not(0))
+                        let p1 := sub(mm, add(result, lt(mm, result)))
+                        let r := mulmod(x, y, d)
+                        let t := and(d, sub(0, d))
+                        if iszero(gt(d, p1)) {
+                            mstore(0x00, 0xae47f702) // FullMulDivFailed()
+                            revert(0x1c, 0x04)
+                        }
+                        d := div(d, t)
+                        let inv := xor(2, mul(3, d))
+                        inv := mul(inv, sub(2, mul(d, inv)))
+                        inv := mul(inv, sub(2, mul(d, inv)))
+                        inv := mul(inv, sub(2, mul(d, inv)))
+                        inv := mul(inv, sub(2, mul(d, inv)))
+                        inv := mul(inv, sub(2, mul(d, inv)))
+                        result := mul(
+                            or(mul(sub(p1, gt(r, result)), add(div(sub(0, t), t), 1)), div(sub(result, r), t)),
+                            mul(sub(2, mul(d, inv)), inv)
+                        )
+                        break
+                    }
+                    result := div(result, d)
+                    break
+                }
+                if mulmod(x, y, denominator) {
+                    result := add(result, 1)
+                    if iszero(result) {
+                        mstore(0x00, 0xae47f702) // FullMulDivFailed()
+                        revert(0x1c, 0x04)
+                    }
                 }
             }
 

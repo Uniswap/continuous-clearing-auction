@@ -127,11 +127,15 @@ abstract contract AuctionStorage is IAuctionStorage {
 
     /// @inheritdoc IAuctionStorage
     function remainingSupplyQ96X7() public view returns (ValueX7) {
-        return TOTAL_SUPPLY_Q96X7.saturatingSub($totalClearedQ96X7);
+        return _remainingSupplyQ96X7();
+    }
+
+    function _remainingSupplyQ96X7() internal view returns (ValueX7) {
+        return TOTAL_SUPPLY_Q96X7.sub($totalClearedQ96X7);
     }
 
     /// @inheritdoc IAuctionStorage
     function remainingSupply() public view returns (uint256) {
-        return (ValueX7.unwrap(remainingSupplyQ96X7()) / FixedPoint96.Q96) / ConstantsLib.MPS;
+        return (ValueX7.unwrap(_remainingSupplyQ96X7()) / FixedPoint96.Q96) / ConstantsLib.MPS;
     }
 }

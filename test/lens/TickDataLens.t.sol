@@ -19,9 +19,10 @@ contract TickDataLensTest is AuctionUnitTest {
         lens = new TickDataLens();
     }
 
-    function test_getInitializedTickData_revertsWhenNoTicksAboveClearing() public {
-        vm.expectRevert();
-        lens.getInitializedTickData(IContinuousClearingAuction(address(mockAuction)));
+    function test_getInitializedTickData_returnsEmptyWhenNoTicksAboveClearing() public view {
+        TickWithData[] memory ticks = lens.getInitializedTickData(IContinuousClearingAuction(address(mockAuction)));
+
+        assertEq(ticks.length, 0);
     }
 
     function test_getInitializedTickData_singleTick() public {

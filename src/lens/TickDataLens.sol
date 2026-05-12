@@ -34,18 +34,19 @@ contract TickDataLens {
         view
         returns (TickWithData[] memory ticks)
     {
+        // Get the next active tick price
+        uint256 next = auction.nextActiveTickPrice();
+
+        if (next == type(uint256).max) {
+            return new TickWithData[](0);
+        }
+
         uint24 mps = ConstantsLib.MPS;
         uint24 remainingMps = mps - auction.latestCheckpoint().cumulativeMps;
         uint256 remainingSupplyQ96X7 = ValueX7.unwrap(auction.remainingSupplyQ96X7());
         uint256 requiredDemandDenominator = FixedPoint96.Q96 * remainingMps;
         // Retrieve the sumCurrencyDemandAboveClearingQ96 from storage
         uint256 sumCurrencyDemandAboveClearingQ96 = auction.sumCurrencyDemandAboveClearingQ96();
-        // Get the next active tick price
-        uint256 next = auction.nextActiveTickPrice();
-
-        if (next == type(uint256).max) {
-            revert();
-        }
 
         // Dynamically build the array of ticks to the length of the number of initialized ticks
         // done in assembly to prevent large memory expansion costs

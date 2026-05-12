@@ -21,8 +21,6 @@ abstract contract AuctionStorage is IAuctionStorage {
     IERC20Minimal internal immutable TOKEN;
     /// @notice The amount of tokens to sell in the auction
     uint128 internal immutable TOTAL_SUPPLY;
-    /// @notice The amount of tokens that are being held in custody during the auction
-    uint128 internal immutable CUSTODY_TOKENS;
     /// @notice The total supply of tokens to sell in Q96 representation, scaled up by X7
     ValueX7 internal immutable TOTAL_SUPPLY_Q96X7;
     /// @notice The recipient of any unsold tokens at the end of the auction
@@ -45,7 +43,7 @@ abstract contract AuctionStorage is IAuctionStorage {
     /// @notice The most up to date clearing price, set on each call to `checkpoint`
     /// @dev This can be incremented manually by calling `forceIterateOverTicks`
     uint256 internal $clearingPrice;
-    /// @notice Whether TOTAL_SUPPLY and CUSTODY_TOKENS have been received
+    /// @notice Whether TOTAL_SUPPLY has been received
     bool internal $_tokensReceived;
 
     /// @notice The block at which the currency was swept
@@ -57,7 +55,6 @@ abstract contract AuctionStorage is IAuctionStorage {
         address _token,
         address _currency,
         uint128 _totalSupply,
-        uint128 _custodyTokens,
         address _tokensRecipient,
         address _fundsRecipient,
         uint128 _requiredCurrencyRaised
@@ -72,7 +69,6 @@ abstract contract AuctionStorage is IAuctionStorage {
         TOKEN = IERC20Minimal(_token);
         CURRENCY = Currency.wrap(_currency);
         TOTAL_SUPPLY = _totalSupply;
-        CUSTODY_TOKENS = _custodyTokens;
         TOTAL_SUPPLY_Q96X7 = ValueX7.wrap((uint256(_totalSupply) << FixedPoint96.RESOLUTION) * ConstantsLib.MPS);
         TOKENS_RECIPIENT = _tokensRecipient;
         FUNDS_RECIPIENT = _fundsRecipient;

@@ -23,7 +23,7 @@ contract SweepCurrencyTest is BttBase {
         address currency = _isNativeCurrency ? address(0) : address(new MockERC20());
 
         MockAuctionStorage auctionStorage =
-            new MockAuctionStorage(address(1), currency, 100e18, 0, address(1), fundsRecipient, 0);
+            new MockAuctionStorage(address(1), currency, 100e18, address(1), fundsRecipient, 0);
 
         assertEq(auctionStorage.sweepCurrencyBlock(), 0);
 
@@ -70,7 +70,7 @@ contract SweepCurrencyTest is BttBase {
         address currency = _isNativeCurrency ? address(0) : address(new MockERC20());
 
         MockAuctionStorage auctionStorage =
-            new MockAuctionStorage(address(1), currency, 100e18, 0, address(1), fundsRecipient, 0);
+            new MockAuctionStorage(address(1), currency, 100e18, address(1), fundsRecipient, 0);
 
         uint256 amount = bound(_amount, 1, type(uint128).max);
 

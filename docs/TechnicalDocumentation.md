@@ -37,9 +37,14 @@ interface IAuctionFactory {
     function initializeDistribution(
         address token,
         uint256 amount,
-        bytes calldata configData
+        bytes calldata configData,
+        bytes32 salt
     ) external returns (address);
 }
+
+// The factory uses deterministic deployment. Implementations and address
+// prediction helpers MUST include `salt` in the address calculation so
+// integrators can domain-separate otherwise identical auction deployments.
 
 /// @notice Parameters for the auction
 /// @dev token and totalSupply are passed as constructor arguments

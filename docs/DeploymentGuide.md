@@ -30,7 +30,9 @@ Call `initializeDistribution` to deploy a new auction instance, providing the `t
 - `token` is the address of the token to be sold.
 - `amount` is the amount of tokens to sell in the auction
 - `configData` is the abi-encoded [AuctionParameters](./src/interfaces/IContinuousClearingAuction.sol) struct
-- `salt` is an optional bytes32 value for vanity address mining
+- `salt` is a bytes32 value used in the deterministic deployment address calculation
+
+Factories and address prediction helpers MUST include the provided `salt` in the deterministic address calculation. Integrators may rely on this salt to domain-separate otherwise identical auction deployments.
 
 The function will return the address of the new auction instance.
 

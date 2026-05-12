@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IDistributionStrategy} from './external/IDistributionStrategy.sol';
+import {IDistributionStrategy} from "./external/IDistributionStrategy.sol";
 
 /// @title IContinuousClearingAuctionFactory
 interface IContinuousClearingAuctionFactory is IDistributionStrategy {
@@ -19,7 +19,7 @@ interface IContinuousClearingAuctionFactory is IDistributionStrategy {
     /// @param token The address of the token
     /// @param amount The amount of tokens to sell
     /// @param configData The configuration data for the auction
-    /// @param salt The salt to use for the deterministic deployment
+    /// @param salt The salt used in the deterministic deployment address calculation
     /// @param sender The sender of the initializeDistribution transaction
     /// @return The address of the auction contract
     function getAuctionAddress(address token, uint256 amount, bytes calldata configData, bytes32 salt, address sender)

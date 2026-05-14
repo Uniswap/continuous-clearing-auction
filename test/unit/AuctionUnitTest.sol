@@ -29,6 +29,7 @@ contract AuctionUnitTest is AuctionBaseTest {
         setUpTokens();
 
         alice = makeAddr('alice');
+        bob = makeAddr('bob');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 
@@ -43,19 +44,8 @@ contract AuctionUnitTest is AuctionBaseTest {
     }
 
     function setUpMockAuctionInvariant() public {
-        setUpMockAuction();
-
         FuzzDeploymentParams memory fuzzDeploymentParams = helper__validInvariantDeploymentParams();
-
-        // Expect the floor price tick to be initialized
-        vm.expectEmit(true, true, true, true);
-        emit ITickStorage.TickInitialized(fuzzDeploymentParams.auctionParams.floorPrice);
-        mockAuction = new MockContinuousClearingAuction(
-            address(token), fuzzDeploymentParams.totalSupply, fuzzDeploymentParams.auctionParams
-        );
-
-        token.mint(address(mockAuction), fuzzDeploymentParams.totalSupply);
-        mockAuction.onTokensReceived();
+        setUpMockAuction(fuzzDeploymentParams);
     }
 
     // Non fuzzing variant of setUpMockAuction
@@ -63,6 +53,7 @@ contract AuctionUnitTest is AuctionBaseTest {
         setUpTokens();
 
         alice = makeAddr('alice');
+        bob = makeAddr('bob');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 

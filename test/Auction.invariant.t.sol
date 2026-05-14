@@ -11,6 +11,7 @@ import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
+import {PriceLib} from '../src/libraries/PriceLib.sol';
 import {ValueX7} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionUnitTest} from './unit/AuctionUnitTest.sol';
 import {Assertions} from './utils/Assertions.sol';
@@ -20,7 +21,6 @@ import {console} from 'forge-std/console.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
-import {PriceLib} from '../src/libraries/PriceLib.sol';
 
 contract AuctionInvariantHandler is Test, Assertions {
     using CurrencyLibrary for Currency;
@@ -211,6 +211,20 @@ contract AuctionInvariantHandler is Test, Assertions {
         return (lower, upper);
     }
 
+    function _assertAveragePriceDoesNotExceedMax(
+        uint256 amountQ96,
+        uint256 tokensFilled,
+        uint256 maxPrice,
+        uint256 refundAmount
+    ) internal pure {
+        if (tokensFilled == 0) return;
+        assertLe(
+            (amountQ96 - uint256(refundAmount << FixedPoint96.RESOLUTION)) >> FixedPoint96.RESOLUTION,
+            FixedPointMathLib.fullMulDiv(tokensFilled + 1, maxPrice, FixedPoint96.Q96) + 1e6,
+            'ROUNDING INVARIANT VIOLATED: average purchase price exceeds maxPrice'
+        );
+    }
+
     /// @notice Roll the block number
     function handleRoll(uint256 seed) public {
         // Roll 10% of the time to ensure that we can submit enough bids given the block duration of the auction
@@ -347,8 +361,55 @@ contract AuctionInvariantHandler is Test, Assertions {
         if (refundAmount == bid.amountQ96 / FixedPoint96.Q96) {
             assertEq(bid.tokensFilled, 0, 'Bid tokens filled must be 0 if bid is fully refunded');
         }
+        _assertAveragePriceDoesNotExceedMax(bid.amountQ96, bid.tokensFilled, bid.maxPrice, refundAmount);
 
         metrics.cnt_BidEarlyExited++;
+    }
+
+    function handleExitBid(uint256 actorIndexSeed, uint256 bidIndexSeed) public useActor(actorIndexSeed) {
+        if (bidCount == 0) {
+            return;
+        }
+        if (block.number < mockAuction.endBlock()) {
+            return;
+        }
+
+        uint256 bidId = bidIds[_bound(bidIndexSeed, 0, bidCount - 1)];
+        Bid memory bid = mockAuction.bids(bidId);
+        if (bid.exitedBlock != 0) {
+            return;
+        }
+
+        mockAuction.checkpoint();
+        if (mockAuction.isGraduated() && bid.maxPrice <= mockAuction.clearingPrice()) {
+            return;
+        }
+
+        uint256 ownerBalanceBefore = bid.owner.balance;
+
+        mockAuction.exitBid(bidId);
+
+        bid = mockAuction.bids(bidId);
+        uint256 refundAmount = bid.owner.balance - ownerBalanceBefore;
+        totalCurrencyRaised += bid.amountQ96 / FixedPoint96.Q96 - refundAmount;
+
+        assertEq(bid.exitedBlock, block.number);
+        if (!mockAuction.isGraduated()) {
+            assertEq(bid.tokensFilled, 0, 'Non-graduated auction exit must not fill tokens');
+        }
+        assertLe(
+            refundAmount,
+            bid.amountQ96 / FixedPoint96.Q96,
+            'Bid owner can never be refunded more Currency than provided'
+        );
+        if (refundAmount == bid.amountQ96 / FixedPoint96.Q96) {
+            assertEq(bid.tokensFilled, 0, 'Bid tokens filled must be 0 if bid is fully refunded');
+        }
+        _assertAveragePriceDoesNotExceedMax(bid.amountQ96, bid.tokensFilled, bid.maxPrice, refundAmount);
+
+        uint256 maximumTokensFilled =
+            FixedPointMathLib.min(BidLib.toEffectiveAmount(bid) / mockAuction.floorPrice(), mockAuction.totalSupply());
+        assertLe(bid.tokensFilled, maximumTokensFilled, 'Bid tokens filled must be less than the maximum tokens filled');
     }
 
     function printMetrics() public {
@@ -377,8 +438,9 @@ contract AuctionInvariantTest is AuctionUnitTest {
 
         logFuzzDeploymentParams($deploymentParams);
 
-        address[] memory actors = new address[](1);
+        address[] memory actors = new address[](2);
         actors[0] = alice;
+        actors[1] = bob;
 
         handler = new AuctionInvariantHandler(mockAuction, actors);
         targetContract(address(handler));
@@ -626,23 +688,23 @@ contract AuctionInvariantTest is AuctionUnitTest {
 
     function invariant_clearingPriceIsMaximumPossible() public printMetrics {
         // Not applicable before auction starts
-        if(block.number < mockAuction.startBlock()) return;
+        if (block.number < mockAuction.startBlock()) return;
         // Checkpoint to ensure all state is up to date
         mockAuction.checkpoint();
         uint256 clearingPrice = mockAuction.clearingPrice();
         // Not applicable at floor price
-        if(clearingPrice == mockAuction.floorPrice()) return;
+        if (clearingPrice == mockAuction.floorPrice()) return;
         // Not applicable at tick boundary (partial fills are complex)
-        if(clearingPrice % mockAuction.tickSpacing() == 0) return;
+        if (clearingPrice % mockAuction.tickSpacing() == 0) return;
 
         // The clearing price should be the maximum possible price for which remaining supply
         // can be sold to demand at or above the clearing price
         uint256 remainingSupplyQ96X7 = ValueX7.unwrap(mockAuction.remainingSupplyQ96X7());
         uint256 sumDemandQ96 = mockAuction.sumCurrencyDemandAboveClearingQ96();
         uint256 purchasableSupplyQ96X7 = PriceLib.toTokensRoundingUp(sumDemandQ96 * ConstantsLib.MPS, clearingPrice);
-        
+
         // The invariant MAY be broken IF the clearingPrice was rounded up by one wei.
-        if(purchasableSupplyQ96X7 < remainingSupplyQ96X7) {
+        if (purchasableSupplyQ96X7 < remainingSupplyQ96X7) {
             uint256 allowableBuffer = 1 * (sumDemandQ96 * ConstantsLib.MPS);
             assertGe(purchasableSupplyQ96X7 + allowableBuffer, remainingSupplyQ96X7);
         } else {
@@ -651,7 +713,7 @@ contract AuctionInvariantTest is AuctionUnitTest {
             assertGe(purchasableSupplyQ96X7, remainingSupplyQ96X7);
         }
     }
-    
+
     function invariant_canSweep_thenExitAndClaimAllBids()
         public
         printMetrics

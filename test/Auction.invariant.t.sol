@@ -20,6 +20,7 @@ import {console} from 'forge-std/console.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
+import {PriceLib} from '../src/libraries/PriceLib.sol';
 
 contract AuctionInvariantHandler is Test, Assertions {
     using CurrencyLibrary for Currency;
@@ -623,6 +624,34 @@ contract AuctionInvariantTest is AuctionUnitTest {
         );
     }
 
+    function invariant_clearingPriceIsMaximumPossible() public printMetrics {
+        // Not applicable before auction starts
+        if(block.number < mockAuction.startBlock()) return;
+        // Checkpoint to ensure all state is up to date
+        mockAuction.checkpoint();
+        uint256 clearingPrice = mockAuction.clearingPrice();
+        // Not applicable at floor price
+        if(clearingPrice == mockAuction.floorPrice()) return;
+        // Not applicable at tick boundary (partial fills are complex)
+        if(clearingPrice % mockAuction.tickSpacing() == 0) return;
+
+        // The clearing price should be the maximum possible price for which remaining supply
+        // can be sold to demand at or above the clearing price
+        uint256 remainingSupplyQ96X7 = ValueX7.unwrap(mockAuction.remainingSupplyQ96X7());
+        uint256 sumDemandQ96 = mockAuction.sumCurrencyDemandAboveClearingQ96();
+        uint256 purchasableSupplyQ96X7 = PriceLib.toTokensRoundingUp(sumDemandQ96 * ConstantsLib.MPS, clearingPrice);
+        
+        // The invariant MAY be broken IF the clearingPrice was rounded up by one wei.
+        if(purchasableSupplyQ96X7 < remainingSupplyQ96X7) {
+            uint256 allowableBuffer = 1 * (sumDemandQ96 * ConstantsLib.MPS);
+            assertGe(purchasableSupplyQ96X7 + allowableBuffer, remainingSupplyQ96X7);
+        } else {
+            // As long as the purchasable supply is greater than or equal to the remaining supply, the invariant holds
+            // If it were less than, it would mean that the clearing price is not high enough to sell all the remaining supply
+            assertGe(purchasableSupplyQ96X7, remainingSupplyQ96X7);
+        }
+    }
+    
     function invariant_canSweep_thenExitAndClaimAllBids()
         public
         printMetrics

@@ -165,6 +165,25 @@ contract AuctionInvariantHandler is Test, Assertions {
         return type(uint256).max;
     }
 
+    /// @notice Find the first bid which can be exited through exitBid
+    /// @return bidId The id of the first exitable bid, or type(uint256).max if no bid can be exited
+    function _useExitableBidId() internal returns (uint256) {
+        if (bidCount == 0 || block.number < mockAuction.endBlock()) return type(uint256).max;
+
+        mockAuction.checkpoint();
+        bool isGraduated = mockAuction.isGraduated();
+        uint256 clearingPrice = mockAuction.clearingPrice();
+
+        for (uint256 i = 0; i < bidCount; i++) {
+            uint256 bidId = bidIds[i];
+            Bid memory bid = mockAuction.bids(bidId);
+            if (bid.exitedBlock != 0) continue;
+            if (!isGraduated || bid.maxPrice > clearingPrice) return bidId;
+        }
+
+        return type(uint256).max;
+    }
+
     /// @notice Return the tick immediately equal to or below the given price
     function _getLowerTick(uint256 maxPrice) internal view returns (uint256) {
         uint256 _price = mockAuction.floorPrice();
@@ -366,25 +385,11 @@ contract AuctionInvariantHandler is Test, Assertions {
         metrics.cnt_BidEarlyExited++;
     }
 
-    function handleExitBid(uint256 actorIndexSeed, uint256 bidIndexSeed) public useActor(actorIndexSeed) {
-        if (bidCount == 0) {
-            return;
-        }
-        if (block.number < mockAuction.endBlock()) {
-            return;
-        }
+    function handleExitBid(uint256 actorIndexSeed) public useActor(actorIndexSeed) {
+        uint256 bidId = _useExitableBidId();
+        if (bidId == type(uint256).max) return;
 
-        uint256 bidId = bidIds[_bound(bidIndexSeed, 0, bidCount - 1)];
         Bid memory bid = mockAuction.bids(bidId);
-        if (bid.exitedBlock != 0) {
-            return;
-        }
-
-        mockAuction.checkpoint();
-        if (mockAuction.isGraduated() && bid.maxPrice <= mockAuction.clearingPrice()) {
-            return;
-        }
-
         uint256 ownerBalanceBefore = bid.owner.balance;
 
         mockAuction.exitBid(bidId);

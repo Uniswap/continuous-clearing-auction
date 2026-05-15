@@ -42,6 +42,21 @@ fail_on_revert = true
 runs = 100
 depth = 2500
 
+[profile.metrics]
+threads = 1
+fs_permissions = [
+  { access = "read-write", path = ".forge-snapshots" },
+  { access = "read", path = "script/" },
+  { access = "read-write", path = "out/invariant-metrics" },
+]
+
+[profile.metrics.invariant]
+fail_on_revert = true
+runs = 10000
+depth = 2500
+check_interval = 0
+show_metrics = true
+
 [profile.pr.fuzz]
 runs = 1000
 

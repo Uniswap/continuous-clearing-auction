@@ -16,6 +16,7 @@ import {PriceLib} from '../src/libraries/PriceLib.sol';
 import {ValueX7} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionUnitTest} from './unit/AuctionUnitTest.sol';
 import {Assertions} from './utils/Assertions.sol';
+import {AuctionInvariantMetricsLib, AuctionInvariantRunMetrics} from './utils/AuctionInvariantMetrics.sol';
 import {FuzzGenerators} from './utils/FuzzGenerators.sol';
 import {FuzzDeploymentParams} from './utils/FuzzStructs.sol';
 import {MockContinuousClearingAuction} from './utils/MockAuction.sol';
@@ -32,6 +33,11 @@ contract AuctionInvariantHandler is Test, Assertions {
     using CurrencyLibrary for Currency;
     using FixedPointMathLib for *;
 
+    string internal constant DEFAULT_METRICS_DIR = 'out/invariant-metrics';
+    string internal constant DEFAULT_METRICS_PATH = 'out/invariant-metrics/auction-runs.json';
+    string internal constant METRICS_TEST_NAME = 'AuctionInvariantMetricsTest';
+    string internal constant METRICS_INVARIANT_NAME = 'invariant_recordAuctionRunMetrics';
+
     IAuctionInvariantHarness public harness;
     MockContinuousClearingAuction public mockAuction;
     IPermit2 public permit2;
@@ -45,6 +51,12 @@ contract AuctionInvariantHandler is Test, Assertions {
     uint256 public BID_MIN_PRICE;
     bool public initialized;
     uint256 public deploymentSeed;
+    uint256 public totalCalls;
+
+    bool internal recordRunMetrics;
+    uint256 internal metricsDepth;
+    string internal metricsDir;
+    string internal metricsPath;
 
     uint256 internal constant TARGET_BIDS_PER_BLOCK = 8;
 
@@ -85,11 +97,18 @@ contract AuctionInvariantHandler is Test, Assertions {
         harness = _harness;
         permit2 = IPermit2(0x000000000022D473030F116dDEE9F6B43aC78BA3);
         actors = _actors;
+
+        recordRunMetrics = vm.envOr('AUCTION_INVARIANT_METRICS', false);
+        metricsDepth = vm.envOr('AUCTION_INVARIANT_METRICS_DEPTH', vm.envOr('FOUNDRY_INVARIANT_DEPTH', uint256(2500)));
+        metricsDir = vm.envOr('AUCTION_INVARIANT_METRICS_DIR', DEFAULT_METRICS_DIR);
+        metricsPath = vm.envOr('AUCTION_INVARIANT_METRICS_PATH', DEFAULT_METRICS_PATH);
     }
 
     modifier useDeployment(uint256 deploymentSeed_) {
         _ensureInitialized(deploymentSeed_);
+        totalCalls++;
         _;
+        _recordRunMetricsIfComplete();
     }
 
     function _ensureInitialized(uint256 deploymentSeed_) internal {
@@ -538,9 +557,74 @@ contract AuctionInvariantHandler is Test, Assertions {
         emit log_named_uint('NoBidToEarlyExitError count', metrics.cnt_NoBidToEarlyExitError);
         emit log_named_uint('BidAlreadyExitedError count', metrics.cnt_BidAlreadyExitedError);
     }
+
+    /// @notice Return a flat metrics snapshot for one invariant run.
+    function metricsSnapshot() public view returns (AuctionInvariantRunMetrics memory snapshot) {
+        snapshot.initialized = initialized;
+        snapshot.deploymentSeed = deploymentSeed;
+        snapshot.blockNumber = block.number;
+        snapshot.callCount = totalCalls;
+        snapshot.bidCount = bidCount;
+        snapshot.totalCurrencyRaised = totalCurrencyRaised;
+
+        snapshot.cntBidEarlyExited = metrics.cnt_BidEarlyExited;
+        snapshot.cntBidExited = metrics.cnt_BidExited;
+        snapshot.cntCheckpoints = metrics.cnt_checkpoints;
+        snapshot.cntClearingPriceUpdated = metrics.cnt_clearingPriceUpdated;
+        snapshot.cntUntilTickPriceMaxTickPtr = metrics.cnt_untilTickPriceMAX_TICK_PTR;
+        snapshot.cntUntilTickPrice = metrics.cnt_untilTickPrice;
+        snapshot.cntSubmitBidSkippedMaxPrice = metrics.cnt_SubmitBidSkippedMaxPrice;
+        snapshot.cntSubmitBidSkippedSoldOut = metrics.cnt_SubmitBidSkippedSoldOut;
+        snapshot.cntSubmitBidSkippedAuctionFinished = metrics.cnt_SubmitBidSkippedAuctionFinished;
+        snapshot.cntNonGraduatedBidExited = metrics.cnt_NonGraduatedBidExited;
+        snapshot.cntClaimTokensBatchNotGraduated = metrics.cnt_ClaimTokensBatchNotGraduated;
+        snapshot.cntAuctionIsOverError = metrics.cnt_AuctionIsOverError;
+        snapshot.cntBidAmountTooSmallError = metrics.cnt_BidAmountTooSmallError;
+        snapshot.cntTickPriceNotIncreasingError = metrics.cnt_TickPriceNotIncreasingError;
+        snapshot.cntInvalidBidUnableToClearError = metrics.cnt_InvalidBidUnableToClearError;
+        snapshot.cntBidMustBeAboveClearingPriceError = metrics.cnt_BidMustBeAboveClearingPriceError;
+        snapshot.cntNoBidToEarlyExitError = metrics.cnt_NoBidToEarlyExitError;
+        snapshot.cntBidAlreadyExitedError = metrics.cnt_BidAlreadyExitedError;
+
+        if (!initialized || address(mockAuction) == address(0)) return snapshot;
+
+        snapshot.auction = address(mockAuction);
+        snapshot.graduated = mockAuction.isGraduated();
+        snapshot.startBlock = mockAuction.startBlock();
+        snapshot.endBlock = mockAuction.endBlock();
+        snapshot.claimBlock = mockAuction.claimBlock();
+        snapshot.lastCheckpointedBlock = mockAuction.lastCheckpointedBlock();
+        snapshot.totalSupply = mockAuction.totalSupply();
+        snapshot.numberOfSteps = mockAuction.endBlock() - mockAuction.startBlock();
+        snapshot.floorPrice = mockAuction.floorPrice();
+        snapshot.tickSpacing = mockAuction.tickSpacing();
+        snapshot.clearingPrice = mockAuction.clearingPrice();
+        snapshot.totalCleared = mockAuction.totalCleared();
+        snapshot.remainingSupply = mockAuction.remainingSupply();
+        snapshot.currencyRaised = mockAuction.currencyRaised();
+    }
+
+    function _recordRunMetricsIfComplete() internal {
+        if (!recordRunMetrics || totalCalls != metricsDepth) return;
+
+        AuctionInvariantRunMetrics memory snapshot = metricsSnapshot();
+        snapshot.testName = METRICS_TEST_NAME;
+        snapshot.invariantName = METRICS_INVARIANT_NAME;
+        snapshot.runId = AuctionInvariantMetricsLib.runId(snapshot);
+
+        vm.createDir(metricsDir, true);
+        if (!vm.exists(metricsPath)) {
+            vm.writeFile(metricsPath, '{}');
+        }
+        vm.writeJson(
+            AuctionInvariantMetricsLib.toJson(vm, snapshot),
+            metricsPath,
+            string.concat('.', vm.toString(snapshot.runId))
+        );
+    }
 }
 
-abstract contract AuctionInvariantBase is AuctionUnitTest {
+abstract contract AuctionInvariantShared is AuctionUnitTest {
     AuctionInvariantHandler public handler;
     bool internal handlerInitializedAuction;
 
@@ -799,7 +883,9 @@ abstract contract AuctionInvariantBase is AuctionUnitTest {
             assertEq(address(mockAuction).balance, 0, 'Auction balance is not zero at end of auction');
         }
     }
+}
 
+abstract contract AuctionInvariantBase is AuctionInvariantShared {
     function invariant_canAlwaysCheckpointDuringAuction() public printMetrics {
         if (block.number >= mockAuction.startBlock() && block.number < mockAuction.claimBlock()) {
             mockAuction.checkpoint();
@@ -968,6 +1054,31 @@ contract AuctionInvariantTest is AuctionInvariantBase {
         assertEq(handler.bidCount(), 0);
     }
 
+    function test_metricsSnapshotSerializesRunSummary() public {
+        handler.handleCheckpoint(123);
+
+        AuctionInvariantRunMetrics memory snapshot = handler.metricsSnapshot();
+        snapshot.testName = 'AuctionInvariantMetricsTest';
+        snapshot.invariantName = 'invariant_recordAuctionRunMetrics';
+        snapshot.runId = AuctionInvariantMetricsLib.runId(snapshot);
+
+        assertEq(snapshot.deploymentSeed, 123);
+        assertEq(snapshot.auction, address(mockAuction));
+        assertEq(snapshot.callCount, 1);
+        assertEq(snapshot.totalSupply, mockAuction.totalSupply());
+        assertEq(snapshot.numberOfSteps, $deploymentParams.numberOfSteps);
+        assertEq(snapshot.tickSpacing, mockAuction.tickSpacing());
+
+        string memory json = AuctionInvariantMetricsLib.toJson(vm, snapshot);
+        assertEq(vm.parseJsonString(json, '.testName'), 'AuctionInvariantMetricsTest');
+        assertEq(vm.parseJsonString(json, '.invariantName'), 'invariant_recordAuctionRunMetrics');
+        assertEq(vm.parseJsonUint(json, '.deploymentSeed'), 123);
+        assertEq(vm.parseJsonUint(json, '.callCount'), 1);
+        assertEq(vm.parseJsonAddress(json, '.auction'), address(mockAuction));
+        assertEq(vm.parseJsonUint(json, '.totalSupply'), mockAuction.totalSupply());
+        assertTrue(vm.keyExistsJson(json, '.runId'));
+    }
+
     function invariant_canSweep_thenExitAndClaimAllBids()
         public
         printMetrics
@@ -1035,5 +1146,21 @@ contract AuctionInvariantTest is AuctionInvariantBase {
 
         _printBalances();
         _printState();
+    }
+}
+
+contract AuctionInvariantMetricsTest is AuctionInvariantShared {
+    function setUp() public {
+        if (!vm.envOr('AUCTION_INVARIANT_METRICS', false)) {
+            vm.skip(true, 'set AUCTION_INVARIANT_METRICS=1 and use FOUNDRY_PROFILE=metrics');
+        }
+
+        setUpInvariantAuction();
+    }
+
+    /// @notice Metrics-only invariant campaign marker.
+    /// @dev The append happens from the final handler call because Foundry reverts invariant-call EVM writes.
+    function invariant_recordAuctionRunMetrics() public view {
+        assertNotEq(address(handler), address(0));
     }
 }

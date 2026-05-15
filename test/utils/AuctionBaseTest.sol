@@ -15,6 +15,7 @@ import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 import {Assertions} from './Assertions.sol';
 import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
+import {FuzzGenerators} from './FuzzGenerators.sol';
 import {FuzzBid, FuzzDeploymentParams} from './FuzzStructs.sol';
 import {MockFundsRecipient} from './MockFundsRecipient.sol';
 import {MockToken} from './MockToken.sol';
@@ -107,6 +108,14 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return validDivisors[randomIndex];
     }
 
+    function helper__seededInvariantDeploymentParams(uint256 seed) public returns (FuzzDeploymentParams memory) {
+        FuzzDeploymentParams memory deploymentParams = FuzzGenerators.seededDeploymentParams(
+            seed, ETH_SENTINEL, tokensRecipient, fundsRecipient, address(0), block.number
+        );
+        $deploymentParams = deploymentParams;
+        return deploymentParams;
+    }
+
     function helper__validInvariantDeploymentParams() public returns (FuzzDeploymentParams memory) {
         FuzzDeploymentParams memory deploymentParams;
 
@@ -139,6 +148,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         deploymentParams.auctionParams.floorPrice = helper__roundPriceDownToTickSpacing(
             deploymentParams.auctionParams.floorPrice, deploymentParams.auctionParams.tickSpacing
         );
+        deploymentParams.auctionParams.requiredCurrencyRaised =
+            uint256(vm.randomUint()) % 2 == 0 ? 0 : type(uint128).max;
 
         // Set up the block numbers
         deploymentParams.auctionParams.startBlock = uint64(_bound(uint256(vm.randomUint()), 1, type(uint64).max));

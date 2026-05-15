@@ -11,21 +11,28 @@ import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from '../src/libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
+import {MaxBidPriceLib} from '../src/libraries/MaxBidPriceLib.sol';
 import {PriceLib} from '../src/libraries/PriceLib.sol';
 import {ValueX7} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionUnitTest} from './unit/AuctionUnitTest.sol';
 import {Assertions} from './utils/Assertions.sol';
+import {FuzzGenerators} from './utils/FuzzGenerators.sol';
+import {FuzzDeploymentParams} from './utils/FuzzStructs.sol';
 import {MockContinuousClearingAuction} from './utils/MockAuction.sol';
 import {Test} from 'forge-std/Test.sol';
 import {console} from 'forge-std/console.sol';
 import {IPermit2} from 'permit2/src/interfaces/IPermit2.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
+
+interface IAuctionInvariantHarness {
+    function initializeInvariantAuction(uint256 deploymentSeed) external returns (MockContinuousClearingAuction);
+}
 
 contract AuctionInvariantHandler is Test, Assertions {
     using CurrencyLibrary for Currency;
     using FixedPointMathLib for *;
 
+    IAuctionInvariantHarness public harness;
     MockContinuousClearingAuction public mockAuction;
     IPermit2 public permit2;
 
@@ -36,6 +43,10 @@ contract AuctionInvariantHandler is Test, Assertions {
     IERC20Minimal public token;
 
     uint256 public BID_MIN_PRICE;
+    bool public initialized;
+    uint256 public deploymentSeed;
+
+    uint256 internal constant TARGET_BIDS_PER_BLOCK = 8;
 
     // Ghost variables
     Checkpoint _checkpoint;
@@ -48,10 +59,16 @@ contract AuctionInvariantHandler is Test, Assertions {
     struct Metrics {
         // Stats
         uint256 cnt_BidEarlyExited;
+        uint256 cnt_BidExited;
         uint256 cnt_checkpoints;
         uint256 cnt_clearingPriceUpdated;
         uint256 cnt_untilTickPriceMAX_TICK_PTR;
         uint256 cnt_untilTickPrice;
+        uint256 cnt_SubmitBidSkippedMaxPrice;
+        uint256 cnt_SubmitBidSkippedSoldOut;
+        uint256 cnt_SubmitBidSkippedAuctionFinished;
+        uint256 cnt_NonGraduatedBidExited;
+        uint256 cnt_ClaimTokensBatchNotGraduated;
         // Errors
         uint256 cnt_AuctionIsOverError;
         uint256 cnt_BidAmountTooSmallError;
@@ -62,16 +79,28 @@ contract AuctionInvariantHandler is Test, Assertions {
         uint256 cnt_BidAlreadyExitedError;
     }
 
-    Metrics public metrics;
+    Metrics internal metrics;
 
-    constructor(MockContinuousClearingAuction _auction, address[] memory _actors) {
-        mockAuction = _auction;
+    constructor(IAuctionInvariantHarness _harness, address[] memory _actors) {
+        harness = _harness;
         permit2 = IPermit2(0x000000000022D473030F116dDEE9F6B43aC78BA3);
+        actors = _actors;
+    }
+
+    modifier useDeployment(uint256 deploymentSeed_) {
+        _ensureInitialized(deploymentSeed_);
+        _;
+    }
+
+    function _ensureInitialized(uint256 deploymentSeed_) internal {
+        if (initialized) return;
+
+        deploymentSeed = deploymentSeed_;
+        mockAuction = harness.initializeInvariantAuction(deploymentSeed_);
         currency = Currency.wrap(mockAuction.currency());
         token = IERC20Minimal(mockAuction.token());
-        actors = _actors;
-
         BID_MIN_PRICE = mockAuction.floorPrice() + mockAuction.tickSpacing();
+        initialized = true;
     }
 
     modifier givenAuctionHasStarted() {
@@ -129,31 +158,34 @@ contract AuctionInvariantHandler is Test, Assertions {
         _checkpoint = checkpoint;
     }
 
+    function _useNextBidPrice(uint256 clearingPrice, uint8 tickNumber) internal view returns (uint256, bool) {
+        return
+            FuzzGenerators.nextBidPrice(
+                clearingPrice, mockAuction.tickSpacing(), mockAuction.MAX_BID_PRICE(), tickNumber
+            );
+    }
+
     /// @notice Generate random values for amount and max price given a desired resolved amount of tokens to purchase
     /// @dev Bounded by purchasing the total supply of tokens and some reasonable max price for bids to prevent overflow
     function _useAmountMaxPrice(uint128 amount, uint256 clearingPrice, uint8 tickNumber)
         internal
-        returns (uint128, uint256)
+        view
+        returns (uint128, uint256, bool)
     {
-        tickNumber = uint8(_bound(tickNumber, 1, uint256(type(uint8).max)));
-        uint256 tickNumberPrice = mockAuction.floorPrice() + tickNumber * mockAuction.tickSpacing();
-        vm.assume(clearingPrice + mockAuction.tickSpacing() < mockAuction.MAX_BID_PRICE());
-        uint256 maxPrice =
-            _bound(tickNumberPrice, clearingPrice + mockAuction.tickSpacing(), mockAuction.MAX_BID_PRICE());
-        // Round down to the nearest tick boundary
-        maxPrice -= (maxPrice % mockAuction.tickSpacing());
-        uint128 inputAmount;
-        if (amount > (type(uint128).max * FixedPoint96.Q96) / maxPrice) {
-            inputAmount = type(uint128).max;
-        } else {
-            inputAmount = SafeCastLib.toUint128(amount.fullMulDivUp(maxPrice, FixedPoint96.Q96));
-        }
-        return (inputAmount, maxPrice);
+        (uint256 maxPrice, bool canSubmitAtHigherPrice) = _useNextBidPrice(clearingPrice, tickNumber);
+        if (!canSubmitAtHigherPrice) return (0, 0, false);
+
+        amount = FuzzGenerators.seededBidTokenAmount(amount);
+        uint128 inputAmount = FuzzGenerators.inputAmountForTokens(amount, maxPrice);
+        return (inputAmount, maxPrice, true);
     }
 
     /// @notice Find the first bid which can be early exited as of the stale checkpoint
     /// @return bidId The id of the first bid which can be early exited, or type(uint256).max if no bid can be exited
-    function _useOutbidBidId() internal returns (uint256) {
+    function _useOutbidBidId() internal view returns (uint256) {
+        // Partial exits before graduation are invalid by protocol design.
+        if (!mockAuction.isGraduated()) return type(uint256).max;
+
         // Find first bid which can be exited as of the stale checkpoint
         // We could checkpoint again but no need, can use the stale checkpoint
         for (uint256 i = 0; i < bidCount; i++) {
@@ -244,39 +276,141 @@ contract AuctionInvariantHandler is Test, Assertions {
         );
     }
 
-    /// @notice Roll the block number
-    function handleRoll(uint256 seed) public {
-        // Roll 10% of the time to ensure that we can submit enough bids given the block duration of the auction
-        if (seed % 10 == 0) vm.roll(block.number + 1);
+    function _handleSubmitBidRevert(
+        bytes memory revertData,
+        uint128 inputAmount,
+        uint256 maxPrice,
+        uint256 prevTickPrice
+    ) internal {
+        if (block.number >= mockAuction.endBlock()) {
+            assertEq(revertData, abi.encodeWithSelector(IStepStorage.AuctionIsOver.selector));
+            metrics.cnt_AuctionIsOverError++;
+        } else if (
+            bytes4(revertData)
+                == bytes4(abi.encodeWithSelector(IContinuousClearingAuction.BidMustBeAboveClearingPrice.selector))
+        ) {
+            // See if we checkpoint, that the bid maxPrice would be at an invalid price
+            mockAuction.checkpoint();
+            // Because it reverted from BidMustBeAboveClearingPrice, we must assert that it should have
+            assertLe(
+                maxPrice,
+                mockAuction.clearingPrice(),
+                'Reverted with BidMustBeAboveClearingPrice but maxPrice is not above clearing price'
+            );
+            metrics.cnt_BidMustBeAboveClearingPriceError++;
+        } else if (inputAmount == 0) {
+            assertEq(revertData, abi.encodeWithSelector(IContinuousClearingAuction.BidAmountTooSmall.selector));
+            metrics.cnt_BidAmountTooSmallError++;
+        } else if (
+            bytes4(revertData) == bytes4(abi.encodeWithSelector(IContinuousClearingAuction.AuctionSoldOut.selector))
+        ) {
+            metrics.cnt_SubmitBidSkippedSoldOut++;
+        } else if (
+            // If the prevTickPrice is 0, it could maybe be a race that the clearing price has increased since the bid was placed
+            // This is handled in the else condition - so we exclude it here
+            prevTickPrice == 0
+                && bytes4(revertData)
+                    != bytes4(abi.encodeWithSelector(IContinuousClearingAuction.BidMustBeAboveClearingPrice.selector))
+        ) {
+            assertEq(revertData, abi.encodeWithSelector(ITickStorage.TickPriceNotIncreasing.selector));
+            metrics.cnt_TickPriceNotIncreasingError++;
+        } else if (
+            mockAuction.sumCurrencyDemandAboveClearingQ96()
+                >= ConstantsLib.X7_UPPER_BOUND - (inputAmount * FixedPoint96.Q96 * ConstantsLib.MPS)
+                    / (ConstantsLib.MPS - _checkpoint.cumulativeMps)
+        ) {
+            assertEq(revertData, abi.encodeWithSelector(IContinuousClearingAuction.InvalidBidUnableToClear.selector));
+            metrics.cnt_InvalidBidUnableToClearError++;
+        } else {
+            // For race conditions or any errors that require additional calls to be made
+
+            // Uncaught error so we bubble up the revert reason
+            emit log_string('Invariant::handleSubmitBid: Uncaught error');
+            assembly {
+                revert(add(revertData, 0x20), mload(revertData))
+            }
+        }
     }
 
-    function handleCheckpoint() public validateCheckpoint givenAuctionHasStarted {
+    /// @notice Roll the block number
+    function handleRoll(uint256 deploymentSeed_, uint256 seed)
+        public
+        useDeployment(deploymentSeed_)
+        givenAuctionHasStarted
+    {
+        if (block.number >= mockAuction.endBlock()) return;
+
+        uint256 elapsedBlocks = block.number - mockAuction.startBlock() + 1;
+        if (bidCount < elapsedBlocks * TARGET_BIDS_PER_BLOCK) return;
+
+        // Keep early sequences bid-heavy, then advance faster once the book has meaningful demand.
+        if (seed % 8 == 0) vm.roll(block.number + 1);
+    }
+
+    function handleCheckpoint(uint256 deploymentSeed_)
+        public
+        useDeployment(deploymentSeed_)
+        validateCheckpoint
+        givenAuctionHasStarted
+    {
         mockAuction.checkpoint();
     }
 
-    function handleForceIterateOverTicks(uint8 tickNumber) public givenAuctionHasStarted {
-        uint256 prevTickPrice = _getLowerTick(mockAuction.floorPrice() + tickNumber * mockAuction.tickSpacing());
-        if (prevTickPrice == 0 || prevTickPrice <= mockAuction.nextActiveTickPrice()) {
-            prevTickPrice = mockAuction.MAX_TICK_PTR();
+    function handleForceIterateOverTicks(uint256 deploymentSeed_, uint8 tickNumber)
+        public
+        useDeployment(deploymentSeed_)
+        givenAuctionHasStarted
+    {
+        uint256 untilTickPrice = mockAuction.MAX_TICK_PTR();
+        uint256 nextActiveTickPrice = mockAuction.nextActiveTickPrice();
+
+        if (nextActiveTickPrice != mockAuction.MAX_TICK_PTR()) {
+            uint256 candidate = mockAuction.ticks(nextActiveTickPrice).next;
+            uint256 hops = _bound(uint256(tickNumber), 0, 3);
+            while (hops > 0 && candidate != mockAuction.MAX_TICK_PTR()) {
+                uint256 nextCandidate = mockAuction.ticks(candidate).next;
+                if (nextCandidate == mockAuction.MAX_TICK_PTR()) break;
+                candidate = nextCandidate;
+                hops--;
+            }
+            if (candidate != 0 && candidate != mockAuction.MAX_TICK_PTR()) {
+                untilTickPrice = candidate;
+            }
         }
 
-        if (prevTickPrice == mockAuction.MAX_TICK_PTR()) {
+        if (untilTickPrice == mockAuction.MAX_TICK_PTR()) {
             metrics.cnt_untilTickPriceMAX_TICK_PTR++;
         } else {
             metrics.cnt_untilTickPrice++;
         }
-        mockAuction.forceIterateOverTicks(prevTickPrice);
+        mockAuction.forceIterateOverTicks(untilTickPrice);
     }
 
     /// @notice Handle a bid submission, ensuring that the actor has enough funds and the bid parameters are valid
-    function handleSubmitBid(uint256 actorIndexSeed, uint128 bidAmount, uint8 tickNumber)
+    function handleSubmitBid(uint256 deploymentSeed_, uint256 actorIndexSeed, uint128 bidAmount, uint8 tickNumber)
         public
         payable
+        useDeployment(deploymentSeed_)
         useActor(actorIndexSeed)
         givenAuctionHasStarted
         validateCheckpoint
     {
-        (uint128 inputAmount, uint256 maxPrice) = _useAmountMaxPrice(bidAmount, _checkpoint.clearingPrice, tickNumber);
+        if (_checkpoint.cumulativeMps >= ConstantsLib.MPS) {
+            metrics.cnt_SubmitBidSkippedAuctionFinished++;
+            return;
+        }
+        if (ValueX7.unwrap(mockAuction.remainingSupplyQ96X7()) == 0) {
+            metrics.cnt_SubmitBidSkippedSoldOut++;
+            return;
+        }
+
+        (uint128 inputAmount, uint256 maxPrice, bool canSubmitAtHigherPrice) =
+            _useAmountMaxPrice(bidAmount, _checkpoint.clearingPrice, tickNumber);
+        if (!canSubmitAtHigherPrice) {
+            metrics.cnt_SubmitBidSkippedMaxPrice++;
+            return;
+        }
+
         if (currency.isAddressZero()) {
             vm.deal(currentActor, inputAmount);
         } else {
@@ -288,65 +422,21 @@ contract AuctionInvariantHandler is Test, Assertions {
 
         uint256 prevTickPrice = _getLowerTick(maxPrice);
         uint256 nextBidId = mockAuction.nextBidId();
-        emit log_named_decimal_uint('submitting bid with amount', inputAmount, 18);
         try mockAuction.submitBid{value: currency.isAddressZero() ? inputAmount : 0}(
             maxPrice, inputAmount, currentActor, prevTickPrice, bytes('')
         ) {
             bidIds.push(nextBidId);
             bidCount++;
         } catch (bytes memory revertData) {
-            if (block.number >= mockAuction.endBlock()) {
-                assertEq(revertData, abi.encodeWithSelector(IStepStorage.AuctionIsOver.selector));
-                metrics.cnt_AuctionIsOverError++;
-            } else if (
-                bytes4(revertData)
-                    == bytes4(abi.encodeWithSelector(IContinuousClearingAuction.BidMustBeAboveClearingPrice.selector))
-            ) {
-                // See if we checkpoint, that the bid maxPrice would be at an invalid price
-                mockAuction.checkpoint();
-                // Because it reverted from BidMustBeAboveClearingPrice, we must assert that it should have
-                assertLe(
-                    maxPrice,
-                    mockAuction.clearingPrice(),
-                    'Reverted with BidMustBeAboveClearingPrice but maxPrice is not above clearing price'
-                );
-                metrics.cnt_BidMustBeAboveClearingPriceError++;
-            } else if (inputAmount == 0) {
-                assertEq(revertData, abi.encodeWithSelector(IContinuousClearingAuction.BidAmountTooSmall.selector));
-                metrics.cnt_BidAmountTooSmallError++;
-            } else if (
-                // If the prevTickPrice is 0, it could maybe be a race that the clearing price has increased since the bid was placed
-                // This is handled in the else condition - so we exclude it here
-                prevTickPrice == 0
-                    && bytes4(revertData)
-                        != bytes4(
-                            abi.encodeWithSelector(IContinuousClearingAuction.BidMustBeAboveClearingPrice.selector)
-                        )
-            ) {
-                assertEq(revertData, abi.encodeWithSelector(ITickStorage.TickPriceNotIncreasing.selector));
-                metrics.cnt_TickPriceNotIncreasingError++;
-            } else if (
-                mockAuction.sumCurrencyDemandAboveClearingQ96()
-                    >= ConstantsLib.X7_UPPER_BOUND - (inputAmount * FixedPoint96.Q96 * ConstantsLib.MPS)
-                        / (ConstantsLib.MPS - _checkpoint.cumulativeMps)
-            ) {
-                assertEq(
-                    revertData, abi.encodeWithSelector(IContinuousClearingAuction.InvalidBidUnableToClear.selector)
-                );
-                metrics.cnt_InvalidBidUnableToClearError++;
-            } else {
-                // For race conditions or any errors that require additional calls to be made
-
-                // Uncaught error so we bubble up the revert reason
-                emit log_string('Invariant::handleSubmitBid: Uncaught error');
-                assembly {
-                    revert(add(revertData, 0x20), mload(revertData))
-                }
-            }
+            _handleSubmitBidRevert(revertData, inputAmount, maxPrice, prevTickPrice);
         }
     }
 
-    function handleEarlyExitPartiallyFilledBid(uint256 actorIndexSeed) public useActor(actorIndexSeed) {
+    function handleEarlyExitPartiallyFilledBid(uint256 deploymentSeed_, uint256 actorIndexSeed)
+        public
+        useDeployment(deploymentSeed_)
+        useActor(actorIndexSeed)
+    {
         uint256 outbidBidId = _useOutbidBidId();
         if (outbidBidId == type(uint256).max) {
             metrics.cnt_NoBidToEarlyExitError++;
@@ -385,7 +475,11 @@ contract AuctionInvariantHandler is Test, Assertions {
         metrics.cnt_BidEarlyExited++;
     }
 
-    function handleExitBid(uint256 actorIndexSeed) public useActor(actorIndexSeed) {
+    function handleExitBid(uint256 deploymentSeed_, uint256 actorIndexSeed)
+        public
+        useDeployment(deploymentSeed_)
+        useActor(actorIndexSeed)
+    {
         uint256 bidId = _useExitableBidId();
         if (bidId == type(uint256).max) return;
 
@@ -415,16 +509,27 @@ contract AuctionInvariantHandler is Test, Assertions {
         uint256 maximumTokensFilled =
             FixedPointMathLib.min(BidLib.toEffectiveAmount(bid) / mockAuction.floorPrice(), mockAuction.totalSupply());
         assertLe(bid.tokensFilled, maximumTokensFilled, 'Bid tokens filled must be less than the maximum tokens filled');
+
+        metrics.cnt_BidExited++;
+        if (!mockAuction.isGraduated()) {
+            metrics.cnt_NonGraduatedBidExited++;
+        }
     }
 
     function printMetrics() public {
         emit log_string('==================== METRICS ====================');
         emit log_named_uint('bidCount', bidCount);
         emit log_named_uint('BidEarlyExited count', metrics.cnt_BidEarlyExited);
+        emit log_named_uint('BidExited count', metrics.cnt_BidExited);
         emit log_named_uint('checkpoints count', metrics.cnt_checkpoints);
         emit log_named_uint('clearingPriceUpdated count', metrics.cnt_clearingPriceUpdated);
         emit log_named_uint('untilTickPriceMAX_TICK_PTR count', metrics.cnt_untilTickPriceMAX_TICK_PTR);
         emit log_named_uint('untilTickPrice count', metrics.cnt_untilTickPrice);
+        emit log_named_uint('SubmitBidSkippedMaxPrice count', metrics.cnt_SubmitBidSkippedMaxPrice);
+        emit log_named_uint('SubmitBidSkippedSoldOut count', metrics.cnt_SubmitBidSkippedSoldOut);
+        emit log_named_uint('SubmitBidSkippedAuctionFinished count', metrics.cnt_SubmitBidSkippedAuctionFinished);
+        emit log_named_uint('NonGraduatedBidExited count', metrics.cnt_NonGraduatedBidExited);
+        emit log_named_uint('ClaimTokensBatchNotGraduated count', metrics.cnt_ClaimTokensBatchNotGraduated);
         emit log_named_uint('AuctionIsOverError count', metrics.cnt_AuctionIsOverError);
         emit log_named_uint('BidAmountTooSmallError count', metrics.cnt_BidAmountTooSmallError);
         emit log_named_uint('TickPriceNotIncreasingError count', metrics.cnt_TickPriceNotIncreasingError);
@@ -435,23 +540,41 @@ contract AuctionInvariantHandler is Test, Assertions {
     }
 }
 
-contract AuctionInvariantTest is AuctionUnitTest {
+abstract contract AuctionInvariantBase is AuctionUnitTest {
     AuctionInvariantHandler public handler;
+    bool internal handlerInitializedAuction;
 
-    function setUp() public {
-        setUpMockAuctionInvariant();
-
-        logFuzzDeploymentParams($deploymentParams);
+    function setUpInvariantAuction() internal {
+        FuzzDeploymentParams memory bootstrapDeploymentParams = helper__seededInvariantDeploymentParams(0);
+        setUpMockAuction(bootstrapDeploymentParams);
 
         address[] memory actors = new address[](2);
         actors[0] = alice;
         actors[1] = bob;
 
-        handler = new AuctionInvariantHandler(mockAuction, actors);
+        handler = new AuctionInvariantHandler(IAuctionInvariantHarness(address(this)), actors);
         targetContract(address(handler));
-        bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = AuctionInvariantHandler.printMetrics.selector;
-        excludeSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
+
+        bytes4[] memory selectors = new bytes4[](6);
+        selectors[0] = AuctionInvariantHandler.handleRoll.selector;
+        selectors[1] = AuctionInvariantHandler.handleCheckpoint.selector;
+        selectors[2] = AuctionInvariantHandler.handleForceIterateOverTicks.selector;
+        selectors[3] = AuctionInvariantHandler.handleSubmitBid.selector;
+        selectors[4] = AuctionInvariantHandler.handleEarlyExitPartiallyFilledBid.selector;
+        selectors[5] = AuctionInvariantHandler.handleExitBid.selector;
+        targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
+    }
+
+    function initializeInvariantAuction(uint256 deploymentSeed) external returns (MockContinuousClearingAuction) {
+        require(msg.sender == address(handler), 'ONLY_HANDLER');
+        if (handlerInitializedAuction) return mockAuction;
+
+        FuzzDeploymentParams memory fuzzDeploymentParams = helper__seededInvariantDeploymentParams(deploymentSeed);
+        setUpMockAuction(fuzzDeploymentParams);
+        logFuzzDeploymentParams($deploymentParams);
+
+        handlerInitializedAuction = true;
+        return mockAuction;
     }
 
     modifier printMetrics() {
@@ -513,7 +636,7 @@ contract AuctionInvariantTest is AuctionUnitTest {
     }
 
     /// @notice Assert that the auction loses no more than 1e18 wei of currency or tokens
-    function assertAcceptableDustBalances() internal {
+    function assertAcceptableDustBalances() internal view {
         assertApproxEqAbs(
             address(mockAuction).balance, 0, 1e18, 'Auction currency balance is not within 1e18 wei of zero'
         );
@@ -719,12 +842,140 @@ contract AuctionInvariantTest is AuctionUnitTest {
         }
     }
 
+    function helper__exitAllBidsInNonGraduatedAuction() internal returns (uint256 totalRefunded) {
+        require(
+            block.number >= mockAuction.endBlock(), 'helper__exitAllBidsInNonGraduatedAuction::Auction must be over'
+        );
+        require(
+            mockAuction.lastCheckpointedBlock() == mockAuction.endBlock(),
+            'helper__exitAllBidsInNonGraduatedAuction::Auction must be checkpointed at endBlock'
+        );
+        assertFalse(mockAuction.isGraduated());
+
+        uint256 bidCount = handler.bidCount();
+        for (uint256 i = 0; i < bidCount; i++) {
+            uint256 bidId = handler.bidIds(i);
+            Bid memory bid = mockAuction.bids(bidId);
+            if (bid.exitedBlock != 0) continue;
+
+            uint256 ownerBalanceBefore = bid.owner.balance;
+            mockAuction.exitBid(bidId);
+
+            bid = mockAuction.bids(bidId);
+            uint256 refundAmount = bid.owner.balance - ownerBalanceBefore;
+            totalRefunded += refundAmount;
+
+            assertEq(bid.exitedBlock, block.number);
+            assertEq(bid.tokensFilled, 0, 'Non-graduated bid exit must not fill tokens');
+            assertEq(refundAmount, bid.amountQ96 / FixedPoint96.Q96, 'Non-graduated bid must be fully refunded');
+        }
+    }
+
+    function helper__sweepUnsoldTokensInNonGraduatedAuction() internal {
+        uint256 tokensRecipientBalanceBefore = token.balanceOf(mockAuction.tokensRecipient());
+        vm.prank(mockAuction.tokensRecipient());
+        mockAuction.sweepUnsoldTokens();
+        assertEq(
+            token.balanceOf(mockAuction.tokensRecipient()), tokensRecipientBalanceBefore + mockAuction.totalSupply()
+        );
+        assertEq(token.balanceOf(address(mockAuction)), 0);
+
+        vm.prank(mockAuction.fundsRecipient());
+        vm.expectRevert(IAuctionStorage.NotGraduated.selector);
+        mockAuction.sweepCurrency();
+    }
+
+    function helper__assertClaimsRevertWhenNotGraduated() internal {
+        vm.roll(mockAuction.claimBlock());
+
+        uint256 bidCount = handler.bidCount();
+        uint256[] memory bidIds = new uint256[](bidCount);
+        for (uint256 i = 0; i < bidCount; i++) {
+            bidIds[i] = handler.bidIds(i);
+            vm.expectRevert(IAuctionStorage.NotGraduated.selector);
+            mockAuction.claimTokens(bidIds[i]);
+        }
+
+        vm.expectRevert(IAuctionStorage.NotGraduated.selector);
+        mockAuction.claimTokensBatch(alice, bidIds);
+    }
+}
+
+contract AuctionInvariantTest is AuctionInvariantBase {
+    function setUp() public {
+        setUpInvariantAuction();
+    }
+
+    function test_invariantAuctionInitializesFromHandlerSeed() public {
+        MockContinuousClearingAuction bootstrapAuction = mockAuction;
+        assertNotEq(address(bootstrapAuction), address(0));
+        assertFalse(handler.initialized());
+
+        handler.handleCheckpoint(1);
+
+        assertNotEq(address(mockAuction), address(0));
+        assertNotEq(address(mockAuction), address(bootstrapAuction));
+        assertEq(address(handler.mockAuction()), address(mockAuction));
+        assertEq(address(handler.token()), address(token));
+        assertEq(handler.BID_MIN_PRICE(), mockAuction.floorPrice() + mockAuction.tickSpacing());
+        assertEq(handler.deploymentSeed(), 1);
+    }
+
+    function test_seededInvariantTickSpacingUsesRealisticFloorRatios() public {
+        for (uint256 i = 0; i < 32; i++) {
+            FuzzDeploymentParams memory fuzzDeploymentParams = helper__seededInvariantDeploymentParams(i);
+            uint256 floorPrice = fuzzDeploymentParams.auctionParams.floorPrice;
+            uint256 tickSpacing = fuzzDeploymentParams.auctionParams.tickSpacing;
+
+            assertEq(floorPrice % tickSpacing, 0);
+            assertLe(floorPrice + tickSpacing, MaxBidPriceLib.maxBidPrice(fuzzDeploymentParams.totalSupply));
+
+            uint256 tickSpacingBps = (tickSpacing * 10_000) / floorPrice;
+            assertTrue(
+                tickSpacingBps == 1 || tickSpacingBps == 100 || tickSpacingBps == 1000 || tickSpacingBps == 10_000
+            );
+        }
+    }
+
+    function test_fuzzGeneratorsCanBeUsedWithoutAuctionBaseStorage() public view {
+        FuzzDeploymentParams memory fuzzDeploymentParams = FuzzGenerators.seededDeploymentParams(
+            1, ETH_SENTINEL, tokensRecipient, fundsRecipient, address(0), block.number
+        );
+        uint128 bidTokenAmount = FuzzGenerators.seededBidTokenAmount(42);
+        (uint256 maxPrice, bool canBid) = FuzzGenerators.nextBidPrice(
+            fuzzDeploymentParams.auctionParams.floorPrice,
+            fuzzDeploymentParams.auctionParams.tickSpacing,
+            MaxBidPriceLib.maxBidPrice(fuzzDeploymentParams.totalSupply),
+            3
+        );
+
+        assertTrue(canBid);
+        assertGt(bidTokenAmount, 0);
+        assertGt(maxPrice, fuzzDeploymentParams.auctionParams.floorPrice);
+        assertEq(maxPrice % fuzzDeploymentParams.auctionParams.tickSpacing, 0);
+    }
+
+    function test_fuzzGeneratorsIncludeBidAmountValidationExtremes() public pure {
+        assertEq(FuzzGenerators.seededBidTokenAmount(0), 0);
+        assertEq(FuzzGenerators.seededBidTokenAmount(1), 1);
+        assertEq(FuzzGenerators.seededBidTokenAmount(6), type(uint128).max);
+    }
+
+    function test_handleRollWaitsForBidDensity() public {
+        handler.handleRoll(1, 0);
+
+        assertEq(block.number, mockAuction.startBlock());
+        assertEq(handler.bidCount(), 0);
+    }
+
     function invariant_canSweep_thenExitAndClaimAllBids()
         public
         printMetrics
         givenAuctionIsOver
         givenAuctionIsCheckpointed
     {
+        if (!mockAuction.isGraduated()) return;
+
         // Sweep first
         helper__sweep();
         // Then exit and claim all bids
@@ -748,6 +999,8 @@ contract AuctionInvariantTest is AuctionUnitTest {
         givenAuctionIsOver
         givenAuctionIsCheckpointed
     {
+        if (!mockAuction.isGraduated()) return;
+
         // Exit and claim all bids first
         uint256 totalCurrencyRaised = helper__exitAndClaimAllBids();
         // Then sweep
@@ -762,6 +1015,25 @@ contract AuctionInvariantTest is AuctionUnitTest {
 
         _printBalances();
         assertAcceptableDustBalances();
+        _printState();
+    }
+
+    function invariant_nonGraduatedAuctionRefundsBidsAndSweepsAllTokens()
+        public
+        printMetrics
+        givenAuctionIsOver
+        givenAuctionIsCheckpointed
+    {
+        if (mockAuction.isGraduated()) return;
+
+        assertFalse(mockAuction.isGraduated());
+
+        helper__sweepUnsoldTokensInNonGraduatedAuction();
+        helper__exitAllBidsInNonGraduatedAuction();
+        assertEq(address(mockAuction).balance, 0, 'Non-graduated auction must refund all bid currency');
+        helper__assertClaimsRevertWhenNotGraduated();
+
+        _printBalances();
         _printState();
     }
 }

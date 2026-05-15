@@ -1036,4 +1036,142 @@ contract AuctionInvariantTest is AuctionInvariantBase {
         _printBalances();
         _printState();
     }
+
+    /// @notice The clearing price must always remain between the floor price and MAX_BID_PRICE.
+    /// @dev Floor is the immutable lower bound set at construction; MAX_BID_PRICE is the cap derived from total supply.
+    function invariant_clearingPriceWithinBounds() public view {
+        // Ensure auction is checkpointed
+        mockAuction.checkpoint();
+        uint256 cp = mockAuction.clearingPrice();
+        assertGe(cp, mockAuction.floorPrice(), 'Clearing price below floor price');
+        assertLe(cp, mockAuction.MAX_BID_PRICE(), 'Clearing price above MAX_BID_PRICE');
+    }
+
+    /// @notice After a full checkpoint, the next active tick price must be strictly above the clearing price.
+    /// @dev `forceIterateOverTicks` may legitimately leave `nextActiveTickPrice` below the new clearing price
+    ///      because it can stop early at a caller-supplied `_untilTickPrice`. A real checkpoint always iterates
+    ///      to `MAX_TICK_PTR`, so the invariant must hold post-checkpoint.
+    function invariant_nextActiveTickPriceAboveClearingAfterCheckpoint() public {
+        if (block.number < mockAuction.startBlock() || block.number >= mockAuction.claimBlock()) return;
+        mockAuction.checkpoint();
+        uint256 nextActiveTickPrice = mockAuction.nextActiveTickPrice();
+        if (nextActiveTickPrice == mockAuction.MAX_TICK_PTR()) return;
+        assertGt(
+            nextActiveTickPrice,
+            mockAuction.clearingPrice(),
+            'Next active tick must be strictly above clearing after checkpoint'
+        );
+    }
+
+    /// @notice The running sum of demand above clearing must always stay below the X7 upper bound.
+    /// @dev Exceeding this bound would cause subsequent bids to revert with `InvalidBidUnableToClear`.
+    function invariant_sumDemandBelowUpperBound() public view {
+        assertLt(
+            mockAuction.sumCurrencyDemandAboveClearingQ96(),
+            ConstantsLib.X7_UPPER_BOUND,
+            'Sum demand above clearing must stay below X7 upper bound'
+        );
+    }
+
+    /// @notice The auction's currency balance must cover the principal of every unexited bid.
+    /// @dev Currency only leaves the auction via refunds on exit or via `sweepCurrency`. The handler exercises
+    ///      `exitPartiallyFilledBid` (early exit during the auction), so for unexited bids the full principal
+    ///      should still be sitting in the contract along with the unrefunded portion of any exited bids.
+    function invariant_auctionBalanceCoversUnexitedBids() public view {
+        if (mockAuction.currency() != address(0)) return;
+        if (mockAuction.sweepCurrencyBlock() != 0) return;
+
+        uint256 bidCount = handler.bidCount();
+        uint256 unexitedPrincipal;
+        for (uint256 i = 0; i < bidCount; i++) {
+            Bid memory bid = mockAuction.bids(handler.bidIds(i));
+            if (bid.exitedBlock != 0) continue;
+            unexitedPrincipal += bid.amountQ96 / FixedPoint96.Q96;
+        }
+        assertGe(
+            address(mockAuction).balance,
+            unexitedPrincipal,
+            'Auction balance must cover the principal of all unexited bids'
+        );
+    }
+
+    /// @notice `currencyRaised` is bounded by `totalSupply * clearingPrice / Q96`.
+    /// @dev We can never raise more currency than what selling the total supply at clearing price would yield
+    ///      (clearing price is the price at which we cleared the auction so far).
+    function invariant_currencyRaisedBoundedByMaxRaisable() public view {
+        uint256 maxRaisable = FixedPointMathLib.fullMulDiv(
+            uint256(mockAuction.totalSupply()), mockAuction.clearingPrice(), FixedPoint96.Q96
+        );
+        // Allow 1 wei rounding tolerance since clearing price is rounded up
+        assertLe(mockAuction.currencyRaised(), maxRaisable + 1, 'Currency raised exceeds theoretical maximum');
+    }
+}
+
+/// @notice Focused PoC for the `invariant_clearingPriceWithinBounds` failure.
+/// @dev Demonstrates that `forceIterateOverTicks(_untilTickPrice)` can set `$clearingPrice` to a value
+///      strictly greater than `MAX_BID_PRICE` when `_untilTickPrice` is a partial limit (not `MAX_TICK_PTR`)
+///      and residual demand from ticks at/above that limit is large enough.
+///
+///      The contract never clamps the value returned by `_iterateOverTicksAndFindClearingPrice` to
+///      `MAX_BID_PRICE`. The cap is only enforced on incoming bid prices (`_submitBid`), not on the
+///      *computed* clearing price.
+contract ClearingPriceOverflowPoC is AuctionUnitTest {
+    function setUp() public {
+        setUpMockAuction();
+    }
+
+    /// @notice forceIterateOverTicks with a partial `_untilTickPrice` can raise `$clearingPrice` above `MAX_BID_PRICE`.
+    function test_clearingPriceCanExceedMaxBidPriceViaForceIterate() public {
+        uint256 floor = mockAuction.floorPrice();
+        uint256 tickSpacing = mockAuction.tickSpacing();
+        uint256 maxBidPrice = mockAuction.MAX_BID_PRICE();
+
+        vm.roll(mockAuction.startBlock());
+
+        // tickA: a low tick (just above floor)
+        // tickB: a high tick (highest tick boundary <= MAX_BID_PRICE)
+        uint256 tickA = floor + tickSpacing;
+        uint256 tickB = maxBidPrice - (maxBidPrice % tickSpacing);
+        require(tickB > tickA + tickSpacing, 'PoC setup: pick a config with room between tickA and tickB');
+
+        // Tiny bid at tickA — its only purpose is to give the iteration a tick to consume before stopping
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        mockAuction.submitBid{value: 1 ether}(tickA, 1 ether, alice, floor, bytes(''));
+
+        // Massive bid at tickB — provides the residual demand left after the partial iteration
+        uint128 hugeAmount = type(uint128).max;
+        vm.deal(bob, hugeAmount);
+        vm.prank(bob);
+        mockAuction.submitBid{value: hugeAmount}(tickB, hugeAmount, bob, tickA, bytes(''));
+
+        // After both bids: nextActiveTickPrice == tickA, sumDemand = tickA's + tickB's demand
+        assertEq(mockAuction.nextActiveTickPrice(), tickA, 'precondition: nextActiveTickPrice == tickA');
+
+        // Force-iterate up to (but not including) tickB.
+        // Loop processes tickA (subtracts its demand, advances to tickB), then exits because
+        // `nextActiveTickPrice_ == _untilTickPrice`. Residual demand is tickB's huge demand.
+        // `clearingPrice_ = toPriceCeiling(residual demand, supply, mps)` — no clamp to MAX_BID_PRICE.
+        mockAuction.forceIterateOverTicks(tickB);
+
+        uint256 cp = mockAuction.clearingPrice();
+        emit log_named_uint('MAX_BID_PRICE', maxBidPrice);
+        emit log_named_uint('clearingPrice', cp);
+        emit log_named_uint('nextActiveTickPrice', mockAuction.nextActiveTickPrice());
+
+        assertGt(cp, maxBidPrice, 'Clearing price exceeds MAX_BID_PRICE - invariant violated');
+
+        // Downstream effect 1: All subsequent bids revert with BidMustBeAboveClearingPrice,
+        // because no valid bid maxPrice (<= MAX_BID_PRICE < clearingPrice) can satisfy the precondition.
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        vm.expectRevert(IContinuousClearingAuction.BidMustBeAboveClearingPrice.selector);
+        mockAuction.submitBid{value: 1 ether}(tickB, 1 ether, alice, tickA, bytes(''));
+
+        // Downstream effect 2: A real checkpoint at a fresh block continues iteration from tickB and
+        // resolves the inconsistency — clearing settles back at or below MAX_BID_PRICE.
+        vm.roll(block.number + 1);
+        mockAuction.checkpoint();
+        assertLe(mockAuction.clearingPrice(), maxBidPrice, 'Next-block checkpoint resolves the inconsistency');
+    }
 }

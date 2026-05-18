@@ -50,11 +50,23 @@ library FuzzGenerators {
         return validDivisors[seed % validDivisors.length];
     }
 
-    /// @notice Pick a realistic tick spacing as basis points of floor price.
-    /// @dev Buckets are 0.01%, 1%, 10%, and 100% of floor price.
-    function seededTickSpacingBps(uint256 seed) internal pure returns (uint256) {
-        uint16[4] memory tickSpacingBps = [uint16(1), uint16(100), uint16(1000), uint16(10_000)];
+    /// @notice Pick a fixture tick spacing as basis points of floor price.
+    /// @dev Buckets are 0.01%, 1%, 10%, 100%, and 1000% of floor price.
+    function fixtureTickSpacingBps(uint256 seed) internal pure returns (uint256) {
+        uint32[5] memory tickSpacingBps = [uint32(1), uint32(100), uint32(1000), uint32(10_000), uint32(100_000)];
         return tickSpacingBps[seed % tickSpacingBps.length];
+    }
+
+    /// @notice Pick a fixture graduation target from common edge cases.
+    function fixtureRequiredCurrencyRaised(uint256 seed, uint128 totalSupply, uint256 floorPrice)
+        internal
+        pure
+        returns (uint128)
+    {
+        uint128 fullyFundedAtFloorPrice =
+            SafeCastLib.toUint128(uint256(totalSupply).fullMulDiv(floorPrice, FixedPoint96.Q96));
+        uint128[3] memory requiredCurrencyRaisedFixtures = [uint128(0), fullyFundedAtFloorPrice, type(uint128).max];
+        return requiredCurrencyRaisedFixtures[seed % requiredCurrencyRaisedFixtures.length];
     }
 
     /// @notice Build a complete, constructor-valid deployment parameter set from a seed.
@@ -82,13 +94,15 @@ library FuzzGenerators {
         deploymentParams.numberOfSteps = seededDivisorOfMPS(seededUint256(seed, 'numberOfSteps'));
 
         uint256 maxBidPrice = MaxBidPriceLib.maxBidPrice(deploymentParams.totalSupply);
-        uint256 tickSpacingBps = seededTickSpacingBps(seededUint256(seed, 'tickSpacingBps'));
-        uint256 maxFloorPrice = (maxBidPrice * BPS) / (BPS + tickSpacingBps);
+        uint256 tickSpacingBps = fixtureTickSpacingBps(seededUint256(seed, 'tickSpacingBps'));
+        uint256 maxFloorPrice = tickSpacingBps > BPS
+            ? (maxBidPrice * BPS) / (2 * tickSpacingBps)
+            : (maxBidPrice * BPS) / (BPS + tickSpacingBps);
 
-        deploymentParams.auctionParams.floorPrice = uint128(
-            ConstantsLib.MIN_FLOOR_PRICE
-                + (seededUint256(seed, 'floorPrice') % (maxFloorPrice - ConstantsLib.MIN_FLOOR_PRICE + 1))
-        );
+        // Select a seeded floor price within the constructor-valid range for the chosen total supply.
+        // The upper bound leaves enough room for at least one initialized tick above the floor.
+        deploymentParams.auctionParams.floorPrice = ConstantsLib.MIN_FLOOR_PRICE
+            + (seededUint256(seed, 'floorPrice') % (maxFloorPrice - ConstantsLib.MIN_FLOOR_PRICE + 1));
         deploymentParams.auctionParams.tickSpacing =
             (uint256(deploymentParams.auctionParams.floorPrice) * tickSpacingBps) / BPS;
         if (deploymentParams.auctionParams.tickSpacing < ConstantsLib.MIN_TICK_SPACING) {
@@ -98,8 +112,15 @@ library FuzzGenerators {
         deploymentParams.auctionParams.floorPrice = roundPriceDownToTickSpacing(
             deploymentParams.auctionParams.floorPrice, deploymentParams.auctionParams.tickSpacing
         );
-        deploymentParams.auctionParams.requiredCurrencyRaised =
-            seededUint256(seed, 'requiredCurrencyRaised') % 2 == 0 ? 0 : type(uint128).max;
+        if (deploymentParams.auctionParams.floorPrice < ConstantsLib.MIN_FLOOR_PRICE) {
+            deploymentParams.auctionParams.floorPrice =
+                roundPriceUpToTickSpacing(ConstantsLib.MIN_FLOOR_PRICE, deploymentParams.auctionParams.tickSpacing);
+        }
+        deploymentParams.auctionParams.requiredCurrencyRaised = fixtureRequiredCurrencyRaised(
+            seededUint256(seed, 'requiredCurrencyRaised'),
+            deploymentParams.totalSupply,
+            deploymentParams.auctionParams.floorPrice
+        );
 
         uint256 latestStartBlock = type(uint64).max - deploymentParams.numberOfSteps - 2;
         currentBlock = FixedPointMathLib.min(currentBlock, latestStartBlock);
@@ -188,6 +209,13 @@ library FuzzGenerators {
     /// @notice Round price down to the nearest tick boundary.
     function roundPriceDownToTickSpacing(uint256 price, uint256 tickSpacing) internal pure returns (uint256) {
         return price - (price % tickSpacing);
+    }
+
+    /// @notice Round price up to the nearest tick boundary.
+    function roundPriceUpToTickSpacing(uint256 price, uint256 tickSpacing) internal pure returns (uint256) {
+        uint256 remainder = price % tickSpacing;
+        if (remainder == 0) return price;
+        return price + (tickSpacing - remainder);
     }
 
     /// @notice Generate a linear auction step schedule split evenly across numberOfSteps.

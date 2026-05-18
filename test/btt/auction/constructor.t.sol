@@ -62,7 +62,7 @@ contract ConstructorTest is BttBase {
 
         // Just to pass checks
         mParams.parameters.floorPrice = ConstantsLib.MIN_FLOOR_PRICE;
-        mParams.parameters.tickSpacing = ConstantsLib.MIN_TICK_SPACING;
+        mParams.parameters.tickSpacing = ConstantsLib.MIN_FLOOR_PRICE;
 
         ContinuousClearingAuction auction =
             new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
@@ -114,7 +114,7 @@ contract ConstructorTest is BttBase {
         );
 
         mParams.parameters.floorPrice = ConstantsLib.MIN_FLOOR_PRICE;
-        mParams.parameters.tickSpacing = ConstantsLib.MIN_TICK_SPACING;
+        mParams.parameters.tickSpacing = ConstantsLib.MIN_FLOOR_PRICE;
 
         ContinuousClearingAuction auction =
             new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);

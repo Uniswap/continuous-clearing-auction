@@ -16,6 +16,7 @@ import {
     LBPInitializationParams
 } from './interfaces/external/ILBPInitializer.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
+import {CheckpointAccountingLib} from './libraries/CheckpointAccountingLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
@@ -481,7 +482,7 @@ contract ContinuousClearingAuction is
 
         // Calculate the tokens and currency spent from the fully filled checkpoints
         (uint256 tokensFilled, uint256 currencySpentQ96) =
-            _accountFullyFilledCheckpoints(finalCheckpoint, _getCheckpoint(bid.startBlock), bid);
+            CheckpointAccountingLib.accountFullyFilledCheckpoints(finalCheckpoint, _getCheckpoint(bid.startBlock), bid);
 
         _processExit(_bidId, tokensFilled, currencySpentQ96);
     }
@@ -525,8 +526,9 @@ contract ContinuousClearingAuction is
         // Calculate the tokens and currency spent for the fully filled checkpoints
         // If the bid is outbid in the same block it is submitted in, these two checkpoints will be identical.
         // The extra gas to check for this isn't worth it since the returned values will be 0.
-        (uint256 tokensFilled, uint256 currencySpentQ96) =
-            _accountFullyFilledCheckpoints(lastFullyFilledCheckpoint, _getCheckpoint(bidStartBlock), bid);
+        (uint256 tokensFilled, uint256 currencySpentQ96) = CheckpointAccountingLib.accountFullyFilledCheckpoints(
+            lastFullyFilledCheckpoint, _getCheckpoint(bidStartBlock), bid
+        );
 
         // Upper checkpoint is the last checkpoint where the bid is partially filled
         Checkpoint memory upperCheckpoint;
@@ -564,7 +566,7 @@ contract ContinuousClearingAuction is
         // And `upperCheckpoint` tracks the cumulative currency raised at that clearing price since the first partially filled checkpoint.
         if (upperCheckpoint.clearingPrice == bidMaxPrice) {
             uint256 tickDemandQ96 = _getTick(bidMaxPrice).currencyDemandQ96;
-            (uint256 partialTokensFilled, uint256 partialCurrencySpentQ96) = _accountPartiallyFilledCheckpoints(
+            (uint256 partialTokensFilled, uint256 partialCurrencySpentQ96) = CheckpointAccountingLib.accountPartiallyFilledCheckpoints(
                 bid, tickDemandQ96, upperCheckpoint.currencyRaisedAtClearingPriceQ96X7
             );
             // Add the tokensFilled and currencySpentQ96 from the partially filled checkpoints to the total

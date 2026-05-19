@@ -633,7 +633,7 @@ contract ContinuousClearingAuction is
         $bid.tokensFilled = 0;
     }
 
-    /// @inheritdoc IContinuousClearingAuction
+    /// @inheritdoc ILBPInitializer
     function sweepCurrency() external onlyAfterAuctionIsOver ensureEndBlockIsCheckpointed {
         // Only recipient can sweep
         if (msg.sender != FUNDS_RECIPIENT) revert NotAuthorized(FUNDS_RECIPIENT, msg.sender);
@@ -644,7 +644,7 @@ contract ContinuousClearingAuction is
         _sweepCurrency(_getBlockNumberish(), currencyRaised());
     }
 
-    /// @inheritdoc IContinuousClearingAuction
+    /// @inheritdoc ILBPInitializer
     function sweepUnsoldTokens() external onlyAfterAuctionIsOver ensureEndBlockIsCheckpointed {
         // Only recipient can sweep
         if (msg.sender != TOKENS_RECIPIENT) revert NotAuthorized(TOKENS_RECIPIENT, msg.sender);

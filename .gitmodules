@@ -22,3 +22,7 @@
 [submodule "lib/blocknumberish"]
 	path = lib/blocknumberish
 	url = https://github.com/Uniswap/blocknumberish
+[submodule "lib/liquidity-launcher"]
+	path = lib/liquidity-launcher
+	url = https://github.com/Uniswap/liquidity-launcher
+	branch = dev

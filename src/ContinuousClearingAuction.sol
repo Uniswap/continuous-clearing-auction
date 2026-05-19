@@ -10,11 +10,6 @@ import {AuctionParameters, IContinuousClearingAuction} from './interfaces/IConti
 import {IValidationHook} from './interfaces/IValidationHook.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
-import {
-    ILBPInitializer,
-    ILBP_INITIALIZER_INTERFACE_ID,
-    LBPInitializationParams
-} from './interfaces/external/ILBPInitializer.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
 import {ConstantsLib} from './libraries/ConstantsLib.sol';
@@ -28,6 +23,11 @@ import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7} from './libraries/ValueX7Lib.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
+import {
+    ILBPInitializer,
+    ILBP_INITIALIZER_INTERFACE_ID,
+    LBPInitializationParams
+} from 'liquidity-launcher/src/interfaces/ILBPInitializer.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {ReentrancyGuardTransient} from 'solady/utils/ReentrancyGuardTransient.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';

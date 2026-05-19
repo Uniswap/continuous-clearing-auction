@@ -3,8 +3,8 @@ pragma solidity ^0.8.0;
 
 import {AuctionFuzzConstructorParams, BttBase} from 'btt/BttBase.sol';
 import {MockContinuousClearingAuction} from 'btt/mocks/MockContinuousClearingAuction.sol';
+import {ILBPInitializer} from 'liquidity-launcher/src/interfaces/ILBPInitializer.sol';
 import {IERC165} from 'openzeppelin-contracts/contracts/interfaces/IERC165.sol';
-import {ILBPInitializer} from 'src/interfaces/external/ILBPInitializer.sol';
 
 contract SupportsInterfaceTest is BttBase {
     function test_WhenInterfaceIsSupported(AuctionFuzzConstructorParams memory _params) external {

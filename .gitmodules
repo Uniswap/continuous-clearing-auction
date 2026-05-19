@@ -25,3 +25,4 @@
 [submodule "lib/liquidity-launcher"]
 	path = lib/liquidity-launcher
 	url = https://github.com/Uniswap/liquidity-launcher
+	branch = dev

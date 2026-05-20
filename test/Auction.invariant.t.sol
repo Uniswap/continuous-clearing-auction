@@ -1066,7 +1066,7 @@ contract AuctionInvariantTest is AuctionInvariantBase {
 
     /// @notice The clearing price must always remain between the floor price and MAX_BID_PRICE.
     /// @dev Floor is the immutable lower bound set at construction; MAX_BID_PRICE is the cap derived from total supply.
-    function invariant_clearingPriceWithinBounds() public view {
+    function invariant_clearingPriceWithinBounds() public {
         // Ensure auction is checkpointed
         mockAuction.checkpoint();
         uint256 cp = mockAuction.clearingPrice();

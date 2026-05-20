@@ -18,7 +18,7 @@ import {AuctionUnitTest} from './unit/AuctionUnitTest.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {AuctionInvariantMetricsLib, AuctionInvariantRunMetrics} from './utils/AuctionInvariantMetrics.sol';
 import {FuzzGenerators} from './utils/FuzzGenerators.sol';
-import {FuzzDeploymentParams} from './utils/FuzzStructs.sol';
+import {FuzzDeploymentParams, FuzzGeneratedBid} from './utils/FuzzStructs.sol';
 import {MockContinuousClearingAuction} from './utils/MockAuction.sol';
 import {Test} from 'forge-std/Test.sol';
 import {console} from 'forge-std/console.sol';
@@ -177,13 +177,6 @@ contract AuctionInvariantHandler is Test, Assertions {
         _checkpoint = checkpoint;
     }
 
-    function _useNextBidPrice(uint256 clearingPrice, uint8 tickNumber) internal view returns (uint256, bool) {
-        return
-            FuzzGenerators.nextBidPrice(
-                clearingPrice, mockAuction.tickSpacing(), mockAuction.MAX_BID_PRICE(), tickNumber
-            );
-    }
-
     /// @notice Generate random values for amount and max price given a desired resolved amount of tokens to purchase
     /// @dev Bounded by purchasing the total supply of tokens and some reasonable max price for bids to prevent overflow
     function _useAmountMaxPrice(uint128 amount, uint256 clearingPrice, uint8 tickNumber)
@@ -191,12 +184,10 @@ contract AuctionInvariantHandler is Test, Assertions {
         view
         returns (uint128, uint256, bool)
     {
-        (uint256 maxPrice, bool canSubmitAtHigherPrice) = _useNextBidPrice(clearingPrice, tickNumber);
-        if (!canSubmitAtHigherPrice) return (0, 0, false);
-
-        amount = FuzzGenerators.seededBidTokenAmount(amount);
-        uint128 inputAmount = FuzzGenerators.inputAmountForTokens(amount, maxPrice);
-        return (inputAmount, maxPrice, true);
+        FuzzGeneratedBid memory bid = FuzzGenerators.seededBid(
+            amount, clearingPrice, mockAuction.tickSpacing(), mockAuction.MAX_BID_PRICE(), tickNumber
+        );
+        return (bid.inputAmount, bid.maxPrice, bid.canBid);
     }
 
     /// @notice Find the first bid which can be early exited as of the stale checkpoint
@@ -1015,6 +1006,12 @@ contract AuctionInvariantTest is AuctionInvariantBase {
 
             assertEq(floorPrice % tickSpacing, 0);
             assertLe(floorPrice + tickSpacing, MaxBidPriceLib.maxBidPrice(fuzzDeploymentParams.totalSupply));
+            assertGe(fuzzDeploymentParams.auctionParams.startBlock, block.number);
+            assertEq(
+                fuzzDeploymentParams.auctionParams.endBlock,
+                fuzzDeploymentParams.auctionParams.startBlock + fuzzDeploymentParams.numberOfSteps
+            );
+            assertEq(fuzzDeploymentParams.auctionParams.claimBlock, fuzzDeploymentParams.auctionParams.endBlock + 1);
 
             uint256 tickSpacingBps = (tickSpacing * 10_000) / floorPrice;
             assertTrue(
@@ -1027,24 +1024,54 @@ contract AuctionInvariantTest is AuctionInvariantBase {
         FuzzDeploymentParams memory fuzzDeploymentParams = FuzzGenerators.seededDeploymentParams(
             1, ETH_SENTINEL, tokensRecipient, fundsRecipient, address(0), block.number
         );
-        uint128 bidTokenAmount = FuzzGenerators.seededBidTokenAmount(42);
-        (uint256 maxPrice, bool canBid) = FuzzGenerators.nextBidPrice(
+        FuzzGeneratedBid memory bid = FuzzGenerators.seededBid(
+            42,
             fuzzDeploymentParams.auctionParams.floorPrice,
             fuzzDeploymentParams.auctionParams.tickSpacing,
             MaxBidPriceLib.maxBidPrice(fuzzDeploymentParams.totalSupply),
             3
         );
 
-        assertTrue(canBid);
-        assertGt(bidTokenAmount, 0);
-        assertGt(maxPrice, fuzzDeploymentParams.auctionParams.floorPrice);
-        assertEq(maxPrice % fuzzDeploymentParams.auctionParams.tickSpacing, 0);
+        assertTrue(bid.canBid);
+        assertGt(bid.tokenAmount, 0);
+        assertGt(bid.maxPrice, fuzzDeploymentParams.auctionParams.floorPrice);
+        assertEq(bid.maxPrice % fuzzDeploymentParams.auctionParams.tickSpacing, 0);
     }
 
-    function test_fuzzGeneratorsIncludeBidAmountValidationExtremes() public pure {
+    function test_fuzzGeneratorsUseExplicitBidAmountCases() public pure {
         assertEq(FuzzGenerators.seededBidTokenAmount(0), 0);
         assertEq(FuzzGenerators.seededBidTokenAmount(1), 1);
+        assertEq(FuzzGenerators.seededBidTokenAmount(2), 1e18);
+        assertEq(FuzzGenerators.seededBidTokenAmount(3), 10e18);
+        assertEq(FuzzGenerators.seededBidTokenAmount(4), 1000e18);
+        assertEq(FuzzGenerators.seededBidTokenAmount(5), type(uint128).max - 1);
         assertEq(FuzzGenerators.seededBidTokenAmount(6), type(uint128).max);
+        assertEq(FuzzGenerators.seededBidTokenAmount(7), uint128(FuzzGenerators.seededUint256(7, 'bidAmount.fallback')));
+    }
+
+    function test_fuzzGeneratorsGenerateTickAlignedBid() public pure {
+        FuzzGeneratedBid memory bid =
+            FuzzGenerators.seededBid({seed: 4, clearingPrice: 100, tickSpacing: 10, maxBidPrice: 200, tickNumber: 3});
+
+        assertTrue(bid.canBid);
+        assertEq(bid.tokenAmount, 1000e18);
+        assertEq(bid.maxPrice, 140);
+        assertEq(bid.maxPrice % 10, 0);
+        assertEq(bid.inputAmount, FuzzGenerators.inputAmountForTokens(bid.tokenAmount, bid.maxPrice));
+    }
+
+    function test_fuzzGeneratorsReturnCannotBidWhenNoHigherTickExists() public pure {
+        FuzzGeneratedBid memory bid =
+            FuzzGenerators.seededBid({seed: 4, clearingPrice: 100, tickSpacing: 10, maxBidPrice: 100, tickNumber: 3});
+
+        assertFalse(bid.canBid);
+        assertEq(bid.tokenAmount, 0);
+        assertEq(bid.inputAmount, 0);
+        assertEq(bid.maxPrice, 0);
+    }
+
+    function test_fuzzGeneratorsInputAmountSaturatesAtUint128Max() public pure {
+        assertEq(FuzzGenerators.inputAmountForTokens(1, type(uint256).max), type(uint128).max);
     }
 
     function test_handleRollWaitsForBidDensity() public {

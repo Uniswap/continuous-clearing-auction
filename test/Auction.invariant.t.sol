@@ -1122,7 +1122,9 @@ contract AuctionInvariantTest is AuctionInvariantBase {
     /// @notice The clearing price must always remain between the floor price and MAX_BID_PRICE.
     /// @dev Floor is the immutable lower bound set at construction; MAX_BID_PRICE is the cap derived from total supply.
     function invariant_clearingPriceWithinBounds() public {
-        // Ensure auction is checkpointed
+        if (block.number < mockAuction.startBlock()) return;
+        // Ensure auction is freshly checkpointed
+        vm.roll(block.number + 1);
         mockAuction.checkpoint();
         uint256 cp = mockAuction.clearingPrice();
         assertGe(cp, mockAuction.floorPrice(), 'Clearing price below floor price');
@@ -1135,6 +1137,8 @@ contract AuctionInvariantTest is AuctionInvariantBase {
     ///      to `MAX_TICK_PTR`, so the invariant must hold post-checkpoint.
     function invariant_nextActiveTickPriceAboveClearingAfterCheckpoint() public {
         if (block.number < mockAuction.startBlock() || block.number >= mockAuction.claimBlock()) return;
+        // Ensure auction is freshly checkpointed
+        vm.roll(block.number + 1);
         mockAuction.checkpoint();
         uint256 nextActiveTickPrice = mockAuction.nextActiveTickPrice();
         if (nextActiveTickPrice == mockAuction.MAX_TICK_PTR()) return;

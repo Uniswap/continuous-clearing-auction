@@ -3,6 +3,8 @@ pragma solidity 0.8.26;
 
 import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
 import {MockContinuousClearingAuction} from '../mocks/MockContinuousClearingAuction.sol';
+import {MockProtocolFeeController} from '../mocks/MockProtocolFeeController.sol';
+import {ProtocolFeeLib} from 'liquidity-launcher/src/libraries/ProtocolFeeLib.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {Checkpoint} from 'src/CheckpointStorage.sol';
@@ -22,7 +24,7 @@ contract SweepCurrencyTest is BttBase {
         mParams.token = address(new ERC20Mock());
         mParams.parameters.currency = address(0);
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -49,7 +51,7 @@ contract SweepCurrencyTest is BttBase {
         // Default graduated
         mParams.parameters.requiredCurrencyRaised = 0;
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -84,7 +86,7 @@ contract SweepCurrencyTest is BttBase {
         // Make it not graduated by default
         mParams.parameters.requiredCurrencyRaised = type(uint128).max;
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -130,7 +132,7 @@ contract SweepCurrencyTest is BttBase {
         mParams.parameters.validationHook = address(0);
         mParams.parameters.fundsRecipient = makeAddr('fundsRecipient');
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -158,6 +160,62 @@ contract SweepCurrencyTest is BttBase {
         assertEq(mParams.parameters.fundsRecipient.balance, expectedCurrencyRaised);
     }
 
+    function test_WhenProtocolFeeIsSet_SweepsNetCurrencyAndTransfersProtocolFee(
+        AuctionFuzzConstructorParams memory _params,
+        uint128 _bidAmount,
+        uint256 _protocolFeeAmount
+    ) public givenAuctionIsGraduated givenNotPreviouslySwept {
+        // it transfers protocol fees to the fee recipient and sweeps net currency to the funds recipient
+
+        vm.deal(address(this), type(uint256).max);
+        vm.assume(_bidAmount > 0);
+
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        mParams.token = address(new ERC20Mock());
+        mParams.parameters.currency = address(0);
+        mParams.parameters.requiredCurrencyRaised = 0;
+        mParams.parameters.validationHook = address(0);
+        mParams.parameters.fundsRecipient = makeAddr('fundsRecipient');
+
+        address protocolFeeRecipient = makeAddr('protocolFeeRecipient');
+        MockProtocolFeeController protocolFeeController = new MockProtocolFeeController();
+        protocolFeeController.setProtocolFeeRecipient(protocolFeeRecipient);
+
+        MockContinuousClearingAuction auction = new MockContinuousClearingAuction(
+            mParams.token, mParams.totalSupply, mParams.parameters, address(protocolFeeController)
+        );
+
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
+        auction.onTokensReceived();
+
+        vm.roll(mParams.parameters.startBlock);
+
+        uint256 maxPrice = mParams.parameters.floorPrice + mParams.parameters.tickSpacing;
+        auction.submitBid{value: _bidAmount}(maxPrice, _bidAmount, address(this), bytes(''));
+
+        vm.roll(mParams.parameters.endBlock);
+        auction.checkpoint();
+        uint256 expectedCurrencyRaised = auction.currencyRaised();
+        vm.assume(expectedCurrencyRaised > 0);
+
+        _protocolFeeAmount = bound(_protocolFeeAmount, 1, expectedCurrencyRaised);
+        protocolFeeController.setProtocolFeeAmount(_protocolFeeAmount);
+
+        uint256 expectedNetCurrencyRaised = expectedCurrencyRaised - _protocolFeeAmount;
+
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolFeeLib.ProtocolFeeTransferred(address(0), _protocolFeeAmount);
+        vm.expectEmit(true, true, true, true);
+        emit IAuctionStorage.CurrencySwept(mParams.parameters.fundsRecipient, expectedNetCurrencyRaised);
+        vm.prank(mParams.parameters.fundsRecipient);
+        auction.sweepCurrency();
+
+        assertEq(auction.sweepCurrencyBlock(), block.number);
+        assertEq(protocolFeeRecipient.balance, _protocolFeeAmount);
+        assertEq(mParams.parameters.fundsRecipient.balance, expectedNetCurrencyRaised);
+        assertEq(auction.currencyRaised(), expectedCurrencyRaised);
+    }
+
     function test_WhenAmountEQZero(AuctionFuzzConstructorParams memory _params)
         public
         givenAuctionIsGraduated
@@ -173,7 +231,7 @@ contract SweepCurrencyTest is BttBase {
         mParams.parameters.requiredCurrencyRaised = 0;
         mParams.parameters.fundsRecipient = makeAddr('fundsRecipient');
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -203,7 +261,7 @@ contract SweepCurrencyTest is BttBase {
         mParams.parameters.requiredCurrencyRaised = 0;
         mParams.parameters.fundsRecipient = makeAddr('fundsRecipient');
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
         auction.onTokensReceived();

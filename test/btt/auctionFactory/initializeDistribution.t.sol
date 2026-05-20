@@ -13,7 +13,7 @@ contract InitializeDistributionTest is BttBase {
     ContinuousClearingAuctionFactory internal factory;
 
     function setUp() public {
-        factory = new ContinuousClearingAuctionFactory();
+        factory = new ContinuousClearingAuctionFactory(address(0));
     }
 
     function test_WhenAmountGTUint128Max(AuctionFuzzConstructorParams memory _params, uint256 _amount)

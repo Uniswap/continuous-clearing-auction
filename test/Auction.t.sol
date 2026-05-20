@@ -48,7 +48,8 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_submitBid_beforeTokensReceived_reverts() public {
-        ContinuousClearingAuction newAuction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        ContinuousClearingAuction newAuction =
+            new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
         token.mint(address(newAuction), TOTAL_SUPPLY);
         vm.expectRevert(IContinuousClearingAuction.TokensNotReceived.selector);
         // Submit random bid, will revert
@@ -62,7 +63,8 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     function test_checkpoint_beforeTokensReceived_reverts() public {
-        ContinuousClearingAuction newAuction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        ContinuousClearingAuction newAuction =
+            new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
         token.mint(address(newAuction), TOTAL_SUPPLY);
         vm.expectRevert(IContinuousClearingAuction.TokensNotReceived.selector);
         newAuction.checkpoint();
@@ -230,7 +232,7 @@ contract AuctionTest is AuctionBaseTest {
         // 0 mps for first 100 blocks, then 100mps for the last 100 blocks
         params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(0, 100).addStep(100e3, 100))
             .withStartBlock(block.number).withEndBlock(block.number + 200).withClaimBlock(block.number + 200);
-        auction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        auction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
         token.mint(address(auction), TOTAL_SUPPLY);
         auction.onTokensReceived();
 
@@ -292,7 +294,7 @@ contract AuctionTest is AuctionBaseTest {
         // 0 mps for first 50 blocks, then 200mps for the last 50 blocks
         params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(0, 100).addStep(100e3, 100))
             .withEndBlock(block.number + 200).withClaimBlock(block.number + 200);
-        auction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        auction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
         token.mint(address(auction), TOTAL_SUPPLY);
         auction.onTokensReceived();
 
@@ -426,7 +428,7 @@ contract AuctionTest is AuctionBaseTest {
         params = params.withStartBlock(uint256(startBlock)).withEndBlock(uint256(startBlock) + auctionDuration)
             .withClaimBlock(uint256(startBlock) + 2)
             .withAuctionStepsData(AuctionStepsBuilder.init().addStep(1e7, uint40(auctionDuration)));
-        auction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        auction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
         token.mint(address(auction), TOTAL_SUPPLY);
         auction.onTokensReceived();
 
@@ -950,7 +952,8 @@ contract AuctionTest is AuctionBaseTest {
     function test_exitPartiallyFilledBid_notGraduated_butOutbid_revertsWithNotGraduated() public {
         // Never graduate
         params = params.withRequiredCurrencyRaised(type(uint128).max);
-        ContinuousClearingAuction newAuction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        ContinuousClearingAuction newAuction =
+            new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
         token.mint(address(newAuction), TOTAL_SUPPLY);
         newAuction.onTokensReceived();
 
@@ -1022,7 +1025,8 @@ contract AuctionTest is AuctionBaseTest {
     function test_exitPartiallyFilledBid_notGraduated_endOfAuction_revertsWithNotGraduated() public {
         // Never graduate
         params = params.withRequiredCurrencyRaised(type(uint128).max);
-        ContinuousClearingAuction newAuction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        ContinuousClearingAuction newAuction =
+            new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
         token.mint(address(newAuction), TOTAL_SUPPLY);
         newAuction.onTokensReceived();
 
@@ -1070,7 +1074,7 @@ contract AuctionTest is AuctionBaseTest {
     function test_onTokensReceived_withWrongBalance_reverts() public {
         // Use salt to get a new address
         ContinuousClearingAuction newAuction =
-            new ContinuousClearingAuction{salt: bytes32(uint256(1))}(address(token), TOTAL_SUPPLY, params);
+            new ContinuousClearingAuction{salt: bytes32(uint256(1))}(address(token), TOTAL_SUPPLY, params, address(0));
 
         token.mint(address(newAuction), TOTAL_SUPPLY - 1);
 
@@ -1085,7 +1089,8 @@ contract AuctionTest is AuctionBaseTest {
             AuctionStepsBuilder.init().addStep(100e3, 10).addStep(100e3, 40).addStep(100e3, 50)
         );
 
-        ContinuousClearingAuction newAuction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        ContinuousClearingAuction newAuction =
+            new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
         token.mint(address(newAuction), TOTAL_SUPPLY);
         newAuction.onTokensReceived();
 
@@ -1285,7 +1290,7 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_exitPartiallyFilledBid_lowerHintIsValidated() public {
         MockContinuousClearingAuction mockAuction =
-            new MockContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+            new MockContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
         token.mint(address(mockAuction), TOTAL_SUPPLY);
         mockAuction.onTokensReceived();
 
@@ -1331,7 +1336,8 @@ contract AuctionTest is AuctionBaseTest {
         params = params.withEndBlock(block.number + 60)
             .withAuctionStepsData(AuctionStepsBuilder.init().addStep(100e3, 20).addStep(150e3, 20).addStep(250e3, 20));
 
-        ContinuousClearingAuction newAuction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        ContinuousClearingAuction newAuction =
+            new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
         token.mint(address(newAuction), TOTAL_SUPPLY);
         newAuction.onTokensReceived();
 
@@ -1368,7 +1374,7 @@ contract AuctionTest is AuctionBaseTest {
         params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(0, 10).addStep(100e3, 100))
             .withEndBlock(block.number + 110);
         MockContinuousClearingAuction mockAuction =
-            new MockContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+            new MockContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
         token.mint(address(mockAuction), TOTAL_SUPPLY);
         mockAuction.onTokensReceived();
 
@@ -1455,7 +1461,7 @@ contract AuctionTest is AuctionBaseTest {
         params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(100e3, 10).addStep(300e3, 30))
             .withEndBlock(block.number + 40);
         MockContinuousClearingAuction mockAuction =
-            new MockContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+            new MockContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
         token.mint(address(mockAuction), TOTAL_SUPPLY);
         mockAuction.onTokensReceived();
 
@@ -1526,7 +1532,8 @@ contract AuctionTest is AuctionBaseTest {
         // Create auction parameters with the validation hook
         params = params.withValidationHook(address(validationHook));
 
-        ContinuousClearingAuction testAuction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        ContinuousClearingAuction testAuction =
+            new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
         token.mint(address(testAuction), TOTAL_SUPPLY);
         testAuction.onTokensReceived();
         // Submit a bid with hook data to trigger the validation hook
@@ -1545,7 +1552,8 @@ contract AuctionTest is AuctionBaseTest {
     function test_submitBid_withERC20Currency_unpermittedPermit2Transfer_reverts() public {
         // Create auction parameters with ERC20 currency instead of ETH
         params = params.withCurrency(address(erc20Currency));
-        ContinuousClearingAuction erc20Auction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        ContinuousClearingAuction erc20Auction =
+            new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
         token.mint(address(erc20Auction), TOTAL_SUPPLY);
         erc20Auction.onTokensReceived();
         // Mint currency tokens to alice
@@ -1569,7 +1577,8 @@ contract AuctionTest is AuctionBaseTest {
     function test_submitBid_withERC20Currency_nonZeroMsgValue_reverts() public {
         // Create auction parameters with ERC20 currency instead of ETH
         params = params.withCurrency(address(erc20Currency));
-        ContinuousClearingAuction erc20Auction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        ContinuousClearingAuction erc20Auction =
+            new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
         token.mint(address(erc20Auction), TOTAL_SUPPLY);
         erc20Auction.onTokensReceived();
 
@@ -1609,39 +1618,39 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_auctionConstruction_revertsWithTotalSupplyZero() public {
         vm.expectRevert(IAuctionStorage.TotalSupplyIsZero.selector);
-        new ContinuousClearingAuction(address(token), 0, params);
+        new ContinuousClearingAuction(address(token), 0, params, address(0));
     }
 
     function test_auctionConstruction_revertsWithTickSpacingTooSmall_fuzz(uint256 _tickSpacing) public {
         _tickSpacing = _bound(_tickSpacing, 0, 1);
         AuctionParameters memory paramsTickSpacingTooSmall = params.withTickSpacing(_tickSpacing);
         vm.expectRevert(ITickStorage.TickSpacingTooSmall.selector);
-        new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, paramsTickSpacingTooSmall);
+        new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, paramsTickSpacingTooSmall, address(0));
     }
 
     function test_auctionConstruction_revertsWithFloorPriceZero() public {
         AuctionParameters memory paramsZeroFloorPrice = params.withFloorPrice(0);
         vm.expectRevert(ITickStorage.FloorPriceIsZero.selector);
-        new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, paramsZeroFloorPrice);
+        new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, paramsZeroFloorPrice, address(0));
     }
 
     function test_auctionConstruction_revertsWithClaimBlockBeforeEndBlock() public {
         AuctionParameters memory paramsClaimBlockBeforeEndBlock =
             params.withClaimBlock(block.number + AUCTION_DURATION - 1).withEndBlock(block.number + AUCTION_DURATION);
         vm.expectRevert(IStepStorage.ClaimBlockIsBeforeEndBlock.selector);
-        new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, paramsClaimBlockBeforeEndBlock);
+        new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, paramsClaimBlockBeforeEndBlock, address(0));
     }
 
     function test_auctionConstruction_revertsWithFundsRecipientZero() public {
         AuctionParameters memory paramsFundsRecipientZero = params.withFundsRecipient(address(0));
         vm.expectRevert(IAuctionStorage.FundsRecipientIsZero.selector);
-        new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, paramsFundsRecipientZero);
+        new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, paramsFundsRecipientZero, address(0));
     }
 
     function test_auctionConstruction_revertsWithTokensRecipientZero() public {
         AuctionParameters memory paramsTokensRecipientZero = params.withTokensRecipient(address(0));
         vm.expectRevert(IAuctionStorage.TokensRecipientIsZero.selector);
-        new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, paramsTokensRecipientZero);
+        new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, paramsTokensRecipientZero, address(0));
     }
 
     function test_checkpoint_beforeAuctionStarts_reverts() public {
@@ -1650,7 +1659,8 @@ contract AuctionTest is AuctionBaseTest {
         params = params.withStartBlock(futureBlock).withEndBlock(futureBlock + AUCTION_DURATION)
             .withClaimBlock(futureBlock + AUCTION_DURATION);
 
-        ContinuousClearingAuction futureAuction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        ContinuousClearingAuction futureAuction =
+            new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
         token.mint(address(futureAuction), TOTAL_SUPPLY);
 
         // Try to call checkpoint before the auction starts
@@ -1674,7 +1684,7 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_insertCheckpoint_nonIncreasing_reverts_viaMockAuction() public {
         MockContinuousClearingAuction mockAuction =
-            new MockContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+            new MockContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
         token.mint(address(mockAuction), TOTAL_SUPPLY);
         mockAuction.onTokensReceived();
 
@@ -1774,7 +1784,8 @@ contract AuctionTest is AuctionBaseTest {
     function test_exitPartiallyFilledBid_notGraduated_endOfAuction_revertsWithAlreadyExited() public {
         // Never graduate
         params = params.withRequiredCurrencyRaised(type(uint128).max);
-        ContinuousClearingAuction newAuction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        ContinuousClearingAuction newAuction =
+            new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
         token.mint(address(newAuction), TOTAL_SUPPLY);
         newAuction.onTokensReceived();
 
@@ -2128,7 +2139,7 @@ contract AuctionTest is AuctionBaseTest {
             )
         });
 
-        auction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        auction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
         token.mint(address(auction), TOTAL_SUPPLY);
         auction.onTokensReceived();
 
@@ -2170,7 +2181,7 @@ contract AuctionTest is AuctionBaseTest {
         uint256 floorPrice = 2;
         uint256 tickSpacing = 1;
         params = params.withFloorPrice(floorPrice).withTickSpacing(tickSpacing);
-        auction = new ContinuousClearingAuction(address(token), totalSupply, params);
+        auction = new ContinuousClearingAuction(address(token), totalSupply, params, address(0));
         token.mint(address(auction), totalSupply);
         auction.onTokensReceived();
 

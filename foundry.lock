@@ -17,7 +17,7 @@
   "lib/liquidity-launcher": {
     "branch": {
       "name": "dev",
-      "rev": "a02051996141b12735f9d8d951d3d738ac0b6bda"
+      "rev": "007f11c19af948e014c8913b7df86da3436ada0b"
     }
   },
   "lib/openzeppelin-contracts": {

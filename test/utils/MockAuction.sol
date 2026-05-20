@@ -11,9 +11,12 @@ import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 
 contract MockContinuousClearingAuction is ContinuousClearingAuction {
-    constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
-        ContinuousClearingAuction(_token, _totalSupply, _parameters)
-    {}
+    constructor(
+        address _token,
+        uint128 _totalSupply,
+        AuctionParameters memory _parameters,
+        address _protocolFeeController
+    ) ContinuousClearingAuction(_token, _totalSupply, _parameters, _protocolFeeController) {}
 
     /// @notice Wrapper around internal function for testing
     function iterateOverTicksAndFindClearingPrice() external returns (uint256) {

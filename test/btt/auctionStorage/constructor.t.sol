@@ -196,7 +196,7 @@ contract ConstructorTest is BttBase {
 
     function _deployAuctionStorage() internal returns (MockAuctionStorage) {
         return new MockAuctionStorage(
-            $token, $currency, $totalSupply, $tokensRecipient, $fundsRecipient, $requiredCurrencyRaised
+            $token, $currency, $totalSupply, $tokensRecipient, $fundsRecipient, $requiredCurrencyRaised, address(0)
         );
     }
 }

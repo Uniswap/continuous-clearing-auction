@@ -26,7 +26,7 @@ contract AuctionFactoryTest is AuctionBaseTest {
     function setUp() public {
         // Setup non fuzz auction
         setUpAuction();
-        factory = new ContinuousClearingAuctionFactory();
+        factory = new ContinuousClearingAuctionFactory(address(0));
     }
 
     function test_initializeDistribution_createsAuction() public {

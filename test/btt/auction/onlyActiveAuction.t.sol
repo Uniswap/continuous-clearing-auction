@@ -16,7 +16,7 @@ contract OnlyActiveAuctionTest is BttBase {
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         uint256 blockNumber = bound(_blockNumber, 0, mParams.parameters.startBlock - 1);
 
@@ -38,7 +38,7 @@ contract OnlyActiveAuctionTest is BttBase {
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         uint256 blockNumber = bound(_blockNumber, mParams.parameters.startBlock, type(uint64).max);
 
@@ -58,7 +58,7 @@ contract OnlyActiveAuctionTest is BttBase {
         ERC20Mock token = new ERC20Mock();
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(address(token), mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(address(token), mParams.totalSupply, mParams.parameters, address(0));
 
         uint256 blockNumber = bound(_blockNumber, mParams.parameters.startBlock, type(uint64).max);
 

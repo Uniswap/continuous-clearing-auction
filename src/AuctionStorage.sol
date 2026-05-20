@@ -7,6 +7,7 @@ import {ConstantsLib} from './libraries/ConstantsLib.sol';
 import {Currency, CurrencyLibrary} from './libraries/CurrencyLibrary.sol';
 import {FixedPoint96} from './libraries/FixedPoint96.sol';
 import {ValueX7} from './libraries/ValueX7Lib.sol';
+import {IProtocolFeeController} from 'liquidity-launcher/src/interfaces/IProtocolFeeController.sol';
 
 /// @title AuctionStorage
 /// @notice Abstract contract for managing auction storage including token/currency config and auction state
@@ -30,6 +31,9 @@ abstract contract AuctionStorage is IAuctionStorage {
     /// @notice The amount of currency required to be raised for the auction
     ///         to graduate in Q96 form, scaled up by X7
     ValueX7 internal immutable REQUIRED_CURRENCY_RAISED_Q96X7;
+
+    // Protocol fee config
+    IProtocolFeeController internal immutable PROTOCOL_FEE_CONTROLLER;
 
     // Mutable auction state
 
@@ -57,7 +61,8 @@ abstract contract AuctionStorage is IAuctionStorage {
         uint128 _totalSupply,
         address _tokensRecipient,
         address _fundsRecipient,
-        uint128 _requiredCurrencyRaised
+        uint128 _requiredCurrencyRaised,
+        address _protocolFeeController
     ) {
         if (_token == address(0)) revert TokenIsAddressZero();
         if (_token == _currency) revert TokenAndCurrencyCannotBeTheSame();
@@ -74,10 +79,13 @@ abstract contract AuctionStorage is IAuctionStorage {
         FUNDS_RECIPIENT = _fundsRecipient;
         REQUIRED_CURRENCY_RAISED_Q96X7 =
             ValueX7.wrap((uint256(_requiredCurrencyRaised) << FixedPoint96.RESOLUTION) * ConstantsLib.MPS);
+        PROTOCOL_FEE_CONTROLLER = IProtocolFeeController(_protocolFeeController);
     }
 
     // Internal sweep functions
 
+    /// @notice Sweep an amount of currency to the funds recipient
+    /// @dev Amount does NOT include protocol fees, which must be taken from the amount before calling this function
     function _sweepCurrency(uint256 _blockNumberIsh, uint256 _amount) internal {
         sweepCurrencyBlock = _blockNumberIsh;
         if (_amount > 0) {
@@ -86,6 +94,7 @@ abstract contract AuctionStorage is IAuctionStorage {
         emit CurrencySwept(FUNDS_RECIPIENT, _amount);
     }
 
+    /// @notice Sweep an amount of tokens to the tokens recipient
     function _sweepUnsoldTokens(uint256 _blockNumberIsh, uint256 _amount) internal {
         sweepUnsoldTokensBlock = _blockNumberIsh;
         if (_amount > 0) {

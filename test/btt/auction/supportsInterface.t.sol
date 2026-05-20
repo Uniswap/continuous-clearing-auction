@@ -13,7 +13,7 @@ contract SupportsInterfaceTest is BttBase {
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         assertTrue(auction.supportsInterface(type(ILBPInitializer).interfaceId));
         assertTrue(auction.supportsInterface(type(IERC165).interfaceId));
@@ -29,7 +29,7 @@ contract SupportsInterfaceTest is BttBase {
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         assertFalse(auction.supportsInterface(_interfaceId));
     }

@@ -12,9 +12,18 @@ contract MockAuctionStorage is AuctionStorage, BlockNumberish {
         uint128 _totalSupply,
         address _tokensRecipient,
         address _fundsRecipient,
-        uint128 _requiredCurrencyRaised
+        uint128 _requiredCurrencyRaised,
+        address _protocolFeeController
     )
-        AuctionStorage(_token, _currency, _totalSupply, _tokensRecipient, _fundsRecipient, _requiredCurrencyRaised)
+        AuctionStorage(
+            _token,
+            _currency,
+            _totalSupply,
+            _tokensRecipient,
+            _fundsRecipient,
+            _requiredCurrencyRaised,
+            _protocolFeeController
+        )
         BlockNumberish()
     {}
 

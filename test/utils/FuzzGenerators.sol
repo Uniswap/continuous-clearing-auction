@@ -17,6 +17,7 @@ library FuzzGenerators {
 
     uint256 internal constant BPS = 10_000;
     uint256 internal constant BID_AMOUNT_CASES = 8;
+    uint256 internal constant BID_PRICE_CASES = 3;
 
     /// @notice Derive a deterministic uint256 from a seed and domain-specific salt.
     function seededUint256(uint256 seed, string memory salt) internal pure returns (uint256) {
@@ -134,9 +135,13 @@ library FuzzGenerators {
     }
 
     /// @notice Generate a tick-aligned bid price strictly above clearing and within max price.
+    /// @dev The `priceSeed` selects one of three easy-to-debug price families:
+    ///      0. nearest tick above clearing, which stresses tight bid/clearing races.
+    ///      1. highest valid tick, which keeps bids far away from the current clearing price.
+    ///      2. deterministic middle tick, which gives fuzzed variance between those extremes.
     /// @return maxPrice The generated price, or zero when no valid higher tick exists.
     /// @return canBid Whether a valid price was generated.
-    function nextBidPrice(uint256 clearingPrice, uint256 tickSpacing, uint256 maxBidPrice, uint8 tickNumber)
+    function seededBidPrice(uint256 priceSeed, uint256 clearingPrice, uint256 tickSpacing, uint256 maxBidPrice)
         internal
         pure
         returns (uint256, bool)
@@ -149,8 +154,21 @@ library FuzzGenerators {
         if (minimumBidPrice > maxBidPrice) return (0, false);
 
         uint256 maxOffset = (maxBidPrice - minimumBidPrice) / tickSpacing;
-        uint256 maxSelectableOffset = FixedPointMathLib.min(maxOffset, type(uint8).max);
-        uint256 offset = uint256(tickNumber) % (maxSelectableOffset + 1);
+        uint256 offset;
+        uint256 priceCase = priceSeed % BID_PRICE_CASES;
+
+        if (priceCase == 0) {
+            // Case 0: next valid tick above clearing.
+            offset = 0;
+        } else if (priceCase == 1 || maxOffset <= 1) {
+            // Case 1: highest valid tick. Also used when there is no true middle tick.
+            offset = maxOffset;
+        } else {
+            // Case 2: a deterministic middle tick. The +1 and -1 keep it strictly between
+            // nearest and highest, so this case is distinct whenever the range allows it.
+            offset = 1 + (seededUint256(priceSeed, 'bid.priceOffset') % (maxOffset - 1));
+        }
+
         return (minimumBidPrice + offset * tickSpacing, true);
     }
 
@@ -179,20 +197,51 @@ library FuzzGenerators {
         return uint128(seededUint256(amountSeed, 'bidAmount.fallback'));
     }
 
+    /// @notice Generate a bid token amount capped for long-running invariant exploration.
+    /// @dev Keeps the same case structure as `seededBidTokenAmount`, but maps the large cases
+    ///      into `[1, maxTokenAmount]` so a few bids do not immediately saturate clearing.
+    function seededBidTokenAmount(uint128 amountSeed, uint128 maxTokenAmount) internal pure returns (uint128) {
+        if (maxTokenAmount == 0) return 0;
+
+        uint128 amount = seededBidTokenAmount(amountSeed);
+        if (amount == 0 || amount <= maxTokenAmount) return amount;
+
+        uint256 amountCase = uint256(amountSeed) % BID_AMOUNT_CASES;
+
+        // Preserve the intent of large cases while keeping them proportional to available supply.
+        if (amountCase == 5) return uint128(FixedPointMathLib.max(1, uint256(maxTokenAmount) / 10));
+        if (amountCase == 6) return maxTokenAmount;
+
+        // The fallback still explores the full bounded range, but no longer dwarfs the auction.
+        return uint128(1 + (seededUint256(amountSeed, 'bidAmount.boundedFallback') % maxTokenAmount));
+    }
+
     /// @notice Generate a complete bid input from a seed and the current auction price bounds.
     /// @dev Returns `canBid == false` when no tick-aligned price exists above clearing.
-    ///      Otherwise, the same seed selects both the amount case and the resulting input amount.
+    ///      Otherwise, `tickNumber` selects the price family and `seed` selects the amount case.
     function seededBid(uint256 seed, uint256 clearingPrice, uint256 tickSpacing, uint256 maxBidPrice, uint8 tickNumber)
         internal
         pure
         returns (FuzzGeneratedBid memory bid)
     {
-        // Price generation is independent from amount generation: tickNumber chooses a valid
-        // offset above clearing, while seed chooses the token amount case.
-        (bid.maxPrice, bid.canBid) = nextBidPrice(clearingPrice, tickSpacing, maxBidPrice, tickNumber);
+        return seededBid(seed, clearingPrice, tickSpacing, maxBidPrice, tickNumber, type(uint128).max);
+    }
+
+    /// @notice Generate a complete bid input with token amount capped to `maxTokenAmount`.
+    function seededBid(
+        uint256 seed,
+        uint256 clearingPrice,
+        uint256 tickSpacing,
+        uint256 maxBidPrice,
+        uint8 tickNumber,
+        uint128 maxTokenAmount
+    ) internal pure returns (FuzzGeneratedBid memory bid) {
+        // Price generation is independent from amount generation: tickNumber chooses whether
+        // to use the nearest, highest, or middle price, while seed chooses the token amount case.
+        (bid.maxPrice, bid.canBid) = seededBidPrice(tickNumber, clearingPrice, tickSpacing, maxBidPrice);
         if (!bid.canBid) return bid;
 
-        bid.tokenAmount = seededBidTokenAmount(uint128(seed));
+        bid.tokenAmount = seededBidTokenAmount(uint128(seed), maxTokenAmount);
         bid.inputAmount = inputAmountForTokens(bid.tokenAmount, bid.maxPrice);
     }
 

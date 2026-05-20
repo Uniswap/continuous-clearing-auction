@@ -5,7 +5,7 @@ import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {MaxBidPriceLib} from '../../src/libraries/MaxBidPriceLib.sol';
 import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
-import {FuzzDeploymentParams} from './FuzzStructs.sol';
+import {FuzzDeploymentParams, FuzzGeneratedBid} from './FuzzStructs.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 
@@ -16,6 +16,7 @@ library FuzzGenerators {
     using FixedPointMathLib for uint256;
 
     uint256 internal constant BPS = 10_000;
+    uint256 internal constant BID_AMOUNT_CASES = 8;
 
     /// @notice Derive a deterministic uint256 from a seed and domain-specific salt.
     function seededUint256(uint256 seed, string memory salt) internal pure returns (uint256) {
@@ -153,48 +154,46 @@ library FuzzGenerators {
         return (minimumBidPrice + offset * tickSpacing, true);
     }
 
-    /// @notice Generate a bid token amount from a seed.
-    /// @dev Distribution:
-    ///      - 8% exact edge values: 0, 1, 2, max-1, max.
-    ///      - 10% tiny/dust values near zero.
-    ///      - 77% typical fixture-sized values across common 18-decimal token scales.
-    ///      - 5% large values across the full uint128 input space.
-    ///      The output is intentionally not bounded by auction supply or remaining supply; callers
-    ///      should let protocol validation handle unreasonable values.
+    /// @notice Generate a bid token amount from an explicit named case.
+    /// @dev The case is selected by `seed % BID_AMOUNT_CASES`; no hidden weighting is applied.
+    ///      The output is intentionally not bounded by auction supply or remaining supply.
     function seededBidTokenAmount(uint128 amountSeed) internal pure returns (uint128) {
-        uint256 bucket = uint256(amountSeed) % 100;
+        // Keep the mapping small and mechanical so a failing seed is easy to decode:
+        // seed % 8 tells you exactly which amount family was used.
+        uint256 amountCase = uint256(amountSeed) % BID_AMOUNT_CASES;
 
-        if (bucket < 8) {
-            uint128[8] memory edgeAmounts = [
-                uint128(0),
-                uint128(1),
-                uint128(2),
-                uint128(1e6),
-                uint128(1e18),
-                type(uint128).max - 1,
-                type(uint128).max,
-                uint128(seededUint256(amountSeed, 'edge'))
-            ];
-            return edgeAmounts[bucket];
-        } else if (bucket < 18) {
-            return uint128(seededUint256(amountSeed, 'tiny') % 1e18);
-        } else if (bucket >= 95) {
-            return uint128(seededUint256(amountSeed, 'large'));
-        } else {
-            uint128[8] memory anchors = [
-                uint128(1e18),
-                uint128(10e18),
-                uint128(100e18),
-                uint128(1000e18),
-                uint128(10_000e18),
-                uint128(100_000e18),
-                uint128(1_000_000e18),
-                uint128(1_000_000_000e18)
-            ];
-            uint256 anchor = anchors[seededUint256(amountSeed, 'normalAnchor') % anchors.length];
-            uint256 jitter = seededUint256(amountSeed, 'normalJitter') % (anchor + 1);
-            return SafeCastLib.toUint128(anchor + jitter);
-        }
+        // 0: invalid zero-amount bid path.
+        if (amountCase == 0) return 0;
+        // 1: minimum non-zero input, useful for rounding and dust behavior.
+        if (amountCase == 1) return 1;
+        // 2-4: ordinary 18-decimal token sizes that exercise normal fills.
+        if (amountCase == 2) return 1e18;
+        if (amountCase == 3) return 10e18;
+        if (amountCase == 4) return 1000e18;
+        // 5-6: upper-bound values that stress input conversion and saturation.
+        if (amountCase == 5) return type(uint128).max - 1;
+        if (amountCase == 6) return type(uint128).max;
+
+        // 7: broad deterministic fallback. This keeps one case exploring the wider uint128
+        // space without making the common cases probabilistic or hard to identify.
+        return uint128(seededUint256(amountSeed, 'bidAmount.fallback'));
+    }
+
+    /// @notice Generate a complete bid input from a seed and the current auction price bounds.
+    /// @dev Returns `canBid == false` when no tick-aligned price exists above clearing.
+    ///      Otherwise, the same seed selects both the amount case and the resulting input amount.
+    function seededBid(uint256 seed, uint256 clearingPrice, uint256 tickSpacing, uint256 maxBidPrice, uint8 tickNumber)
+        internal
+        pure
+        returns (FuzzGeneratedBid memory bid)
+    {
+        // Price generation is independent from amount generation: tickNumber chooses a valid
+        // offset above clearing, while seed chooses the token amount case.
+        (bid.maxPrice, bid.canBid) = nextBidPrice(clearingPrice, tickSpacing, maxBidPrice, tickNumber);
+        if (!bid.canBid) return bid;
+
+        bid.tokenAmount = seededBidTokenAmount(uint128(seed));
+        bid.inputAmount = inputAmountForTokens(bid.tokenAmount, bid.maxPrice);
     }
 
     /// @notice Convert a desired token amount into the bid input amount at maxPrice.

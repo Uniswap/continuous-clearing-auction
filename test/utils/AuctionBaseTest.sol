@@ -67,46 +67,9 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     uint128 public $bidAmount;
     uint256 public $maxPrice;
 
-    // Wrapper around vm.randomUint() to return a random uint128
-    function _randomUint128() private returns (uint128) {
-        return uint128(bound(uint256(vm.randomUint() >> 128), 1, type(uint128).max));
-    }
-
     // ============================================
     // Fuzz Parameter Validation Helpers
     // ============================================
-
-    /// @notice Get a random divisor of ConstantsLib.MPS (10,000,000) that fits in uint8
-    /// @return A random valid divisor for numberOfSteps
-    function _getRandomDivisorOfMPS() private returns (uint8) {
-        // TODO(md): improve
-        // All divisors of 10,000,000 that fit in uint8 (1-255)
-        uint8[] memory validDivisors = new uint8[](20);
-        validDivisors[0] = 1;
-        validDivisors[1] = 2;
-        validDivisors[2] = 4;
-        validDivisors[3] = 5;
-        validDivisors[4] = 8;
-        validDivisors[5] = 10;
-        validDivisors[6] = 16;
-        validDivisors[7] = 20;
-        validDivisors[8] = 25;
-        validDivisors[9] = 32;
-        validDivisors[10] = 40;
-        validDivisors[11] = 50;
-        validDivisors[12] = 64;
-        validDivisors[13] = 80;
-        validDivisors[14] = 100;
-        validDivisors[15] = 125;
-        validDivisors[16] = 128;
-        validDivisors[17] = 160;
-        validDivisors[18] = 200;
-        validDivisors[19] = 250;
-
-        // Randomly select one of the valid divisors
-        uint256 randomIndex = _bound(uint256(vm.randomUint()), 0, validDivisors.length - 1);
-        return validDivisors[randomIndex];
-    }
 
     function helper__seededInvariantDeploymentParams(uint256 seed) public returns (FuzzDeploymentParams memory) {
         FuzzDeploymentParams memory deploymentParams = FuzzGenerators.seededDeploymentParams(
@@ -117,49 +80,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     }
 
     function helper__validInvariantDeploymentParams() public returns (FuzzDeploymentParams memory) {
-        FuzzDeploymentParams memory deploymentParams;
-
-        _setHardcodedParams(deploymentParams);
-
-        // Generate the random parameteres here
-        deploymentParams.totalSupply = uint128(_bound(_randomUint128(), 1, ConstantsLib.MAX_TOTAL_SUPPLY));
-
-        // Calculate the number of steps - ensure it's a divisor of ConstantsLib.MPS
-        deploymentParams.numberOfSteps = _getRandomDivisorOfMPS();
-
-        uint256 maxBidPrice = MaxBidPriceLib.maxBidPrice(deploymentParams.totalSupply);
-        deploymentParams.auctionParams.floorPrice = uint128(
-            _bound(uint256(vm.randomUint()), ConstantsLib.MIN_FLOOR_PRICE, maxBidPrice - ConstantsLib.MIN_TICK_SPACING)
-        );
-        deploymentParams.auctionParams.tickSpacing = uint256(
-            _bound(
-                uint256(vm.randomUint()),
-                ConstantsLib.MIN_TICK_SPACING,
-                maxBidPrice - deploymentParams.auctionParams.floorPrice
-            )
-        );
-        // bound tick spacing to at most floor price
-        deploymentParams.auctionParams.tickSpacing = _bound(
-            deploymentParams.auctionParams.tickSpacing,
-            ConstantsLib.MIN_TICK_SPACING,
-            deploymentParams.auctionParams.floorPrice
-        );
-
-        deploymentParams.auctionParams.floorPrice = helper__roundPriceDownToTickSpacing(
-            deploymentParams.auctionParams.floorPrice, deploymentParams.auctionParams.tickSpacing
-        );
-        deploymentParams.auctionParams.requiredCurrencyRaised =
-            uint256(vm.randomUint()) % 2 == 0 ? 0 : type(uint128).max;
-
-        // Set up the block numbers
-        deploymentParams.auctionParams.startBlock = uint64(_bound(uint256(vm.randomUint()), 1, type(uint64).max));
-        _boundBlockNumbers(deploymentParams);
-
-        // TODO(md): fix and have variation in the step sizes
-        deploymentParams.auctionParams.auctionStepsData = _generateAuctionSteps(deploymentParams.numberOfSteps);
-
-        $deploymentParams = deploymentParams;
-        return deploymentParams;
+        return helper__seededInvariantDeploymentParams(uint256(vm.randomUint()));
     }
 
     function helper__validFuzzDeploymentParams(FuzzDeploymentParams memory _deploymentParams)

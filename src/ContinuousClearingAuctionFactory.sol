@@ -8,16 +8,29 @@ import {IDistributionContract} from './interfaces/external/IDistributionContract
 import {IDistributionStrategy} from './interfaces/external/IDistributionStrategy.sol';
 import {Create2} from '@openzeppelin/contracts/utils/Create2.sol';
 import {IProtocolFeeController} from 'liquidity-launcher/src/interfaces/IProtocolFeeController.sol';
+import {Ownable} from 'solady/auth/Ownable.sol';
 import {ActionConstants} from 'v4-periphery/src/libraries/ActionConstants.sol';
 
 /// @title ContinuousClearingAuctionFactory
 /// @custom:security-contact security@uniswap.org
-contract ContinuousClearingAuctionFactory is IContinuousClearingAuctionFactory {
+contract ContinuousClearingAuctionFactory is IContinuousClearingAuctionFactory, Ownable {
     /// @notice The protocol fee controller to use for all created auctions
-    IProtocolFeeController internal immutable PROTOCOL_FEE_CONTROLLER;
+    IProtocolFeeController internal PROTOCOL_FEE_CONTROLLER;
 
-    constructor(address _protocolFeeController) {
+    /// @notice Emitted when the protocol fee controller is updated
+    event ProtocolFeeControllerUpdated(address indexed protocolFeeController);
+
+    constructor(address _owner, address _protocolFeeController) {
+        _initializeOwner(_owner);
         PROTOCOL_FEE_CONTROLLER = IProtocolFeeController(_protocolFeeController);
+    }
+
+    /// @notice Sets the protocol fee controller to use for all created auctions
+    /// @dev Can only be called by the owner
+    /// @param _protocolFeeController The new protocol fee controller address
+    function setProtocolFeeController(address _protocolFeeController) external onlyOwner {
+        PROTOCOL_FEE_CONTROLLER = IProtocolFeeController(_protocolFeeController);
+        emit ProtocolFeeControllerUpdated(_protocolFeeController);
     }
 
     /// @inheritdoc IDistributionStrategy

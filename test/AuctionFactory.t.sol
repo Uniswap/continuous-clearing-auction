@@ -16,6 +16,7 @@ import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {FuzzDeploymentParams} from './utils/FuzzStructs.sol';
+import {Ownable} from 'solady/auth/Ownable.sol';
 
 contract AuctionFactoryTest is AuctionBaseTest {
     using AuctionParamsBuilder for AuctionParameters;
@@ -26,7 +27,46 @@ contract AuctionFactoryTest is AuctionBaseTest {
     function setUp() public {
         // Setup non fuzz auction
         setUpAuction();
-        factory = new ContinuousClearingAuctionFactory(address(0));
+        factory = new ContinuousClearingAuctionFactory(address(this), address(0));
+    }
+
+    function test_setProtocolFeeController_revertsWhenCallerIsNotOwner(address caller, address protocolFeeController)
+        public
+    {
+        vm.assume(caller != address(this));
+
+        vm.prank(caller);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        factory.setProtocolFeeController(protocolFeeController);
+    }
+
+    function test_setProtocolFeeController_emitsEvent(address protocolFeeController) public {
+        vm.expectEmit(true, true, true, true, address(factory));
+        emit ContinuousClearingAuctionFactory.ProtocolFeeControllerUpdated(protocolFeeController);
+
+        factory.setProtocolFeeController(protocolFeeController);
+    }
+
+    function test_setProtocolFeeController_updatesAuctionAddress(
+        address protocolFeeController,
+        bytes32 salt,
+        address sender
+    ) public {
+        vm.assume(protocolFeeController != address(0));
+
+        bytes memory configData = abi.encode(params);
+        address auctionAddressBefore = factory.getAuctionAddress(address(token), TOTAL_SUPPLY, configData, salt, sender);
+
+        factory.setProtocolFeeController(protocolFeeController);
+
+        address auctionAddressAfter = factory.getAuctionAddress(address(token), TOTAL_SUPPLY, configData, salt, sender);
+
+        assertTrue(auctionAddressBefore != auctionAddressAfter);
+
+        vm.prank(sender);
+        IDistributionContract distributionContract =
+            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, salt);
+        assertEq(auctionAddressAfter, address(distributionContract));
     }
 
     function test_initializeDistribution_createsAuction() public {

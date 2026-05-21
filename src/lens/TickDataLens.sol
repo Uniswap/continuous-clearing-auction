@@ -72,27 +72,21 @@ contract TickDataLens {
                 // Guarded explicitly so the d == 0 case never reaches fullMulDivUp.
                 let requiredCurrencyDemandQ96 := 0
                 if gt(remainingMps, 0) {
-                    requiredCurrencyDemandQ96 :=
-                        fullMulDivUp(remainingSupplyQ96X7, next, requiredDemandDenominator)
+                    requiredCurrencyDemandQ96 := fullMulDivUp(remainingSupplyQ96X7, next, requiredDemandDenominator)
                 }
                 mstore(add(dataOffset, 0x40), requiredCurrencyDemandQ96)
 
                 // currencyRequiredQ96 = ceil(saturatingSub(required, runningDemand) * remainingMps / mps)
                 mstore(
                     add(dataOffset, 0x60),
-                    fullMulDivUp(
-                        saturatingSub(requiredCurrencyDemandQ96, runningDemand),
-                        remainingMps,
-                        mps
-                    )
+                    fullMulDivUp(saturatingSub(requiredCurrencyDemandQ96, runningDemand), remainingMps, mps)
                 )
 
                 next := nextTick
                 // Defensive: clamp to zero rather than wrapping if the auction's sum is
                 // ever inconsistent with per-tick demands (invariant should hold, but
                 // silent wrap would corrupt every subsequent tick's currencyRequiredQ96).
-                runningDemand :=
-                    saturatingSub(runningDemand, /* currencyDemandQ96 */ mload(add(dataOffset, 0x20)))
+                runningDemand := saturatingSub(runningDemand, /* currencyDemandQ96 */ mload(add(dataOffset, 0x20)))
 
                 dataOffset := add(dataOffset, 0x80)
 
@@ -144,11 +138,10 @@ contract TickDataLens {
                         inv := mul(inv, sub(2, mul(d, inv)))
                         inv := mul(inv, sub(2, mul(d, inv)))
                         inv := mul(inv, sub(2, mul(d, inv)))
-                        z :=
-                            mul(
-                                or(mul(sub(p1, gt(r, z)), add(div(sub(0, t), t), 1)), div(sub(z, r), t)),
-                                mul(sub(2, mul(d, inv)), inv)
-                            )
+                        z := mul(
+                            or(mul(sub(p1, gt(r, z)), add(div(sub(0, t), t), 1)), div(sub(z, r), t)),
+                            mul(sub(2, mul(d, inv)), inv)
+                        )
                         break
                     }
                     z := div(z, d)

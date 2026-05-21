@@ -6,6 +6,7 @@ import {MockContinuousClearingAuction} from 'btt/mocks/MockContinuousClearingAuc
 import {MockProtocolFeeController} from 'btt/mocks/MockProtocolFeeController.sol';
 import {LBPInitializationParams} from 'liquidity-launcher/src/interfaces/ILBPInitializer.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
+import {IAuctionStorage} from 'src/interfaces/IAuctionStorage.sol';
 import {IContinuousClearingAuction} from 'src/interfaces/IContinuousClearingAuction.sol';
 
 contract LBPInitializationParamsTest is BttBase {
@@ -32,10 +33,34 @@ contract LBPInitializationParamsTest is BttBase {
         _;
     }
 
+    function test_WhenAuctionIsFinalizedButNotGraduated(AuctionFuzzConstructorParams memory _params)
+        external
+        givenAuctionIsFinalized
+    {
+        // it reverts with {NotGraduated}
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        mParams.token = address(new ERC20Mock());
+        mParams.parameters.requiredCurrencyRaised = 1;
+
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
+
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
+        auction.onTokensReceived();
+
+        vm.roll(auction.endBlock());
+        auction.checkpoint();
+
+        assertFalse(auction.isGraduated(), 'auction is graduated');
+        vm.expectRevert(IAuctionStorage.NotGraduated.selector);
+        auction.lbpInitializationParams();
+    }
+
     function test_WhenAuctionIsFinalized(AuctionFuzzConstructorParams memory _params) external givenAuctionIsFinalized {
         // it returns the correct initialization params
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
         mParams.token = address(new ERC20Mock());
+        mParams.parameters.requiredCurrencyRaised = 0;
 
         MockContinuousClearingAuction auction =
             new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
@@ -65,6 +90,7 @@ contract LBPInitializationParamsTest is BttBase {
         mParams.token = address(new ERC20Mock());
         mParams.parameters.currency = address(0);
         mParams.parameters.validationHook = address(0);
+        mParams.parameters.requiredCurrencyRaised = 0;
 
         MockProtocolFeeController protocolFeeController = new MockProtocolFeeController();
         MockContinuousClearingAuction auction = new MockContinuousClearingAuction(

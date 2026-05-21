@@ -204,9 +204,9 @@ contract SweepCurrencyTest is BttBase {
         uint256 expectedNetCurrencyRaised = expectedCurrencyRaised - _protocolFeeAmount;
 
         vm.expectEmit(true, true, true, true);
-        emit ProtocolFeeLib.ProtocolFeeTransferred(address(0), _protocolFeeAmount);
-        vm.expectEmit(true, true, true, true);
         emit IAuctionStorage.CurrencySwept(mParams.parameters.fundsRecipient, expectedNetCurrencyRaised);
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolFeeLib.ProtocolFeeTransferred(address(0), _protocolFeeAmount);
         vm.prank(mParams.parameters.fundsRecipient);
         auction.sweepCurrency();
 

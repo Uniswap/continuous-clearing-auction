@@ -135,13 +135,14 @@ contract ContinuousClearingAuction is
         // Require that the auction has been checkpointed at the end block before returning initialization params
         if ($lastCheckpointedBlock != END_BLOCK) revert AuctionIsNotFinalized();
         // Subtract the protocol fee from the currency raised
+        uint256 currencyRaised = currencyRaised();
         uint256 protocolFeeAmount =
-            ProtocolFeeLib.getProtocolFeeAmount(PROTOCOL_FEE_CONTROLLER, Currency.unwrap(CURRENCY), currencyRaised());
+            ProtocolFeeLib.getProtocolFeeAmount(PROTOCOL_FEE_CONTROLLER, Currency.unwrap(CURRENCY), currencyRaised);
 
         return LBPInitializationParams({
             initialPriceX96: $clearingPrice,
             tokensSold: totalCleared(),
-            currencyRaised: currencyRaised() - protocolFeeAmount
+            currencyRaised: currencyRaised - protocolFeeAmount
         });
     }
 
@@ -656,10 +657,10 @@ contract ContinuousClearingAuction is
         uint256 currencyRaised = currencyRaised();
         uint256 protocolFeeAmount =
             ProtocolFeeLib.getProtocolFeeAmount(PROTOCOL_FEE_CONTROLLER, Currency.unwrap(CURRENCY), currencyRaised);
+        _sweepCurrency(_getBlockNumberish(), currencyRaised - protocolFeeAmount);
         if (protocolFeeAmount > 0) {
             ProtocolFeeLib.transferProtocolFee(PROTOCOL_FEE_CONTROLLER, Currency.unwrap(CURRENCY), protocolFeeAmount);
         }
-        _sweepCurrency(_getBlockNumberish(), currencyRaised - protocolFeeAmount);
     }
 
     /// @inheritdoc ILBPInitializer

@@ -15,21 +15,21 @@ import {ActionConstants} from 'v4-periphery/src/libraries/ActionConstants.sol';
 /// @custom:security-contact security@uniswap.org
 contract ContinuousClearingAuctionFactory is IContinuousClearingAuctionFactory, Ownable {
     /// @notice The protocol fee controller to use for all created auctions
-    IProtocolFeeController internal PROTOCOL_FEE_CONTROLLER;
+    IProtocolFeeController public protocolFeeController;
 
     /// @notice Emitted when the protocol fee controller is updated
     event ProtocolFeeControllerUpdated(address indexed protocolFeeController);
 
     constructor(address _owner, address _protocolFeeController) {
         _initializeOwner(_owner);
-        PROTOCOL_FEE_CONTROLLER = IProtocolFeeController(_protocolFeeController);
+        protocolFeeController = IProtocolFeeController(_protocolFeeController);
     }
 
     /// @notice Sets the protocol fee controller to use for all created auctions
     /// @dev Can only be called by the owner
     /// @param _protocolFeeController The new protocol fee controller address
     function setProtocolFeeController(address _protocolFeeController) external onlyOwner {
-        PROTOCOL_FEE_CONTROLLER = IProtocolFeeController(_protocolFeeController);
+        protocolFeeController = IProtocolFeeController(_protocolFeeController);
         emit ProtocolFeeControllerUpdated(_protocolFeeController);
     }
 
@@ -49,7 +49,7 @@ contract ContinuousClearingAuctionFactory is IContinuousClearingAuctionFactory, 
         distributionContract = IDistributionContract(
             address(
                 new ContinuousClearingAuction{salt: keccak256(abi.encode(msg.sender, salt))}(
-                    token, uint128(amount), parameters, address(PROTOCOL_FEE_CONTROLLER)
+                    token, uint128(amount), parameters, address(protocolFeeController)
                 )
             )
         );
@@ -73,7 +73,7 @@ contract ContinuousClearingAuctionFactory is IContinuousClearingAuctionFactory, 
         bytes32 initCodeHash = keccak256(
             abi.encodePacked(
                 type(ContinuousClearingAuction).creationCode,
-                abi.encode(token, uint128(amount), parameters, address(PROTOCOL_FEE_CONTROLLER))
+                abi.encode(token, uint128(amount), parameters, address(protocolFeeController))
             )
         );
         salt = keccak256(abi.encode(sender, salt));

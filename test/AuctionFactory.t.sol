@@ -45,6 +45,8 @@ contract AuctionFactoryTest is AuctionBaseTest {
         emit ContinuousClearingAuctionFactory.ProtocolFeeControllerUpdated(protocolFeeController);
 
         factory.setProtocolFeeController(protocolFeeController);
+
+        assertEq(address(factory.protocolFeeController()), protocolFeeController);
     }
 
     function test_setProtocolFeeController_updatesAuctionAddress(

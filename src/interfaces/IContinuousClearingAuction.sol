@@ -8,8 +8,8 @@ import {ICheckpointStorage} from './ICheckpointStorage.sol';
 import {IStepStorage} from './IStepStorage.sol';
 import {ITickStorage} from './ITickStorage.sol';
 import {IValidationHook} from './IValidationHook.sol';
-import {ILBPInitializer} from './external/ILBPInitializer.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
+import {ILBPInitializer} from 'liquidity-launcher/src/interfaces/ILBPInitializer.sol';
 
 /// @notice Parameters for the auction
 /// @dev token and totalSupply are passed as constructor arguments

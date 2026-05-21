@@ -8,13 +8,7 @@ import {StepStorage} from './StepStorage.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
 import {AuctionParameters, IContinuousClearingAuction} from './interfaces/IContinuousClearingAuction.sol';
 import {IValidationHook} from './interfaces/IValidationHook.sol';
-import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
 import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
-import {
-    ILBPInitializer,
-    ILBP_INITIALIZER_INTERFACE_ID,
-    LBPInitializationParams
-} from './interfaces/external/ILBPInitializer.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointAccountingLib} from './libraries/CheckpointAccountingLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
@@ -29,6 +23,12 @@ import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7} from './libraries/ValueX7Lib.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
+import {
+    ILBPInitializer,
+    ILBP_INITIALIZER_INTERFACE_ID,
+    LBPInitializationParams
+} from 'liquidity-launcher/src/interfaces/ILBPInitializer.sol';
+import {ProtocolFeeLib} from 'liquidity-launcher/src/libraries/ProtocolFeeLib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {ReentrancyGuardTransient} from 'solady/utils/ReentrancyGuardTransient.sol';
 import {SafeTransferLib} from 'solady/utils/SafeTransferLib.sol';
@@ -62,7 +62,12 @@ contract ContinuousClearingAuction is
     /// @notice An optional hook to be called before a bid is registered
     IValidationHook internal immutable VALIDATION_HOOK;
 
-    constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
+    constructor(
+        address _token,
+        uint128 _totalSupply,
+        AuctionParameters memory _parameters,
+        address _protocolFeeController
+    )
         StepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock, _parameters.claimBlock)
         AuctionStorage(
             _token,
@@ -70,7 +75,8 @@ contract ContinuousClearingAuction is
             _totalSupply,
             _parameters.tokensRecipient,
             _parameters.fundsRecipient,
-            _parameters.requiredCurrencyRaised
+            _parameters.requiredCurrencyRaised,
+            _protocolFeeController
         )
         TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
     {
@@ -111,8 +117,8 @@ contract ContinuousClearingAuction is
         _;
     }
 
-    /// @inheritdoc IDistributionContract
-    function onTokensReceived() external {
+    /// @notice Notify the auction that the token supply has been deposited.
+    function onTokensReceived() external override {
         // Don't check balance or emit the TokensReceived event if the tokens have already been received
         if ($_tokensReceived) return;
         // Use the normal totalSupply value instead of the Q96 value
@@ -126,12 +132,19 @@ contract ContinuousClearingAuction is
     /// @inheritdoc ILBPInitializer
     /// @dev The calling contract must be aware that the values returned in this function for `currencyRaised` and `tokensSold`
     ///      may not be reflective of the actual values if the auction did not graduate.
+    /// @dev Protocol fees are queried from the controller at call time and may differ from fees at auction creation.
     function lbpInitializationParams() external view returns (LBPInitializationParams memory params) {
         // Require that the auction has been checkpointed at the end block before returning initialization params
         if ($lastCheckpointedBlock != END_BLOCK) revert AuctionIsNotFinalized();
+        // Subtract the protocol fee from the currency raised
+        uint256 currencyRaised = currencyRaised();
+        uint256 protocolFeeAmount =
+            ProtocolFeeLib.getProtocolFeeAmount(PROTOCOL_FEE_CONTROLLER, Currency.unwrap(CURRENCY), currencyRaised);
 
         return LBPInitializationParams({
-            initialPriceX96: $clearingPrice, tokensSold: totalCleared(), currencyRaised: currencyRaised()
+            initialPriceX96: $clearingPrice,
+            tokensSold: totalCleared(),
+            currencyRaised: currencyRaised - protocolFeeAmount
         });
     }
 
@@ -635,7 +648,8 @@ contract ContinuousClearingAuction is
         $bid.tokensFilled = 0;
     }
 
-    /// @inheritdoc IContinuousClearingAuction
+    /// @inheritdoc ILBPInitializer
+    /// @dev Protocol fees are queried from the controller at sweep time and may differ from fees at auction creation.
     function sweepCurrency() external onlyAfterAuctionIsOver ensureEndBlockIsCheckpointed {
         // Only recipient can sweep
         if (msg.sender != FUNDS_RECIPIENT) revert NotAuthorized(FUNDS_RECIPIENT, msg.sender);
@@ -643,10 +657,17 @@ contract ContinuousClearingAuction is
         if (sweepCurrencyBlock != 0) revert CannotSweepCurrency();
         // Cannot sweep currency if the auction has not graduated, as all of the Currency must be refunded
         if (!_isGraduated()) revert NotGraduated();
-        _sweepCurrency(_getBlockNumberish(), currencyRaised());
+        // Sweep the currency and the protocol fee
+        uint256 currencyRaised = currencyRaised();
+        uint256 protocolFeeAmount =
+            ProtocolFeeLib.getProtocolFeeAmount(PROTOCOL_FEE_CONTROLLER, Currency.unwrap(CURRENCY), currencyRaised);
+        _sweepCurrency(_getBlockNumberish(), currencyRaised - protocolFeeAmount);
+        if (protocolFeeAmount > 0) {
+            ProtocolFeeLib.transferProtocolFee(PROTOCOL_FEE_CONTROLLER, Currency.unwrap(CURRENCY), protocolFeeAmount);
+        }
     }
 
-    /// @inheritdoc IContinuousClearingAuction
+    /// @inheritdoc ILBPInitializer
     function sweepUnsoldTokens() external onlyAfterAuctionIsOver ensureEndBlockIsCheckpointed {
         // Only recipient can sweep
         if (msg.sender != TOKENS_RECIPIENT) revert NotAuthorized(TOKENS_RECIPIENT, msg.sender);

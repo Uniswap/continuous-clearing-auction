@@ -6,13 +6,21 @@ import {AuctionParameters} from './interfaces/IContinuousClearingAuction.sol';
 import {IContinuousClearingAuctionFactory} from './interfaces/IContinuousClearingAuctionFactory.sol';
 import {IDistributionContract} from './interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from './interfaces/external/IDistributionStrategy.sol';
-
 import {Create2} from '@openzeppelin/contracts/utils/Create2.sol';
+import {IProtocolFeeController} from 'liquidity-launcher/src/interfaces/IProtocolFeeController.sol';
 import {ActionConstants} from 'v4-periphery/src/libraries/ActionConstants.sol';
 
 /// @title ContinuousClearingAuctionFactory
+/// @notice Deploy a new factory to use a different protocol fee controller for newly created auctions.
 /// @custom:security-contact security@uniswap.org
 contract ContinuousClearingAuctionFactory is IContinuousClearingAuctionFactory {
+    /// @notice The protocol fee controller to use for all created auctions
+    IProtocolFeeController public immutable PROTOCOL_FEE_CONTROLLER;
+
+    constructor(address _protocolFeeController) {
+        PROTOCOL_FEE_CONTROLLER = IProtocolFeeController(_protocolFeeController);
+    }
+
     /// @inheritdoc IDistributionStrategy
     function initializeDistribution(address token, uint256 amount, bytes calldata configData, bytes32 salt)
         external
@@ -29,7 +37,7 @@ contract ContinuousClearingAuctionFactory is IContinuousClearingAuctionFactory {
         distributionContract = IDistributionContract(
             address(
                 new ContinuousClearingAuction{salt: keccak256(abi.encode(msg.sender, salt))}(
-                    token, uint128(amount), parameters
+                    token, uint128(amount), parameters, address(PROTOCOL_FEE_CONTROLLER)
                 )
             )
         );
@@ -52,10 +60,16 @@ contract ContinuousClearingAuctionFactory is IContinuousClearingAuctionFactory {
 
         bytes32 initCodeHash = keccak256(
             abi.encodePacked(
-                type(ContinuousClearingAuction).creationCode, abi.encode(token, uint128(amount), parameters)
+                type(ContinuousClearingAuction).creationCode,
+                abi.encode(token, uint128(amount), parameters, address(PROTOCOL_FEE_CONTROLLER))
             )
         );
         salt = keccak256(abi.encode(sender, salt));
         return Create2.computeAddress(salt, initCodeHash, address(this));
+    }
+
+    /// @inheritdoc IContinuousClearingAuctionFactory
+    function protocolFeeController() external view returns (IProtocolFeeController) {
+        return PROTOCOL_FEE_CONTROLLER;
     }
 }

@@ -20,8 +20,9 @@ contract SweepUnsoldTokensTest is BttBase {
 
         Currency token = Currency.wrap(address(new MockERC20()));
 
-        MockAuctionStorage auctionStorage =
-            new MockAuctionStorage(Currency.unwrap(token), address(1), 100e18, tokensRecipient, address(1), 0);
+        MockAuctionStorage auctionStorage = new MockAuctionStorage(
+            Currency.unwrap(token), address(1), 100e18, tokensRecipient, address(1), 0, address(0)
+        );
 
         assertEq(auctionStorage.sweepUnsoldTokensBlock(), 0);
         assertEq(token.balanceOf(address(auctionStorage)), 0);
@@ -50,8 +51,9 @@ contract SweepUnsoldTokensTest is BttBase {
 
         Currency token = Currency.wrap(address(new MockERC20()));
 
-        MockAuctionStorage auctionStorage =
-            new MockAuctionStorage(Currency.unwrap(token), address(1), 100e18, tokensRecipient, address(1), 0);
+        MockAuctionStorage auctionStorage = new MockAuctionStorage(
+            Currency.unwrap(token), address(1), 100e18, tokensRecipient, address(1), 0, address(0)
+        );
 
         deal(Currency.unwrap(token), address(auctionStorage), amount);
         assertEq(token.balanceOf(address(auctionStorage)), amount);

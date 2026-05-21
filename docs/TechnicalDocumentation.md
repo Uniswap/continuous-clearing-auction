@@ -3,6 +3,7 @@ CCA documentation is also available on the official [Uniswap docs site](https://
 
 ## Table of Contents
 - [Quickstart](#quickstart)
+- [Continuous Clearing Auction Factory](#continuous-clearing-auction-factory)
 - [Auction Configuration](#auction-configuration)
 - [Validation Hooks](#validation-hooks)
 - [Internal types](#internal-types)
@@ -28,17 +29,45 @@ CCA documentation is also available on the official [Uniswap docs site](https://
 ## Quickstart
 A comprehensive quickstart guide for deploying and interacting with a local CCA deployment is hosted on the official [Uniswap docs site](https://docs.uniswap.org/contracts/liquidity-launchpad/quickstart/setup).
 
-## Auction Configuration
+## Continuous Clearing Auction Factory
 
-The auction and its supply curve are configured through the AuctionFactory which deploys individual Auction contracts with configurable parameters.
+The `ContinuousClearingAuctionFactory` is the canonical deployment path for new CCA instances. It deploys each auction with CREATE2 using the caller and provided salt, and it passes the factory's current fee controller address into every auction it creates.
 
 ```solidity
-interface IAuctionFactory {
+constructor(address _owner, address _protocolFeeController);
+```
+
+- `_owner`: The address that owns the factory. Ownership is managed through Solady `Ownable`.
+- `_protocolFeeController`: The initial fee controller address used for auctions deployed by the factory.
+
+The owner can update the fee controller for future auction deployments:
+
+```solidity
+function setProtocolFeeController(address _protocolFeeController) external onlyOwner;
+```
+
+Updating the fee controller changes the auction init code arguments used by future deployments, so it also changes the deterministic address returned by `getAuctionAddress()` for otherwise identical deployment inputs. Existing auctions keep the controller address they were deployed with.
+
+## Auction Configuration
+
+The auction and its supply curve are configured through the factory, which deploys individual auction contracts with configurable parameters.
+
+```solidity
+interface IContinuousClearingAuctionFactory {
     function initializeDistribution(
         address token,
         uint256 amount,
-        bytes calldata configData
+        bytes calldata configData,
+        bytes32 salt
     ) external returns (address);
+
+    function getAuctionAddress(
+        address token,
+        uint256 amount,
+        bytes calldata configData,
+        bytes32 salt,
+        address sender
+    ) external view returns (address);
 }
 
 /// @notice Parameters for the auction
@@ -60,11 +89,12 @@ struct AuctionParameters {
 constructor(
     address _token,
     uint128 _totalSupply,
-    AuctionParameters memory _parameters
+    AuctionParameters memory _parameters,
+    address _protocolFeeController
 ) {}
 ```
 
-The factory decodes `configData` into `AuctionParameters` and deploys the Auction contract via CREATE2.
+The factory decodes `configData` into `AuctionParameters` and deploys the auction contract via CREATE2. The auction constructor is normally called by the factory; `_protocolFeeController` is the factory-defined controller address at deployment time.
 
 ## Validation Hooks
 

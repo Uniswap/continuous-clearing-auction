@@ -26,7 +26,28 @@ contract AuctionFactoryTest is AuctionBaseTest {
     function setUp() public {
         // Setup non fuzz auction
         setUpAuction();
-        factory = new ContinuousClearingAuctionFactory();
+        factory = new ContinuousClearingAuctionFactory(address(0));
+    }
+
+    function test_protocolFeeController_isSetAtConstruction(address protocolFeeController, bytes32 salt, address sender)
+        public
+    {
+        vm.assume(protocolFeeController != address(0));
+
+        ContinuousClearingAuctionFactory protocolFeeFactory =
+            new ContinuousClearingAuctionFactory(protocolFeeController);
+        bytes memory configData = abi.encode(params);
+        address auctionAddressBefore = factory.getAuctionAddress(address(token), TOTAL_SUPPLY, configData, salt, sender);
+        address auctionAddressAfter =
+            protocolFeeFactory.getAuctionAddress(address(token), TOTAL_SUPPLY, configData, salt, sender);
+
+        assertTrue(auctionAddressBefore != auctionAddressAfter);
+        assertEq(address(protocolFeeFactory.protocolFeeController()), protocolFeeController);
+
+        vm.prank(sender);
+        IDistributionContract distributionContract =
+            protocolFeeFactory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, salt);
+        assertEq(auctionAddressAfter, address(distributionContract));
     }
 
     function test_initializeDistribution_createsAuction() public {

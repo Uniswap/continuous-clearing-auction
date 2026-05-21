@@ -130,12 +130,13 @@ contract ContinuousClearingAuction is
     }
 
     /// @inheritdoc ILBPInitializer
-    /// @dev The calling contract must be aware that the values returned in this function for `currencyRaised` and `tokensSold`
-    ///      may not be reflective of the actual values if the auction did not graduate.
+    /// @dev Reverts if the auction has not graduated, since `currencyRaised` and `tokensSold` are not actual settled
+    ///      values for an unsuccessful auction.
     /// @dev Protocol fees are queried from the controller at call time and may differ from fees at auction creation.
     function lbpInitializationParams() external view returns (LBPInitializationParams memory params) {
         // Require that the auction has been checkpointed at the end block before returning initialization params
         if ($lastCheckpointedBlock != END_BLOCK) revert AuctionIsNotFinalized();
+        if (!_isGraduated()) revert NotGraduated();
         // Subtract the protocol fee from the currency raised
         uint256 currencyRaised = currencyRaised();
         uint256 protocolFeeAmount =

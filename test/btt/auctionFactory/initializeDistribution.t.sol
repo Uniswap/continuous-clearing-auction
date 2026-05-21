@@ -35,6 +35,7 @@ contract InitializeDistributionTest is BttBase {
         _params.totalSupply = uint128(bound(_params.totalSupply, 1, type(uint128).max));
         _params.parameters.currency = address(0);
         _params.parameters.validationHook = address(0);
+        _params.parameters.requiredCurrencyRaised = 0;
 
         MockProtocolFeeController protocolFeeController = new MockProtocolFeeController();
         factory = new ContinuousClearingAuctionFactory(address(protocolFeeController));

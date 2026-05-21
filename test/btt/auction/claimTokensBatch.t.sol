@@ -20,7 +20,7 @@ contract ClaimTokensBatchTest is BttBase {
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
         mParams.token = address(new ERC20Mock());
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -58,7 +58,7 @@ contract ClaimTokensBatchTest is BttBase {
         // Make it graduated by default
         mParams.parameters.requiredCurrencyRaised = 0;
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -119,7 +119,7 @@ contract ClaimTokensBatchTest is BttBase {
         // Make it not graduated by default
         mParams.parameters.requiredCurrencyRaised = type(uint128).max;
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -168,7 +168,7 @@ contract ClaimTokensBatchTest is BttBase {
         mParams.parameters.requiredCurrencyRaised = 0;
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();

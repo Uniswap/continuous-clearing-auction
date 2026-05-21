@@ -76,10 +76,12 @@ contract AuctionStepDiffTest is AuctionBaseTest {
             .withEndBlock(block.number + cumulativeBlockDelta2)
             .withClaimBlock(block.number + cumulativeBlockDelta2 + 10);
 
-        ContinuousClearingAuction firstAuction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params1);
+        ContinuousClearingAuction firstAuction =
+            new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params1, address(0));
         token.mint(address(firstAuction), TOTAL_SUPPLY);
         firstAuction.onTokensReceived();
-        ContinuousClearingAuction secondAuction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params2);
+        ContinuousClearingAuction secondAuction =
+            new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params2, address(0));
         token.mint(address(secondAuction), TOTAL_SUPPLY);
         secondAuction.onTokensReceived();
 
@@ -121,7 +123,8 @@ contract AuctionStepDiffTest is AuctionBaseTest {
                 AuctionStepsBuilder.init().addStep(1, 1e7).addStep(0, 1e7)
             ).withStartBlock(startBlock).withEndBlock(endBlock).withClaimBlock(claimBlock);
 
-        ContinuousClearingAuction newAuction = new ContinuousClearingAuction(address(token), _totalSupply, params);
+        ContinuousClearingAuction newAuction =
+            new ContinuousClearingAuction(address(token), _totalSupply, params, address(0));
         token.mint(address(newAuction), _totalSupply);
         newAuction.onTokensReceived();
 

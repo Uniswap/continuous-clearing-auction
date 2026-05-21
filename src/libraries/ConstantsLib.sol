@@ -15,9 +15,9 @@ library ConstantsLib {
     ///         which would restrict the clearing price to be a very low price in the calculation below.
     uint128 constant MAX_TOTAL_SUPPLY = 1 << 100;
 
-    /// @notice The minimum allowable floor price is type(uint32).max + 1
-    /// @dev This is the minimum price that fits in a uint160 after being inversed
-    uint256 constant MIN_FLOOR_PRICE = uint256(type(uint32).max) + 1;
+    /// @notice The minimum allowable floor price is 2^32 + 1
+    /// @dev Ensures the Q96 reciprocal `(1 << 192) / priceX96` fits in a uint160
+    uint256 constant MIN_FLOOR_PRICE = (1 << 32) + 1;
 
     /// @notice The minimum allowable tick spacing
     /// @dev We don't support tick spacings of 1 to avoid edge cases where the rounding of the clearing price

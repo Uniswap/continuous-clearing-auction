@@ -28,7 +28,7 @@ contract SubmitBidTest is BttBase {
         mParams.parameters.currency = address(0);
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -56,7 +56,7 @@ contract SubmitBidTest is BttBase {
         _blockNumber = uint64(bound(_blockNumber, mParams.parameters.endBlock, type(uint64).max));
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -81,7 +81,7 @@ contract SubmitBidTest is BttBase {
         mParams.parameters.currency = address(0);
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -107,7 +107,7 @@ contract SubmitBidTest is BttBase {
         mParams.parameters.currency = address(0);
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -134,7 +134,7 @@ contract SubmitBidTest is BttBase {
         mParams.parameters.currency = address(0);
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -157,7 +157,7 @@ contract SubmitBidTest is BttBase {
         mParams.parameters.currency = address(new ERC20Mock());
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -180,7 +180,7 @@ contract SubmitBidTest is BttBase {
         mParams.parameters.currency = address(0);
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -214,7 +214,7 @@ contract SubmitBidTest is BttBase {
         mParams.parameters.validationHook = makeAddr('MockValidationHook');
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -247,7 +247,7 @@ contract SubmitBidTest is BttBase {
         mParams.parameters.validationHook = address(new MockReenteringValidationHook(address(this)));
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -289,7 +289,7 @@ contract SubmitBidTest is BttBase {
         mParams.parameters.auctionStepsData = AuctionStepsBuilder.init().addStep(100e3, 100).addStep(0, 1);
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -321,7 +321,7 @@ contract SubmitBidTest is BttBase {
         mParams.parameters.validationHook = address(0);
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();

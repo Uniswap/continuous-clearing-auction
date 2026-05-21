@@ -359,7 +359,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(_deploymentParams.auctionParams.floorPrice);
-        auction = new ContinuousClearingAuction(address(token), _deploymentParams.totalSupply, params);
+        auction = new ContinuousClearingAuction(address(token), _deploymentParams.totalSupply, params, address(0));
 
         token.mint(address(auction), _deploymentParams.totalSupply);
         auction.onTokensReceived();
@@ -385,7 +385,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(tickNumberToPriceX96(1));
-        auction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        auction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
 
         token.mint(address(auction), TOTAL_SUPPLY);
         // Expect the tokens to be received
@@ -408,7 +408,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
             .withAuctionStepsData(failingAuctionStepsData);
 
         ContinuousClearingAuction failingAuction =
-            new ContinuousClearingAuction(address(failingToken), TOTAL_SUPPLY, failingParams);
+            new ContinuousClearingAuction(address(failingToken), TOTAL_SUPPLY, failingParams, address(0));
         failingToken.mint(address(failingAuction), TOTAL_SUPPLY);
         failingAuction.onTokensReceived();
 

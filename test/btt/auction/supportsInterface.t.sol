@@ -3,8 +3,8 @@ pragma solidity ^0.8.0;
 
 import {AuctionFuzzConstructorParams, BttBase} from 'btt/BttBase.sol';
 import {MockContinuousClearingAuction} from 'btt/mocks/MockContinuousClearingAuction.sol';
+import {ILBPInitializer} from 'liquidity-launcher/src/interfaces/ILBPInitializer.sol';
 import {IERC165} from 'openzeppelin-contracts/contracts/interfaces/IERC165.sol';
-import {ILBPInitializer} from 'src/interfaces/external/ILBPInitializer.sol';
 
 contract SupportsInterfaceTest is BttBase {
     function test_WhenInterfaceIsSupported(AuctionFuzzConstructorParams memory _params) external {
@@ -13,7 +13,7 @@ contract SupportsInterfaceTest is BttBase {
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         assertTrue(auction.supportsInterface(type(ILBPInitializer).interfaceId));
         assertTrue(auction.supportsInterface(type(IERC165).interfaceId));
@@ -29,7 +29,7 @@ contract SupportsInterfaceTest is BttBase {
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         assertFalse(auction.supportsInterface(_interfaceId));
     }

@@ -2,7 +2,6 @@
 pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
-import {MockCheckpointStorage} from 'btt/mocks/MockCheckpointStorage.sol';
 
 import {Bid} from 'continuous-clearing-auction/libraries/BidLib.sol';
 import {CheckpointAccountingLib} from 'continuous-clearing-auction/libraries/CheckpointAccountingLib.sol';
@@ -11,12 +10,6 @@ import {FixedPoint96} from 'continuous-clearing-auction/libraries/FixedPoint96.s
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract CalculateFillTest is BttBase {
-    MockCheckpointStorage public mockCheckpointStorage;
-
-    function setUp() external {
-        mockCheckpointStorage = new MockCheckpointStorage();
-    }
-
     function test_WhenCalledWithParams(Bid memory _bid, uint256 _cumulativeMpsPerPriceDelta, uint24 _cumulativeMpsDelta)
         external
         view

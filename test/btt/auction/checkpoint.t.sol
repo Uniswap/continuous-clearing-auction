@@ -26,7 +26,7 @@ contract CheckpointTest is BttBase {
         mParams.token = address(new ERC20Mock());
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -51,7 +51,7 @@ contract CheckpointTest is BttBase {
         _blockNumber = uint64(bound(_blockNumber, mParams.parameters.endBlock + 1, type(uint64).max));
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -68,7 +68,7 @@ contract CheckpointTest is BttBase {
         mParams.token = address(new ERC20Mock());
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -88,7 +88,7 @@ contract CheckpointTest is BttBase {
         mParams.token = address(new ERC20Mock());
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
@@ -121,7 +121,7 @@ contract CheckpointTest is BttBase {
         mParams.parameters.validationHook = address(0);
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
@@ -178,7 +178,7 @@ contract CheckpointTest is BttBase {
         vm.assume(mParams.parameters.floorPrice + mParams.parameters.tickSpacing * _n < maxBidPrice);
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
         ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 

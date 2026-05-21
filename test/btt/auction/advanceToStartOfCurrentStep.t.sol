@@ -13,7 +13,7 @@ contract AdvanceToStartOfCurrentStepTest is BttBase {
     function test_WhenStepStartBlockGTLastCheckpointedBlock(AuctionFuzzConstructorParams memory _params) external {
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         assertEq(auction.lastCheckpointedBlock(), 0);
 
@@ -39,7 +39,7 @@ contract AdvanceToStartOfCurrentStepTest is BttBase {
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
         mParams.token = address(new ERC20Mock());
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
         deal(mParams.token, address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 

@@ -2,13 +2,10 @@
 pragma solidity 0.8.26;
 
 import {ICheckpointStorage} from './interfaces/ICheckpointStorage.sol';
-import {Bid} from './libraries/BidLib.sol';
-import {CheckpointAccountingLib} from './libraries/CheckpointAccountingLib.sol';
 import {Checkpoint} from './libraries/CheckpointLib.sol';
-import {ValueX7} from './libraries/ValueX7Lib.sol';
 
 /// @title CheckpointStorage
-/// @notice Abstract contract for managing auction checkpoints and bid fill calculations
+/// @notice Abstract contract for managing auction checkpoints
 abstract contract CheckpointStorage is ICheckpointStorage {
     /// @notice Maximum block number value used as sentinel for last checkpoint
     uint64 public constant MAX_BLOCK_NUMBER = type(uint64).max;
@@ -43,38 +40,6 @@ abstract contract CheckpointStorage is ICheckpointStorage {
         $_checkpoints[blockNumber] = checkpoint;
         // Update the last checkpointed block
         $lastCheckpointedBlock = blockNumber;
-    }
-
-    /// @notice Calculate the tokens sold and proportion of input used for a fully filled bid between two checkpoints
-    /// @dev This function MUST only be used for checkpoints where the bid's max price is strictly greater than the clearing price
-    ///      because it uses lazy accounting to calculate the tokens filled
-    /// @param upper The upper checkpoint
-    /// @param startCheckpoint The start checkpoint of the bid
-    /// @param bid The bid
-    /// @return tokensFilled The tokens sold
-    /// @return currencySpentQ96 The amount of currency spent in Q96 form
-    function _accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memory startCheckpoint, Bid memory bid)
-        internal
-        pure
-        returns (uint256 tokensFilled, uint256 currencySpentQ96)
-    {
-        return CheckpointAccountingLib.accountFullyFilledCheckpoints(upper, startCheckpoint, bid);
-    }
-
-    /// @notice Calculate the tokens sold and currency spent for a partially filled bid
-    /// @param bid The bid
-    /// @param tickDemandQ96 The total demand at the tick
-    /// @param currencyRaisedAtClearingPriceQ96X7 The cumulative supply sold to the clearing price
-    /// @return tokensFilled The tokens sold
-    /// @return currencySpentQ96 The amount of currency spent in Q96 form
-    function _accountPartiallyFilledCheckpoints(
-        Bid memory bid,
-        uint256 tickDemandQ96,
-        ValueX7 currencyRaisedAtClearingPriceQ96X7
-    ) internal pure returns (uint256 tokensFilled, uint256 currencySpentQ96) {
-        return CheckpointAccountingLib.accountPartiallyFilledCheckpoints(
-            bid, tickDemandQ96, currencyRaisedAtClearingPriceQ96X7
-        );
     }
 
     /// @inheritdoc ICheckpointStorage

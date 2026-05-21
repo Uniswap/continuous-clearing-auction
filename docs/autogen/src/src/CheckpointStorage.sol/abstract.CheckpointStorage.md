@@ -7,7 +7,7 @@
 **Title:**
 CheckpointStorage
 
-Abstract contract for managing auction checkpoints and bid fill calculations
+Abstract contract for managing auction checkpoints
 
 
 ## State Variables
@@ -76,64 +76,6 @@ This function updates the prev and next pointers of the latest checkpoint and th
 ```solidity
 function _insertCheckpoint(Checkpoint memory checkpoint, uint64 blockNumber) internal;
 ```
-
-### _accountFullyFilledCheckpoints
-
-Calculate the tokens sold and proportion of input used for a fully filled bid between two checkpoints
-
-This function MUST only be used for checkpoints where the bid's max price is strictly greater than the clearing price
-because it uses lazy accounting to calculate the tokens filled
-
-
-```solidity
-function _accountFullyFilledCheckpoints(Checkpoint memory upper, Checkpoint memory startCheckpoint, Bid memory bid)
-    internal
-    pure
-    returns (uint256 tokensFilled, uint256 currencySpentQ96);
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`upper`|`Checkpoint`|The upper checkpoint|
-|`startCheckpoint`|`Checkpoint`|The start checkpoint of the bid|
-|`bid`|`Bid`|The bid|
-
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`tokensFilled`|`uint256`|The tokens sold|
-|`currencySpentQ96`|`uint256`|The amount of currency spent in Q96 form|
-
-
-### _accountPartiallyFilledCheckpoints
-
-Calculate the tokens sold and currency spent for a partially filled bid
-
-
-```solidity
-function _accountPartiallyFilledCheckpoints(
-    Bid memory bid,
-    uint256 tickDemandQ96,
-    ValueX7 currencyRaisedAtClearingPriceQ96_X7
-) internal pure returns (uint256 tokensFilled, uint256 currencySpentQ96);
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`bid`|`Bid`|The bid|
-|`tickDemandQ96`|`uint256`|The total demand at the tick|
-|`currencyRaisedAtClearingPriceQ96_X7`|`ValueX7`|The cumulative supply sold to the clearing price|
-
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`tokensFilled`|`uint256`|The tokens sold|
-|`currencySpentQ96`|`uint256`|The amount of currency spent in Q96 form|
-
 
 ### lastCheckpointedBlock
 

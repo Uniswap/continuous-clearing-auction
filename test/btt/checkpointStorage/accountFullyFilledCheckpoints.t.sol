@@ -2,21 +2,15 @@
 pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
-import {MockCheckpointStorage} from 'btt/mocks/MockCheckpointStorage.sol';
 
 import {Bid} from 'continuous-clearing-auction/libraries/BidLib.sol';
+import {CheckpointAccountingLib} from 'continuous-clearing-auction/libraries/CheckpointAccountingLib.sol';
 import {Checkpoint} from 'continuous-clearing-auction/libraries/CheckpointLib.sol';
 import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
 import {FixedPoint96} from 'continuous-clearing-auction/libraries/FixedPoint96.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract AccountFullyFilledCheckpointsTest is BttBase {
-    MockCheckpointStorage public mockCheckpointStorage;
-
-    function setUp() external {
-        mockCheckpointStorage = new MockCheckpointStorage();
-    }
-
     function test_WhenCalledWithParams(Bid memory _bid, Checkpoint memory _upper, Checkpoint memory _startCheckpoint)
         external
     {
@@ -37,7 +31,7 @@ contract AccountFullyFilledCheckpointsTest is BttBase {
             uint24(bound(_upper.cumulativeMps, _startCheckpoint.cumulativeMps + 1, ConstantsLib.MPS - 1));
 
         (uint256 tokensFilled, uint256 currencySpent) =
-            mockCheckpointStorage.accountFullyFilledCheckpoints(_upper, _startCheckpoint, _bid);
+            CheckpointAccountingLib.accountFullyFilledCheckpoints(_upper, _startCheckpoint, _bid);
 
         uint256 left = ConstantsLib.MPS - _bid.startCumulativeMps;
         uint256 cumulativeMpsPerPriceDelta = _upper.cumulativeMpsPerPrice - _startCheckpoint.cumulativeMpsPerPrice;

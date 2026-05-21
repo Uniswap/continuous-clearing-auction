@@ -15,10 +15,10 @@ import {ActionConstants} from 'v4-periphery/src/libraries/ActionConstants.sol';
 /// @custom:security-contact security@uniswap.org
 contract ContinuousClearingAuctionFactory is IContinuousClearingAuctionFactory {
     /// @notice The protocol fee controller to use for all created auctions
-    IProtocolFeeController public immutable protocolFeeController;
+    IProtocolFeeController public immutable PROTOCOL_FEE_CONTROLLER;
 
     constructor(address _protocolFeeController) {
-        protocolFeeController = IProtocolFeeController(_protocolFeeController);
+        PROTOCOL_FEE_CONTROLLER = IProtocolFeeController(_protocolFeeController);
     }
 
     /// @inheritdoc IDistributionStrategy
@@ -37,7 +37,7 @@ contract ContinuousClearingAuctionFactory is IContinuousClearingAuctionFactory {
         distributionContract = IDistributionContract(
             address(
                 new ContinuousClearingAuction{salt: keccak256(abi.encode(msg.sender, salt))}(
-                    token, uint128(amount), parameters, address(protocolFeeController)
+                    token, uint128(amount), parameters, address(PROTOCOL_FEE_CONTROLLER)
                 )
             )
         );
@@ -61,10 +61,15 @@ contract ContinuousClearingAuctionFactory is IContinuousClearingAuctionFactory {
         bytes32 initCodeHash = keccak256(
             abi.encodePacked(
                 type(ContinuousClearingAuction).creationCode,
-                abi.encode(token, uint128(amount), parameters, address(protocolFeeController))
+                abi.encode(token, uint128(amount), parameters, address(PROTOCOL_FEE_CONTROLLER))
             )
         );
         salt = keccak256(abi.encode(sender, salt));
         return Create2.computeAddress(salt, initCodeHash, address(this));
+    }
+
+    /// @inheritdoc IContinuousClearingAuctionFactory
+    function protocolFeeController() external view returns (IProtocolFeeController) {
+        return PROTOCOL_FEE_CONTROLLER;
     }
 }

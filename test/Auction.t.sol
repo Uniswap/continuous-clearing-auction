@@ -18,6 +18,7 @@ import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
 import {AuctionStep} from '../src/libraries/StepLib.sol';
 import {StepLib} from '../src/libraries/StepLib.sol';
 import {ValueX7} from '../src/libraries/ValueX7Lib.sol';
+import {MockProtocolFeeController} from './btt/mocks/MockProtocolFeeController.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
@@ -881,6 +882,47 @@ contract AuctionTest is AuctionBaseTest {
         emit IAuctionStorage.TokensSwept(auction.tokensRecipient(), 0);
         vm.prank(auction.tokensRecipient());
         auction.sweepUnsoldTokens();
+    }
+
+    /// forge-config: default.isolate = true
+    /// forge-config: ci.isolate = true
+    function test_sweepCurrency_succeeds_gas() public {
+        uint128 bidAmount = inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2));
+        auction.submitBid{value: bidAmount}(
+            tickNumberToPriceX96(2), bidAmount, alice, tickNumberToPriceX96(1), bytes('')
+        );
+
+        vm.roll(auction.endBlock());
+        auction.checkpoint();
+
+        vm.prank(auction.fundsRecipient());
+        auction.sweepCurrency();
+        vm.snapshotGasLastCall('sweepCurrency');
+    }
+
+    /// forge-config: default.isolate = true
+    /// forge-config: ci.isolate = true
+    function test_sweepCurrency_withProtocolFee_succeeds_gas() public {
+        MockProtocolFeeController protocolFeeController = new MockProtocolFeeController();
+        protocolFeeController.setProtocolFeeRecipient(makeAddr('protocolFeeRecipient'));
+
+        ContinuousClearingAuction protocolFeeAuction =
+            new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(protocolFeeController));
+        token.mint(address(protocolFeeAuction), TOTAL_SUPPLY);
+        protocolFeeAuction.onTokensReceived();
+
+        uint128 bidAmount = inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2));
+        protocolFeeAuction.submitBid{value: bidAmount}(
+            tickNumberToPriceX96(2), bidAmount, alice, tickNumberToPriceX96(1), bytes('')
+        );
+
+        vm.roll(protocolFeeAuction.endBlock());
+        protocolFeeAuction.checkpoint();
+        protocolFeeController.setProtocolFeeAmount(protocolFeeAuction.currencyRaised() / 100);
+
+        vm.prank(protocolFeeAuction.fundsRecipient());
+        protocolFeeAuction.sweepCurrency();
+        vm.snapshotGasLastCall('sweepCurrency_withProtocolFee');
     }
 
     function test_exitPartiallyFilledBid_roundingError_succeeds() public checkAuctionIsSolvent {

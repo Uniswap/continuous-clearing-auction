@@ -5,7 +5,6 @@ import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
 
 import {MockProtocolFeeController} from '../mocks/MockProtocolFeeController.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
-import {Ownable} from 'solady/auth/Ownable.sol';
 import {ContinuousClearingAuction} from 'src/ContinuousClearingAuction.sol';
 import {ContinuousClearingAuctionFactory} from 'src/ContinuousClearingAuctionFactory.sol';
 import {IContinuousClearingAuctionFactory} from 'src/interfaces/IContinuousClearingAuctionFactory.sol';
@@ -16,30 +15,10 @@ contract InitializeDistributionTest is BttBase {
     ContinuousClearingAuctionFactory internal factory;
 
     function setUp() public {
-        factory = new ContinuousClearingAuctionFactory(address(this), address(0));
+        factory = new ContinuousClearingAuctionFactory(address(0));
     }
 
-    function test_SetProtocolFeeController_WhenCallerIsNotOwner(address _caller, address _protocolFeeController)
-        external
-    {
-        // it reverts with {Unauthorized}
-        vm.assume(_caller != address(this));
-
-        vm.prank(_caller);
-        vm.expectRevert(Ownable.Unauthorized.selector);
-        factory.setProtocolFeeController(_protocolFeeController);
-    }
-
-    function test_SetProtocolFeeController_WhenCallerIsOwner(address _protocolFeeController) external {
-        // it updates the protocol fee controller
-        // it emits {ProtocolFeeControllerUpdated}
-        vm.expectEmit(true, true, true, true, address(factory));
-        emit ContinuousClearingAuctionFactory.ProtocolFeeControllerUpdated(_protocolFeeController);
-
-        factory.setProtocolFeeController(_protocolFeeController);
-    }
-
-    function test_WhenProtocolFeeControllerIsUpdated_ItUsesUpdatedControllerForNewAuctions(
+    function test_WhenProtocolFeeControllerIsSetAtConstruction_ItUsesControllerForNewAuctions(
         AuctionFuzzConstructorParams memory _params,
         address _sender,
         uint128 _bidAmount,
@@ -58,7 +37,7 @@ contract InitializeDistributionTest is BttBase {
         _params.parameters.validationHook = address(0);
 
         MockProtocolFeeController protocolFeeController = new MockProtocolFeeController();
-        factory.setProtocolFeeController(address(protocolFeeController));
+        factory = new ContinuousClearingAuctionFactory(address(protocolFeeController));
 
         bytes memory auctionParameters = abi.encode(_params.parameters);
         address predictedAddress =

@@ -131,6 +131,7 @@ contract ContinuousClearingAuction is
     /// @inheritdoc ILBPInitializer
     /// @dev The calling contract must be aware that the values returned in this function for `currencyRaised` and `tokensSold`
     ///      may not be reflective of the actual values if the auction did not graduate.
+    /// @dev Protocol fees are queried from the controller at call time and may differ from fees at auction creation.
     function lbpInitializationParams() external view returns (LBPInitializationParams memory params) {
         // Require that the auction has been checkpointed at the end block before returning initialization params
         if ($lastCheckpointedBlock != END_BLOCK) revert AuctionIsNotFinalized();
@@ -646,6 +647,7 @@ contract ContinuousClearingAuction is
     }
 
     /// @inheritdoc ILBPInitializer
+    /// @dev Protocol fees are queried from the controller at sweep time and may differ from fees at auction creation.
     function sweepCurrency() external onlyAfterAuctionIsOver ensureEndBlockIsCheckpointed {
         // Only recipient can sweep
         if (msg.sender != FUNDS_RECIPIENT) revert NotAuthorized(FUNDS_RECIPIENT, msg.sender);

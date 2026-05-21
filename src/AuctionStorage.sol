@@ -33,6 +33,8 @@ abstract contract AuctionStorage is IAuctionStorage {
     ValueX7 internal immutable REQUIRED_CURRENCY_RAISED_Q96X7;
 
     // Protocol fee config
+    /// @notice The controller queried for protocol fees when LBP params are read and currency is swept.
+    /// @dev Fee schedules are not cached on auction creation; controller updates can change future fee calculations.
     IProtocolFeeController internal immutable PROTOCOL_FEE_CONTROLLER;
 
     // Mutable auction state

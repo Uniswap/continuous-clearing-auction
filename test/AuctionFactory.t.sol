@@ -16,7 +16,6 @@ import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
 import {FuzzDeploymentParams} from './utils/FuzzStructs.sol';
-import {Ownable} from 'solady/auth/Ownable.sol';
 
 contract AuctionFactoryTest is AuctionBaseTest {
     using AuctionParamsBuilder for AuctionParameters;
@@ -27,47 +26,27 @@ contract AuctionFactoryTest is AuctionBaseTest {
     function setUp() public {
         // Setup non fuzz auction
         setUpAuction();
-        factory = new ContinuousClearingAuctionFactory(address(this), address(0));
+        factory = new ContinuousClearingAuctionFactory(address(0));
     }
 
-    function test_setProtocolFeeController_revertsWhenCallerIsNotOwner(address caller, address protocolFeeController)
+    function test_protocolFeeController_isSetAtConstruction(address protocolFeeController, bytes32 salt, address sender)
         public
     {
-        vm.assume(caller != address(this));
-
-        vm.prank(caller);
-        vm.expectRevert(Ownable.Unauthorized.selector);
-        factory.setProtocolFeeController(protocolFeeController);
-    }
-
-    function test_setProtocolFeeController_emitsEvent(address protocolFeeController) public {
-        vm.expectEmit(true, true, true, true, address(factory));
-        emit ContinuousClearingAuctionFactory.ProtocolFeeControllerUpdated(protocolFeeController);
-
-        factory.setProtocolFeeController(protocolFeeController);
-
-        assertEq(address(factory.protocolFeeController()), protocolFeeController);
-    }
-
-    function test_setProtocolFeeController_updatesAuctionAddress(
-        address protocolFeeController,
-        bytes32 salt,
-        address sender
-    ) public {
         vm.assume(protocolFeeController != address(0));
 
+        ContinuousClearingAuctionFactory protocolFeeFactory =
+            new ContinuousClearingAuctionFactory(protocolFeeController);
         bytes memory configData = abi.encode(params);
         address auctionAddressBefore = factory.getAuctionAddress(address(token), TOTAL_SUPPLY, configData, salt, sender);
-
-        factory.setProtocolFeeController(protocolFeeController);
-
-        address auctionAddressAfter = factory.getAuctionAddress(address(token), TOTAL_SUPPLY, configData, salt, sender);
+        address auctionAddressAfter =
+            protocolFeeFactory.getAuctionAddress(address(token), TOTAL_SUPPLY, configData, salt, sender);
 
         assertTrue(auctionAddressBefore != auctionAddressAfter);
+        assertEq(address(protocolFeeFactory.protocolFeeController()), protocolFeeController);
 
         vm.prank(sender);
         IDistributionContract distributionContract =
-            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, salt);
+            protocolFeeFactory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, salt);
         assertEq(auctionAddressAfter, address(distributionContract));
     }
 

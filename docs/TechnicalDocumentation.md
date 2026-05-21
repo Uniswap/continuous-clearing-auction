@@ -3,9 +3,12 @@ CCA documentation is also available on the official [Uniswap docs site](https://
 
 ## Table of Contents
 - [Quickstart](#quickstart)
+- [Protocol Overview](#protocol-overview)
 - [Continuous Clearing Auction Factory](#continuous-clearing-auction-factory)
 - [Auction Configuration](#auction-configuration)
+- [Protocol Fees](#protocol-fees)
 - [Validation Hooks](#validation-hooks)
+- [Lens Contracts](#lens-contracts)
 - [Internal types](#internal-types)
 - [Contract Entrypoints](#auction-entrypoints)
     - [submitBid()](#submitbid)
@@ -14,6 +17,7 @@ CCA documentation is also available on the official [Uniswap docs site](https://
         - [exitBid()](#exitbid)
         - [exitPartiallyFilledBid()](#exitpartiallyfilledbid)
     - [isGraduated()](#isgraduated)
+    - [lbpInitializationParams()](#lbpinitializationparams)
     - [sweepCurrency() and sweepUnsoldTokens()](#sweepcurrency-and-sweepunsoldtokens)
     - [claimTokens()](#claimtokens)
     - [claimTokensBatch()](#claimtokensbatch)
@@ -29,24 +33,36 @@ CCA documentation is also available on the official [Uniswap docs site](https://
 ## Quickstart
 A comprehensive quickstart guide for deploying and interacting with a local CCA deployment is hosted on the official [Uniswap docs site](https://docs.uniswap.org/contracts/liquidity-launchpad/quickstart/setup).
 
+## Protocol Overview
+
+A Continuous Clearing Auction (CCA) generalizes the uniform-price auction into continuous time. The full mechanism is described in the [whitepaper](./assets/whitepaper.pdf); this section covers the moving parts integrators need to reason about.
+
+- **Supply issuance schedule.** The auction releases its `totalSupply` of `token` over a fixed range of blocks, defined by `auctionStepsData`. Each step specifies a per-block issuance rate in MPS (milli-bips of total supply, 1e7 = 100%) and a number of blocks to run at that rate.
+- **Tick-based bid book.** Bidders submit `(maxPrice, amount)` bids in `currency` at prices that are multiples of `tickSpacing` above `floorPrice`. Ticks are stored as a sorted linked list, so callers can pass a `prevTickPrice` hint to avoid an onchain scan.
+- **Uniform clearing price.** At every checkpoint the auction recomputes the lowest clearing price at which all remaining supply over the remaining schedule can be sold to demand at or above that price. Bids strictly above the clearing price fill in full pro-rata over the blocks they were live; bids at the clearing price fill partially in proportion to the demand sitting at that tick.
+- **Supply rollover.** Demand above the clearing price during one block carries over into the remaining issuance schedule. When a tick is consumed, the new clearing price reflects the remaining supply divided across the remaining MPS, so latent demand keeps lifting the price even after the originating blocks have passed. Integrators should not assume that a block's issuance is settled at the clearing price of that block alone.
+- **Checkpoints.** State is updated lazily. At most one checkpoint is written per block, at the top of the first block containing a new bid. Checkpoints store the clearing price, cumulative MPS, an inverse-price accumulator (`cumulativeMpsPerPrice`), and the cumulative currency raised at the current clearing price (`currencyRaisedAtClearingPriceQ96X7`). Bid exits use these accumulators to derive fills in O(1) without iterating blocks.
+- **Graduation.** An auction graduates if `currencyRaised >= requiredCurrencyRaised`. Until graduation, bids cannot be exited and currency cannot be swept. If the auction never graduates, bidders can refund their full bid amount via `exitBid` and all tokens are returned to the tokens recipient.
+- **LBP handoff.** After graduation `lbpInitializationParams()` returns the final clearing price, the tokens cleared, and the currency raised net of protocol fees. The values are consumed by a downstream `ILBPInitializer` strategy (typically initializing a Uniswap v4 pool) defined in the [Liquidity Launcher](https://github.com/Uniswap/liquidity-launcher).
+- **Protocol fees.** Each auction is bound to an immutable `IProtocolFeeController` at construction. Fees are computed at sweep / handoff time, transferred to the controller's recipient, and deducted from the currency forwarded to `fundsRecipient`. See [Protocol Fees](#protocol-fees).
+
 ## Continuous Clearing Auction Factory
 
-The `ContinuousClearingAuctionFactory` is the canonical deployment path for new CCA instances. It deploys each auction with CREATE2 using the caller and provided salt, and it passes the factory's current fee controller address into every auction it creates.
+The `ContinuousClearingAuctionFactory` is the canonical deployment path for new CCA instances. It deploys each auction with CREATE2 using the caller and provided salt, and it passes its immutable protocol fee controller address into every auction it creates.
 
 ```solidity
-constructor(address _owner, address _protocolFeeController);
+constructor(address _protocolFeeController);
 ```
 
-- `_owner`: The address that owns the factory. Ownership is managed through Solady `Ownable`.
-- `_protocolFeeController`: The initial fee controller address used for auctions deployed by the factory.
+- `_protocolFeeController`: The fee controller address used for all auctions deployed by this factory. To use a different controller, deploy a new factory.
 
-The owner can update the fee controller for future auction deployments:
+The controller address is exposed as:
 
 ```solidity
-function setProtocolFeeController(address _protocolFeeController) external onlyOwner;
+function protocolFeeController() external view returns (IProtocolFeeController);
 ```
 
-Updating the fee controller changes the auction init code arguments used by future deployments, so it also changes the deterministic address returned by `getAuctionAddress()` for otherwise identical deployment inputs. Existing auctions keep the controller address they were deployed with.
+Because the controller is part of the auction init code, factories deployed with different controller addresses produce auctions at different CREATE2 addresses for otherwise identical deployment inputs.
 
 ## Auction Configuration
 
@@ -94,7 +110,20 @@ constructor(
 ) {}
 ```
 
-The factory decodes `configData` into `AuctionParameters` and deploys the auction contract via CREATE2. The auction constructor is normally called by the factory; `_protocolFeeController` is the factory-defined controller address at deployment time.
+The factory decodes `configData` into `AuctionParameters` and deploys the auction contract via CREATE2. The auction constructor is normally called by the factory, which forwards its immutable `PROTOCOL_FEE_CONTROLLER` as `_protocolFeeController`. Direct deployment is supported as long as the caller passes a controller address (or `address(0)` to disable fees).
+
+## Protocol Fees
+
+Each auction stores an immutable `IProtocolFeeController` reference, captured at construction. Fees are read at the time they are applied, not at the time the auction was created, so a controller upgrade affects all in-flight auctions that point at it.
+
+Fees are applied in two places:
+
+- `sweepCurrency()` queries the controller for the fee amount on the full `currencyRaised`, transfers the fee to the controller's recipient via `ProtocolFeeLib.transferProtocolFee`, and forwards the remaining amount to `fundsRecipient`.
+- `lbpInitializationParams()` returns `currencyRaised` net of the same fee, so downstream LBP strategies initialize against the post-fee amount.
+
+`currencyRaised()` and `currencyRaisedQ96X7()` always return the gross amount. Subtract the controller fee if you need the net amount offchain.
+
+If the auction was deployed with `_protocolFeeController == address(0)`, `ProtocolFeeLib.getProtocolFeeAmount` returns zero and no fee transfer is performed. See [`IProtocolFeeController`](../lib/liquidity-launcher/src/interfaces/IProtocolFeeController.sol) for the controller surface (global pips rate, optional per-currency progressive schedules, recipient management).
 
 ## Validation Hooks
 
@@ -134,6 +163,15 @@ contract ExampleValidationHook is IExampleValidationHook, ValidationHookIntrospe
 
 If a validation hook does not have a custom interface, it MAY return the first four bytes of the hash of its contract name.
 
+## Lens Contracts
+
+The repo ships two stateless lens contracts in [`src/lens`](../src/lens) for offchain reads. They are safe to share across all auctions on a chain.
+
+- `AuctionStateLens` exposes `state(auction)` which performs an onchain `checkpoint()` and returns the latest `Checkpoint`, `currencyRaised`, `totalCleared`, and `isGraduated` in a single call. Internally it uses a `revertWithState` / `try-catch` pattern so the call is `eth_call`-friendly without mutating state.
+- `TickDataLens` exposes `getInitializedTickData(auction)` which walks the linked list of initialized ticks above the current clearing price and, for each tick, returns its price, current demand, the demand required to lift the clearing price to that tick (rollover-aware), and the additional currency needed to do so. Capped at `MAX_BUFFER_SIZE = 1000` ticks.
+
+`CCALens` is the canonical deployment that inherits both and adds Solady `Multicallable` so frontends can batch reads in one RPC round-trip.
+
 ## Internal types
 
 ### Q96 Fixed-Point Math
@@ -165,8 +203,8 @@ library ConstantsLib {
 A custom uint256 type that represents values which have either been implicitly or explicitly multiplied by 1e7 (ConstantsLib.MPS). These values will be suffixed in the code with `_X7` for clarity.
 
 ```solidity
-/// @notice A ValueX7 is a uint256 value that has been multiplied by MPS
-/// @dev X7 values are used for supply values to avoid intermediate division by MPS
+/// @notice A ValueX7 is a uint256 value that has been multiplied by 1e7 (ConstantsLib.MPS)
+/// @dev X7 values are used for demand and supply values to defer division
 type ValueX7 is uint256;
 ```
 
@@ -274,7 +312,7 @@ Exiting partially filled bids is more complex than above. This function requires
 - `lastFullyFilledCheckpointBlock`: Last checkpoint where clearing price is strictly < bid.maxPrice
 - `outbidBlock`: First checkpoint where clearing price is strictly > bid.maxPrice, or 0 if the final clearing price is equal to the bid's max price at the end of the auction, since it was never outbid.
 
-Checkpoints also store a cumulative value (`currencyRaisedAtClearingPriceQ96_X7`) which tracks the amount of currency raised from bids at the clearing price. This is reset every time the clearing price changes, but this is used to determine the user's pro-rata share of the tokens sold at the clearing price.
+Checkpoints also store a cumulative value (`currencyRaisedAtClearingPriceQ96X7`) which tracks the amount of currency raised from bids at the clearing price. This is reset every time the clearing price changes, but this is used to determine the user's pro-rata share of the tokens sold at the clearing price.
 
 ### isGraduated()
 
@@ -289,16 +327,34 @@ interface IContinuousClearingAuction {
 }
 ```
 
+### lbpInitializationParams()
+
+Returns the final clearing price, total tokens cleared, and post-fee currency raised, intended to be consumed by a downstream `ILBPInitializer` strategy that initializes a Uniswap v4 pool.
+
+```solidity
+interface ILBPInitializer {
+    function lbpInitializationParams() external view returns (LBPInitializationParams memory);
+}
+
+struct LBPInitializationParams {
+    uint256 initialPriceX96;
+    uint256 tokensSold;
+    uint256 currencyRaised; // net of protocol fees
+}
+```
+
+Reverts with `AuctionIsNotFinalized` if the end block has not been checkpointed, or with `NotGraduated` if the auction did not graduate. Protocol fees are queried from the controller at call time, so the returned `currencyRaised` matches what `sweepCurrency()` would forward to `fundsRecipient` in the same block.
+
 ### sweepCurrency() and sweepUnsoldTokens()
 
 After an auction ends, raised currency and unsold tokens can be withdrawn to the designated recipients in the auction deployment parameters.
 
 ```solidity
 interface IContinuousClearingAuction {
-    /// @notice Withdraw all raised currency (only for graduated auctions)
+    /// @notice Withdraw raised currency (only for graduated auctions). Only callable by `fundsRecipient`.
     function sweepCurrency() external;
 
-    /// @notice Withdraw any unsold tokens
+    /// @notice Withdraw unsold tokens. Only callable by `tokensRecipient`.
     function sweepUnsoldTokens() external;
 }
 
@@ -308,10 +364,11 @@ event TokensSwept(address indexed tokensRecipient, uint256 tokensAmount);
 
 Note:
 
-- `sweepCurrency()` is only callable by anyone after the auction ends, and only for graduated auctions
-- `sweepUnsoldTokens()` is callable by anyone after the auction ends and will sweep different amounts depending on graduation.
-- For graduated auctions: sweeps all tokens that were not sold per the supply issuance schedule
-- For non-graduated auctions: sweeps total supply of tokens
+- `sweepCurrency()` is callable only by `fundsRecipient`, only after the auction has ended, and only for graduated auctions. It deducts the protocol fee, forwards it to the controller's recipient, and transfers the remainder to `fundsRecipient`. Other callers revert with `NotAuthorized`.
+- `sweepUnsoldTokens()` is callable only by `tokensRecipient` after the auction has ended and will sweep different amounts depending on graduation.
+- For graduated auctions: sweeps all tokens that were not sold per the supply issuance schedule (`remainingSupply()`).
+- For non-graduated auctions: sweeps `totalSupply` of tokens.
+- Both sweeps are one-shot — re-entry reverts with `CannotSweepCurrency` / `CannotSweepTokens`.
 
 ### claimTokens()
 
@@ -366,8 +423,9 @@ Likewise, any `currency` sent directly to the auction and not through `submitBid
 
 The following limitations regarding total supply and maximum bid prices should be considered:
 
-- The maximum total supply that can be sold in the auction is 1e30 wei of `token`. For a token with 18 decimals, this is 1 trillion tokens.
-- The auction also ensures that the total currency raised does not exceed the maximum allowable liquidity for a Uniswap v4 liquidity position. The lowest bound for this is 2^107 wei (given the smallest possible tick spacing of 1).
+- The maximum total supply that can be sold in the auction is `2^100` wei of `token` (just above 1e30, or one trillion units of an 18-decimal token).
+- The minimum floor price is `2^32 + 1`, chosen so that the Q96 reciprocal `(1 << 192) / priceX96` fits in a `uint160` for downstream v4 initialization math.
+- The auction also ensures that the total currency raised does not exceed the maximum allowable liquidity for a Uniswap v4 liquidity position. The lowest bound for this is 2^107 wei (given the smallest tick spacing of 2).
 
 Given a total supply of:
 
@@ -380,7 +438,7 @@ We strongly recommend that the `currency` is chosen to be more valuable than `to
 
 Ticks in the auction govern where bids can be placed. They have no impact on the potential clearingPrices of the auction and merely serve to prevent users from being outbid by others by infinitesimally small amounts and for gas efficiency in finding new clearing prices.
 
-Generally integrators should choose a tick spacing of AT LEAST 1 basis point of the floor price. 1% or 10% is also reasonable.
+The minimum enforced tick spacing is 2 (a spacing of 1 is rejected to avoid rounding edge cases). Generally integrators should choose a tick spacing of AT LEAST 1 basis point of the floor price. 1% or 10% is also reasonable.
 
 Setting too small of a tick spacing will make the auction extremely gas inefficient, and in specific cases, can result in a DoS attack where the auction cannot finish.
 

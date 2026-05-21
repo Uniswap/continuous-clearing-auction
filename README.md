@@ -27,7 +27,7 @@ forge test
 
 ## Deployments
 
-CCA instances are deployed via the [ContinuousClearingAuctionFactory](./src/ContinuousClearingAuctionFactory.sol).
+CCA instances are deployed via the [ContinuousClearingAuctionFactory](./src/ContinuousClearingAuctionFactory.sol). Each factory is bound to a single immutable [IProtocolFeeController](./lib/liquidity-launcher/src/interfaces/IProtocolFeeController.sol) which all auctions it creates use to compute and route protocol fees. Deploy a new factory to use a different fee controller.
 
 Addresses are cannonical across select EVM chains. If it is not already deployed, it can be deployed by anyone following the [Deployment Guide](./docs/DeploymentGuide.md).
 
@@ -35,10 +35,19 @@ Addresses are cannonical across select EVM chains. If it is not already deployed
 
 | Network  | Address                                    | Commit Hash                              | Version          |
 | -------- | ------------------------------------------ | ---------------------------------------- | ---------------- |
+| v2.0.0   |                                            |                                          | v2.0.0           |
 | v1.1.0   | 0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5 | 8508f332c3daf330b189290b335fd9da4e95f3f0 | v1.1.0           |
 | v1.0.0\* | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
 
 > \*v1.0.0-candidate is the initial version of CCA and is NOT recommended for production use. For more details, see the [Changelog](./CHANGELOG.md).
+
+### CCALens
+
+[CCALens](./src/lens/CCALens.sol) is a stateless periphery contract for offchain reads of auction state and initialized tick data. It is deployed separately from the factory and is safe to share across all auctions on a chain.
+
+| Network | Address | Commit Hash | Version |
+| ------- | ------- | ----------- | ------- |
+| v2.0.0  |         |             | v2.0.0  |
 
 ## Audits
 
@@ -77,10 +86,16 @@ src/
 | IContinuousClearingAuction.sol
 | IContinuousClearingAuctionFactory.sol
 | ...
+----lens/
+| CCALens.sol
+| ...
 ----libraries/
 | ...
+----periphery/
+| validationHooks/
 ----ContinuousClearingAuction.sol
 ----ContinuousClearingAuctionFactory.sol
+----AuctionStorage.sol
 test/
 ----btt/
 | auction/

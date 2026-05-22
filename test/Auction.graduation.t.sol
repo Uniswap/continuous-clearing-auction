@@ -305,7 +305,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         auction.claimTokensBatch(alice, bids);
     }
 
-    function test_sweepCurrency_notGraduated_reverts(
+    function test_sweepCurrency_notGraduated_sweepsZeroCurrency(
         FuzzDeploymentParams memory _deploymentParams,
         uint128 _bidAmount,
         uint128 _maxPrice
@@ -327,9 +327,13 @@ contract AuctionGraduationTest is AuctionBaseTest {
         uint256 expectedCurrencyRaisedFromCheckpoint =
             (ValueX7.unwrap(auction.currencyRaisedQ96X7()) / ConstantsLib.MPS) >> FixedPoint96.RESOLUTION;
 
+        uint256 fundsRecipientBalanceBefore = fundsRecipient.balance;
+        vm.expectEmit(true, true, true, true);
+        emit IAuctionStorage.CurrencySwept(fundsRecipient, 0);
         vm.prank(fundsRecipient);
-        vm.expectRevert(IAuctionStorage.NotGraduated.selector);
         auction.sweepCurrency();
+        assertEq(auction.sweepCurrencyBlock(), block.number);
+        assertEq(fundsRecipient.balance, fundsRecipientBalanceBefore);
 
         emit log_string('===== Auction is NOT graduated =====');
         emit log_named_uint('currencyRaised in final checkpoint', expectedCurrencyRaisedFromCheckpoint);

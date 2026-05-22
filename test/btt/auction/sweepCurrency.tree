@@ -6,7 +6,9 @@ SweepCurrencyTest
     │   └── it reverts with {CannotSweepCurrency}
     └── given not previously swept
         ├── when auction is not graduated
-        │   └── it reverts with {NotGraduated}
+        │   ├── it writes sweepCurrencyBlock
+        │   ├── it does not transfer currency to funds recipient
+        │   └── it emits {CurrencySwept} with zero amount
         └── given auction is graduated
             ├── when amount GT zero
             │   ├── it writes sweepCurrencyBlock

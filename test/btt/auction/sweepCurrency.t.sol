@@ -73,7 +73,9 @@ contract SweepCurrencyTest is BttBase {
         public
         givenEndBlockIsCheckpointed
     {
-        // it reverts with {NotGraduated}
+        // it writes sweepCurrencyBlock
+        // it does not transfer currency to funds recipient
+        // it emits {CurrencySwept} with zero amount
 
         vm.deal(address(this), type(uint256).max);
         vm.assume(_bidAmount > 0);
@@ -99,14 +101,22 @@ contract SweepCurrencyTest is BttBase {
         // max price must be > 1 (given min tick spacing)
 
         uint256 maxPrice = mParams.parameters.floorPrice + mParams.parameters.tickSpacing;
-        uint256 bidId = auction.submitBid{value: _bidAmount}(maxPrice, _bidAmount, owner, bytes(''));
+        auction.submitBid{value: _bidAmount}(maxPrice, _bidAmount, owner, bytes(''));
 
         vm.roll(mParams.parameters.endBlock);
-        auction.exitPartiallyFilledBid(bidId, mParams.parameters.startBlock, 0);
+        auction.checkpoint();
 
+        uint256 fundsRecipientBalanceBefore = mParams.parameters.fundsRecipient.balance;
+        uint256 auctionBalanceBefore = address(auction).balance;
+
+        vm.expectEmit(true, true, true, true);
+        emit IAuctionStorage.CurrencySwept(mParams.parameters.fundsRecipient, 0);
         vm.prank(mParams.parameters.fundsRecipient);
-        vm.expectRevert(IAuctionStorage.NotGraduated.selector);
         auction.sweepCurrency();
+
+        assertEq(auction.sweepCurrencyBlock(), block.number);
+        assertEq(mParams.parameters.fundsRecipient.balance, fundsRecipientBalanceBefore);
+        assertEq(address(auction).balance, auctionBalanceBefore);
     }
 
     modifier givenAuctionIsGraduated() {

@@ -1058,9 +1058,11 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(token.balanceOf(newAuction.tokensRecipient()), TOTAL_SUPPLY);
 
         // Expect no currency was swept
+        vm.expectEmit(true, true, true, true);
+        emit IAuctionStorage.CurrencySwept(newAuction.fundsRecipient(), 0);
         vm.prank(newAuction.fundsRecipient());
-        vm.expectRevert(IAuctionStorage.NotGraduated.selector);
         newAuction.sweepCurrency();
+        assertEq(newAuction.sweepCurrencyBlock(), block.number);
         assertEq(address(newAuction).balance, 0);
     }
 

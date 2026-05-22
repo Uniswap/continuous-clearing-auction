@@ -510,10 +510,12 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
             auction.sweepUnsoldTokens();
             // Assert that all tokens were swept
             assertEq(token.balanceOf(auction.tokensRecipient()), auction.totalSupply());
-            // Expect to revert when sweeping currency
+            // Non-graduated auctions still mark currency as swept but transfer no funds.
+            vm.expectEmit(true, true, true, true);
+            emit IAuctionStorage.CurrencySwept(auction.fundsRecipient(), 0);
             vm.prank(auction.fundsRecipient());
-            vm.expectRevert(IAuctionStorage.NotGraduated.selector);
             auction.sweepCurrency();
+            assertEq(auction.sweepCurrencyBlock(), block.number);
         }
     }
 

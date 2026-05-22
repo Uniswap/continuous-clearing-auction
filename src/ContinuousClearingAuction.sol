@@ -656,8 +656,11 @@ contract ContinuousClearingAuction is
         if (msg.sender != FUNDS_RECIPIENT) revert NotAuthorized(FUNDS_RECIPIENT, msg.sender);
         // Cannot sweep if already swept
         if (sweepCurrencyBlock != 0) revert CannotSweepCurrency();
-        // Cannot sweep currency if the auction has not graduated, as all of the Currency must be refunded
-        if (!_isGraduated()) revert NotGraduated();
+        // If the auction did not graduate there is no currency to sweep as it all must be refunded to bidders
+        if (!_isGraduated()) {
+            _sweepCurrency(_getBlockNumberish(), 0);
+            return;
+        }
         // Sweep the currency and the protocol fee
         uint256 currencyRaised = currencyRaised();
         uint256 protocolFeeAmount =

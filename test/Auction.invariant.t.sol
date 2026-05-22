@@ -812,9 +812,11 @@ abstract contract AuctionInvariantBase is AuctionUnitTest {
             );
         } else {
             emit log_string('==================== NOT GRADUATED AUCTION ====================');
+            vm.expectEmit(true, true, true, true);
+            emit IAuctionStorage.CurrencySwept(mockAuction.fundsRecipient(), 0);
             vm.prank(mockAuction.fundsRecipient());
-            vm.expectRevert(IAuctionStorage.NotGraduated.selector);
             mockAuction.sweepCurrency();
+            assertEq(mockAuction.sweepCurrencyBlock(), block.number);
             // At this point we know all bids have been exited so auction balance should be zero
             assertEq(address(mockAuction).balance, 0, 'Auction balance is not zero at end of auction');
         }
@@ -900,9 +902,11 @@ abstract contract AuctionInvariantBase is AuctionUnitTest {
         );
         assertEq(token.balanceOf(address(mockAuction)), 0);
 
+        vm.expectEmit(true, true, true, true);
+        emit IAuctionStorage.CurrencySwept(mockAuction.fundsRecipient(), 0);
         vm.prank(mockAuction.fundsRecipient());
-        vm.expectRevert(IAuctionStorage.NotGraduated.selector);
         mockAuction.sweepCurrency();
+        assertEq(mockAuction.sweepCurrencyBlock(), block.number);
     }
 
     function helper__assertClaimsRevertWhenNotGraduated() internal {

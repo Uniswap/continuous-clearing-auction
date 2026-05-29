@@ -29,11 +29,11 @@ forge test
 
 CCA instances are deployed via the [ContinuousClearingAuctionFactory](./src/ContinuousClearingAuctionFactory.sol).
 
-Addresses are cannonical across select EVM chains. If it is not already deployed, it can be deployed by anyone following the [Deployment Guide](./docs/DeploymentGuide.md).
+Addresses are canonical across select EVM chains. If it is not already deployed, it can be deployed by anyone following the [Deployment Guide](./docs/DeploymentGuide.md).
 
 ### ContinuousClearingAuctionFactory
 
-| Network  | Address                                    | Commit Hash                              | Version          |
+| Version  | Address                                    | Commit Hash                              | Version          |
 | -------- | ------------------------------------------ | ---------------------------------------- | ---------------- |
 | v1.1.0   | 0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5 | 8508f332c3daf330b189290b335fd9da4e95f3f0 | v1.1.0           |
 | v1.0.0\* | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
@@ -77,8 +77,15 @@ src/
 | IContinuousClearingAuction.sol
 | IContinuousClearingAuctionFactory.sol
 | ...
+----lens/
+| AuctionStateLens.sol
 ----libraries/
 | ...
+----periphery/
+| validationHooks/
+| | ValidationHookIntrospection.sol
+| | BaseERC1155ValidationHook.sol
+| | GatedERC1155ValidationHook.sol
 ----ContinuousClearingAuction.sol
 ----ContinuousClearingAuctionFactory.sol
 test/

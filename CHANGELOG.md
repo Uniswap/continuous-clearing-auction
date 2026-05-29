@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `supportsMode(bytes32)` virtual view added to `ValidationHookIntrospection` (CIP-1, PR #320). Defaults to `false`; hooks may override to advertise supported validation modes.
+- CIPs (CCA Improvement Proposals) framework introduced under `CIPs/`. CIP-1 ratifies the `IValidationHook` + ERC165 introspection requirement for validation hooks. All CIPs are optional.
+
+### Changed
+
+- `GatedERC1155ValidationHook.validate()` and `supportsInterface()` are now `virtual`, allowing subclasses to override (PR #314).
+
 ## v1.1.0 (latest)
 
 Fully backwards compatible with Liquidity Launcher v1.0.0 deployments. Contains bug fixes, periphery contracts, and implements the new ILBPInitializer interface introduced in Liquidity Launcher v1.1.0.
@@ -20,6 +31,9 @@ Fully backwards compatible with Liquidity Launcher v1.0.0 deployments. Contains 
 - Some minor code quality changes
 
 ### Audits
+
+- OpenZeppelin audit (01/23/2026) — [PDF](docs/audits/OpenZeppelin_v1.1.0.pdf)
+- Spearbit audit (01/22/2026) — [PDF](docs/audits/Spearbit_v1.1.0.pdf) and [additional](docs/audits/Spearbit_v1.1.0_additional.pdf)
 
 ### Deployment addresses
 

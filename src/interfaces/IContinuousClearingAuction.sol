@@ -20,9 +20,9 @@ struct AuctionParameters {
     uint64 startBlock; // Block which the first step starts
     uint64 endBlock; // When the auction finishes
     uint64 claimBlock; // Block when the auction can claimed
-    uint256 tickSpacing; // Fixed granularity for prices
+    uint256 tickSpacing; // Fixed Q96 granularity for prices
     address validationHook; // Optional hook called before a bid
-    uint256 floorPrice; // Starting floor price for the auction
+    uint256 floorPrice; // Starting Q96 floor price for the auction
     uint128 requiredCurrencyRaised; // Amount of currency required to be raised for the auction to graduate
     bytes auctionStepsData; // Packed bytes describing token issuance schedule
 }
@@ -44,12 +44,12 @@ interface IContinuousClearingAuction is
     error InvalidAmount();
     /// @notice Error thrown when the bid owner is the zero address
     error BidOwnerCannotBeZeroAddress();
-    /// @notice Error thrown when the bid price is below the clearing price
+    /// @notice Error thrown when the bid Q96 price is below the clearing price
     error BidMustBeAboveClearingPrice();
-    /// @notice Error thrown when the bid price is too high given the auction's total supply
-    /// @param maxPrice The price of the bid
-    /// @param maxBidPrice The max price allowed for a bid
-    error InvalidBidPriceTooHigh(uint256 maxPrice, uint256 maxBidPrice);
+    /// @notice Error thrown when the bid Q96 price is too high given the auction's total supply
+    /// @param maxPriceQ96 The Q96 price of the bid
+    /// @param maxBidPriceQ96 The max Q96 price allowed for a bid
+    error InvalidBidPriceTooHigh(uint256 maxPriceQ96, uint256 maxBidPriceQ96);
     /// @notice Error thrown when the bid amount is too small
     error BidAmountTooSmall();
     /// @notice Error thrown when msg.value is non zero when currency is not ETH
@@ -59,12 +59,12 @@ interface IContinuousClearingAuction is
     /// @notice Error thrown when the tokens required for the auction have not been received
     error TokensNotReceived();
     /// @notice Error thrown when the floor price plus tick spacing is greater than the maximum bid price
-    error FloorPriceAndTickSpacingGreaterThanMaxBidPrice(uint256 nextTick, uint256 maxBidPrice);
+    error FloorPriceAndTickSpacingGreaterThanMaxBidPrice(uint256 nextTickQ96, uint256 maxBidPriceQ96);
     /// @notice Error thrown when the floor price plus tick spacing would overflow a uint256
     error FloorPriceAndTickSpacingTooLarge();
     /// @notice Error thrown when the bid has already been exited
     error BidAlreadyExited();
-    /// @notice Error thrown when the bid is higher than the clearing price
+    /// @notice Error thrown when the bid is higher than the clearing Q96 price
     error CannotExitBid();
     /// @notice Error thrown when the bid cannot be partially exited before the end block
     error CannotPartiallyExitBidBeforeEndBlock();
@@ -86,8 +86,8 @@ interface IContinuousClearingAuction is
     error InvalidBidUnableToClear();
     /// @notice Error thrown when the auction has sold the entire total supply of tokens
     error AuctionSoldOut();
-    /// @notice Error thrown when the tick price is not greater than the next active tick price
-    error TickHintMustBeGreaterThanNextActiveTickPrice(uint256 tickPrice, uint256 nextActiveTickPrice);
+    /// @notice Error thrown when the tick Q96 price is not greater than the next active tick Q96 price
+    error TickHintMustBeGreaterThanNextActiveTickPrice(uint256 tickPriceQ96, uint256 nextActiveTickPriceQ96);
 
     /// @notice Emitted when the tokens are received
     /// @param totalSupply The total supply of tokens received
@@ -96,20 +96,20 @@ interface IContinuousClearingAuction is
     /// @notice Emitted when a bid is submitted
     /// @param id The id of the bid
     /// @param owner The owner of the bid
-    /// @param price The price of the bid
+    /// @param priceQ96 The Q96 price of the bid
     /// @param amount The amount of the bid
-    event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, uint128 amount);
+    event BidSubmitted(uint256 indexed id, address indexed owner, uint256 priceQ96, uint128 amount);
 
     /// @notice Emitted when a new checkpoint is created
     /// @param blockNumber The block number of the checkpoint
-    /// @param clearingPrice The clearing price of the checkpoint
+    /// @param clearingPriceQ96 The Q96 clearing price of the checkpoint
     /// @param cumulativeMps The cumulative percentage of total tokens allocated across all previous steps, represented in ten-millionths of the total supply (1e7 = 100%)
-    event CheckpointUpdated(uint256 blockNumber, uint256 clearingPrice, uint24 cumulativeMps);
+    event CheckpointUpdated(uint256 blockNumber, uint256 clearingPriceQ96, uint24 cumulativeMps);
 
     /// @notice Emitted when the clearing price is updated
     /// @param blockNumber The block number when the clearing price was updated
-    /// @param clearingPrice The new clearing price
-    event ClearingPriceUpdated(uint256 blockNumber, uint256 clearingPrice);
+    /// @param clearingPriceQ96 The new Q96 clearing price
+    event ClearingPriceUpdated(uint256 blockNumber, uint256 clearingPriceQ96);
 
     /// @notice Emitted when a bid is exited
     /// @param bidId The id of the bid
@@ -125,26 +125,29 @@ interface IContinuousClearingAuction is
     event TokensClaimed(uint256 indexed bidId, address indexed owner, uint256 tokensFilled);
 
     /// @notice Submit a new bid
-    /// @param maxPrice The maximum price the bidder is willing to pay
+    /// @param maxPriceQ96 The maximum Q96 price the bidder is willing to pay
     /// @param amount The amount of the bid
     /// @param owner The owner of the bid
-    /// @param prevTickPrice The price of the previous tick
+    /// @param prevTickPriceQ96 The Q96 price of the previous tick
     /// @param hookData Additional data to pass to the hook required for validation
     /// @return bidId The id of the bid
-    function submitBid(uint256 maxPrice, uint128 amount, address owner, uint256 prevTickPrice, bytes calldata hookData)
-        external
-        payable
-        returns (uint256 bidId);
+    function submitBid(
+        uint256 maxPriceQ96,
+        uint128 amount,
+        address owner,
+        uint256 prevTickPriceQ96,
+        bytes calldata hookData
+    ) external payable returns (uint256 bidId);
 
     /// @notice Submit a new bid without specifying the previous tick price
-    /// @dev It is NOT recommended to use this function unless you are sure that `maxPrice` is already initialized
+    /// @dev It is NOT recommended to use this function unless you are sure that `maxPriceQ96` is already initialized
     ///      as this function will iterate through every tick starting from the floor price if it is not.
-    /// @param maxPrice The maximum price the bidder is willing to pay
+    /// @param maxPriceQ96 The maximum Q96 price the bidder is willing to pay
     /// @param amount The amount of the bid
     /// @param owner The owner of the bid
     /// @param hookData Additional data to pass to the hook required for validation
     /// @return bidId The id of the bid
-    function submitBid(uint256 maxPrice, uint128 amount, address owner, bytes calldata hookData)
+    function submitBid(uint256 maxPriceQ96, uint128 amount, address owner, bytes calldata hookData)
         external
         payable
         returns (uint256 bidId);

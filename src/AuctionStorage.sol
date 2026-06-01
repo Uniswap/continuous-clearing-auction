@@ -48,7 +48,7 @@ abstract contract AuctionStorage is IAuctionStorage {
     uint256 internal $sumCurrencyDemandAboveClearingQ96;
     /// @notice The most up to date clearing price, set on each call to `checkpoint`
     /// @dev This can be incremented manually by calling `forceIterateOverTicks`
-    uint256 internal $clearingPrice;
+    uint256 internal $clearingPriceQ96;
     /// @notice Whether TOTAL_SUPPLY has been received
     bool internal $_tokensReceived;
 

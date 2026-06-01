@@ -88,9 +88,9 @@ contract ConstructorTest is BttBase {
         whenFloorPriceGT0
         whenFloorPriceGTEMinFloorPrice
     {
-        // it writes FLOOR_PRICE
+        // it writes FLOOR_PRICE_Q96
         // it writes next tick to be MAX_TICK_PTR
-        // it writes nextActiveTickPrice to be MAX_TICK_PTR
+        // it writes nextActiveTickPriceQ96 to be MAX_TICK_PTR
         // it emits {TickInitialized}
         // it emits {NextActiveTickUpdated}
 

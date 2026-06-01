@@ -38,6 +38,15 @@ contract AuctionStateLensTest is AuctionUnitTest {
         assertEq(state.isGraduated, expectedIsGraduated);
     }
 
+    /// @notice When the auction's checkpoint reverts, `revertWithState` reverts with the 4-byte
+    /// `CheckpointFailed` selector. `state` must bubble that selector up rather than reverting with
+    /// `InvalidRevertReasonLength` (which previously happened because short reasons were dropped).
+    function test_state_revertsWith_CheckpointFailed_whenCheckpointReverts() public {
+        MockRevertingCheckpointAuction reverting = new MockRevertingCheckpointAuction();
+        vm.expectRevert(AuctionStateLens.CheckpointFailed.selector);
+        lens.state(IContinuousClearingAuction(address(reverting)));
+    }
+
     function test_state_mirrors_checkpoint() public {
         uint256 demand = 1e18 << FixedPoint96.RESOLUTION;
         uint256 price = params.floorPrice + params.tickSpacing;
@@ -66,5 +75,13 @@ contract AuctionStateLensTest is AuctionUnitTest {
         assertEq(state.currencyRaised, expectedCurrencyRaised);
         assertEq(state.totalCleared, expectedTotalCleared);
         assertEq(state.isGraduated, expectedIsGraduated);
+    }
+}
+
+/// @notice Minimal auction whose `checkpoint()` reverts, so `AuctionStateLens.revertWithState`
+/// surfaces `CheckpointFailed`. Only `checkpoint()` is exercised by the lens.
+contract MockRevertingCheckpointAuction {
+    function checkpoint() external pure returns (Checkpoint memory) {
+        revert('checkpoint failed');
     }
 }

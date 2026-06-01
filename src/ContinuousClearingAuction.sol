@@ -8,7 +8,6 @@ import {StepStorage} from './StepStorage.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
 import {AuctionParameters, IContinuousClearingAuction} from './interfaces/IContinuousClearingAuction.sol';
 import {IValidationHook} from './interfaces/IValidationHook.sol';
-import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointAccountingLib} from './libraries/CheckpointAccountingLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
@@ -22,7 +21,6 @@ import {AuctionStep, StepLib} from './libraries/StepLib.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7} from './libraries/ValueX7Lib.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
-import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
 import {
     ILBPInitializer,
     ILBP_INITIALIZER_INTERFACE_ID,
@@ -173,6 +171,7 @@ contract ContinuousClearingAuction is
     /// @notice Iterate to find the tick where the total demand at and above it is strictly less than the remaining supply in the auction
     /// @dev If the loop reaches the highest tick in the book, `nextActiveTickPrice` will be set to MAX_TICK_PTR
     /// @param _untilTickPrice The tick price to iterate until
+    /// @param _cumulativeMps The cumulative mps unlocked so far
     /// @return The new clearing price
     function _iterateOverTicksAndFindClearingPrice(uint256 _untilTickPrice, uint24 _cumulativeMps)
         internal

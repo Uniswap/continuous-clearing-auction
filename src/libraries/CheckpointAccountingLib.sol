@@ -3,7 +3,6 @@ pragma solidity 0.8.26;
 
 import {Bid, BidLib} from '../libraries/BidLib.sol';
 import {Checkpoint} from '../libraries/CheckpointLib.sol';
-import {FixedPoint96} from '../libraries/FixedPoint96.sol';
 import {ValueX7} from '../libraries/ValueX7Lib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 

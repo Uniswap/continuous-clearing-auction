@@ -167,7 +167,7 @@ contract ContinuousClearingAuction is
     /// @notice Whether the auction has graduated as of the given checkpoint
     /// @dev The auction is considered `graduated` if the currency raised is greater than or equal to the required currency raised
     function _isGraduated() internal view returns (bool) {
-        return ValueX7.unwrap($currencyRaisedQ96X7) >= ValueX7.unwrap(REQUIRED_CURRENCY_RAISED_Q96X7);
+        return $currencyRaisedQ96X7 >= REQUIRED_CURRENCY_RAISED_Q96X7;
     }
 
     /// @notice Iterate to find the tick where the total demand at and above it is strictly less than the remaining supply in the auction
@@ -300,10 +300,10 @@ contract ContinuousClearingAuction is
                             ConstantsLib.MPS - _checkpoint.cumulativeMps // guaranteed to be > 0 because deltaMps > 0
                         );
                         // Total change in currencyRaised = currency raised above clearing + currency raised at clearing
-                        currencyRaisedDeltaQ96X7 = currencyRaisedDeltaQ96X7.add(currencyRaisedAtClearingQ96X7);
+                        currencyRaisedDeltaQ96X7 = currencyRaisedDeltaQ96X7 + currencyRaisedAtClearingQ96X7;
                         // Track cumulative currency raised exactly at this clearing price (used for partial exits)
                         _checkpoint.currencyRaisedAtClearingPriceQ96X7 =
-                            _checkpoint.currencyRaisedAtClearingPriceQ96X7.add(currencyRaisedAtClearingQ96X7);
+                            _checkpoint.currencyRaisedAtClearingPriceQ96X7 + currencyRaisedAtClearingQ96X7;
                     }
                 }
 
@@ -312,10 +312,10 @@ contract ContinuousClearingAuction is
                 uint256 tokensClearedQ96X7 =
                     ValueX7.unwrap(currencyRaisedDeltaQ96X7).toTokensRoundingUp(clearingPriceQ96);
                 // Ensure that totalCleared is never greater than total supply.
-                $totalClearedQ96X7 = $totalClearedQ96X7.add(ValueX7.wrap(tokensClearedQ96X7)).min(TOTAL_SUPPLY_Q96X7);
+                $totalClearedQ96X7 = ($totalClearedQ96X7 + ValueX7.wrap(tokensClearedQ96X7)).min(TOTAL_SUPPLY_Q96X7);
 
                 // Update global currency raised
-                $currencyRaisedQ96X7 = $currencyRaisedQ96X7.add(currencyRaisedDeltaQ96X7);
+                $currencyRaisedQ96X7 = $currencyRaisedQ96X7 + currencyRaisedDeltaQ96X7;
 
                 // Add to the cumulative mps per price sum, weighted by `mps`. This is an inverse sum.
                 _checkpoint.cumulativeMpsPerPrice += (uint256(deltaMps) << 192) / clearingPriceQ96;

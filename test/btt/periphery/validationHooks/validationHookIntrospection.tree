@@ -1,0 +1,5 @@
+ValidationHookIntrospectionTest
+└── supports interface
+    ├── it supports IERC165
+    ├── it supports IValidationHook
+    └── it does not expose supportsMode(bytes32)

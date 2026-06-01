@@ -23,6 +23,8 @@ SubmitBidTest
                     ├── when validation hook reenters
                     │   └── it reverts with {Reentrancy}
                     └── given validation hook succeeds
+                        ├── when first bid in a new block
+                        │   └── it calls the validation hook after checkpointing the current block
                         ├── when auction is sold out
                         │   └── it reverts with {AuctionSoldOut}
                         └── when remaining tokens is zero

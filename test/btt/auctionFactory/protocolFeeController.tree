@@ -1,0 +1,4 @@
+ProtocolFeeControllerTest
+└── when protocol fee controller is set at construction
+    ├── it exposes the controller through protocolFeeController()
+    └── it does not expose a duplicate PROTOCOL_FEE_CONTROLLER() getter

@@ -14,7 +14,9 @@ SweepCurrencyTest
             │   ├── it writes sweepCurrencyBlock
             │   ├── it transfers amount currency to funds recipient
             │   └── it emits {CurrencySwept}
-            └── when amount EQ zero
-                ├── it writes sweepCurrencyBlock
-                ├── it does not transfer amount currency to funds recipient
-                └── it emits {CurrencySwept}
+            ├── when amount EQ zero
+            │   ├── it writes sweepCurrencyBlock
+            │   ├── it does not transfer amount currency to funds recipient
+            │   └── it emits {CurrencySwept}
+            └── when protocol fee exceeds currency raised
+                └── it clamps the fee to the currency raised so the sweep cannot underflow and revert

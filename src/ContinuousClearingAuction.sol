@@ -665,6 +665,9 @@ contract ContinuousClearingAuction is
         uint256 currencyRaised = currencyRaised();
         uint256 protocolFeeAmount =
             ProtocolFeeLib.getProtocolFeeAmount(PROTOCOL_FEE_CONTROLLER, Currency.unwrap(CURRENCY), currencyRaised);
+        // Clamp the protocol fee to the currency raised so a misbehaving fee controller returning a fee
+        // greater than the currency raised cannot underflow the subtraction and permanently brick the sweep
+        if (protocolFeeAmount > currencyRaised) protocolFeeAmount = currencyRaised;
         _sweepCurrency(_getBlockNumberish(), currencyRaised - protocolFeeAmount);
         if (protocolFeeAmount > 0) {
             ProtocolFeeLib.transferProtocolFee(PROTOCOL_FEE_CONTROLLER, Currency.unwrap(CURRENCY), protocolFeeAmount);

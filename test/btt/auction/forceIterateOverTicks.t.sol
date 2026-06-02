@@ -13,8 +13,7 @@ import {MaxBidPriceLib} from 'src/libraries/MaxBidPriceLib.sol';
 
 contract ForceIterateOverTicksTest is BttBase {
     function _fuzzPostState(MockContinuousClearingAuction _auction) internal {
-        // Fuzz each combination of call patterns of `forceIterateOverTicks`, `checkpoint`
-        // The auction state should be the same after each combination of calls
+        // Force before a block checkpoint should match checkpointing directly.
         vm.roll(block.number + 1);
         uint256 snapshotId = vm.snapshot();
         uint256 clearingPrice1 = _auction.forceIterateOverTicks(_auction.MAX_TICK_PTR());
@@ -23,11 +22,10 @@ contract ForceIterateOverTicksTest is BttBase {
 
         snapshotId = vm.snapshot();
         Checkpoint memory checkpoint2 = _auction.checkpoint();
-        uint256 clearingPrice2 = _auction.forceIterateOverTicks(_auction.MAX_TICK_PTR());
         vm.revertTo(snapshotId);
 
         assertEq(checkpoint1, checkpoint2);
-        assertEq(clearingPrice1, clearingPrice2);
+        assertEq(clearingPrice1, checkpoint2.clearingPrice);
     }
 
     function test_WhenAuctionIsNotActive(AuctionFuzzConstructorParams memory _params, uint256 _untilTickPrice) public {
@@ -96,6 +94,7 @@ contract ForceIterateOverTicksTest is BttBase {
         uint128 bidAmount = uint128(FixedPointMathLib.fullMulDivUp(mParams.totalSupply, maxPrice, FixedPoint96.Q96));
         auction.submitBid{value: bidAmount}(maxPrice, bidAmount, address(this), bytes(''));
 
+        vm.roll(block.number + 1);
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.NextActiveTickUpdated(auction.MAX_TICK_PTR());
         uint256 clearingPrice = auction.forceIterateOverTicks(auction.MAX_TICK_PTR());
@@ -223,6 +222,7 @@ contract ForceIterateOverTicksTest is BttBase {
         // make a new bid to set nextActiveTickPrice
         auction.submitBid{value: 1}(nextActiveTickPrice, 1, address(this), bytes(''));
 
+        vm.roll(block.number + 1);
         // Revert if equal to the next active tick price
         vm.expectRevert(
             abi.encodeWithSelector(

@@ -88,6 +88,8 @@ interface IContinuousClearingAuction is
     error AuctionSoldOut();
     /// @notice Error thrown when the tick price is not greater than the next active tick price
     error TickHintMustBeGreaterThanNextActiveTickPrice(uint256 tickPrice, uint256 nextActiveTickPrice);
+    /// @notice Error thrown when force iteration is attempted after this block's checkpoint already exists
+    error CheckpointAlreadyExistsForBlock();
 
     /// @notice Emitted when the tokens are received
     /// @param totalSupply The total supply of tokens received

@@ -456,6 +456,44 @@ contract AuctionTest is AuctionBaseTest {
         );
     }
 
+    /// @dev Regression for Spearbit audit report June 2026 finding M-01.
+    function test_submitBid_sameBlockEqualPriceUsesCheckpointClearingPrice() public {
+        uint256 price = tickNumberToPriceX96(2);
+        uint128 amount = inputAmountForTokens(TOTAL_SUPPLY, price);
+        uint64 bidBlock = uint64(block.number);
+
+        uint256 aliceBid = auction.submitBid{value: amount}(price, amount, alice, tickNumberToPriceX96(1), bytes(''));
+
+        uint256 maxTickPtr = auction.MAX_TICK_PTR();
+        vm.expectRevert(IContinuousClearingAuction.CheckpointAlreadyExistsForBlock.selector);
+        auction.forceIterateOverTicks(maxTickPtr);
+
+        uint256 bobBid = auction.submitBid{value: amount}(price, amount, bob, tickNumberToPriceX96(1), bytes(''));
+
+        vm.roll(auction.endBlock());
+        auction.checkpoint();
+        auction.exitPartiallyFilledBid(aliceBid, bidBlock, 0);
+        auction.exitPartiallyFilledBid(bobBid, bidBlock, 0);
+
+        assertEq(auction.clearingPrice(), price);
+        assertEq(auction.bids(aliceBid).tokensFilled, TOTAL_SUPPLY / 2);
+        assertEq(auction.bids(bobBid).tokensFilled, TOTAL_SUPPLY / 2);
+    }
+
+    /// @dev Regression for Spearbit audit report June 2026 finding M-02.
+    function test_forceIterateOverTicks_untilTickPrice_revertsAfterCurrentBlockCheckpoint() public {
+        uint256 price2 = tickNumberToPriceX96(2);
+        uint256 price3 = tickNumberToPriceX96(3);
+        uint128 amount2 = inputAmountForTokens(1e18, price2);
+        uint128 amount3 = inputAmountForTokens(TOTAL_SUPPLY, price3);
+
+        auction.submitBid{value: amount2}(price2, amount2, alice, tickNumberToPriceX96(1), bytes(''));
+        auction.submitBid{value: amount3}(price3, amount3, bob, price2, bytes(''));
+
+        vm.expectRevert(IContinuousClearingAuction.CheckpointAlreadyExistsForBlock.selector);
+        auction.forceIterateOverTicks(price3);
+    }
+
     function test_submitBid_exactInMsgValue_revertsWithInvalidAmount() public {
         vm.expectRevert(IContinuousClearingAuction.InvalidAmount.selector);
         // msg.value should be 1000e18

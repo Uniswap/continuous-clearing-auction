@@ -37,9 +37,10 @@ contract AuctionFactoryTest is AuctionBaseTest {
         ContinuousClearingAuctionFactory protocolFeeFactory =
             new ContinuousClearingAuctionFactory(protocolFeeController);
         bytes memory configData = abi.encode(params);
-        address auctionAddressBefore = factory.getAuctionAddress(address(token), TOTAL_SUPPLY, configData, salt, sender);
+        address auctionAddressBefore =
+            address(factory.getAddress(address(token), TOTAL_SUPPLY, configData, salt, sender));
         address auctionAddressAfter =
-            protocolFeeFactory.getAuctionAddress(address(token), TOTAL_SUPPLY, configData, salt, sender);
+            address(protocolFeeFactory.getAddress(address(token), TOTAL_SUPPLY, configData, salt, sender));
 
         assertTrue(auctionAddressBefore != auctionAddressAfter);
         assertEq(address(protocolFeeFactory.protocolFeeController()), protocolFeeController);
@@ -182,15 +183,13 @@ contract AuctionFactoryTest is AuctionBaseTest {
         assertEq(token.balanceOf(address(_auction)), TOTAL_SUPPLY);
     }
 
-    function testFuzz_getAuctionAddress(FuzzDeploymentParams memory _deploymentParams, bytes32 _salt, address _sender)
-        public
-    {
+    function testFuzz_getAddress(FuzzDeploymentParams memory _deploymentParams, bytes32 _salt, address _sender) public {
         AuctionParameters memory _params = helper__validFuzzDeploymentParams(_deploymentParams);
         bytes memory configData = abi.encode(_params);
 
         // Predict the auction address
         address auctionAddress =
-            factory.getAuctionAddress(address(token), $deploymentParams.totalSupply, configData, _salt, _sender);
+            address(factory.getAddress(address(token), $deploymentParams.totalSupply, configData, _salt, _sender));
 
         // Create the actual auction
         vm.prank(_sender);

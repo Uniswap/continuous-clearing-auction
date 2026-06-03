@@ -42,7 +42,7 @@ contract InitializeDistributionTest is BttBase {
 
         bytes memory auctionParameters = abi.encode(_params.parameters);
         address predictedAddress =
-            factory.getAuctionAddress(_params.token, _params.totalSupply, auctionParameters, _salt, _sender);
+            address(factory.getAddress(_params.token, _params.totalSupply, auctionParameters, _salt, _sender));
 
         vm.prank(_sender);
         IDistributor distributor = factory.create(_params.token, _params.totalSupply, auctionParameters, _salt);
@@ -78,7 +78,7 @@ contract InitializeDistributionTest is BttBase {
         factory.create(address(token), _amount, abi.encode(params), bytes32(0));
 
         vm.expectRevert(abi.encodeWithSelector(IContinuousClearingAuctionFactory.InvalidTokenAmount.selector, _amount));
-        factory.getAuctionAddress(address(token), _amount, abi.encode(params), bytes32(0), address(0));
+        factory.getAddress(address(token), _amount, abi.encode(params), bytes32(0), address(0));
     }
 
     modifier whenAmountLEUint128Max(AuctionFuzzConstructorParams memory _params) {
@@ -113,8 +113,8 @@ contract InitializeDistributionTest is BttBase {
         _params.parameters.fundsRecipient = ActionConstants.MSG_SENDER;
 
         bytes memory auctionParameters = abi.encode(_params.parameters);
-        address predictedAddress = factory.getAuctionAddress(
-            address(_params.token), _params.totalSupply, auctionParameters, bytes32(0), _sender
+        address predictedAddress = address(
+            factory.getAddress(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0), _sender)
         );
 
         // expect the tokens recipient and funds recipient to be updated to msg.sender
@@ -156,8 +156,8 @@ contract InitializeDistributionTest is BttBase {
         vm.assume(_sender != ActionConstants.MSG_SENDER);
 
         bytes memory auctionParameters = abi.encode(_params.parameters);
-        address predictedAddress = factory.getAuctionAddress(
-            address(_params.token), _params.totalSupply, auctionParameters, bytes32(0), _sender
+        address predictedAddress = address(
+            factory.getAddress(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0), _sender)
         );
 
         // expect the tokens recipient to be updated to msg.sender
@@ -205,8 +205,8 @@ contract InitializeDistributionTest is BttBase {
         _params.parameters.fundsRecipient = ActionConstants.MSG_SENDER;
 
         bytes memory auctionParameters = abi.encode(_params.parameters);
-        address predictedAddress = factory.getAuctionAddress(
-            address(_params.token), _params.totalSupply, auctionParameters, bytes32(0), _sender
+        address predictedAddress = address(
+            factory.getAddress(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0), _sender)
         );
 
         // expect the funds recipient to be updated to msg.sender
@@ -248,8 +248,8 @@ contract InitializeDistributionTest is BttBase {
         vm.assume(_params.parameters.fundsRecipient != ActionConstants.MSG_SENDER);
 
         bytes memory auctionParameters = abi.encode(_params.parameters);
-        address predictedAddress = factory.getAuctionAddress(
-            address(_params.token), _params.totalSupply, auctionParameters, bytes32(0), _sender
+        address predictedAddress = address(
+            factory.getAddress(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0), _sender)
         );
 
         bytes memory expectedAuctionParameters = abi.encode(_params.parameters);

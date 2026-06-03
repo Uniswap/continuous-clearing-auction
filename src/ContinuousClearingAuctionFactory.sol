@@ -46,45 +46,16 @@ contract ContinuousClearingAuctionFactory is IContinuousClearingAuctionFactory {
     }
 
     /// @inheritdoc IDistributorFactory
-    /// @dev Predicts the address for an auction deployed by the caller. To predict an address for a deployer other than
-    ///      the caller (e.g. when {create} is invoked through an LBP strategy), use {getAuctionAddress}.
-    function getAddress(address token, uint256 amount, bytes calldata configData, bytes32 salt)
+    function getAddress(address token, uint256 amount, bytes calldata configData, bytes32 salt, address sender)
         external
         view
         returns (IDistributor distributor)
     {
-        distributor = IDistributor(_computeAuctionAddress(token, amount, configData, salt, msg.sender));
-    }
-
-    /// @inheritdoc IContinuousClearingAuctionFactory
-    function getAuctionAddress(address token, uint256 amount, bytes calldata configData, bytes32 salt, address sender)
-        external
-        view
-        returns (address)
-    {
-        return _computeAuctionAddress(token, amount, configData, salt, sender);
-    }
-
-    /// @inheritdoc IContinuousClearingAuctionFactory
-    function protocolFeeController() external view returns (IProtocolFeeController) {
-        return PROTOCOL_FEE_CONTROLLER;
-    }
-
-    /// @notice Computes the deterministic auction address for a given deployer.
-    /// @dev The salt incorporates `sender` and `MSG_SENDER` recipients resolve to `sender`, matching {create} when
-    ///      called by `sender`.
-    function _computeAuctionAddress(
-        address token,
-        uint256 amount,
-        bytes calldata configData,
-        bytes32 salt,
-        address sender
-    ) internal view returns (address) {
         if (amount > type(uint128).max) revert InvalidTokenAmount(amount);
         AuctionParameters memory parameters = abi.decode(configData, (AuctionParameters));
-        // If the tokensRecipient is address(1), set it to the msg.sender
+        // If the tokensRecipient is address(1), set it to the sender
         if (parameters.tokensRecipient == ActionConstants.MSG_SENDER) parameters.tokensRecipient = sender;
-        // If the fundsRecipient is address(1), set it to the msg.sender
+        // If the fundsRecipient is address(1), set it to the deployer
         if (parameters.fundsRecipient == ActionConstants.MSG_SENDER) parameters.fundsRecipient = sender;
 
         bytes32 initCodeHash = keccak256(
@@ -93,7 +64,12 @@ contract ContinuousClearingAuctionFactory is IContinuousClearingAuctionFactory {
                 abi.encode(token, uint128(amount), parameters, address(PROTOCOL_FEE_CONTROLLER))
             )
         );
-        salt = keccak256(abi.encode(sender, salt));
-        return Create2.computeAddress(salt, initCodeHash, address(this));
+        distributor =
+            IDistributor(Create2.computeAddress(keccak256(abi.encode(sender, salt)), initCodeHash, address(this)));
+    }
+
+    /// @inheritdoc IContinuousClearingAuctionFactory
+    function protocolFeeController() external view returns (IProtocolFeeController) {
+        return PROTOCOL_FEE_CONTROLLER;
     }
 }

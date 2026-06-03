@@ -19,16 +19,4 @@ interface IContinuousClearingAuctionFactory is IDistributorFactory {
     /// @notice The protocol fee controller used for auctions created by this factory
     /// @dev Deploy a new factory to use a different protocol fee controller.
     function protocolFeeController() external view returns (IProtocolFeeController);
-
-    /// @notice Get the address of an auction contract
-    /// @param token The address of the token
-    /// @param amount The amount of tokens to sell
-    /// @param configData The configuration data for the auction
-    /// @param salt The salt to use for the deterministic deployment
-    /// @param sender The sender of the create transaction
-    /// @return The address of the auction contract
-    function getAuctionAddress(address token, uint256 amount, bytes calldata configData, bytes32 salt, address sender)
-        external
-        view
-        returns (address);
 }

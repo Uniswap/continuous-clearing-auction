@@ -55,7 +55,7 @@ contract ContinuousClearingAuctionFactory is IContinuousClearingAuctionFactory {
         AuctionParameters memory parameters = abi.decode(configData, (AuctionParameters));
         // If the tokensRecipient is address(1), set it to the sender
         if (parameters.tokensRecipient == ActionConstants.MSG_SENDER) parameters.tokensRecipient = sender;
-        // If the fundsRecipient is address(1), set it to the deployer
+        // If the fundsRecipient is address(1), set it to the sender
         if (parameters.fundsRecipient == ActionConstants.MSG_SENDER) parameters.fundsRecipient = sender;
 
         bytes32 initCodeHash = keccak256(

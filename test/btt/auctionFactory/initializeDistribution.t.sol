@@ -4,11 +4,11 @@ pragma solidity ^0.8.26;
 import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
 
 import {MockProtocolFeeController} from '../mocks/MockProtocolFeeController.sol';
+import {IDistributor} from 'liquidity-launcher/src/interfaces/IDistributor.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {ContinuousClearingAuction} from 'src/ContinuousClearingAuction.sol';
 import {ContinuousClearingAuctionFactory} from 'src/ContinuousClearingAuctionFactory.sol';
 import {IContinuousClearingAuctionFactory} from 'src/interfaces/IContinuousClearingAuctionFactory.sol';
-import {IDistributionContract} from 'src/interfaces/external/IDistributionContract.sol';
 import {ActionConstants} from 'v4-periphery/src/libraries/ActionConstants.sol';
 
 contract InitializeDistributionTest is BttBase {
@@ -45,11 +45,10 @@ contract InitializeDistributionTest is BttBase {
             factory.getAuctionAddress(_params.token, _params.totalSupply, auctionParameters, _salt, _sender);
 
         vm.prank(_sender);
-        IDistributionContract distributionContract =
-            factory.initializeDistribution(_params.token, _params.totalSupply, auctionParameters, _salt);
-        assertEq(address(distributionContract), predictedAddress);
+        IDistributor distributor = factory.create(_params.token, _params.totalSupply, auctionParameters, _salt);
+        assertEq(address(distributor), predictedAddress);
 
-        ContinuousClearingAuction auction = ContinuousClearingAuction(payable(address(distributionContract)));
+        ContinuousClearingAuction auction = ContinuousClearingAuction(payable(address(distributor)));
         ERC20Mock(_params.token).mint(address(auction), requiredTokenDeposit(_params));
         auction.onTokensReceived();
 
@@ -76,7 +75,7 @@ contract InitializeDistributionTest is BttBase {
         _amount = uint256(bound(_amount, uint256(type(uint128).max) + 1, type(uint256).max));
 
         vm.expectRevert(abi.encodeWithSelector(IContinuousClearingAuctionFactory.InvalidTokenAmount.selector, _amount));
-        factory.initializeDistribution(address(token), _amount, abi.encode(params), bytes32(0));
+        factory.create(address(token), _amount, abi.encode(params), bytes32(0));
 
         vm.expectRevert(abi.encodeWithSelector(IContinuousClearingAuctionFactory.InvalidTokenAmount.selector, _amount));
         factory.getAuctionAddress(address(token), _amount, abi.encode(params), bytes32(0), address(0));
@@ -128,11 +127,11 @@ contract InitializeDistributionTest is BttBase {
             predictedAddress, address(_params.token), _params.totalSupply, expectedAuctionParameters
         );
         vm.prank(_sender);
-        IDistributionContract distributionContract =
-            factory.initializeDistribution(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0));
+        IDistributor distributor =
+            factory.create(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0));
 
-        assertEq(address(distributionContract), predictedAddress);
-        ContinuousClearingAuction auction = ContinuousClearingAuction(payable(address(distributionContract)));
+        assertEq(address(distributor), predictedAddress);
+        ContinuousClearingAuction auction = ContinuousClearingAuction(payable(address(distributor)));
         assertEq(auction.tokensRecipient(), _sender);
         assertEq(auction.fundsRecipient(), _sender);
     }
@@ -170,12 +169,12 @@ contract InitializeDistributionTest is BttBase {
             predictedAddress, address(_params.token), _params.totalSupply, expectedAuctionParameters
         );
         vm.prank(_sender);
-        IDistributionContract distributionContract =
-            factory.initializeDistribution(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0));
+        IDistributor distributor =
+            factory.create(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0));
 
-        assertEq(address(distributionContract), predictedAddress);
+        assertEq(address(distributor), predictedAddress);
 
-        ContinuousClearingAuction auction = ContinuousClearingAuction(payable(address(distributionContract)));
+        ContinuousClearingAuction auction = ContinuousClearingAuction(payable(address(distributor)));
         assertEq(auction.tokensRecipient(), _sender);
         assertEq(auction.fundsRecipient(), _params.parameters.fundsRecipient);
     }
@@ -219,12 +218,12 @@ contract InitializeDistributionTest is BttBase {
             predictedAddress, address(_params.token), _params.totalSupply, expectedAuctionParameters
         );
         vm.prank(_sender);
-        IDistributionContract distributionContract =
-            factory.initializeDistribution(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0));
+        IDistributor distributor =
+            factory.create(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0));
 
-        assertEq(address(distributionContract), predictedAddress);
+        assertEq(address(distributor), predictedAddress);
 
-        ContinuousClearingAuction auction = ContinuousClearingAuction(payable(address(distributionContract)));
+        ContinuousClearingAuction auction = ContinuousClearingAuction(payable(address(distributor)));
         assertEq(auction.tokensRecipient(), _params.parameters.tokensRecipient);
         assertEq(auction.fundsRecipient(), _sender);
     }
@@ -260,10 +259,10 @@ contract InitializeDistributionTest is BttBase {
             predictedAddress, address(_params.token), _params.totalSupply, expectedAuctionParameters
         );
         vm.prank(_sender);
-        IDistributionContract distributionContract =
-            factory.initializeDistribution(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0));
+        IDistributor distributor =
+            factory.create(address(_params.token), _params.totalSupply, auctionParameters, bytes32(0));
 
-        assertEq(address(distributionContract), predictedAddress);
+        assertEq(address(distributor), predictedAddress);
 
         ContinuousClearingAuction auction = ContinuousClearingAuction(payable(predictedAddress));
         assertEq(auction.tokensRecipient(), _params.parameters.tokensRecipient);

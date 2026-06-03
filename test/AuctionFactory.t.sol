@@ -8,9 +8,9 @@ import {IContinuousClearingAuction} from '../src/interfaces/IContinuousClearingA
 import {IContinuousClearingAuctionFactory} from '../src/interfaces/IContinuousClearingAuctionFactory.sol';
 import {IStepStorage} from '../src/interfaces/IStepStorage.sol';
 import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
-import {IDistributionContract} from '../src/interfaces/external/IDistributionContract.sol';
-import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
+import {IDistributor} from 'liquidity-launcher/src/interfaces/IDistributor.sol';
+import {IDistributorFactory} from 'liquidity-launcher/src/interfaces/IDistributorFactory.sol';
 
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
@@ -45,9 +45,8 @@ contract AuctionFactoryTest is AuctionBaseTest {
         assertEq(address(protocolFeeFactory.protocolFeeController()), protocolFeeController);
 
         vm.prank(sender);
-        IDistributionContract distributionContract =
-            protocolFeeFactory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, salt);
-        assertEq(auctionAddressAfter, address(distributionContract));
+        IDistributor distributor = protocolFeeFactory.create(address(token), TOTAL_SUPPLY, configData, salt);
+        assertEq(auctionAddressAfter, address(distributor));
     }
 
     function test_initializeDistribution_createsAuction() public {
@@ -57,11 +56,10 @@ contract AuctionFactoryTest is AuctionBaseTest {
         vm.expectEmit(false, true, true, true);
         emit IContinuousClearingAuctionFactory.AuctionCreated(address(0), address(token), TOTAL_SUPPLY, configData);
 
-        IDistributionContract distributionContract =
-            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
+        IDistributor distributor = factory.create(address(token), TOTAL_SUPPLY, configData, bytes32(0));
 
         // Verify the auction was created correctly
-        ContinuousClearingAuction _auction = ContinuousClearingAuction(payable(address(distributionContract)));
+        ContinuousClearingAuction _auction = ContinuousClearingAuction(payable(address(distributor)));
         assertEq(_auction.token(), address(token));
         assertEq(_auction.totalSupply(), TOTAL_SUPPLY);
         assertEq(_auction.floorPrice(), FLOOR_PRICE);
@@ -77,7 +75,7 @@ contract AuctionFactoryTest is AuctionBaseTest {
         uint256 endBlock = block.number + AUCTION_DURATION;
         bytes memory configData = abi.encode(params.withClaimBlock(endBlock - 1));
         vm.expectRevert(IStepStorage.ClaimBlockIsBeforeEndBlock.selector);
-        factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
+        factory.create(address(token), TOTAL_SUPPLY, configData, bytes32(0));
     }
 
     function test_initializeDistribution_createsAuction_withMsgSenderAsFundsRecipient() public {
@@ -94,11 +92,10 @@ contract AuctionFactoryTest is AuctionBaseTest {
         );
 
         vm.prank(sender);
-        IDistributionContract distributionContract =
-            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
+        IDistributor distributor = factory.create(address(token), TOTAL_SUPPLY, configData, bytes32(0));
 
         // Verify the auction was created correctly
-        ContinuousClearingAuction _auction = ContinuousClearingAuction(payable(address(distributionContract)));
+        ContinuousClearingAuction _auction = ContinuousClearingAuction(payable(address(distributor)));
         assertEq(_auction.fundsRecipient(), address(sender));
     }
 
@@ -106,46 +103,40 @@ contract AuctionFactoryTest is AuctionBaseTest {
         bytes memory configData = abi.encode(params);
 
         // Create first auction
-        IDistributionContract distributionContract1 =
-            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
+        IDistributor distributor1 = factory.create(address(token), TOTAL_SUPPLY, configData, bytes32(0));
 
         // Create second auction with different amount
-        IDistributionContract distributionContract2 =
-            factory.initializeDistribution(address(token), TOTAL_SUPPLY * 2, configData, bytes32(0));
+        IDistributor distributor2 = factory.create(address(token), TOTAL_SUPPLY * 2, configData, bytes32(0));
 
         // Addresses should be different due to different amount in salt
-        assertTrue(address(distributionContract1) != address(distributionContract2));
+        assertTrue(address(distributor1) != address(distributor2));
     }
 
     function test_initializeDistribution_withDifferentTokens() public {
         bytes memory configData = abi.encode(params);
 
         // Create auction with token1
-        IDistributionContract distributionContract1 =
-            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
+        IDistributor distributor1 = factory.create(address(token), TOTAL_SUPPLY, configData, bytes32(0));
 
         // Create auction with token2 (different token address)
         address token2 = makeAddr('token2');
-        IDistributionContract distributionContract2 =
-            factory.initializeDistribution(token2, TOTAL_SUPPLY, configData, bytes32(0));
+        IDistributor distributor2 = factory.create(token2, TOTAL_SUPPLY, configData, bytes32(0));
 
         // Addresses should be different due to different token in salt
-        assertTrue(address(distributionContract1) != address(distributionContract2));
+        assertTrue(address(distributor1) != address(distributor2));
     }
 
     function test_initializeDistribution_withDifferentAmounts() public {
         bytes memory configData = abi.encode(params);
 
         // Create auction with amount1
-        IDistributionContract distributionContract1 =
-            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
+        IDistributor distributor1 = factory.create(address(token), TOTAL_SUPPLY, configData, bytes32(0));
 
         // Create auction with amount2 (different amount)
-        IDistributionContract distributionContract2 =
-            factory.initializeDistribution(address(token), TOTAL_SUPPLY * 2, configData, bytes32(0));
+        IDistributor distributor2 = factory.create(address(token), TOTAL_SUPPLY * 2, configData, bytes32(0));
 
         // Addresses should be different due to different amount in salt
-        assertTrue(address(distributionContract1) != address(distributionContract2));
+        assertTrue(address(distributor1) != address(distributor2));
     }
 
     function test_initializeDistribution_withDifferentParameters() public {
@@ -157,37 +148,33 @@ contract AuctionFactoryTest is AuctionBaseTest {
         bytes memory configData2 = abi.encode(params2);
 
         // Create auction with params1
-        IDistributionContract distributionContract1 =
-            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData1, bytes32(0));
+        IDistributor distributor1 = factory.create(address(token), TOTAL_SUPPLY, configData1, bytes32(0));
 
         // Create auction with params2
-        IDistributionContract distributionContract2 =
-            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData2, bytes32(0));
+        IDistributor distributor2 = factory.create(address(token), TOTAL_SUPPLY, configData2, bytes32(0));
 
         // Addresses should be different due to different parameters in salt
-        assertTrue(address(distributionContract1) != address(distributionContract2));
+        assertTrue(address(distributor1) != address(distributor2));
     }
 
-    function test_initializeDistribution_implementsIDistributionStrategy() public {
+    function test_create_implementsIDistributorFactory() public {
         bytes memory configData = abi.encode(params);
 
-        IDistributionStrategy strategy = IDistributionStrategy(address(factory));
-        IDistributionContract distributionContract =
-            strategy.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
+        IDistributorFactory distributorFactory = IDistributorFactory(address(factory));
+        IDistributor distributor = distributorFactory.create(address(token), TOTAL_SUPPLY, configData, bytes32(0));
 
         // Verify it returns a valid distribution contract
-        assertTrue(address(distributionContract) != address(0));
+        assertTrue(address(distributor) != address(0));
     }
 
     function test_initializeDistribution_createsValidAuction() public {
         bytes memory configData = abi.encode(params);
 
-        IDistributionContract distributionContract =
-            factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
+        IDistributor distributor = factory.create(address(token), TOTAL_SUPPLY, configData, bytes32(0));
 
-        ContinuousClearingAuction _auction = ContinuousClearingAuction(payable(address(distributionContract)));
+        ContinuousClearingAuction _auction = ContinuousClearingAuction(payable(address(distributor)));
 
-        // Test that the auction can receive tokens (implements IDistributionContract)
+        // Test that the auction can receive tokens (implements IDistributor)
         token.mint(address(_auction), TOTAL_SUPPLY);
         _auction.onTokensReceived();
 
@@ -207,17 +194,16 @@ contract AuctionFactoryTest is AuctionBaseTest {
 
         // Create the actual auction
         vm.prank(_sender);
-        IDistributionContract distributionContract =
-            factory.initializeDistribution(address(token), $deploymentParams.totalSupply, configData, _salt);
+        IDistributor distributor = factory.create(address(token), $deploymentParams.totalSupply, configData, _salt);
 
-        assertEq(auctionAddress, address(distributionContract));
+        assertEq(auctionAddress, address(distributor));
     }
 
     function test_initializeDistribution_withZeroTotalSupply_reverts() public {
         bytes memory configData = abi.encode(params);
 
         vm.expectRevert(IAuctionStorage.TotalSupplyIsZero.selector);
-        factory.initializeDistribution(address(token), 0, configData, bytes32(0));
+        factory.create(address(token), 0, configData, bytes32(0));
     }
 
     function test_initializeDistribution_withZeroFloorPrice_reverts() public {
@@ -225,7 +211,7 @@ contract AuctionFactoryTest is AuctionBaseTest {
         bytes memory configData = abi.encode(params);
 
         vm.expectRevert(ITickStorage.FloorPriceIsZero.selector);
-        factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
+        factory.create(address(token), TOTAL_SUPPLY, configData, bytes32(0));
     }
 
     function test_initializeDistribution_withTickSpacingTooSmall_fuzz(uint256 _tickSpacing) public {
@@ -234,14 +220,14 @@ contract AuctionFactoryTest is AuctionBaseTest {
         bytes memory configData = abi.encode(params);
 
         vm.expectRevert(ITickStorage.TickSpacingTooSmall.selector);
-        factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
+        factory.create(address(token), TOTAL_SUPPLY, configData, bytes32(0));
     }
 
     function test_initializeDistribution_withTokenIsAddressZero_reverts() public {
         bytes memory configData = abi.encode(params);
 
         vm.expectRevert(IAuctionStorage.TokenIsAddressZero.selector);
-        factory.initializeDistribution(address(0), TOTAL_SUPPLY, configData, bytes32(0));
+        factory.create(address(0), TOTAL_SUPPLY, configData, bytes32(0));
     }
 
     function test_initializeDistribution_withTokenAndCurrencyAreTheSame_reverts() public {
@@ -249,6 +235,6 @@ contract AuctionFactoryTest is AuctionBaseTest {
         bytes memory configData = abi.encode(params);
 
         vm.expectRevert(IAuctionStorage.TokenAndCurrencyCannotBeTheSame.selector);
-        factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
+        factory.create(address(token), TOTAL_SUPPLY, configData, bytes32(0));
     }
 }

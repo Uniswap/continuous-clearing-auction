@@ -15,7 +15,7 @@ import {ActionConstants} from 'v4-periphery/src/libraries/ActionConstants.sol';
 /// @custom:security-contact security@uniswap.org
 contract ContinuousClearingAuctionFactory is IContinuousClearingAuctionFactory {
     /// @notice The protocol fee controller to use for all created auctions
-    IProtocolFeeController public immutable PROTOCOL_FEE_CONTROLLER;
+    IProtocolFeeController internal immutable PROTOCOL_FEE_CONTROLLER;
 
     constructor(address _protocolFeeController) {
         PROTOCOL_FEE_CONTROLLER = IProtocolFeeController(_protocolFeeController);

@@ -1,0 +1,3 @@
+RequiredDemandQ96AtNextActiveTickTest
+└── when nextActiveTickPrice is MAX_TICK_PTR
+    └── it returns 0

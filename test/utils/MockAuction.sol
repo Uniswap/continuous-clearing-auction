@@ -44,8 +44,8 @@ contract MockContinuousClearingAuction is ContinuousClearingAuction {
         _initializeTickIfNeeded(prevPrice, price);
     }
 
-    function uncheckedSetNextActiveTickPrice(uint256 price) external {
-        $nextActiveTickPrice = price;
+    function uncheckedSetNextActiveTickPrice(uint256 priceQ96) external {
+        $nextActiveTickPriceQ96 = priceQ96;
     }
 
     /// @notice Update the tick demand

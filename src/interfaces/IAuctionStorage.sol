@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Currency} from '../libraries/CurrencyLibrary.sol';
 import {ValueX7} from '../libraries/ValueX7Lib.sol';
-import {IERC20Minimal} from './external/IERC20Minimal.sol';
 
 /// @notice Interface for auction storage operations
 interface IAuctionStorage {

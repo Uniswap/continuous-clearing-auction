@@ -48,7 +48,7 @@ abstract contract AuctionStorage is IAuctionStorage {
     uint256 internal $sumCurrencyDemandAboveClearingQ96;
     /// @notice The most up to date clearing price, set on each call to `checkpoint`
     /// @dev This can be incremented manually by calling `forceIterateOverTicks`
-    uint256 internal $clearingPrice;
+    uint256 internal $clearingPriceQ96;
     /// @notice Whether TOTAL_SUPPLY has been received
     bool internal $_tokensReceived;
 
@@ -138,7 +138,7 @@ abstract contract AuctionStorage is IAuctionStorage {
     }
 
     function _remainingSupplyQ96X7() internal view returns (ValueX7) {
-        return TOTAL_SUPPLY_Q96X7.sub($totalClearedQ96X7);
+        return TOTAL_SUPPLY_Q96X7 - $totalClearedQ96X7;
     }
 
     /// @inheritdoc IAuctionStorage

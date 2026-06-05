@@ -51,13 +51,14 @@ contract AuctionStateLens {
     /// @notice Function which parses the revert reason and returns the AuctionState
     function parseRevertReason(bytes memory reason) internal pure returns (AuctionState memory) {
         if (reason.length != 288) {
-            // Bubble up the revert reason if possible
-            if (reason.length > 32) {
+            // Bubble up any non-empty reason verbatim so the original error selector/data is preserved.
+            // This includes short reasons such as the 4-byte `CheckpointFailed` selector.
+            if (reason.length > 0) {
                 assembly {
                     revert(add(reason, 32), mload(reason))
                 }
             } else {
-                // If the revert reason is too short revert
+                // Only genuinely empty revert data has nothing to bubble up
                 revert InvalidRevertReasonLength();
             }
         }

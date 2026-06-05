@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-
 /// @notice A ValueX7 is a uint256 value that has been multiplied by 1e7 (ConstantsLib.MPS)
 /// @dev X7 values are used for demand and supply values to defer division
 type ValueX7 is uint256;

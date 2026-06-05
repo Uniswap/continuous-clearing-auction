@@ -19,7 +19,7 @@ struct AuctionParameters {
     address fundsRecipient; // address to receive all raised funds
     uint64 startBlock; // Block which the first step starts
     uint64 endBlock; // When the auction finishes
-    uint64 claimBlock; // Block when the auction can claimed
+    uint64 claimBlock; // Block when the auction can be claimed
     uint256 tickSpacing; // Fixed granularity for prices
     address validationHook; // Optional hook called before a bid
     uint256 floorPrice; // Starting floor price for the auction

@@ -8,7 +8,6 @@ import {StepStorage} from './StepStorage.sol';
 import {Tick, TickStorage} from './TickStorage.sol';
 import {AuctionParameters, IContinuousClearingAuction} from './interfaces/IContinuousClearingAuction.sol';
 import {IValidationHook} from './interfaces/IValidationHook.sol';
-import {IERC20Minimal} from './interfaces/external/IERC20Minimal.sol';
 import {Bid, BidLib} from './libraries/BidLib.sol';
 import {CheckpointAccountingLib} from './libraries/CheckpointAccountingLib.sol';
 import {CheckpointLib} from './libraries/CheckpointLib.sol';
@@ -22,7 +21,6 @@ import {AuctionStep, StepLib} from './libraries/StepLib.sol';
 import {ValidationHookLib} from './libraries/ValidationHookLib.sol';
 import {ValueX7} from './libraries/ValueX7Lib.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
-import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
 import {
     ILBPInitializer,
     ILBP_INITIALIZER_INTERFACE_ID,
@@ -171,9 +169,10 @@ contract ContinuousClearingAuction is
     }
 
     /// @notice Iterate to find the tick where the total demand at and above it is strictly less than the remaining supply in the auction
-    /// @dev If the loop reaches the highest tick in the book, `$nextActiveTickPriceQ96` will be set to MAX_TICK_PTR
-    /// @param _untilTickPriceQ96 The Q96 tick price to iterate until
-    /// @return The new Q96 clearing price
+    /// @dev If the loop reaches the highest tick in the book, `nextActiveTickPrice` will be set to MAX_TICK_PTR
+    /// @param _untilTickPriceQ96 The tick price to iterate until
+    /// @param _cumulativeMps The cumulative mps unlocked so far
+    /// @return The new clearing price
     function _iterateOverTicksAndFindClearingPrice(uint256 _untilTickPriceQ96, uint24 _cumulativeMps)
         internal
         returns (uint256)
@@ -349,15 +348,16 @@ contract ContinuousClearingAuction is
         uint256 _prevTickPriceQ96,
         bytes calldata _hookData
     ) internal returns (uint256 bidId) {
-        // Reject bids which would cause TOTAL_SUPPLY * maxPriceQ96 to overflow a uint256
+        // Reject bids which would cause TOTAL_SUPPLY * maxPrice to overflow a uint256
         if (_maxPriceQ96 > MAX_BID_PRICE) revert InvalidBidPriceTooHigh(_maxPriceQ96, MAX_BID_PRICE);
-
-        // Call the validation hook and bubble up the revert reason if it reverts
-        VALIDATION_HOOK.handleValidate(_maxPriceQ96, _amount, _owner, msg.sender, _hookData);
 
         // Get the latest checkpoint before validating the bid
         uint64 currentBlockNumberIsh = uint64(_getBlockNumberish());
         Checkpoint memory _checkpoint = _checkpointAtBlock(currentBlockNumberIsh);
+
+        // Call the validation hook and bubble up the revert reason if it reverts
+        VALIDATION_HOOK.handleValidate(_maxPriceQ96, _amount, _owner, msg.sender, _hookData);
+
         // Revert if there are no more tokens to be sold
         if (_checkpoint.remainingMpsInAuction() == 0 || ValueX7.unwrap(_remainingSupplyQ96X7()) == 0) {
             revert AuctionSoldOut();
@@ -670,6 +670,9 @@ contract ContinuousClearingAuction is
         uint256 currencyRaised = currencyRaised();
         uint256 protocolFeeAmount =
             ProtocolFeeLib.getProtocolFeeAmount(PROTOCOL_FEE_CONTROLLER, Currency.unwrap(CURRENCY), currencyRaised);
+        // Clamp the protocol fee to the currency raised so a misbehaving fee controller returning a fee
+        // greater than the currency raised cannot underflow the subtraction and permanently brick the sweep
+        if (protocolFeeAmount > currencyRaised) protocolFeeAmount = currencyRaised;
         _sweepCurrency(_getBlockNumberish(), currencyRaised - protocolFeeAmount);
         if (protocolFeeAmount > 0) {
             ProtocolFeeLib.transferProtocolFee(PROTOCOL_FEE_CONTROLLER, Currency.unwrap(CURRENCY), protocolFeeAmount);
@@ -702,6 +705,7 @@ contract ContinuousClearingAuction is
 
     /// @inheritdoc IContinuousClearingAuction
     function requiredDemandQ96AtNextActiveTick() public view returns (uint256) {
+        if ($nextActiveTickPriceQ96 == MAX_TICK_PTR) return 0;
         return requiredDemandQ96($nextActiveTickPriceQ96);
     }
 

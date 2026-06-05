@@ -226,6 +226,62 @@ contract SweepCurrencyTest is BttBase {
         assertEq(auction.currencyRaised(), expectedCurrencyRaised);
     }
 
+    function test_WhenProtocolFeeExceedsCurrencyRaised_ClampsToCurrencyRaised(
+        AuctionFuzzConstructorParams memory _params,
+        uint128 _bidAmount,
+        uint256 _excessFee
+    ) public givenAuctionIsGraduated givenNotPreviouslySwept {
+        // it clamps the protocol fee to the currency raised so the sweep cannot underflow and revert
+
+        vm.deal(address(this), type(uint256).max);
+        vm.assume(_bidAmount > 0);
+
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        mParams.token = address(new ERC20Mock());
+        mParams.parameters.currency = address(0);
+        mParams.parameters.requiredCurrencyRaised = 0;
+        mParams.parameters.validationHook = address(0);
+        mParams.parameters.fundsRecipient = makeAddr('fundsRecipient');
+
+        address protocolFeeRecipient = makeAddr('protocolFeeRecipient');
+        MockProtocolFeeController protocolFeeController = new MockProtocolFeeController();
+        protocolFeeController.setProtocolFeeRecipient(protocolFeeRecipient);
+
+        MockContinuousClearingAuction auction = new MockContinuousClearingAuction(
+            mParams.token, mParams.totalSupply, mParams.parameters, address(protocolFeeController)
+        );
+
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
+        auction.onTokensReceived();
+
+        vm.roll(mParams.parameters.startBlock);
+
+        uint256 maxPrice = mParams.parameters.floorPrice + mParams.parameters.tickSpacing;
+        auction.submitBid{value: _bidAmount}(maxPrice, _bidAmount, address(this), bytes(''));
+
+        vm.roll(mParams.parameters.endBlock);
+        auction.checkpoint();
+        uint256 expectedCurrencyRaised = auction.currencyRaised();
+        vm.assume(expectedCurrencyRaised > 0);
+
+        // A misbehaving controller returns a fee strictly greater than the currency raised
+        _excessFee = bound(_excessFee, 1, type(uint128).max);
+        protocolFeeController.setProtocolFeeAmount(expectedCurrencyRaised + _excessFee);
+
+        // The fee is clamped to the currency raised: the full amount is transferred as the protocol fee,
+        // zero is swept to the funds recipient, and the sweep succeeds instead of underflowing and reverting.
+        vm.expectEmit(true, true, true, true);
+        emit IAuctionStorage.CurrencySwept(mParams.parameters.fundsRecipient, 0);
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolFeeLib.ProtocolFeeTransferred(address(0), expectedCurrencyRaised);
+        vm.prank(mParams.parameters.fundsRecipient);
+        auction.sweepCurrency();
+
+        assertEq(auction.sweepCurrencyBlock(), block.number);
+        assertEq(protocolFeeRecipient.balance, expectedCurrencyRaised);
+        assertEq(mParams.parameters.fundsRecipient.balance, 0);
+    }
+
     function test_WhenAmountEQZero(AuctionFuzzConstructorParams memory _params)
         public
         givenAuctionIsGraduated

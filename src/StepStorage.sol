@@ -9,8 +9,8 @@ import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {SSTORE2} from 'solady/utils/SSTORE2.sol';
 
 /// @title StepStorage
-/// @notice Abstract contract to store and read information about the auction issuance schedule
-abstract contract StepStorage is BlockNumberish, IStepStorage {
+/// @notice Contract to store and read information about the auction issuance schedule
+contract StepStorage is BlockNumberish, IStepStorage {
     using StepLib for *;
     using SSTORE2 for *;
 

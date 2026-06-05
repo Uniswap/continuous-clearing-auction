@@ -245,5 +245,6 @@ interface IContinuousClearingAuction is
 
     /// @notice The required demand to move the auction to the next active tick, in Q96 representation
     /// @dev Relies on the latest checkpoint which may be out of date
+    /// @dev Returns zero when there is no next active tick
     function requiredDemandQ96AtNextActiveTick() external view returns (uint256);
 }

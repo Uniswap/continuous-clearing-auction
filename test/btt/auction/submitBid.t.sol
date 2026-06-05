@@ -15,6 +15,7 @@ import {FixedPoint96} from 'src/libraries/FixedPoint96.sol';
 import {ValidationHookLib} from 'src/libraries/ValidationHookLib.sol';
 import {ValueX7} from 'src/libraries/ValueX7Lib.sol';
 import {AuctionStepsBuilder} from 'test/utils/AuctionStepsBuilder.sol';
+import {MockCheckpointObservingValidationHook} from 'test/utils/MockCheckpointObservingValidationHook.sol';
 import {MockReenteringValidationHook} from 'test/utils/MockReenteringValidationHook.sol';
 
 contract SubmitBidTest is BttBase {
@@ -266,6 +267,36 @@ contract SubmitBidTest is BttBase {
 
     modifier givenValidationHookSucceeds() {
         _;
+    }
+
+    function test_WhenValidationHookSucceedsForFirstBidInNewBlock(AuctionFuzzConstructorParams memory _params)
+        public
+        givenBlockNumberIsBeforeEndBlock
+        givenBidOwnerIsNotZeroAddress
+        givenBidAmountGTZero
+        givenMaxPriceIsLTEMaxBidPrice
+        givenValidationHookSucceeds
+    {
+        // it calls the validation hook after checkpointing the current block
+
+        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
+        mParams.token = address(new ERC20Mock());
+        mParams.parameters.currency = address(0);
+        MockCheckpointObservingValidationHook validationHook = new MockCheckpointObservingValidationHook();
+        mParams.parameters.validationHook = address(validationHook);
+
+        MockContinuousClearingAuction auction =
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
+
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
+        auction.onTokensReceived();
+
+        uint256 maxPrice = mParams.parameters.floorPrice + mParams.parameters.tickSpacing;
+
+        vm.roll(mParams.parameters.startBlock);
+        auction.submitBid{value: 1}(maxPrice, 1, address(this), mParams.parameters.floorPrice, bytes(''));
+
+        assertEq(validationHook.observedLastCheckpointedBlock(), mParams.parameters.startBlock);
     }
 
     function test_WhenAuctionIsSoldOut(AuctionFuzzConstructorParams memory _params, uint256 _maxPrice)

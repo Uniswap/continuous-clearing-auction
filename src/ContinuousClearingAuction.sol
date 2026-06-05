@@ -352,12 +352,13 @@ contract ContinuousClearingAuction is
         // Reject bids which would cause TOTAL_SUPPLY * maxPrice to overflow a uint256
         if (_maxPrice > MAX_BID_PRICE) revert InvalidBidPriceTooHigh(_maxPrice, MAX_BID_PRICE);
 
-        // Call the validation hook and bubble up the revert reason if it reverts
-        VALIDATION_HOOK.handleValidate(_maxPrice, _amount, _owner, msg.sender, _hookData);
-
         // Get the latest checkpoint before validating the bid
         uint64 currentBlockNumberIsh = uint64(_getBlockNumberish());
         Checkpoint memory _checkpoint = _checkpointAtBlock(currentBlockNumberIsh);
+
+        // Call the validation hook and bubble up the revert reason if it reverts
+        VALIDATION_HOOK.handleValidate(_maxPrice, _amount, _owner, msg.sender, _hookData);
+
         // Revert if there are no more tokens to be sold
         if (_checkpoint.remainingMpsInAuction() == 0 || ValueX7.unwrap(_remainingSupplyQ96X7()) == 0) {
             revert AuctionSoldOut();

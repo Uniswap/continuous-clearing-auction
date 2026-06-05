@@ -700,6 +700,7 @@ contract ContinuousClearingAuction is
 
     /// @inheritdoc IContinuousClearingAuction
     function requiredDemandQ96AtNextActiveTick() public view returns (uint256) {
+        if ($nextActiveTickPrice == MAX_TICK_PTR) return 0;
         return requiredDemandQ96($nextActiveTickPrice);
     }
 

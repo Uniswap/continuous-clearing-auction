@@ -39,7 +39,7 @@ interface ITickStorage {
     event NextActiveTickUpdated(uint256 price);
 
     /// @notice The price of the next initialized tick above the clearing price
-    /// @dev This will be equal to the clearingPrice if no ticks have been initialized yet
+    /// @dev This will be equal to MAX_TICK_PTR if no ticks above the clearing price are active
     /// @return The price of the next active tick
     function nextActiveTickPrice() external view returns (uint256);
 

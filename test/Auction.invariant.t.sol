@@ -77,6 +77,7 @@ contract AuctionInvariantHandler is Test, Assertions {
         uint256 cnt_TickPriceNotIncreasingError;
         uint256 cnt_InvalidBidUnableToClearError;
         uint256 cnt_BidMustBeAboveClearingPriceError;
+        uint256 cnt_CheckpointAlreadyExistsForBlockError;
         uint256 cnt_NoBidToEarlyExitError;
         uint256 cnt_BidAlreadyExitedError;
     }
@@ -403,7 +404,19 @@ contract AuctionInvariantHandler is Test, Assertions {
         } else {
             metrics.cnt_untilTickPrice++;
         }
-        mockAuction.forceIterateOverTicks(untilTickPrice);
+
+        try mockAuction.forceIterateOverTicks(untilTickPrice) {}
+        catch (bytes memory revertData) {
+            if (bytes4(revertData) == IContinuousClearingAuction.CheckpointAlreadyExistsForBlock.selector) {
+                metrics.cnt_CheckpointAlreadyExistsForBlockError++;
+                return;
+            }
+
+            emit log_string('Invariant::handleForceIterateOverTicks: Uncaught error');
+            assembly {
+                revert(add(revertData, 0x20), mload(revertData))
+            }
+        }
     }
 
     /// @notice Handle a bid submission, ensuring that the actor has enough funds and the bid parameters are valid
@@ -555,6 +568,9 @@ contract AuctionInvariantHandler is Test, Assertions {
         emit log_named_uint('TickPriceNotIncreasingError count', metrics.cnt_TickPriceNotIncreasingError);
         emit log_named_uint('InvalidBidUnableToClearError count', metrics.cnt_InvalidBidUnableToClearError);
         emit log_named_uint('BidMustBeAboveClearingPriceError count', metrics.cnt_BidMustBeAboveClearingPriceError);
+        emit log_named_uint(
+            'CheckpointAlreadyExistsForBlockError count', metrics.cnt_CheckpointAlreadyExistsForBlockError
+        );
         emit log_named_uint('NoBidToEarlyExitError count', metrics.cnt_NoBidToEarlyExitError);
         emit log_named_uint('BidAlreadyExitedError count', metrics.cnt_BidAlreadyExitedError);
     }

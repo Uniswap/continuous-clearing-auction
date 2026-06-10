@@ -363,7 +363,7 @@ contract ContinuousClearingAuction is
             revert AuctionSoldOut();
         }
         // We don't allow bids to be submitted at or below the clearing price
-        if (_maxPriceQ96 <= $clearingPriceQ96) revert BidMustBeAboveClearingPrice();
+        if (_maxPriceQ96 <= _checkpoint.clearingPrice) revert BidMustBeAboveClearingPrice();
 
         // Initialize the tick if needed. This will no-op if the tick is already initialized.
         _initializeTickIfNeeded(_prevTickPriceQ96, _maxPriceQ96);
@@ -428,13 +428,17 @@ contract ContinuousClearingAuction is
 
     /// @notice Manually iterate over ticks to update the clearing price
     /// @dev This is used to prevent DoS attacks which initialize a large number of ticks
-    /// @param _untilTickPriceQ96 The Q96 tick price to iterate until
+    /// @param _untilTickPriceQ96 The tick price to iterate until
     function forceIterateOverTicks(uint256 _untilTickPriceQ96)
         external
         onlyActiveAuction
         nonReentrant
         returns (uint256)
     {
+        if ($lastCheckpointedBlock == uint64(_getBlockNumberish())) {
+            revert CheckpointAlreadyExistsForBlock();
+        }
+
         if (_untilTickPriceQ96 != MAX_TICK_PTR) {
             // Ensure that the Q96 price is at a tick boundary
             Tick storage $tick = _getTick(_untilTickPriceQ96);

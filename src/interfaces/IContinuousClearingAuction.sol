@@ -86,8 +86,10 @@ interface IContinuousClearingAuction is
     error InvalidBidUnableToClear();
     /// @notice Error thrown when the auction has sold the entire total supply of tokens
     error AuctionSoldOut();
-    /// @notice Error thrown when the tick Q96 price is not greater than the next active tick Q96 price
+    /// @notice Error thrown when the tick price is not greater than the next active tick Q96 price
     error TickHintMustBeGreaterThanNextActiveTickPrice(uint256 tickPriceQ96, uint256 nextActiveTickPriceQ96);
+    /// @notice Error thrown when force iteration is attempted after this block's checkpoint already exists
+    error CheckpointAlreadyExistsForBlock();
 
     /// @notice Emitted when the tokens are received
     /// @param totalSupply The total supply of tokens received

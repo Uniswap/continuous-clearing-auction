@@ -51,12 +51,12 @@ Addresses are cannonical across select EVM chains. If it is not already deployed
 
 ## Audits
 
-The code has been audited by Spearbit, OpenZeppelin, and ABDK Consulting. The most recent audits for v1.1.0 are linked below. For a full list of audits, see [Audits](./docs/audits/README.md).
+The code has been audited by Spearbit, OpenZeppelin, and ABDK Consulting. The most recent audits for v2.0.0 are linked below. For a full list of audits, see [Audits](./docs/audits/README.md).
 
 | Version | Date       | Report                                                                                                       |
 | ------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
-| v1.1.0  | 01/23/2026 | [OpenZeppelin](./docs/audits/OpenZeppelin_v1.1.0.pdf)                                                        |
-| v1.1.0  | 01/22/2026 | [Spearbit](./docs/audits/Spearbit_v1.1.0.pdf) and [additional](./docs/audits/Spearbit_v1.1.0_additional.pdf) |
+| v2.0.0  | 06/16/2026 | [OpenZeppelin](./docs/audits/OpenZeppelin_v2.0.0.pdf)                                                        |
+| v2.0.0  | 06/16/2026 | [Spearbit](./docs/audits/Spearbit_v2.0.0.pdf)                                                                |
 
 ### Bug bounty
 

@@ -1,5 +1,5 @@
 {
-  "Auction bytecode size": "20254",
+  "Auction bytecode size": "20289",
   "checkpoint_advanceToCurrentStep": "180627",
   "checkpoint_noBids": "166599",
   "checkpoint_zeroSupply": "117003",
@@ -15,5 +15,5 @@
   "submitBid_updateCheckpoint": "286800",
   "submitBid_withValidationHook": "361235",
   "sweepCurrency": "56827",
-  "sweepCurrency_withProtocolFee": "100789"
+  "sweepCurrency_withProtocolFee": "100804"
 }

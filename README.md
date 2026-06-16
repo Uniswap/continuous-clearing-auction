@@ -33,30 +33,30 @@ Addresses are cannonical across select EVM chains. If it is not already deployed
 
 ### ContinuousClearingAuctionFactory
 
-| Network  | Address                                    | Commit Hash                              | Version          |
+| Version  | Address                                    | Commit Hash                              | Version          |
 | -------- | ------------------------------------------ | ---------------------------------------- | ---------------- |
-| v2.0.0   |                                            |                                          | v2.0.0           |
+| v2.0.0   | 0x00cCa200BF124dBfA848937c553864f4B4CE0632 | aee9bca51c92c24eb24a00d75ad98e678bac61d3 | v2.0.0           |
 | v1.1.0   | 0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5 | 8508f332c3daf330b189290b335fd9da4e95f3f0 | v1.1.0           |
 | v1.0.0\* | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
 
-> \*v1.0.0-candidate is the initial version of CCA and is NOT recommended for production use. For more details, see the [Changelog](./CHANGELOG.md).
+> \*v2.0.0 is the latest version of CCA and is the recommended version for production use. For more details, see the [Changelog](./CHANGELOG.md).
 
 ### CCALens
 
 [CCALens](./src/lens/CCALens.sol) is a stateless periphery contract for offchain reads of auction state and initialized tick data. It is deployed separately from the factory and is safe to share across all auctions on a chain.
 
-| Network | Address | Commit Hash | Version |
-| ------- | ------- | ----------- | ------- |
-| v2.0.0  |         |             | v2.0.0  |
+| Version | Address                                    | Commit Hash                              | Tag          |
+| -------- | ------------------------------------------ | ---------------------------------------- | ---------------- |
+| v2.0.0  | 0xc3C65F5453A3674aDb693cbdA3C842545cD30f53 | aee9bca51c92c24eb24a00d75ad98e678bac61d3 | v2.0.0  |
 
 ## Audits
 
-The code has been audited by Spearbit, OpenZeppelin, and ABDK Consulting. The most recent audits for v1.1.0 are linked below. For a full list of audits, see [Audits](./docs/audits/README.md).
+The code has been audited by Spearbit, OpenZeppelin, and ABDK Consulting. The most recent audits for v2.0.0 are linked below. For a full list of audits, see [Audits](./docs/audits/README.md).
 
 | Version | Date       | Report                                                                                                       |
 | ------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
-| v1.1.0  | 01/23/2026 | [OpenZeppelin](./docs/audits/OpenZeppelin_v1.1.0.pdf)                                                        |
-| v1.1.0  | 01/22/2026 | [Spearbit](./docs/audits/Spearbit_v1.1.0.pdf) and [additional](./docs/audits/Spearbit_v1.1.0_additional.pdf) |
+| v2.0.0  | 06/16/2026 | [OpenZeppelin](./docs/audits/OpenZeppelin_v2.0.0.pdf)                                                        |
+| v2.0.0  | 06/16/2026 | [Spearbit](./docs/audits/Spearbit_v2.0.0.pdf)                                                                |
 
 ### Bug bounty
 

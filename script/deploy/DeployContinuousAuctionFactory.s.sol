@@ -8,7 +8,7 @@ import 'forge-std/console2.sol';
 
 /// @title DeployContinuousAuctionFactoryScript
 /// @notice Script to deploy the ContinuousClearingAuctionFactory
-/// @dev This will deploy to 0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5 on most EVM chains
+/// @dev This will deploy to 0x00cCa200BF124dBfA848937c553864f4B4CE0632 on most EVM chains
 ///      with the CREATE2 deployer at 0x4e59b44847b379578588920cA78FbF26c0B4956C
 contract DeployContinuousAuctionFactoryScript is Script {
     function run() public returns (IContinuousClearingAuctionFactory factory) {
@@ -21,7 +21,7 @@ contract DeployContinuousAuctionFactoryScript is Script {
         console2.logBytes32(initCodeHash);
 
         // Deploys to a deterministic address for the configured protocol fee controller.
-        bytes32 salt = 0xf0354626131f1f8f0a1f7a3837aa270bdcfc1a9e5c6f9125a6f69ba45e416ce3;
+        bytes32 salt = 0x7cda7b6c72c517bc1804d9125be10523051a786205580a090d6bb55697b8acf1;
         factory = IContinuousClearingAuctionFactory(
             address(new ContinuousClearingAuctionFactory{salt: salt}(protocolFeeController))
         );

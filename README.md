@@ -33,7 +33,7 @@ Addresses are cannonical across select EVM chains. If it is not already deployed
 
 ### ContinuousClearingAuctionFactory
 
-| Network  | Address                                    | Commit Hash                              | Version          |
+| Version  | Address                                    | Commit Hash                              | Version          |
 | -------- | ------------------------------------------ | ---------------------------------------- | ---------------- |
 | v2.0.0   | 0x00cCa200BF124dBfA848937c553864f4B4CE0632 | aee9bca51c92c24eb24a00d75ad98e678bac61d3 | v2.0.0           |
 | v1.1.0   | 0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5 | 8508f332c3daf330b189290b335fd9da4e95f3f0 | v1.1.0           |
@@ -45,9 +45,9 @@ Addresses are cannonical across select EVM chains. If it is not already deployed
 
 [CCALens](./src/lens/CCALens.sol) is a stateless periphery contract for offchain reads of auction state and initialized tick data. It is deployed separately from the factory and is safe to share across all auctions on a chain.
 
-| Network | Address | Commit Hash | Version |
-| ------- | ------- | ----------- | ------- |
-| v2.0.0  |         |             | v2.0.0  |
+| Version | Address                                    | Commit Hash                              | Tag          |
+| -------- | ------------------------------------------ | ---------------------------------------- | ---------------- |
+| v2.0.0  | 0xc3C65F5453A3674aDb693cbdA3C842545cD30f53 | aee9bca51c92c24eb24a00d75ad98e678bac61d3 | v2.0.0  |
 
 ## Audits
 

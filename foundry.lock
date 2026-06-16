@@ -17,7 +17,7 @@
   "lib/liquidity-launcher": {
     "tag": {
       "name": "v3.0.0",
-      "rev": "6073b4b935f3aaaf996005c256e4e5af272497df"
+      "rev": "3a3103543f50a13a0ae52a253bb98a925d72146f"
     }
   },
   "lib/openzeppelin-contracts": {

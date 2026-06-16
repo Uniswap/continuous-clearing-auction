@@ -23,7 +23,7 @@ contract AuctionStepStorageTest is Test {
         internal
         returns (MockStepStorage)
     {
-        return new MockStepStorage(auctionStepsData, uint64(startBlock), uint64(endBlock));
+        return new MockStepStorage(auctionStepsData, uint64(startBlock), uint64(endBlock), uint64(endBlock));
     }
 
     function test_canBeConstructed_fuzz(uint8 numIterations) public {

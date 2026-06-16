@@ -6,8 +6,9 @@ import {MockContinuousClearingAuction} from '../mocks/MockContinuousClearingAuct
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {Checkpoint} from 'src/CheckpointStorage.sol';
+import {IAuctionStorage} from 'src/interfaces/IAuctionStorage.sol';
 import {IContinuousClearingAuction} from 'src/interfaces/IContinuousClearingAuction.sol';
-import {ITokenCurrencyStorage} from 'src/interfaces/ITokenCurrencyStorage.sol';
+import {IStepStorage} from 'src/interfaces/IStepStorage.sol';
 import {ConstantsLib} from 'src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from 'src/libraries/FixedPoint96.sol';
 import {MaxBidPriceLib} from 'src/libraries/MaxBidPriceLib.sol';
@@ -19,14 +20,14 @@ contract ClaimTokensBatchTest is BttBase {
         AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
         mParams.token = address(new ERC20Mock());
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
-        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         _blockNumber = uint64(bound(_blockNumber, 0, mParams.parameters.claimBlock - 1));
         vm.roll(_blockNumber);
-        vm.expectRevert(IContinuousClearingAuction.NotClaimable.selector);
+        vm.expectRevert(IStepStorage.NotClaimable.selector);
         auction.claimTokensBatch(address(0), new uint256[](0));
     }
 
@@ -57,9 +58,9 @@ contract ClaimTokensBatchTest is BttBase {
         // Make it graduated by default
         mParams.parameters.requiredCurrencyRaised = 0;
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
-        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         vm.roll(mParams.parameters.startBlock);
@@ -118,9 +119,9 @@ contract ClaimTokensBatchTest is BttBase {
         // Make it not graduated by default
         mParams.parameters.requiredCurrencyRaised = type(uint128).max;
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
-        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         vm.roll(mParams.parameters.startBlock);
@@ -142,7 +143,7 @@ contract ClaimTokensBatchTest is BttBase {
         bidIds[0] = bidId;
 
         vm.roll(_blockNumber);
-        vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+        vm.expectRevert(IAuctionStorage.NotGraduated.selector);
         auction.claimTokensBatch(owner, bidIds);
     }
 
@@ -167,9 +168,9 @@ contract ClaimTokensBatchTest is BttBase {
         mParams.parameters.requiredCurrencyRaised = 0;
 
         MockContinuousClearingAuction auction =
-            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new MockContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
-        ERC20Mock(mParams.token).mint(address(auction), mParams.totalSupply);
+        ERC20Mock(mParams.token).mint(address(auction), requiredTokenDeposit(mParams));
         auction.onTokensReceived();
 
         vm.roll(mParams.parameters.startBlock);

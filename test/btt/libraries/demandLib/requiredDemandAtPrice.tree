@@ -1,0 +1,17 @@
+RequiredDemandAtPriceTest
+├── when remainingMps is 0
+│   └── it reverts
+├── when price is 0
+│   └── it returns 0
+├── when supply is 0
+│   └── it returns 0
+├── when supply GT 0 and price GT 0
+│   ├── when remainingMps is MPS
+│   │   └── it returns remainingSupplyQ96X7 * priceQ96 divUp Q96 * MPS
+│   └── when remainingMps LT MPS
+│       └── it returns remainingSupplyQ96X7 * priceQ96 divUp Q96 * remainingMps
+└── rollover
+    ├── when remaining supply equals expected schedule
+    │   └── it returns totalSupply * priceQ96
+    └── when remaining supply is greater than expected schedule
+        └── it returns demand greater than totalSupply * priceQ96

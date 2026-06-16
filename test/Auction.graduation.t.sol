@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {IAuctionStorage} from '../src/interfaces/IAuctionStorage.sol';
 import {IContinuousClearingAuction} from '../src/interfaces/IContinuousClearingAuction.sol';
-import {ITokenCurrencyStorage} from '../src/interfaces/ITokenCurrencyStorage.sol';
+import {IStepStorage} from '../src/interfaces/IStepStorage.sol';
 import {Bid, BidLib} from '../src/libraries/BidLib.sol';
 import {CheckpointAccountingLib} from '../src/libraries/CheckpointAccountingLib.sol';
 import {Checkpoint} from '../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../src/libraries/FixedPoint96.sol';
-import {ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
+import {ValueX7} from '../src/libraries/ValueX7Lib.sol';
 import {AuctionBaseTest} from './utils/AuctionBaseTest.sol';
 import {FuzzDeploymentParams} from './utils/FuzzStructs.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
@@ -18,7 +19,6 @@ import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
 ///      so we limit the number of fuzz runs.
 /// forge-config: default.fuzz.runs = 1000
 contract AuctionGraduationTest is AuctionBaseTest {
-    using ValueX7Lib for *;
     using BidLib for *;
     using FixedPointMathLib for *;
 
@@ -129,17 +129,15 @@ contract AuctionGraduationTest is AuctionBaseTest {
     /// @dev Note that depending on the total supply / mps configurations it may not be possible to hit this scenario
     ///      so we use vm.assume to force the scenario to be hit. This will fail in higher fuzz run tests
     function _getRequiredAmountToMoveClearingToPrice(
-        uint256 totalSupply,
+        IContinuousClearingAuction auction,
         uint256 price,
         uint128 existingBidAmount,
         uint24 cumulativeMps
-    ) internal pure returns (uint128 requiredAmount) {
+    ) internal view returns (uint128 requiredAmount) {
         uint256 existingBidAmountQ96 = uint256(existingBidAmount) << FixedPoint96.RESOLUTION;
-        // find the price just under the target price
-        uint256 targetDemandQ96 = (totalSupply * (price - 1)) + 1;
-        // find the price just above the target price
-        uint256 upperBoundDemandQ96 = (totalSupply * price) - 1;
         uint24 remainingMps = ConstantsLib.MPS - cumulativeMps;
+        uint256 targetDemandQ96 = auction.requiredDemandQ96(price - 1) + 1;
+        uint256 upperBoundDemandQ96 = auction.requiredDemandQ96(price) - 1;
         // find the required amount, considering the remaining mps in the auction
         uint256 requiredAmountQ96 =
             (targetDemandQ96 - existingBidAmountQ96).fullMulDivUp(remainingMps, ConstantsLib.MPS);
@@ -199,7 +197,10 @@ contract AuctionGraduationTest is AuctionBaseTest {
         uint64 startBlock = auction.startBlock();
         // bid amount is half of the exact amount that would be needed to fill the auction
         uint256 totalSupply = auction.totalSupply();
-        $bidAmount = uint128(totalSupply.fullMulDivUp($maxPrice, FixedPoint96.Q96) / 2);
+        // assume that total supply is large enough such that more than 1 token is being auctioned
+        vm.assume(totalSupply.fullMulDivUp($maxPrice, FixedPoint96.Q96) > 1);
+        // solve for the bid amount required to fill half of the total supply
+        $bidAmount = uint128((totalSupply / 2).fullMulDivUp($maxPrice, FixedPoint96.Q96));
         vm.assume($bidAmount > 0);
         uint256 bidId = auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
@@ -213,7 +214,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         vm.assume(checkpoint.cumulativeMps < ConstantsLib.MPS);
 
         uint128 requiredAmount =
-            _getRequiredAmountToMoveClearingToPrice(totalSupply, $maxPrice, $bidAmount, checkpoint.cumulativeMps);
+            _getRequiredAmountToMoveClearingToPrice(auction, $maxPrice, $bidAmount, checkpoint.cumulativeMps);
 
         uint256 nextBidId = auction.submitBid{value: requiredAmount}(
             $maxPrice + auction.tickSpacing(), requiredAmount, alice, params.floorPrice, bytes('')
@@ -230,7 +231,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
         vm.roll(auction.endBlock());
         Checkpoint memory finalCheckpoint = auction.checkpoint();
         // Assert that the auction finishes at the first maxPrice
-        assertEq(auction.clearingPrice(), $maxPrice);
+        assertEq(auction.clearingPrice(), $maxPrice, 'clearing price');
 
         // Locally validate that for the first bid, the sum of the individual sections would overflow the original bid amount
         Bid memory bid = auction.bids(bidId);
@@ -238,7 +239,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
             auction.checkpoints(startBlock + 1), auction.checkpoints(startBlock), bid
         );
         (, uint256 partialSpentQ96) = CheckpointAccountingLib.accountPartiallyFilledCheckpoints(
-            bid, auction.ticks($maxPrice).currencyDemandQ96, finalCheckpoint.currencyRaisedAtClearingPriceQ96_X7
+            bid, auction.ticks($maxPrice).currencyDemandQ96, finalCheckpoint.currencyRaisedAtClearingPriceQ96X7
         );
         uint256 totalSpentQ96 = fullySpentQ96 + partialSpentQ96;
 
@@ -300,11 +301,11 @@ contract AuctionGraduationTest is AuctionBaseTest {
         vm.roll(auction.claimBlock() - 1);
 
         // Try to claim tokens before the claim block
-        vm.expectRevert(IContinuousClearingAuction.NotClaimable.selector);
+        vm.expectRevert(IStepStorage.NotClaimable.selector);
         auction.claimTokensBatch(alice, bids);
     }
 
-    function test_sweepCurrency_notGraduated_reverts(
+    function test_sweepCurrency_notGraduated_sweepsZeroCurrency(
         FuzzDeploymentParams memory _deploymentParams,
         uint128 _bidAmount,
         uint128 _maxPrice
@@ -324,11 +325,15 @@ contract AuctionGraduationTest is AuctionBaseTest {
         auction.checkpoint();
         uint256 expectedCurrencyRaised = auction.currencyRaised();
         uint256 expectedCurrencyRaisedFromCheckpoint =
-            auction.currencyRaisedQ96_X7().scaleDownToUint256() >> FixedPoint96.RESOLUTION;
+            (ValueX7.unwrap(auction.currencyRaisedQ96X7()) / ConstantsLib.MPS) >> FixedPoint96.RESOLUTION;
 
+        uint256 fundsRecipientBalanceBefore = fundsRecipient.balance;
+        vm.expectEmit(true, true, true, true);
+        emit IAuctionStorage.CurrencySwept(fundsRecipient, 0);
         vm.prank(fundsRecipient);
-        vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
         auction.sweepCurrency();
+        assertEq(auction.sweepCurrencyBlock(), block.number);
+        assertEq(fundsRecipient.balance, fundsRecipientBalanceBefore);
 
         emit log_string('===== Auction is NOT graduated =====');
         emit log_named_uint('currencyRaised in final checkpoint', expectedCurrencyRaisedFromCheckpoint);
@@ -459,7 +464,8 @@ contract AuctionGraduationTest is AuctionBaseTest {
 
         // Should sweep ALL tokens since auction didn't graduate
         vm.expectEmit(true, true, true, true);
-        emit ITokenCurrencyStorage.TokensSwept(tokensRecipient, $deploymentParams.totalSupply);
+        emit IAuctionStorage.TokensSwept(tokensRecipient, $deploymentParams.totalSupply);
+        vm.prank(tokensRecipient);
         auction.sweepUnsoldTokens();
 
         // Verify all tokens were transferred
@@ -467,7 +473,7 @@ contract AuctionGraduationTest is AuctionBaseTest {
 
         uint256 expectedCurrencyRaised = auction.currencyRaised();
         uint256 expectedCurrencyRaisedFromCheckpoint =
-            auction.currencyRaisedQ96_X7().scaleDownToUint256() >> FixedPoint96.RESOLUTION;
+            (ValueX7.unwrap(auction.currencyRaisedQ96X7()) / ConstantsLib.MPS) >> FixedPoint96.RESOLUTION;
 
         emit log_string('===== Auction is NOT graduated =====');
         emit log_named_uint('currencyRaised in final checkpoint', expectedCurrencyRaisedFromCheckpoint);

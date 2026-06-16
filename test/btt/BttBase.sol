@@ -112,6 +112,11 @@ contract BttBase is AuctionBaseTest {
         return (auctionStepsData, numberOfBlocks, _steps);
     }
 
+    /// @notice Returns the total token deposit required for onTokensReceived.
+    function requiredTokenDeposit(AuctionFuzzConstructorParams memory _params) internal pure returns (uint256) {
+        return uint256(_params.totalSupply);
+    }
+
     function assertEq(Bid memory _bid, Bid memory _bid2) internal pure {
         assertEq(_bid.startBlock, _bid2.startBlock, 'startBlock');
         assertEq(_bid.startCumulativeMps, _bid2.startCumulativeMps, 'startCumulativeMps');

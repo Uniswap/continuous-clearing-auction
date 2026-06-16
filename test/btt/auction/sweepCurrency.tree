@@ -6,13 +6,17 @@ SweepCurrencyTest
     │   └── it reverts with {CannotSweepCurrency}
     └── given not previously swept
         ├── when auction is not graduated
-        │   └── it reverts with {NotGraduated}
+        │   ├── it writes sweepCurrencyBlock
+        │   ├── it does not transfer currency to funds recipient
+        │   └── it emits {CurrencySwept} with zero amount
         └── given auction is graduated
             ├── when amount GT zero
             │   ├── it writes sweepCurrencyBlock
             │   ├── it transfers amount currency to funds recipient
             │   └── it emits {CurrencySwept}
-            └── when amount EQ zero
-                ├── it writes sweepCurrencyBlock
-                ├── it does not transfer amount currency to funds recipient
-                └── it emits {CurrencySwept}
+            ├── when amount EQ zero
+            │   ├── it writes sweepCurrencyBlock
+            │   ├── it does not transfer amount currency to funds recipient
+            │   └── it emits {CurrencySwept}
+            └── when protocol fee exceeds currency raised
+                └── it clamps the fee to the currency raised so the sweep cannot underflow and revert

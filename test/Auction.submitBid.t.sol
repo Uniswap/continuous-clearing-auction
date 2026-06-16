@@ -55,14 +55,8 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
     }
 
     // Rationale:
-    // This test is to verify that the auction will prevent itself from getting into a state where
-    // the unchecked math in Auction.sol:_sellTokensAtClearingPrice 202-203 below
-    //          unchecked {
-    //              totalCurrencyForDeltaQ96X7 = (uint256(TOTAL_SUPPLY) * priceQ96) * deltaMpsU;
-    //          }
-    // would cause an overflow.
-    // To try to hit this case, we create an auction with a very small total supply and submit bids at the
-    // maximum allowable price.
+    // Verify that TOTAL_SUPPLY * MAX_BID_PRICE * MPS does not overflow a uint256.
+    // This invariant is required by DemandLib.currencyRaisedAtPrice and the checkpoint sell logic.
     function test_WhenBidMaxPriceWouldCauseTotalSupplyTimesMaxPriceTimesMPSToOverflow(FuzzDeploymentParams memory _deploymentParams)
         public
         givenFullyFundedAccount
@@ -79,9 +73,7 @@ contract AuctionSubmitBidTest is AuctionBaseTest {
         );
     }
 
-    // This test is to verify that the auction will prevent itself from getting into a state where
-    // the unchecked math in Auction.sol:_sellTokensAtClearingPrice 202-203 would cause an overflow.
-    // To try to hit this case, we create an auction with a total supply of MAX_TOTAL_SUPPLY.
+    // Verify that TOTAL_SUPPLY * MAX_BID_PRICE * MPS does not overflow when totalSupply is MAX_TOTAL_SUPPLY.
     function test_WhenTotalSupplyIsMaxTotalSupply(FuzzDeploymentParams memory _deploymentParams)
         public
         givenFullyFundedAccount

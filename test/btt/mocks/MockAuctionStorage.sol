@@ -2,20 +2,27 @@
 pragma solidity 0.8.26;
 
 import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
-import {TokenCurrencyStorage} from 'continuous-clearing-auction/TokenCurrencyStorage.sol';
+import {AuctionStorage} from 'continuous-clearing-auction/AuctionStorage.sol';
 import {Currency} from 'continuous-clearing-auction/libraries/CurrencyLibrary.sol';
 
-contract MockTokenCurrencyStorage is TokenCurrencyStorage, BlockNumberish {
+contract MockAuctionStorage is AuctionStorage, BlockNumberish {
     constructor(
         address _token,
         address _currency,
         uint128 _totalSupply,
         address _tokensRecipient,
         address _fundsRecipient,
-        uint128 _requiredCurrencyRaised
+        uint128 _requiredCurrencyRaised,
+        address _protocolFeeController
     )
-        TokenCurrencyStorage(
-            _token, _currency, _totalSupply, _tokensRecipient, _fundsRecipient, _requiredCurrencyRaised
+        AuctionStorage(
+            _token,
+            _currency,
+            _totalSupply,
+            _tokensRecipient,
+            _fundsRecipient,
+            _requiredCurrencyRaised,
+            _protocolFeeController
         )
         BlockNumberish()
     {}

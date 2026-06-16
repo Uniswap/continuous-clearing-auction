@@ -6,16 +6,16 @@ import {ITickStorage} from '../src/interfaces/ITickStorage.sol';
 import {BidLib} from '../src/libraries/BidLib.sol';
 import {ConstantsLib} from '../src/libraries/ConstantsLib.sol';
 import {MaxBidPriceLib} from '../src/libraries/MaxBidPriceLib.sol';
-import {ValueX7, ValueX7Lib} from '../src/libraries/ValueX7Lib.sol';
+import {ValueX7} from '../src/libraries/ValueX7Lib.sol';
 import {Assertions} from './utils/Assertions.sol';
 import {Test} from 'forge-std/Test.sol';
 
 contract MockTickStorage is TickStorage {
     constructor(uint256 _tickSpacing, uint256 _floorPrice) TickStorage(_tickSpacing, _floorPrice) {}
 
-    /// @notice Set the nextActiveTickPrice, only for testing
-    function setNextActiveTickPrice(uint256 price) external {
-        $nextActiveTickPrice = price;
+    /// @notice Set the nextActiveTickPriceQ96, only for testing
+    function setNextActiveTickPrice(uint256 priceQ96) external {
+        $nextActiveTickPriceQ96 = priceQ96;
     }
 
     function initializeTickIfNeeded(uint256 prevPrice, uint256 price) external {

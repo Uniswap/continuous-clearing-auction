@@ -15,3 +15,11 @@ struct FuzzBid {
     uint128 bidAmount;
     uint8 tickNumber;
 }
+
+/// @dev Resolved bid inputs generated from a seed and current auction bounds.
+struct FuzzGeneratedBid {
+    uint128 tokenAmount;
+    uint128 inputAmount;
+    uint256 maxPrice;
+    bool canBid;
+}

@@ -53,6 +53,12 @@ contract ConstructorTest is BttBase {
         new MockTickStorage(_tickSpacing, _floorPrice);
     }
 
+    function test_MinFloorPriceReciprocalFitsUint160() external pure {
+        uint256 excludedBoundary = 1 << 32;
+        assertEq((1 << 192) / excludedBoundary, uint256(type(uint160).max) + 1);
+        assertLe((1 << 192) / ConstantsLib.MIN_FLOOR_PRICE, type(uint160).max);
+    }
+
     modifier whenFloorPriceGTEMinFloorPrice() {
         _;
         assertGe(floorPrice, ConstantsLib.MIN_FLOOR_PRICE, 'floor price is less than min floor price');
@@ -82,9 +88,9 @@ contract ConstructorTest is BttBase {
         whenFloorPriceGT0
         whenFloorPriceGTEMinFloorPrice
     {
-        // it writes FLOOR_PRICE
+        // it writes FLOOR_PRICE_Q96
         // it writes next tick to be MAX_TICK_PTR
-        // it writes nextActiveTickPrice to be MAX_TICK_PTR
+        // it writes nextActiveTickPriceQ96 to be MAX_TICK_PTR
         // it emits {TickInitialized}
         // it emits {NextActiveTickUpdated}
 

@@ -17,7 +17,7 @@ contract AdvanceStepTest is BttBase {
         uint64 startBlock = uint64(bound(_startBlock, 1, type(uint64).max - numberOfBlocks));
         uint64 endBlock = startBlock + uint64(numberOfBlocks);
 
-        auctionStepStorage = new MockStepStorage(auctionStepsData, startBlock, endBlock);
+        auctionStepStorage = new MockStepStorage(auctionStepsData, startBlock, endBlock, endBlock);
 
         // Then proceed through the list until we are bast the end block.
         for (uint256 i = 8; i < auctionStepsData.length; i += 8) {
@@ -50,7 +50,7 @@ contract AdvanceStepTest is BttBase {
         vm.expectEmit(true, true, true, true);
         emit IStepStorage.AuctionStepRecorded(startBlock, startBlock + steps[0].blockDelta, steps[0].mps);
         vm.record();
-        auctionStepStorage = new MockStepStorage(auctionStepsData, startBlock, endBlock);
+        auctionStepStorage = new MockStepStorage(auctionStepsData, startBlock, endBlock, endBlock);
         (, bytes32[] memory writes) = vm.accesses(address(auctionStepStorage));
 
         if (!isCoverage()) {
@@ -84,7 +84,7 @@ contract AdvanceStepTest is BttBase {
         // For the very first step, we have not previously written any data to `step` so the `endBlock` is 0
         // This is executed as part of the constructor.
 
-        auctionStepStorage = new MockStepStorage(auctionStepsData, startBlock, endBlock);
+        auctionStepStorage = new MockStepStorage(auctionStepsData, startBlock, endBlock, endBlock);
 
         AuctionStep memory prevStep = auctionStepStorage.step();
 

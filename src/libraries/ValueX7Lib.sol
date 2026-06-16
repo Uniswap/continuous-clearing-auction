@@ -1,43 +1,36 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {ConstantsLib} from './ConstantsLib.sol';
-import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
-
-/// @notice A ValueX7 is a uint256 value that has been multiplied by MPS
-/// @dev X7 values are used for demand values to avoid intermediate division by MPS
+/// @notice A ValueX7 is a uint256 value that has been multiplied by 1e7 (ConstantsLib.MPS)
+/// @dev X7 values are used for demand and supply values to defer division
 type ValueX7 is uint256;
 
-using {saturatingSub, divUint256} for ValueX7 global;
+using {add as +, sub as -, gte as >=, min} for ValueX7 global;
 
-/// @notice Subtract two ValueX7 values, returning zero on underflow.
-/// @dev Wrapper around FixedPointMathLib.saturatingSub
-function saturatingSub(ValueX7 a, ValueX7 b) pure returns (ValueX7) {
-    return ValueX7.wrap(FixedPointMathLib.saturatingSub(ValueX7.unwrap(a), ValueX7.unwrap(b)));
+/// @notice Add two ValueX7 values and return the result as a ValueX7
+function add(ValueX7 a, ValueX7 b) pure returns (ValueX7) {
+    return ValueX7.wrap(ValueX7.unwrap(a) + ValueX7.unwrap(b));
 }
 
-/// @notice Divide a ValueX7 value by a uint256
-function divUint256(ValueX7 a, uint256 b) pure returns (ValueX7) {
-    return ValueX7.wrap(ValueX7.unwrap(a) / b);
+/// @notice Subtract two ValueX7 values and return the result as a ValueX7
+function sub(ValueX7 a, ValueX7 b) pure returns (ValueX7) {
+    return ValueX7.wrap(ValueX7.unwrap(a) - ValueX7.unwrap(b));
 }
 
-/// @title ValueX7Lib
-library ValueX7Lib {
-    using ValueX7Lib for ValueX7;
+/// @notice Return true if a is greater than or equal to b
+function gte(ValueX7 a, ValueX7 b) pure returns (bool) {
+    return ValueX7.unwrap(a) >= ValueX7.unwrap(b);
+}
 
-    /// @notice The scaling factor for ValueX7 values (ConstantsLib.MPS)
-    uint256 public constant X7 = ConstantsLib.MPS;
-
-    /// @notice Multiply a uint256 value by MPS
-    /// @dev This ensures that future operations will not lose precision
-    /// @return The result as a ValueX7
-    function scaleUpToX7(uint256 value) internal pure returns (ValueX7) {
-        return ValueX7.wrap(value * X7);
+/// @notice Return the minimum of two ValueX7 values
+/// @dev Branchless ternary evaluation for `a < b ? a : b`
+function min(ValueX7 a, ValueX7 b) pure returns (ValueX7) {
+    uint256 a_ = ValueX7.unwrap(a);
+    uint256 b_ = ValueX7.unwrap(b);
+    uint256 c_;
+    /// @solidity memory-safe-assembly
+    assembly {
+        c_ := xor(a_, mul(xor(a_, b_), lt(b_, a_)))
     }
-
-    /// @notice Divide a ValueX7 value by MPS
-    /// @return The result as a uint256
-    function scaleDownToUint256(ValueX7 value) internal pure returns (uint256) {
-        return ValueX7.unwrap(value) / X7;
-    }
+    return ValueX7.wrap(c_);
 }

@@ -29,6 +29,7 @@ contract AuctionUnitTest is AuctionBaseTest {
         setUpTokens();
 
         alice = makeAddr('alice');
+        bob = makeAddr('bob');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 
@@ -36,26 +37,16 @@ contract AuctionUnitTest is AuctionBaseTest {
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(_deploymentParams.auctionParams.floorPrice);
-        mockAuction = new MockContinuousClearingAuction(address(token), _deploymentParams.totalSupply, params);
+        mockAuction =
+            new MockContinuousClearingAuction(address(token), _deploymentParams.totalSupply, params, address(0));
 
         token.mint(address(mockAuction), _deploymentParams.totalSupply);
         mockAuction.onTokensReceived();
     }
 
     function setUpMockAuctionInvariant() public {
-        setUpMockAuction();
-
         FuzzDeploymentParams memory fuzzDeploymentParams = helper__validInvariantDeploymentParams();
-
-        // Expect the floor price tick to be initialized
-        vm.expectEmit(true, true, true, true);
-        emit ITickStorage.TickInitialized(fuzzDeploymentParams.auctionParams.floorPrice);
-        mockAuction = new MockContinuousClearingAuction(
-            address(token), fuzzDeploymentParams.totalSupply, fuzzDeploymentParams.auctionParams
-        );
-
-        token.mint(address(mockAuction), fuzzDeploymentParams.totalSupply);
-        mockAuction.onTokensReceived();
+        setUpMockAuction(fuzzDeploymentParams);
     }
 
     // Non fuzzing variant of setUpMockAuction
@@ -63,6 +54,7 @@ contract AuctionUnitTest is AuctionBaseTest {
         setUpTokens();
 
         alice = makeAddr('alice');
+        bob = makeAddr('bob');
         tokensRecipient = makeAddr('tokensRecipient');
         fundsRecipient = makeAddr('fundsRecipient');
 
@@ -77,7 +69,7 @@ contract AuctionUnitTest is AuctionBaseTest {
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(tickNumberToPriceX96(1));
-        mockAuction = new MockContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        mockAuction = new MockContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
 
         token.mint(address(mockAuction), TOTAL_SUPPLY);
         // Expect the tokens to be received

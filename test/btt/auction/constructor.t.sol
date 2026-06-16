@@ -5,6 +5,7 @@ import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {ContinuousClearingAuction} from 'src/ContinuousClearingAuction.sol';
 import {IContinuousClearingAuction} from 'src/interfaces/IContinuousClearingAuction.sol';
+import {IStepStorage} from 'src/interfaces/IStepStorage.sol';
 import {ConstantsLib} from 'src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from 'src/libraries/FixedPoint96.sol';
 import {MaxBidPriceLib} from 'src/libraries/MaxBidPriceLib.sol';
@@ -24,16 +25,6 @@ contract ConstructorTest is BttBase {
      */
     uint256 MAX_LIQUIDITY_BOUND = 191_757_530_477_355_300_863_043_035_987_968;
 
-    function test_WhenClaimBlockLTEndBlock(AuctionFuzzConstructorParams memory _params) external {
-        // it reverts with {ClaimBlockIsBeforeEndBlock}
-
-        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
-        mParams.parameters.claimBlock = uint64(bound(mParams.parameters.claimBlock, 0, mParams.parameters.endBlock - 1));
-
-        vm.expectRevert(IContinuousClearingAuction.ClaimBlockIsBeforeEndBlock.selector);
-        new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
-    }
-
     function test_WhenClaimBlockGEEndBlock(AuctionFuzzConstructorParams memory _params, uint64 _claimBlock)
         external
         setupAuctionConstructorParams(_params)
@@ -50,7 +41,7 @@ contract ConstructorTest is BttBase {
         uint256 computedMaxBidPrice = MaxBidPriceLib.maxBidPrice(mParams.totalSupply);
 
         ContinuousClearingAuction auction =
-            new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
 
         assertEq(auction.MAX_BID_PRICE(), computedMaxBidPrice);
         assertEq(auction.claimBlock(), mParams.parameters.claimBlock);
@@ -71,10 +62,10 @@ contract ConstructorTest is BttBase {
 
         // Just to pass checks
         mParams.parameters.floorPrice = ConstantsLib.MIN_FLOOR_PRICE;
-        mParams.parameters.tickSpacing = ConstantsLib.MIN_TICK_SPACING;
+        mParams.parameters.tickSpacing = ConstantsLib.MIN_FLOOR_PRICE;
 
         ContinuousClearingAuction auction =
-            new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
         assertEq(auction.MAX_BID_PRICE(), computedMaxBidPrice);
     }
 
@@ -97,7 +88,7 @@ contract ConstructorTest is BttBase {
         mParams.totalSupply = uint128(bound(mParams.totalSupply, 1, MaxBidPriceLib.LOWER_TOTAL_SUPPLY_THRESHOLD));
 
         ContinuousClearingAuction auction =
-            new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
         assertEq(auction.MAX_BID_PRICE(), MaxBidPriceLib.MAX_V4_PRICE);
     }
 
@@ -108,7 +99,7 @@ contract ConstructorTest is BttBase {
         mParams.totalSupply = uint128(MaxBidPriceLib.LOWER_TOTAL_SUPPLY_THRESHOLD);
 
         ContinuousClearingAuction auction =
-            new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
         assertEq(auction.MAX_BID_PRICE(), MaxBidPriceLib.MAX_V4_PRICE);
     }
 
@@ -123,10 +114,10 @@ contract ConstructorTest is BttBase {
         );
 
         mParams.parameters.floorPrice = ConstantsLib.MIN_FLOOR_PRICE;
-        mParams.parameters.tickSpacing = ConstantsLib.MIN_TICK_SPACING;
+        mParams.parameters.tickSpacing = ConstantsLib.MIN_FLOOR_PRICE;
 
         ContinuousClearingAuction auction =
-            new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
         assertEq(auction.MAX_BID_PRICE(), MaxBidPriceLib.maxBidPrice(mParams.totalSupply));
     }
 
@@ -232,7 +223,7 @@ contract ConstructorTest is BttBase {
                 computedMaxBidPrice
             )
         );
-        new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+        new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
     }
 
     function test_WhenFloorPricePlusTickSpacingLTMaxBidPrice(AuctionFuzzConstructorParams memory _params)
@@ -262,7 +253,7 @@ contract ConstructorTest is BttBase {
         vm.assume(mParams.parameters.floorPrice % mParams.parameters.tickSpacing == 0);
 
         ContinuousClearingAuction auction =
-            new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
+            new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters, address(0));
         assertEq(auction.MAX_BID_PRICE(), computedMaxBidPrice);
         assertEq(auction.floorPrice(), mParams.parameters.floorPrice);
         assertEq(auction.tickSpacing(), mParams.parameters.tickSpacing);

@@ -6,36 +6,21 @@ import {Checkpoint} from '../../src/CheckpointStorage.sol';
 import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol';
 import {AuctionParameters} from '../../src/ContinuousClearingAuction.sol';
 
+import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
-import {ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
 
 contract MockContinuousClearingAuction is ContinuousClearingAuction {
-    using ValueX7Lib for *;
-
-    constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
-        ContinuousClearingAuction(_token, _totalSupply, _parameters)
-    {}
-
-    /// @notice The number of tokens that can be swept from the auction
-    /// @dev Only use this function if you know the auction is graduated
-    function sweepableTokens() external view returns (uint256) {
-        uint256 totalSupplyQ96 = uint256(TOTAL_SUPPLY) << FixedPoint96.RESOLUTION;
-        return totalSupplyQ96.scaleUpToX7().saturatingSub($totalClearedQ96_X7).divUint256(FixedPoint96.Q96)
-            .scaleDownToUint256();
-    }
+    constructor(
+        address _token,
+        uint128 _totalSupply,
+        AuctionParameters memory _parameters,
+        address _protocolFeeController
+    ) ContinuousClearingAuction(_token, _totalSupply, _parameters, _protocolFeeController) {}
 
     /// @notice Wrapper around internal function for testing
     function iterateOverTicksAndFindClearingPrice() external returns (uint256) {
-        return _iterateOverTicksAndFindClearingPrice(MAX_TICK_PTR);
-    }
-
-    /// @notice Wrapper around internal function for testing
-    function sellTokensAtClearingPrice(Checkpoint memory checkpoint, uint24 deltaMps)
-        external
-        returns (Checkpoint memory)
-    {
-        return _sellTokensAtClearingPrice(checkpoint, deltaMps);
+        return _iterateOverTicksAndFindClearingPrice(MAX_TICK_PTR, latestCheckpoint().cumulativeMps);
     }
 
     /// @notice Helper function to insert a checkpoint
@@ -59,8 +44,8 @@ contract MockContinuousClearingAuction is ContinuousClearingAuction {
         _initializeTickIfNeeded(prevPrice, price);
     }
 
-    function uncheckedSetNextActiveTickPrice(uint256 price) external {
-        $nextActiveTickPrice = price;
+    function uncheckedSetNextActiveTickPrice(uint256 priceQ96) external {
+        $nextActiveTickPriceQ96 = priceQ96;
     }
 
     /// @notice Update the tick demand
@@ -75,5 +60,9 @@ contract MockContinuousClearingAuction is ContinuousClearingAuction {
 
     function uncheckedAddToSumDemandAboveClearing(uint256 currencyDemandQ96) external {
         $sumCurrencyDemandAboveClearingQ96 += currencyDemandQ96;
+    }
+
+    function totalSupplyQ96X7() external view returns (ValueX7) {
+        return TOTAL_SUPPLY_Q96X7;
     }
 }

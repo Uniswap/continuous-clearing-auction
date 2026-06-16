@@ -2,12 +2,10 @@
 pragma solidity ^0.8.20;
 
 import {Checkpoint} from '../../src/libraries/CheckpointLib.sol';
-import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
+import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 import {StdAssertions} from 'forge-std/StdAssertions.sol';
 
 abstract contract Assertions is StdAssertions {
-    using ValueX7Lib for ValueX7;
-
     function hash(Checkpoint memory _checkpoint) internal pure returns (bytes32) {
         return keccak256(
             abi.encode(
@@ -16,7 +14,7 @@ abstract contract Assertions is StdAssertions {
                 _checkpoint.prev,
                 _checkpoint.next,
                 _checkpoint.cumulativeMpsPerPrice,
-                _checkpoint.currencyRaisedAtClearingPriceQ96_X7
+                _checkpoint.currencyRaisedAtClearingPriceQ96X7
             )
         );
     }

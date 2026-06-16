@@ -1,0 +1,278 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
+import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
+import {MaxBidPriceLib} from '../../src/libraries/MaxBidPriceLib.sol';
+import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
+import {FuzzDeploymentParams, FuzzGeneratedBid} from './FuzzStructs.sol';
+import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
+import {SafeCastLib} from 'solady/utils/SafeCastLib.sol';
+
+/// @notice Pure seed-based generators for reusable auction fuzz fixtures.
+/// @dev These helpers intentionally avoid test-contract storage and cheatcodes so unit, fuzz,
+///      invariant, and combinatorial tests can share the same parameter generation logic.
+library FuzzGenerators {
+    using FixedPointMathLib for uint256;
+
+    uint256 internal constant BPS = 10_000;
+    uint256 internal constant BID_AMOUNT_CASES = 8;
+    uint256 internal constant BID_PRICE_CASES = 3;
+
+    /// @notice Derive a deterministic uint256 from a seed and domain-specific salt.
+    function seededUint256(uint256 seed, string memory salt) internal pure returns (uint256) {
+        return uint256(keccak256(abi.encodePacked(seed, salt)));
+    }
+
+    /// @notice Pick a valid number of auction steps that evenly divides ConstantsLib.MPS.
+    function seededDivisorOfMPS(uint256 seed) internal pure returns (uint8) {
+        uint8[20] memory validDivisors = [
+            uint8(1),
+            uint8(2),
+            uint8(4),
+            uint8(5),
+            uint8(8),
+            uint8(10),
+            uint8(16),
+            uint8(20),
+            uint8(25),
+            uint8(32),
+            uint8(40),
+            uint8(50),
+            uint8(64),
+            uint8(80),
+            uint8(100),
+            uint8(125),
+            uint8(128),
+            uint8(160),
+            uint8(200),
+            uint8(250)
+        ];
+
+        return validDivisors[seed % validDivisors.length];
+    }
+
+    /// @notice Pick a fixture tick spacing as basis points of floor price.
+    /// @dev Buckets are 0.01%, 1%, 10%, 100%, and 1000% of floor price.
+    function fixtureTickSpacingBps(uint256 seed) internal pure returns (uint256) {
+        uint32[5] memory tickSpacingBps = [uint32(1), uint32(100), uint32(1000), uint32(10_000), uint32(100_000)];
+        return tickSpacingBps[seed % tickSpacingBps.length];
+    }
+
+    /// @notice Pick a fixture graduation target from common edge cases.
+    function fixtureRequiredCurrencyRaised(uint256 seed, uint128 totalSupply, uint256 floorPrice)
+        internal
+        pure
+        returns (uint128)
+    {
+        uint128 fullyFundedAtFloorPrice =
+            SafeCastLib.toUint128(uint256(totalSupply).fullMulDiv(floorPrice, FixedPoint96.Q96));
+        uint128[3] memory requiredCurrencyRaisedFixtures = [uint128(0), fullyFundedAtFloorPrice, type(uint128).max];
+        return requiredCurrencyRaisedFixtures[seed % requiredCurrencyRaisedFixtures.length];
+    }
+
+    /// @notice Build a complete, constructor-valid deployment parameter set from a seed.
+    /// @param seed Entropy source used to derive every generated field.
+    /// @param currency Auction currency address.
+    /// @param tokensRecipient Recipient for unsold tokens.
+    /// @param fundsRecipient Recipient for raised currency.
+    /// @param validationHook Optional validation hook.
+    /// @param currentBlock Minimum start block for the generated auction.
+    function seededDeploymentParams(
+        uint256 seed,
+        address currency,
+        address tokensRecipient,
+        address fundsRecipient,
+        address validationHook,
+        uint256 currentBlock
+    ) internal pure returns (FuzzDeploymentParams memory deploymentParams) {
+        deploymentParams.auctionParams.currency = currency;
+        deploymentParams.auctionParams.tokensRecipient = tokensRecipient;
+        deploymentParams.auctionParams.fundsRecipient = fundsRecipient;
+        deploymentParams.auctionParams.validationHook = validationHook;
+
+        deploymentParams.totalSupply =
+            uint128(1 + (seededUint256(seed, 'totalSupply') % uint256(ConstantsLib.MAX_TOTAL_SUPPLY)));
+        deploymentParams.numberOfSteps = seededDivisorOfMPS(seededUint256(seed, 'numberOfSteps'));
+
+        uint256 maxBidPrice = MaxBidPriceLib.maxBidPrice(deploymentParams.totalSupply);
+        uint256 tickSpacingBps = fixtureTickSpacingBps(seededUint256(seed, 'tickSpacingBps'));
+        uint256 maxFloorPrice = tickSpacingBps > BPS
+            ? (maxBidPrice * BPS) / (2 * tickSpacingBps)
+            : (maxBidPrice * BPS) / (BPS + tickSpacingBps);
+
+        // Select a seeded floor price within the constructor-valid range for the chosen total supply.
+        // The upper bound leaves enough room for at least one initialized tick above the floor.
+        deploymentParams.auctionParams.floorPrice = ConstantsLib.MIN_FLOOR_PRICE
+            + (seededUint256(seed, 'floorPrice') % (maxFloorPrice - ConstantsLib.MIN_FLOOR_PRICE + 1));
+        deploymentParams.auctionParams.tickSpacing =
+            (uint256(deploymentParams.auctionParams.floorPrice) * tickSpacingBps) / BPS;
+        if (deploymentParams.auctionParams.tickSpacing < ConstantsLib.MIN_TICK_SPACING) {
+            deploymentParams.auctionParams.tickSpacing = ConstantsLib.MIN_TICK_SPACING;
+        }
+
+        deploymentParams.auctionParams.floorPrice = roundPriceDownToTickSpacing(
+            deploymentParams.auctionParams.floorPrice, deploymentParams.auctionParams.tickSpacing
+        );
+        if (deploymentParams.auctionParams.floorPrice < ConstantsLib.MIN_FLOOR_PRICE) {
+            deploymentParams.auctionParams.floorPrice =
+                roundPriceUpToTickSpacing(ConstantsLib.MIN_FLOOR_PRICE, deploymentParams.auctionParams.tickSpacing);
+        }
+        deploymentParams.auctionParams.requiredCurrencyRaised = fixtureRequiredCurrencyRaised(
+            seededUint256(seed, 'requiredCurrencyRaised'),
+            deploymentParams.totalSupply,
+            deploymentParams.auctionParams.floorPrice
+        );
+
+        uint256 latestStartBlock = type(uint64).max - deploymentParams.numberOfSteps - 2;
+        currentBlock = FixedPointMathLib.min(currentBlock, latestStartBlock);
+        deploymentParams.auctionParams.startBlock =
+            uint64(currentBlock + (seededUint256(seed, 'startBlock') % (latestStartBlock - currentBlock + 1)));
+        deploymentParams.auctionParams.endBlock =
+            deploymentParams.auctionParams.startBlock + uint64(deploymentParams.numberOfSteps);
+        deploymentParams.auctionParams.claimBlock = deploymentParams.auctionParams.endBlock + 1;
+        deploymentParams.auctionParams.auctionStepsData = generateAuctionSteps(deploymentParams.numberOfSteps);
+    }
+
+    /// @notice Generate a tick-aligned bid price strictly above clearing and within max price.
+    /// @dev The `priceSeed` selects one of three easy-to-debug price families:
+    ///      0. nearest tick above clearing, which stresses tight bid/clearing races.
+    ///      1. highest valid tick, which keeps bids far away from the current clearing price.
+    ///      2. deterministic middle tick, which gives fuzzed variance between those extremes.
+    /// @return maxPrice The generated price, or zero when no valid higher tick exists.
+    /// @return canBid Whether a valid price was generated.
+    function seededBidPrice(uint256 priceSeed, uint256 clearingPrice, uint256 tickSpacing, uint256 maxBidPrice)
+        internal
+        pure
+        returns (uint256, bool)
+    {
+        uint256 remainder = clearingPrice % tickSpacing;
+        uint256 priceDelta = remainder == 0 ? tickSpacing : tickSpacing - remainder;
+        if (priceDelta > maxBidPrice) return (0, false);
+        if (clearingPrice > maxBidPrice - priceDelta) return (0, false);
+        uint256 minimumBidPrice = clearingPrice + priceDelta;
+        if (minimumBidPrice > maxBidPrice) return (0, false);
+
+        uint256 maxOffset = (maxBidPrice - minimumBidPrice) / tickSpacing;
+        uint256 offset;
+        uint256 priceCase = priceSeed % BID_PRICE_CASES;
+
+        if (priceCase == 0) {
+            // Case 0: next valid tick above clearing.
+            offset = 0;
+        } else if (priceCase == 1 || maxOffset <= 1) {
+            // Case 1: highest valid tick. Also used when there is no true middle tick.
+            offset = maxOffset;
+        } else {
+            // Case 2: a deterministic middle tick. The +1 and -1 keep it strictly between
+            // nearest and highest, so this case is distinct whenever the range allows it.
+            offset = 1 + (seededUint256(priceSeed, 'bid.priceOffset') % (maxOffset - 1));
+        }
+
+        return (minimumBidPrice + offset * tickSpacing, true);
+    }
+
+    /// @notice Generate a bid token amount from an explicit named case.
+    /// @dev The case is selected by `seed % BID_AMOUNT_CASES`; no hidden weighting is applied.
+    ///      The output is intentionally not bounded by auction supply or remaining supply.
+    function seededBidTokenAmount(uint128 amountSeed) internal pure returns (uint128) {
+        // Keep the mapping small and mechanical so a failing seed is easy to decode:
+        // seed % 8 tells you exactly which amount family was used.
+        uint256 amountCase = uint256(amountSeed) % BID_AMOUNT_CASES;
+
+        // 0: invalid zero-amount bid path.
+        if (amountCase == 0) return 0;
+        // 1: minimum non-zero input, useful for rounding and dust behavior.
+        if (amountCase == 1) return 1;
+        // 2-4: ordinary 18-decimal token sizes that exercise normal fills.
+        if (amountCase == 2) return 1e18;
+        if (amountCase == 3) return 10e18;
+        if (amountCase == 4) return 1000e18;
+        // 5-6: upper-bound values that stress input conversion and saturation.
+        if (amountCase == 5) return type(uint128).max - 1;
+        if (amountCase == 6) return type(uint128).max;
+
+        // 7: broad deterministic fallback. This keeps one case exploring the wider uint128
+        // space without making the common cases probabilistic or hard to identify.
+        return uint128(seededUint256(amountSeed, 'bidAmount.fallback'));
+    }
+
+    /// @notice Generate a bid token amount capped for long-running invariant exploration.
+    /// @dev Keeps the same case structure as `seededBidTokenAmount`, but maps the large cases
+    ///      into `[1, maxTokenAmount]` so a few bids do not immediately saturate clearing.
+    function seededBidTokenAmount(uint128 amountSeed, uint128 maxTokenAmount) internal pure returns (uint128) {
+        if (maxTokenAmount == 0) return 0;
+
+        uint128 amount = seededBidTokenAmount(amountSeed);
+        if (amount == 0 || amount <= maxTokenAmount) return amount;
+
+        uint256 amountCase = uint256(amountSeed) % BID_AMOUNT_CASES;
+
+        // Preserve the intent of large cases while keeping them proportional to available supply.
+        if (amountCase == 5) return uint128(FixedPointMathLib.max(1, uint256(maxTokenAmount) / 10));
+        if (amountCase == 6) return maxTokenAmount;
+
+        // The fallback still explores the full bounded range, but no longer dwarfs the auction.
+        return uint128(1 + (seededUint256(amountSeed, 'bidAmount.boundedFallback') % maxTokenAmount));
+    }
+
+    /// @notice Generate a complete bid input from a seed and the current auction price bounds.
+    /// @dev Returns `canBid == false` when no tick-aligned price exists above clearing.
+    ///      Otherwise, `tickNumber` selects the price family and `seed` selects the amount case.
+    function seededBid(uint256 seed, uint256 clearingPrice, uint256 tickSpacing, uint256 maxBidPrice, uint8 tickNumber)
+        internal
+        pure
+        returns (FuzzGeneratedBid memory bid)
+    {
+        return seededBid(seed, clearingPrice, tickSpacing, maxBidPrice, tickNumber, type(uint128).max);
+    }
+
+    /// @notice Generate a complete bid input with token amount capped to `maxTokenAmount`.
+    function seededBid(
+        uint256 seed,
+        uint256 clearingPrice,
+        uint256 tickSpacing,
+        uint256 maxBidPrice,
+        uint8 tickNumber,
+        uint128 maxTokenAmount
+    ) internal pure returns (FuzzGeneratedBid memory bid) {
+        // Price generation is independent from amount generation: tickNumber chooses whether
+        // to use the nearest, highest, or middle price, while seed chooses the token amount case.
+        (bid.maxPrice, bid.canBid) = seededBidPrice(tickNumber, clearingPrice, tickSpacing, maxBidPrice);
+        if (!bid.canBid) return bid;
+
+        bid.tokenAmount = seededBidTokenAmount(uint128(seed), maxTokenAmount);
+        bid.inputAmount = inputAmountForTokens(bid.tokenAmount, bid.maxPrice);
+    }
+
+    /// @notice Convert a desired token amount into the bid input amount at maxPrice.
+    /// @dev Saturates at uint128.max because submitBid accepts uint128 input amounts.
+    function inputAmountForTokens(uint128 tokenAmount, uint256 maxPrice) internal pure returns (uint128) {
+        if (tokenAmount > (type(uint128).max * FixedPoint96.Q96) / maxPrice) {
+            return type(uint128).max;
+        }
+        return SafeCastLib.toUint128(uint256(tokenAmount).fullMulDivUp(maxPrice, FixedPoint96.Q96));
+    }
+
+    /// @notice Round price down to the nearest tick boundary.
+    function roundPriceDownToTickSpacing(uint256 price, uint256 tickSpacing) internal pure returns (uint256) {
+        return price - (price % tickSpacing);
+    }
+
+    /// @notice Round price up to the nearest tick boundary.
+    function roundPriceUpToTickSpacing(uint256 price, uint256 tickSpacing) internal pure returns (uint256) {
+        uint256 remainder = price % tickSpacing;
+        if (remainder == 0) return price;
+        return price + (tickSpacing - remainder);
+    }
+
+    /// @notice Generate a linear auction step schedule split evenly across numberOfSteps.
+    function generateAuctionSteps(uint256 numberOfSteps) internal pure returns (bytes memory) {
+        uint256 mpsPerStep = ConstantsLib.MPS / numberOfSteps;
+        bytes memory stepsData = new bytes(0);
+        for (uint8 i = 0; i < numberOfSteps; i++) {
+            stepsData = AuctionStepsBuilder.addStep(stepsData, uint24(mpsPerStep), uint40(1));
+        }
+        return stepsData;
+    }
+}

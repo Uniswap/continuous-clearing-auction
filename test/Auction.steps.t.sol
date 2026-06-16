@@ -76,10 +76,12 @@ contract AuctionStepDiffTest is AuctionBaseTest {
             .withEndBlock(block.number + cumulativeBlockDelta2)
             .withClaimBlock(block.number + cumulativeBlockDelta2 + 10);
 
-        ContinuousClearingAuction firstAuction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params1);
+        ContinuousClearingAuction firstAuction =
+            new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params1, address(0));
         token.mint(address(firstAuction), TOTAL_SUPPLY);
         firstAuction.onTokensReceived();
-        ContinuousClearingAuction secondAuction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params2);
+        ContinuousClearingAuction secondAuction =
+            new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params2, address(0));
         token.mint(address(secondAuction), TOTAL_SUPPLY);
         secondAuction.onTokensReceived();
 
@@ -95,14 +97,14 @@ contract AuctionStepDiffTest is AuctionBaseTest {
 
         vm.roll(firstAuction.endBlock());
         Checkpoint memory finalCheckpoint1 = firstAuction.checkpoint();
-        ValueX7 currencyRaisedQ96_X7_1 = firstAuction.currencyRaisedQ96_X7();
+        ValueX7 currencyRaisedQ96X7_1 = firstAuction.currencyRaisedQ96X7();
         vm.roll(secondAuction.endBlock());
         Checkpoint memory finalCheckpoint2 = secondAuction.checkpoint();
-        ValueX7 currencyRaisedQ96_X7_2 = secondAuction.currencyRaisedQ96_X7();
+        ValueX7 currencyRaisedQ96X7_2 = secondAuction.currencyRaisedQ96X7();
 
         // Both auctions should have sold the TOTAL_SUPPLY at the same clearing price, and the same cumulative mps
         assertEq(finalCheckpoint1.cumulativeMps, finalCheckpoint2.cumulativeMps);
-        assertEq(currencyRaisedQ96_X7_1, currencyRaisedQ96_X7_2);
+        assertEq(currencyRaisedQ96X7_1, currencyRaisedQ96X7_2);
         assertEq(finalCheckpoint1.clearingPrice, finalCheckpoint2.clearingPrice);
     }
 
@@ -121,7 +123,8 @@ contract AuctionStepDiffTest is AuctionBaseTest {
                 AuctionStepsBuilder.init().addStep(1, 1e7).addStep(0, 1e7)
             ).withStartBlock(startBlock).withEndBlock(endBlock).withClaimBlock(claimBlock);
 
-        ContinuousClearingAuction newAuction = new ContinuousClearingAuction(address(token), _totalSupply, params);
+        ContinuousClearingAuction newAuction =
+            new ContinuousClearingAuction(address(token), _totalSupply, params, address(0));
         token.mint(address(newAuction), _totalSupply);
         newAuction.onTokensReceived();
 
@@ -132,7 +135,7 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         // Show you can checkpoint when the step is zero mps
         vm.roll(startBlock + 1e7 + 1);
         Checkpoint memory checkpoint = newAuction.checkpoint();
-        ValueX7 oldCurrencyRaisedQ96_X7 = newAuction.currencyRaisedQ96_X7();
+        ValueX7 oldCurrencyRaisedQ96X7 = newAuction.currencyRaisedQ96X7();
         assertEq(checkpoint.cumulativeMps, 1e7);
 
         // The auction has fully sold out 1e7 mps worth of tokens, so all future bids will revert
@@ -145,10 +148,8 @@ contract AuctionStepDiffTest is AuctionBaseTest {
             // Assert that values in the final checkpoint is the same as the checkpoint after selling 1e7 mps worth of tokens
             assertEq(finalCheckpoint.cumulativeMps, checkpoint.cumulativeMps);
             assertEq(finalCheckpoint.clearingPrice, checkpoint.clearingPrice);
-            assertEq(newAuction.currencyRaisedQ96_X7(), oldCurrencyRaisedQ96_X7);
-            assertEq(
-                finalCheckpoint.currencyRaisedAtClearingPriceQ96_X7, checkpoint.currencyRaisedAtClearingPriceQ96_X7
-            );
+            assertEq(newAuction.currencyRaisedQ96X7(), oldCurrencyRaisedQ96X7);
+            assertEq(finalCheckpoint.currencyRaisedAtClearingPriceQ96X7, checkpoint.currencyRaisedAtClearingPriceQ96X7);
             assertEq(finalCheckpoint.cumulativeMpsPerPrice, checkpoint.cumulativeMpsPerPrice);
 
             // Don't check mps, prev, and next because they will be different
@@ -164,7 +165,9 @@ contract AuctionStepDiffTest is AuctionBaseTest {
         newAuction.claimTokens(bidId);
         assertEq(token.balanceOf(address(alice)), _totalSupply);
 
+        vm.prank(newAuction.fundsRecipient());
         newAuction.sweepCurrency();
+        vm.prank(newAuction.tokensRecipient());
         newAuction.sweepUnsoldTokens();
     }
 }

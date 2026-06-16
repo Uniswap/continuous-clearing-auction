@@ -22,7 +22,7 @@ contract AuctionStateLens {
     error InvalidRevertReasonLength();
 
     /// @notice Function which can be called from offchain to get the latest state of the auction
-    function state(IContinuousClearingAuction auction) external returns (AuctionState memory) {
+    function state(IContinuousClearingAuction auction) public returns (AuctionState memory) {
         try this.revertWithState(auction) {}
         catch (bytes memory reason) {
             return parseRevertReason(reason);
@@ -30,7 +30,7 @@ contract AuctionStateLens {
     }
 
     /// @notice Function which checkpoints the auction, gets global values and encodes them into a revert string
-    function revertWithState(IContinuousClearingAuction auction) external {
+    function revertWithState(IContinuousClearingAuction auction) public {
         try auction.checkpoint() returns (Checkpoint memory checkpoint) {
             AuctionState memory _state = AuctionState({
                 checkpoint: checkpoint,
@@ -51,13 +51,14 @@ contract AuctionStateLens {
     /// @notice Function which parses the revert reason and returns the AuctionState
     function parseRevertReason(bytes memory reason) internal pure returns (AuctionState memory) {
         if (reason.length != 288) {
-            // Bubble up the revert reason if possible
-            if (reason.length > 32) {
+            // Bubble up any non-empty reason verbatim so the original error selector/data is preserved.
+            // This includes short reasons such as the 4-byte `CheckpointFailed` selector.
+            if (reason.length > 0) {
                 assembly {
                     revert(add(reason, 32), mload(reason))
                 }
             } else {
-                // If the revert reason is too short revert
+                // Only genuinely empty revert data has nothing to bubble up
                 revert InvalidRevertReasonLength();
             }
         }

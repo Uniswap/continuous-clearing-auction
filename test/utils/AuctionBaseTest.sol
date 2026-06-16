@@ -4,17 +4,18 @@ pragma solidity ^0.8.0;
 import {Checkpoint} from '../../src/CheckpointStorage.sol';
 import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol';
 import {Tick} from '../../src/TickStorage.sol';
+import {IAuctionStorage} from '../../src/interfaces/IAuctionStorage.sol';
 import {AuctionParameters, IContinuousClearingAuction} from '../../src/interfaces/IContinuousClearingAuction.sol';
 import {ITickStorage} from '../../src/interfaces/ITickStorage.sol';
-import {ITokenCurrencyStorage} from '../../src/interfaces/ITokenCurrencyStorage.sol';
 import {BidLib} from '../../src/libraries/BidLib.sol';
 import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../../src/libraries/FixedPoint96.sol';
 import {MaxBidPriceLib} from '../../src/libraries/MaxBidPriceLib.sol';
-import {ValueX7, ValueX7Lib} from '../../src/libraries/ValueX7Lib.sol';
+import {ValueX7} from '../../src/libraries/ValueX7Lib.sol';
 import {Assertions} from './Assertions.sol';
 import {AuctionParamsBuilder} from './AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './AuctionStepsBuilder.sol';
+import {FuzzGenerators} from './FuzzGenerators.sol';
 import {FuzzBid, FuzzDeploymentParams} from './FuzzStructs.sol';
 import {MockFundsRecipient} from './MockFundsRecipient.sol';
 import {MockToken} from './MockToken.sol';
@@ -31,7 +32,6 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     using AuctionParamsBuilder for AuctionParameters;
     using AuctionStepsBuilder for bytes;
     using TickBitmapLib for TickBitmap;
-    using ValueX7Lib for *;
     using BidLib for *;
 
     TickBitmap private tickBitmap;
@@ -50,7 +50,8 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     // Common test values
     uint24 public constant STANDARD_MPS_1_PERCENT = 100_000; // 100e3 - represents 1% of MPS
 
-    uint256 public constant MAX_ALLOWABLE_DUST_WEI = 1e18; // Or 1 unit of token assuming 18 decimals
+    uint256 public constant ONE_WEI_Q96 = 1 << FixedPoint96.RESOLUTION;
+    uint256 public constant MAX_ALLOWABLE_DUST_WEI = 1e7; // Or 1 unit of token assuming 18 decimals
 
     // Test accounts
     address public alice;
@@ -66,89 +67,20 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     uint128 public $bidAmount;
     uint256 public $maxPrice;
 
-    // Wrapper around vm.randomUint() to return a random uint128
-    function _randomUint128() private returns (uint128) {
-        return uint128(bound(uint256(vm.randomUint() >> 128), 1, type(uint128).max));
-    }
-
     // ============================================
     // Fuzz Parameter Validation Helpers
     // ============================================
 
-    /// @notice Get a random divisor of ConstantsLib.MPS (10,000,000) that fits in uint8
-    /// @return A random valid divisor for numberOfSteps
-    function _getRandomDivisorOfMPS() private returns (uint8) {
-        // TODO(md): improve
-        // All divisors of 10,000,000 that fit in uint8 (1-255)
-        uint8[] memory validDivisors = new uint8[](20);
-        validDivisors[0] = 1;
-        validDivisors[1] = 2;
-        validDivisors[2] = 4;
-        validDivisors[3] = 5;
-        validDivisors[4] = 8;
-        validDivisors[5] = 10;
-        validDivisors[6] = 16;
-        validDivisors[7] = 20;
-        validDivisors[8] = 25;
-        validDivisors[9] = 32;
-        validDivisors[10] = 40;
-        validDivisors[11] = 50;
-        validDivisors[12] = 64;
-        validDivisors[13] = 80;
-        validDivisors[14] = 100;
-        validDivisors[15] = 125;
-        validDivisors[16] = 128;
-        validDivisors[17] = 160;
-        validDivisors[18] = 200;
-        validDivisors[19] = 250;
-
-        // Randomly select one of the valid divisors
-        uint256 randomIndex = _bound(uint256(vm.randomUint()), 0, validDivisors.length - 1);
-        return validDivisors[randomIndex];
+    function helper__seededInvariantDeploymentParams(uint256 seed) public returns (FuzzDeploymentParams memory) {
+        FuzzDeploymentParams memory deploymentParams = FuzzGenerators.seededDeploymentParams(
+            seed, ETH_SENTINEL, tokensRecipient, fundsRecipient, address(0), block.number
+        );
+        $deploymentParams = deploymentParams;
+        return deploymentParams;
     }
 
     function helper__validInvariantDeploymentParams() public returns (FuzzDeploymentParams memory) {
-        FuzzDeploymentParams memory deploymentParams;
-
-        _setHardcodedParams(deploymentParams);
-
-        // Generate the random parameteres here
-        deploymentParams.totalSupply = uint128(_bound(_randomUint128(), 1, ConstantsLib.MAX_TOTAL_SUPPLY));
-
-        // Calculate the number of steps - ensure it's a divisor of ConstantsLib.MPS
-        deploymentParams.numberOfSteps = _getRandomDivisorOfMPS();
-
-        uint256 maxBidPrice = MaxBidPriceLib.maxBidPrice(deploymentParams.totalSupply);
-        deploymentParams.auctionParams.floorPrice = uint128(
-            _bound(uint256(vm.randomUint()), ConstantsLib.MIN_FLOOR_PRICE, maxBidPrice - ConstantsLib.MIN_TICK_SPACING)
-        );
-        deploymentParams.auctionParams.tickSpacing = uint256(
-            _bound(
-                uint256(vm.randomUint()),
-                ConstantsLib.MIN_TICK_SPACING,
-                maxBidPrice - deploymentParams.auctionParams.floorPrice
-            )
-        );
-        // bound tick spacing to at most floor price
-        deploymentParams.auctionParams.tickSpacing = _bound(
-            deploymentParams.auctionParams.tickSpacing,
-            ConstantsLib.MIN_TICK_SPACING,
-            deploymentParams.auctionParams.floorPrice
-        );
-
-        deploymentParams.auctionParams.floorPrice = helper__roundPriceDownToTickSpacing(
-            deploymentParams.auctionParams.floorPrice, deploymentParams.auctionParams.tickSpacing
-        );
-
-        // Set up the block numbers
-        deploymentParams.auctionParams.startBlock = uint64(_bound(uint256(vm.randomUint()), 1, type(uint64).max));
-        _boundBlockNumbers(deploymentParams);
-
-        // TODO(md): fix and have variation in the step sizes
-        deploymentParams.auctionParams.auctionStepsData = _generateAuctionSteps(deploymentParams.numberOfSteps);
-
-        $deploymentParams = deploymentParams;
-        return deploymentParams;
+        return helper__seededInvariantDeploymentParams(uint256(vm.randomUint()));
     }
 
     function helper__validFuzzDeploymentParams(FuzzDeploymentParams memory _deploymentParams)
@@ -427,7 +359,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(_deploymentParams.auctionParams.floorPrice);
-        auction = new ContinuousClearingAuction(address(token), _deploymentParams.totalSupply, params);
+        auction = new ContinuousClearingAuction(address(token), _deploymentParams.totalSupply, params, address(0));
 
         token.mint(address(auction), _deploymentParams.totalSupply);
         auction.onTokensReceived();
@@ -453,7 +385,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         // Expect the floor price tick to be initialized
         vm.expectEmit(true, true, true, true);
         emit ITickStorage.TickInitialized(tickNumberToPriceX96(1));
-        auction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        auction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params, address(0));
 
         token.mint(address(auction), TOTAL_SUPPLY);
         // Expect the tokens to be received
@@ -476,7 +408,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
             .withAuctionStepsData(failingAuctionStepsData);
 
         ContinuousClearingAuction failingAuction =
-            new ContinuousClearingAuction(address(failingToken), TOTAL_SUPPLY, failingParams);
+            new ContinuousClearingAuction(address(failingToken), TOTAL_SUPPLY, failingParams, address(0));
         failingToken.mint(address(failingAuction), TOTAL_SUPPLY);
         failingAuction.onTokensReceived();
 
@@ -486,6 +418,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     // ============================================
     // Bid & Price Validation Modifiers
     // ============================================
+
+    function _maxBidAmount() internal pure returns (uint256) {
+        return ConstantsLib.X7_UPPER_BOUND / (FixedPoint96.Q96 * ConstantsLib.MPS);
+    }
 
     /// @dev Uses default values for floor price and tick spacing
     modifier givenValidMaxPrice(uint256 _maxPrice, uint128 _totalSupply) {
@@ -504,7 +440,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     }
 
     modifier givenValidBidAmount(uint128 _bidAmount) {
-        $bidAmount = SafeCastLib.toUint128(_bound(_bidAmount, 1, type(uint128).max));
+        $bidAmount = SafeCastLib.toUint128(_bound(_bidAmount, 1, _maxBidAmount()));
         _;
     }
 
@@ -523,6 +459,18 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _;
     }
 
+    modifier logState() {
+        emit log_named_decimal_uint('bidAmount', $bidAmount, 18);
+        emit log_named_uint('maxPrice', $maxPrice >> FixedPoint96.RESOLUTION);
+        emit log_named_decimal_uint(
+            'purchasing tokens at floor price', $bidAmount.fullMulDiv(FixedPoint96.Q96, FLOOR_PRICE), 18
+        );
+        emit log_named_decimal_uint(
+            'purchasing tokens at max price', $bidAmount.fullMulDiv(FixedPoint96.Q96, $maxPrice), 18
+        );
+        _;
+    }
+
     modifier checkAuctionIsSolvent() {
         _;
         require(block.number >= auction.endBlock(), 'checkAuctionIsSolvent: Auction is not over');
@@ -531,10 +479,13 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
             emit log_string('==================== INFO ====================');
             emit log_named_decimal_uint('auction.totalSupply()', auction.totalSupply(), 18);
             emit log_named_decimal_uint('auction.totalCleared()', auction.totalCleared(), 18);
+            emit log_named_decimal_uint('auction.currencyRaised()', auction.currencyRaised(), 18);
 
             assertLe(auction.totalCleared(), auction.totalSupply(), 'total cleared must be <= total supply');
 
+            vm.prank(auction.fundsRecipient());
             auction.sweepCurrency();
+            vm.prank(auction.tokensRecipient());
             auction.sweepUnsoldTokens();
             // Validate that the tokens and currency dust left in the auction is within a reasonable amount
             assertApproxEqAbs(
@@ -555,12 +506,16 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
             );
             emit log_named_decimal_uint('after sweeping currency balance', address(auction).balance, 18);
         } else {
+            vm.prank(auction.tokensRecipient());
             auction.sweepUnsoldTokens();
             // Assert that all tokens were swept
             assertEq(token.balanceOf(auction.tokensRecipient()), auction.totalSupply());
-            // Expect to revert when sweeping currency
-            vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+            // Non-graduated auctions still mark currency as swept but transfer no funds.
+            vm.expectEmit(true, true, true, true);
+            emit IAuctionStorage.CurrencySwept(auction.fundsRecipient(), 0);
+            vm.prank(auction.fundsRecipient());
             auction.sweepCurrency();
+            assertEq(auction.sweepCurrencyBlock(), block.number);
         }
     }
 
@@ -638,5 +593,28 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         console.log('floorPrice', _params.floorPrice);
         console.log('auctionStepsData');
         console.logBytes(_params.auctionStepsData);
+    }
+
+    function __logCheckpoint(Checkpoint memory _checkpoint) public {
+        emit log_string('---------Checkpoint--------');
+        emit log_named_uint('clearingPrice', _checkpoint.clearingPrice >> FixedPoint96.RESOLUTION);
+        emit log_named_uint('cumulativeMps', _checkpoint.cumulativeMps);
+        emit log_named_decimal_uint(
+            'required amount at clearing price',
+            TOTAL_SUPPLY.fullMulDiv(_checkpoint.clearingPrice, FixedPoint96.Q96),
+            18
+        );
+        emit log_string('--------------------------------');
+    }
+
+    function __logAuctionState(IContinuousClearingAuction _auction) public {
+        emit log_string('---------AuctionState--------');
+        emit log_named_decimal_uint('currency balance of auction', address(_auction).balance, 18);
+        emit log_named_decimal_uint('totalCleared', _auction.totalCleared(), 18);
+        emit log_named_decimal_uint('currencyRaised', _auction.currencyRaised(), 18);
+        emit log_named_decimal_uint(
+            'sumDemandAboveClearingQ96', _auction.sumCurrencyDemandAboveClearingQ96() >> FixedPoint96.RESOLUTION, 18
+        );
+        emit log_string('--------------------------------');
     }
 }

@@ -1,0 +1,15 @@
+CanClearSupplyAtPriceTest
+├── when highLhs GT highRhs
+│   └── it returns true
+├── when highLhs EQ highRhs and lowLhs GT lowRhs
+│   └── it returns true
+├── when highLhs EQ highRhs and lowLhs EQ lowRhs
+│   └── it returns true
+├── when highLhs LT highRhs
+│   └── it returns false
+├── when highLhs EQ highRhs and lowLhs LT lowRhs
+│   └── it returns false
+├── when demand GTE requiredDemandAtPrice (fuzz)
+│   └── it returns true
+└── equivalence with requiredDemandAtPrice (fuzz)
+    └── it agrees up to ceiling rounding

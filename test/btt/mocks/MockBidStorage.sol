@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
-import {Bid, BidStorage} from 'continuous-clearing-auction/BidStorage.sol';
+import {Bid, BidStorage} from '../../../src/BidStorage.sol';
 
 contract MockBidStorage is BidStorage, BlockNumberish {
     constructor() BlockNumberish() {}

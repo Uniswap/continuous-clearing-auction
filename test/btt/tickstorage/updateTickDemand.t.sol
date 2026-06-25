@@ -3,8 +3,8 @@ pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
 import {MockTickStorage} from 'btt/mocks/MockTickStorage.sol';
-import {ITickStorage} from 'continuous-clearing-auction/interfaces/ITickStorage.sol';
-import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
+import {ITickStorage} from '../../../src/interfaces/ITickStorage.sol';
+import {ConstantsLib} from '../../../src/libraries/ConstantsLib.sol';
 
 contract UpdateTickDemandTest is BttBase {
     function test_WhenTickIsUninitialized(uint64 _tickSize, uint64 _floorIndex, uint256 _priceTick, uint128 _demand)

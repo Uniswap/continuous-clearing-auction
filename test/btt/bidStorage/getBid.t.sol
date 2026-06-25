@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
 import {Bid, MockBidStorage} from 'btt/mocks/MockBidStorage.sol';
-import {IBidStorage} from 'continuous-clearing-auction/interfaces/IBidStorage.sol';
+import {IBidStorage} from '../../../src/interfaces/IBidStorage.sol';
 
 contract GetBidTest is BttBase {
     MockBidStorage public bidStorage;

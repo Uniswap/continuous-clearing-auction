@@ -3,9 +3,9 @@ pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
 import {MockAuctionStorage} from 'btt/mocks/MockAuctionStorage.sol';
-import {IAuctionStorage} from 'continuous-clearing-auction/interfaces/IAuctionStorage.sol';
-import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
-import {Currency} from 'continuous-clearing-auction/libraries/CurrencyLibrary.sol';
+import {IAuctionStorage} from '../../../src/interfaces/IAuctionStorage.sol';
+import {ConstantsLib} from '../../../src/libraries/ConstantsLib.sol';
+import {Currency} from '../../../src/libraries/CurrencyLibrary.sol';
 
 contract ConstructorTest is BttBase {
     address $token;

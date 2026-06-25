@@ -2,8 +2,8 @@
 pragma solidity 0.8.26;
 
 import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
-import {AuctionStorage} from 'continuous-clearing-auction/AuctionStorage.sol';
-import {Currency} from 'continuous-clearing-auction/libraries/CurrencyLibrary.sol';
+import {AuctionStorage} from '../../../src/AuctionStorage.sol';
+import {Currency} from '../../../src/libraries/CurrencyLibrary.sol';
 
 contract MockAuctionStorage is AuctionStorage, BlockNumberish {
     constructor(

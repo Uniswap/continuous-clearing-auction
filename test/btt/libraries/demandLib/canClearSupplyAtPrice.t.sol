@@ -3,10 +3,10 @@ pragma solidity 0.8.26;
 
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {BttBase} from 'btt/BttBase.sol';
-import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
-import {DemandLib} from 'continuous-clearing-auction/libraries/DemandLib.sol';
-import {FixedPoint96} from 'continuous-clearing-auction/libraries/FixedPoint96.sol';
-import {ValueX7} from 'continuous-clearing-auction/libraries/ValueX7Lib.sol';
+import {ConstantsLib} from '../../../../src/libraries/ConstantsLib.sol';
+import {DemandLib} from '../../../../src/libraries/DemandLib.sol';
+import {FixedPoint96} from '../../../../src/libraries/FixedPoint96.sol';
+import {ValueX7} from '../../../../src/libraries/ValueX7Lib.sol';
 
 contract CanClearSupplyAtPriceTest is BttBase {
     // --- Explicit 512-bit comparison branch coverage ---

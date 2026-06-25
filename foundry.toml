@@ -24,7 +24,6 @@ remappings = [
   "v4-periphery=lib/v4-periphery",
   "liquidity-launcher=lib/liquidity-launcher",
   "blocknumberish=lib/blocknumberish",
-  "continuous-clearing-auction=src/",
   "test=test/",
   "btt=test/btt/",
 ]

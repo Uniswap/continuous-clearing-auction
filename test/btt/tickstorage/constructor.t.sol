@@ -4,9 +4,9 @@ pragma solidity 0.8.26;
 import {BttBase} from 'btt/BttBase.sol';
 
 import {MockTickStorage} from 'btt/mocks/MockTickStorage.sol';
-import {ITickStorage} from 'continuous-clearing-auction/TickStorage.sol';
-import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
-import {MaxBidPriceLib} from 'continuous-clearing-auction/libraries/MaxBidPriceLib.sol';
+import {ITickStorage} from '../../../src/TickStorage.sol';
+import {ConstantsLib} from '../../../src/libraries/ConstantsLib.sol';
+import {MaxBidPriceLib} from '../../../src/libraries/MaxBidPriceLib.sol';
 
 contract ConstructorTest is BttBase {
     uint256 tickSpacing;

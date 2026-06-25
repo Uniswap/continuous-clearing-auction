@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {IContinuousClearingAuction} from '../../../src/interfaces/IContinuousClearingAuction.sol';
 import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
 import {MockContinuousClearingAuction} from 'btt/mocks/MockContinuousClearingAuction.sol';
-import {IContinuousClearingAuction} from '../../../src/interfaces/IContinuousClearingAuction.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {ContinuousClearingAuction} from 'src/ContinuousClearingAuction.sol';
 import {ConstantsLib} from 'src/libraries/ConstantsLib.sol';

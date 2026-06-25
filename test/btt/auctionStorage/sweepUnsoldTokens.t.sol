@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
+import {IAuctionStorage} from '../../../src/interfaces/IAuctionStorage.sol';
 import {BttBase} from 'btt/BttBase.sol';
 import {MockAuctionStorage} from 'btt/mocks/MockAuctionStorage.sol';
-import {IAuctionStorage} from '../../../src/interfaces/IAuctionStorage.sol';
 
-import {MockERC20} from 'btt/mocks/MockERC20.sol';
 import {Currency} from '../../../src/libraries/CurrencyLibrary.sol';
+import {MockERC20} from 'btt/mocks/MockERC20.sol';
 import {IERC20} from 'forge-std/interfaces/IERC20.sol';
 
 contract SweepUnsoldTokensTest is BttBase {

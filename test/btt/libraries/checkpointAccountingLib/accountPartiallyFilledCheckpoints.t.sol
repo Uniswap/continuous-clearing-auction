@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import {BttBase} from 'btt/BttBase.sol';
 import {Bid, BidLib} from '../../../../src/libraries/BidLib.sol';
 import {CheckpointAccountingLib} from '../../../../src/libraries/CheckpointAccountingLib.sol';
 import {Checkpoint} from '../../../../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../../../../src/libraries/ConstantsLib.sol';
 import {MaxBidPriceLib} from '../../../../src/libraries/MaxBidPriceLib.sol';
 import {ValueX7} from '../../../../src/libraries/ValueX7Lib.sol';
+import {BttBase} from 'btt/BttBase.sol';
 
 contract AccountPartiallyFilledCheckpointsTest is BttBase {
     // should never happen but we catch it in the code to avoid div by 0

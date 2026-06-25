@@ -3,10 +3,10 @@ pragma solidity 0.8.26;
 
 import {BttBase} from 'btt/BttBase.sol';
 
-import {MockTickStorage} from 'btt/mocks/MockTickStorage.sol';
 import {ITickStorage} from '../../../src/TickStorage.sol';
 import {ConstantsLib} from '../../../src/libraries/ConstantsLib.sol';
 import {MaxBidPriceLib} from '../../../src/libraries/MaxBidPriceLib.sol';
+import {MockTickStorage} from 'btt/mocks/MockTickStorage.sol';
 
 contract ConstructorTest is BttBase {
     uint256 tickSpacing;

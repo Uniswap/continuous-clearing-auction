@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import {BttBase} from 'btt/BttBase.sol';
-import {MockTickStorage} from 'btt/mocks/MockTickStorage.sol';
 import {ITickStorage} from '../../../src/interfaces/ITickStorage.sol';
 import {ConstantsLib} from '../../../src/libraries/ConstantsLib.sol';
+import {BttBase} from 'btt/BttBase.sol';
+import {MockTickStorage} from 'btt/mocks/MockTickStorage.sol';
 
 contract UpdateTickDemandTest is BttBase {
     function test_WhenTickIsUninitialized(uint64 _tickSize, uint64 _floorIndex, uint256 _priceTick, uint128 _demand)

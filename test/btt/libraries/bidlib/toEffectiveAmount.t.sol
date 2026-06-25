@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import {BttBase} from 'btt/BttBase.sol';
 import {Bid, BidLib} from '../../../../src/libraries/BidLib.sol';
 import {ConstantsLib} from '../../../../src/libraries/ConstantsLib.sol';
+import {BttBase} from 'btt/BttBase.sol';
 
-import {MockBidLib} from 'btt/mocks/MockBidLib.sol';
 import {FixedPoint96} from '../../../../src/libraries/FixedPoint96.sol';
+import {MockBidLib} from 'btt/mocks/MockBidLib.sol';
 
 contract ToEffectiveAmountTest is BttBase {
     MockBidLib internal mockBidLib;

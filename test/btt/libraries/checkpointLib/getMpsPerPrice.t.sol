@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import {BttBase} from 'btt/BttBase.sol';
 import {CheckpointLib} from '../../../../src/libraries/CheckpointLib.sol';
+import {BttBase} from 'btt/BttBase.sol';
 
 import {ConstantsLib} from '../../../../src/libraries/ConstantsLib.sol';
 import {FixedPoint96} from '../../../../src/libraries/FixedPoint96.sol';

@@ -3,9 +3,9 @@ pragma solidity 0.8.26;
 
 import {MockStepStorage} from 'btt/mocks/MockStepStorage.sol';
 
-import {BttBase, Step} from 'btt/BttBase.sol';
 import {IStepStorage} from '../../../src/interfaces/IStepStorage.sol';
 import {AuctionStep} from '../../../src/libraries/StepLib.sol';
+import {BttBase, Step} from 'btt/BttBase.sol';
 
 contract AdvanceStepTest is BttBase {
     MockStepStorage public auctionStepStorage;

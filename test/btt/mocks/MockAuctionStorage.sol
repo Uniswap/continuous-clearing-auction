@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
 import {AuctionStorage} from '../../../src/AuctionStorage.sol';
 import {Currency} from '../../../src/libraries/CurrencyLibrary.sol';
+import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
 
 contract MockAuctionStorage is AuctionStorage, BlockNumberish {
     constructor(

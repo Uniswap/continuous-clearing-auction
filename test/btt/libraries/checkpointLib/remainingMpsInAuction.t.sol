@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import {BttBase} from 'btt/BttBase.sol';
 import {Checkpoint, CheckpointLib} from '../../../../src/libraries/CheckpointLib.sol';
 import {ConstantsLib} from '../../../../src/libraries/ConstantsLib.sol';
+import {BttBase} from 'btt/BttBase.sol';
 
 contract RemainingMpsInAuctionTest is BttBase {
     function test_WhenCalledWithCheckpoint(uint24 _cumulativeMps) external {

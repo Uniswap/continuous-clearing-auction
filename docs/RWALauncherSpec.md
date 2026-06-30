@@ -259,6 +259,86 @@ Reuse as much of the audited stack as possible while keeping the new surface cle
 - `interfaces/IRWALauncher.sol`, `interfaces/ITokenMinter.sol`.
 - Optional `RWALauncherLens.sol` — analog of `CCALens` for offchain reads.
 
+## Architecture (as implemented)
+
+The implementation (`src/rwa/`) **composes** an unmodified `ContinuousClearingAuction` rather than extending its
+mixins: the `RWALauncher` deploys a real auction through the existing `ContinuousClearingAuctionFactory` and
+owns only the new settlement layer (mint both pool tokens, seed the multi-range v4 position, share token,
+unwind/redeem). The audited CCA core is untouched.
+
+```mermaid
+flowchart TD
+    Issuer["Issuer / creator"]
+    Bidder["Bidders / LPs"]
+
+    subgraph RWA["RWA Launcher (new — src/rwa)"]
+        RWAFactory["RWALauncherFactory (over EIP-170)"]
+        RWALauncher["RWALauncher (orchestrator + settlement)"]
+        PositionShare["PositionShare (ERC20 position claim)"]
+        Interfaces["IRWALauncher / ITokenMinter"]
+    end
+
+    subgraph CCASys["Existing CCA (audited, unmodified)"]
+        CCAFactory["ContinuousClearingAuctionFactory"]
+        CCA["ContinuousClearingAuction (bidding + uniform clearing)"]
+    end
+
+    subgraph LL["Uniswap liquidity-launcher (interfaces)"]
+        IDist["IDistributorFactory / IDistributor"]
+        ILBP["ILBPInitializer (read surface)"]
+        IFee["IProtocolFeeController"]
+    end
+
+    subgraph Ext["External dependencies"]
+        PM["Uniswap v4 PoolManager"]
+        Permit2["Permit2"]
+        Minter0["Minter side0 (ITokenMinter)"]
+        Minter1["Minter side1 (ITokenMinter)"]
+    end
+
+    subgraph Demo["Demo layer (NOT for production — demo/)"]
+        Registry["DemoAuctionRegistry (factory + registry)"]
+        Launchpad["DemoLaunchpad (own discrete clearing)"]
+        DemoToken["DemoERC20 (faucet test tokens)"]
+    end
+
+    Issuer -->|"create + deposit D"| RWAFactory
+    RWAFactory -->|"new"| RWALauncher
+    RWALauncher -.->|"implements / consumes"| Interfaces
+    RWALauncher -->|"deploys, mints share supply to auction"| PositionShare
+    RWALauncher -->|"create(shareToken, configData)"| CCAFactory
+    CCAFactory -->|"new"| CCA
+    CCAFactory -.->|"binds"| IFee
+    CCAFactory -.->|"implements"| IDist
+    CCA -.->|"implements"| ILBP
+    Bidder -->|"submitBid (pull funds)"| CCA
+    CCA -->|"permit2TransferFrom"| Permit2
+    Bidder -->|"claim shares after clearing"| CCA
+
+    RWALauncher -->|"build: mint token0"| Minter0
+    RWALauncher -->|"build: mint token1"| Minter1
+    RWALauncher -->|"initialize + seed multi-range"| PM
+    RWALauncher -->|"proceeds + dust"| Issuer
+    Issuer -->|"redeem after unwind"| RWALauncher
+
+    Registry -->|"createAndRegister (new)"| Launchpad
+    Launchpad -.->|"reuses"| PositionShare
+    Launchpad -->|"mint + seed (bypasses CCA)"| PM
+    Launchpad -->|"uses"| DemoToken
+
+    classDef audited fill:#1f3b2d,stroke:#3fb950,color:#e6edf3
+    classDef new fill:#3a1f3b,stroke:#ff007a,color:#e6edf3
+    classDef ext fill:#1c2733,stroke:#2dd4bf,color:#e6edf3
+    classDef demo fill:#33291c,stroke:#d29922,color:#e6edf3
+    class CCAFactory,CCA,IDist,ILBP,IFee audited
+    class RWAFactory,RWALauncher,PositionShare,Interfaces new
+    class PM,Permit2,Minter0,Minter1 ext
+    class Registry,Launchpad,DemoToken demo
+```
+
+Legend: green = existing audited CCA / liquidity-launcher (unchanged), pink = new RWA Launcher contracts,
+teal = external dependencies, amber = demo-only layer (`demo/`, bypasses the CCA — not for production).
+
 ## 10. Security & correctness considerations
 
 - **Minter-rate manipulation**: the pool init price comes entirely from the ratio of the two minters' `priceQ96` at build time. A compromised/mispriced minter mis-seeds the pool (and a single bad side skews the ratio). Mitigations: sanity bounds on each `priceQ96` and on the resulting ratio vs. expected, issuer-trust assumption documented, optional two-sided deposit checks. The funding currency itself is never trusted for price — only the minters are.

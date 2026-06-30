@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RWA Launcher — Interactive Demo</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c232c;
+    --border: #2b333d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #ff007a;       /* pink — demand / primary */
+    --accent-2: #2dd4bf;     /* teal — target / secondary */
+    --good: #3fb950;
+    --warn: #d29922;
+    --bad: #f85149;
+    --shadow: 0 6px 24px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, Arial, sans-serif;
+    background: radial-gradient(1200px 600px at 70% -10%, #1a2230 0%, var(--bg) 55%) fixed;
+    color: var(--text);
+    line-height: 1.45;
+  }
+  a { color: var(--accent-2); }
+  header.top {
+    padding: 22px 28px 8px;
+    max-width: 1240px;
+    margin: 0 auto;
+  }
+  header.top h1 { margin: 0; font-size: 22px; letter-spacing: .2px; }
+  header.top h1 .pink { color: var(--accent); }
+  header.top p { margin: 4px 0 0; color: var(--muted); font-size: 14px; max-width: 760px; }
+
+  /* Stepper */
+  .stepper {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    max-width: 1240px; margin: 18px auto 0; padding: 0 28px;
+  }
+  .step {
+    flex: 1 1 0; min-width: 110px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; cursor: default; position: relative;
+    transition: border-color .2s, background .2s, transform .15s;
+  }
+  .step .n { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; }
+  .step .t { font-size: 14px; font-weight: 600; margin-top: 2px; }
+  .step.done { border-color: #2f5132; }
+  .step.done .n::before { content: "✓ "; color: var(--good); }
+  .step.active { border-color: var(--accent); background: linear-gradient(180deg, rgba(255,0,122,.10), rgba(255,0,122,0)); box-shadow: var(--shadow); }
+  .step.clickable { cursor: pointer; }
+  .step.clickable:hover { transform: translateY(-1px); }
+
+  .layout {
+    display: grid; grid-template-columns: 360px 1fr; gap: 18px;
+    max-width: 1240px; margin: 18px auto 40px; padding: 0 28px;
+  }
+  @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; padding: 16px 16px; box-shadow: var(--shadow);
+  }
+  .card h2 { margin: 0 0 12px; font-size: 13px; text-transform: uppercase; letter-spacing: .9px; color: var(--muted); }
+  .card h2 .hint { text-transform: none; letter-spacing: 0; color: var(--muted); font-weight: 400; }
+
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .field .row { display: flex; gap: 8px; align-items: center; }
+  input[type="number"], input[type="text"] {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: 14px; font-variant-numeric: tabular-nums;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+  input:disabled { opacity: .55; }
+  .inline-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  table.bids { width: 100%; border-collapse: collapse; }
+  table.bids th { font-size: 11px; color: var(--muted); text-align: left; font-weight: 500; padding: 4px 6px; }
+  table.bids td { padding: 3px 4px; }
+  table.bids input { padding: 6px 8px; font-size: 13px; }
+  .bid-tag { display:inline-flex; align-items:center; justify-content:center; width: 22px; height: 22px; border-radius: 6px; font-size: 12px; font-weight: 700; background: var(--panel-2); border:1px solid var(--border); }
+  .icon-btn { background: var(--panel-2); border:1px solid var(--border); color: var(--muted); border-radius: 6px; cursor: pointer; padding: 4px 8px; font-size: 13px; }
+  .icon-btn:hover { color: var(--bad); border-color: var(--bad); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; justify-content: center;
+    width: 100%; border: none; cursor: pointer; border-radius: 10px;
+    padding: 12px 14px; font-size: 15px; font-weight: 650; color: #fff;
+    background: linear-gradient(180deg, #ff2d92, var(--accent)); box-shadow: 0 4px 16px rgba(255,0,122,.35);
+    transition: transform .12s, filter .12s;
+  }
+  .btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
+  .btn.secondary { background: var(--panel-2); color: var(--text); border:1px solid var(--border); box-shadow:none; }
+  .btn.ghost { background: transparent; color: var(--muted); border:1px solid var(--border); box-shadow:none; font-weight:550; }
+  .btn-row { display:flex; gap: 8px; margin-top: 4px; }
+
+  .desc { font-size: 13.5px; color: var(--muted); margin: 0 0 14px; }
+
+  /* chart */
+  .chart-wrap { width: 100%; }
+  svg.chart { width: 100%; height: auto; display: block; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 6px; font-size: 12.5px; color: var(--muted); }
+  .legend .k { display:inline-flex; align-items:center; gap:6px; }
+  .swatch { width: 14px; height: 4px; border-radius: 2px; display:inline-block; }
+
+  .readout { display:grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 14px; }
+  @media (max-width: 1100px){ .readout { grid-template-columns: repeat(2,1fr);} }
+  .stat { background: var(--panel-2); border:1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .stat .l { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing:.6px; }
+  .stat .v { font-size: 19px; font-weight: 700; margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .stat .v.small { font-size: 15px; }
+  .stat.accent .v { color: var(--accent); }
+  .stat.good .v { color: var(--good); }
+
+  .pill { display:inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight:600; }
+  .pill.full { background: rgba(63,185,80,.15); color: var(--good); }
+  .pill.partial { background: rgba(210,153,34,.15); color: var(--warn); }
+  .pill.lost, .pill.rejected { background: rgba(248,81,73,.13); color: var(--bad); }
+
+  table.results { width:100%; border-collapse: collapse; margin-top: 4px; font-size: 13px; }
+  table.results th { text-align:left; color: var(--muted); font-weight:500; font-size: 11px; padding: 6px; border-bottom:1px solid var(--border); }
+  table.results td { padding: 7px 6px; border-bottom: 1px solid #20262e; font-variant-numeric: tabular-nums; }
+
+  /* flow / reveal */
+  .reveal { opacity: 0; transform: translateY(10px); transition: opacity .5s, transform .5s; }
+  .reveal.in { opacity: 1; transform: none; }
+  .flow {
+    display:flex; align-items:center; gap: 14px; flex-wrap: wrap;
+    background: linear-gradient(90deg, rgba(255,0,122,.10), rgba(45,212,191,.08));
+    border:1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px;
+  }
+  .flow .box { background: var(--panel-2); border:1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
+  .flow .box .l { font-size: 11px; color: var(--muted); }
+  .flow .box .v { font-size: 18px; font-weight: 700; }
+  .flow .arrow { color: var(--accent); font-size: 22px; font-weight: 700; }
+
+  .tranches { display:grid; grid-template-columns: repeat(2,1fr); gap: 10px; }
+  @media (max-width: 1100px){ .tranches { grid-template-columns: 1fr; } }
+  .tranche { background: var(--panel-2); border:1px solid var(--border); border-radius: 10px; padding: 12px; }
+  .tranche .head { display:flex; justify-content: space-between; align-items:baseline; }
+  .tranche .w { font-weight: 700; font-size: 15px; }
+  .tranche .cap { color: var(--muted); font-size: 12px; }
+  .rangebar { position: relative; height: 30px; margin: 10px 0 8px; background: var(--panel); border-radius: 6px; overflow: hidden; border:1px solid var(--border); }
+  .rangebar .mid { position:absolute; top:0; bottom:0; width:2px; background: var(--accent-2); left:50%; }
+  .rangebar .band { position:absolute; top:0; bottom:0; background: rgba(255,0,122,.22); border-left:1px solid var(--accent); border-right:1px solid var(--accent); }
+  .tranche .toks { display:flex; justify-content: space-between; font-size: 12.5px; margin-top:6px; font-variant-numeric: tabular-nums; }
+  .tranche .toks span b { color: var(--text); }
+  .muted { color: var(--muted); }
+  .note { font-size: 12.5px; color: var(--muted); background: var(--panel-2); border:1px dashed var(--border); border-radius: 8px; padding: 9px 11px; margin-top: 12px; }
+  .kv { display:flex; justify-content: space-between; padding: 5px 0; border-bottom:1px solid #20262e; font-size:13.5px; }
+  .kv:last-child { border-bottom:none; }
+  .kv .v { font-variant-numeric: tabular-nums; font-weight:600; }
+  footer { max-width: 1240px; margin: 0 auto 40px; padding: 0 28px; color: var(--muted); font-size: 12px; }
+  .spacer { height: 6px; }
+</style>
+</head>
+<body>
+  <header class="top">
+    <h1><span class="pink">RWA Launcher</span> — Interactive Demo</h1>
+    <p>A uniform-price <b>reverse auction on a discount</b>: an issuer pre-builds a two-sided concentrated LP position and sells fractional shares of it. Bidders accept a discount off NAV; everyone clears at one marginal discount. Adjust the thresholds and bids, then end the auction.</p>
+  </header>
+
+  <div class="stepper" id="stepper"></div>
+
+  <div class="layout">
+    <div class="card" id="controls"></div>
+    <div>
+      <div id="viz"></div>
+    </div>
+  </div>
+
+  <footer>
+    Illustrative demo of the design in <code>docs/RWALauncherSpec.md</code>. Token unit prices and fees are placeholders for visualization only. 1 share = $1 of position notional.
+  </footer>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- state ----------
+  const STAGES = [
+    { key: "SETUP",   title: "Setup" },
+    { key: "BIDDING", title: "Bidding" },
+    { key: "CLEARED", title: "Cleared" },
+    { key: "ACTIVE",  title: "Active (MM)" },
+    { key: "UNWOUND", title: "Unwound" },
+  ];
+
+  const state = {
+    stage: "SETUP",
+    currency: "USDC",
+    token0: "QQQ",      price0: 500,    // currency per token0
+    token1: "Anthropic", price1: 30,    // currency per token1
+    D: 2000000,                          // issuer deposit / total value to fill
+    maxDiscount: 100,                    // bps, floor
+    graduation: 1500000,                 // min shares sold to graduate
+    feeBps: 35,                          // illustrative fees accrued over the window (bps of D)
+    bids: [
+      { id: 1, label: "A", size: 800000, discount: 0  },
+      { id: 2, label: "B", size: 600000, discount: 5  },
+      { id: 3, label: "C", size: 700000, discount: 10 },
+      { id: 4, label: "D", size: 500000, discount: 20 },
+    ],
+    tranches: [
+      { width: 5,  weight: 10 },
+      { width: 10, weight: 20 },
+      { width: 50, weight: 30 },
+      { width: 100, weight: 40 },
+    ],
+    nextId: 5,
+  };
+  const stageIndex = () => STAGES.findIndex(s => s.key === state.stage);
+
+  // ---------- helpers ----------
+  const fmtUSD  = n => "$" + Math.round(n).toLocaleString("en-US");
+  const fmtUSD2 = n => "$" + n.toLocaleString("en-US", { maximumFractionDigits: 0 });
+  const abbr = n => {
+    const s = n < 0 ? "-" : ""; n = Math.abs(n);
+    if (n >= 1e6) return s + "$" + (n/1e6).toFixed(2) + "M";
+    if (n >= 1e3) return s + "$" + (n/1e3).toFixed(0) + "k";
+    return s + "$" + n.toFixed(0);
+  };
+  const fmtTok = n => n.toLocaleString("en-US", { maximumFractionDigits: n < 100 ? 2 : 0 });
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+
+  // ---------- clearing engine ----------
+  function clearing() {
+    const D = state.D, maxD = state.maxDiscount;
+    const eligible = state.bids.filter(b => b.discount <= maxD)
+                               .slice().sort((a,b) => a.discount - b.discount || a.id - b.id);
+    const rejected = state.bids.filter(b => b.discount > maxD);
+
+    let cum = 0, clearingDiscount = 0;
+    const rows = [];
+    for (const b of eligible) {
+      if (cum >= D) { rows.push({ ...b, filled: 0, status: "lost" }); continue; }
+      const fill = Math.min(b.size, D - cum);
+      cum += fill;
+      clearingDiscount = b.discount;          // last accepted discount = marginal
+      rows.push({ ...b, filled: fill, status: fill >= b.size - 1e-9 ? "full" : "partial" });
+    }
+    for (const b of rejected) rows.push({ ...b, filled: 0, status: "rejected" });
+    rows.sort((a,b) => a.label.localeCompare(b.label));
+
+    const sold = cum;
+    const soldOut = cum >= D - 1e-6;
+    if (!soldOut) clearingDiscount = maxD;     // undersubscribed -> clears at the floor
+    const priceFrac = 1 - clearingDiscount / 10000;
+    const proceeds = sold * priceFrac;
+    const discountCost = sold - proceeds;
+    const graduated = sold >= state.graduation;
+
+    return { D, maxD, rows, sold, soldOut, clearingDiscount, priceFrac, proceeds, discountCost, graduated };
+  }
+
+  // demand step points: cumulative size of bids with discount <= t, for t in [0, maxD]
+  function demandPoints() {
+    const maxD = state.maxDiscount;
+    const elig = state.bids.filter(b => b.discount <= maxD).slice().sort((a,b)=>a.discount-b.discount);
+    const byLevel = new Map();
+    for (const b of elig) byLevel.set(b.discount, (byLevel.get(b.discount)||0) + b.size);
+    const levels = [...byLevel.keys()].sort((a,b)=>a-b);
+    const pts = [[0,0]];
+    let run = 0;
+    for (const lv of levels) {
+      const add = byLevel.get(lv);
+      if (lv === 0) { run += add; pts.push([0, run]); }
+      else { pts.push([lv, run]); run += add; pts.push([lv, run]); }
+    }
+    pts.push([maxD, run]);
+    return { pts, total: run };
+  }
+
+  // ---------- chart ----------
+  function chartSVG() {
+    const W = 680, H = 380, m = { l: 64, r: 24, t: 24, b: 46 };
+    const pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const c = clearing();
+    const { pts, total } = demandPoints();
+    const yMax = Math.max(state.D, total) * 1.15 || 1;
+    const maxD = state.maxDiscount || 1;
+
+    const X = d => m.l + (d / maxD) * pw;
+    const Y = v => m.t + ph - (v / yMax) * ph;
+
+    // axes ticks
+    const xticks = [0, maxD * 0.25, maxD * 0.5, maxD * 0.75, maxD].map(v => Math.round(v));
+    const yticks = [0, yMax*0.25, yMax*0.5, yMax*0.75, yMax];
+
+    let g = "";
+    // grid + y labels
+    yticks.forEach(v => {
+      const y = Y(v);
+      g += `<line x1="${m.l}" y1="${y}" x2="${m.l+pw}" y2="${y}" stroke="#20262e" />`;
+      g += `<text x="${m.l-8}" y="${y+4}" text-anchor="end" fill="#8b949e" font-size="11">${abbr(v)}</text>`;
+    });
+    // x labels
+    xticks.forEach(v => {
+      const x = X(v);
+      g += `<text x="${x}" y="${m.t+ph+22}" text-anchor="middle" fill="#8b949e" font-size="11">${v} bp</text>`;
+    });
+    g += `<text x="${m.l+pw/2}" y="${H-6}" text-anchor="middle" fill="#8b949e" font-size="12">discount accepted (bps) →</text>`;
+    g += `<text transform="translate(16,${m.t+ph/2}) rotate(-90)" text-anchor="middle" fill="#8b949e" font-size="12">cumulative $</text>`;
+
+    // target line (total value to fill)
+    const yT = Y(state.D);
+    g += `<line x1="${m.l}" y1="${yT}" x2="${m.l+pw}" y2="${yT}" stroke="var(--accent-2)" stroke-width="2" stroke-dasharray="6 5" />`;
+    g += `<text x="${m.l+pw-4}" y="${yT-7}" text-anchor="end" fill="var(--accent-2)" font-size="11">total value to fill — ${abbr(state.D)}</text>`;
+
+    // demand area + line
+    const linePts = pts.map(p => `${X(p[0])},${Y(Math.min(p[1], yMax))}`).join(" ");
+    const areaPts = `${X(0)},${Y(0)} ` + linePts + ` ${X(maxD)},${Y(0)}`;
+    g += `<polygon points="${areaPts}" fill="rgba(255,0,122,.08)" />`;
+    g += `<polyline points="${linePts}" fill="none" stroke="var(--accent)" stroke-width="2.5" />`;
+
+    // clearing marker
+    if (total > 0) {
+      const xd = X(c.clearingDiscount);
+      const yd = Y(Math.min(c.sold, yMax));
+      g += `<line x1="${xd}" y1="${m.t}" x2="${xd}" y2="${m.t+ph}" stroke="#e6edf3" stroke-width="1" stroke-dasharray="3 4" opacity=".7"/>`;
+      const cx = xd, cy = c.soldOut ? yT : yd;
+      g += `<circle cx="${cx}" cy="${cy}" r="6" fill="#fff" stroke="var(--accent)" stroke-width="3"/>`;
+      const labX = clamp(xd + 10, m.l, m.l + pw - 150);
+      const labY = clamp(cy - 14, m.t + 12, m.t + ph - 10);
+      g += `<g>
+        <rect x="${labX}" y="${labY-14}" width="148" height="34" rx="6" fill="#0d1117" stroke="var(--border)"/>
+        <text x="${labX+8}" y="${labY}" fill="#e6edf3" font-size="12" font-weight="700">clearing: ${c.clearingDiscount} bp</text>
+        <text x="${labX+8}" y="${labY+14}" fill="#8b949e" font-size="11">price ${c.priceFrac.toFixed(4)} / share</text>
+      </g>`;
+    }
+
+    return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="clearing chart">
+      <rect x="${m.l}" y="${m.t}" width="${pw}" height="${ph}" fill="transparent" stroke="#20262e"/>
+      ${g}
+    </svg>`;
+  }
+
+  // ---------- minting / positions ----------
+  function poolBuild(sold, soldOut) {
+    // 50/50 budget split of the FULL deposit D (issuer funds the whole position)
+    const perSide = state.D / 2;
+    const qty0 = perSide / state.price0;       // token0 minted
+    const qty1 = perSide / state.price1;       // token1 minted
+    const midPool = state.price0 / state.price1; // token1 per token0
+    const sumW = state.tranches.reduce((s,t)=>s+t.weight,0) || 1;
+    const tranches = state.tranches.map(t => {
+      const f = t.weight / sumW;               // normalize so tranches always sum to the position
+      return { width: t.width, weight: t.weight, usdPerSide: perSide * f, q0: qty0 * f, q1: qty1 * f };
+    });
+    return { perSide, qty0, qty1, midPool, tranches };
+  }
+
+  // ---------- renderers ----------
+  function renderStepper() {
+    const idx = stageIndex();
+    document.getElementById("stepper").innerHTML = STAGES.map((s, i) => {
+      const cls = i === idx ? "active" : i < idx ? "done clickable" : "";
+      return `<div class="step ${cls}" data-goto="${i < idx ? s.key : ""}">
+        <div class="n">Stage ${i+1}</div><div class="t">${s.title}</div>
+      </div>`;
+    }).join("");
+  }
+
+  function bidsTable() {
+    const editable = state.stage === "SETUP" || state.stage === "BIDDING";
+    const rows = state.bids.map(b => `
+      <tr data-bid="${b.id}">
+        <td><span class="bid-tag">${esc(b.label)}</span></td>
+        <td><input type="number" min="0" step="50000" value="${b.size}" data-field="size" ${editable?"":"disabled"}/></td>
+        <td><input type="number" min="0" step="1" value="${b.discount}" data-field="discount" ${editable?"":"disabled"}/></td>
+        <td>${editable ? `<button class="icon-btn" data-remove="${b.id}">✕</button>` : ""}</td>
+      </tr>`).join("");
+    return `<table class="bids">
+      <thead><tr><th>Bid</th><th>Size ($)</th><th>Discount (bps)</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    ${editable ? `<div class="spacer"></div><button class="btn ghost" id="add-bid">+ Add bid</button>` : ""}`;
+  }
+
+  function tranchesEditor(editable) {
+    const totalW = state.tranches.reduce((s,t)=>s+t.weight,0);
+    if (!editable) {
+      return `<div class="legend">${state.tranches.map(t =>
+        `<span class="k"><span class="bid-tag" style="width:auto;padding:0 7px">±${t.width}bp</span> ${t.weight}%</span>`).join("")}</div>`;
+    }
+    const rows = state.tranches.map((t,i) => `
+      <tr data-tranche="${i}">
+        <td><input type="number" min="0" step="1" value="${t.width}" data-tfield="width"/></td>
+        <td><input type="number" min="0" step="5" value="${t.weight}" data-tfield="weight"/></td>
+        <td>${state.tranches.length>1?`<button class="icon-btn" data-remove-tranche="${i}">✕</button>`:""}</td>
+      </tr>`).join("");
+    return `<table class="bids">
+        <thead><tr><th>Range ± (bps)</th><th>Weight (%)</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="spacer"></div>
+      <button class="btn ghost" id="add-tranche">+ Add tranche</button>
+      <div class="note" style="margin-top:8px">Weights total <b>${totalW}%</b>${totalW!==100?` — normalized to 100% at build`:``}. Tighter ranges capture more fees but carry more inventory risk.</div>`;
+  }
+
+  function renderControls() {
+    const editable = state.stage === "SETUP" || state.stage === "BIDDING";
+    const dis = editable ? "" : "disabled";
+    const el = document.getElementById("controls");
+
+    let extra = "";
+    if (state.stage === "SETUP") {
+      extra = `<h2 style="margin-top:6px">Tranches <span class="hint">— concentrated ranges seeded at build</span></h2>${tranchesEditor(true)}`;
+    } else if (state.stage === "BIDDING") {
+      extra = `<h2 style="margin-top:6px">Bids</h2>${bidsTable()}
+               <h2 style="margin-top:12px">Tranches <span class="hint">— set at creation</span></h2>${tranchesEditor(false)}`;
+    } else {
+      extra = `<h2 style="margin-top:6px">Tranches</h2>${tranchesEditor(false)}`;
+    }
+
+    el.innerHTML = `
+      <h2>Auction thresholds</h2>
+      <div class="field">
+        <label>Issuer deposit / total value to fill (${esc(state.currency)})</label>
+        <input type="number" min="0" step="100000" value="${state.D}" data-p="D" ${dis}/>
+      </div>
+      <div class="inline-2">
+        <div class="field">
+          <label>Max discount — floor (bps)</label>
+          <input type="number" min="0" step="1" value="${state.maxDiscount}" data-p="maxDiscount" ${dis}/>
+        </div>
+        <div class="field">
+          <label>Min raise to graduate ($)</label>
+          <input type="number" min="0" step="100000" value="${state.graduation}" data-p="graduation" ${dis}/>
+        </div>
+      </div>
+
+      <h2 style="margin-top:6px">Pool sides <span class="hint">— funding currency → two minted tokens</span></h2>
+      <div class="inline-2">
+        <div class="field"><label>Token 0</label><input type="text" value="${esc(state.token0)}" data-p="token0" ${dis}/></div>
+        <div class="field"><label>${esc(state.token0)} price (${esc(state.currency)})</label><input type="number" min="0" step="1" value="${state.price0}" data-p="price0" ${dis}/></div>
+      </div>
+      <div class="inline-2">
+        <div class="field"><label>Token 1</label><input type="text" value="${esc(state.token1)}" data-p="token1" ${dis}/></div>
+        <div class="field"><label>${esc(state.token1)} price (${esc(state.currency)})</label><input type="number" min="0" step="1" value="${state.price1}" data-p="price1" ${dis}/></div>
+      </div>
+
+      ${extra}
+    `;
+  }
+
+  function actionButtons() {
+    switch (state.stage) {
+      case "SETUP":
+        return `<div class="btn-row"><button class="btn" data-act="next">Open bidding →</button></div>`;
+      case "BIDDING":
+        return `<div class="btn-row">
+                  <button class="btn secondary" data-act="reset">Reset</button>
+                  <button class="btn" data-act="end">⏹ End auction</button>
+                </div>`;
+      case "CLEARED":
+        return `<div class="btn-row">
+                  <button class="btn secondary" data-act="reset">Restart</button>
+                  <button class="btn" data-act="next">Fast-forward 1 week →</button>
+                </div>`;
+      case "ACTIVE":
+        return `<div class="btn-row">
+                  <button class="btn secondary" data-act="reset">Restart</button>
+                  <button class="btn" data-act="next">Unwind &amp; open redemption →</button>
+                </div>`;
+      case "UNWOUND":
+        return `<div class="btn-row"><button class="btn" data-act="reset">↺ Run another auction</button></div>`;
+    }
+  }
+
+  function chartCard(title) {
+    return `<div class="card">
+      <h2>${title}</h2>
+      <div class="chart-wrap">${chartSVG()}</div>
+      <div class="legend">
+        <span class="k"><span class="swatch" style="background:var(--accent)"></span> cumulative bids (demand)</span>
+        <span class="k"><span class="swatch" style="background:var(--accent-2)"></span> total value to fill</span>
+        <span class="k"><span class="swatch" style="background:#fff"></span> clearing point — where they cross</span>
+      </div>
+    </div>`;
+  }
+
+  function liveReadout() {
+    const c = clearing();
+    const statusPill = !c.graduated
+      ? `<span class="pill lost">below graduation</span>`
+      : (c.soldOut ? `<span class="pill full">sold out</span>` : `<span class="pill partial">undersubscribed</span>`);
+    return `<div class="readout">
+      <div class="stat accent"><div class="l">Clearing discount</div><div class="v">${c.clearingDiscount} bps</div></div>
+      <div class="stat"><div class="l">Clearing price</div><div class="v">${c.priceFrac.toFixed(4)}<span class="small"> /sh</span></div></div>
+      <div class="stat"><div class="l">Shares sold</div><div class="v small">${fmtUSD(c.sold)}</div></div>
+      <div class="stat"><div class="l">Proceeds → issuer</div><div class="v small">${fmtUSD(c.proceeds)}</div></div>
+    </div>
+    <div class="note">Sorted best→worst, demand fills the total value at <b>${c.clearingDiscount} bps</b>; <b>everyone pays the same price</b> (${c.priceFrac.toFixed(4)}/share). Discount cost to issuer ≈ <b>${fmtUSD(c.discountCost)}</b>. ${statusPill}</div>`;
+  }
+
+  function resultsTable() {
+    const c = clearing();
+    const rows = c.rows.map(r => {
+      const pay = r.filled * c.priceFrac;
+      return `<tr>
+        <td><span class="bid-tag">${esc(r.label)}</span></td>
+        <td>${fmtUSD(r.size)}</td>
+        <td>${r.discount} bp</td>
+        <td><span class="pill ${r.status}">${r.status}</span></td>
+        <td>${r.filled>0?fmtUSD(r.filled):"—"}</td>
+        <td>${r.filled>0?fmtUSD(pay):"—"}</td>
+      </tr>`;
+    }).join("");
+    return `<table class="results">
+      <thead><tr><th>Bid</th><th>Size</th><th>Asked</th><th>Result</th><th>Shares</th><th>Pays @ clearing</th></tr></thead>
+      <tbody>${rows}</tbody></table>`;
+  }
+
+  function positionsView(showFees) {
+    const c = clearing();
+    const b = poolBuild(c.sold, c.soldOut);
+    const tr = b.tranches.map(t => {
+      // band width visual: map ±width bps to a fraction of the bar (cap 100bp -> ~45% half-width visual)
+      const half = clamp(t.width / 100 * 45, 1.5, 46);
+      return `<div class="tranche">
+        <div class="head"><span class="w">±${t.width} bp</span><span class="cap">${(t.weight)}% · ${fmtUSD(t.usdPerSide*2)}</span></div>
+        <div class="rangebar">
+          <div class="band" style="left:${50-half}%; width:${half*2}%"></div>
+          <div class="mid"></div>
+        </div>
+        <div class="toks">
+          <span><b>${fmtTok(t.q0)}</b> ${esc(state.token0)}</span>
+          <span><b>${fmtTok(t.q1)}</b> ${esc(state.token1)}</span>
+        </div>
+      </div>`;
+    }).join("");
+
+    const fees = state.D * state.feeBps / 10000;
+    return `
+      <div class="kv"><span class="muted">Pool</span><span class="v">${esc(state.token0)} / ${esc(state.token1)}</span></div>
+      <div class="kv"><span class="muted">Init price (token1 per token0)</span><span class="v">1 ${esc(state.token0)} = ${fmtTok(b.midPool)} ${esc(state.token1)}</span></div>
+      <div class="kv"><span class="muted">Minted from deposit</span><span class="v">${fmtTok(b.qty0)} ${esc(state.token0)} + ${fmtTok(b.qty1)} ${esc(state.token1)}</span></div>
+      ${showFees?`<div class="kv"><span class="muted">Fees accrued (illustrative, ${state.feeBps} bps)</span><span class="v" style="color:var(--good)">+${fmtUSD(fees)}</span></div>`:""}
+      <div class="spacer"></div><div class="spacer"></div>
+      <div class="tranches">${tr}</div>`;
+  }
+
+  function renderViz() {
+    const viz = document.getElementById("viz");
+    const c = clearing();
+
+    if (state.stage === "SETUP") {
+      viz.innerHTML = `
+        <div class="card">
+          <h2>Stage 1 · Setup</h2>
+          <p class="desc">The issuer deposits <b>${fmtUSD(state.D)} ${esc(state.currency)}</b> and wires a minter per pool side (<b>${esc(state.currency)}→${esc(state.token0)}</b>, <b>${esc(state.currency)}→${esc(state.token1)}</b>). A fixed supply of <b>${fmtUSD(state.D)}</b> position shares (1 share = $1) is minted to the contract. Set the thresholds and bids on the left, then open bidding.</p>
+          <div class="flow">
+            <div class="box"><div class="l">Issuer deposit</div><div class="v">${fmtUSD(state.D)}</div></div>
+            <span class="arrow">→</span>
+            <div class="box"><div class="l">Minter · ${esc(state.token0)}</div><div class="v">${fmtUSD(state.D/2)}</div></div>
+            <div class="box"><div class="l">Minter · ${esc(state.token1)}</div><div class="v">${fmtUSD(state.D/2)}</div></div>
+          </div>
+          ${chartCard("Preview · clearing chart")}
+          <div class="spacer"></div>${actionButtons()}
+        </div>`;
+      return;
+    }
+
+    if (state.stage === "BIDDING") {
+      viz.innerHTML = `
+        <div class="card">
+          <h2>Stage 2 · Bidding</h2>
+          <p class="desc">LPs bid the <b>discount</b> (bps off NAV) they'll accept, for a size. Lower discount = better for the issuer. Cumulative demand (pink) rises as we accept worse bids; it crosses the <b>total value to fill</b> (teal) at the clearing discount. Edit bids on the left to watch it move.</p>
+          ${chartCard("Clearing chart — live")}
+          ${liveReadout()}
+          <div class="spacer"></div>${actionButtons()}
+        </div>`;
+      return;
+    }
+
+    if (state.stage === "CLEARED") {
+      const proceeds = c.proceeds;
+      viz.innerHTML = `
+        <div class="card">
+          <h2>Stage 3 · Cleared</h2>
+          <p class="desc">Auction ended at <b>${c.clearingDiscount} bps</b> — everyone pays <b>${c.priceFrac.toFixed(4)}/share</b>. Proceeds flow to the issuer; the deposit is minted into both pool tokens and seeded as concentrated LP positions.</p>
+          <div class="flow reveal" id="r1">
+            <div class="box"><div class="l">Sold</div><div class="v">${fmtUSD(c.sold)}</div></div>
+            <span class="arrow">→</span>
+            <div class="box" style="border-color:var(--good)"><div class="l">Proceeds → issuer (${esc(state.currency)})</div><div class="v" style="color:var(--good)">${fmtUSD(proceeds)}</div></div>
+            <span class="arrow">·</span>
+            <div class="box"><div class="l">Issuer discount cost</div><div class="v" style="color:var(--accent)">${fmtUSD(c.discountCost)}</div></div>
+          </div>
+          ${chartCard("Final clearing")}
+          <div class="spacer"></div>
+          <div class="reveal" id="r2">${liveReadout()}</div>
+        </div>
+        <div class="spacer"></div>
+        <div class="card reveal" id="r3">
+          <h2>Allocation — everyone pays the clearing price</h2>
+          ${resultsTable()}
+          <div class="note" style="margin-top:12px">Deposit minted into both pool tokens and seeded as concentrated LP positions — see <b>Active (MM)</b> →</div>
+          <div class="spacer"></div>${actionButtons()}
+        </div>`;
+      // staggered reveal
+      ["r1","r2","r3"].forEach((id,i) => setTimeout(()=>{ const e=document.getElementById(id); if(e) e.classList.add("in"); }, 80 + i*260));
+      return;
+    }
+
+    if (state.stage === "ACTIVE") {
+      viz.innerHTML = `
+        <div class="card">
+          <h2>Stage 4 · Active — market-making window</h2>
+          <p class="desc">The position is live in the ${esc(state.token0)}/${esc(state.token1)} pool for the LP duration (e.g. 1 week). Shares are a pro-rata claim; trading fees accrue to shareholders.</p>
+          ${positionsView(true)}
+          <div class="spacer"></div>${actionButtons()}
+        </div>`;
+      return;
+    }
+
+    if (state.stage === "UNWOUND") {
+      const b = poolBuild(c.sold, c.soldOut);
+      const fees = state.D * state.feeBps / 10000;
+      const potValue = state.D + fees; // illustrative: no price move
+      const perShare = potValue / c.sold;
+      viz.innerHTML = `
+        <div class="card">
+          <h2>Stage 5 · Unwound — redemption open</h2>
+          <p class="desc">After the window a keeper withdraws all liquidity into the contract. Shareholders burn shares for their pro-rata ${esc(state.token0)} + ${esc(state.token1)} (plus fees), optionally auto-converted back to ${esc(state.currency)} via the minters.</p>
+          <div class="flow reveal in">
+            <div class="box"><div class="l">Withdrawn liquidity</div><div class="v">${fmtTok(b.qty0)} ${esc(state.token0)} + ${fmtTok(b.qty1)} ${esc(state.token1)}</div></div>
+            <span class="arrow">+</span>
+            <div class="box" style="border-color:var(--good)"><div class="l">Fees</div><div class="v" style="color:var(--good)">+${fmtUSD(fees)}</div></div>
+          </div>
+          <div class="kv"><span class="muted">Redemption pot value</span><span class="v">${fmtUSD(potValue)}</span></div>
+          <div class="kv"><span class="muted">Shares outstanding</span><span class="v">${fmtUSD(c.sold)}</span></div>
+          <div class="kv"><span class="muted">Redemption value per $1 share</span><span class="v" style="color:var(--good)">${perShare.toFixed(4)}</span></div>
+          <div class="note">A winner who paid <b>${c.priceFrac.toFixed(4)}/share</b> redeems at <b>${perShare.toFixed(4)}/share</b> — the discount plus accrued fees is their edge for taking a week of inventory/IL risk. (Real redemption value also moves with the pool price; held flat here for clarity.)</div>
+          <div class="spacer"></div>${actionButtons()}
+        </div>`;
+      return;
+    }
+  }
+
+  function render() { renderStepper(); renderControls(); renderViz(); }
+
+  // ---------- events ----------
+  document.getElementById("stepper").addEventListener("click", e => {
+    const node = e.target.closest("[data-goto]");
+    if (!node) return;
+    const key = node.getAttribute("data-goto");
+    if (key) { state.stage = key; render(); window.scrollTo({top:0,behavior:"smooth"}); }
+  });
+
+  // controls: live update without losing focus -> only re-render viz on input
+  document.getElementById("controls").addEventListener("input", e => {
+    const t = e.target;
+    if (t.dataset.p) {
+      const key = t.dataset.p;
+      if (key === "token0" || key === "token1") state[key] = t.value || "?";
+      else state[key] = Math.max(0, parseFloat(t.value) || 0);
+      renderViz();
+    } else if (t.dataset.field) {
+      const id = +t.closest("[data-bid]").dataset.bid;
+      const bid = state.bids.find(b => b.id === id);
+      if (bid) { bid[t.dataset.field] = Math.max(0, parseFloat(t.value) || 0); renderViz(); }
+    } else if (t.dataset.tfield) {
+      const i = +t.closest("[data-tranche]").dataset.tranche;
+      const tr = state.tranches[i];
+      if (tr) { tr[t.dataset.tfield] = Math.max(0, parseFloat(t.value) || 0); renderViz(); }
+    }
+  });
+
+  document.getElementById("controls").addEventListener("click", e => {
+    if (e.target.id === "add-bid") {
+      const label = String.fromCharCode(64 + state.bids.length + 1);
+      state.bids.push({ id: state.nextId++, label: label.length===1?label:("B"+state.bids.length), size: 300000, discount: 15 });
+      renderControls(); renderViz();
+    }
+    const rem = e.target.getAttribute && e.target.getAttribute("data-remove");
+    if (rem) { state.bids = state.bids.filter(b => b.id !== +rem); renderControls(); renderViz(); }
+
+    if (e.target.id === "add-tranche") {
+      state.tranches.push({ width: 25, weight: 10 });
+      renderControls(); renderViz();
+    }
+    const remT = e.target.getAttribute && e.target.getAttribute("data-remove-tranche");
+    if (remT !== null && remT !== "" && state.tranches.length > 1) {
+      state.tranches.splice(+remT, 1); renderControls(); renderViz();
+    }
+  });
+
+  document.getElementById("viz").addEventListener("click", e => {
+    const act = e.target.closest("[data-act]");
+    if (!act) return;
+    const a = act.getAttribute("data-act");
+    if (a === "next") { const i = stageIndex(); if (i < STAGES.length-1) state.stage = STAGES[i+1].key; }
+    else if (a === "end") { state.stage = "CLEARED"; }
+    else if (a === "reset") { state.stage = "SETUP"; }
+    render(); window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

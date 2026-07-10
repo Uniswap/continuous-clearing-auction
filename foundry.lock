@@ -1,8 +1,8 @@
 {
   "lib/blocknumberish": {
     "tag": {
-      "name": "v1.0.0",
-      "rev": "b911c96b35aaaa45e79715e160b295d2efd56285"
+      "name": "v1.1.0",
+      "rev": "38fe20bc0341d5bc2780d41f90dadb70e10f8cea"
     }
   },
   "lib/forge-chronicles": {

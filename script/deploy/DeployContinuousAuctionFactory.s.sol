@@ -21,7 +21,7 @@ contract DeployContinuousAuctionFactoryScript is Script {
         console2.logBytes32(initCodeHash);
 
         // Deploys to a deterministic address for the configured protocol fee controller.
-        bytes32 salt = 0x7cda7b6c72c517bc1804d9125be10523051a786205580a090d6bb55697b8acf1;
+        bytes32 salt = 0x0f84ad422f72ecae6c249cacbf685a23f203447ecbaf32e8b94ca0a40ea09828;
         factory = IContinuousClearingAuctionFactory(
             address(new ContinuousClearingAuctionFactory{salt: salt}(protocolFeeController))
         );

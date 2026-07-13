@@ -16,4 +16,13 @@ library AuctionStepsBuilder {
     function addStep(bytes memory steps, uint24 mps, uint40 blockDelta) internal pure returns (bytes memory) {
         return abi.encodePacked(steps, abi.encodePacked(mps, blockDelta));
     }
+
+    function splitEvenlyAmongSteps(uint40 numberOfSteps, uint40 blockDelta) internal pure returns (bytes memory) {
+        uint24 mps = uint24(ConstantsLib.MPS / numberOfSteps);
+        bytes memory steps = new bytes(0);
+        for (uint40 i = 0; i < numberOfSteps; i++) {
+            steps = addStep(steps, mps, blockDelta);
+        }
+        return steps;
+    }
 }

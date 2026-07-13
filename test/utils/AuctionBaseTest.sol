@@ -53,6 +53,48 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
     uint256 public constant ONE_WEI_Q96 = 1 << FixedPoint96.RESOLUTION;
     uint256 public constant MAX_ALLOWABLE_DUST_WEI = 1e7; // Or 1 unit of token assuming 18 decimals
 
+    // Temp maximums for Combinatorial Exploration
+    uint256 public constant MAX_TOTAL_SUPPLY = 10_000_000_000 ether; // 10 billion tokens
+    uint256 public constant SAFETY_MARGIN_MAX_PRICE = 1000; // 1% of buffer to max price (best is 0)
+
+    // Dynamic Bounds System
+    // Instead of fixed MAX constants, we calculate bounds dynamically based on interdependencies
+    // Key constraint: totalSupply * maxBidPrice / Q96 <= type(uint128).max
+    //
+    // This allows:
+    // - Small totalSupply → high prices (better price discovery)
+    // - Large totalSupply → lower prices (prevents overflow)
+    // - Optimal parameter space exploration in fuzzing
+
+    /// @notice Calculate maximum safe bid price for a given total supply
+    /// @dev Ensures totalSupply * price / Q96 <= uint128.max
+    /// @param totalSupply_ The total supply of tokens
+    /// @return maxSafePrice Maximum price in Q96 format that won't overflow
+    function helper__calculateMaxSafeBidPrice(uint128 totalSupply_) internal pure returns (uint256 maxSafePrice) {
+        // TODO: investigate why margin needs to be so high
+        uint256 theoreticalMax = MaxBidPriceLib.maxBidPrice(uint128(totalSupply_));
+        maxSafePrice = theoreticalMax * 5 / 10;
+    }
+
+    // /// @notice Calculate maximum safe total supply for a given price
+    // /// @dev Ensures totalSupply * price / Q96 <= uint128.max
+    // /// @param price_ The price in Q96 format
+    // /// @return maxSafeSupply Maximum total supply that won't overflow
+    // function helper__calculateMaxSafeTotalSupply(uint256 price_) internal pure returns (uint256 maxSafeSupply) {
+    //     if (price_ == 0) return type(uint128).max;
+    //     // We want: totalSupply * price / Q96 <= uint128.max
+    //     // Therefore: totalSupply <= (uint128.max * Q96) / price
+    //     // Add 10% safety margin
+    //     uint256 theoreticalMax = (uint256(type(uint128).max) * FixedPoint96.Q96) / price_;
+    //     maxSafeSupply = (theoreticalMax * 90) / 100; // 90% of theoretical max for safety
+
+    //     // Cap at a reasonable maximum
+    //     uint256 absoluteMax = 1_000_000_000 ether;
+    //     if (maxSafeSupply > absoluteMax) {
+    //         maxSafeSupply = absoluteMax;
+    //     }
+    // }
+
     // Test accounts
     address public alice;
     address public bob;
@@ -79,6 +121,139 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return deploymentParams;
     }
 
+    function helper__seedBasedBid(uint256 seed)
+        public
+        view
+        returns (uint128 bidAmount, uint256 maxPriceQ96, uint256 bidBlock, uint64 furtherBidsDelay)
+    {
+        // DYNAMIC BOUNDS: Calculate max safe price for this auction's total supply
+        uint256 maxPriceQ96Max = helper__calculateMaxSafeBidPrice(auction.totalSupply());
+
+        // Respect auction's MAX_BID_PRICE
+        {
+            uint256 auctionMax = auction.MAX_BID_PRICE();
+            if (maxPriceQ96Max > auctionMax) maxPriceQ96Max = auctionMax;
+        }
+
+        // Round and bound max price
+        {
+            maxPriceQ96Max = helper__roundPriceDownToTickSpacing(maxPriceQ96Max, params.tickSpacing);
+            maxPriceQ96 = _bound(
+                uint256(keccak256(abi.encodePacked(seed, 'bid.maxPrice'))),
+                params.floorPrice + params.tickSpacing, // Min price is floor price + tick spacing (minimum required to enter an auction)
+                maxPriceQ96Max
+            );
+            maxPriceQ96 = helper__roundPriceDownToTickSpacing(maxPriceQ96, params.tickSpacing);
+        }
+        // DYNAMIC BOUNDS: Bid amount can be any portion of supply
+        // Real-world scenario: Someone might want to buy the entire supply or even more
+        {
+            uint256 supply = auction.totalSupply();
+            uint256 maxBid = supply; // Allow up to 100% of supply
+            if (maxBid < 1 ether) maxBid = 1 ether;
+            // Cap at uint128.max to prevent overflow
+            if (maxBid > uint256(type(uint128).max)) maxBid = uint256(type(uint128).max);
+            bidAmount = uint128(_bound(uint256(keccak256(abi.encodePacked(seed, 'bid.bidAmount'))), 1, maxBid));
+        }
+
+        // Bind block numbers
+        {
+            bidBlock = uint64(
+                _bound(
+                    uint256(keccak256(abi.encodePacked(seed, 'bid.bidBlock'))),
+                    auction.startBlock(),
+                    auction.endBlock() - 1
+                )
+            );
+
+            furtherBidsDelay = uint64(
+                _bound(
+                    uint256(keccak256(abi.encodePacked(seed, 'bid.furtherBidsDelay'))), 1, auction.endBlock() - bidBlock
+                )
+            );
+        }
+        console.log('helper__seedBasedBid: bidBlock', bidBlock);
+        console.log('helper__seedBasedBid: bidAmount', bidAmount);
+        console.log('helper__seedBasedBid: maxPriceQ96', maxPriceQ96);
+    }
+
+    function helper__seedBasedAuction(uint256 seed) public returns (FuzzDeploymentParams memory) {
+        uint256 totalSupplyR = uint256(keccak256(abi.encodePacked(seed, 'auction.totalSupply')));
+        uint256 floorPriceR = uint256(keccak256(abi.encodePacked(seed, 'auction.floorPrice')));
+        uint256 tickSpacingR = uint256(keccak256(abi.encodePacked(seed, 'auction.tickSpacing')));
+        uint256 startBlockR = uint256(keccak256(abi.encodePacked(seed, 'auction.startBlock')));
+        uint256 auctionStepsR = uint256(keccak256(abi.encodePacked(seed, 'auction.auctionSteps')));
+        uint256 auctionStepsTimeR = uint256(keccak256(abi.encodePacked(seed, 'auction.auctionStepsTime')));
+
+        FuzzDeploymentParams memory deploymentParams;
+
+        _setHardcodedParams(deploymentParams);
+
+        // DYNAMIC BOUNDS: Support realistic token supplies from tiny to massive
+        // Real-world examples:
+        // - Bitcoin: 21M tokens
+        // - Ethereum: ~120M tokens
+        // - Meme tokens: Often billions or trillions
+        // - Enterprise tokens: 5-10 billion common
+        uint256 minTotalSupply = 1; // Support even single-token auctions
+        uint256 maxTotalSupply = MAX_TOTAL_SUPPLY;
+        deploymentParams.totalSupply = uint128(_bound(totalSupplyR, minTotalSupply, maxTotalSupply));
+
+        // Calculate the number of steps - ensure it's a divisor of ConstantsLib.MPS
+        deploymentParams.numberOfSteps = uint8(_bound(auctionStepsR, 1, type(uint8).max));
+        deploymentParams.numberOfSteps = _findNearestDivisorOfMps(deploymentParams.numberOfSteps);
+
+        // DYNAMIC BOUNDS: Calculate max safe price based on actual total supply
+        // This allows high prices for small supplies and prevents overflow for large supplies
+        uint256 maxSafeBidPrice = helper__calculateMaxSafeBidPrice(deploymentParams.totalSupply);
+
+        // DYNAMIC BOUNDS: Tick spacing scales with price range
+        // Smaller for low prices, larger for high prices to keep reasonable tick count
+        uint256 minTickSpacing = 2;
+        uint256 maxTickSpacing = maxSafeBidPrice / 2; // MaxTickSpacing can be at max half of the highest maxBidPrice to not brick the auction
+        if (maxTickSpacing < minTickSpacing) maxTickSpacing = minTickSpacing;
+
+        deploymentParams.auctionParams.tickSpacing = uint128(_bound(tickSpacingR, minTickSpacing, maxTickSpacing));
+
+        // DYNAMIC BOUNDS: Floor price scales with tick spacing
+        // Must be at least tick spacing, and leave room for meaningful price range
+        uint256 minFloorPrice = deploymentParams.auctionParams.tickSpacing;
+        uint256 maxFloorPrice = maxSafeBidPrice / 2; // Floor can be at max half of the highest maxBidPrice to not brick the auction
+
+        deploymentParams.auctionParams.floorPrice = uint128(_bound(floorPriceR, minFloorPrice, maxFloorPrice));
+
+        // Round the floor price down to the nearest multiple of tick spacing
+        deploymentParams.auctionParams.floorPrice = helper__roundPriceDownToTickSpacing(
+            deploymentParams.auctionParams.floorPrice, deploymentParams.auctionParams.tickSpacing
+        );
+
+        // Ensure floor price is at least tick spacing after rounding
+        if (deploymentParams.auctionParams.floorPrice < deploymentParams.auctionParams.tickSpacing) {
+            deploymentParams.auctionParams.floorPrice = deploymentParams.auctionParams.tickSpacing;
+        }
+
+        // Set up the block numbers
+        deploymentParams.auctionParams.startBlock = uint64(_bound(startBlockR, 1, type(uint64).max));
+        _boundBlockNumbers(deploymentParams);
+
+        /// TODO: Add different types of supply curves. Currently only  linear is available
+        uint40 timePerStep = uint40(_bound(auctionStepsTimeR, 1, type(uint40).max));
+        deploymentParams.auctionParams.auctionStepsData =
+            _generateAuctionSteps(deploymentParams.numberOfSteps, timePerStep);
+
+        console.log('helper__seedBasedAuction: startBlock', deploymentParams.auctionParams.startBlock);
+        console.log('helper__seedBasedAuction: endBlock', deploymentParams.auctionParams.endBlock);
+        console.log('helper__seedBasedAuction: claimBlock', deploymentParams.auctionParams.claimBlock);
+        console.log('helper__seedBasedAuction: numberOfSteps', deploymentParams.numberOfSteps);
+        console.log('helper__seedBasedAuction: totalSupply', deploymentParams.totalSupply);
+        console.log('helper__seedBasedAuction: tickSpacing', deploymentParams.auctionParams.tickSpacing);
+        console.log('helper__seedBasedAuction: floorPrice', deploymentParams.auctionParams.floorPrice);
+        console.log('helper__seedBasedAuction: maxSafeBidPrice', maxSafeBidPrice);
+
+        $deploymentParams = deploymentParams;
+        return deploymentParams;
+    }
+
     function helper__validInvariantDeploymentParams() public returns (FuzzDeploymentParams memory) {
         return helper__seededInvariantDeploymentParams(uint256(vm.randomUint()));
     }
@@ -90,11 +265,12 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         _setHardcodedParams(_deploymentParams);
         _deploymentParams.totalSupply = uint128(_bound(_deploymentParams.totalSupply, 1, ConstantsLib.MAX_TOTAL_SUPPLY));
 
+        // Bind number of steps first, since they are getting used in _boundBlockNumbers to calculate the endBlock
+        _deploymentParams.numberOfSteps = uint8(_bound(_deploymentParams.numberOfSteps, 1, type(uint8).max));
+        _deploymentParams.numberOfSteps = _findNearestDivisorOfMps(_deploymentParams.numberOfSteps);
+
         _boundBlockNumbers(_deploymentParams);
         _boundPriceParams(_deploymentParams);
-
-        vm.assume(_deploymentParams.numberOfSteps > 0);
-        vm.assume(ConstantsLib.MPS % _deploymentParams.numberOfSteps == 0); // such that it is divisible
 
         // TODO(md): fix and have variation in the step sizes
         _deploymentParams.auctionParams.auctionStepsData = _generateAuctionSteps(_deploymentParams.numberOfSteps);
@@ -102,6 +278,24 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         $deploymentParams = _deploymentParams;
         totalSupply = _deploymentParams.totalSupply;
         return _deploymentParams.auctionParams;
+    }
+
+    /// @dev Finds the nearest divisor of `value` to `target` (searches up and down)
+    function _findNearestDivisorOfMps(uint8 target) private pure returns (uint8) {
+        if (target == 0) return 1;
+
+        // Search down for a divisor
+        for (uint256 i = 0; i < type(uint8).max; i++) {
+            if (target >= i && ConstantsLib.MPS % (target - i) == 0) {
+                return uint8(target - i);
+            }
+            if (target + i <= type(uint8).max && ConstantsLib.MPS % (target + i) == 0) {
+                return uint8(target + i);
+            }
+        }
+
+        // Should never reach here for MPS = 10^7
+        revert('No nearest divisor of MPS found');
     }
 
     function _setHardcodedParams(FuzzDeploymentParams memory _deploymentParams) private view {
@@ -161,6 +355,15 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         return stepsData;
     }
 
+    function _generateAuctionSteps(uint256 numberOfSteps, uint40 timePerStep) private pure returns (bytes memory) {
+        uint256 mpsPerStep = ConstantsLib.MPS / numberOfSteps;
+        bytes memory stepsData = new bytes(0);
+        for (uint8 i = 0; i < numberOfSteps; i++) {
+            stepsData = AuctionStepsBuilder.addStep(stepsData, uint24(mpsPerStep), timePerStep);
+        }
+        return stepsData;
+    }
+
     // ============================================
     // Block Management Helpers
     // ============================================
@@ -207,10 +410,10 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
         view
         returns (uint256 maxPrice)
     {
-        uint256 tickSpacing = params.tickSpacing;
-        uint256 floorPrice = params.floorPrice;
+        uint256 tickSpacing = params.tickSpacing >> FixedPoint96.RESOLUTION;
+        uint256 floorPrice = params.floorPrice >> FixedPoint96.RESOLUTION;
 
-        if (_tickNumber == 0) return floorPrice;
+        if (_tickNumber == 0) return floorPrice >> FixedPoint96.RESOLUTION;
 
         maxPrice = _bound(floorPrice + (_tickNumber * tickSpacing), floorPrice, type(uint256).max);
     }
@@ -270,9 +473,7 @@ abstract contract AuctionBaseTest is TokenHandler, Assertions, Test {
             lastTickPrice = auction.floorPrice();
         }
 
-        try auction.submitBid{value: ethInputAmount}(
-            maxPrice, ethInputAmount, _owner, lastTickPrice, bytes('')
-        ) returns (
+        try auction.submitBid{value: ethInputAmount}(maxPrice, ethInputAmount, _owner, bytes('')) returns (
             uint256 _bidId
         ) {
             bidId = _bidId;

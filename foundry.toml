@@ -12,6 +12,7 @@ ffi = true
 fs_permissions = [
   { access = "read-write", path = ".forge-snapshots" },
   { access = "read", path = "script/" },
+  { access = "write", path = "./" }
 ]
 extra_output = ["storageLayout"]
 
@@ -42,6 +43,9 @@ runs = 2500
 fail_on_revert = true
 runs = 100
 depth = 2500
+
+[profile.quick.fuzz]
+runs = 500
 
 [profile.pr.fuzz]
 runs = 1000

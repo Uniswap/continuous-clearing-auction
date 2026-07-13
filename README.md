@@ -46,47 +46,22 @@ Addresses are cannonical across select EVM chains. If it is not already deployed
 
 [CCALens](./src/lens/CCALens.sol) is a stateless periphery contract for offchain reads of auction state and initialized tick data. It is deployed separately from the factory and is safe to share across all auctions on a chain.
 
-| Version | Address                                    | Commit Hash                              | Tag          |
-| -------- | ------------------------------------------ | ---------------------------------------- | ---------------- |
-| v2.0.0  | 0xc3C65F5453A3674aDb693cbdA3C842545cD30f53 | aee9bca51c92c24eb24a00d75ad98e678bac61d3 | v2.0.0  |
+| Version | Address                                    | Commit Hash                              | Tag    |
+| ------- | ------------------------------------------ | ---------------------------------------- | ------ |
+| v2.0.0  | 0xc3C65F5453A3674aDb693cbdA3C842545cD30f53 | aee9bca51c92c24eb24a00d75ad98e678bac61d3 | v2.0.0 |
 
 ## Validation Hooks
 
-Auction creators can restrict bidding by setting an optional validation hook at auction creation (the `validationHook` field of the auction parameters). The hook address is immutable for the lifetime of the auction; if it is set to `address(0)`, no validation is performed. On every bid submission the auction calls the hook before accepting the bid, forwarding the bidder-supplied `hookData`. Hooks MUST revert to signal that a bid is invalid — the auction bubbles the revert reason up wrapped in a `ValidationHookCallFailed(bytes reason)` error (see [ValidationHookLib](./src/libraries/ValidationHookLib.sol)).
-
-Hooks must implement the [IValidationHook](./src/interfaces/IValidationHook.sol) interface:
-
-```solidity
-interface IValidationHook {
-    /// @notice Validate a bid
-    /// @dev MUST revert if the bid is invalid
-    function validate(uint256 maxPrice, uint128 amount, address owner, address sender, bytes calldata hookData) external;
-}
-```
-
-Example hooks are provided in [`src/periphery/validationHooks`](./src/periphery/validationHooks): [BaseERC1155ValidationHook](./src/periphery/validationHooks/BaseERC1155ValidationHook.sol) requires the bid `owner` (which must equal the `sender`) to hold a specific ERC1155 token, and [GatedERC1155ValidationHook](./src/periphery/validationHooks/GatedERC1155ValidationHook.sol) enforces the same check until a configured expiration block. See the [technical documentation](./docs/TechnicalDocumentation.md#validation-hooks) for a guide on writing your own hook.
-
-### ERC165 Support
-
-Per [CIP-1](./CIPs/cip-1.md), hooks should also implement [ERC165](https://eips.ethereum.org/EIPS/eip-165) so that onchain contracts and offchain interfaces can trustlessly discover which interfaces a hook supports via `supportsInterface`. Inheriting the abstract [ValidationHookIntrospection](./src/periphery/validationHooks/ValidationHookIntrospection.sol) contract provides out of the box support for the `IERC165` and `IValidationHook` interface IDs. Hooks that expose a custom interface should override `supportsInterface` to additionally signal their own interface ID, as the example hooks do:
-
-| Interface                                                                                     | ID           |
-| --------------------------------------------------------------------------------------------- | ------------ |
-| [IERC165](https://eips.ethereum.org/EIPS/eip-165)                                             | `0x01ffc9a7` |
-| [IValidationHook](./src/interfaces/IValidationHook.sol)                                       | `0x22c44b5f` |
-| [IBaseERC1155ValidationHook](./src/periphery/validationHooks/BaseERC1155ValidationHook.sol)   | `0xc2b72dab` |
-| [IGatedERC1155ValidationHook](./src/periphery/validationHooks/GatedERC1155ValidationHook.sol) | `0x6d417064` |
-
-The interface IDs above can be regenerated with the [IntrospectionSelectors](./script/IntrospectionSelectors.s.sol) script via `forge script script/IntrospectionSelectors.s.sol`.
+Auction creators can restrict bidding by setting an optional validation hook at auction creation. On every bid submission the auction calls the hook's [IValidationHook](./src/interfaces/IValidationHook.sol) `validate` function before accepting the bid; hooks MUST revert to signal that a bid is invalid. Per [CIP-1](./CIPs/cip-1.md), hooks should also implement [ERC165](https://eips.ethereum.org/EIPS/eip-165) so that onchain contracts and offchain interfaces can trustlessly discover which interfaces a hook supports via `supportsInterface`. Example hooks are provided in [`src/periphery/validationHooks`](./src/periphery/validationHooks). See [Validation Hooks](./docs/TechnicalDocumentation.md#validation-hooks) in the technical documentation for a guide on writing your own hook and the list of ERC165 interface IDs.
 
 ## Audits
 
 The code has been audited by Spearbit, OpenZeppelin, and ABDK Consulting. The most recent audits for v2.0.0 are linked below. For a full list of audits, see [Audits](./docs/audits/README.md).
 
-| Version | Date       | Report                                                                                                       |
-| ------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
-| v2.0.0  | 06/16/2026 | [OpenZeppelin](./docs/audits/OpenZeppelin_v2.0.0.pdf)                                                        |
-| v2.0.0  | 06/16/2026 | [Spearbit](./docs/audits/Spearbit_v2.0.0.pdf)                                                                |
+| Version | Date       | Report                                                |
+| ------- | ---------- | ----------------------------------------------------- |
+| v2.0.0  | 06/16/2026 | [OpenZeppelin](./docs/audits/OpenZeppelin_v2.0.0.pdf) |
+| v2.0.0  | 06/16/2026 | [Spearbit](./docs/audits/Spearbit_v2.0.0.pdf)         |
 
 ### Bug bounty
 

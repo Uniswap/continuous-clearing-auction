@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
+import {Bid, BidLib} from '../../../../src/libraries/BidLib.sol';
+import {CheckpointAccountingLib} from '../../../../src/libraries/CheckpointAccountingLib.sol';
+import {ConstantsLib} from '../../../../src/libraries/ConstantsLib.sol';
+import {FixedPoint96} from '../../../../src/libraries/FixedPoint96.sol';
 import {BttBase} from 'btt/BttBase.sol';
-import {Bid, BidLib} from 'continuous-clearing-auction/libraries/BidLib.sol';
-import {CheckpointAccountingLib} from 'continuous-clearing-auction/libraries/CheckpointAccountingLib.sol';
-import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
-import {FixedPoint96} from 'continuous-clearing-auction/libraries/FixedPoint96.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 
 contract CalculateFillTest is BttBase {

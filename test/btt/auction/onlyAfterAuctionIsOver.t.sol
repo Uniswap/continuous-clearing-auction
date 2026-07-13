@@ -3,9 +3,9 @@ pragma solidity 0.8.26;
 
 import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
 
+import {IContinuousClearingAuction} from '../../../src/interfaces/IContinuousClearingAuction.sol';
+import {IStepStorage} from '../../../src/interfaces/IStepStorage.sol';
 import {MockContinuousClearingAuction} from 'btt/mocks/MockContinuousClearingAuction.sol';
-import {IContinuousClearingAuction} from 'continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol';
-import {IStepStorage} from 'continuous-clearing-auction/interfaces/IStepStorage.sol';
 
 contract OnlyAfterAuctionIsOverTest is BttBase {
     function test_WhenBlockNumberLTEndBlock(AuctionFuzzConstructorParams memory _params, uint256 _blockNumber)

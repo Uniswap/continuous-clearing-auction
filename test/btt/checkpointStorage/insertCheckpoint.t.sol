@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
+import {ICheckpointStorage} from '../../../src/interfaces/ICheckpointStorage.sol';
+import {Checkpoint} from '../../../src/libraries/CheckpointLib.sol';
 import {BttBase} from 'btt/BttBase.sol';
 import {MockCheckpointStorage} from 'btt/mocks/MockCheckpointStorage.sol';
-import {ICheckpointStorage} from 'continuous-clearing-auction/interfaces/ICheckpointStorage.sol';
-import {Checkpoint} from 'continuous-clearing-auction/libraries/CheckpointLib.sol';
 
 contract InsertCheckpointTest is BttBase {
     MockCheckpointStorage public mockCheckpointStorage;

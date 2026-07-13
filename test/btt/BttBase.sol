@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import {Bid} from 'continuous-clearing-auction/BidStorage.sol';
-import {AuctionParameters} from 'continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol';
+import {Bid} from '../../src/BidStorage.sol';
+import {AuctionParameters} from '../../src/interfaces/IContinuousClearingAuction.sol';
 import {VmSafe} from 'forge-std/Vm.sol';
 // Chore: move to a shared place
-import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
-import {MaxBidPriceLib} from 'continuous-clearing-auction/libraries/MaxBidPriceLib.sol';
-import {AuctionStep} from 'continuous-clearing-auction/libraries/StepLib.sol';
+import {ConstantsLib} from '../../src/libraries/ConstantsLib.sol';
+import {MaxBidPriceLib} from '../../src/libraries/MaxBidPriceLib.sol';
+import {AuctionStep} from '../../src/libraries/StepLib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {CompactStep, CompactStepLib, Step} from 'test/btt/libraries/auctionStepLib/StepUtils.sol';
 import {AuctionBaseTest} from 'test/utils/AuctionBaseTest.sol';

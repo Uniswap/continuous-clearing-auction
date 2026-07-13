@@ -3,8 +3,8 @@ pragma solidity 0.8.26;
 
 import {AuctionFuzzConstructorParams, BttBase} from '../BttBase.sol';
 
+import {IStepStorage} from '../../../src/interfaces/IStepStorage.sol';
 import {MockContinuousClearingAuction} from 'btt/mocks/MockContinuousClearingAuction.sol';
-import {IStepStorage} from 'continuous-clearing-auction/interfaces/IStepStorage.sol';
 
 contract OnlyAfterClaimBlockTest is BttBase {
     function test_WhenBlockNumberLTClaimBlock(AuctionFuzzConstructorParams memory _params, uint256 _blockNumber)

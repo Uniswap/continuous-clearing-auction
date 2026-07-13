@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
+import {Bid, BidLib} from '../../../../src/libraries/BidLib.sol';
+import {ConstantsLib} from '../../../../src/libraries/ConstantsLib.sol';
 import {BttBase} from 'btt/BttBase.sol';
-import {Bid, BidLib} from 'continuous-clearing-auction/libraries/BidLib.sol';
-import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
 
 contract MpsRemainingInAuctionAfterSubmissionTest is BttBase {
     function test_WhenCalledWithBid(uint24 _startCumulativeMps) external {

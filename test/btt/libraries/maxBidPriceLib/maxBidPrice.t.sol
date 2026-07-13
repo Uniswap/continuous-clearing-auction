@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
-import {MaxBidPriceLib} from 'continuous-clearing-auction/libraries/MaxBidPriceLib.sol';
+import {ConstantsLib} from '../../../../src/libraries/ConstantsLib.sol';
+import {MaxBidPriceLib} from '../../../../src/libraries/MaxBidPriceLib.sol';
 import {Test} from 'forge-std/Test.sol';
 
 contract MaxBidPriceLibTest is Test {

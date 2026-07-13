@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
+import {IAuctionStorage} from '../../../src/interfaces/IAuctionStorage.sol';
+import {IContinuousClearingAuction} from '../../../src/interfaces/IContinuousClearingAuction.sol';
+import {IStepStorage} from '../../../src/interfaces/IStepStorage.sol';
+import {IERC20Minimal} from '../../../src/interfaces/external/IERC20Minimal.sol';
+import {Bid} from '../../../src/libraries/BidLib.sol';
+import {Checkpoint} from '../../../src/libraries/CheckpointLib.sol';
+import {ConstantsLib} from '../../../src/libraries/ConstantsLib.sol';
+import {FixedPoint96} from '../../../src/libraries/FixedPoint96.sol';
+import {MaxBidPriceLib} from '../../../src/libraries/MaxBidPriceLib.sol';
 import {AuctionFuzzConstructorParams, BttBase} from 'btt/BttBase.sol';
 import {MockContinuousClearingAuction} from 'btt/mocks/MockContinuousClearingAuction.sol';
-import {IAuctionStorage} from 'continuous-clearing-auction/interfaces/IAuctionStorage.sol';
-import {IContinuousClearingAuction} from 'continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol';
-import {IStepStorage} from 'continuous-clearing-auction/interfaces/IStepStorage.sol';
-import {IERC20Minimal} from 'continuous-clearing-auction/interfaces/external/IERC20Minimal.sol';
-import {Bid} from 'continuous-clearing-auction/libraries/BidLib.sol';
-import {Checkpoint} from 'continuous-clearing-auction/libraries/CheckpointLib.sol';
-import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
-import {FixedPoint96} from 'continuous-clearing-auction/libraries/FixedPoint96.sol';
-import {MaxBidPriceLib} from 'continuous-clearing-auction/libraries/MaxBidPriceLib.sol';
 import {ERC20Mock} from 'openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 

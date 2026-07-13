@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
+import {ITickStorage} from '../../../src/TickStorage.sol';
+import {BidLib} from '../../../src/libraries/BidLib.sol';
+import {ConstantsLib} from '../../../src/libraries/ConstantsLib.sol';
+import {ValueX7} from '../../../src/libraries/ValueX7Lib.sol';
 import {BttBase} from 'btt/BttBase.sol';
 import {MockTickStorage} from 'btt/mocks/MockTickStorage.sol';
-import {ITickStorage} from 'continuous-clearing-auction/TickStorage.sol';
-import {BidLib} from 'continuous-clearing-auction/libraries/BidLib.sol';
-import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
-import {ValueX7} from 'continuous-clearing-auction/libraries/ValueX7Lib.sol';
 import {StdStorage, stdStorage} from 'forge-std/StdStorage.sol';
 
 contract InitializeTickIfNeededTest is BttBase {

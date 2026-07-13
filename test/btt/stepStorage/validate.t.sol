@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
+import {IStepStorage} from '../../../src/interfaces/IStepStorage.sol';
+import {ConstantsLib} from '../../../src/libraries/ConstantsLib.sol';
+import {AuctionStep} from '../../../src/libraries/StepLib.sol';
 import {BttBase, Step} from 'btt/BttBase.sol';
 import {CompactStep, CompactStepLib} from 'btt/libraries/auctionStepLib/StepUtils.sol';
 import {MockStepStorage} from 'btt/mocks/MockStepStorage.sol';
-import {IStepStorage} from 'continuous-clearing-auction/interfaces/IStepStorage.sol';
-import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
-import {AuctionStep} from 'continuous-clearing-auction/libraries/StepLib.sol';
 import {SSTORE2} from 'solady/utils/SSTORE2.sol';
 
 contract ValidateTest is BttBase {

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
+import {ValueX7} from '../../../../src/libraries/ValueX7Lib.sol';
 import {BttBase} from 'btt/BttBase.sol';
-import {ValueX7} from 'continuous-clearing-auction/libraries/ValueX7Lib.sol';
 
 contract ValueX7OperatorsTest is BttBase {
     function test_Add(ValueX7 _a, ValueX7 _b) external pure {

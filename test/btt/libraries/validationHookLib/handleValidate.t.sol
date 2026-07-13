@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
+import {IValidationHook, ValidationHookLib} from '../../../../src/libraries/ValidationHookLib.sol';
 import {BttBase} from 'btt/BttBase.sol';
-import {IValidationHook, ValidationHookLib} from 'continuous-clearing-auction/libraries/ValidationHookLib.sol';
 
 contract ValidationHookWrapper {
     function validate(

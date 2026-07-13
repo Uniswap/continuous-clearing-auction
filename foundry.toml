@@ -12,6 +12,7 @@ ffi = true
 fs_permissions = [
   { access = "read-write", path = ".forge-snapshots" },
   { access = "read", path = "script/" },
+  { access = "read-write", path = "demo/web" },
 ]
 extra_output = ["storageLayout"]
 
@@ -32,7 +33,14 @@ remappings = [
 additional_compiler_profiles = [{ name = "via_ir", optimizer_runs = 11111, via_ir = true }]
 
 compilation_restrictions = [
-  { paths = "src/ContinuousClearingAuctionFactory.sol", via_ir = true }
+  { paths = "src/ContinuousClearingAuctionFactory.sol", via_ir = true },
+  { paths = "src/rwa/RWALauncher.sol", via_ir = true },
+  # The factory embeds the launcher's creation code, exceeding EIP-170 (~252 bytes over). Fine for the local
+  # demo (deploy anvil + forge with --disable-code-size-limit); a production factory would need a CREATE2/
+  # init-code-hash deployment pattern instead of embedding creation code.
+  { paths = "src/rwa/RWALauncherFactory.sol", via_ir = true },
+  { paths = "demo/contracts/DemoLaunchpad.sol", via_ir = true },
+  { paths = "demo/contracts/DemoAuctionRegistry.sol", via_ir = true }
 ]
 
 [profile.default.fuzz]

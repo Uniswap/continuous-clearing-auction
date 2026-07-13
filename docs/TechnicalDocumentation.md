@@ -163,6 +163,19 @@ contract ExampleValidationHook is IExampleValidationHook, ValidationHookIntrospe
 
 If a validation hook does not have a custom interface, it MAY return the first four bytes of the hash of its contract name.
 
+### ERC165 Interface IDs
+
+Per [CIP-1](../CIPs/cip-1.md), the interface IDs supported by `ValidationHookIntrospection` and the example hooks are listed below.
+
+| Interface                                                                                      | ID           |
+| ---------------------------------------------------------------------------------------------- | ------------ |
+| [IERC165](https://eips.ethereum.org/EIPS/eip-165)                                              | `0x01ffc9a7` |
+| [IValidationHook](../src/interfaces/IValidationHook.sol)                                       | `0x22c44b5f` |
+| [IBaseERC1155ValidationHook](../src/periphery/validationHooks/BaseERC1155ValidationHook.sol)   | `0xc2b72dab` |
+| [IGatedERC1155ValidationHook](../src/periphery/validationHooks/GatedERC1155ValidationHook.sol) | `0x6d417064` |
+
+The interface IDs above can be regenerated with the [IntrospectionSelectors](../script/IntrospectionSelectors.s.sol) script via `forge script script/IntrospectionSelectors.s.sol`.
+
 ## Lens Contracts
 
 The repo ships two stateless lens contracts in [`src/lens`](../src/lens) for offchain reads. They are safe to share across all auctions on a chain.

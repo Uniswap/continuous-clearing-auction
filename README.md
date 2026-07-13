@@ -6,6 +6,7 @@ This repository contains the smart contracts for Continuous Clearing Auctions (C
 
 - [Installation](#installation)
 - [Deployments](#deployments)
+- [Validation Hooks](#validation-hooks)
 - [Audits](#audits)
 - [Docs](#docs)
 - [Repository Structure](#repository-structure)
@@ -46,18 +47,22 @@ Addresses are cannonical across select EVM chains. If it is not already deployed
 
 [CCALens](./src/lens/CCALens.sol) is a stateless periphery contract for offchain reads of auction state and initialized tick data. It is deployed separately from the factory and is safe to share across all auctions on a chain.
 
-| Version | Address                                    | Commit Hash                              | Tag          |
-| -------- | ------------------------------------------ | ---------------------------------------- | ---------------- |
-| v2.0.0  | 0xc3C65F5453A3674aDb693cbdA3C842545cD30f53 | aee9bca51c92c24eb24a00d75ad98e678bac61d3 | v2.0.0  |
+| Version | Address                                    | Commit Hash                              | Tag    |
+| ------- | ------------------------------------------ | ---------------------------------------- | ------ |
+| v2.0.0  | 0xc3C65F5453A3674aDb693cbdA3C842545cD30f53 | aee9bca51c92c24eb24a00d75ad98e678bac61d3 | v2.0.0 |
+
+## Validation Hooks
+
+Auction creators can restrict bidding by setting an optional validation hook at auction creation. On every bid submission the auction calls the hook's [IValidationHook](./src/interfaces/IValidationHook.sol) `validate` function before accepting the bid; hooks MUST revert to signal that a bid is invalid. Per [CIP-1](./CIPs/cip-1.md), hooks should also implement [ERC165](https://eips.ethereum.org/EIPS/eip-165) so that onchain contracts and offchain interfaces can trustlessly discover which interfaces a hook supports via `supportsInterface`. Example hooks are provided in [`src/periphery/validationHooks`](./src/periphery/validationHooks). See [Validation Hooks](./docs/TechnicalDocumentation.md#validation-hooks) in the technical documentation for a guide on writing your own hook and the list of ERC165 interface IDs.
 
 ## Audits
 
 The code has been audited by Spearbit, OpenZeppelin, and ABDK Consulting. The most recent audits for v2.0.0 are linked below. For a full list of audits, see [Audits](./docs/audits/README.md).
 
-| Version | Date       | Report                                                                                                       |
-| ------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
-| v2.0.0  | 06/16/2026 | [OpenZeppelin](./docs/audits/OpenZeppelin_v2.0.0.pdf)                                                        |
-| v2.0.0  | 06/16/2026 | [Spearbit](./docs/audits/Spearbit_v2.0.0.pdf)                                                                |
+| Version | Date       | Report                                                |
+| ------- | ---------- | ----------------------------------------------------- |
+| v2.0.0  | 06/16/2026 | [OpenZeppelin](./docs/audits/OpenZeppelin_v2.0.0.pdf) |
+| v2.0.0  | 06/16/2026 | [Spearbit](./docs/audits/Spearbit_v2.0.0.pdf)         |
 
 ### Bug bounty
 

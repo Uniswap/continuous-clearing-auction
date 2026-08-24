@@ -2,13 +2,16 @@ MaxBidPriceValidationHookTest
 ├── constructor
 │   └── it sets maxBidPrice
 ├── validate
-│   ├── when maxPrice GT maxBidPrice
-│   │   └── it reverts with {MaxBidPriceExceeded}
-│   └── when maxPrice LTE maxBidPrice
-│       ├── when maxPrice EQ maxBidPrice
-│       │   └── it does not revert
-│       └── when maxPrice LT maxBidPrice
-│           └── it does not revert
+│   ├── when maxBidPrice is 0
+│   │   └── it does not revert
+│   └── when maxBidPrice is not 0
+│       ├── when maxPrice GT maxBidPrice
+│       │   └── it reverts with {MaxBidPriceExceeded}
+│       └── when maxPrice LTE maxBidPrice
+│           ├── when maxPrice EQ maxBidPrice
+│           │   └── it does not revert
+│           └── when maxPrice LT maxBidPrice
+│               └── it does not revert
 └── supportsInterface
     ├── when interface is supported
     │   └── it returns true

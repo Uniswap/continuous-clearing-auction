@@ -17,6 +17,23 @@ contract MaxBidPriceValidationHookTest is BttBase {
         assertEq(hook.maxBidPrice(), _maxBidPrice);
     }
 
+    function test_WhenMaxBidPriceIsZero(
+        uint256 _maxPrice,
+        uint128 _amount,
+        address _owner,
+        address _sender,
+        bytes calldata _hookData
+    ) external {
+        // it does not revert
+
+        MaxBidPriceValidationHook hook = new MaxBidPriceValidationHook(0);
+        hook.validate(_maxPrice, _amount, _owner, _sender, _hookData);
+    }
+
+    modifier whenMaxBidPriceIsNotZero() {
+        _;
+    }
+
     function test_WhenMaxPriceGTMaxBidPrice(
         uint256 _maxBidPrice,
         uint256 _maxPrice,
@@ -24,10 +41,10 @@ contract MaxBidPriceValidationHookTest is BttBase {
         address _owner,
         address _sender,
         bytes calldata _hookData
-    ) external {
+    ) external whenMaxBidPriceIsNotZero {
         // it reverts with {MaxBidPriceExceeded}
 
-        _maxBidPrice = bound(_maxBidPrice, 0, type(uint256).max - 1);
+        _maxBidPrice = bound(_maxBidPrice, 1, type(uint256).max - 1);
         _maxPrice = bound(_maxPrice, _maxBidPrice + 1, type(uint256).max);
 
         MaxBidPriceValidationHook hook = new MaxBidPriceValidationHook(_maxBidPrice);
@@ -46,8 +63,10 @@ contract MaxBidPriceValidationHookTest is BttBase {
         address _owner,
         address _sender,
         bytes calldata _hookData
-    ) external whenMaxPriceLTEMaxBidPrice {
+    ) external whenMaxBidPriceIsNotZero whenMaxPriceLTEMaxBidPrice {
         // it does not revert
+
+        _maxBidPrice = bound(_maxBidPrice, 1, type(uint256).max);
 
         MaxBidPriceValidationHook hook = new MaxBidPriceValidationHook(_maxBidPrice);
         hook.validate(_maxBidPrice, _amount, _owner, _sender, _hookData);
@@ -60,7 +79,7 @@ contract MaxBidPriceValidationHookTest is BttBase {
         address _owner,
         address _sender,
         bytes calldata _hookData
-    ) external whenMaxPriceLTEMaxBidPrice {
+    ) external whenMaxBidPriceIsNotZero whenMaxPriceLTEMaxBidPrice {
         // it does not revert
 
         _maxBidPrice = bound(_maxBidPrice, 1, type(uint256).max);

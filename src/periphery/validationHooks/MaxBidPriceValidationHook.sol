@@ -8,7 +8,10 @@ import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 /// @title IMaxBidPriceValidationHook
 interface IMaxBidPriceValidationHook is IValidationHookIntrospection {
     /// @notice The maximum bid price allowed for a continuous clearing auction
-    /// @return the max bid price allowed, in Q96 form
+    /// @dev A value of 0 means no effective cap: implementations MUST treat it as "unset" and accept
+    ///      every bid price. A literal cap of 0 is unreachable anyway, since a bid must price strictly
+    ///      above the clearing price, which starts at a floor of at least `ConstantsLib.MIN_FLOOR_PRICE`.
+    /// @return the max bid price allowed, in Q96 form, or 0 for no cap
     function maxBidPrice() external view returns (uint256);
 }
 
@@ -17,6 +20,7 @@ interface IMaxBidPriceValidationHook is IValidationHookIntrospection {
 /// @dev Since CCA requires all bids to be strictly above the current clearing price, using this hook
 ///      will prevent new bids from being placed once the maximum bid price is reached. All existing
 ///      bids will remain active and partially fill for the remaining supply of tokens.
+/// @dev Constructing with `_maxBidPrice = 0` disables the cap rather than rejecting every bid.
 contract MaxBidPriceValidationHook is IMaxBidPriceValidationHook, ValidationHookIntrospection {
     uint256 public immutable maxBidPrice;
 
@@ -29,7 +33,7 @@ contract MaxBidPriceValidationHook is IMaxBidPriceValidationHook, ValidationHook
 
     /// @inheritdoc IValidationHook
     function validate(uint256 maxPrice, uint128, address, address, bytes calldata) external view {
-        if (maxPrice > maxBidPrice) revert MaxBidPriceExceeded();
+        if (maxBidPrice != 0 && maxPrice > maxBidPrice) revert MaxBidPriceExceeded();
     }
 
     /// @inheritdoc IERC165

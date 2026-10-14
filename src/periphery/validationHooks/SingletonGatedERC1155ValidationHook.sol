@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
+import {IContinuousClearingAuction} from '../../interfaces/IContinuousClearingAuction.sol';
 import {IValidationHook} from '../../interfaces/IValidationHook.sol';
+import {IERC1155ValidationErrors} from './BaseERC1155ValidationHook.sol';
 import {IValidationHookIntrospection, ValidationHookIntrospection} from './ValidationHookIntrospection.sol';
 import {IERC1155} from '@openzeppelin/contracts/token/ERC1155/IERC1155.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 import {BlockNumberish} from 'blocknumberish/src/BlockNumberish.sol';
 
-interface ISingletonGatedERC1155ValidationHook is IValidationHookIntrospection {
+interface ISingletonGatedERC1155ValidationHook is IValidationHookIntrospection, IERC1155ValidationErrors {
     /// @notice Gate settings for one auction
     /// @param tokenId The ERC1155 tokenId (ZKPassport policyId) that bidders must hold
     /// @param expirationBlock The block number until which the check is enforced
@@ -18,20 +20,22 @@ interface ISingletonGatedERC1155ValidationHook is IValidationHookIntrospection {
         bool registered;
     }
 
-    /// @notice Error thrown when the hook is deployed on a chain without the ZKPassport registry
-    error UnsupportedChain();
     /// @notice Error thrown when `validate` is called by an auction that is not registered
     error AuctionNotRegistered(address auction);
     /// @notice Error thrown when the auction already has a config
     error AlreadyRegistered(address auction);
+    /// @notice Error thrown when a deployed auction does not use this hook
+    error AuctionValidationHookMismatch(address auction);
     /// @notice Error thrown when the auction has started
     error AuctionAlreadyStarted(address auction);
-    /// @notice Error thrown when the sender is not the owner of the ERC1155 tokenId
-    error NotOwnerOfERC1155Token(uint256 tokenId);
-    /// @notice Error thrown when the sender is not the owner of the bid
-    error SenderMustBeOwner();
+    /// @notice Error thrown when `expirationBlock` is at or before the current block
+    error ExpirationBlockNotInFuture(uint64 expirationBlock);
 
     /// @notice Emitted when an auction is registered
+    /// @param auction The auction that was registered
+    /// @param registrant The account that registered the auction
+    /// @param tokenId The ERC1155 tokenId (ZKPassport policyId) that bidders must hold
+    /// @param expirationBlock The block number until which the check is enforced
     event AuctionRegistered(
         address indexed auction, address indexed registrant, uint256 tokenId, uint64 expirationBlock
     );
@@ -43,9 +47,13 @@ interface ISingletonGatedERC1155ValidationHook is IValidationHookIntrospection {
     function configOf(address auction) external view returns (AuctionConfig memory);
 
     /// @notice Set the gate settings for `auction`. Permissionless, first write wins, and immutable after.
-    /// @dev Front-run risk: anyone can register any auction address first, including a predicted address.
-    ///      The launcher must deploy the auction and register it in the same transaction.
-    ///      If the auction has code and exposes `startBlock()`, registration reverts at or after that block.
+    /// @dev Register before calling `ContinuousClearingAuctionFactory.create`. Squatting a predicted address is an
+    ///      accepted risk. A squatted salt can be avoided by using a new salt.
+    ///      The `startBlock` check applies only to auctions that are already deployed. Those auctions must use this
+    ///      hook (`validationHook() == address(this)`) and registration reverts at or after `startBlock`.
+    /// @param auction The auction address. It may be a predicted address with no code.
+    /// @param tokenId The ERC1155 tokenId (ZKPassport policyId) that bidders must hold
+    /// @param expirationBlock The block until which the check is enforced. Must be after the current block.
     function register(address auction, uint256 tokenId, uint64 expirationBlock) external;
 }
 
@@ -53,18 +61,21 @@ interface ISingletonGatedERC1155ValidationHook is IValidationHookIntrospection {
 ///         and expiration block. Until the expiration block, bidders must hold the credential and bid for themselves.
 /// @dev The auction calls `validate`, so the config is read for `msg.sender`. An unregistered auction cannot take bids.
 ///      Credential expiry is handled by the registry: `balanceOf` returns 0 for an expired credential.
+///      This hook does not claim the `IBaseERC1155ValidationHook` or `IGatedERC1155ValidationHook` interface IDs.
 contract SingletonGatedERC1155ValidationHook is
     ISingletonGatedERC1155ValidationHook,
     ValidationHookIntrospection,
     BlockNumberish
 {
     /// @inheritdoc ISingletonGatedERC1155ValidationHook
-    IERC1155 public immutable erc1155 = IERC1155(0x000C558ea450790ad88f4f15A302B8F2C9b60d6C);
+    IERC1155 public immutable erc1155;
 
     mapping(address auction => AuctionConfig) private _configOf;
 
-    constructor() {
-        if (block.chainid != 1 && block.chainid != 11_155_111) revert UnsupportedChain();
+    /// @param _erc1155 The ERC1155 registry checked for credential ownership
+    constructor(address _erc1155) {
+        if (_erc1155 == address(0)) revert InvalidTokenAddress();
+        erc1155 = IERC1155(_erc1155);
     }
 
     /// @inheritdoc ISingletonGatedERC1155ValidationHook
@@ -75,9 +86,15 @@ contract SingletonGatedERC1155ValidationHook is
     /// @inheritdoc ISingletonGatedERC1155ValidationHook
     function register(address auction, uint256 tokenId, uint64 expirationBlock) external {
         if (_configOf[auction].registered) revert AlreadyRegistered(auction);
-        (bool success, bytes memory data) = auction.staticcall(abi.encodeWithSignature('startBlock()'));
-        if (success && data.length >= 32 && _getBlockNumberish() >= abi.decode(data, (uint256))) {
-            revert AuctionAlreadyStarted(auction);
+        if (expirationBlock <= _getBlockNumberish()) revert ExpirationBlockNotInFuture(expirationBlock);
+        // Deployed auctions only. Predicted addresses have no code and are registered before `factory.create`.
+        if (auction.code.length > 0) {
+            if (address(IContinuousClearingAuction(auction).validationHook()) != address(this)) {
+                revert AuctionValidationHookMismatch(auction);
+            }
+            if (_getBlockNumberish() >= IContinuousClearingAuction(auction).startBlock()) {
+                revert AuctionAlreadyStarted(auction);
+            }
         }
         _configOf[auction] = AuctionConfig(tokenId, expirationBlock, true);
         emit AuctionRegistered(auction, msg.sender, tokenId, expirationBlock);
@@ -94,7 +111,8 @@ contract SingletonGatedERC1155ValidationHook is
         if (erc1155.balanceOf(owner, config.tokenId) == 0) revert NotOwnerOfERC1155Token(config.tokenId);
     }
 
-    /// @dev Extend the existing introspection support with ISingletonGatedERC1155ValidationHook
+    /// @dev Extend the existing introspection support with ISingletonGatedERC1155ValidationHook.
+    ///      `IBaseERC1155ValidationHook` and `IGatedERC1155ValidationHook` are intentionally not claimed.
     function supportsInterface(bytes4 _interfaceId)
         public
         view

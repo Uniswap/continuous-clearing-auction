@@ -48,7 +48,9 @@ interface ISingletonGatedERC1155ValidationHook is IValidationHookIntrospection, 
 
     /// @notice Set the gate settings for `auction`. Permissionless, first write wins, and immutable after.
     /// @dev Register before calling `ContinuousClearingAuctionFactory.create`. Squatting a predicted address is an
-    ///      accepted risk. A squatted salt can be avoided by using a new salt.
+    ///      accepted risk. After registering, read `configOf(auction)` and confirm it matches your `tokenId` and
+    ///      `expirationBlock` before calling `factory.create`. If it does not match, the registration was front-run:
+    ///      use a new salt.
     ///      The `startBlock` check applies only to auctions that are already deployed. Those auctions must use this
     ///      hook (`validationHook() == address(this)`) and registration reverts at or after `startBlock`.
     /// @param auction The auction address. It may be a predicted address with no code.

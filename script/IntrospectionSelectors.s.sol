@@ -4,6 +4,9 @@ pragma solidity ^0.8.26;
 import {IValidationHook} from '../src/interfaces/IValidationHook.sol';
 import {IBaseERC1155ValidationHook} from '../src/periphery/validationHooks/BaseERC1155ValidationHook.sol';
 import {IGatedERC1155ValidationHook} from '../src/periphery/validationHooks/GatedERC1155ValidationHook.sol';
+import {
+    ISingletonGatedERC1155ValidationHook
+} from '../src/periphery/validationHooks/SingletonGatedERC1155ValidationHook.sol';
 import {IValidationHookIntrospection} from '../src/periphery/validationHooks/ValidationHookIntrospection.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 import {console} from 'forge-std/console.sol';
@@ -18,5 +21,7 @@ contract IntrospectionSelectors {
         console.logBytes4(type(IBaseERC1155ValidationHook).interfaceId);
         console.log('IGatedERC1155ValidationHook');
         console.logBytes4(type(IGatedERC1155ValidationHook).interfaceId);
+        console.log('ISingletonGatedERC1155ValidationHook');
+        console.logBytes4(type(ISingletonGatedERC1155ValidationHook).interfaceId);
     }
 }

@@ -7,7 +7,8 @@ import {MockERC1155} from 'lib/solady/test/utils/mocks/MockERC1155.sol';
 import {IValidationHook} from 'src/interfaces/IValidationHook.sol';
 import {
     BaseERC1155ValidationHook,
-    IBaseERC1155ValidationHook
+    IBaseERC1155ValidationHook,
+    IERC1155ValidationErrors
 } from 'src/periphery/validationHooks/BaseERC1155ValidationHook.sol';
 import {IValidationHookIntrospection} from 'src/periphery/validationHooks/ValidationHookIntrospection.sol';
 
@@ -44,13 +45,13 @@ contract BaseERC1155ValidationHookTest is Test {
         vm.assume(amount > 0);
         token.mint(owner, TOKEN_ID, amount, bytes(''));
 
-        vm.expectRevert(BaseERC1155ValidationHook.SenderMustBeOwner.selector);
+        vm.expectRevert(IERC1155ValidationErrors.SenderMustBeOwner.selector);
         hook.validate(0, 0, owner, sender, bytes(''));
     }
 
     function test_validate_whenSenderIsOwnerAndTokenIsNotOwned_reverts() public {
         assertEq(token.balanceOf(owner, TOKEN_ID), 0);
-        vm.expectRevert(abi.encodeWithSelector(BaseERC1155ValidationHook.NotOwnerOfERC1155Token.selector, TOKEN_ID));
+        vm.expectRevert(abi.encodeWithSelector(IERC1155ValidationErrors.NotOwnerOfERC1155Token.selector, TOKEN_ID));
         hook.validate(0, 0, owner, owner, bytes(''));
     }
 

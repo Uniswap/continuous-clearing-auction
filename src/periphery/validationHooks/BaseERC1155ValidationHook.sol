@@ -6,7 +6,17 @@ import {IValidationHookIntrospection, ValidationHookIntrospection} from './Valid
 import {IERC1155} from '@openzeppelin/contracts/token/ERC1155/IERC1155.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 
-interface IBaseERC1155ValidationHook is IValidationHookIntrospection {
+/// @notice Errors shared by ERC1155 validation hooks
+interface IERC1155ValidationErrors {
+    /// @notice Error thrown when the token address is invalid
+    error InvalidTokenAddress();
+    /// @notice Error thrown when the sender is not the owner of the ERC1155 tokenId
+    error NotOwnerOfERC1155Token(uint256 tokenId);
+    /// @notice Error thrown when the sender is not the owner of the bid
+    error SenderMustBeOwner();
+}
+
+interface IBaseERC1155ValidationHook is IValidationHookIntrospection, IERC1155ValidationErrors {
     /// @notice The ERC1155 token contract that is checked for ownership
     /// @dev Callers should query the returned interface's `balanceOf` method
     function erc1155() external view returns (IERC1155);
@@ -22,13 +32,6 @@ contract BaseERC1155ValidationHook is IBaseERC1155ValidationHook, ValidationHook
     IERC1155 public immutable erc1155;
     /// @inheritdoc IBaseERC1155ValidationHook
     uint256 public immutable tokenId;
-
-    /// @notice Error thrown when the token address is invalid
-    error InvalidTokenAddress();
-    /// @notice Error thrown when the sender is not the owner of the ERC1155 tokenId
-    error NotOwnerOfERC1155Token(uint256 tokenId);
-    /// @notice Error thrown when the sender is not the owner of the ERC1155 token
-    error SenderMustBeOwner();
 
     /// @notice Emitted when the ERC1155 tokenId is set
     /// @param tokenAddress The address of the ERC1155 token

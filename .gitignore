@@ -8,6 +8,7 @@ lcov.info
 .env
 .vscode
 .password
+demo/.deployer.env
 
 broadcast/*/31337
 deployments/**/31337.*

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RWA Launcher — Live Demo</title>
+<style>
+  :root{--bg:#0d1117;--panel:#161b22;--panel2:#1c232c;--border:#2b333d;--text:#e6edf3;--muted:#8b949e;
+        --accent:#ff007a;--accent2:#2dd4bf;--good:#3fb950;--warn:#d29922;--bad:#f85149;--shadow:0 6px 24px rgba(0,0,0,.35);}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+       background:radial-gradient(1200px 600px at 70% -10%,#1a2230 0%,var(--bg) 55%) fixed;color:var(--text);line-height:1.45}
+  header.top{padding:20px 28px 6px;max-width:1240px;margin:0 auto;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+  header.top h1{margin:0;font-size:22px}.pink{color:var(--accent)}
+  header.top p{margin:4px 0 0;color:var(--muted);font-size:14px;max-width:680px}
+  .pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;font-weight:600;background:var(--panel2);border:1px solid var(--border)}
+  .bar{max-width:1240px;margin:8px auto 0;padding:0 28px;display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+  .bar b{color:var(--text);font-variant-numeric:tabular-nums}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bad);margin-right:5px}.dot.ok{background:var(--good)}
+  .layout{display:grid;grid-template-columns:380px 1fr;gap:18px;max-width:1240px;margin:14px auto 40px;padding:0 28px}
+  @media(max-width:980px){.layout{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:var(--shadow);margin-bottom:16px}
+  .card h2{margin:0 0 12px;font-size:13px;text-transform:uppercase;letter-spacing:.9px;color:var(--muted)}
+  .field{margin-bottom:10px}.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+  input{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:14px;font-variant-numeric:tabular-nums}
+  input:focus{outline:none;border-color:var(--accent)}
+  .inline-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;border:none;cursor:pointer;border-radius:10px;padding:11px 14px;font-size:14px;font-weight:650;color:#fff;background:linear-gradient(180deg,#ff2d92,var(--accent));box-shadow:0 4px 16px rgba(255,0,122,.35);transition:transform .12s,filter .12s}
+  .btn:hover{filter:brightness(1.06);transform:translateY(-1px)}.btn:disabled{opacity:.4;cursor:not-allowed;transform:none;filter:none}
+  .btn.sec{background:var(--panel2);color:var(--text);border:1px solid var(--border);box-shadow:none}
+  .btn.row{margin-top:6px}
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+  @media(max-width:1100px){.stat-grid{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+  .stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+  .stat .v{font-size:18px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
+  .stat.accent .v{color:var(--accent)}.stat.good .v{color:var(--good)}
+  svg.chart{width:100%;height:auto;display:block}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:6px;font-size:12px;color:var(--muted)}
+  .legend .k{display:inline-flex;align-items:center;gap:6px}.sw{width:14px;height:4px;border-radius:2px;display:inline-block}
+  .kv{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;border-bottom:1px solid #20262e;font-variant-numeric:tabular-nums}
+  .kv:last-child{border:none}.kv .a{color:var(--muted);font-family:ui-monospace,monospace}
+  .note{font-size:12.5px;color:var(--muted);background:var(--panel2);border:1px dashed var(--border);border-radius:8px;padding:9px 11px;margin-top:12px}
+  #log{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--muted);max-height:130px;overflow:auto;white-space:pre-wrap}
+  #log .err{color:var(--bad)}#log .ok{color:var(--good)}
+  .addr{font-family:ui-monospace,monospace}
+</style>
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1><span class="pink">RWA Launcher</span> — Live Demo <span class="pill" id="stage-pill">—</span></h1>
+      <p>A shared, on-chain reverse-discount auction. Connect a wallet, faucet test dUSDC, and bid the discount you'll accept. Watch the settlement price move as bids come in. When the auction ends, anyone can settle it — minting both pool tokens and seeding a multi-range Uniswap v4 position.</p>
+    </div>
+    <button class="btn" id="connect" style="width:auto">Connect wallet</button>
+  </header>
+  <div class="bar">
+    <span><span class="dot" id="conn"></span><span id="conn-text">loading…</span></span>
+    <span>block <b id="block">—</b></span>
+    <span>you <b class="addr" id="me">not connected</b></span>
+    <span>your dUSDC <b id="my-bal">—</b></span>
+  </div>
+
+  <div class="layout">
+    <div>
+      <div class="card">
+        <h2>Auction</h2>
+        <div class="kv"><span class="a">pool</span><span>dQQQ / dANT</span></div>
+        <div class="kv"><span class="a">total value (deposit)</span><span><b id="i-deposit">—</b> dUSDC</span></div>
+        <div class="kv"><span class="a">max discount</span><span><b id="i-maxd">—</b></span></div>
+        <div class="kv"><span class="a">status</span><span id="i-status">—</span></div>
+        <div class="kv"><span class="a">round #</span><span><b id="i-index">—</b></span></div>
+        <div class="kv"><span class="a">launchpad</span><span class="addr" id="i-auc">—</span></div>
+        <button class="btn sec row" id="reset" disabled>↺ Reset — start a new auction for everyone</button>
+      </div>
+
+      <div class="card">
+        <h2>Bid</h2>
+        <button class="btn sec row" id="faucet">Faucet dUSDC → me</button>
+        <div class="inline-2" style="margin-top:8px">
+          <div class="field"><label>Amount (dUSDC)</label><input id="bidAmount" type="number" value="600"/></div>
+          <div class="field"><label>Discount (bps)</label><input id="bidDiscount" type="number" value="50"/></div>
+        </div>
+        <div id="bid-hint" style="font-size:12px;color:var(--muted);margin:-2px 0 8px"></div>
+        <button class="btn row" id="bid" disabled>Place bid</button>
+      </div>
+
+      <div class="card">
+        <h2>Settle <span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">— permissionless</span></h2>
+        <button class="btn" id="end" disabled>End auction &amp; build position (anyone)</button>
+        <div class="note" id="settle-note"></div>
+      </div>
+
+      <div class="card">
+        <h2>Lockup &amp; redeem <span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">— permissionless</span></h2>
+        <button class="btn sec row" id="unwind" disabled>End lockup &amp; withdraw liquidity (anyone)</button>
+        <div class="kv" style="margin-top:10px"><span class="a">your shares</span><span><b id="my-shares">0</b></span></div>
+        <button class="btn row" id="redeem" disabled>Redeem my shares</button>
+        <div class="note" id="redeem-note" style="display:none"></div>
+      </div>
+
+      <div class="card"><h2>Log</h2><div id="log"></div></div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>Settlement chart — cumulative bids vs total value</h2>
+        <div id="chart"></div>
+        <div class="legend">
+          <span class="k"><span class="sw" style="background:var(--accent)"></span> cumulative bids (demand)</span>
+          <span class="k"><span class="sw" style="background:var(--accent2)"></span> total value to fill</span>
+          <span class="k"><span class="sw" style="background:#fff"></span> live clearing discount (on-chain)</span>
+        </div>
+        <div class="stat-grid">
+          <div class="stat accent"><div class="l">Clearing discount</div><div class="v" id="s-disc">—</div></div>
+          <div class="stat"><div class="l">Clearing price /sh</div><div class="v" id="s-price">—</div></div>
+          <div class="stat"><div class="l">Bids committed</div><div class="v" id="s-demand">—</div></div>
+          <div class="stat good"><div class="l">Status</div><div class="v" id="s-grad">—</div></div>
+        </div>
+      </div>
+      <div class="card" id="positions-card" style="display:none">
+        <h2>LP position built</h2>
+        <div id="positions"></div>
+        <div id="pool-link" style="margin-top:14px"></div>
+      </div>
+    </div>
+  </div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

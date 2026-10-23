@@ -29,6 +29,7 @@ CCA documentation is also available on the official [Uniswap docs site](https://
     - [Auction steps](#auction-steps)
     - [Bidder responsibilities](#bidder-responsibilities)
     - [Limitations with low-decimal tokens or Fee On Transfer tokens](#limitations-with-low-decimal-tokens-or-fee-on-transfer-tokens)
+    - [Gas costs on Ethereum mainnet after Glamsterdam](#gas-costs-on-ethereum-mainnet-after-glamsterdam)
 
 ## Quickstart
 A comprehensive quickstart guide for deploying and interacting with a local CCA deployment is hosted on the official [Uniswap docs site](https://docs.uniswap.org/contracts/liquidity-launchpad/quickstart/setup).
@@ -480,3 +481,38 @@ This list is not exhaustive. It is the responsibility of the bidder to validate 
 Do NOT use the Auction with low-decimal (< 6) tokens. Bidders will lose significant amounts of token due to rounding errors in price and amount calculations.
 
 Fee On Transfer tokens are explicitly not supported as either `token` or `currency`.
+
+### Gas costs on Ethereum mainnet after Glamsterdam
+
+The deployed contracts do not change. Their gas use on Ethereum mainnet changes after the Glamsterdam activation (EIP-7773). Other chains keep their current gas rules until they adopt the same changes. The numbers below use the EIP values at the time of writing.
+
+After the activation, each new storage slot costs 97,920 state gas (EIP-8037), in addition to the execution cost. `submitBid` creates new storage slots for the bid. The first bid in a block also writes a new checkpoint, and a bid at a new price creates a new tick. The cost of a bid therefore depends on the auction state, not only on the bid.
+
+Measured on a fork of Ethereum mainnet. The auction was created through the v2.1.0 factory (`0x000000001F26a0044BaA66024e7b6599c61963F8`) with a test token, no validation hook, a tick spacing equal to the floor price, and two steps of 50 blocks that each sell 1% per block. Each bid used `submitBid` with a 3,000,000 gas limit. The values are receipt gas.
+
+| Bid | ETH, before | ETH, after | USDC, before | USDC, after |
+| --- | ---: | ---: | ---: | ---: |
+| First bid of the auction, new tick, new checkpoint | 362,420 | 1,520,480 | 419,584 | 1,675,364 |
+| Same block, existing tick | 153,165 | 526,545 | 193,229 | 583,509 |
+| Same block, new tick, exact `prevTickPrice` hint | 198,805 | 748,225 | 238,869 | 805,189 |
+| Later block, existing tick, new checkpoint | 285,779 | 1,113,359 | 325,207 | 1,169,687 |
+| Later block, new tick between existing ticks, floor price hint | 297,475 | 1,139,455 | 336,903 | 1,195,783 |
+| Same block, new highest tick, floor price hint | 205,633 | 755,053 | 245,697 | 812,017 |
+| After a step boundary, new tick, new checkpoint | 309,334 | 1,166,214 | 348,762 | 1,222,542 |
+
+These rows are examples, not bounds. The gas of a bid also depends on:
+
+- whether the bid is the first bid in its block (a new checkpoint),
+- whether the bid price is a new tick, and how many initialized ticks the search walks when the `prevTickPrice` hint is not exact,
+- how many ticks the checkpoint walks to find the new clearing price, and how many steps it advances,
+- the currency (ERC20 currencies add a Permit2 transfer),
+- the validation hook, which runs on every bid.
+
+Recommendations for bidding interfaces and bots:
+
+- Estimate the gas of each bid with `eth_estimateGas` against the current block, on a node that runs the new rules. Do not use a fixed gas limit or gas limits from before the activation.
+- Pass the exact `prevTickPrice` hint. A floor price hint makes the tick search walk the initialized ticks.
+- Expect the first bid in a block to cost much more than later bids in the same block. An estimate made in a block that already has a checkpoint does not include the checkpoint. If the bid is then the first bid of its inclusion block, it needs the checkpoint cost too. In the measured ETH rows, a bid at an existing tick used 526,545 gas without a checkpoint and 1,113,359 gas with one. Add a margin for this case.
+
+The ETH rows were also measured on a fork of Sepolia, where the gas rules are already active, and replayed with `eth_simulateV1` on reth and Geth. The client values matched the fork values. The Sepolia values are about 2,000 gas higher than the mainnet values, and about 110,000 gas higher for the first bid, because the chain state is different.
+
